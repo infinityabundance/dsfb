@@ -1,5 +1,9 @@
 # DSFB - Drift-Slew Fusion Bootstrap
 
+[![crates.io](https://img.shields.io/crates/v/dsfb.svg)](https://crates.io/crates/dsfb)
+[![docs.rs](https://docs.rs/dsfb/badge.svg)](https://docs.rs/dsfb)
+[![CI](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml/badge.svg)](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/notebooks/dsfb_simulation.ipynb)
 
 A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation.
@@ -45,6 +49,15 @@ R = Σₖ wₖ·rₖ                 # Aggregate residual
 
 ## Installation
 
+Until the first crates.io release is published, depend on the Git repository:
+
+```toml
+[dependencies]
+dsfb = { git = "https://github.com/infinityabundance/dsfb", branch = "main" }
+```
+
+After release, use crates.io:
+
 Add to your `Cargo.toml`:
 
 ```toml
@@ -57,7 +70,7 @@ Or install from source:
 ```bash
 git clone https://github.com/infinityabundance/dsfb
 cd dsfb
-cargo build --release
+cargo build --release -p dsfb
 ```
 
 ## Usage
@@ -101,7 +114,7 @@ The repository includes a complete simulation harness that demonstrates DSFB per
 
 ```bash
 # Run simulation and generate CSV output
-cargo run --example drift_impulse
+cargo run --release -p dsfb --example drift_impulse
 
 # Output will be written to: out/sim.csv
 ```
@@ -168,7 +181,7 @@ Use the Jupyter notebook to visualize simulation results:
 
 ```bash
 # First, run the simulation to generate data
-cargo run --example drift_impulse
+cargo run --release -p dsfb --example drift_impulse
 
 # Then open the notebook
 jupyter notebook notebooks/dsfb_simulation.ipynb
@@ -216,13 +229,36 @@ Main observer struct:
 
 ```bash
 # Run unit tests
-cargo test
+cargo test -p dsfb
 
 # Run with verbose output
-cargo test -- --nocapture
+cargo test -p dsfb -- --nocapture
 
 # Run specific test
-cargo test test_observer_creation
+cargo test -p dsfb test_observer_creation
+```
+
+## Release Checklist
+
+Before publishing a new version to crates.io:
+
+```bash
+# Verify package contents
+cargo package --list -p dsfb
+
+# Verify publishability without uploading
+cargo publish --dry-run -p dsfb
+```
+
+Then tag and publish explicitly:
+
+```bash
+# Optional: tag release
+git tag v0.1.0
+git push origin v0.1.0
+
+# Publish (intentional/manual step)
+cargo publish -p dsfb
 ```
 
 ## Performance
@@ -261,16 +297,19 @@ For theoretical background, see:
 
 ```
 dsfb/
-├── Cargo.toml              # Package configuration
-├── src/
-│   ├── lib.rs              # Public API
-│   ├── observer.rs         # DSFB observer implementation
-│   ├── state.rs            # State representation
-│   ├── params.rs           # Parameters
-│   ├── trust.rs            # Trust weight calculations
-│   └── sim.rs              # Simulation harness
-├── examples/
-│   └── drift_impulse.rs    # Example simulation
+├── Cargo.toml              # Workspace configuration
+├── crates/
+│   └── dsfb/
+│       ├── Cargo.toml      # Publishable crate
+│       ├── src/
+│       │   ├── lib.rs      # Public API
+│       │   ├── observer.rs # DSFB observer implementation
+│       │   ├── state.rs    # State representation
+│       │   ├── params.rs   # Parameters
+│       │   ├── trust.rs    # Trust weight calculations
+│       │   └── sim.rs      # Simulation harness
+│       └── examples/
+│           └── drift_impulse.rs
 ├── notebooks/
 │   └── dsfb_simulation.ipynb  # Visualization notebook
 ├── docs/                   # Documentation
