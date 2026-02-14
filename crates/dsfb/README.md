@@ -54,3 +54,9 @@ Outputs:
 
 Full documentation, notebooks, and verification scripts:
 https://github.com/infinityabundance/dsfb
+
+## Citation
+
+> **de Beer, R.** (2026).  
+> *Slew-Aware Trust-Adaptive Nonlinear State Estimation for Oscillatory Systems With Drift and Corruption* (v1.0).  
+> Zenodo. https://doi.org/10.5281/zenodo.18642887

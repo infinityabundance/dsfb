@@ -8,7 +8,12 @@
 
 A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation.
 
+## Crate
 
+- Crate name: `dsfb`
+- crates.io: https://crates.io/crates/dsfb
+- docs.rs: https://docs.rs/dsfb
+- Workspace path: `crates/dsfb`
 
 Observer-theoretic framework for slew-aware trust-adaptive oscillatory state estimation under bounded disturbances.
 
@@ -274,6 +279,10 @@ cargo publish -p dsfb
 ## Citation
 
 If you use DSFB in your research, please cite:
+
+> **de Beer, R.** (2026).  
+> *Slew-Aware Trust-Adaptive Nonlinear State Estimation for Oscillatory Systems With Drift and Corruption* (v1.0).  
+> Zenodo. https://doi.org/10.5281/zenodo.18642887
 
 ```bibtex
 @software{dsfb2026,
