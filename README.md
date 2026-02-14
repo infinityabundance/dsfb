@@ -7,10 +7,11 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/notebooks/dsfb_simulation.ipynb)
 
 A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation.
+Observer-theoretic framework for slew-aware trust-adaptive oscillatory state estimation under bounded disturbances.
 
 ## Overview
 
-DSFB is a state estimation algorithm that tracks position (φ), velocity/drift (ω), and acceleration/slew (α) across multiple measurement channels with adaptive trust weighting. The algorithm dynamically adjusts trust weights for each channel based on exponential moving averages (EMA) of residuals, making it robust to impulse disturbances and measurement anomalies.
+DSFB is a state estimation algorithm that tracks position (φ), velocity/drift (ω), and acceleration/slew (α) across multiple measurement channels with adaptive trust weighting. The algorithm dynamically adjusts trust weights for each channel based on exponential moving averages (EMA) of residuals, making it robust to impulse disturbances and measurement anomalies. 
 
 ### Key Features
 
