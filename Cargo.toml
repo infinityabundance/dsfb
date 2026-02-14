@@ -1,0 +1,21 @@
+[package]
+name = "dsfb"
+version = "0.1.0"
+edition = "2021"
+authors = ["Riaan de Beer"]
+license = "MIT OR Apache-2.0"
+description = "Drift-Slew Fusion Bootstrap (DSFB) state estimation"
+repository = "https://github.com/infinityabundance/dsfb"
+readme = "README.md"
+keywords = ["estimation", "observer", "fusion", "trust"]
+categories = ["algorithms", "science"]
+
+[dependencies]
+rand = "0.8"
+rand_distr = "0.4"
+
+[dev-dependencies]
+
+[[example]]
+name = "drift_impulse"
+path = "examples/drift_impulse.rs"
