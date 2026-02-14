@@ -117,6 +117,51 @@ Simulation scenario:
 - Impulse occurs at t=3.0s for 1.0s duration
 - Metrics: RMS error, peak error during impulse, recovery time
 
+### Paper Verification Workflow
+
+For a single-command run that builds the example, writes `sim.csv`, computes metrics from CSV, and generates plots:
+
+```bash
+./scripts/run_drift_impulse_verify.sh
+```
+
+This produces:
+- `sim.csv` (copy of `out/sim.csv`)
+- `out/analysis/metrics.json`
+- `out/analysis/metrics_summary.csv`
+- `out/analysis/phi_estimates.png`
+- `out/analysis/estimation_errors.png`
+- `out/analysis/trust_weight_and_ema.png`
+
+Recovery time is computed as steps after the impulse window until error stays below a near-baseline threshold for `hold_steps` consecutive samples. The threshold is:
+- `baseline_rms * baseline_factor + baseline_margin`
+- `baseline_rms` is RMS error before the impulse start
+
+You can tune this definition:
+
+```bash
+./scripts/run_drift_impulse_verify.sh \
+  --hold-steps 10 \
+  --baseline-factor 1.10 \
+  --baseline-margin 0.005
+```
+
+To verify against values reported in your paper, pass expected metrics and tolerance:
+
+```bash
+./scripts/run_drift_impulse_verify.sh \
+  --expect-rms-mean <value> \
+  --expect-rms-freqonly <value> \
+  --expect-rms-dsfb <value> \
+  --expect-peak-mean <value> \
+  --expect-peak-freqonly <value> \
+  --expect-peak-dsfb <value> \
+  --expect-recovery-mean <value> \
+  --expect-recovery-freqonly <value> \
+  --expect-recovery-dsfb <value> \
+  --tolerance 1e-3
+```
+
 ### Visualizing Results
 
 Use the Jupyter notebook to visualize simulation results:
