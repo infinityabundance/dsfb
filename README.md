@@ -201,12 +201,7 @@ If you use DSFB in your research, please cite:
 
 ## License
 
-Licensed under either of:
-
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-
-at your option.
+Licensed under the Apache License, Version 2.0 ([LICENSE](LICENSE) or http://www.apache.org/licenses/LICENSE-2.0)
 
 ## Contributing
 
@@ -235,7 +230,6 @@ dsfb/
 │   └── dsfb_simulation.ipynb  # Visualization notebook
 ├── docs/                   # Documentation
 ├── README.md               # This file
-├── LICENSE-MIT             # MIT license
-├── LICENSE-APACHE          # Apache license
+├── LICENSE                 # Apache 2.0 license
 └── CITATION.cff            # Citation metadata
 ```
