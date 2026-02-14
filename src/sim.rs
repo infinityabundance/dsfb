@@ -59,6 +59,7 @@ impl FreqOnlyObserver {
 }
 
 /// Simulation configuration
+#[derive(Clone)]
 pub struct SimConfig {
     pub dt: f64,
     pub steps: usize,
@@ -234,7 +235,7 @@ mod tests {
     fn test_rms_error() {
         let errors = vec![0.1, 0.2, 0.3];
         let rms = rms_error(&errors);
-        let expected = ((0.01 + 0.04 + 0.09) / 3.0).sqrt();
+        let expected = ((0.01_f64 + 0.04 + 0.09) / 3.0).sqrt();
         assert!((rms - expected).abs() < 1e-10);
     }
 }
