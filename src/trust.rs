@@ -36,16 +36,16 @@ pub fn calculate_trust_weights(
 ) -> Vec<f64> {
     let n = residuals.len();
     let mut raw_weights = vec![0.0; n];
-    
+
     // Update EMA and calculate raw trust weights
     for k in 0..n {
         // Update EMA: s_k = rho*s_k + (1-rho)*|r_k|
         ema_residuals[k] = rho * ema_residuals[k] + (1.0 - rho) * residuals[k].abs();
-        
+
         // Trust softness: wtilde_k = 1 / (sigma0 + s_k)
         raw_weights[k] = 1.0 / (sigma0 + ema_residuals[k]);
     }
-    
+
     // Normalize weights: w_k = wtilde_k / sum_j wtilde_j
     let sum: f64 = raw_weights.iter().sum();
     if sum > 0.0 {
@@ -59,7 +59,7 @@ pub fn calculate_trust_weights(
             *w = uniform;
         }
     }
-    
+
     raw_weights
 }
 
@@ -72,11 +72,11 @@ mod tests {
         let residuals = vec![0.1, 0.1, 0.1];
         let mut ema_residuals = vec![0.0, 0.0, 0.0];
         let weights = calculate_trust_weights(&residuals, &mut ema_residuals, 0.9, 0.1);
-        
+
         // All weights should be equal for equal residuals
-        assert!((weights[0] - 1.0/3.0).abs() < 1e-10);
-        assert!((weights[1] - 1.0/3.0).abs() < 1e-10);
-        assert!((weights[2] - 1.0/3.0).abs() < 1e-10);
+        assert!((weights[0] - 1.0 / 3.0).abs() < 1e-10);
+        assert!((weights[1] - 1.0 / 3.0).abs() < 1e-10);
+        assert!((weights[2] - 1.0 / 3.0).abs() < 1e-10);
     }
 
     #[test]
@@ -84,7 +84,7 @@ mod tests {
         let residuals = vec![0.1, 1.0, 0.5];
         let mut ema_residuals = vec![0.0, 0.0, 0.0];
         let weights = calculate_trust_weights(&residuals, &mut ema_residuals, 0.9, 0.1);
-        
+
         let sum: f64 = weights.iter().sum();
         assert!((sum - 1.0).abs() < 1e-10);
     }

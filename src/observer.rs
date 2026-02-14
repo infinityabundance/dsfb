@@ -38,15 +38,19 @@ impl DsfbObserver {
     }
 
     /// Perform one step of the DSFB algorithm
-    /// 
+    ///
     /// # Arguments
     /// * `measurements` - Measurement vector y_k for each channel
     /// * `dt` - Time step
-    /// 
+    ///
     /// # Returns
     /// The corrected state estimate
     pub fn step(&mut self, measurements: &[f64], dt: f64) -> DsfbState {
-        assert_eq!(measurements.len(), self.channels, "Measurement count mismatch");
+        assert_eq!(
+            measurements.len(),
+            self.channels,
+            "Measurement count mismatch"
+        );
 
         // Predict step
         let phi_pred = self.state.phi + self.state.omega * dt;
@@ -68,9 +72,9 @@ impl DsfbObserver {
         );
 
         // Store trust stats
-        for k in 0..self.channels {
+        for (k, &weight) in weights.iter().enumerate().take(self.channels) {
             self.trust_stats[k].residual_ema = self.ema_residuals[k];
-            self.trust_stats[k].weight = weights[k];
+            self.trust_stats[k].weight = weight;
         }
 
         // Aggregate residual: R = sum_k w_k * r_k
@@ -127,11 +131,11 @@ mod tests {
         let params = DsfbParams::new(0.5, 0.1, 0.01, 0.9, 0.1);
         let mut observer = DsfbObserver::new(params, 2);
         observer.init(DsfbState::new(1.0, 0.1, 0.0));
-        
+
         let dt = 0.1;
         let measurements = vec![1.01, 1.01]; // Close to predicted value
         let state = observer.step(&measurements, dt);
-        
+
         // State should be updated
         assert!(state.phi > 1.0);
     }
@@ -140,10 +144,10 @@ mod tests {
     fn test_observer_trust_weights_sum() {
         let params = DsfbParams::default();
         let mut observer = DsfbObserver::new(params, 3);
-        
+
         let measurements = vec![0.5, 1.5, 2.5];
         observer.step(&measurements, 0.1);
-        
+
         let sum: f64 = (0..3).map(|i| observer.trust_weight(i)).sum();
         assert!((sum - 1.0).abs() < 1e-10);
     }
