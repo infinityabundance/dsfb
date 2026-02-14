@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  test-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit tests
+        run: cargo test -p dsfb --all-targets --locked
+
+      - name: Run drift impulse example
+        run: cargo run --release -p dsfb --example drift_impulse --locked
+
+      - name: Verify analysis script works on simulation output
+        run: |
+          cp out/sim.csv sim.csv
+          python3 scripts/analyze_sim.py --csv sim.csv --no-plots --impulse-start 300 --impulse-duration 100
