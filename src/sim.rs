@@ -43,17 +43,17 @@ impl FreqOnlyObserver {
     pub fn step(&mut self, measurements: &[f64], dt: f64) -> f64 {
         // Predict (no alpha term)
         let phi_pred = self.phi + self.omega * dt;
-        
+
         // Mean measurement
         let mean_meas: f64 = measurements.iter().sum::<f64>() / measurements.len() as f64;
-        
+
         // Residual
         let residual = mean_meas - phi_pred;
-        
+
         // Correct
         self.phi = phi_pred + self.k_phi * residual;
-        self.omega = self.omega + self.k_omega * residual;
-        
+        self.omega += self.k_omega * residual;
+
         self.phi
     }
 }
@@ -117,7 +117,7 @@ pub fn run_simulation(config: SimConfig, dsfb_params: DsfbParams) -> Vec<SimStep
     // Initialize observers
     let mut dsfb = DsfbObserver::new(dsfb_params, 2);
     dsfb.init(DsfbState::new(0.0, 0.5, 0.0));
-    
+
     let mut freqonly = FreqOnlyObserver::new(0.5, 0.1);
 
     let mut results = Vec::with_capacity(config.steps);
@@ -130,10 +130,10 @@ pub fn run_simulation(config: SimConfig, dsfb_params: DsfbParams) -> Vec<SimStep
         let noise2 = noise_dist.sample(&mut rng);
 
         let y1 = true_state.phi + noise1;
-        
+
         // Channel 2 has drift
         let mut y2 = true_state.phi + config.drift_beta * t + noise2;
-        
+
         // Add impulse
         if step >= config.impulse_start && step < config.impulse_start + config.impulse_duration {
             y2 += config.impulse_amplitude;

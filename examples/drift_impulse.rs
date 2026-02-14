@@ -2,7 +2,10 @@
 //!
 //! Runs a simulation comparing DSFB against baseline methods with an impulse disturbance
 
-use dsfb::{DsfbParams, sim::{run_simulation, SimConfig, rms_error, peak_error_during_impulse, recovery_time}};
+use dsfb::{
+    sim::{peak_error_during_impulse, recovery_time, rms_error, run_simulation, SimConfig},
+    DsfbParams,
+};
 use std::fs::{self, File};
 use std::io::Write;
 
@@ -39,7 +42,11 @@ fn main() -> std::io::Result<()> {
     println!("  Time step: {}", config.dt);
     println!("  Total steps: {}", config.steps);
     println!("  Noise sigma: {}", config.sigma_noise);
-    println!("  Impulse start: {} (t={:.2})", config.impulse_start, config.impulse_start as f64 * config.dt);
+    println!(
+        "  Impulse start: {} (t={:.2})",
+        config.impulse_start,
+        config.impulse_start as f64 * config.dt
+    );
     println!("  Impulse duration: {} steps", config.impulse_duration);
     println!("  Impulse amplitude: {}", config.impulse_amplitude);
     println!();
@@ -77,7 +84,9 @@ fn main() -> std::io::Result<()> {
     let impulse_end = config.impulse_start + config.impulse_duration;
     let recovery_threshold = 0.05;
     let recovery_mean = recovery_time(&results, impulse_end, recovery_threshold, |s| s.err_mean);
-    let recovery_freqonly = recovery_time(&results, impulse_end, recovery_threshold, |s| s.err_freqonly);
+    let recovery_freqonly = recovery_time(&results, impulse_end, recovery_threshold, |s| {
+        s.err_freqonly
+    });
     let recovery_dsfb = recovery_time(&results, impulse_end, recovery_threshold, |s| s.err_dsfb);
 
     // Print metrics
@@ -93,7 +102,10 @@ fn main() -> std::io::Result<()> {
     println!("  Freq-Only:      {:.6}", peak_freqonly);
     println!("  DSFB:           {:.6}", peak_dsfb);
 
-    println!("\nRecovery Time (steps after impulse, threshold={}):", recovery_threshold);
+    println!(
+        "\nRecovery Time (steps after impulse, threshold={}):",
+        recovery_threshold
+    );
     println!("  Mean Fusion:    {}", recovery_mean);
     println!("  Freq-Only:      {}", recovery_freqonly);
     println!("  DSFB:           {}", recovery_dsfb);
@@ -101,7 +113,7 @@ fn main() -> std::io::Result<()> {
     // Write CSV
     let csv_path = "out/sim.csv";
     let mut file = File::create(csv_path)?;
-    
+
     writeln!(
         file,
         "t,phi_true,phi_mean,phi_freqonly,phi_dsfb,err_mean,err_freqonly,err_dsfb,w2,s2"
