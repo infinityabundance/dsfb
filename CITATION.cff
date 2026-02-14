@@ -1,20 +1,24 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: "If you use this software or reference the accompanying paper, please cite it as below."
+title: "DSFB: Drift–Slew Fusion Bootstrap"
 type: software
-title: "DSFB: Drift-Slew Fusion Bootstrap"
+version: "1.0.0"
+date-released: 2026-02-14
+doi: "10.5281/zenodo.18642887"
+
 authors:
   - family-names: "de Beer"
     given-names: "Riaan"
-version: "0.1.0"
-date-released: 2026-02-14
-url: "https://github.com/infinityabundance/dsfb"
+
 repository-code: "https://github.com/infinityabundance/dsfb"
-license: Apache-2.0
-keywords:
-  - "state estimation"
-  - "trust-adaptive"
-  - "fusion"
-  - "nonlinear observer"
-  - "drift"
-  - "slew"
-abstract: "A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation. The algorithm tracks position (phi), velocity/drift (omega), and acceleration/slew (alpha) across multiple measurement channels with adaptive trust weighting."
+
+preferred-citation:
+  type: article
+  title: "Slew-Aware Trust-Adaptive Nonlinear State Estimation"
+  authors:
+    - family-names: "de Beer"
+      given-names: "Riaan"
+  year: 2026
+  journal: "Zenodo"
+  doi: "10.5281/zenodo.18642887"
+  url: "https://zenodo.org/records/18642887"
