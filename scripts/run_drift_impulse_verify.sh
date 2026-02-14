@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
 
 printf '[1/3] Building and running example...\n'
-cargo run --release --example drift_impulse
+cargo run --release -p dsfb --example drift_impulse
 
 if [[ ! -f out/sim.csv ]]; then
   printf 'ERROR: expected out/sim.csv after running the example.\n' >&2
