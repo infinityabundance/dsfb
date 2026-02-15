@@ -20,7 +20,12 @@ This produces:
 
 - Open `dsfb_fusion_figures.ipynb` in Google Colab or Jupyter.
 - Keep `DATA_URLS` empty to load local `output-dsfb-fusion-bench/<timestamp>/*.csv`, or set URL strings.
+- In Google Colab, click `Run all` first.
 - If no local files are found, Colab upload prompts are used.
+- When prompted, click `Browse` in the file picker and upload:
+- `summary.csv`
+- `heatmap.csv`
+- `sim-dsfb-fusion-bench.csv` (or `trajectories.csv`)
 
 ## Notebook outputs
 

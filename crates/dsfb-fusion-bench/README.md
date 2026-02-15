@@ -85,6 +85,13 @@ Companion notebook:
 
 The notebook auto-detects the latest run in `output-dsfb-fusion-bench/` and falls back to legacy paths or uploaded files in Colab.
 
+Google Colab note:
+- Click `Run all` first.
+- If prompted for data files, click `Browse` in the file picker and upload:
+- `summary.csv`
+- `heatmap.csv`
+- `sim-dsfb-fusion-bench.csv` (or `trajectories.csv`)
+
 ## Repository
 
 Full documentation, notebooks, and scripts:
