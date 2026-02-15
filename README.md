@@ -320,6 +320,10 @@ If you use DSFB in your research, please cite:
 > *Slew-Aware Trust-Adaptive Nonlinear State Estimation for Oscillatory Systems With Drift and Corruption* (v1.0).  
 > Zenodo. https://doi.org/10.5281/zenodo.18642887
 
+> **de Beer, R.** (2026).  
+> *Trust-Adaptive Multi-Diagnostic Weighting for Magnetically Confined Plasma State Estimation* (v1.0).  
+> Zenodo. https://doi.org/10.5281/zenodo.18644561
+
 ```bibtex
 @software{dsfb2026,
   author = {de Beer, Riaan},
