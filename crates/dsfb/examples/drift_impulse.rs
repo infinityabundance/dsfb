@@ -7,13 +7,57 @@ use dsfb::{
     DsfbParams,
 };
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{self, Write};
+use std::path::PathBuf;
+use std::process::Command;
+
+fn utc_timestamp() -> io::Result<String> {
+    let output = Command::new("date")
+        .arg("-u")
+        .arg("+%Y%m%d_%H%M%S")
+        .output()?;
+
+    if !output.status.success() {
+        return Err(io::Error::other("failed to execute date command"));
+    }
+
+    let stamp = String::from_utf8(output.stdout)
+        .map_err(|err| io::Error::other(format!("invalid UTF-8 from date command: {err}")))?;
+    let stamp = stamp.trim().to_string();
+    if stamp.is_empty() {
+        return Err(io::Error::other("empty timestamp from date command"));
+    }
+
+    Ok(stamp)
+}
+
+fn create_run_output_dir(base_dir: &str) -> io::Result<PathBuf> {
+    fs::create_dir_all(base_dir)?;
+
+    let stamp = utc_timestamp()?;
+
+    let mut run_dir = PathBuf::from(base_dir).join(&stamp);
+    let mut suffix = 1usize;
+    while run_dir.exists() {
+        if suffix > 999 {
+            return Err(io::Error::other(format!(
+                "failed to allocate unique run output directory under {base_dir}"
+            )));
+        }
+        run_dir = PathBuf::from(base_dir).join(format!("{stamp}_{suffix:03}"));
+        suffix += 1;
+    }
+
+    fs::create_dir_all(&run_dir)?;
+    Ok(run_dir)
+}
 
 fn main() -> std::io::Result<()> {
     println!("Running DSFB Drift-Impulse Simulation...\n");
 
-    // Create output directory
-    fs::create_dir_all("out")?;
+    let base_outdir =
+        std::env::var("DSFB_OUTPUT_BASE").unwrap_or_else(|_| "output-dsfb".to_string());
+    let run_outdir = create_run_output_dir(&base_outdir)?;
 
     // Configure simulation
     let config = SimConfig {
@@ -49,6 +93,7 @@ fn main() -> std::io::Result<()> {
     );
     println!("  Impulse duration: {} steps", config.impulse_duration);
     println!("  Impulse amplitude: {}", config.impulse_amplitude);
+    println!("  Output directory: {}", run_outdir.display());
     println!();
 
     let results = run_simulation(config.clone(), dsfb_params);
@@ -111,8 +156,8 @@ fn main() -> std::io::Result<()> {
     println!("  DSFB:           {}", recovery_dsfb);
 
     // Write CSV
-    let csv_path = "out/sim.csv";
-    let mut file = File::create(csv_path)?;
+    let csv_path = run_outdir.join("sim-dsfb.csv");
+    let mut file = File::create(&csv_path)?;
 
     writeln!(
         file,
@@ -136,7 +181,7 @@ fn main() -> std::io::Result<()> {
         )?;
     }
 
-    println!("\nCSV output written to: {}", csv_path);
+    println!("\nCSV output written to: {}", csv_path.display());
     println!("Done!");
 
     Ok(())

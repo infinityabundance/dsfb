@@ -17,6 +17,9 @@ Thumbs.db
 
 # Output
 out/
+outputs/
+output-dsfb/
+output-dsfb-fusion-bench/
 *.csv
 
 # Python

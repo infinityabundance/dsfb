@@ -3,8 +3,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-CSV_PATH = "sim.csv"
 ZOOM_MIN, ZOOM_MAX = 3.6, 4.0
 IMPULSE_MIN, IMPULSE_MAX = 3.0, 4.0
 
@@ -12,6 +12,32 @@ REQUIRED_COLUMNS = [
     "t", "phi_true", "phi_mean", "phi_freqonly", "phi_dsfb",
     "err_mean", "err_freqonly", "err_dsfb", "w2", "s2"
 ]
+
+def resolve_csv_path() -> str:
+    run_candidates = sorted(Path("output-dsfb").glob("*/sim-dsfb.csv"))
+    if run_candidates:
+        return str(run_candidates[-1])
+
+    run_candidates = sorted(Path("output-dsfb").glob("*/sim.csv"))
+    if run_candidates:
+        return str(run_candidates[-1])
+
+    static_candidates = [
+        Path("output-dsfb/sim-dsfb.csv"),
+        Path("sim-dsfb.csv"),
+        Path("output-dsfb/sim.csv"),
+        Path("sim.csv"),
+        Path("out/sim.csv"),
+    ]
+    for candidate in static_candidates:
+        if candidate.exists():
+            return str(candidate)
+
+    raise FileNotFoundError(
+        "Could not find DSFB simulation CSV. Expected sim-dsfb.csv or output-dsfb/<timestamp>/sim-dsfb.csv."
+    )
+
+CSV_PATH = resolve_csv_path()
 
 df = pd.read_csv(CSV_PATH)
 
