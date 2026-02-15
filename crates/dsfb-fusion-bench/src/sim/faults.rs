@@ -15,8 +15,9 @@ pub fn apply_impulse_corruption(
     let local = (step - start) as f64;
     let duration = cfg.corruption_duration as f64;
 
-    // Smooth pulse envelope in [0, 1], peaking at the middle of the window.
-    let phase = std::f64::consts::PI * (local / duration);
+    // Smooth pulse envelope sampled at bin centers so a 1-step window
+    // still receives full corruption amplitude.
+    let phase = std::f64::consts::PI * ((local + 0.5) / duration);
     let envelope = phase.sin().abs();
 
     let group = cfg.corruption_group;
