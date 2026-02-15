@@ -9,7 +9,13 @@ Deterministic synthetic benchmarking package for DSFB fusion diagnostics. This c
 
 ## Install
 
-This crate is not published yet. Run from source:
+Install from crates.io:
+
+```bash
+cargo install dsfb-fusion-bench
+```
+
+Or run from source:
 
 ```bash
 git clone https://github.com/infinityabundance/dsfb
@@ -104,6 +110,14 @@ For the DSFB estimator crate itself, see:
 - `crates/dsfb`
 - `crates/dsfb/README.md`
 
+## Citation
+
+If you use `dsfb-fusion-bench` in your research, please cite:
+
+> **de Beer, R.** (2026).  
+> *Trust-Adaptive Multi-Diagnostic Weighting for Magnetically Confined Plasma State Estimation* (v1.0).  
+> Zenodo. https://doi.org/10.5281/zenodo.18644561
+
 ## Publication Note
 
-`dsfb-fusion-bench` is being prepared alongside a separate paper workflow and is intentionally not published yet.
+`dsfb-fusion-bench` is maintained alongside a separate paper workflow in this repository.
