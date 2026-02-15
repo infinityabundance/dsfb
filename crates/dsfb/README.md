@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/dsfb.svg)](https://crates.io/crates/dsfb)
 [![docs.rs](https://docs.rs/dsfb/badge.svg)](https://docs.rs/dsfb)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/infinityabundance/dsfb/blob/main/LICENSE)
-[![DSFB Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/notebooks/dsfb_simulation.ipynb)
+[![DSFB Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb/dsfb_simulation.ipynb)
 
 Drift-Slew Fusion Bootstrap (DSFB): a trust-adaptive nonlinear state estimator for tracking position (`phi`), drift (`omega`), and slew (`alpha`) across multiple measurement channels.
 
