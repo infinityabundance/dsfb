@@ -12,10 +12,10 @@ From crates.io:
 
 ```toml
 [dependencies]
-dsfb = "0.1"
+dsfb = "0.1.1"
 ```
 
-Before first crates.io release, use Git:
+To track unreleased changes, use Git:
 
 ```toml
 [dependencies]
@@ -47,13 +47,19 @@ cargo run --release -p dsfb --example drift_impulse
 ```
 
 Outputs:
-- `out/sim.csv`
+- `output-dsfb/<timestamp>/sim-dsfb.csv`
 - metrics summary in console
 
 ## Repository
 
 Full documentation, notebooks, and verification scripts:
 https://github.com/infinityabundance/dsfb
+
+## Separate Crate In This Repo
+
+For the separate synthetic benchmarking package used for fusion diagnostics paper workflows, see:
+- `crates/dsfb-fusion-bench`
+- `crates/dsfb-fusion-bench/README.md`
 
 ## Citation
 

@@ -8,12 +8,19 @@
 
 A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation.
 
-## Crate
+## Workspace Crates
 
-- Crate name: `dsfb`
-- crates.io: https://crates.io/crates/dsfb
-- docs.rs: https://docs.rs/dsfb
-- Workspace path: `crates/dsfb`
+This repository contains two separate crates for two separate paper workflows:
+
+- `dsfb`:
+  crate for the DSFB estimator itself
+  workspace path: `crates/dsfb`
+  crates.io: https://crates.io/crates/dsfb
+  docs.rs: https://docs.rs/dsfb
+- `dsfb-fusion-bench`:
+  standalone synthetic benchmarking + plotting-data generator crate
+  workspace path: `crates/dsfb-fusion-bench`
+  local README: `crates/dsfb-fusion-bench/README.md`
 
 Observer-theoretic framework for slew-aware trust-adaptive oscillatory state estimation under bounded disturbances.
 
@@ -58,20 +65,18 @@ R = Σₖ wₖ·rₖ                 # Aggregate residual
 
 ## Installation
 
-Until the first crates.io release is published, depend on the Git repository:
+From crates.io:
+
+```toml
+[dependencies]
+dsfb = "0.1.1"
+```
+
+To track unreleased changes, use Git:
 
 ```toml
 [dependencies]
 dsfb = { git = "https://github.com/infinityabundance/dsfb", branch = "main" }
-```
-
-After release, use crates.io:
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-dsfb = "0.1"
 ```
 
 Or install from source:
@@ -125,7 +130,7 @@ The repository includes a complete simulation harness that demonstrates DSFB per
 # Run simulation and generate CSV output
 cargo run --release -p dsfb --example drift_impulse
 
-# Output will be written to: out/sim.csv
+# Output will be written to: output-dsfb/<timestamp>/sim-dsfb.csv
 ```
 
 The simulation compares three methods:
@@ -139,21 +144,37 @@ Simulation scenario:
 - Impulse occurs at t=3.0s for 1.0s duration
 - Metrics: RMS error, peak error during impulse, recovery time
 
+## Fusion Benchmark Crate (Separate Artifact)
+
+For the separate fusion diagnostics benchmarking artifact, use `dsfb-fusion-bench`:
+
+```bash
+cargo run --release -p dsfb-fusion-bench -- --run-default
+cargo run --release -p dsfb-fusion-bench -- --run-sweep
+```
+
+Outputs are written under:
+- `output-dsfb-fusion-bench/<timestamp>/` (from workspace root by default)
+- includes `summary.csv`, `heatmap.csv`, `trajectories.csv`, and `sim-dsfb-fusion-bench.csv`
+
+Companion notebook for figures:
+- `crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb`
+
 ### Paper Verification Workflow
 
-For a single-command run that builds the example, writes `sim.csv`, computes metrics from CSV, and generates plots:
+For a single-command run that builds the example, writes the simulation CSV, computes metrics from CSV, and generates plots:
 
 ```bash
 ./scripts/run_drift_impulse_verify.sh
 ```
 
 This produces:
-- `sim.csv` (copy of `out/sim.csv`)
-- `out/analysis/metrics.json`
-- `out/analysis/metrics_summary.csv`
-- `out/analysis/phi_estimates.png`
-- `out/analysis/estimation_errors.png`
-- `out/analysis/trust_weight_and_ema.png`
+- `output-dsfb/<timestamp>/sim-dsfb.csv`
+- `output-dsfb/<timestamp>/analysis/metrics.json`
+- `output-dsfb/<timestamp>/analysis/metrics_summary.csv`
+- `output-dsfb/<timestamp>/analysis/phi_estimates.png`
+- `output-dsfb/<timestamp>/analysis/estimation_errors.png`
+- `output-dsfb/<timestamp>/analysis/trust_weight_and_ema.png`
 
 Recovery time is computed as steps after the impulse window until error stays below a near-baseline threshold for `hold_steps` consecutive samples. The threshold is:
 - `baseline_rms * baseline_factor + baseline_margin`
@@ -323,8 +344,15 @@ dsfb/
 │       │   └── sim.rs      # Simulation harness
 │       └── examples/
 │           └── drift_impulse.rs
+│   └── dsfb-fusion-bench/
+│       ├── Cargo.toml      # Benchmarking crate
+│       ├── src/            # Simulation + methods + metrics + IO
+│       ├── configs/        # Reproducible run configs
+│       └── dsfb_fusion_figures.ipynb
 ├── notebooks/
 │   └── dsfb_simulation.ipynb  # Visualization notebook
+├── output-dsfb/            # Timestamped simulation outputs
+├── output-dsfb-fusion-bench/  # Timestamped benchmark outputs
 ├── docs/                   # Documentation
 ├── README.md               # This file
 ├── LICENSE                 # Apache 2.0 license

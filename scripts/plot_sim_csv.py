@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Plot DSFB simulation outputs from sim.csv and print summary statistics."""
+"""Plot DSFB simulation outputs from sim-dsfb.csv and print summary statistics."""
 
 from __future__ import annotations
 
 import argparse
 import os
-from typing import Dict
+from pathlib import Path
+from typing import Dict, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,9 +28,13 @@ REQUIRED_COLUMNS = [
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Read sim.csv, plot DSFB metrics, and print summary statistics."
+        description="Read sim-dsfb.csv, plot DSFB metrics, and print summary statistics."
     )
-    parser.add_argument("--csv", default="sim.csv", help="Path to sim.csv")
+    parser.add_argument(
+        "--csv",
+        default=None,
+        help="Path to sim-dsfb.csv (default: auto-detect latest output-dsfb run)",
+    )
     parser.add_argument(
         "--impulse-start",
         type=float,
@@ -73,6 +78,35 @@ def load_data(csv_path: str) -> pd.DataFrame:
     if missing:
         raise ValueError(f"CSV missing required columns: {', '.join(missing)}")
     return df
+
+
+def resolve_csv_path(cli_csv: Optional[str]) -> str:
+    if cli_csv:
+        return cli_csv
+
+    run_candidates = sorted(Path("output-dsfb").glob("*/sim-dsfb.csv"))
+    if run_candidates:
+        return str(run_candidates[-1])
+
+    run_candidates = sorted(Path("output-dsfb").glob("*/sim.csv"))
+    if run_candidates:
+        return str(run_candidates[-1])
+
+    static_candidates = [
+        Path("output-dsfb/sim-dsfb.csv"),
+        Path("sim-dsfb.csv"),
+        Path("output-dsfb/sim.csv"),
+        Path("sim.csv"),
+        Path("out/sim.csv"),
+    ]
+    for candidate in static_candidates:
+        if candidate.exists():
+            return str(candidate)
+
+    raise FileNotFoundError(
+        "Could not find DSFB simulation CSV. Provide --csv or generate output-dsfb/<timestamp>/sim-dsfb.csv "
+        "with: cargo run --release -p dsfb --example drift_impulse"
+    )
 
 
 def rms(series: pd.Series) -> float:
@@ -184,10 +218,12 @@ def plot_all(
 
 def main() -> int:
     args = parse_args()
-    df = load_data(args.csv)
+    csv_path = resolve_csv_path(args.csv)
+    df = load_data(csv_path)
 
     stats = compute_summary(df, args.impulse_start, args.impulse_end)
     print_summary(stats, args.impulse_start, args.impulse_end)
+    print(f"\nUsing CSV: {os.path.abspath(csv_path)}")
 
     plot_all(df, args.zoom_start, args.zoom_end, args.save_plots, args.outdir)
 
