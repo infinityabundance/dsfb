@@ -51,6 +51,10 @@ Outputs:
 - `output-dsfb/<timestamp>/sim-dsfb.csv`
 - metrics summary in console
 
+Google Colab note:
+- Click `Run all` first.
+- If prompted for input data, click `Browse` in the file picker and upload `sim-dsfb.csv` (or your generated CSV file).
+
 ## Repository
 
 Full documentation, notebooks, and verification scripts:

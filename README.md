@@ -4,8 +4,11 @@
 [![docs.rs](https://docs.rs/dsfb/badge.svg)](https://docs.rs/dsfb)
 [![CI](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml/badge.svg)](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-`DSFB Simulation Notebook:` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb/dsfb_simulation.ipynb)
-`Fusion Bench Figures Notebook:` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
+`DSFB Simulation Notebook:`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb/dsfb_simulation.ipynb)
+
+`Fusion Bench Figures Notebook:`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
 
 A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation.
 
@@ -219,8 +222,13 @@ jupyter notebook crates/dsfb/dsfb_simulation.ipynb
 ```
 
 Or use Google Colab:
-`DSFB Simulation Notebook:` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb/dsfb_simulation.ipynb)
-`Fusion Bench Figures Notebook:` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
+`DSFB Simulation Notebook:`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb/dsfb_simulation.ipynb)
+
+`Fusion Bench Figures Notebook:`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
+
+In Google Colab, click `Run all` first. If a notebook asks for CSV files, click `Browse` in the file picker and upload the required CSVs from your local machine.
 
 The notebook displays:
 - Position estimates vs ground truth
