@@ -4,8 +4,8 @@
 [![docs.rs](https://docs.rs/dsfb/badge.svg)](https://docs.rs/dsfb)
 [![CI](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml/badge.svg)](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![DSFB Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/notebooks/dsfb_simulation.ipynb)
-[![Fusion Bench Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
+`DSFB Simulation Notebook:` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb/dsfb_simulation.ipynb)
+`Fusion Bench Figures Notebook:` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
 
 A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation.
 
@@ -215,12 +215,12 @@ Use the Jupyter notebook to visualize simulation results:
 cargo run --release -p dsfb --example drift_impulse
 
 # Then open the notebook
-jupyter notebook notebooks/dsfb_simulation.ipynb
+jupyter notebook crates/dsfb/dsfb_simulation.ipynb
 ```
 
 Or use Google Colab:
-[![DSFB Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/notebooks/dsfb_simulation.ipynb)
-[![Fusion Bench Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
+`DSFB Simulation Notebook:` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb/dsfb_simulation.ipynb)
+`Fusion Bench Figures Notebook:` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
 
 The notebook displays:
 - Position estimates vs ground truth
@@ -335,24 +335,24 @@ For theoretical background, see:
 dsfb/
 ├── Cargo.toml              # Workspace configuration
 ├── crates/
-│   └── dsfb/
-│       ├── Cargo.toml      # Publishable crate
-│       ├── src/
-│       │   ├── lib.rs      # Public API
-│       │   ├── observer.rs # DSFB observer implementation
-│       │   ├── state.rs    # State representation
-│       │   ├── params.rs   # Parameters
-│       │   ├── trust.rs    # Trust weight calculations
-│       │   └── sim.rs      # Simulation harness
-│       └── examples/
-│           └── drift_impulse.rs
+│   ├── dsfb/
+│   │   ├── Cargo.toml      # Publishable estimator crate
+│   │   ├── src/
+│   │   │   ├── lib.rs      # Public API
+│   │   │   ├── observer.rs # DSFB observer implementation
+│   │   │   ├── state.rs    # State representation
+│   │   │   ├── params.rs   # Parameters
+│   │   │   ├── trust.rs    # Trust weight calculations
+│   │   │   └── sim.rs      # Simulation harness
+│   │   ├── examples/
+│   │   │   └── drift_impulse.rs
+│   │   ├── dsfb_simulation.ipynb  # DSFB simulation notebook
+│   │   └── sim.csv         # Sample CSV for notebook fallback
 │   └── dsfb-fusion-bench/
 │       ├── Cargo.toml      # Benchmarking crate
 │       ├── src/            # Simulation + methods + metrics + IO
 │       ├── configs/        # Reproducible run configs
 │       └── dsfb_fusion_figures.ipynb
-├── notebooks/
-│   └── dsfb_simulation.ipynb  # Visualization notebook
 ├── output-dsfb/            # Timestamped simulation outputs
 ├── output-dsfb-fusion-bench/  # Timestamped benchmark outputs
 ├── docs/                   # Documentation

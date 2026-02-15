@@ -21,6 +21,7 @@ outputs/
 output-dsfb/
 output-dsfb-fusion-bench/
 *.csv
+!crates/dsfb/sim.csv
 
 # Python
 __pycache__/

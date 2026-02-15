@@ -28,5 +28,9 @@ jobs:
 
       - name: Verify analysis script works on simulation output
         run: |
-          cp out/sim.csv sim.csv
-          python3 scripts/analyze_sim.py --csv sim.csv --no-plots --impulse-start 300 --impulse-duration 100
+          SIM_CSV="$(find output-dsfb -mindepth 2 -maxdepth 2 -type f -name 'sim-dsfb.csv' | sort | tail -n1)"
+          if [[ -z "${SIM_CSV}" ]]; then
+            echo "No simulation CSV found in output-dsfb/<timestamp>/sim-dsfb.csv" >&2
+            exit 1
+          fi
+          python3 scripts/analyze_sim.py --csv "${SIM_CSV}" --no-plots --impulse-start 300 --impulse-duration 100
