@@ -4,7 +4,8 @@
 [![docs.rs](https://docs.rs/dsfb/badge.svg)](https://docs.rs/dsfb)
 [![CI](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml/badge.svg)](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/notebooks/dsfb_simulation.ipynb)
+[![DSFB Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/notebooks/dsfb_simulation.ipynb)
+[![Fusion Bench Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
 
 A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation.
 
@@ -218,7 +219,8 @@ jupyter notebook notebooks/dsfb_simulation.ipynb
 ```
 
 Or use Google Colab:
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/notebooks/dsfb_simulation.ipynb)
+[![DSFB Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/notebooks/dsfb_simulation.ipynb)
+[![Fusion Bench Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
 
 The notebook displays:
 - Position estimates vs ground truth

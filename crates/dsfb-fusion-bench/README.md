@@ -3,6 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/dsfb-fusion-bench.svg)](https://crates.io/crates/dsfb-fusion-bench)
 [![docs.rs](https://docs.rs/dsfb-fusion-bench/badge.svg)](https://docs.rs/dsfb-fusion-bench)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/infinityabundance/dsfb/blob/main/LICENSE)
+[![Fusion Bench Notebook In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
 
 Deterministic synthetic benchmarking package for DSFB fusion diagnostics. This crate generates reproducible synthetic state-estimation benchmarks and writes stable CSV/JSON outputs for paper figures and notebook analysis.
 
