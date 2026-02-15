@@ -2,8 +2,9 @@
 
 [![crates.io](https://img.shields.io/crates/v/dsfb.svg)](https://crates.io/crates/dsfb)
 [![docs.rs](https://docs.rs/dsfb/badge.svg)](https://docs.rs/dsfb)
-[![CI](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml/badge.svg)](https://github.com/infinityabundance/dsfb/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![DOI: Slew-Aware DSFB Paper](https://zenodo.org/badge/DOI/10.5281/zenodo.18642887.svg)](https://doi.org/10.5281/zenodo.18642887)
+[![DOI: Fusion Diagnostics Paper](https://zenodo.org/badge/DOI/10.5281/zenodo.18644561.svg)](https://doi.org/10.5281/zenodo.18644561)
 
 ---
 
