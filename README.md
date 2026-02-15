@@ -228,6 +228,8 @@ Or use Google Colab:
 `Fusion Bench Figures Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
 
+In Google Colab, click `Run all` first. If a notebook asks for CSV files, click `Browse` in the file picker and upload the required CSVs from your local machine.
+
 The notebook displays:
 - Position estimates vs ground truth
 - Error curves for all methods
