@@ -9,6 +9,8 @@ import json
 import math
 import os
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Dict, List
 
@@ -43,9 +45,18 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Compute metrics and plots for DSFB drift-impulse simulation output"
     )
-    parser.add_argument("--csv", default="sim.csv", help="Path to simulation CSV")
     parser.add_argument(
-        "--outdir", default="out/analysis", help="Directory for metrics and plots"
+        "--csv",
+        default="sim-dsfb.csv",
+        help="Path to simulation CSV (default: sim-dsfb.csv)",
+    )
+    parser.add_argument(
+        "--outdir",
+        default=None,
+        help=(
+            "Directory for metrics and plots. "
+            "If omitted, writes to output-dsfb/analysis/<YYYYMMDD_HHMMSS>."
+        ),
     )
     parser.add_argument(
         "--impulse-start", type=int, default=300, help="Impulse start step index"
@@ -370,7 +381,7 @@ def maybe_generate_plots(
 
 
 def print_summary(metrics: Dict[str, Dict[str, float]], dt: float) -> None:
-    print("\nMetrics from sim.csv")
+    print("\nMetrics from sim-dsfb.csv")
     print("====================")
 
     print("\nRMS error")
@@ -400,23 +411,36 @@ def main() -> int:
     data = read_csv(args.csv)
     dt = data["t"][1] - data["t"][0] if len(data["t"]) > 1 else 1.0
 
+    if args.outdir:
+        outdir = args.outdir
+    else:
+        csv_parent = Path(args.csv).resolve().parent
+        if (
+            csv_parent.name not in ("output-dsfb", "")
+            and csv_parent.parent.name == "output-dsfb"
+        ):
+            outdir = str(csv_parent / "analysis")
+        else:
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            outdir = os.path.join("output-dsfb", "analysis", stamp)
+
     metrics = compute_metrics(data, args)
-    write_metrics_files(metrics, args.outdir)
+    write_metrics_files(metrics, outdir)
     print_summary(metrics, dt)
 
     if not args.no_plots:
         maybe_generate_plots(
             data,
-            args.outdir,
+            outdir,
             args.impulse_start,
             args.impulse_duration,
             args.show,
         )
-        print(f"\nPlots written to: {args.outdir}")
+        print(f"\nPlots written to: {outdir}")
     else:
         print("\nPlot generation skipped (--no-plots).")
 
-    print(f"Metrics files written to: {args.outdir}")
+    print(f"Metrics files written to: {outdir}")
 
     return maybe_compare_expected(metrics, args)
 
