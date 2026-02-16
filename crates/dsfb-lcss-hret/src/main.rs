@@ -2,10 +2,12 @@ use anyhow::Result;
 use clap::Parser;
 use std::path::{Path, PathBuf};
 
+mod experiments;
+
 /// IEEE L-CSS figure generation for DSFB high-rate estimation trust analysis
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-struct Args {
+pub(crate) struct Args {
     /// Output directory for generated data
     #[arg(short, long, default_value = "output-dsfb-lcss-hret")]
     output: PathBuf,
@@ -29,6 +31,10 @@ struct Args {
     /// Run parameter sweep
     #[arg(long)]
     run_sweep: bool,
+
+    /// Run correlated group fault experiment
+    #[arg(long)]
+    run_correlated: bool,
 }
 
 fn main() -> Result<()> {
@@ -55,15 +61,20 @@ fn main() -> Result<()> {
         run_parameter_sweep(&args)?;
     }
 
-    if !args.run_default && !args.run_sweep {
-        println!("No benchmark specified. Use --run-default or --run-sweep");
+    if args.run_correlated {
+        println!("Running correlated group fault experiment...");
+        experiments::correlated::run_correlated(&args)?;
+    }
+
+    if !args.run_default && !args.run_sweep && !args.run_correlated {
+        println!("No benchmark specified. Use --run-default, --run-sweep, or --run-correlated");
         println!("Example: cargo run --release --manifest-path crates/dsfb-lcss-hret/Cargo.toml -- --run-default");
     }
 
     Ok(())
 }
 
-fn create_run_dir(base: &Path) -> Result<PathBuf> {
+pub(crate) fn create_run_dir(base: &Path) -> Result<PathBuf> {
     let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
     let run_dir = base.join(&timestamp);
 
