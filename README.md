@@ -38,7 +38,7 @@ This repository contains three separate crates for different paper workflows:
   workspace path: `crates/dsfb-fusion-bench`
   local README: `crates/dsfb-fusion-bench/README.md`
 - `dsfb-lcss-hret`:
-  standalone IEEE L-CSS high-rate estimation trust analysis benchmarking crate
+  standalone high-rate estimation trust analysis benchmarking crate
   workspace path: `crates/dsfb-lcss-hret`
   local README: `crates/dsfb-lcss-hret/README.md`
   isolated crate (not part of workspace) - compiles independently
@@ -204,7 +204,7 @@ Outputs are written under:
 - `output-dsfb-lcss-hret/<timestamp>/` (timestamped directories)
 - includes `summary.csv`, `trajectories.csv`, and `heatmap.csv`
 
-Companion notebook for IEEE-formatted figures:
+Companion notebook for dsfb-lcss-hret figures:
 - `crates/dsfb-lcss-hret/dsfb_lcss_hret_figures.ipynb`
 
 Note: This crate is intentionally isolated (not part of the workspace) and compiles independently.
@@ -273,7 +273,7 @@ Or use Google Colab:
 `Fusion Bench Figures Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
 
-`IEEE L-CSS High-Rate Estimation Trust Figures Notebook:`
+`High-Rate Estimation Trust Figures Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lcss-hret/dsfb_lcss_hret_figures.ipynb)
 
 In Google Colab, click `Run all` first. If a notebook asks for CSV files, click `Browse` in the file picker and upload the required CSVs from your local machine.
@@ -414,14 +414,14 @@ dsfb/
 │       ├── configs/        # Reproducible run configs
 │       └── dsfb_fusion_figures.ipynb
 │   └── dsfb-lcss-hret/
-│       ├── Cargo.toml      # IEEE L-CSS benchmarking crate (isolated)
+│       ├── Cargo.toml      # benchmarking crate (isolated)
 │       ├── src/
 │       │   └── main.rs     # CLI and benchmark logic
 │       ├── README.md       # Crate documentation
 │       └── dsfb_lcss_hret_figures.ipynb
 ├── output-dsfb/            # Timestamped simulation outputs
 ├── output-dsfb-fusion-bench/  # Timestamped benchmark outputs
-├── output-dsfb-lcss-hret/  # Timestamped IEEE L-CSS outputs
+├── output-dsfb-lcss-hret/  # Timestamped outputs
 ├── docs/                   # Documentation
 ├── README.md               # This file
 ├── LICENSE                 # Apache 2.0 license
