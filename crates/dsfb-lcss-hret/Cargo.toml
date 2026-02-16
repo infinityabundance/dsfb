@@ -8,11 +8,23 @@ license = "Apache-2.0"
 description = "IEEE L-CSS figure generation for DSFB high-rate estimation trust analysis"
 repository = "https://github.com/infinityabundance/dsfb"
 homepage = "https://github.com/infinityabundance/dsfb"
-keywords = ["estimation", "benchmark", "lcss", "figures"]
+documentation = "https://docs.rs/dsfb-lcss-hret"
+readme = "README.md"
+keywords = ["estimation", "benchmark", "lcss", "figures", "dsfb"]
 categories = ["science", "algorithms", "command-line-utilities"]
+include = [
+    "src/**",
+    "Cargo.toml",
+    "README.md",
+    ".gitignore",
+]
 
 # This crate is intentionally NOT part of the workspace
 [workspace]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 anyhow = "1.0"

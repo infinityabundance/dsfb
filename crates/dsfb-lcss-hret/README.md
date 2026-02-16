@@ -1,10 +1,20 @@
 # dsfb-lcss-hret
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lcss-hret/dsfb_lcss_hret_figures.ipynb)
+
 IEEE L-CSS figure generation for DSFB high-rate estimation trust analysis.
 
 ## Description
 
-This crate generates benchmark data and figures for an IEEE L-CSS (Letters of Control Systems Society) submission. It implements high-rate estimation trust analysis experiments for the Drift-Slew Fusion Bootstrap (DSFB) algorithm.
+This crate generates benchmark data and publication-ready figures for an IEEE L-CSS (Letters of Control Systems Society) submission. It implements high-rate estimation trust analysis experiments for the Drift-Slew Fusion Bootstrap (DSFB) algorithm, comparing performance across different estimation methods with varying parameter configurations.
+
+### Key Features
+
+- **Standalone benchmarking**: Independent CLI tool for running experiments
+- **Monte Carlo simulations**: Configurable number of runs for statistical analysis
+- **Parameter sweep**: Systematic exploration of algorithm parameters
+- **CSV output**: Structured data for reproducible figure generation
+- **IEEE-formatted figures**: Colab notebook for publication-ready visualizations
 
 ## Building and Running
 
@@ -39,7 +49,41 @@ The tool generates timestamped directories under `output-dsfb-lcss-hret/` (or th
 
 ## Plotting
 
-See the companion Jupyter/Colab notebook `dsfb_lcss_hret_figures.ipynb` for generating publication-ready figures from the benchmark outputs.
+Use the companion Jupyter/Colab notebook to generate publication-ready figures from the benchmark outputs:
+
+**Google Colab (recommended):**
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lcss-hret/dsfb_lcss_hret_figures.ipynb)
+
+**Local Jupyter:**
+```bash
+jupyter notebook crates/dsfb-lcss-hret/dsfb_lcss_hret_figures.ipynb
+```
+
+The notebook generates three IEEE-formatted figures:
+- **Figure 1**: Method comparison bar chart with error bars
+- **Figure 2**: State estimation trajectory and error plots
+- **Figure 3**: Parameter sweep heatmap
+
+All figures are saved as both PDF (for publication) and PNG (for preview) at 300 DPI with IEEE single-column formatting (3.5" width).
+
+## Related Crates
+
+This crate is part of the DSFB (Drift-Slew Fusion Bootstrap) repository:
+- [`dsfb`](https://crates.io/crates/dsfb) - Core DSFB estimator implementation
+- `dsfb-fusion-bench` - Fusion diagnostics benchmarking tool
+
+## Citation
+
+If you use this work in your research, please cite:
+
+```bibtex
+@software{dsfb2026,
+  author = {de Beer, Riaan},
+  title = {DSFB: Drift-Slew Fusion Bootstrap},
+  year = {2026},
+  url = {https://github.com/infinityabundance/dsfb}
+}
+```
 
 ## License
 
