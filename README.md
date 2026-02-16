@@ -181,9 +181,9 @@ Outputs are written under:
 Companion notebook for figures:
 - `crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb`
 
-## IEEE L-CSS High-Rate Estimation Trust Crate (Separate Artifact)
+## High-Rate Estimation Trust Crate (Separate Artifact)
 
-For the IEEE L-CSS (Letters of Control Systems Society) submission on high-rate estimation trust analysis, use the standalone `dsfb-lcss-hret` crate:
+For the high-rate estimation trust analysis, use the standalone `dsfb-lcss-hret` crate:
 
 ```bash
 # Run default benchmark configuration
