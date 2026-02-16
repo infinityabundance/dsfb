@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// IEEE L-CSS figure generation for DSFB high-rate estimation trust analysis
 #[derive(Parser, Debug)]
@@ -63,6 +63,26 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn create_run_dir(base: &Path) -> Result<PathBuf> {
+    let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
+    let run_dir = base.join(&timestamp);
+
+    if !run_dir.exists() {
+        std::fs::create_dir_all(&run_dir)?;
+        return Ok(run_dir);
+    }
+
+    let mut counter = 1;
+    loop {
+        let candidate = base.join(format!("{}-{}", timestamp, counter));
+        if !candidate.exists() {
+            std::fs::create_dir_all(&candidate)?;
+            return Ok(candidate);
+        }
+        counter += 1;
+    }
+}
+
 fn run_default_benchmark(args: &Args) -> Result<()> {
     use csv::Writer;
     use rand::SeedableRng;
@@ -72,10 +92,7 @@ fn run_default_benchmark(args: &Args) -> Result<()> {
     let mut rng = ChaCha8Rng::seed_from_u64(args.seed);
     let normal = Normal::new(0.0, 1.0)?;
 
-    // Create timestamp for this run
-    let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
-    let run_dir = args.output.join(&timestamp);
-    std::fs::create_dir_all(&run_dir)?;
+    let run_dir = create_run_dir(&args.output)?;
 
     println!("  Output: {:?}", run_dir);
 
@@ -132,10 +149,7 @@ fn run_parameter_sweep(args: &Args) -> Result<()> {
     let mut rng = ChaCha8Rng::seed_from_u64(args.seed);
     let normal = Normal::new(0.0, 1.0)?;
 
-    // Create timestamp for this run
-    let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
-    let run_dir = args.output.join(&timestamp);
-    std::fs::create_dir_all(&run_dir)?;
+    let run_dir = create_run_dir(&args.output)?;
 
     println!("  Output: {:?}", run_dir);
 
