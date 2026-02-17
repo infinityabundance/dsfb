@@ -1,5 +1,8 @@
 # dsfb-lcss-hret
 
+[![crates.io](https://img.shields.io/crates/v/dsfb-lcss-hret.svg)](https://crates.io/crates/dsfb-lcss-hret)
+[![docs.rs](https://docs.rs/dsfb-lcss-hret/badge.svg)](https://docs.rs/dsfb-lcss-hret)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lcss-hret/dsfb_lcss_hret_figures.ipynb)
 
 IEEE L-CSS figure generation for DSFB high-rate estimation trust analysis.
