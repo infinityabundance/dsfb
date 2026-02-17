@@ -28,6 +28,11 @@ A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for tr
 
 This repository contains three separate crates for different paper workflows:
 
+Crates.io:
+[![dsfb](https://img.shields.io/crates/v/dsfb.svg)](https://crates.io/crates/dsfb)
+[![dsfb-fusion-bench](https://img.shields.io/crates/v/dsfb-fusion-bench.svg)](https://crates.io/crates/dsfb-fusion-bench)
+[![dsfb-lcss-hret](https://img.shields.io/crates/v/dsfb-lcss-hret.svg)](https://crates.io/crates/dsfb-lcss-hret)
+
 - `dsfb`:
   crate for the DSFB estimator itself
   workspace path: `crates/dsfb`
