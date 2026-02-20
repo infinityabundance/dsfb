@@ -3,6 +3,15 @@
 High-fidelity Starship-style 6-DoF hypersonic re-entry simulation demonstrating
 Drift-Slew Fusion Bootstrap (DSFB) trust-adaptive IMU fusion during plasma blackout.
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-starship/starship_reentry_demo.ipynb)
+
+## Citations
+
+- de Beer, R. (2026c). *Drift--Slew Fusion Bootstrap: A Deterministic Residual-Based State Correction Framework*. Zenodo. DOI: [10.5281/zenodo.18706455](https://doi.org/10.5281/zenodo.18706455)
+- de Beer, R. (2026a). *Slew-Aware Trust-Adaptive Nonlinear State Estimation for Oscillatory Systems With Drift and Corruption*. Zenodo. DOI: [10.5281/zenodo.18642887](https://doi.org/10.5281/zenodo.18642887)
+- de Beer, R. (2026b). *Trust-Adaptive Multi-Diagnostic Weighting for Magnetically Confined Plasma State Estimation*. Zenodo. DOI: [10.5281/zenodo.18644561](https://doi.org/10.5281/zenodo.18644561)
+- DSFB repository: [https://github.com/infinityabundance/dsfb](https://github.com/infinityabundance/dsfb)
+
 ## Features
 
 - 6-DoF rigid-body translational and rotational dynamics
