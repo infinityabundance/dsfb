@@ -20,13 +20,21 @@
 `HRET Correlated Group Figures Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lcss-hret/dsfb-lcss-hret-correlated.ipynb)
 
+`Starship High-Fidelity 6-DoF Re-Entry Notebook:`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-starship/starship_reentry_demo.ipynb)
+
 ---
 
 A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation.
 
 ## Workspace Crates
 
-This repository contains three separate crates for different paper workflows:
+This repository contains four crates for different DSFB workflows:
+
+Crates.io:
+[![dsfb](https://img.shields.io/crates/v/dsfb.svg)](https://crates.io/crates/dsfb)
+[![dsfb-fusion-bench](https://img.shields.io/crates/v/dsfb-fusion-bench.svg)](https://crates.io/crates/dsfb-fusion-bench)
+[![dsfb-lcss-hret](https://img.shields.io/crates/v/dsfb-lcss-hret.svg)](https://crates.io/crates/dsfb-lcss-hret)
 
 - `dsfb`:
   crate for the DSFB estimator itself
@@ -42,6 +50,11 @@ This repository contains three separate crates for different paper workflows:
   workspace path: `crates/dsfb-lcss-hret`
   local README: `crates/dsfb-lcss-hret/README.md`
   isolated crate (not part of workspace) - compiles independently
+- `dsfb-starship`:
+  Starship high-fidelity 6-DoF re-entry simulation + DSFB trust-adaptive fusion demo
+  workspace path: `crates/dsfb-starship`
+  local README: `crates/dsfb-starship/README.md`
+  publish-ready (not yet published)
 
 Observer-theoretic framework for slew-aware trust-adaptive oscillatory state estimation under bounded disturbances.
 
@@ -275,6 +288,9 @@ Or use Google Colab:
 
 `High-Rate Estimation Trust Figures Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lcss-hret/dsfb_lcss_hret_figures.ipynb)
+
+`Starship High-Fidelity 6-DoF Re-Entry Notebook:`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-starship/starship_reentry_demo.ipynb)
 
 In Google Colab, click `Run all` first. If a notebook asks for CSV files, click `Browse` in the file picker and upload the required CSVs from your local machine.
 
