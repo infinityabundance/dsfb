@@ -18,7 +18,7 @@ Drift-Slew Fusion Bootstrap (DSFB) trust-adaptive IMU fusion during plasma black
   - `starship_timeseries.csv`
   - `starship_summary.json`
   - PNG plots (altitude, log-scale position error, DSFB trust)
-- Python bindings via PyO3 for `maturin develop`
+- Python bindings via PyO3, installable from wheels built by maturin
 
 ## Build and Run
 
@@ -34,6 +34,7 @@ to prevent overwriting previous results.
 
 ```bash
 cd crates/dsfb-starship
-maturin develop --release
+python -m maturin build --release --out target/wheels
+python -m pip install -U --force-reinstall target/wheels/dsfb_starship-*.whl
 python -c "import dsfb_starship as m; print(m.default_config_json())"
 ```
