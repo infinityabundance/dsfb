@@ -5,6 +5,8 @@ Drift-Slew Fusion Bootstrap (DSFB) trust-adaptive IMU fusion during plasma black
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-starship/starship_reentry_demo.ipynb)
 
+> **Disclaimer (Important):** This is an illustrative simulation using representative physics and parameters. It is not calibrated to proprietary SpaceX models or actual flight data. Absolute performance numbers are not predictive of any specific vehicle.
+
 ## Citations
 
 - de Beer, R. (2026c). *Drift--Slew Fusion Bootstrap: A Deterministic Residual-Based State Correction Framework*. Zenodo. DOI: [10.5281/zenodo.18706455](https://doi.org/10.5281/zenodo.18706455)
@@ -28,6 +30,19 @@ Drift-Slew Fusion Bootstrap (DSFB) trust-adaptive IMU fusion during plasma black
   - `starship_summary.json`
   - PNG plots (altitude, log-scale position error, DSFB trust)
 - Python bindings via PyO3, installable from wheels built by maturin
+
+## Why this matters for reusable vehicles
+
+The plasma blackout phase is one of the most demanding windows in hypersonic re-entry: several minutes of near-total loss of GPS and RF communication while the vehicle experiences extreme thermal gradients, aerodynamic transients, and potential sensor slew.
+
+During this critical period, navigation must remain safe and bounded without external fixes. DSFB provides a deterministic, trust-adaptive solution that:
+
+- Explicitly separates slow thermal drift from abrupt slew events
+- Applies provably bounded corrections to prevent unsafe state jumps
+- Gracefully attenuates faulty IMU channels while preserving trust in healthy ones
+- Recovers quickly when high-quality measurements (e.g., Starlink reacquisition) become available again
+
+By delivering predictable behavior when traditional filters are most vulnerable, DSFB can help improve landing precision, reduce refurbishment risk, and support faster turnaround for fully reusable vehicles like Starship.
 
 ## Build and Run
 

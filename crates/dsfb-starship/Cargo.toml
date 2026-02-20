@@ -1,16 +1,16 @@
 [package]
 name = "dsfb-starship"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.74"
 authors = ["Riaan de Beer"]
 license = "Apache-2.0"
-description = "Starship-style hypersonic re-entry 6-DoF DSFB demonstration with plasma blackout"
+description = "High-fidelity 6-DoF Starship-class re-entry simulation demonstrating the Drift-Slew Fusion Bootstrap (DSFB) during plasma blackout. Includes Monte-Carlo dispersion, Starlink reacquisition, and interactive Colab notebook."
 readme = "README.md"
 repository = "https://github.com/infinityabundance/dsfb"
 homepage = "https://github.com/infinityabundance/dsfb"
 documentation = "https://docs.rs/dsfb-starship"
-keywords = ["starship", "reentry", "estimation", "dsfb", "simulation"]
+keywords = ["dsfb", "starship", "reentry", "plasma-blackout", "sensor-fusion"]
 categories = ["science", "algorithms", "command-line-utilities"]
 include = [
     "src/**",
