@@ -1,4 +1,4 @@
 [workspace]
-members = ["crates/dsfb", "crates/dsfb-fusion-bench"]
+members = ["crates/dsfb", "crates/dsfb-fusion-bench", "crates/dsfb-starship"]
 default-members = ["crates/dsfb"]
 resolver = "2"

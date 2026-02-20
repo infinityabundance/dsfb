@@ -1,0 +1,12 @@
+[build-system]
+requires = ["maturin>=1.6,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "dsfb-starship"
+version = "0.1.0"
+description = "Starship high-fidelity 6-DoF re-entry DSFB demo"
+requires-python = ">=3.9"
+
+[tool.maturin]
+module-name = "dsfb_starship"
