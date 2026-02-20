@@ -8,8 +8,21 @@
 
 ## Citations
 
-- de Beer, R. (2026). *Drift--Slew Fusion Bootstrap: A Deterministic Residual-Based State Correction Framework* (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.18706455](https://doi.org/10.5281/zenodo.18706455)
-- de Beer, R. (2026). *Deterministic Drift--Slew Fusion Bootstrap for Navigation During Plasma Blackout in Hypersonic Re-Entry Vehicles* (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.18711897](https://doi.org/10.5281/zenodo.18711897)
+> **de Beer, R.** (2026). 
+> *Deterministic Drift--Slew Fusion Bootstrap for Navigation During Plasma Blackout in Hypersonic Re-Entry Vehicles* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.18711897]
+
+> **de Beer, R.** (2026). 
+> *Drift--Slew Fusion Bootstrap: A Deterministic Residual-Based State Correction Framework* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.18706455]
+
+> **de Beer, R.** (2026).  
+> *Trust-Adaptive Multi-Diagnostic Weighting for Magnetically Confined Plasma State Estimation* (v1.0).  
+> Zenodo. [https://doi.org/10.5281/zenodo.18644561]
+
+> **de Beer, R.** (2026).  
+> *Slew-Aware Trust-Adaptive Nonlinear State Estimation for Oscillatory Systems With Drift and Corruption* (v1.0).  
+> Zenodo. [https://doi.org/10.5281/zenodo.18642887]
 
 ---
 
@@ -376,26 +389,8 @@ cargo publish -p dsfb
 - **Space complexity**: O(M) for channel statistics
 - **Deterministic**: Given fixed seed, produces identical results
 
-## Citation
 
-If you use DSFB in your research, please cite:
 
-> **de Beer, R.** (2026).  
-> *Slew-Aware Trust-Adaptive Nonlinear State Estimation for Oscillatory Systems With Drift and Corruption* (v1.0).  
-> Zenodo. https://doi.org/10.5281/zenodo.18642887
-
-> **de Beer, R.** (2026).  
-> *Trust-Adaptive Multi-Diagnostic Weighting for Magnetically Confined Plasma State Estimation* (v1.0).  
-> Zenodo. https://doi.org/10.5281/zenodo.18644561
-
-```bibtex
-@software{dsfb2026,
-  author = {de Beer, Riaan},
-  title = {DSFB: Drift-Slew Fusion Bootstrap},
-  year = {2026},
-  url = {https://github.com/infinityabundance/dsfb}
-}
-```
 
 ## License
 
