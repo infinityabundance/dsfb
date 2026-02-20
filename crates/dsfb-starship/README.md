@@ -34,7 +34,9 @@ to prevent overwriting previous results.
 
 ```bash
 cd crates/dsfb-starship
-python -m pip install -U "maturin[patchelf]" patchelf
+python -m pip install -U maturin
+# Colab/Linux: ensure patchelf is available for maturin wheel repair
+apt-get -qq update && apt-get -qq install -y patchelf
 python -m maturin build --release --out target/wheels
 python -m pip install -U --force-reinstall target/wheels/dsfb_starship-*.whl
 python -c "import dsfb_starship as m; print(m.default_config_json())"
