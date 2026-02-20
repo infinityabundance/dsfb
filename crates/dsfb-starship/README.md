@@ -9,6 +9,7 @@ Drift-Slew Fusion Bootstrap (DSFB) trust-adaptive IMU fusion during plasma black
 
 ## Citations
 
+- de Beer, R. (2026). *Deterministic Drift--Slew Fusion Bootstrap for Navigation During Plasma Blackout in Hypersonic Re-Entry Vehicles (v1.0)*. Zenodo. DOI: [10.5281/zenodo.18711897](https://doi.org/10.5281/zenodo.18711897)
 - de Beer, R. (2026c). *Drift--Slew Fusion Bootstrap: A Deterministic Residual-Based State Correction Framework*. Zenodo. DOI: [10.5281/zenodo.18706455](https://doi.org/10.5281/zenodo.18706455)
 - de Beer, R. (2026a). *Slew-Aware Trust-Adaptive Nonlinear State Estimation for Oscillatory Systems With Drift and Corruption*. Zenodo. DOI: [10.5281/zenodo.18642887](https://doi.org/10.5281/zenodo.18642887)
 - de Beer, R. (2026b). *Trust-Adaptive Multi-Diagnostic Weighting for Magnetically Confined Plasma State Estimation*. Zenodo. DOI: [10.5281/zenodo.18644561](https://doi.org/10.5281/zenodo.18644561)
