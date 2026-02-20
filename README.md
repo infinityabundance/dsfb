@@ -6,6 +6,11 @@
 [![DOI: Slew-Aware DSFB Paper](https://zenodo.org/badge/DOI/10.5281/zenodo.18642887.svg)](https://doi.org/10.5281/zenodo.18642887)
 [![DOI: Fusion Diagnostics Paper](https://zenodo.org/badge/DOI/10.5281/zenodo.18644561.svg)](https://doi.org/10.5281/zenodo.18644561)
 
+## Citations
+
+- de Beer, R. (2026). *Drift--Slew Fusion Bootstrap: A Deterministic Residual-Based State Correction Framework* (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.18706455](https://doi.org/10.5281/zenodo.18706455)
+- de Beer, R. (2026). *Deterministic Drift--Slew Fusion Bootstrap for Navigation During Plasma Blackout in Hypersonic Re-Entry Vehicles* (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.18711897](https://doi.org/10.5281/zenodo.18711897)
+
 ---
 
 `DSFB Simulation Notebook:`
