@@ -66,8 +66,6 @@ Don’t believe a sensor all at once.
 
 ---
 
-A Rust implementation of the Drift-Slew Fusion Bootstrap (DSFB) algorithm for trust-adaptive nonlinear state estimation.
-
 ## Workspace Crates
 
 This repository contains four crates for different DSFB workflows:
@@ -434,37 +432,49 @@ For theoretical background, see:
 
 ```
 dsfb/
-├── Cargo.toml              # Workspace configuration
+├── Cargo.toml                      # Workspace configuration (dsfb, dsfb-fusion-bench, dsfb-starship)
 ├── crates/
-│   ├── dsfb/
-│   │   ├── Cargo.toml      # Publishable estimator crate
+│   ├── dsfb/                       # Core DSFB estimator crate
+│   │   ├── Cargo.toml
 │   │   ├── src/
-│   │   │   ├── lib.rs      # Public API
-│   │   │   ├── observer.rs # DSFB observer implementation
-│   │   │   ├── state.rs    # State representation
-│   │   │   ├── params.rs   # Parameters
-│   │   │   ├── trust.rs    # Trust weight calculations
-│   │   │   └── sim.rs      # Simulation harness
+│   │   │   ├── lib.rs              # Public API (DsfbObserver, DsfbParams, DsfbState, …)
+│   │   │   ├── observer.rs         # Observer implementation
+│   │   │   ├── state.rs            # State representation (φ, ω, α)
+│   │   │   ├── params.rs           # Algorithm parameters
+│   │   │   └── trust.rs            # Trust-weight update logic
 │   │   ├── examples/
-│   │   │   └── drift_impulse.rs
-│   │   ├── dsfb_simulation.ipynb  # DSFB simulation notebook
-│   │   └── sim.csv         # Sample CSV for notebook fallback
-│   ├── dsfb-fusion-bench/
-│       ├── Cargo.toml      # Benchmarking crate
-│       ├── src/            # Simulation + methods + metrics + IO
-│       ├── configs/        # Reproducible run configs
-│       └── dsfb_fusion_figures.ipynb
-│   └── dsfb-lcss-hret/
-│       ├── Cargo.toml      # benchmarking crate (isolated)
-│       ├── src/
-│       │   └── main.rs     # CLI and benchmark logic
-│       ├── README.md       # Crate documentation
-│       └── dsfb_lcss_hret_figures.ipynb
-├── output-dsfb/            # Timestamped simulation outputs
-├── output-dsfb-fusion-bench/  # Timestamped benchmark outputs
-├── output-dsfb-lcss-hret/  # Timestamped outputs
-├── docs/                   # Documentation
-├── README.md               # This file
-├── LICENSE                 # Apache 2.0 license
-└── CITATION.cff            # Citation metadata
+│   │   │   └── drift_impulse.rs    # 2-channel drift + impulse demo
+│   │   └── dsfb_simulation.ipynb   # DSFB Simulation Notebook (drift-impulse figures)
+│   │
+│   ├── dsfb-fusion-bench/          # Fusion diagnostics benchmark crate
+│   │   ├── Cargo.toml
+│   │   ├── src/                    # Simulation + metrics + CLI
+│   │   ├── configs/                # Reproducible run configs
+│   │   └── dsfb_fusion_figures.ipynb   # Fusion Bench Figures Notebook
+│   │
+│   ├── dsfb-lcss-hret/             # High-rate estimation trust benchmark (isolated crate)
+│   │   ├── Cargo.toml
+│   │   ├── src/
+│   │   │   └── main.rs             # CLI + benchmark logic
+│   │   ├── README.md
+│   │   └── dsfb_lcss_hret_figures.ipynb   # High-Rate Estimation Trust Figures Notebook
+│   │
+│   └── dsfb-starship/              # Starship 6-DoF re-entry + DSFB demo
+│       ├── Cargo.toml
+│       ├── src/                    # Dynamics, estimators, CLI
+│       ├── README.md
+│       └── starship_reentry_demo.ipynb   # Starship High-Fidelity 6-DoF Re-Entry Notebook
+│
+├── output-dsfb/                    # Timestamped outputs for core DSFB drift-impulse example
+├── output-dsfb-fusion-bench/       # Fusion benchmark outputs (summary.csv, heatmap, trajectories, …)
+├── output-dsfb-lcss-hret/          # High-rate estimation trust benchmark outputs
+├── output-dsfb-starship/           # Starship re-entry / Monte-Carlo outputs
+│
+├── docs/                           # Extra documentation / notes
+├── scripts/
+│   └── run_drift_impulse_verify.sh # End-to-end drift-impulse verification pipeline
+│
+├── README.md                       # Top-level overview + Colab links
+├── LICENSE                         # Apache-2.0 license
+└── CITATION.cff                    # Citation metadata (Zenodo + repo)
 ```
