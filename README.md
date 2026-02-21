@@ -53,6 +53,8 @@ Crates.io:
 [![dsfb](https://img.shields.io/crates/v/dsfb.svg)](https://crates.io/crates/dsfb)
 [![dsfb-fusion-bench](https://img.shields.io/crates/v/dsfb-fusion-bench.svg)](https://crates.io/crates/dsfb-fusion-bench)
 [![dsfb-lcss-hret](https://img.shields.io/crates/v/dsfb-lcss-hret.svg)](https://crates.io/crates/dsfb-lcss-hret)
+[![dsfb-starship](https://img.shields.io/crates/v/dsfb-starship.svg)](https://crates.io/crates/dsfb-starship)
+
 
 - `dsfb`:
   crate for the DSFB estimator itself
