@@ -6,6 +6,25 @@
 [![DOI: Slew-Aware DSFB Paper](https://zenodo.org/badge/DOI/10.5281/zenodo.18642887.svg)](https://doi.org/10.5281/zenodo.18642887)
 [![DOI: Fusion Diagnostics Paper](https://zenodo.org/badge/DOI/10.5281/zenodo.18644561.svg)](https://doi.org/10.5281/zenodo.18644561)
 
+## What is DSFB?
+
+Simply:
+DSFB compares prediction and measurement.
+If they disagree a lot, it reduces trust.
+If they agree, it increases trust.
+
+So instead of treating a sensor as valid or invalid, it treats it as trusted proportionally.
+Essentially: Proportional Trust Observer.
+
+ELI5:
+If a sensor says something that matches what you expect, you listen a lot.
+If it says something very different, you listen a little.
+Don’t believe a sensor all at once.
+
+<sub>
+Informal explanation for understanding only. See paper for formal development.
+</sub>
+
 ## Citations
 
 > **de Beer, R.** (2026). 
