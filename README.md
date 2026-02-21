@@ -8,27 +8,26 @@
 
 ## What is DSFB?
 
-Simply:
 DSFB compares prediction and measurement.
 
-If they disagree a lot, it reduces trust.
+- If they disagree a lot, it reduces trust.  
+- If they agree, it increases trust.
 
-If they agree, it increases trust.
+Instead of treating a sensor as valid or invalid, DSFB treats it as trusted proportionally.
 
-So instead of treating a sensor as valid or invalid, it treats it as trusted proportionally.
+**Essentially:** *Proportional Trust Observer.*
 
-Essentially: **Proportional Trust Observer**.
+---
 
-ELI5:
-If a sensor says something that matches what you expect, you listen a lot.
+### ELI5
 
-If it says something very different, you listen a little.
+If a sensor says something that matches what you expect, you listen a lot.  
+If it says something very different, you listen a little.  
 
 Don’t believe a sensor all at once.
 
-<sub>
-Informal explanation for understanding only. See paper for formal development.
-</sub>
+<br>
+<sub><i>Informal overview. See paper for formal definition.</i></sub>
 
 ## Citations
 
