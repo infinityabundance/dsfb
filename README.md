@@ -10,15 +10,20 @@
 
 Simply:
 DSFB compares prediction and measurement.
+
 If they disagree a lot, it reduces trust.
+
 If they agree, it increases trust.
 
 So instead of treating a sensor as valid or invalid, it treats it as trusted proportionally.
-Essentially: Proportional Trust Observer.
+
+Essentially: **Proportional Trust Observer**.
 
 ELI5:
 If a sensor says something that matches what you expect, you listen a lot.
+
 If it says something very different, you listen a little.
+
 Don’t believe a sensor all at once.
 
 <sub>
