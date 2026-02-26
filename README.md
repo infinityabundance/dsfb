@@ -47,6 +47,10 @@ Don’t believe a sensor all at once.
 > *Slew-Aware Trust-Adaptive Nonlinear State Estimation for Oscillatory Systems With Drift and Corruption* (v1.0).  
 > Zenodo. [https://doi.org/10.5281/zenodo.18642887]
 
+> **de Beer, R.** (2026). 
+> *Hierarchical Residual-Envelope Trust: A Deterministic Framework for Grouped Multi-Sensor Fusion* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.18783283]
+
 ---
 
 `DSFB Simulation Notebook:`
@@ -63,6 +67,9 @@ Don’t believe a sensor all at once.
 
 `Starship High-Fidelity 6-DoF Re-Entry Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-starship/starship_reentry_demo.ipynb)
+
+`Hierarchical Residual-Envelope Trust (HRET)`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-hret/hret_empirical_validation.ipynb)
 
 ---
 
