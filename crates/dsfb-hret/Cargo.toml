@@ -1,12 +1,18 @@
 [package]
 name = "dsfb-hret"
-version = "0.1.0"
+version = "0.1.0"  # Start here; bump to 0.1.1 if changes made
 edition = "2021"
+description = "Hierarchical Residual-Envelope Trust (HRET): A deterministic extension of DSFB for grouped multi-sensor fusion with correlated disturbance handling."
+keywords = ["sensor-fusion", "deterministic", "residual-envelope", "trust-weighting", "hypersonic-navigation"]
+categories = ["science::robotics", "simulation", "algorithms"]
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-hret"
+license = "Apache-2.0"  # Matches repo
+authors = ["Riaan de Beer <predictiverendezvous@proton.me>"]
 
 [lib]
 name = "dsfb_hret"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-pyo3 = { version = "0.20", features = ["extension-module"] }
+pyo3 = { version = "0.22", features = ["extension-module"] }
 ndarray = "0.15"
