@@ -69,7 +69,7 @@ Don’t believe a sensor all at once.
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-starship/starship_reentry_demo.ipynb)
 
 `Hierarchical Residual-Envelope Trust (HRET)`
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-hret/hret_empirical_validation.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-hret/hret_hypersonic_validation.ipynb)
 
 ---
 
