@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use ndarray::{Array1, Array2, Axis, array};
+use ndarray::{Array1, Array2, Axis};
 
 #[pyclass]
 #[derive(Clone)]
@@ -55,21 +55,29 @@ impl HretObserver {
         }
 
         // Channel envelopes (eq. 8)
-        self.s_k = self.rho * &self.s_k + (1.0 - self.rho) * r_arr.abs();
+        self.s_k = self.rho * &self.s_k + (1.0 - self.rho) * r_arr.mapv(f64::abs);
 
         // Group envelopes (eq. 11)
         for gg in 0..self.g {
-            let group_idx: Vec<usize> = self.group_mapping.iter().positions(|&x| x == gg).collect();
+            let group_idx: Vec<usize> = self.group_mapping
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &x)| if x == gg { Some(i) } else { None })
+            .collect();
+
             if !group_idx.is_empty() {
                 let group_r = r_arr.select(Axis(0), &group_idx);
-                let avg_abs_r = group_r.abs().mean().unwrap_or(0.0);
+                let avg_abs_r = group_r.mapv(f64::abs).sum() / group_r.len() as f64;
                 self.s_g[gg] = self.rho_g[gg] * self.s_g[gg] + (1.0 - self.rho_g[gg]) * avg_abs_r;
             }
         }
 
         // Trusts (eq. 9, 12)
-        let w_k = Array1::ones(self.m) / (array![1.0; self.m] + &self.beta_k * &self.s_k);
-        let w_g = Array1::ones(self.g) / (array![1.0; self.g] + &self.beta_g * &self.s_g);
+        let ones_k = Array1::<f64>::ones(self.m);
+        let ones_g = Array1::<f64>::ones(self.g);
+
+        let w_k = &ones_k / (&ones_k + &self.beta_k * &self.s_k);
+        let w_g = &ones_g / (&ones_g + &self.beta_g * &self.s_g);
 
         // Hierarchical composition (eq. 14-15)
         let w_g_mapped = w_g.select(Axis(0), &self.group_mapping.to_vec());
@@ -95,7 +103,7 @@ impl HretObserver {
 }
 
 #[pymodule]
-fn dsfb_hret(py: Python, m: &PyModule) -> PyResult<()> {
+fn dsfb_hret(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<HretObserver>()?;
     Ok(())
 }
