@@ -301,5 +301,11 @@ fn validate_finite(field: &str, values: &[f64]) -> Result<(), HretError> {
     Ok(())
 }
 
+#[pymodule]
+fn dsfb_hret(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<HretObserver>()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests;
