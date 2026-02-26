@@ -1,151 +1,117 @@
 # dsfb-hret
 
-**Hierarchical Residual-Envelope Trust (HRET)** — a deterministic extension of DSFB for grouped multi-sensor fusion with correlated disturbance handling.
+`dsfb-hret` implements **Hierarchical Residual-Envelope Trust (HRET)**, a deterministic extension of DSFB for grouped multi-sensor fusion under correlated disturbances.
 
-dsfb-hret implements the HRET algorithm described in:
+Reference paper:
 
-R. de Beer (2026).
-Hierarchical Residual-Envelope Trust: A Deterministic Framework for Grouped Multi-Sensor Fusion.
+R. de Beer (2026).  
+*Hierarchical Residual-Envelope Trust: A Deterministic Framework for Grouped Multi-Sensor Fusion.*  
 https://doi.org/10.5281/zenodo.18783283
 
-`dsfb-hret` implements an `HretObserver` that fuses residuals from multiple sensor channels arranged into groups. Each channel and group maintains an exponentially-smoothed residual envelope, and trust weights are computed hierarchically — channel-level weights modulated by group-level weights — before being normalized to form a convex combination. The resulting fusion correction `Δx` can be fed directly into a state observer or navigation filter.
+## What this crate provides
 
-This crate exposes the observer as both a native Rust library (`rlib`) and a Python extension module (`cdylib`) via [PyO3](https://pyo3.rs).
+- A Rust API for deterministic HRET updates.
+- A Python extension module (`dsfb_hret`) via PyO3.
+- Envelope memory, hierarchical trust computation, convex weight normalization, and fused correction output.
 
----
+## Model summary
 
-## Key concepts
+Given channel residuals `r_k`:
 
-| Symbol | Meaning |
-|---|---|
-| `m` | Number of sensor channels |
-| `g` | Number of channel groups |
-| `s_k` | Per-channel residual envelope (eq. 8) |
-| `s_g` | Per-group residual envelope (eq. 11) |
-| `w_k`, `w_g` | Channel and group trust weights (eq. 9, 12) |
-| `w̃_k` | Normalized hierarchical weights (eq. 14–15) |
-| `Δx` | Fusion correction vector (eq. 19) |
-
-Trust weights decay as residual envelopes grow, so channels (or whole groups) producing large or correlated residuals are automatically down-weighted without any hard thresholding.
-
----
+- Channel envelopes: `s_k`
+- Group envelopes: `s_g`
+- Channel trust: `w_k = 1 / (1 + beta_k * s_k)`
+- Group trust: `w_g = 1 / (1 + beta_g * s_g)`
+- Hierarchical trust: `hat_w_k = w_k * w_g(group(k))`
+- Convex normalization: `tilde_w_k = hat_w_k / sum(hat_w_k)`
+- Correction: `Delta_x = K * (tilde_w ⊙ r)`
 
 ## Installation
 
-### Python
-
-Build and install the extension module with [maturin](https://github.com/PyO3/maturin):
-
-```bash
-pip install maturin
-maturin develop --release
-```
-
 ### Rust
-
-Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-dsfb-hret = "0.1"
+dsfb-hret = "0.1.1"
 ```
 
----
+### Python (local build)
 
-## Usage
-
-### Python
-
-```python
-from dsfb_hret import HretObserver
-
-# 3 channels, 2 groups: channels 0+1 → group 0, channel 2 → group 1
-obs = HretObserver(
-    m=3,
-    g=2,
-    group_mapping=[0, 0, 1],
-    rho=0.95,           # channel forgetting factor
-    rho_g=[0.9, 0.85],  # per-group forgetting factors
-    beta_k=[1.0, 1.0, 1.0],   # channel sensitivities
-    beta_g=[1.0, 1.0],        # group sensitivities
-    k_k=[[1.0, 0.5, 0.5],     # gain matrix (p × m)
-         [0.0, 1.0, 0.0]],
-)
-
-residuals = [0.05, 0.12, 0.30]
-delta_x, weights, s_k, s_g = obs.update(residuals)
-
-print("Fusion correction:", delta_x)
-print("Normalized weights:", weights)
-print("Channel envelopes:", s_k)
-print("Group envelopes:  ", s_g)
-
-# Reset envelopes (e.g. after a mode switch)
-obs.reset_envelopes()
+```bash
+python -m pip install maturin
+maturin develop --release
 ```
 
-### Rust
+## Rust usage
 
 ```rust
 use dsfb_hret::HretObserver;
 
 let mut obs = HretObserver::new(
-    2, 1,
-    vec![0, 0],
-    0.95,
-    vec![0.9],
-    vec![1.0, 1.0],
-    vec![1.0],
-    vec![vec![1.0, 1.0]],
+    3,
+    2,
+    vec![0, 0, 1],          // group mapping
+    0.95,                   // rho
+    vec![0.9, 0.85],        // rho_g
+    vec![1.0, 1.0, 1.0],    // beta_k
+    vec![1.0, 1.0],         // beta_g
+    vec![
+        vec![1.0, 0.5, 0.5],
+        vec![0.0, 1.0, 0.0],
+    ],                      // K (p x m)
 ).unwrap();
 
-let (delta_x, weights, s_k, s_g) = obs.update(vec![0.1, 0.2]).unwrap();
+let (delta_x, weights, s_k, s_g) = obs.update(vec![0.05, 0.12, 0.30]).unwrap();
+assert_eq!(weights.len(), 3);
+obs.reset_envelopes();
 ```
 
----
+## Python usage
 
-## API
+```python
+from dsfb_hret import HretObserver
 
-### `HretObserver::new`
+obs = HretObserver(
+    m=3,
+    g=2,
+    group_mapping=[0, 0, 1],
+    rho=0.95,
+    rho_g=[0.9, 0.85],
+    beta_k=[1.0, 1.0, 1.0],
+    beta_g=[1.0, 1.0],
+    k_k=[[1.0, 0.5, 0.5], [0.0, 1.0, 0.0]],
+)
 
-```
-new(m, g, group_mapping, rho, rho_g, beta_k, beta_g, k_k) -> HretObserver
-```
-
-| Parameter | Type | Description |
-|---|---|---|
-| `m` | `usize` | Number of sensor channels |
-| `g` | `usize` | Number of groups |
-| `group_mapping` | `[usize; m]` | Group index for each channel (values in `0..g`) |
-| `rho` | `f64` | Channel envelope forgetting factor (`0 < rho < 1`) |
-| `rho_g` | `[f64; g]` | Per-group envelope forgetting factors |
-| `beta_k` | `[f64; m]` | Per-channel trust sensitivity |
-| `beta_g` | `[f64; g]` | Per-group trust sensitivity |
-| `k_k` | `[[f64; m]; p]` | Observer gain matrix (`p × m`) |
-
-### `HretObserver::update`
-
-```
-update(r: [f64; m]) -> (delta_x, tilde_w_k, s_k, s_g)
+delta_x, weights, s_k, s_g = obs.update([0.05, 0.12, 0.30])
+print(delta_x, weights)
 ```
 
-Advances the observer one step with residual vector `r`. Returns the fusion correction `Δx`, the normalized weights `w̃_k`, and the current channel and group envelopes.
+## Input validation behavior
 
-### `HretObserver::reset_envelopes`
+`HretObserver::new` validates:
 
-Zeroes all channel and group envelopes. Useful after fault recovery or filter re-initialization.
+- `m > 0`, `g > 0`
+- all vector lengths (`group_mapping`, `rho_g`, `beta_k`, `beta_g`, `k_k` rows)
+- `group_mapping` values in `0..g`
+- `rho` and each `rho_g[i]` in `(0, 1)`
+- finite gains/residuals and non-negative `beta_k`, `beta_g`
+- non-empty gain matrix
 
----
+Invalid inputs return `HretError` (Rust) or `ValueError` (Python).
 
-## Part of the `dsfb` workspace
+## Notebook validation workflow
 
-This crate is one component of the [dsfb](https://github.com/infinityabundance/dsfb) workspace. See the root repository for the full architecture.
+The empirical notebook is in:
 
----
+`hret_hypersonic_validation.ipynb`
+
+It contains:
+
+- toy correlated-fault simulation
+- hypersonic re-entry Monte Carlo
+- HRET baseline comparisons and sensitivity hooks
 
 ## Citation
-
-If you use this crate in academic work, please cite the accompanying preprint:
 
 ```bibtex
 @misc{debeer2026hret,
@@ -159,8 +125,6 @@ If you use this crate in academic work, please cite the accompanying preprint:
 ```
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18783283.svg)](https://doi.org/10.5281/zenodo.18783283)
-
----
 
 ## License
 
