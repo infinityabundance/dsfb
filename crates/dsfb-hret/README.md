@@ -2,6 +2,12 @@
 
 **Hierarchical Residual-Envelope Trust (HRET)** — a deterministic extension of DSFB for grouped multi-sensor fusion with correlated disturbance handling.
 
+dsfb-hret implements the HRET algorithm described in:
+
+R. de Beer (2026).
+Hierarchical Residual-Envelope Trust: A Deterministic Framework for Grouped Multi-Sensor Fusion.
+https://doi.org/10.5281/zenodo.18783283
+
 `dsfb-hret` implements an `HretObserver` that fuses residuals from multiple sensor channels arranged into groups. Each channel and group maintains an exponentially-smoothed residual envelope, and trust weights are computed hierarchically — channel-level weights modulated by group-level weights — before being normalized to form a convex combination. The resulting fusion correction `Δx` can be fed directly into a state observer or navigation filter.
 
 This crate exposes the observer as both a native Rust library (`rlib`) and a Python extension module (`cdylib`) via [PyO3](https://pyo3.rs).
