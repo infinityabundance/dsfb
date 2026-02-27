@@ -82,10 +82,11 @@ Don’t believe a sensor all at once.
 
 ## Workspace Crates
 
-This repository contains four crates for different DSFB workflows:
+This repository contains five crates for different DSFB workflows:
 
 Crates.io:
 [![dsfb](https://img.shields.io/crates/v/dsfb.svg)](https://crates.io/crates/dsfb)
+[![dsfb-ddmf](https://img.shields.io/crates/v/dsfb-ddmf.svg)](https://crates.io/crates/dsfb-ddmf)
 [![dsfb-fusion-bench](https://img.shields.io/crates/v/dsfb-fusion-bench.svg)](https://crates.io/crates/dsfb-fusion-bench)
 [![dsfb-lcss-hret](https://img.shields.io/crates/v/dsfb-lcss-hret.svg)](https://crates.io/crates/dsfb-lcss-hret)
 [![dsfb-starship](https://img.shields.io/crates/v/dsfb-starship.svg)](https://crates.io/crates/dsfb-starship)
@@ -96,6 +97,12 @@ Crates.io:
   workspace path: `crates/dsfb`
   crates.io: https://crates.io/crates/dsfb
   docs.rs: https://docs.rs/dsfb
+- `dsfb-ddmf`:
+  deterministic disturbance modeling + residual-envelope Monte Carlo sweep crate built on top of `dsfb`
+  workspace path: `crates/dsfb-ddmf`
+  local README: `crates/dsfb-ddmf/README.md`
+  crates.io: https://crates.io/crates/dsfb-ddmf
+  docs.rs: https://docs.rs/dsfb-ddmf
 - `dsfb-fusion-bench`:
   standalone synthetic benchmarking + plotting-data generator crate
   workspace path: `crates/dsfb-fusion-bench`
