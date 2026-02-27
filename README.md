@@ -72,7 +72,7 @@ Don’t believe a sensor all at once.
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-hret/hret_hypersonic_validation.ipynb)
 
 `Deterministic Disturbance Modeling Framework (DDMF)`
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-ddmf/dsfb_ddmf_colab_latest.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-ddmf/dsfb_ddmf_colab_public.ipynb)
 
 ---
 
