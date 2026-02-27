@@ -144,7 +144,7 @@ def ensure_cargo() -> str:
     raise FileNotFoundError("cargo is not available even after rustup installation.")
 
 
-def ensure_chrome_for_kaleido() -> str:
+def ensure_chrome_for_kaleido(pio_module=None) -> str:
     browser_candidates = [
         "google-chrome",
         "google-chrome-stable",
@@ -175,7 +175,9 @@ def ensure_chrome_for_kaleido() -> str:
                 return browser_path
 
     try:
-        import plotly.io as pio
+        pio = pio_module
+        if pio is None:
+            import plotly.io as pio
 
         browser_path = pio.get_chrome()
         if browser_path:
@@ -203,27 +205,52 @@ print(f"Using repository commit: {commit_hash}")
 CARGO_BIN = ensure_cargo()
 print(f"Using cargo binary: {CARGO_BIN}")
 
-subprocess.run(
-    [
-        sys.executable,
-        "-m",
-        "pip",
-        "install",
-        "-q",
-        "--upgrade",
-        "pandas",
-        "plotly>=6.1.1,<7",
-        "kaleido>=1.0.0,<2",
-    ],
-    check=True,
-)
+def install_python_plotting_stack() -> None:
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "-q",
+            "--upgrade",
+            "pandas",
+            "plotly>=6.1.1,<7",
+            "kaleido>=1.0.0,<2",
+        ],
+        check=True,
+    )
+
+
+def load_plotly_stack():
+    for module_name in list(sys.modules):
+        if module_name == "plotly" or module_name.startswith("plotly."):
+            sys.modules.pop(module_name, None)
+        if module_name == "kaleido" or module_name.startswith("kaleido."):
+            sys.modules.pop(module_name, None)
+
+    import kaleido
+    import plotly
+    import plotly.graph_objects as go
+    import plotly.io as pio
+
+    return plotly, go, pio, kaleido
+
+
+install_python_plotting_stack()
 
 import importlib.metadata as importlib_metadata
 
-print(f"Using Plotly version: {importlib_metadata.version('plotly')}")
-print(f"Using Kaleido version: {importlib_metadata.version('kaleido')}")
+plotly_module, _, pio_module, kaleido_module = load_plotly_stack()
 
-CHROME_BIN = ensure_chrome_for_kaleido()
+print(
+    f"Using Plotly version: {getattr(plotly_module, '__version__', importlib_metadata.version('plotly'))}"
+)
+print(
+    f"Using Kaleido version: {getattr(kaleido_module, '__version__', importlib_metadata.version('kaleido'))}"
+)
+
+CHROME_BIN = ensure_chrome_for_kaleido(pio_module)
 print(f"Using Chrome/Chromium binary: {CHROME_BIN}")
 
 # %% Cell 2: Build and run the dsfb-ddmf CLI
@@ -245,8 +272,13 @@ print(f"Using output directory: {out_dir}")
 
 # %% Cell 4: Load CSVs and define save helper
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.io as pio
+
+plotly_module, go, pio, kaleido_module = load_plotly_stack()
+
+print(
+    f"Plotly image export ready with Plotly {getattr(plotly_module, '__version__', 'unknown')}"
+    f" and Kaleido {getattr(kaleido_module, '__version__', 'unknown')}"
+)
 
 results = pd.read_csv(out_dir / "results.csv")
 impulse = pd.read_csv(out_dir / "single_run_impulse.csv")
@@ -256,8 +288,24 @@ results["effective_amplitude"] = results["D"].where(results["D"].abs() > 0.0, re
 
 
 def save_plot(fig: go.Figure, stem: str) -> None:
-    pio.write_image(fig, out_dir / f"{stem}.png", format="png", scale=2)
-    pio.write_image(fig, out_dir / f"{stem}.pdf", format="pdf")
+    png_path = out_dir / f"{stem}.png"
+    pdf_path = out_dir / f"{stem}.pdf"
+
+    try:
+        pio.write_image(fig, png_path, format="png", scale=2)
+        pio.write_image(fig, pdf_path, format="pdf")
+    except Exception as exc:
+        if "kaleido package" not in str(exc):
+            raise
+
+        install_python_plotting_stack()
+        _, _, retry_pio, retry_kaleido = load_plotly_stack()
+        print(
+            "Retried static export after refreshing Kaleido "
+            f"{getattr(retry_kaleido, '__version__', 'unknown')}"
+        )
+        retry_pio.write_image(fig, png_path, format="png", scale=2)
+        retry_pio.write_image(fig, pdf_path, format="pdf")
 
 
 results.head()
