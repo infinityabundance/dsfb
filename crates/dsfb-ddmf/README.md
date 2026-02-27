@@ -13,7 +13,7 @@ In practical terms, this crate:
 
 Use `dsfb-ddmf` when you want disturbance-side analysis for DSFB-style residual-envelope systems rather than a full observer or application demo.
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-ddmf/dsfb_ddmf_colab_public.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-ddmf/dsfb_ddmf_colab_live.ipynb)
 
 ## Reference papers
 
@@ -115,7 +115,7 @@ output-dsfb-ddmf/YYYYMMDD_HHMMSS/
 
 The canonical Colab notebook lives in this crate directory:
 
-- `dsfb_ddmf_colab_public.ipynb`
+- `dsfb_ddmf_colab_live.ipynb`
 
 The paired script form also lives here:
 
