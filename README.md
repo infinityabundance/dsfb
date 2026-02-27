@@ -51,6 +51,10 @@ Don’t believe a sensor all at once.
 > *Hierarchical Residual-Envelope Trust: A Deterministic Framework for Grouped Multi-Sensor Fusion* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.18783283]
 
+> **de Beer, R.** (2026). 
+> *Deterministic Disturbance Modeling Framework for Residual-Envelope Fusion Systems* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.18806150]
+
 ---
 
 `DSFB Simulation Notebook:`
