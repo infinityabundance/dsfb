@@ -7,13 +7,39 @@
 
 Drift-Slew Fusion Bootstrap (DSFB): a trust-adaptive nonlinear state estimator for tracking position (`phi`), drift (`omega`), and slew (`alpha`) across multiple measurement channels.
 
+In practical terms, this crate:
+
+- takes one scalar measurement per channel at each time step
+- predicts a three-state model `phi`, `omega`, `alpha`
+- computes per-channel residuals against the predicted position
+- tracks an exponential moving average of residual magnitude
+- converts those residuals into normalized trust weights
+- applies a bounded residual correction to the state estimate
+
+Use `dsfb` when you want a small deterministic observer that can keep fusing redundant scalar channels while automatically downweighting channels whose residuals stop behaving like the rest.
+
+## What goes in and what comes out
+
+Inputs:
+
+- `DsfbParams`: observer gains and trust parameters
+- channel count: number of scalar measurement channels
+- initial state: `DsfbState { phi, omega, alpha }`
+- per-step data: `&[f64]` measurements plus `dt`
+
+Outputs:
+
+- corrected `DsfbState`
+- per-channel trust weights through `trust_stats()` / `trust_weight()`
+- per-channel residual-envelope state through `ema_residual()`
+
 ## Install
 
 From crates.io:
 
 ```toml
 [dependencies]
-dsfb = "0.1.1"
+dsfb = "0.1.2"
 ```
 
 To track unreleased changes, use Git:
@@ -38,6 +64,8 @@ let state = observer.step(&measurements, dt);
 
 println!("phi={}, omega={}, alpha={}", state.phi, state.omega, state.alpha);
 ```
+
+At each call to `step`, DSFB predicts the next state, compares all channels to that prediction, and uses trust-weighted residual aggregation to decide how much the observer should move.
 
 ## Simulation Example
 

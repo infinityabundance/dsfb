@@ -3,6 +3,14 @@
 High-fidelity Starship-style 6-DoF hypersonic re-entry simulation demonstrating
 Drift-Slew Fusion Bootstrap (DSFB) trust-adaptive IMU fusion during plasma blackout.
 
+This crate is a deterministic re-entry simulation and analysis package. It models a Starship-class vehicle descending through hypersonic flight, injects faults into a redundant IMU set, and compares three navigation stacks:
+
+- pure inertial propagation
+- a simple GNSS-aided EKF baseline
+- DSFB-based IMU fusion with GNSS aiding outside blackout
+
+Use it when you want a reproducible end-to-end demo of DSFB under a harsh navigation scenario rather than a general-purpose flight dynamics library.
+
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-starship/starship_reentry_demo.ipynb)
 
 > **Disclaimer (Important):** This is an illustrative simulation using representative physics and parameters. It is not calibrated to proprietary SpaceX models or actual flight data. Absolute performance numbers are not predictive of any specific vehicle.
@@ -32,6 +40,21 @@ Drift-Slew Fusion Bootstrap (DSFB) trust-adaptive IMU fusion during plasma black
   - PNG plots (altitude, log-scale position error, DSFB trust)
 - Python bindings via PyO3, installable from wheels built by maturin
 
+## What goes in and what comes out
+
+Inputs:
+
+- `SimConfig`: time step, horizon, blackout altitudes, entry conditions, DSFB trust parameters, and RNG seed
+- optional output directory for `run_simulation`
+
+Outputs:
+
+- timestamped run directory under `output-dsfb-starship/`
+- `starship_timeseries.csv` with truth, baseline, DSFB, and trust traces
+- `starship_summary.json` with run configuration and aggregate metrics
+- three PNG plots for altitude, position error, and DSFB trust
+- Rust and Python APIs for running the same deterministic scenario programmatically
+
 ## Why this matters for reusable vehicles
 
 The plasma blackout phase is one of the most demanding windows in hypersonic re-entry: several minutes of near-total loss of GPS and RF communication while the vehicle experiences extreme thermal gradients, aerodynamic transients, and potential sensor slew.
@@ -54,6 +77,8 @@ cargo run --release -p dsfb-starship
 Outputs are always written under the workspace-root `output-dsfb-starship/` folder.
 Each run creates a fresh timestamped directory (for example `output-dsfb-starship/20260220-143512`)
 to prevent overwriting previous results.
+
+Programmatically, the main entry point is `run_simulation(&SimConfig, output_dir)`, which validates the configuration, runs the scenario, writes artifacts, and returns a summary struct.
 
 ## Python / Colab
 
