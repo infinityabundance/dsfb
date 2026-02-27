@@ -205,15 +205,30 @@ print(f"Using repository commit: {commit_hash}")
 CARGO_BIN = ensure_cargo()
 print(f"Using cargo binary: {CARGO_BIN}")
 
-def install_python_plotting_stack() -> None:
+def prepare_plot_env(env_root: Path) -> tuple[str, str]:
+    if env_root.exists():
+        shutil.rmtree(env_root)
+
     subprocess.run(
         [
             sys.executable,
+            "-m",
+            "venv",
+            str(env_root),
+        ],
+        check=True,
+    )
+
+    plot_python = env_root / "bin" / "python"
+    subprocess.run(
+        [
+            str(plot_python),
             "-m",
             "pip",
             "install",
             "-q",
             "--upgrade",
+            "pip",
             "pandas",
             "plotly>=6.1.1,<7",
             "kaleido>=1.0.0,<2",
@@ -221,10 +236,27 @@ def install_python_plotting_stack() -> None:
         check=True,
     )
 
+    plot_site_packages = subprocess.check_output(
+        [
+            str(plot_python),
+            "-c",
+            "import site; print(site.getsitepackages()[0])",
+        ],
+        text=True,
+    ).strip()
 
-def load_plotly_stack():
+    return str(plot_python), plot_site_packages
+
+
+def load_plotly_from_site_packages(site_packages: str):
+    if site_packages in sys.path:
+        sys.path.remove(site_packages)
+    sys.path.insert(0, site_packages)
+
     for module_name in list(sys.modules):
         if module_name == "plotly" or module_name.startswith("plotly."):
+            sys.modules.pop(module_name, None)
+        if module_name == "_plotly_utils" or module_name.startswith("_plotly_utils."):
             sys.modules.pop(module_name, None)
         if module_name == "kaleido" or module_name.startswith("kaleido."):
             sys.modules.pop(module_name, None)
@@ -237,11 +269,17 @@ def load_plotly_stack():
     return plotly, go, pio, kaleido
 
 
-install_python_plotting_stack()
+PLOT_ENV_DIR = (
+    Path("/content/.dsfb-ddmf-plot-env")
+    if "google.colab" in sys.modules
+    else REPO_ROOT / ".dsfb-ddmf-plot-env"
+)
+PLOT_PYTHON, PLOT_SITE_PACKAGES = prepare_plot_env(PLOT_ENV_DIR)
+print(f"Using plotting Python: {PLOT_PYTHON}")
 
 import importlib.metadata as importlib_metadata
 
-plotly_module, _, pio_module, kaleido_module = load_plotly_stack()
+plotly_module, _, pio_module, kaleido_module = load_plotly_from_site_packages(PLOT_SITE_PACKAGES)
 
 print(
     f"Using Plotly version: {getattr(plotly_module, '__version__', importlib_metadata.version('plotly'))}"
@@ -271,11 +309,10 @@ out_dir = RUN_DIRS[-1]
 print(f"Using output directory: {out_dir}")
 
 # %% Cell 4: Load CSVs and define save helper
-import json
 import pandas as pd
 import tempfile
 
-plotly_module, go, pio, kaleido_module = load_plotly_stack()
+plotly_module, go, _, kaleido_module = load_plotly_from_site_packages(PLOT_SITE_PACKAGES)
 
 print(
     f"Plotly image export ready with Plotly {getattr(plotly_module, '__version__', 'unknown')}"
@@ -319,7 +356,7 @@ pio.write_image(fig, pdf_path, format="pdf")
     try:
         subprocess.run(
             [
-                sys.executable,
+                PLOT_PYTHON,
                 "-c",
                 export_script,
                 str(fig_json_path),
