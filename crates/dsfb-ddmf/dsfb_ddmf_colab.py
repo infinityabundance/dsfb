@@ -271,7 +271,9 @@ out_dir = RUN_DIRS[-1]
 print(f"Using output directory: {out_dir}")
 
 # %% Cell 4: Load CSVs and define save helper
+import json
 import pandas as pd
+import tempfile
 
 plotly_module, go, pio, kaleido_module = load_plotly_stack()
 
@@ -290,22 +292,45 @@ results["effective_amplitude"] = results["D"].where(results["D"].abs() > 0.0, re
 def save_plot(fig: go.Figure, stem: str) -> None:
     png_path = out_dir / f"{stem}.png"
     pdf_path = out_dir / f"{stem}.pdf"
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fig_file:
+        fig_file.write(fig.to_json())
+        fig_json_path = Path(fig_file.name)
+
+    export_script = """
+import os
+import sys
+from pathlib import Path
+
+import plotly.io as pio
+
+fig_json_path = Path(sys.argv[1])
+png_path = Path(sys.argv[2])
+pdf_path = Path(sys.argv[3])
+browser_path = sys.argv[4]
+
+if browser_path:
+    os.environ["BROWSER_PATH"] = browser_path
+
+fig = pio.from_json(fig_json_path.read_text())
+pio.write_image(fig, png_path, format="png", scale=2)
+pio.write_image(fig, pdf_path, format="pdf")
+"""
 
     try:
-        pio.write_image(fig, png_path, format="png", scale=2)
-        pio.write_image(fig, pdf_path, format="pdf")
-    except Exception as exc:
-        if "kaleido package" not in str(exc):
-            raise
-
-        install_python_plotting_stack()
-        _, _, retry_pio, retry_kaleido = load_plotly_stack()
-        print(
-            "Retried static export after refreshing Kaleido "
-            f"{getattr(retry_kaleido, '__version__', 'unknown')}"
+        subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                export_script,
+                str(fig_json_path),
+                str(png_path),
+                str(pdf_path),
+                os.environ.get("BROWSER_PATH", ""),
+            ],
+            check=True,
         )
-        retry_pio.write_image(fig, png_path, format="png", scale=2)
-        retry_pio.write_image(fig, pdf_path, format="pdf")
+    finally:
+        fig_json_path.unlink(missing_ok=True)
 
 
 results.head()
