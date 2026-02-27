@@ -113,11 +113,12 @@ output-dsfb-ddmf/YYYYMMDD_HHMMSS/
 
 ## Colab workflow
 
-Notebook files live in this crate directory:
+The canonical Colab notebook lives in this crate directory:
 
-- `dsfb_ddmf_colab.ipynb`
-- `dsfb_ddmf_colab_latest.ipynb`
 - `dsfb_ddmf_colab_public.ipynb`
+
+The paired script form also lives here:
+
 - `dsfb_ddmf_colab.py`
 
 The notebook:
