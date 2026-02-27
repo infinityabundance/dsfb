@@ -55,19 +55,82 @@
 
 # %%
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
 
 def detect_repo_root() -> Path:
-    candidates = [Path("/content/dsfb-ddmf"), Path("/content/dsfb"), Path.cwd()]
-    for candidate in candidates:
-        if (candidate / "Cargo.toml").exists():
+    def is_workspace_root(path: Path) -> bool:
+        return (path / "Cargo.toml").exists() and (path / "crates" / "dsfb-ddmf").exists()
+
+    def is_crate_root(path: Path) -> bool:
+        return (path / "Cargo.toml").exists() and (path / "src").exists() and path.name == "dsfb-ddmf"
+
+    cwd = Path.cwd().resolve()
+
+    for candidate in [cwd, *cwd.parents]:
+        if is_workspace_root(candidate):
             return candidate
-    raise FileNotFoundError("Could not locate the Rust repo root.")
+        if is_crate_root(candidate):
+            return candidate.parent.parent
+
+    explicit_candidates = [
+        Path("/content/dsfb"),
+        Path("/content/dsfb-ddmf"),
+        Path("/content"),
+    ]
+    for base in explicit_candidates:
+        if is_workspace_root(base):
+            return base
+        if is_crate_root(base):
+            return base.parent.parent
+
+    content_root = Path("/content")
+    if content_root.exists():
+        for cargo_toml in content_root.glob("*/Cargo.toml"):
+            candidate = cargo_toml.parent
+            if is_workspace_root(candidate):
+                return candidate
+            if is_crate_root(candidate):
+                return candidate.parent.parent
+
+        for cargo_toml in content_root.glob("*/*/Cargo.toml"):
+            candidate = cargo_toml.parent
+            if is_workspace_root(candidate):
+                return candidate
+            if is_crate_root(candidate):
+                return candidate.parent.parent
+
+    raise FileNotFoundError(
+        "Could not locate the Rust repo root. Clone the repository under /content and rerun the notebook."
+    )
 
 
-REPO_ROOT = detect_repo_root()
+def prepare_repo_root() -> Path:
+    if "google.colab" in sys.modules:
+        repo_root = Path("/content/dsfb")
+        if repo_root.exists():
+            shutil.rmtree(repo_root)
+        subprocess.run(
+            [
+                "git",
+                "clone",
+                "--depth",
+                "1",
+                "--branch",
+                "main",
+                "https://github.com/infinityabundance/dsfb.git",
+                str(repo_root),
+            ],
+            check=True,
+        )
+        return repo_root
+
+    return detect_repo_root()
+
+
+REPO_ROOT = prepare_repo_root()
 CRATE_DIR = REPO_ROOT / "crates" / "dsfb-ddmf"
 if not CRATE_DIR.exists():
     CRATE_DIR = REPO_ROOT
