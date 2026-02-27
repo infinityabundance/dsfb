@@ -1,3 +1,35 @@
+//! Hierarchical Residual-Envelope Trust (HRET) for grouped multi-sensor fusion.
+//!
+//! `HretObserver` maintains channel and group envelope state, converts those envelopes
+//! into trust weights, and produces a convexly weighted correction vector.
+//!
+//! # Example
+//!
+//! ```rust
+//! use dsfb_hret::HretObserver;
+//!
+//! let mut obs = HretObserver::new(
+//!     3,
+//!     2,
+//!     vec![0, 0, 1],
+//!     0.95,
+//!     vec![0.9, 0.85],
+//!     vec![1.0, 1.0, 1.0],
+//!     vec![1.0, 1.0],
+//!     vec![
+//!         vec![1.0, 0.5, 0.5],
+//!         vec![0.0, 1.0, 0.0],
+//!     ],
+//! )
+//! .unwrap();
+//!
+//! let (delta_x, weights, s_k, s_g) = obs.update(vec![0.05, 0.12, 0.30]).unwrap();
+//! assert_eq!(delta_x.len(), 2);
+//! assert_eq!(weights.len(), 3);
+//! assert_eq!(s_k.len(), 3);
+//! assert_eq!(s_g.len(), 2);
+//! ```
+//!
 #![allow(clippy::useless_conversion)] // False positive from PyO3-generated PyResult signature.
 
 use ndarray::{Array1, Array2};
@@ -5,8 +37,17 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 const WEIGHT_SUM_EPS: f64 = 1e-12;
+
+/// Result of a single HRET update.
+///
+/// The tuple components are, in order:
+/// 1. fused correction `delta_x`
+/// 2. normalized channel weights
+/// 3. channel envelopes `s_k`
+/// 4. group envelopes `s_g`
 pub type HretUpdate = (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>);
 
+/// Error returned when HRET inputs fail validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HretError {
     message: String,
@@ -30,6 +71,10 @@ impl std::error::Error for HretError {}
 
 #[derive(Clone, Debug)]
 #[pyclass]
+/// Stateful HRET observer for grouped residual fusion.
+///
+/// The observer keeps exponentially weighted absolute residual envelopes for each
+/// channel and group, then combines channel and group trust into convex fusion weights.
 pub struct HretObserver {
     m: usize,
     g: usize,
@@ -45,6 +90,10 @@ pub struct HretObserver {
 }
 
 impl HretObserver {
+    /// Constructs a new observer and validates all dimensions and scalar parameters.
+    ///
+    /// `k_k` is the fusion gain matrix with shape `(p, m)`, where `m` is the number
+    /// of channels and `p` is the correction dimension.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         m: usize,
@@ -116,6 +165,10 @@ impl HretObserver {
         })
     }
 
+    /// Applies one HRET update for the provided channel residuals.
+    ///
+    /// Returns the fused correction, normalized channel weights, updated channel
+    /// envelopes, and updated group envelopes.
     pub fn update(&mut self, residuals: Vec<f64>) -> Result<HretUpdate, HretError> {
         validate_len("residuals", self.m, residuals.len())?;
         validate_finite("residuals", &residuals)?;
@@ -169,19 +222,23 @@ impl HretObserver {
         ))
     }
 
+    /// Resets the stored channel and group envelope state to zero.
     pub fn reset_envelopes(&mut self) {
         self.s_k.fill(0.0);
         self.s_g.fill(0.0);
     }
 
+    /// Returns the configured number of residual channels.
     pub fn channel_count(&self) -> usize {
         self.m
     }
 
+    /// Returns the configured number of groups.
     pub fn group_count(&self) -> usize {
         self.g
     }
 
+    /// Returns the channel-to-group mapping as a plain vector.
     pub fn group_mapping_vec(&self) -> Vec<usize> {
         self.group_mapping.to_vec()
     }
