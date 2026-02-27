@@ -167,18 +167,6 @@ def ensure_kaleido_system_deps() -> None:
     )
 
 
-def is_real_browser_binary(browser_path: str) -> bool:
-    try:
-        resolved = Path(browser_path).resolve()
-        if "snap" in str(resolved):
-            return False
-
-        content = Path(browser_path).read_text(errors="ignore")
-        return "requires the chromium snap to be installed" not in content
-    except Exception:
-        return True
-
-
 def ensure_chrome_for_kaleido(pio_module=None) -> str:
     browser_candidates = [
         "google-chrome",
@@ -189,7 +177,7 @@ def ensure_chrome_for_kaleido(pio_module=None) -> str:
 
     for candidate in browser_candidates:
         browser_path = shutil.which(candidate)
-        if browser_path and is_real_browser_binary(browser_path):
+        if browser_path:
             os.environ["BROWSER_PATH"] = browser_path
             return browser_path
 
@@ -206,7 +194,7 @@ def ensure_chrome_for_kaleido(pio_module=None) -> str:
 
         for candidate in browser_candidates:
             browser_path = shutil.which(candidate)
-            if browser_path and is_real_browser_binary(browser_path):
+            if browser_path:
                 os.environ["BROWSER_PATH"] = browser_path
                 return browser_path
 
