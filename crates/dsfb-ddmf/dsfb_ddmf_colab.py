@@ -167,7 +167,7 @@ def ensure_kaleido_system_deps() -> None:
     )
 
 
-def ensure_chrome_for_kaleido(pio_module=None) -> str:
+def ensure_chrome_for_kaleido(pio_module=None) -> str | None:
     browser_candidates = [
         "google-chrome",
         "google-chrome-stable",
@@ -210,9 +210,7 @@ def ensure_chrome_for_kaleido(pio_module=None) -> str:
     except Exception:
         pass
 
-    raise FileNotFoundError(
-        "Could not find or install Chrome/Chromium for Kaleido static image export."
-    )
+    return None
 
 
 REPO_ROOT = prepare_repo_root()
@@ -297,7 +295,10 @@ print(
 )
 
 CHROME_BIN = ensure_chrome_for_kaleido(pio_module)
-print(f"Using Chrome/Chromium binary: {CHROME_BIN}")
+if CHROME_BIN:
+    print(f"Using Chrome/Chromium binary: {CHROME_BIN}")
+else:
+    print("Chrome/Chromium not available; static PNG/PDF export will be skipped.")
 
 # %% Cell 2: Build and run the dsfb-ddmf CLI
 subprocess.run([CARGO_BIN, "build", "--release"], cwd=CRATE_DIR, check=True)
@@ -348,6 +349,12 @@ def save_plot(fig: go.Figure, stem: str) -> None:
     png_path = out_dir / f"{stem}.png"
     pdf_path = out_dir / f"{stem}.pdf"
     fig.write_html(html_path)
+    print(f"Saved {html_path.name}")
+
+    if not CHROME_BIN:
+        print(f"Skipping PNG/PDF export for {stem}; no Chrome/Chromium binary is available.")
+        return
+
     html_uri = html_path.resolve().as_uri()
 
     try:
@@ -372,13 +379,12 @@ def save_plot(fig: go.Figure, stem: str) -> None:
             capture_output=True,
             text=True,
         )
-        print(f"Saved {html_path.name}, {png_path.name}, and {pdf_path.name}")
+        print(f"Saved {png_path.name} and {pdf_path.name}")
         if png_result.stderr.strip():
             print(png_result.stderr.strip())
         if pdf_result.stderr.strip():
             print(pdf_result.stderr.strip())
     except subprocess.CalledProcessError as exc:
-        print(f"Saved {html_path.name}")
         print(f"Static export failed for {stem}; continuing without PNG/PDF.")
         if exc.stderr:
             print(exc.stderr.strip())
