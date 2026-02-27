@@ -77,6 +77,57 @@ fn constructor_rejects_out_of_range_group_indices() {
 }
 
 #[test]
+fn constructor_rejects_invalid_forgetting_factor() {
+    let error = HretObserver::new(
+        2,
+        1,
+        vec![0, 0],
+        1.0,
+        vec![0.9],
+        vec![1.0, 1.0],
+        vec![1.0],
+        vec![vec![1.0, 1.0]],
+    )
+    .expect_err("constructor should reject rho outside (0, 1)");
+
+    assert!(error.to_string().contains("rho"));
+}
+
+#[test]
+fn constructor_rejects_empty_gain_matrix() {
+    let error = HretObserver::new(
+        2,
+        1,
+        vec![0, 0],
+        0.95,
+        vec![0.9],
+        vec![1.0, 1.0],
+        vec![1.0],
+        vec![],
+    )
+    .expect_err("constructor should reject empty gain matrix");
+
+    assert!(error.to_string().contains("gain row"));
+}
+
+#[test]
+fn constructor_rejects_non_finite_gains() {
+    let error = HretObserver::new(
+        2,
+        1,
+        vec![0, 0],
+        0.95,
+        vec![0.9],
+        vec![1.0, 1.0],
+        vec![1.0],
+        vec![vec![1.0, f64::INFINITY]],
+    )
+    .expect_err("constructor should reject non-finite gains");
+
+    assert!(error.to_string().contains("must be finite"));
+}
+
+#[test]
 fn update_rejects_non_finite_residuals() {
     let mut obs = make_observer();
     let error = obs

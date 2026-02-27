@@ -4,18 +4,28 @@ version = "0.1.1"
 edition = "2021"
 rust-version = "1.75"
 description = "Hierarchical Residual-Envelope Trust (HRET): A deterministic extension of DSFB for grouped multi-sensor fusion with correlated disturbance handling."
-keywords = ["sensor-fusion", "deterministic", "residual-envelope", "trust-weighting", "hypersonic-navigation"]
+keywords = ["sensor-fusion", "deterministic", "residual-envelope", "trust-weighting", "hypersonics"]
 categories = ["science::robotics", "simulation", "algorithms"]
 repository = "https://github.com/infinityabundance/dsfb"
-homepage = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-hret"
+homepage = "https://github.com/infinityabundance/dsfb"
 documentation = "https://docs.rs/dsfb-hret"
 readme = "README.md"
 license = "Apache-2.0"
 authors = ["Riaan de Beer <predictiverendezvous@proton.me>"]
+include = [
+    "src/**",
+    "Cargo.toml",
+    "README.md",
+    "hret_hypersonic_validation.ipynb",
+]
 
 [lib]
 name = "dsfb_hret"
 crate-type = ["cdylib", "rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py38"] }
