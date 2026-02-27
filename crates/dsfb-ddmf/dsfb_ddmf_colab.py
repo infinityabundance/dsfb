@@ -1,60 +1,13 @@
 # %% [markdown]
 # # DDMF Monte Carlo Notebook
 #
-# This notebook demonstrates the `dsfb-ddmf` crate, a deterministic disturbance-side
-# extension of the `dsfb` workspace for residual-envelope fusion systems.
-#
-# What it does:
-# - builds and runs the Rust `dsfb-ddmf` crate
-# - executes the default x360 Monte Carlo disturbance sweep
-# - loads the generated CSV outputs into pandas
-# - plots envelope and trust behavior for impulse and persistent-elevated examples
-# - plots Monte Carlo summary behavior across disturbance regimes
-# - saves Plotly figures back into the active output directory as PNG and PDF
-#
-# Why it exists:
-# - to show how deterministic disturbance classes affect the residual envelope `s[n]`
-# - to show how trust weights `w[n] = 1 / (1 + beta * s[n])` suppress or recover
-# - to make the DDMF paper behavior easy to inspect in Colab without re-implementing
-#   the Rust simulation logic in Python
-#
-# How it works:
-# - the Rust binary samples seeded disturbance cases across bounded, drift, slew-only,
-#   impulsive, and persistent-elevated regimes
-# - each run evaluates residuals `r[n] = epsilon[n] + d[n]`
-# - the envelope recursion updates as `s[n+1] = rho * s[n] + (1-rho) * abs(r[n])`
-# - trust is computed from the current envelope and exported for plotting
-#
-# Where outputs go:
-# - the CLI writes to `output-dsfb-ddmf/YYYYMMDD_HHMMSS/` under the repo root
-# - this notebook auto-detects the latest such directory and uses it as `out_dir`
-#
-# Main Monte Carlo / model parameters:
-# - `runs` / `n_runs`: number of Monte Carlo cases; default here is x360
-# - `n_steps`: number of time steps per simulation run
-# - `seed`: RNG seed for reproducible disturbance parameter sampling
-# - `rho`: envelope forgetting factor in `(0, 1)`; larger means slower decay / longer memory
-# - `beta`: trust sensitivity; larger means trust falls faster as envelope grows
-# - `epsilon_bound`: deterministic bound on the residual contribution `epsilon[n]`
-# - `recovery_delta`: tolerance used when deciding whether an impulsive case recovered
-#
-# Disturbance-specific parameters visible in `results.csv`:
-# - `D`: disturbance magnitude column for bounded / impulsive / persistent-elevated cases
-# - `B`: drift-rate-like column used for drift cases and the nominal level for persistent-elevated cases
-# - `S`: slew or rate-bound parameter
-# - `impulse_start`: first index of an impulse window
-# - `impulse_len`: impulse duration in samples
-# - `s0`: initial envelope state for the run
-#
-# Output summary columns:
-# - `max_envelope`: peak `s[n]` observed in the run
-# - `min_trust`: minimum trust reached in the run
-# - `time_to_recover`: first recovery index when applicable; `-1` means not recoverable / not observed
-# - `regime_label`: qualitative regime such as `bounded_nominal`, `persistent_elevated`,
-#   `impulsive`, or `unbounded`
+# - This notebook visualizes deterministic envelope behavior under DDMF.
+# - It compares impulse vs persistent elevated disturbances.
+# - It summarizes Monte Carlo 360-degree disturbance sweeps.
 
-# %%
+# %% Cell 1: Install dependencies and prepare the repo/toolchain
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import sys
@@ -74,17 +27,6 @@ def detect_repo_root() -> Path:
             return candidate
         if is_crate_root(candidate):
             return candidate.parent.parent
-
-    explicit_candidates = [
-        Path("/content/dsfb"),
-        Path("/content/dsfb-ddmf"),
-        Path("/content"),
-    ]
-    for base in explicit_candidates:
-        if is_workspace_root(base):
-            return base
-        if is_crate_root(base):
-            return base.parent.parent
 
     content_root = Path("/content")
     if content_root.exists():
@@ -130,29 +72,106 @@ def prepare_repo_root() -> Path:
     return detect_repo_root()
 
 
+def ensure_cargo() -> str:
+    cargo = shutil.which("cargo")
+    if cargo:
+        return cargo
+
+    cargo_home = Path.home() / ".cargo" / "bin" / "cargo"
+    if cargo_home.exists():
+        return str(cargo_home)
+
+    subprocess.run(
+        [
+            "bash",
+            "-lc",
+            "curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal",
+        ],
+        check=True,
+    )
+
+    if cargo_home.exists():
+        return str(cargo_home)
+
+    raise FileNotFoundError("cargo is not available even after rustup installation.")
+
+
+def ensure_chrome_for_kaleido() -> str:
+    browser_candidates = [
+        "google-chrome",
+        "google-chrome-stable",
+        "chromium",
+        "chromium-browser",
+    ]
+
+    for candidate in browser_candidates:
+        browser_path = shutil.which(candidate)
+        if browser_path:
+            os.environ["BROWSER_PATH"] = browser_path
+            return browser_path
+
+    if "google.colab" in sys.modules:
+        subprocess.run(
+            [
+                "bash",
+                "-lc",
+                "apt-get -qq update && (apt-get -qq install -y chromium-browser || apt-get -qq install -y chromium)",
+            ],
+            check=True,
+        )
+
+        for candidate in browser_candidates:
+            browser_path = shutil.which(candidate)
+            if browser_path:
+                os.environ["BROWSER_PATH"] = browser_path
+                return browser_path
+
+    try:
+        import plotly.io as pio
+
+        browser_path = pio.get_chrome()
+        if browser_path:
+            os.environ["BROWSER_PATH"] = browser_path
+            return browser_path
+    except Exception:
+        pass
+
+    raise FileNotFoundError(
+        "Could not find or install Chrome/Chromium for Kaleido static image export."
+    )
+
+
 REPO_ROOT = prepare_repo_root()
 CRATE_DIR = REPO_ROOT / "crates" / "dsfb-ddmf"
 if not CRATE_DIR.exists():
     CRATE_DIR = REPO_ROOT
+
+commit_hash = subprocess.check_output(
+    ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+    text=True,
+).strip()
+print(f"Using repository commit: {commit_hash}")
+
+CARGO_BIN = ensure_cargo()
+print(f"Using cargo binary: {CARGO_BIN}")
 
 subprocess.run(
     [sys.executable, "-m", "pip", "install", "-q", "pandas", "plotly", "kaleido"],
     check=True,
 )
 
-# %%
-subprocess.run(["cargo", "build", "--release"], cwd=CRATE_DIR, check=True)
+CHROME_BIN = ensure_chrome_for_kaleido()
+print(f"Using Chrome/Chromium binary: {CHROME_BIN}")
+
+# %% Cell 2: Build and run the dsfb-ddmf CLI
+subprocess.run([CARGO_BIN, "build", "--release"], cwd=CRATE_DIR, check=True)
 subprocess.run(
-    ["cargo", "run", "--release", "--bin", "monte_carlo", "--", "--runs", "360"],
+    [CARGO_BIN, "run", "--release", "--bin", "monte_carlo", "--", "--runs", "360"],
     cwd=CRATE_DIR,
     check=True,
 )
 
-# %% [markdown]
-# The CLI writes all outputs under the repo-root `output-dsfb-ddmf/` directory.
-# We always pick the lexicographically latest timestamped subdirectory.
-
-# %%
+# %% Cell 3: Locate the latest output directory
 OUTPUT_ROOT = REPO_ROOT / "output-dsfb-ddmf"
 RUN_DIRS = sorted(path for path in OUTPUT_ROOT.iterdir() if path.is_dir())
 if not RUN_DIRS:
@@ -161,8 +180,10 @@ if not RUN_DIRS:
 out_dir = RUN_DIRS[-1]
 print(f"Using output directory: {out_dir}")
 
-# %%
+# %% Cell 4: Load CSVs and define save helper
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.io as pio
 
 results = pd.read_csv(out_dir / "results.csv")
 impulse = pd.read_csv(out_dir / "single_run_impulse.csv")
@@ -170,10 +191,15 @@ persistent = pd.read_csv(out_dir / "single_run_persistent.csv")
 
 results["effective_amplitude"] = results["D"].where(results["D"].abs() > 0.0, results["B"].abs())
 
-# %%
-import plotly.graph_objects as go
-import plotly.io as pio
 
+def save_plot(fig: go.Figure, stem: str) -> None:
+    pio.write_image(fig, out_dir / f"{stem}.png", format="png", scale=2)
+    pio.write_image(fig, out_dir / f"{stem}.pdf", format="pdf")
+
+
+results.head()
+
+# %% Cell 5: Envelope figure
 fig1 = go.Figure()
 fig1.add_trace(
     go.Scatter(
@@ -200,20 +226,9 @@ fig1.update_layout(
     template="plotly_white",
 )
 fig1.show()
+save_plot(fig1, "envelope_impulse_vs_persistent")
 
-pio.write_image(
-    fig1,
-    out_dir / "envelope_impulse_vs_persistent.png",
-    format="png",
-    scale=2,
-)
-pio.write_image(
-    fig1,
-    out_dir / "envelope_impulse_vs_persistent.pdf",
-    format="pdf",
-)
-
-# %%
+# %% Cell 6: Trust figure
 fig2 = go.Figure()
 fig2.add_trace(
     go.Scatter(
@@ -240,20 +255,9 @@ fig2.update_layout(
     template="plotly_white",
 )
 fig2.show()
+save_plot(fig2, "trust_impulse_vs_persistent")
 
-pio.write_image(
-    fig2,
-    out_dir / "trust_impulse_vs_persistent.png",
-    format="png",
-    scale=2,
-)
-pio.write_image(
-    fig2,
-    out_dir / "trust_impulse_vs_persistent.pdf",
-    format="pdf",
-)
-
-# %%
+# %% Cell 7: Monte Carlo summary figures
 fig3 = go.Figure()
 fig3.add_trace(
     go.Scatter(
@@ -272,20 +276,8 @@ fig3.update_layout(
     template="plotly_white",
 )
 fig3.show()
+save_plot(fig3, "max_envelope_vs_amplitude")
 
-pio.write_image(
-    fig3,
-    out_dir / "max_envelope_vs_amplitude.png",
-    format="png",
-    scale=2,
-)
-pio.write_image(
-    fig3,
-    out_dir / "max_envelope_vs_amplitude.pdf",
-    format="pdf",
-)
-
-# %%
 fig4 = go.Figure()
 for regime_label in sorted(results["regime_label"].unique()):
     subset = results[results["regime_label"] == regime_label]
@@ -306,15 +298,4 @@ fig4.update_layout(
     template="plotly_white",
 )
 fig4.show()
-
-pio.write_image(
-    fig4,
-    out_dir / "min_trust_histogram.png",
-    format="png",
-    scale=2,
-)
-pio.write_image(
-    fig4,
-    out_dir / "min_trust_histogram.pdf",
-    format="pdf",
-)
+save_plot(fig4, "min_trust_histogram")
