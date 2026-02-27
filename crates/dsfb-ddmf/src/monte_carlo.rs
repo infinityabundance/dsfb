@@ -39,6 +39,7 @@ pub struct MonteCarloRunRecord {
     pub run_id: usize,
     pub regime_label: String,
     pub disturbance_type: String,
+    pub admissible: bool,
     #[serde(rename = "D")]
     pub d: f64,
     #[serde(rename = "B")]
@@ -104,6 +105,7 @@ pub fn run_monte_carlo(config: &MonteCarloConfig) -> MonteCarloBatch {
             run_id,
             regime_label: disturbance_kind.regime_label().to_string(),
             disturbance_type: disturbance_kind.disturbance_type().to_string(),
+            admissible: disturbance_kind.is_admissible(),
             d,
             b,
             s,
@@ -325,5 +327,16 @@ mod tests {
     #[test]
     fn default_monte_carlo_batch_is_x360() {
         assert_eq!(MonteCarloConfig::default().n_runs, DEFAULT_MONTE_CARLO_RUNS);
+    }
+
+    #[test]
+    fn monte_carlo_records_include_admissibility() {
+        let config = MonteCarloConfig {
+            n_runs: 12,
+            ..MonteCarloConfig::default()
+        };
+        let batch = run_monte_carlo(&config);
+        assert!(batch.records.iter().any(|record| record.admissible));
+        assert!(batch.records.iter().any(|record| !record.admissible));
     }
 }

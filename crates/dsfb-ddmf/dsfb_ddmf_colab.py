@@ -50,6 +50,7 @@
 # - `max_envelope`: peak `s[n]` observed in the run
 # - `min_trust`: minimum trust reached in the run
 # - `time_to_recover`: first recovery index when applicable; `-1` means not recoverable / not observed
+# - `admissible`: whether the sampled disturbance stays within the admissible bounded / recoverable set
 # - `regime_label`: qualitative regime such as `bounded_nominal`, `persistent_elevated`,
 #   `impulsive`, or `unbounded`
 
@@ -144,6 +145,27 @@ def ensure_cargo() -> str:
     raise FileNotFoundError("cargo is not available even after rustup installation.")
 
 
+def ensure_kaleido_system_deps() -> None:
+    if "google.colab" not in sys.modules:
+        return
+
+    subprocess.run(
+        [
+            "bash",
+            "-lc",
+            (
+                "apt-get -qq update && "
+                "DEPS='libnss3 libatk-bridge2.0-0 libcups2 libxcomposite1 "
+                "libxdamage1 libxfixes3 libxrandr2 libgbm1 libxkbcommon0 "
+                "libpango-1.0-0 libcairo2' && "
+                "(apt-get -qq install -y $DEPS libasound2 || "
+                "apt-get -qq install -y $DEPS libasound2t64)"
+            ),
+        ],
+        check=True,
+    )
+
+
 def ensure_chrome_for_kaleido(pio_module=None) -> str:
     browser_candidates = [
         "google-chrome",
@@ -159,6 +181,7 @@ def ensure_chrome_for_kaleido(pio_module=None) -> str:
             return browser_path
 
     if "google.colab" in sys.modules:
+        ensure_kaleido_system_deps()
         subprocess.run(
             [
                 "bash",
@@ -440,20 +463,44 @@ save_plot(fig2, "trust_impulse_vs_persistent")
 
 # %% Cell 7: Monte Carlo summary figures
 fig3 = go.Figure()
-fig3.add_trace(
-    go.Scatter(
-        x=results["effective_amplitude"],
-        y=results["max_envelope"],
-        mode="markers",
-        marker=dict(size=8, color=results["min_trust"], colorscale="Viridis", showscale=True),
-        text=results["regime_label"],
-        name="Monte Carlo runs",
+for admissible, symbol, name, show_scale in [
+    (True, "circle", "Admissible", True),
+    (False, "x", "Inadmissible", False),
+]:
+    subset = results[results["admissible"] == admissible]
+    if subset.empty:
+        continue
+    fig3.add_trace(
+        go.Scatter(
+            x=subset["effective_amplitude"],
+            y=subset["max_envelope"],
+            mode="markers",
+            marker=dict(
+                size=9,
+                symbol=symbol,
+                color=subset["min_trust"],
+                colorscale="Viridis",
+                showscale=show_scale,
+                colorbar=dict(title="min_trust") if show_scale else None,
+                line=dict(width=1),
+            ),
+            text=subset["regime_label"],
+            customdata=subset[["regime_label", "disturbance_type"]],
+            hovertemplate=(
+                "amplitude=%{x:.3f}<br>"
+                "max_envelope=%{y:.3f}<br>"
+                "min_trust=%{marker.color:.3f}<br>"
+                "regime=%{customdata[0]}<br>"
+                "type=%{customdata[1]}<extra>%{fullData.name}</extra>"
+            ),
+            name=name,
+        )
     )
-)
 fig3.update_layout(
     title="Max Envelope vs Disturbance Amplitude",
     xaxis_title="disturbance amplitude",
     yaxis_title="max_envelope",
+    legend_title="admissibility",
     template="plotly_white",
 )
 fig3.show()

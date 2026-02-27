@@ -212,6 +212,11 @@ impl DisturbanceKind {
         }
     }
 
+    pub fn is_admissible(&self) -> bool {
+        matches!(self, DisturbanceKind::PointwiseBounded { d } if d.abs() <= 0.15)
+            || matches!(self, DisturbanceKind::Impulsive { .. })
+    }
+
     pub fn monte_carlo_columns(&self) -> (f64, f64, f64, usize, usize) {
         match self {
             DisturbanceKind::PointwiseBounded { d } => (d.abs(), 0.0, 0.0, 0, 0),
@@ -266,6 +271,24 @@ impl DisturbanceKind {
 #[cfg(test)]
 mod tests {
     use super::{build_disturbance, DisturbanceKind};
+
+    #[test]
+    fn admissibility_matches_regime_expectations() {
+        assert!(DisturbanceKind::PointwiseBounded { d: 0.05 }.is_admissible());
+        assert!(DisturbanceKind::Impulsive {
+            amplitude: 2.0,
+            start: 3,
+            len: 2,
+        }
+        .is_admissible());
+        assert!(!DisturbanceKind::PersistentElevated {
+            r_nom: 0.05,
+            r_high: 0.6,
+            step_time: 8,
+        }
+        .is_admissible());
+        assert!(!DisturbanceKind::SlewRateBounded { s_max: 0.25 }.is_admissible());
+    }
 
     #[test]
     fn impulsive_disturbance_is_zero_outside_window() {
