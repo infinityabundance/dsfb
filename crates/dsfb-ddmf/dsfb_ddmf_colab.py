@@ -204,9 +204,24 @@ CARGO_BIN = ensure_cargo()
 print(f"Using cargo binary: {CARGO_BIN}")
 
 subprocess.run(
-    [sys.executable, "-m", "pip", "install", "-q", "pandas", "plotly", "kaleido"],
+    [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "-q",
+        "--upgrade",
+        "pandas",
+        "plotly>=6.1.1,<7",
+        "kaleido>=1.0.0,<2",
+    ],
     check=True,
 )
+
+import importlib.metadata as importlib_metadata
+
+print(f"Using Plotly version: {importlib_metadata.version('plotly')}")
+print(f"Using Kaleido version: {importlib_metadata.version('kaleido')}")
 
 CHROME_BIN = ensure_chrome_for_kaleido()
 print(f"Using Chrome/Chromium binary: {CHROME_BIN}")
