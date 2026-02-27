@@ -17,7 +17,7 @@ Use `dsfb-ddmf` when you want disturbance-side analysis for DSFB-style residual-
 
 ## Reference papers
 
-- de Beer, R. (2026). *Deterministic Disturbance Modeling Framework for Residual-Envelope Fusion Systems*. Local manuscript / DOI pending.
+- de Beer, R. (2026). *Deterministic Disturbance Modeling Framework for Residual-Envelope Fusion Systems* (v1.0). Zenodo. DOI: [10.5281/zenodo.18806150](https://doi.org/10.5281/zenodo.18806150)
 - de Beer, R. (2026). *Slew-Aware Trust-Adaptive Nonlinear State Estimation for Oscillatory Systems With Drift and Corruption*. Zenodo. DOI: [10.5281/zenodo.18642887](https://doi.org/10.5281/zenodo.18642887)
 - de Beer, R. (2026). *Hierarchical Residual-Envelope Trust: A Deterministic Framework for Grouped Multi-Sensor Fusion*. Zenodo. DOI: [10.5281/zenodo.18783283](https://doi.org/10.5281/zenodo.18783283)
 - DSFB repository: [https://github.com/infinityabundance/dsfb](https://github.com/infinityabundance/dsfb)
@@ -59,6 +59,14 @@ The Colab notebook then reads those files and saves Plotly figures such as:
 
 - `envelope_impulse_vs_persistent.png`
 - `envelope_impulse_vs_persistent.pdf`
+
+Key Monte Carlo summary columns:
+
+- `max_envelope`: maximum envelope reached in a run
+- `min_trust`: minimum trust reached in a run
+- `time_to_recover`: first recovery index for recoverable cases, otherwise `-1`
+- `admissible`: whether the sampled disturbance belongs to the admissible bounded / recoverable set
+- `regime_label`: coarse disturbance regime label used in the plots and summaries
 
 ## DDMF kernel summary
 
