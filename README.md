@@ -460,49 +460,48 @@ For theoretical background, see:
 
 ```
 dsfb/
-├── Cargo.toml                      # Workspace configuration (dsfb, dsfb-fusion-bench, dsfb-starship)
+├── Cargo.toml                      # Workspace configuration (dsfb, dsfb-fusion-bench, dsfb-starship, dsfb-hret, dsfb-ddmf)
+├── Cargo.lock
 ├── crates/
 │   ├── dsfb/                       # Core DSFB estimator crate
 │   │   ├── Cargo.toml
-│   │   ├── src/
-│   │   │   ├── lib.rs              # Public API (DsfbObserver, DsfbParams, DsfbState, …)
-│   │   │   ├── observer.rs         # Observer implementation
-│   │   │   ├── state.rs            # State representation (φ, ω, α)
-│   │   │   ├── params.rs           # Algorithm parameters
-│   │   │   └── trust.rs            # Trust-weight update logic
-│   │   ├── examples/
-│   │   │   └── drift_impulse.rs    # 2-channel drift + impulse demo
-│   │   └── dsfb_simulation.ipynb   # DSFB Simulation Notebook (drift-impulse figures)
-│   │
+│   │   ├── src/                    # Observer, params, state, trust logic
+│   │   └── examples/               # Drift/impulse example programs
+│   ├── dsfb-ddmf/                  # Deterministic disturbance modeling + Monte Carlo sweeps
+│   │   ├── Cargo.toml
+│   │   ├── README.md
+│   │   ├── src/                    # Envelope, disturbances, sim, Monte Carlo, CLI
+│   │   ├── dsfb_ddmf_colab.ipynb   # DDMF Colab notebook
+│   │   └── dsfb_ddmf_colab.py      # Notebook source script
 │   ├── dsfb-fusion-bench/          # Fusion diagnostics benchmark crate
 │   │   ├── Cargo.toml
-│   │   ├── src/                    # Simulation + metrics + CLI
 │   │   ├── configs/                # Reproducible run configs
-│   │   └── dsfb_fusion_figures.ipynb   # Fusion Bench Figures Notebook
-│   │
-│   ├── dsfb-lcss-hret/             # High-rate estimation trust benchmark (isolated crate)
+│   │   ├── src/                    # Simulation + metrics + CLI
+│   │   └── dsfb_fusion_figures.ipynb
+│   ├── dsfb-hret/                  # Hierarchical residual-envelope trust crate
 │   │   ├── Cargo.toml
-│   │   ├── src/
-│   │   │   └── main.rs             # CLI + benchmark logic
 │   │   ├── README.md
-│   │   └── dsfb_lcss_hret_figures.ipynb   # High-Rate Estimation Trust Figures Notebook
-│   │
+│   │   ├── src/                    # HRET API + tests
+│   │   └── hret_hypersonic_validation.ipynb
+│   ├── dsfb-lcss-hret/             # Standalone high-rate estimation trust benchmark
+│   │   ├── Cargo.toml
+│   │   ├── README.md
+│   │   ├── src/                    # CLI + experiment logic
+│   │   ├── dsfb_lcss_hret_figures.ipynb
+│   │   └── dsfb-lcss-hret-correlated.ipynb
 │   └── dsfb-starship/              # Starship 6-DoF re-entry + DSFB demo
 │       ├── Cargo.toml
-│       ├── src/                    # Dynamics, estimators, CLI
 │       ├── README.md
-│       └── starship_reentry_demo.ipynb   # Starship High-Fidelity 6-DoF Re-Entry Notebook
-│
-├── output-dsfb/                    # Timestamped outputs for core DSFB drift-impulse example
-├── output-dsfb-fusion-bench/       # Fusion benchmark outputs (summary.csv, heatmap, trajectories, …)
-├── output-dsfb-lcss-hret/          # High-rate estimation trust benchmark outputs
-├── output-dsfb-starship/           # Starship re-entry / Monte-Carlo outputs
-│
-├── docs/                           # Extra documentation / notes
-├── scripts/
-│   └── run_drift_impulse_verify.sh # End-to-end drift-impulse verification pipeline
-│
+│       ├── src/                    # Dynamics, estimators, CLI
+│       └── starship_reentry_demo.ipynb
+├── .github/
+│   └── workflows/
+│       └── ci.yml                  # Workspace CI
+├── docs/                           # Reference papers and extra notes
+├── scripts/                        # Plotting and verification helpers
+├── output-dsfb-ddmf/               # DDMF run outputs (generated at runtime)
+├── output-dsfb-lcss-hret/          # LCSS-HRET run outputs (generated at runtime)
 ├── README.md                       # Top-level overview + Colab links
-├── LICENSE                         # Apache-2.0 license
-└── CITATION.cff                    # Citation metadata (Zenodo + repo)
+├── LICENSE
+└── CITATION.cff
 ```
