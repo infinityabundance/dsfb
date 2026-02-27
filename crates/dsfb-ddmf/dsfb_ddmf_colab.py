@@ -155,9 +155,10 @@ def ensure_kaleido_system_deps() -> None:
             "-lc",
             (
                 "apt-get -qq update && "
-                "DEPS='libnss3 libatk-bridge2.0-0 libcups2 libxcomposite1 "
-                "libxdamage1 libxfixes3 libxrandr2 libgbm1 libxkbcommon0 "
-                "libpango-1.0-0 libcairo2' && "
+                "DEPS='libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 "
+                "libcups2 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 "
+                "libgbm1 libxkbcommon0 libpango-1.0-0 libcairo2 libglib2.0-0 "
+                "libgtk-3-0 libdrm2 libx11-xcb1 libxcb1 fonts-liberation' && "
                 "(apt-get -qq install -y $DEPS libasound2 || "
                 "apt-get -qq install -y $DEPS libasound2t64)"
             ),
@@ -317,7 +318,6 @@ print(f"Using output directory: {out_dir}")
 
 # %% Cell 4: Load CSVs and define save helper
 import pandas as pd
-import tempfile
 
 plotly_module, go, _, kaleido_module = load_plotly_from_site_packages(PLOT_SITE_PACKAGES)
 
@@ -330,6 +330,16 @@ results = pd.read_csv(out_dir / "results.csv")
 impulse = pd.read_csv(out_dir / "single_run_impulse.csv")
 persistent = pd.read_csv(out_dir / "single_run_persistent.csv")
 
+df = results
+df["recovered"] = df["time_to_recover"] >= 0
+grouped = df.groupby("regime_label")
+summary = grouped.agg(
+    mean_s_max=("max_envelope", "mean"),
+    mean_w_min=("min_trust", "mean"),
+    fraction_recovered=("recovered", "mean"),
+).reset_index()
+print(summary)
+
 results["effective_amplitude"] = results["D"].where(results["D"].abs() > 0.0, results["B"].abs())
 
 
@@ -338,67 +348,40 @@ def save_plot(fig: go.Figure, stem: str) -> None:
     png_path = out_dir / f"{stem}.png"
     pdf_path = out_dir / f"{stem}.pdf"
     fig.write_html(html_path)
-
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fig_file:
-        fig_file.write(fig.to_json())
-        fig_json_path = Path(fig_file.name)
-
-    export_script = """
-import os
-import sys
-from pathlib import Path
-
-site_packages = sys.argv[5]
-if site_packages not in sys.path:
-    sys.path.insert(0, site_packages)
-
-import plotly.io as pio
-
-fig_json_path = Path(sys.argv[1])
-png_path = Path(sys.argv[2])
-pdf_path = Path(sys.argv[3])
-browser_path = sys.argv[4]
-
-if browser_path:
-    os.environ["BROWSER_PATH"] = browser_path
-
-fig = pio.from_json(fig_json_path.read_text())
-pio.write_image(fig, png_path, format="png", scale=2)
-pio.write_image(fig, pdf_path, format="pdf")
-"""
+    html_uri = html_path.resolve().as_uri()
 
     try:
-        export_env = os.environ.copy()
-        existing_pythonpath = export_env.get("PYTHONPATH", "")
-        export_env["PYTHONPATH"] = (
-            f"{PLOT_SITE_PACKAGES}:{existing_pythonpath}"
-            if existing_pythonpath
-            else PLOT_SITE_PACKAGES
-        )
-        subprocess.run(
-            [
-                PLOT_PYTHON,
-                "-c",
-                export_script,
-                str(fig_json_path),
-                str(png_path),
-                str(pdf_path),
-                os.environ.get("BROWSER_PATH", ""),
-                PLOT_SITE_PACKAGES,
-            ],
+        common_args = [
+            CHROME_BIN,
+            "--headless",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--run-all-compositor-stages-before-draw",
+            "--virtual-time-budget=4000",
+            "--window-size=1600,1000",
+        ]
+        png_result = subprocess.run(
+            common_args + [f"--screenshot={png_path}", html_uri],
             check=True,
             capture_output=True,
             text=True,
-            env=export_env,
+        )
+        pdf_result = subprocess.run(
+            common_args + [f"--print-to-pdf={pdf_path}", html_uri],
+            check=True,
+            capture_output=True,
+            text=True,
         )
         print(f"Saved {html_path.name}, {png_path.name}, and {pdf_path.name}")
+        if png_result.stderr.strip():
+            print(png_result.stderr.strip())
+        if pdf_result.stderr.strip():
+            print(pdf_result.stderr.strip())
     except subprocess.CalledProcessError as exc:
         print(f"Saved {html_path.name}")
         print(f"Static export failed for {stem}; continuing without PNG/PDF.")
         if exc.stderr:
             print(exc.stderr.strip())
-    finally:
-        fig_json_path.unlink(missing_ok=True)
 
 
 results.head()
