@@ -7,6 +7,30 @@
 
 Deterministic synthetic benchmarking package for DSFB fusion diagnostics. This crate generates reproducible synthetic state-estimation benchmarks and writes stable CSV/JSON outputs for paper figures and notebook analysis.
 
+In practical terms, this crate is a benchmark runner for comparing DSFB against alternative reconstruction methods on the same synthetic diagnostic problem. It:
+
+- generates deterministic simulated state trajectories and grouped measurements
+- injects configurable corruption and fault structure
+- runs multiple fusion/reconstruction methods over the same data
+- measures error and timing
+- writes stable CSV and JSON outputs for notebooks, figures, and paper tables
+
+Use it when you want reproducible method-to-method comparisons rather than a live estimator embedded in an application.
+
+## What goes in and what comes out
+
+Inputs:
+
+- built-in default or sweep TOML configs
+- optional `--config`, `--seed`, `--methods`, and `--outdir` overrides
+- method selection across `equal`, `cov_inflate`, `irls_huber`, `nis_hard`, `nis_soft`, and `dsfb`
+
+Outputs:
+
+- per-run timestamped output directory
+- summary tables, heatmaps, trajectory traces, and manifest metadata
+- deterministic benchmark artifacts suitable for Colab and offline plotting
+
 ## Install
 
 Install from crates.io:
@@ -43,6 +67,8 @@ Optional flags:
 --run-sweep
 --methods <comma-separated>
 ```
+
+The CLI is the primary interface. It loads a benchmark configuration, synthesizes the measurements, runs the selected methods, and writes comparable outputs with a stable schema.
 
 ## Reproducibility
 
