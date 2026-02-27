@@ -311,8 +311,11 @@ results["effective_amplitude"] = results["D"].where(results["D"].abs() > 0.0, re
 
 
 def save_plot(fig: go.Figure, stem: str) -> None:
+    html_path = out_dir / f"{stem}.html"
     png_path = out_dir / f"{stem}.png"
     pdf_path = out_dir / f"{stem}.pdf"
+    fig.write_html(html_path)
+
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fig_file:
         fig_file.write(fig.to_json())
         fig_json_path = Path(fig_file.name)
@@ -321,6 +324,10 @@ def save_plot(fig: go.Figure, stem: str) -> None:
 import os
 import sys
 from pathlib import Path
+
+site_packages = sys.argv[5]
+if site_packages not in sys.path:
+    sys.path.insert(0, site_packages)
 
 import plotly.io as pio
 
@@ -354,10 +361,19 @@ pio.write_image(fig, pdf_path, format="pdf")
                 str(png_path),
                 str(pdf_path),
                 os.environ.get("BROWSER_PATH", ""),
+                PLOT_SITE_PACKAGES,
             ],
             check=True,
+            capture_output=True,
+            text=True,
             env=export_env,
         )
+        print(f"Saved {html_path.name}, {png_path.name}, and {pdf_path.name}")
+    except subprocess.CalledProcessError as exc:
+        print(f"Saved {html_path.name}")
+        print(f"Static export failed for {stem}; continuing without PNG/PDF.")
+        if exc.stderr:
+            print(exc.stderr.strip())
     finally:
         fig_json_path.unlink(missing_ok=True)
 
