@@ -1,9 +1,57 @@
 # %% [markdown]
 # # DDMF Monte Carlo Notebook
 #
-# - This notebook visualizes deterministic envelope behavior under DDMF.
-# - It compares impulse vs persistent elevated disturbances.
-# - It summarizes Monte Carlo 360-degree disturbance sweeps.
+# This notebook demonstrates the `dsfb-ddmf` crate, a deterministic disturbance-side
+# extension of the `dsfb` workspace for residual-envelope fusion systems.
+#
+# What it does:
+# - builds and runs the Rust `dsfb-ddmf` crate
+# - executes the default x360 Monte Carlo disturbance sweep
+# - loads the generated CSV outputs into pandas
+# - plots envelope and trust behavior for impulse and persistent-elevated examples
+# - plots Monte Carlo summary behavior across disturbance regimes
+# - saves Plotly figures back into the active output directory as PNG and PDF
+#
+# Why it exists:
+# - to show how deterministic disturbance classes affect the residual envelope `s[n]`
+# - to show how trust weights `w[n] = 1 / (1 + beta * s[n])` suppress or recover
+# - to make the DDMF paper behavior easy to inspect in Colab without re-implementing
+#   the Rust simulation logic in Python
+#
+# How it works:
+# - the Rust binary samples seeded disturbance cases across bounded, drift, slew-only,
+#   impulsive, and persistent-elevated regimes
+# - each run evaluates residuals `r[n] = epsilon[n] + d[n]`
+# - the envelope recursion updates as `s[n+1] = rho * s[n] + (1-rho) * abs(r[n])`
+# - trust is computed from the current envelope and exported for plotting
+#
+# Where outputs go:
+# - the CLI writes to `output-dsfb-ddmf/YYYYMMDD_HHMMSS/` under the repo root
+# - this notebook auto-detects the latest such directory and uses it as `out_dir`
+#
+# Main Monte Carlo / model parameters:
+# - `runs` / `n_runs`: number of Monte Carlo cases; default here is x360
+# - `n_steps`: number of time steps per simulation run
+# - `seed`: RNG seed for reproducible disturbance parameter sampling
+# - `rho`: envelope forgetting factor in `(0, 1)`; larger means slower decay / longer memory
+# - `beta`: trust sensitivity; larger means trust falls faster as envelope grows
+# - `epsilon_bound`: deterministic bound on the residual contribution `epsilon[n]`
+# - `recovery_delta`: tolerance used when deciding whether an impulsive case recovered
+#
+# Disturbance-specific parameters visible in `results.csv`:
+# - `D`: disturbance magnitude column for bounded / impulsive / persistent-elevated cases
+# - `B`: drift-rate-like column used for drift cases and the nominal level for persistent-elevated cases
+# - `S`: slew or rate-bound parameter
+# - `impulse_start`: first index of an impulse window
+# - `impulse_len`: impulse duration in samples
+# - `s0`: initial envelope state for the run
+#
+# Output summary columns:
+# - `max_envelope`: peak `s[n]` observed in the run
+# - `min_trust`: minimum trust reached in the run
+# - `time_to_recover`: first recovery index when applicable; `-1` means not recoverable / not observed
+# - `regime_label`: qualitative regime such as `bounded_nominal`, `persistent_elevated`,
+#   `impulsive`, or `unbounded`
 
 # %% Cell 1: Install dependencies and prepare the repo/toolchain
 from pathlib import Path
