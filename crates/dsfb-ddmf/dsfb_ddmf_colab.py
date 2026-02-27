@@ -205,30 +205,21 @@ print(f"Using repository commit: {commit_hash}")
 CARGO_BIN = ensure_cargo()
 print(f"Using cargo binary: {CARGO_BIN}")
 
-def prepare_plot_env(env_root: Path) -> tuple[str, str]:
-    if env_root.exists():
-        shutil.rmtree(env_root)
+def prepare_plot_packages(target_dir: Path) -> str:
+    if target_dir.exists():
+        shutil.rmtree(target_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     subprocess.run(
         [
             sys.executable,
             "-m",
-            "venv",
-            str(env_root),
-        ],
-        check=True,
-    )
-
-    plot_python = env_root / "bin" / "python"
-    subprocess.run(
-        [
-            str(plot_python),
-            "-m",
             "pip",
             "install",
             "-q",
             "--upgrade",
-            "pip",
+            "--target",
+            str(target_dir),
             "pandas",
             "plotly>=6.1.1,<7",
             "kaleido>=1.0.0,<2",
@@ -236,16 +227,7 @@ def prepare_plot_env(env_root: Path) -> tuple[str, str]:
         check=True,
     )
 
-    plot_site_packages = subprocess.check_output(
-        [
-            str(plot_python),
-            "-c",
-            "import site; print(site.getsitepackages()[0])",
-        ],
-        text=True,
-    ).strip()
-
-    return str(plot_python), plot_site_packages
+    return str(target_dir)
 
 
 def load_plotly_from_site_packages(site_packages: str):
@@ -269,13 +251,15 @@ def load_plotly_from_site_packages(site_packages: str):
     return plotly, go, pio, kaleido
 
 
-PLOT_ENV_DIR = (
-    Path("/content/.dsfb-ddmf-plot-env")
+PLOT_PACKAGE_DIR = (
+    Path("/content/.dsfb-ddmf-plot-packages")
     if "google.colab" in sys.modules
-    else REPO_ROOT / ".dsfb-ddmf-plot-env"
+    else REPO_ROOT / ".dsfb-ddmf-plot-packages"
 )
-PLOT_PYTHON, PLOT_SITE_PACKAGES = prepare_plot_env(PLOT_ENV_DIR)
+PLOT_PYTHON = sys.executable
+PLOT_SITE_PACKAGES = prepare_plot_packages(PLOT_PACKAGE_DIR)
 print(f"Using plotting Python: {PLOT_PYTHON}")
+print(f"Using plotting package dir: {PLOT_SITE_PACKAGES}")
 
 import importlib.metadata as importlib_metadata
 
@@ -354,6 +338,13 @@ pio.write_image(fig, pdf_path, format="pdf")
 """
 
     try:
+        export_env = os.environ.copy()
+        existing_pythonpath = export_env.get("PYTHONPATH", "")
+        export_env["PYTHONPATH"] = (
+            f"{PLOT_SITE_PACKAGES}:{existing_pythonpath}"
+            if existing_pythonpath
+            else PLOT_SITE_PACKAGES
+        )
         subprocess.run(
             [
                 PLOT_PYTHON,
@@ -365,6 +356,7 @@ pio.write_image(fig, pdf_path, format="pdf")
                 os.environ.get("BROWSER_PATH", ""),
             ],
             check=True,
+            env=export_env,
         )
     finally:
         fig_json_path.unlink(missing_ok=True)
