@@ -15,6 +15,8 @@ pub struct SimulationConfig {
     pub lambda_max: f64,
     #[serde_as(as = "DefaultOnNull")]
     pub steps_per_run: usize,
+    #[serde(default)]
+    pub multi_steps_per_run: Vec<usize>,
     #[serde_as(as = "DefaultOnNull")]
     pub random_seed: u64,
     #[serde_as(as = "DefaultOnNull")]
@@ -34,6 +36,7 @@ impl Default for SimulationConfig {
             lambda_min: 0.0,
             lambda_max: 1.0,
             steps_per_run: 512,
+            multi_steps_per_run: Vec::new(),
             random_seed: 0xADD2_0260_0001_u64,
             enable_aet: true,
             enable_tcp: true,
@@ -54,6 +57,12 @@ impl SimulationConfig {
         if self.steps_per_run == 0 {
             return Err(AddError::InvalidConfig(
                 "steps_per_run must be greater than zero".to_string(),
+            ));
+        }
+
+        if self.multi_steps_per_run.iter().any(|&steps| steps == 0) {
+            return Err(AddError::InvalidConfig(
+                "multi_steps_per_run must contain only values greater than zero".to_string(),
             ));
         }
 
@@ -98,5 +107,13 @@ impl SimulationConfig {
         }
 
         ((lambda - self.lambda_min) / span).clamp(0.0, 1.0)
+    }
+
+    pub fn sweep_steps(&self) -> Vec<usize> {
+        if self.multi_steps_per_run.is_empty() {
+            vec![self.steps_per_run]
+        } else {
+            self.multi_steps_per_run.clone()
+        }
     }
 }

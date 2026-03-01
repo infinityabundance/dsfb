@@ -6,6 +6,24 @@ use csv::Writer;
 
 use crate::{rlt::RltTrajectoryPoint, AddError, TcpPoint};
 
+#[derive(Debug, Clone)]
+pub struct PhaseBoundaryRow {
+    pub steps_per_run: usize,
+    pub is_perturbed: bool,
+    pub lambda_star: Option<f64>,
+    pub lambda_0_1: Option<f64>,
+    pub lambda_0_9: Option<f64>,
+    pub transition_width: Option<f64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RobustnessMetricRow {
+    pub subsystem: String,
+    pub steps_per_run: usize,
+    pub metric_name: String,
+    pub value: f64,
+}
+
 pub fn repo_root_dir() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     manifest_dir
@@ -48,23 +66,37 @@ fn fmt_f64(value: f64) -> String {
     format!("{value:.10}")
 }
 
+fn fmt_option_f64(value: Option<f64>) -> String {
+    value.map(fmt_f64).unwrap_or_default()
+}
+
 pub fn write_aet_csv(
     path: &Path,
     lambda_grid: &[f64],
     echo_slope: &[f64],
     avg_increment: &[f64],
+    steps_per_run: usize,
+    is_perturbed: bool,
 ) -> Result<(), AddError> {
     ensure_len("aet echo_slope", lambda_grid.len(), echo_slope.len())?;
     ensure_len("aet avg_increment", lambda_grid.len(), avg_increment.len())?;
 
     let mut writer = Writer::from_path(path)?;
-    writer.write_record(["lambda", "echo_slope", "avg_increment"])?;
+    writer.write_record([
+        "lambda",
+        "echo_slope",
+        "avg_increment",
+        "steps_per_run",
+        "is_perturbed",
+    ])?;
 
     for idx in 0..lambda_grid.len() {
         writer.write_record([
             fmt_f64(lambda_grid[idx]),
             fmt_f64(echo_slope[idx]),
             fmt_f64(avg_increment[idx]),
+            steps_per_run.to_string(),
+            is_perturbed.to_string(),
         ])?;
     }
 
@@ -81,6 +113,8 @@ pub fn write_tcp_csv(
     avg_radius: &[f64],
     max_radius: &[f64],
     variance_radius: &[f64],
+    steps_per_run: usize,
+    is_perturbed: bool,
 ) -> Result<(), AddError> {
     ensure_len("tcp betti0", lambda_grid.len(), betti0.len())?;
     ensure_len("tcp betti1", lambda_grid.len(), betti1.len())?;
@@ -102,6 +136,8 @@ pub fn write_tcp_csv(
         "avg_radius",
         "max_radius",
         "variance_radius",
+        "steps_per_run",
+        "is_perturbed",
     ])?;
 
     for idx in 0..lambda_grid.len() {
@@ -113,6 +149,8 @@ pub fn write_tcp_csv(
             fmt_f64(avg_radius[idx]),
             fmt_f64(max_radius[idx]),
             fmt_f64(variance_radius[idx]),
+            steps_per_run.to_string(),
+            is_perturbed.to_string(),
         ])?;
     }
 
@@ -125,6 +163,8 @@ pub fn write_rlt_csv(
     lambda_grid: &[f64],
     escape_rate: &[f64],
     expansion_ratio: &[f64],
+    steps_per_run: usize,
+    is_perturbed: bool,
 ) -> Result<(), AddError> {
     ensure_len("rlt escape_rate", lambda_grid.len(), escape_rate.len())?;
     ensure_len(
@@ -134,13 +174,21 @@ pub fn write_rlt_csv(
     )?;
 
     let mut writer = Writer::from_path(path)?;
-    writer.write_record(["lambda", "escape_rate", "expansion_ratio"])?;
+    writer.write_record([
+        "lambda",
+        "escape_rate",
+        "expansion_ratio",
+        "steps_per_run",
+        "is_perturbed",
+    ])?;
 
     for idx in 0..lambda_grid.len() {
         writer.write_record([
             fmt_f64(lambda_grid[idx]),
             fmt_f64(escape_rate[idx]),
             fmt_f64(expansion_ratio[idx]),
+            steps_per_run.to_string(),
+            is_perturbed.to_string(),
         ])?;
     }
 
@@ -153,6 +201,8 @@ pub fn write_iwlt_csv(
     lambda_grid: &[f64],
     entropy_density: &[f64],
     avg_increment: &[f64],
+    steps_per_run: usize,
+    is_perturbed: bool,
 ) -> Result<(), AddError> {
     ensure_len(
         "iwlt entropy_density",
@@ -162,13 +212,21 @@ pub fn write_iwlt_csv(
     ensure_len("iwlt avg_increment", lambda_grid.len(), avg_increment.len())?;
 
     let mut writer = Writer::from_path(path)?;
-    writer.write_record(["lambda", "entropy_density", "avg_increment"])?;
+    writer.write_record([
+        "lambda",
+        "entropy_density",
+        "avg_increment",
+        "steps_per_run",
+        "is_perturbed",
+    ])?;
 
     for idx in 0..lambda_grid.len() {
         writer.write_record([
             fmt_f64(lambda_grid[idx]),
             fmt_f64(entropy_density[idx]),
             fmt_f64(avg_increment[idx]),
+            steps_per_run.to_string(),
+            is_perturbed.to_string(),
         ])?;
     }
 
@@ -210,6 +268,55 @@ pub fn write_rlt_trajectory_csv(
             point.x.to_string(),
             point.y.to_string(),
             point.distance_from_start.to_string(),
+        ])?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_rlt_phase_boundary_csv(
+    path: &Path,
+    rows: &[PhaseBoundaryRow],
+) -> Result<(), AddError> {
+    let mut writer = Writer::from_path(path)?;
+    writer.write_record([
+        "steps_per_run",
+        "is_perturbed",
+        "lambda_star",
+        "lambda_0_1",
+        "lambda_0_9",
+        "transition_width",
+    ])?;
+
+    for row in rows {
+        writer.write_record([
+            row.steps_per_run.to_string(),
+            row.is_perturbed.to_string(),
+            fmt_option_f64(row.lambda_star),
+            fmt_option_f64(row.lambda_0_1),
+            fmt_option_f64(row.lambda_0_9),
+            fmt_option_f64(row.transition_width),
+        ])?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_robustness_metrics_csv(
+    path: &Path,
+    rows: &[RobustnessMetricRow],
+) -> Result<(), AddError> {
+    let mut writer = Writer::from_path(path)?;
+    writer.write_record(["subsystem", "steps_per_run", "metric_name", "value"])?;
+
+    for row in rows {
+        writer.write_record([
+            row.subsystem.clone(),
+            row.steps_per_run.to_string(),
+            row.metric_name.clone(),
+            fmt_f64(row.value),
         ])?;
     }
 
