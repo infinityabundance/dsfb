@@ -41,6 +41,53 @@ pub struct SweepResult {
     pub iwlt: Option<IwltSweep>,
 }
 
+struct ProgressTracker {
+    total_units: usize,
+    completed_units: usize,
+    last_percent_printed: usize,
+}
+
+impl ProgressTracker {
+    fn new(total_units: usize) -> Self {
+        Self {
+            total_units,
+            completed_units: 0,
+            last_percent_printed: 0,
+        }
+    }
+
+    fn stage_start(&self, label: &str, steps_per_run: usize, stage_units: usize) {
+        println!("[dsfb-add] Starting {label} (N={steps_per_run}, {stage_units} lambda samples)");
+    }
+
+    fn report(&mut self, label: &str, steps_per_run: usize, local_done: usize, stage_units: usize) {
+        if self.total_units == 0 {
+            return;
+        }
+
+        let overall_done = self.completed_units + local_done;
+        let percent = (overall_done * 100) / self.total_units;
+
+        if percent > self.last_percent_printed {
+            self.last_percent_printed = percent;
+            println!(
+                "[dsfb-add] {percent:>3}% - {label} (N={steps_per_run}, {local_done}/{stage_units} lambda samples)"
+            );
+        }
+    }
+
+    fn finish_stage(&mut self, stage_units: usize) {
+        self.completed_units += stage_units;
+    }
+
+    fn finish_all(&mut self) {
+        if self.last_percent_printed < 100 {
+            self.last_percent_printed = 100;
+            println!("[dsfb-add] 100% - sweep complete");
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DriveSignal {
     pub phase_bias: f64,
@@ -87,6 +134,12 @@ pub fn run_sweeps_into_dir(
     let sweep_steps = config.sweep_steps();
     let use_step_suffix = sweep_steps.len() > 1;
     let canonical_steps = canonical_steps(config, &sweep_steps);
+    let lambda_count = lambda_grid.len();
+    let mut progress = ProgressTracker::new(total_progress_units(
+        config,
+        sweep_steps.len(),
+        lambda_count,
+    ));
 
     let mut runs = Vec::with_capacity(sweep_steps.len());
     let mut phase_rows = Vec::new();
@@ -114,8 +167,22 @@ pub fn run_sweeps_into_dir(
         };
 
         let (aet, aet_perturbed) = if config.enable_aet {
-            let baseline = aet::run_aet_sweep(&run_config, &lambda_grid)?;
-            let perturbed = aet::run_aet_sweep_perturbed(&run_config, &lambda_grid)?;
+            progress.stage_start("AET baseline", steps_per_run, lambda_count);
+            let baseline =
+                aet::run_aet_sweep_with_progress(&run_config, &lambda_grid, |completed, total| {
+                    progress.report("AET baseline", steps_per_run, completed, total)
+                })?;
+            progress.finish_stage(lambda_count);
+
+            progress.stage_start("AET perturbed", steps_per_run, lambda_count);
+            let perturbed = aet::run_aet_sweep_perturbed_with_progress(
+                &run_config,
+                &lambda_grid,
+                |completed, total| {
+                    progress.report("AET perturbed", steps_per_run, completed, total)
+                },
+            )?;
+            progress.finish_stage(lambda_count);
 
             write_aet_csv(
                 &output_dir.join(format!("aet_sweep{suffix}.csv")),
@@ -176,7 +243,13 @@ pub fn run_sweeps_into_dir(
         };
 
         let tcp = if config.enable_tcp {
-            let baseline = tcp::run_tcp_sweep(&run_config, &lambda_grid)?;
+            progress.stage_start("TCP baseline", steps_per_run, lambda_count);
+            let baseline =
+                tcp::run_tcp_sweep_with_progress(&run_config, &lambda_grid, |completed, total| {
+                    progress.report("TCP baseline", steps_per_run, completed, total)
+                })?;
+            progress.finish_stage(lambda_count);
+
             write_tcp_csv(
                 &output_dir.join(format!("tcp_sweep{suffix}.csv")),
                 &lambda_grid,
@@ -226,8 +299,22 @@ pub fn run_sweeps_into_dir(
         };
 
         let (rlt, rlt_perturbed, baseline_phase, perturbed_phase) = if config.enable_rlt {
-            let baseline = rlt::run_rlt_sweep(&run_config, &lambda_grid)?;
-            let perturbed = rlt::run_rlt_sweep_perturbed(&run_config, &lambda_grid)?;
+            progress.stage_start("RLT baseline", steps_per_run, lambda_count);
+            let baseline =
+                rlt::run_rlt_sweep_with_progress(&run_config, &lambda_grid, |completed, total| {
+                    progress.report("RLT baseline", steps_per_run, completed, total)
+                })?;
+            progress.finish_stage(lambda_count);
+
+            progress.stage_start("RLT perturbed", steps_per_run, lambda_count);
+            let perturbed = rlt::run_rlt_sweep_perturbed_with_progress(
+                &run_config,
+                &lambda_grid,
+                |completed, total| {
+                    progress.report("RLT perturbed", steps_per_run, completed, total)
+                },
+            )?;
+            progress.finish_stage(lambda_count);
             let baseline_phase = analyze_rlt_phase_boundary(
                 &lambda_grid,
                 &baseline.expansion_ratio,
@@ -346,8 +433,25 @@ pub fn run_sweeps_into_dir(
         };
 
         let (iwlt, iwlt_perturbed) = if config.enable_iwlt {
-            let baseline = iwlt::run_iwlt_sweep(&run_config, &lambda_grid)?;
-            let perturbed = iwlt::run_iwlt_sweep_perturbed(&run_config, &lambda_grid)?;
+            progress.stage_start("IWLT baseline", steps_per_run, lambda_count);
+            let baseline = iwlt::run_iwlt_sweep_with_progress(
+                &run_config,
+                &lambda_grid,
+                |completed, total| {
+                    progress.report("IWLT baseline", steps_per_run, completed, total)
+                },
+            )?;
+            progress.finish_stage(lambda_count);
+
+            progress.stage_start("IWLT perturbed", steps_per_run, lambda_count);
+            let perturbed = iwlt::run_iwlt_sweep_perturbed_with_progress(
+                &run_config,
+                &lambda_grid,
+                |completed, total| {
+                    progress.report("IWLT perturbed", steps_per_run, completed, total)
+                },
+            )?;
+            progress.finish_stage(lambda_count);
 
             write_iwlt_csv(
                 &output_dir.join(format!("iwlt_sweep{suffix}.csv")),
@@ -542,6 +646,8 @@ pub fn run_sweeps_into_dir(
         write_robustness_metrics_csv(&output_dir.join("robustness_metrics.csv"), &robustness_rows)?;
     }
 
+    progress.finish_all();
+
     Ok(SweepResult {
         output_dir: output_dir.to_path_buf(),
         lambda_grid,
@@ -559,6 +665,18 @@ fn canonical_steps(config: &SimulationConfig, sweep_steps: &[usize]) -> usize {
     } else {
         sweep_steps[0]
     }
+}
+
+fn total_progress_units(
+    config: &SimulationConfig,
+    sweep_step_count: usize,
+    lambda_count: usize,
+) -> usize {
+    let stage_count = usize::from(config.enable_aet) * 2
+        + usize::from(config.enable_tcp)
+        + usize::from(config.enable_rlt) * 2
+        + usize::from(config.enable_iwlt) * 2;
+    stage_count * sweep_step_count * lambda_count
 }
 
 fn points_dirs(

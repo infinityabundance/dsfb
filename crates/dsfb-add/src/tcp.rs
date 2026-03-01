@@ -29,6 +29,17 @@ pub struct TcpSweep {
 }
 
 pub fn run_tcp_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<TcpSweep, AddError> {
+    run_tcp_sweep_with_progress(config, lambda_grid, |_completed, _total| {})
+}
+
+pub(crate) fn run_tcp_sweep_with_progress<F>(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+    mut progress: F,
+) -> Result<TcpSweep, AddError>
+where
+    F: FnMut(usize, usize),
+{
     let mut betti0 = Vec::with_capacity(lambda_grid.len());
     let mut betti1 = Vec::with_capacity(lambda_grid.len());
     let mut l_tcp = Vec::with_capacity(lambda_grid.len());
@@ -37,6 +48,7 @@ pub fn run_tcp_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<T
     let mut variance_radius = Vec::with_capacity(lambda_grid.len());
     let mut point_cloud_runs = Vec::with_capacity(lambda_grid.len());
     let points_per_run = tcp_points_per_run(config.steps_per_run);
+    let total = lambda_grid.len();
 
     for (idx, &lambda) in lambda_grid.iter().enumerate() {
         let mut lambda_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
@@ -84,6 +96,7 @@ pub fn run_tcp_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<T
         max_radius.push(mean(&max_radius_runs));
         variance_radius.push(mean(&variance_radius_runs));
         point_cloud_runs.push(lambda_runs);
+        progress(idx + 1, total);
     }
 
     Ok(TcpSweep {
