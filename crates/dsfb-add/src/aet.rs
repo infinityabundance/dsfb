@@ -21,23 +21,50 @@ enum Symbol {
 }
 
 pub fn run_aet_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<AetSweep, AddError> {
-    run_aet_sweep_with_perturbation(config, lambda_grid, 0.0)
+    run_aet_sweep_with_progress(config, lambda_grid, |_completed, _total| {})
 }
 
 pub fn run_aet_sweep_perturbed(
     config: &SimulationConfig,
     lambda_grid: &[f64],
 ) -> Result<AetSweep, AddError> {
-    run_aet_sweep_with_perturbation(config, lambda_grid, AET_PERTURBATION_STRENGTH)
+    run_aet_sweep_perturbed_with_progress(config, lambda_grid, |_completed, _total| {})
 }
 
-fn run_aet_sweep_with_perturbation(
+pub(crate) fn run_aet_sweep_with_progress<F>(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+    progress: F,
+) -> Result<AetSweep, AddError>
+where
+    F: FnMut(usize, usize),
+{
+    run_aet_sweep_with_perturbation(config, lambda_grid, 0.0, progress)
+}
+
+pub(crate) fn run_aet_sweep_perturbed_with_progress<F>(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+    progress: F,
+) -> Result<AetSweep, AddError>
+where
+    F: FnMut(usize, usize),
+{
+    run_aet_sweep_with_perturbation(config, lambda_grid, AET_PERTURBATION_STRENGTH, progress)
+}
+
+fn run_aet_sweep_with_perturbation<F>(
     config: &SimulationConfig,
     lambda_grid: &[f64],
     perturbation_strength: f64,
-) -> Result<AetSweep, AddError> {
+    mut progress: F,
+) -> Result<AetSweep, AddError>
+where
+    F: FnMut(usize, usize),
+{
     let mut echo_slope = Vec::with_capacity(lambda_grid.len());
     let mut avg_increment = Vec::with_capacity(lambda_grid.len());
+    let total = lambda_grid.len();
 
     for (idx, &lambda) in lambda_grid.iter().enumerate() {
         let lambda_norm = config.normalized_lambda(lambda);
@@ -75,6 +102,7 @@ fn run_aet_sweep_with_perturbation(
 
         echo_slope.push((final_length - initial) / config.steps_per_run as f64);
         avg_increment.push(increments / config.steps_per_run as f64);
+        progress(idx + 1, total);
     }
 
     Ok(AetSweep {

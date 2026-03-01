@@ -56,25 +56,52 @@ enum RltRegime {
 }
 
 pub fn run_rlt_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<RltSweep, AddError> {
-    run_rlt_sweep_with_perturbation(config, lambda_grid, 0.0)
+    run_rlt_sweep_with_progress(config, lambda_grid, |_completed, _total| {})
 }
 
 pub fn run_rlt_sweep_perturbed(
     config: &SimulationConfig,
     lambda_grid: &[f64],
 ) -> Result<RltSweep, AddError> {
-    run_rlt_sweep_with_perturbation(config, lambda_grid, RLT_PERTURBATION_STRENGTH)
+    run_rlt_sweep_perturbed_with_progress(config, lambda_grid, |_completed, _total| {})
 }
 
-fn run_rlt_sweep_with_perturbation(
+pub(crate) fn run_rlt_sweep_with_progress<F>(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+    progress: F,
+) -> Result<RltSweep, AddError>
+where
+    F: FnMut(usize, usize),
+{
+    run_rlt_sweep_with_perturbation(config, lambda_grid, 0.0, progress)
+}
+
+pub(crate) fn run_rlt_sweep_perturbed_with_progress<F>(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+    progress: F,
+) -> Result<RltSweep, AddError>
+where
+    F: FnMut(usize, usize),
+{
+    run_rlt_sweep_with_perturbation(config, lambda_grid, RLT_PERTURBATION_STRENGTH, progress)
+}
+
+fn run_rlt_sweep_with_perturbation<F>(
     config: &SimulationConfig,
     lambda_grid: &[f64],
     perturbation_strength: f64,
-) -> Result<RltSweep, AddError> {
+    mut progress: F,
+) -> Result<RltSweep, AddError>
+where
+    F: FnMut(usize, usize),
+{
     let mut escape_rate = Vec::with_capacity(lambda_grid.len());
     let mut expansion_ratio = Vec::with_capacity(lambda_grid.len());
+    let total = lambda_grid.len();
 
-    for &lambda in lambda_grid {
+    for (idx, &lambda) in lambda_grid.iter().enumerate() {
         let vertices = simulate_vertices_with_perturbation(
             config,
             lambda,
@@ -84,6 +111,7 @@ fn run_rlt_sweep_with_perturbation(
         let (escape, expansion) = summarize_trajectory(&vertices, config.steps_per_run);
         escape_rate.push(escape);
         expansion_ratio.push(expansion);
+        progress(idx + 1, total);
     }
 
     Ok(RltSweep {
