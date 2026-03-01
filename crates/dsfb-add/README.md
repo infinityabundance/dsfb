@@ -351,6 +351,22 @@ The notebook is structured so Rust remains the authoritative simulation layer an
 
 For Colab specifically, the notebook uses a minimal reproducible default sweep profile of `512` when it bootstraps a fresh Rust run. A dropdown near the top of the notebook selects the active `steps_per_run` value for both bootstrap and figure display, and it defaults to `512` so free CPU sessions remain practical. If you want the full production profile in Colab, set `RUST_MULTI_STEPS = [512, 5000, 10000, 20000, 50000, 100000]` in the notebook before running the bootstrap cell. If you run the large multi-`N` sweep locally and upload the results, that same dropdown lets you switch the displayed analysis to any available `N` without editing the plotting code.
 
+For the completed local production run currently present in this workspace, use the dedicated replay notebook:
+
+- `crates/dsfb-add/dsfb_add_results_replay.ipynb`
+
+That notebook is preconfigured for:
+
+- timestamp: `2026-03-01T18-19-22Z`
+- expected archive: `output-dsfb-add/dsfb-add-2026-03-01T18-19-22Z.zip`
+
+Its default behavior is analysis-only:
+
+- `RUN_RUST_SWEEP_IN_COLAB = False`
+- `OUTPUT_DIR = /content/output-dsfb-add/2026-03-01T18-19-22Z`
+
+Upload that zip in Colab, run the helper cell `upload_and_unpack_replay_zip()`, and then run the remainder of the notebook. The same `steps_per_run` dropdown can then switch between `512`, `5000`, `10000`, `20000`, `50000`, and `100000` using the uploaded local results.
+
 ## Outputs
 
 Expected runtime files:
