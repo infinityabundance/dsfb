@@ -7,7 +7,8 @@ use crate::sweep::deterministic_drive;
 use crate::AddError;
 
 pub const NUM_TCP_RUNS_PER_LAMBDA: usize = 5;
-pub const TCP_POINTS_PER_RUN: usize = 96;
+pub const TCP_MIN_POINTS_PER_RUN: usize = 96;
+pub const TCP_MAX_POINTS_PER_RUN: usize = 192;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TcpPoint {
@@ -35,6 +36,7 @@ pub fn run_tcp_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<T
     let mut max_radius = Vec::with_capacity(lambda_grid.len());
     let mut variance_radius = Vec::with_capacity(lambda_grid.len());
     let mut point_cloud_runs = Vec::with_capacity(lambda_grid.len());
+    let points_per_run = tcp_points_per_run(config.steps_per_run);
 
     for (idx, &lambda) in lambda_grid.iter().enumerate() {
         let mut lambda_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
@@ -46,7 +48,7 @@ pub fn run_tcp_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<T
         let mut variance_radius_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
 
         for run_idx in 0..NUM_TCP_RUNS_PER_LAMBDA {
-            let points = simulate_tcp_run(config, lambda, idx, run_idx, TCP_POINTS_PER_RUN);
+            let points = simulate_tcp_run(config, lambda, idx, run_idx, points_per_run);
             let radii: Vec<f64> = points
                 .iter()
                 .map(|point| (point.x * point.x + point.y * point.y).sqrt())
@@ -112,7 +114,7 @@ fn simulate_tcp_run(
     let run_phase = run_idx as f64 * std::f64::consts::TAU / NUM_TCP_RUNS_PER_LAMBDA.max(1) as f64;
     let mut x = 0.18 + 0.28 * drive.phase_bias + 0.12 * run_phase.cos();
     let mut y = -0.12 + 0.22 * drive.trust_bias + 0.12 * run_phase.sin();
-    let warmup_steps = 18 * (run_idx + 1);
+    let warmup_steps = config.steps_per_run / 16 + 18 * (run_idx + 1);
 
     for warmup in 0..warmup_steps {
         let (next_x, next_y) =
@@ -139,6 +141,10 @@ fn simulate_tcp_run(
     }
 
     points
+}
+
+fn tcp_points_per_run(steps_per_run: usize) -> usize {
+    (steps_per_run / 32).clamp(TCP_MIN_POINTS_PER_RUN, TCP_MAX_POINTS_PER_RUN)
 }
 
 fn tcp_step(

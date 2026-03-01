@@ -9,19 +9,71 @@ use crate::{rlt::RltTrajectoryPoint, AddError, TcpPoint};
 #[derive(Debug, Clone)]
 pub struct PhaseBoundaryRow {
     pub steps_per_run: usize,
+    pub mode: String,
     pub is_perturbed: bool,
     pub lambda_star: Option<f64>,
     pub lambda_0_1: Option<f64>,
     pub lambda_0_9: Option<f64>,
     pub transition_width: Option<f64>,
+    pub max_derivative: Option<f64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct StructuralLawSummaryRow {
+    pub steps_per_run: usize,
+    pub is_perturbed: bool,
+    pub pearson_r: f64,
+    pub spearman_rho: f64,
+    pub slope: f64,
+    pub intercept: f64,
+    pub r2: f64,
+    pub residual_variance: f64,
+    pub mse_resid: f64,
+    pub slope_ci_low: f64,
+    pub slope_ci_high: f64,
+    pub sample_count: usize,
+    pub ratio_mean: f64,
+    pub ratio_std: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct DiagnosticsSummaryRow {
+    pub steps_per_run: usize,
+    pub residual_mean: f64,
+    pub residual_std: f64,
+    pub residual_skew_approx: f64,
+    pub residual_kurtosis_approx: f64,
+    pub ratio_mean: f64,
+    pub ratio_std: f64,
+    pub ratio_min: f64,
+    pub ratio_max: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct CrossLayerThresholdRow {
+    pub steps_per_run: usize,
+    pub lambda_star: Option<f64>,
+    pub echo_slope_star: Option<f64>,
+    pub entropy_density_star: Option<f64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TcpPhaseAlignmentRow {
+    pub steps_per_run: usize,
+    pub lambda_star: Option<f64>,
+    pub lambda_tp_peak: Option<f64>,
+    pub lambda_b1_peak: Option<f64>,
+    pub delta_tp: Option<f64>,
+    pub delta_b1: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
 pub struct RobustnessMetricRow {
-    pub subsystem: String,
+    pub metric: String,
     pub steps_per_run: usize,
-    pub metric_name: String,
-    pub value: f64,
+    pub baseline: f64,
+    pub perturbed: f64,
+    pub delta: f64,
 }
 
 pub fn repo_root_dir() -> PathBuf {
@@ -282,21 +334,159 @@ pub fn write_rlt_phase_boundary_csv(
     let mut writer = Writer::from_path(path)?;
     writer.write_record([
         "steps_per_run",
+        "mode",
         "is_perturbed",
         "lambda_star",
         "lambda_0_1",
         "lambda_0_9",
         "transition_width",
+        "max_derivative",
+    ])?;
+
+    for row in rows {
+        writer.write_record([
+            row.steps_per_run.to_string(),
+            row.mode.clone(),
+            row.is_perturbed.to_string(),
+            fmt_option_f64(row.lambda_star),
+            fmt_option_f64(row.lambda_0_1),
+            fmt_option_f64(row.lambda_0_9),
+            fmt_option_f64(row.transition_width),
+            fmt_option_f64(row.max_derivative),
+        ])?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_structural_law_summary_csv(
+    path: &Path,
+    rows: &[StructuralLawSummaryRow],
+) -> Result<(), AddError> {
+    let mut writer = Writer::from_path(path)?;
+    writer.write_record([
+        "steps_per_run",
+        "is_perturbed",
+        "pearson_r",
+        "spearman_rho",
+        "slope",
+        "intercept",
+        "r2",
+        "residual_variance",
+        "mse_resid",
+        "slope_ci_low",
+        "slope_ci_high",
+        "sample_count",
+        "ratio_mean",
+        "ratio_std",
     ])?;
 
     for row in rows {
         writer.write_record([
             row.steps_per_run.to_string(),
             row.is_perturbed.to_string(),
+            fmt_f64(row.pearson_r),
+            fmt_f64(row.spearman_rho),
+            fmt_f64(row.slope),
+            fmt_f64(row.intercept),
+            fmt_f64(row.r2),
+            fmt_f64(row.residual_variance),
+            fmt_f64(row.mse_resid),
+            fmt_f64(row.slope_ci_low),
+            fmt_f64(row.slope_ci_high),
+            row.sample_count.to_string(),
+            fmt_f64(row.ratio_mean),
+            fmt_f64(row.ratio_std),
+        ])?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_diagnostics_summary_csv(
+    path: &Path,
+    rows: &[DiagnosticsSummaryRow],
+) -> Result<(), AddError> {
+    let mut writer = Writer::from_path(path)?;
+    writer.write_record([
+        "steps_per_run",
+        "residual_mean",
+        "residual_std",
+        "residual_skew_approx",
+        "residual_kurtosis_approx",
+        "ratio_mean",
+        "ratio_std",
+        "ratio_min",
+        "ratio_max",
+    ])?;
+
+    for row in rows {
+        writer.write_record([
+            row.steps_per_run.to_string(),
+            fmt_f64(row.residual_mean),
+            fmt_f64(row.residual_std),
+            fmt_f64(row.residual_skew_approx),
+            fmt_f64(row.residual_kurtosis_approx),
+            fmt_f64(row.ratio_mean),
+            fmt_f64(row.ratio_std),
+            fmt_f64(row.ratio_min),
+            fmt_f64(row.ratio_max),
+        ])?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_cross_layer_thresholds_csv(
+    path: &Path,
+    rows: &[CrossLayerThresholdRow],
+) -> Result<(), AddError> {
+    let mut writer = Writer::from_path(path)?;
+    writer.write_record([
+        "steps_per_run",
+        "lambda_star",
+        "echo_slope_star",
+        "entropy_density_star",
+    ])?;
+
+    for row in rows {
+        writer.write_record([
+            row.steps_per_run.to_string(),
             fmt_option_f64(row.lambda_star),
-            fmt_option_f64(row.lambda_0_1),
-            fmt_option_f64(row.lambda_0_9),
-            fmt_option_f64(row.transition_width),
+            fmt_option_f64(row.echo_slope_star),
+            fmt_option_f64(row.entropy_density_star),
+        ])?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_tcp_phase_alignment_csv(
+    path: &Path,
+    rows: &[TcpPhaseAlignmentRow],
+) -> Result<(), AddError> {
+    let mut writer = Writer::from_path(path)?;
+    writer.write_record([
+        "steps_per_run",
+        "lambda_star",
+        "lambda_tp_peak",
+        "lambda_b1_peak",
+        "delta_tp",
+        "delta_b1",
+    ])?;
+
+    for row in rows {
+        writer.write_record([
+            row.steps_per_run.to_string(),
+            fmt_option_f64(row.lambda_star),
+            fmt_option_f64(row.lambda_tp_peak),
+            fmt_option_f64(row.lambda_b1_peak),
+            fmt_option_f64(row.delta_tp),
+            fmt_option_f64(row.delta_b1),
         ])?;
     }
 
@@ -309,14 +499,15 @@ pub fn write_robustness_metrics_csv(
     rows: &[RobustnessMetricRow],
 ) -> Result<(), AddError> {
     let mut writer = Writer::from_path(path)?;
-    writer.write_record(["subsystem", "steps_per_run", "metric_name", "value"])?;
+    writer.write_record(["metric", "steps_per_run", "baseline", "perturbed", "delta"])?;
 
     for row in rows {
         writer.write_record([
-            row.subsystem.clone(),
+            row.metric.clone(),
             row.steps_per_run.to_string(),
-            row.metric_name.clone(),
-            fmt_f64(row.value),
+            fmt_f64(row.baseline),
+            fmt_f64(row.perturbed),
+            fmt_f64(row.delta),
         ])?;
     }
 

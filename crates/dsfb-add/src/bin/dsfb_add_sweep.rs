@@ -46,10 +46,10 @@ where
                 })?;
                 config_path = Some(PathBuf::from(path));
             }
-            "--multi-steps" => {
-                let raw = iter.next().ok_or_else(|| {
-                    AddError::InvalidConfig("missing value for --multi-steps".to_string())
-                })?;
+            "--multi-steps" | "--steps-per-run-list" => {
+                let raw = iter
+                    .next()
+                    .ok_or_else(|| AddError::InvalidConfig(format!("missing value for {arg}")))?;
                 multi_steps_per_run = Some(parse_multi_steps(&raw)?);
             }
             "--help" | "-h" => {
@@ -99,12 +99,12 @@ fn parse_multi_steps(raw: &str) -> Result<Vec<usize>, AddError> {
 
         let steps = token.parse::<usize>().map_err(|_| {
             AddError::InvalidConfig(format!(
-                "invalid steps_per_run value in --multi-steps: {token}"
+                "invalid steps_per_run value in --steps-per-run-list: {token}"
             ))
         })?;
         if steps == 0 {
             return Err(AddError::InvalidConfig(
-                "--multi-steps values must be greater than zero".to_string(),
+                "--steps-per-run-list values must be greater than zero".to_string(),
             ));
         }
         out.push(steps);
@@ -112,7 +112,7 @@ fn parse_multi_steps(raw: &str) -> Result<Vec<usize>, AddError> {
 
     if out.is_empty() {
         return Err(AddError::InvalidConfig(
-            "--multi-steps must include at least one positive integer".to_string(),
+            "--steps-per-run-list must include at least one positive integer".to_string(),
         ));
     }
 
@@ -121,11 +121,11 @@ fn parse_multi_steps(raw: &str) -> Result<Vec<usize>, AddError> {
 
 fn print_help() {
     println!(
-        "Usage: cargo run -p dsfb-add --bin dsfb_add_sweep -- [--config path/to/config.json] [--multi-steps 5000,10000,20000]"
+        "Usage: cargo run -p dsfb-add --bin dsfb_add_sweep -- [--config path/to/config.json] [--steps-per-run-list 512,5000,10000,20000]"
     );
     println!("If config.json exists in the current directory, it is loaded automatically.");
     println!("Otherwise the built-in deterministic sweep configuration is used.");
     println!(
-        "When --multi-steps is provided, per-N sweep files are written with _N{{steps}} suffixes."
+        "When --steps-per-run-list is provided, per-N sweep files are written with _N{{steps}} suffixes."
     );
 }

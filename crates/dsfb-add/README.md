@@ -315,12 +315,19 @@ cargo run -p dsfb-add --bin dsfb_add_sweep -- --config crates/dsfb-add/config.js
 Finite-size scaling run:
 
 ```bash
-cargo run -p dsfb-add --bin dsfb_add_sweep -- --multi-steps 5000,10000,20000
+cargo run -p dsfb-add --bin dsfb_add_sweep -- --steps-per-run-list 512,5000,10000,20000
 ```
 
 If `config.json` exists in the current working directory, the binary loads it automatically. Otherwise it uses `SimulationConfig::default()`.
 
-If `--multi-steps` is provided, those values override the single `steps_per_run` setting for that run.
+By default the crate now runs a finite-size scaling sweep across:
+
+- `512`
+- `5000`
+- `10000`
+- `20000`
+
+and writes per-`N` files with `_N<steps>` suffixes, while also keeping unsuffixed canonical CSVs for the reference run. If `--steps-per-run-list` is provided, those values override the configured sweep list for that run.
 
 Each run creates:
 
@@ -367,11 +374,13 @@ Expected runtime files:
 - `rlt_examples_N<steps>/trajectory_bounded_lambda_<idx>.csv`
 - `rlt_examples_N<steps>/trajectory_expanding_lambda_<idx>.csv`
 - `rlt_phase_boundary.csv`
+- `cross_layer_thresholds.csv`
+- `tcp_phase_alignment.csv`
 - `robustness_metrics.csv`
+- `aet_iwlt_law_summary.csv`
+- `aet_iwlt_scaling_summary.csv`
+- `aet_iwlt_diagnostics_summary.csv`
 - `tcp_ph_summary.csv` (written by the Colab notebook after persistent-homology post-processing)
-- `aet_iwlt_law_summary.csv` (written by the Colab notebook after regression analysis)
-- `aet_iwlt_scaling_summary.csv` (written by the Colab notebook after finite-size scaling analysis)
-- `aet_iwlt_diagnostics_summary.csv` (written by the Colab notebook after residual, ratio, and log-log diagnostics)
 
 Expected notebook figure outputs:
 
@@ -400,11 +409,25 @@ Expected notebook figure outputs:
 - `fig_cross_layer_summary_vs_lambda.png`
 - `fig_rlt_phase_lambda_star_vs_N.png`
 - `fig_rlt_phase_width_vs_N.png`
+- `fig_rlt_phase_sharpness_vs_N.png`
+- `fig_rlt_vs_aet_threshold.png`
+- `fig_rlt_vs_iwlt_threshold.png`
+- `fig_tcp_phase_alignment_vs_N.png`
 - `fig_hero_add_stack.png`
 
 `tcp_sweep.csv` includes coarse Rust-side topological proxies (`betti0`, `betti1`, `l_tcp`) plus radius statistics. The notebook augments those proxies with `ripser`-based H1 summary statistics computed from the exported per-lambda run clouds, with total persistence treated as the main smooth TCP observable.
 
-The perturbed sweep CSVs are small deterministic robustness experiments: they nudge the update laws without changing the overall structural regime picture. `rlt_phase_boundary.csv` extracts the transport transition location and width, `robustness_metrics.csv` quantifies baseline-vs-perturbed deviations, and the AET-IWLT summary/diagnostic CSVs support the structural-law analysis directly.
+The perturbed sweep CSVs are small deterministic robustness experiments: they nudge the update laws without changing the overall structural regime picture. The Rust sweep now writes the core numerical summaries directly:
+
+- `aet_iwlt_law_summary.csv` contains the linear AET-IWLT fit per `N` and per mode, including `R^2`, residual variance, and slope confidence interval.
+- `aet_iwlt_scaling_summary.csv` isolates the baseline finite-size scaling branch across `N`.
+- `aet_iwlt_diagnostics_summary.csv` stores residual and ratio statistics per `N`.
+- `rlt_phase_boundary.csv` stores `lambda_star`, the 0.1-0.9 transition width, and a finite-difference sharpness estimate.
+- `cross_layer_thresholds.csv` records the AET and IWLT structural values at the RLT transport transition.
+- `tcp_phase_alignment.csv` records how the TCP peak observables align with the RLT phase transition.
+- `robustness_metrics.csv` compresses baseline-vs-perturbed deltas for the structural law and the RLT transition.
+
+The notebook then turns those summaries into paper-ready figures, adds PH-derived TCP summaries, overlays diagnostics, and rebuilds the fully annotated hero figure.
 
 Taken together, the outputs are meant to support the numerical section of the ADD paper:
 
