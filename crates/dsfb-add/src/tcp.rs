@@ -6,6 +6,9 @@ use crate::config::SimulationConfig;
 use crate::sweep::deterministic_drive;
 use crate::AddError;
 
+pub const NUM_TCP_RUNS_PER_LAMBDA: usize = 5;
+pub const TCP_POINTS_PER_RUN: usize = 96;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TcpPoint {
     pub t: usize,
@@ -21,7 +24,7 @@ pub struct TcpSweep {
     pub avg_radius: Vec<f64>,
     pub max_radius: Vec<f64>,
     pub variance_radius: Vec<f64>,
-    pub point_clouds: Vec<Vec<TcpPoint>>,
+    pub point_cloud_runs: Vec<Vec<Vec<TcpPoint>>>,
 }
 
 pub fn run_tcp_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<TcpSweep, AddError> {
@@ -31,56 +34,54 @@ pub fn run_tcp_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<T
     let mut avg_radius = Vec::with_capacity(lambda_grid.len());
     let mut max_radius = Vec::with_capacity(lambda_grid.len());
     let mut variance_radius = Vec::with_capacity(lambda_grid.len());
-    let mut point_clouds = Vec::with_capacity(lambda_grid.len());
+    let mut point_cloud_runs = Vec::with_capacity(lambda_grid.len());
 
     for (idx, &lambda) in lambda_grid.iter().enumerate() {
-        let lambda_norm = config.normalized_lambda(lambda);
-        let drive = deterministic_drive(config.random_seed, lambda, 0x7CD0_u64 + idx as u64);
+        let mut lambda_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
+        let mut betti0_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
+        let mut betti1_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
+        let mut l_tcp_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
+        let mut avg_radius_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
+        let mut max_radius_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
+        let mut variance_radius_runs = Vec::with_capacity(NUM_TCP_RUNS_PER_LAMBDA);
 
-        let mut x = 0.25 + 0.35 * drive.phase_bias;
-        let mut y = -0.15 + 0.30 * drive.trust_bias;
-        let mut points = Vec::with_capacity(config.steps_per_run);
+        for run_idx in 0..NUM_TCP_RUNS_PER_LAMBDA {
+            let points = simulate_tcp_run(config, lambda, idx, run_idx, TCP_POINTS_PER_RUN);
+            let radii: Vec<f64> = points
+                .iter()
+                .map(|point| (point.x * point.x + point.y * point.y).sqrt())
+                .collect();
 
-        for step in 0..config.steps_per_run {
-            points.push(TcpPoint { t: step, x, y });
+            let radius_mean = radii.iter().sum::<f64>() / radii.len() as f64;
+            let radius_max = radii.iter().copied().fold(0.0_f64, f64::max);
+            let radius_variance = radii
+                .iter()
+                .map(|radius| {
+                    let delta = radius - radius_mean;
+                    delta * delta
+                })
+                .sum::<f64>()
+                / radii.len() as f64;
 
-            let a = 1.08 + 0.72 * lambda_norm + 0.08 * drive.phase_bias;
-            let b = 0.22 + 0.11 * lambda_norm + 0.04 * drive.trust_bias.abs();
-            let forcing = 0.22 * ((step as f64) * 0.043 + lambda * std::f64::consts::TAU).sin();
+            let (components, holes) = occupancy_topology(&points, 18);
+            let tcp_scale = components as f64 + holes as f64 + radius_variance;
 
-            let next_x = (1.0 - a * x * x + y + forcing + 0.06 * drive.drift_bias).tanh();
-            let next_y = (b * x + 0.30 * ((step as f64) * 0.0375 + drive.phase_bias).cos()).tanh();
-
-            x = next_x;
-            y = next_y;
+            betti0_runs.push(components as f64);
+            betti1_runs.push(holes as f64);
+            l_tcp_runs.push(tcp_scale);
+            avg_radius_runs.push(radius_mean);
+            max_radius_runs.push(radius_max);
+            variance_radius_runs.push(radius_variance);
+            lambda_runs.push(points);
         }
 
-        let radii: Vec<f64> = points
-            .iter()
-            .map(|point| (point.x * point.x + point.y * point.y).sqrt())
-            .collect();
-
-        let radius_mean = radii.iter().sum::<f64>() / radii.len() as f64;
-        let radius_max = radii.iter().copied().fold(0.0_f64, f64::max);
-        let radius_variance = radii
-            .iter()
-            .map(|radius| {
-                let delta = radius - radius_mean;
-                delta * delta
-            })
-            .sum::<f64>()
-            / radii.len() as f64;
-
-        let (components, holes) = occupancy_topology(&points, 18);
-        let tcp_scale = components as f64 + holes as f64 + radius_variance;
-
-        betti0.push(components);
-        betti1.push(holes);
-        l_tcp.push(tcp_scale);
-        avg_radius.push(radius_mean);
-        max_radius.push(radius_max);
-        variance_radius.push(radius_variance);
-        point_clouds.push(points);
+        betti0.push(mean(&betti0_runs).round() as usize);
+        betti1.push(mean(&betti1_runs).round() as usize);
+        l_tcp.push(mean(&l_tcp_runs));
+        avg_radius.push(mean(&avg_radius_runs));
+        max_radius.push(mean(&max_radius_runs));
+        variance_radius.push(mean(&variance_radius_runs));
+        point_cloud_runs.push(lambda_runs);
     }
 
     Ok(TcpSweep {
@@ -90,8 +91,83 @@ pub fn run_tcp_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<T
         avg_radius,
         max_radius,
         variance_radius,
-        point_clouds,
+        point_cloud_runs,
     })
+}
+
+fn simulate_tcp_run(
+    config: &SimulationConfig,
+    lambda: f64,
+    lambda_idx: usize,
+    run_idx: usize,
+    points_per_run: usize,
+) -> Vec<TcpPoint> {
+    let lambda_norm = config.normalized_lambda(lambda);
+    let drive = deterministic_drive(
+        config.random_seed ^ ((run_idx as u64 + 1) << 20),
+        lambda,
+        0x7CD0_u64 + lambda_idx as u64 * 17 + run_idx as u64,
+    );
+
+    let run_phase = run_idx as f64 * std::f64::consts::TAU / NUM_TCP_RUNS_PER_LAMBDA.max(1) as f64;
+    let mut x = 0.18 + 0.28 * drive.phase_bias + 0.12 * run_phase.cos();
+    let mut y = -0.12 + 0.22 * drive.trust_bias + 0.12 * run_phase.sin();
+    let warmup_steps = 18 * (run_idx + 1);
+
+    for warmup in 0..warmup_steps {
+        let (next_x, next_y) =
+            tcp_step(x, y, lambda, lambda_norm, drive, warmup, run_phase, run_idx);
+        x = next_x;
+        y = next_y;
+    }
+
+    let mut points = Vec::with_capacity(points_per_run);
+    for step in 0..points_per_run {
+        points.push(TcpPoint { t: step, x, y });
+        let (next_x, next_y) = tcp_step(
+            x,
+            y,
+            lambda,
+            lambda_norm,
+            drive,
+            step + warmup_steps,
+            run_phase,
+            run_idx,
+        );
+        x = next_x;
+        y = next_y;
+    }
+
+    points
+}
+
+fn tcp_step(
+    x: f64,
+    y: f64,
+    lambda: f64,
+    lambda_norm: f64,
+    drive: crate::sweep::DriveSignal,
+    step: usize,
+    run_phase: f64,
+    run_idx: usize,
+) -> (f64, f64) {
+    let a = 1.08 + 0.72 * lambda_norm + 0.05 * drive.phase_bias + 0.02 * run_phase.cos();
+    let b =
+        0.18 + 0.10 * lambda_norm + 0.03 * drive.trust_bias.abs() + 0.01 * run_phase.sin().abs();
+    let forcing = 0.20 * ((step as f64) * 0.041 + lambda * std::f64::consts::TAU + run_phase).sin();
+    let swirl = 0.11 * ((step as f64) * 0.037 + run_idx as f64 * 0.5).cos();
+
+    let next_x = (1.0 - a * x * x + y + forcing + 0.05 * drive.drift_bias + swirl).tanh();
+    let next_y = (b * x + 0.26 * ((step as f64) * 0.031 + run_phase).cos() - 0.08 * y).tanh();
+    (next_x, next_y)
+}
+
+fn mean(values: &[f64]) -> f64 {
+    if values.is_empty() {
+        0.0
+    } else {
+        values.iter().sum::<f64>() / values.len() as f64
+    }
 }
 
 fn occupancy_topology(points: &[TcpPoint], grid_size: usize) -> (usize, usize) {

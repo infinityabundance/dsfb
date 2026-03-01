@@ -8,9 +8,10 @@ use crate::aet::{self, AetSweep};
 use crate::config::SimulationConfig;
 use crate::iwlt::{self, IwltSweep};
 use crate::output::{
-    write_aet_csv, write_iwlt_csv, write_rlt_csv, write_tcp_csv, write_tcp_points_csv,
+    write_aet_csv, write_iwlt_csv, write_rlt_csv, write_rlt_trajectory_csv, write_tcp_csv,
+    write_tcp_points_csv,
 };
-use crate::rlt::{self, RltSweep};
+use crate::rlt::{self, RltExampleKind, RltSweep};
 use crate::tcp::{self, TcpSweep};
 use crate::AddError;
 
@@ -96,9 +97,11 @@ pub fn run_sweeps_into_dir(
 
         let points_dir = output_dir.join("tcp_points");
         fs::create_dir_all(&points_dir)?;
-        for (idx, points) in sweep.point_clouds.iter().enumerate() {
-            let filename = format!("points_lambda_{idx:03}.csv");
-            write_tcp_points_csv(&points_dir.join(filename), points)?;
+        for (idx, runs) in sweep.point_cloud_runs.iter().enumerate() {
+            for (run_idx, points) in runs.iter().enumerate() {
+                let filename = format!("lambda_{idx:03}_run_{run_idx:02}.csv");
+                write_tcp_points_csv(&points_dir.join(filename), points)?;
+            }
         }
 
         Some(sweep)
@@ -114,6 +117,22 @@ pub fn run_sweeps_into_dir(
             &sweep.escape_rate,
             &sweep.expansion_ratio,
         )?;
+
+        let examples_dir = output_dir.join("rlt_examples");
+        fs::create_dir_all(&examples_dir)?;
+        let (bounded_idx, expanding_idx) =
+            rlt::find_representative_regime_indices(&sweep.escape_rate);
+        for (kind, idx) in [
+            (RltExampleKind::Bounded, bounded_idx),
+            (RltExampleKind::Expanding, expanding_idx),
+        ] {
+            let lambda = lambda_grid[idx];
+            let trajectory =
+                rlt::simulate_example_trajectory(config, lambda, rlt::RLT_EXAMPLE_STEPS);
+            let filename = format!("trajectory_{}_lambda_{idx:03}.csv", kind.filename_prefix());
+            write_rlt_trajectory_csv(&examples_dir.join(filename), &trajectory)?;
+        }
+
         Some(sweep)
     } else {
         None

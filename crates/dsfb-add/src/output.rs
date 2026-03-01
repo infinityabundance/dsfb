@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use csv::Writer;
 
-use crate::{AddError, TcpPoint};
+use crate::{rlt::RltTrajectoryPoint, AddError, TcpPoint};
 
 pub fn repo_root_dir() -> PathBuf {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -182,6 +182,35 @@ pub fn write_tcp_points_csv(path: &Path, points: &[TcpPoint]) -> Result<(), AddE
 
     for point in points {
         writer.write_record([point.t.to_string(), fmt_f64(point.x), fmt_f64(point.y)])?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_rlt_trajectory_csv(
+    path: &Path,
+    points: &[RltTrajectoryPoint],
+) -> Result<(), AddError> {
+    let mut writer = Writer::from_path(path)?;
+    writer.write_record([
+        "step",
+        "lambda",
+        "vertex_id",
+        "x",
+        "y",
+        "distance_from_start",
+    ])?;
+
+    for point in points {
+        writer.write_record([
+            point.step.to_string(),
+            fmt_f64(point.lambda),
+            point.vertex_id.to_string(),
+            point.x.to_string(),
+            point.y.to_string(),
+            point.distance_from_start.to_string(),
+        ])?;
     }
 
     writer.flush()?;
