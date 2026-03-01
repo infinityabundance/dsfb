@@ -30,6 +30,247 @@ In practice that means the crate can answer questions like:
 - whether the AET-IWLT structural law survives deterministic rule perturbations,
 - and whether those claims stabilize as `steps_per_run` increases.
 
+## Mathematical Model
+
+The ADD paper defines a common deterministic template for all four layers. The abstract state evolves by
+
+```text
+S_{k+1} = Φ(S_k),
+```
+
+with a discrete invariant
+
+```text
+I(S_{k+1}) = I(S_k),
+```
+
+and a monotone structural functional
+
+```text
+L(S_{k+1}) >= L(S_k).
+```
+
+`dsfb-add` is the numerical sweep implementation of that idea. It does not attempt to symbolically prove the paper's theorems inside Rust; instead it instantiates deterministic toy models whose exported diagnostics are direct empirical proxies for the functionals defined in the paper.
+
+### Algebraic Echo Theory (AET)
+
+In the paper, AET works on words in a free monoid `G*` with a terminating, confluent rewriting system `R`. The echo of a word is its normal form,
+
+```text
+Echo(w) = NF(w),
+```
+
+and the echo length is
+
+```text
+L_AET(w) = len(Echo(w)).
+```
+
+The paper's AET evolution is left-multiplicative:
+
+```text
+w_{k+1} = NF(g* w_k),
+```
+
+with increment sequence
+
+```text
+Delta_k = L_k+1 - L_k,
+L_k = L_AET(w_k),
+```
+
+and asymptotic survival rate
+
+```text
+sigma = lim inf_{n -> inf} (1 / n) sum_{k=0}^{n-1} Delta_k.
+```
+
+In `dsfb-add`, the `aet` module implements exactly this style of deterministic word evolution on a small alphabet with terminating, confluent local rules. The exported sweep statistics are empirical summaries of the paper's `L_AET` dynamics:
+
+- `echo_slope(lambda)` is the finite-run slope estimate
+
+  ```text
+  echo_slope ~= (L_final - L_initial) / steps_per_run
+  ```
+
+- `avg_increment(lambda)` is the finite-run average of the increments
+
+  ```text
+  avg_increment = (1 / N) sum Delta_k.
+  ```
+
+So the AET CSVs are a sampled lambda-family of the paper's echo-length growth law.
+
+### Topological Charge Propagation (TCP)
+
+In the paper, TCP starts from a deterministic trajectory, builds a filtration of simplicial complexes,
+
+```text
+K_{alpha_1} subseteq K_{alpha_2}  whenever alpha_1 <= alpha_2,
+```
+
+and defines the topological charge vector
+
+```text
+Q(alpha) = (beta_0(K_alpha), beta_1(K_alpha), beta_2(K_alpha), ...).
+```
+
+The paper also uses the Euler-characteristic identity
+
+```text
+chi(K_alpha) = sum_{k >= 0} (-1)^k beta_k(K_alpha),
+```
+
+and a topological-disorder functional of the form
+
+```text
+L_TCP(t) = sum_k w_k * #{persistent classes in dimension k with lifetime >= delta}.
+```
+
+`dsfb-add` keeps persistent homology itself in the notebook rather than in Rust. The Rust crate exports deterministic point clouds for each lambda and each deterministic run window, and the notebook computes the paper-facing PH summaries:
+
+- `betti1_mean(lambda)`
+- `betti1_std(lambda)`
+- `total_persistence_mean(lambda)`
+- `total_persistence_std(lambda)`
+
+The smooth TCP observable used in the figures is total persistence, which is the notebook's empirical surrogate for the paper's `L_TCP`.
+
+### Resonance Lattice Theory (RLT)
+
+In the paper, RLT evolves on a locally finite resonance graph `G = (V, E)` with deterministic dynamics
+
+```text
+v_{k+1} = Psi(v_k).
+```
+
+From an initial configuration `v_0`, the reachable component is
+
+```text
+C(v_0) = { v in V | v = Psi^(k)(v_0) for some k >= 0 },
+```
+
+and the resonance spread is
+
+```text
+L_RLT(v_0) = |C(v_0)|.
+```
+
+The paper further defines escape rate
+
+```text
+lambda(v_0) = lim inf_{n -> inf} (1 / n) d_G(v_0, v_n),
+```
+
+and resonance expansion ratio
+
+```text
+rho(v_0, n) = |V_n| / (n + 1),
+rho(v_0) = lim inf_{n -> inf} rho(v_0, n),
+```
+
+where `V_n = {v_0, ..., v_n}` is the visited set up to time `n`.
+
+The `rlt` module exports finite-run deterministic proxies for these exact paper objects:
+
+- `escape_rate(lambda)` is the sampled version of `lambda(v_0)`
+- `expansion_ratio(lambda)` is the sampled version of `rho(v_0, n)`
+- `rlt_examples/...csv` stores representative bounded and expanding trajectories
+
+The crate also exports the paper-facing phase-boundary summary:
+
+```text
+lambda_star   = first lambda with expansion_ratio >= 0.5
+lambda_0_1    = first lambda with expansion_ratio >= 0.1
+lambda_0_9    = first lambda with expansion_ratio >= 0.9
+transition_width = lambda_0_9 - lambda_0_1
+```
+
+These are the deterministic transport-transition metrics used by the notebook's RLT scaling plots and hero figure annotation.
+
+### Invariant Word-Length Thermodynamics (IWLT)
+
+In the paper, IWLT defines the equivalence class of a history word under a rewriting system as
+
+```text
+[w] = { u in E* | u is reachable from w by finitely many rewrites },
+```
+
+and the word-length entropy as the minimal representative length
+
+```text
+S_IWLT(w) = min_{u in [w]} len(u).
+```
+
+The evolution is append-only,
+
+```text
+w_{k+1} = w_k e_{i_{k+1}},
+```
+
+and the paper proves existence of the entropy-density limit
+
+```text
+s_inf = lim_{k -> inf} S_IWLT(w_k) / k.
+```
+
+Under the paper's local-irreversibility assumptions, IWLT obeys the deterministic entropy-density law
+
+```text
+S_IWLT(w_k) >= (m - BC) k,
+s_inf >= m - BC > 0.
+```
+
+The `iwlt` module implements a deterministic append-and-reduce history system in exactly this spirit. Its exported diagnostics are finite-run empirical surrogates of the paper quantities:
+
+- `entropy_density(lambda)` is the sampled estimate
+
+  ```text
+  entropy_density ~= S_IWLT(w_final) / steps_per_run
+  ```
+
+- `avg_increment(lambda)` is the mean per-step increase in the minimal representative length.
+
+### Cross-Layer Structural Law
+
+The main empirical claim tested by this crate is that the AET and IWLT functionals lock together numerically across the same lambda sweep. Concretely, for every run length `N`, the notebook merges
+
+- `echo_slope(lambda)` from AET, and
+- `entropy_density(lambda)` from IWLT,
+
+then fits the linear law
+
+```text
+entropy_density ~= a * echo_slope + b.
+```
+
+From that fit it computes:
+
+- Pearson correlation,
+- Spearman rank correlation,
+- regression slope `a`,
+- intercept `b`,
+- `R^2`,
+- mean-squared residual,
+- and the dimensionless ratio
+
+  ```text
+  entropy_density / echo_slope.
+  ```
+
+This is the structural-law pipeline behind `aet_iwlt_law_summary.csv`, the finite-size scaling summaries, the residual diagnostics, the universality comparison, and the bottom panel of `fig_hero_add_stack.png`.
+
+### What The Crate Actually Computes
+
+Putting the paper mathematics and the Rust implementation together:
+
+- the Rust crate generates deterministic trajectories, words, and graph walks parameterized by lambda and optional multiple `steps_per_run` values,
+- the CSVs store finite-run samples of `L_AET`, `S_IWLT`, TCP persistence summaries, and RLT spread/escape observables,
+- perturbed sweeps test whether those laws are stable under small deterministic rule changes,
+- and the notebook reconstructs the paper-facing diagnostics from those exported deterministic samples.
+
+So the crate is not merely a plotting harness. It is the executable empirical realization of the paper's algebraic-topological stack: the place where the formal quantities from AET, TCP, RLT, and IWLT are turned into concrete sweep data, regression summaries, phase-boundary estimates, and final figures.
+
 ## Architecture
 
 The crate is split into four simulation modules plus shared configuration, output, and orchestration code.
