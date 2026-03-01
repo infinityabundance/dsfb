@@ -315,7 +315,7 @@ cargo run -p dsfb-add --bin dsfb_add_sweep -- --config crates/dsfb-add/config.js
 Finite-size scaling run:
 
 ```bash
-cargo run -p dsfb-add --bin dsfb_add_sweep -- --steps-per-run-list 512,5000,10000,20000
+cargo run -p dsfb-add --bin dsfb_add_sweep -- --steps-per-run-list 512,5000,10000,20000,50000,100000
 ```
 
 If `config.json` exists in the current working directory, the binary loads it automatically. Otherwise it uses `SimulationConfig::default()`.
@@ -349,7 +349,7 @@ Workflow:
 
 The notebook is structured so Rust remains the authoritative simulation layer and Colab remains the analysis and figure-generation layer. The Rust side produces deterministic sweeps and structural summaries; the notebook performs the paper-facing regression, finite-size scaling, residual diagnostics, universality comparison, and hero-figure assembly.
 
-For Colab specifically, the notebook uses a reduced reproducible default sweep profile of `RUST_MULTI_STEPS = [512, 5000]` when it bootstraps a fresh Rust run. This keeps standard CPU sessions practical while still preserving a genuine finite-size comparison. If you want the full production profile, set `RUST_MULTI_STEPS = [512, 5000, 10000, 20000]` in the notebook before running the bootstrap cell.
+For Colab specifically, the notebook uses a minimal reproducible default sweep profile of `512` when it bootstraps a fresh Rust run. A dropdown near the top of the notebook selects the active `steps_per_run` value for both bootstrap and figure display, and it defaults to `512` so free CPU sessions remain practical. If you want the full production profile in Colab, set `RUST_MULTI_STEPS = [512, 5000, 10000, 20000, 50000, 100000]` in the notebook before running the bootstrap cell. If you run the large multi-`N` sweep locally and upload the results, that same dropdown lets you switch the displayed analysis to any available `N` without editing the plotting code.
 
 ## Outputs
 
