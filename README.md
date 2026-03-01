@@ -80,6 +80,21 @@ Don’t believe a sensor all at once.
 
 ---
 
+## Algebraic Deterministic Dynamics (ADD) Sweep
+
+The `dsfb-add` crate runs deterministic parameter sweeps for the Algebraic Deterministic Dynamics (ADD) stack:
+
+- Algebraic Echo Theory (AET)
+- Topological Charge Propagation (TCP)
+- Resonance Lattice Theory (RLT)
+- Invariant Word-Length Thermodynamics (IWLT)
+
+It generates CSV outputs and figures used in the ADD paper.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-add/dsfb_add_sweep.ipynb)
+
+---
+
 ## Workspace Crates
 
 This repository contains six crates for different DSFB workflows:
