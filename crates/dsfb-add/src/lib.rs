@@ -1,4 +1,5 @@
 pub mod aet;
+pub mod analysis;
 pub mod config;
 pub mod iwlt;
 pub mod output;
