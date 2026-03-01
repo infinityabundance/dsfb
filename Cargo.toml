@@ -5,6 +5,7 @@ members = [
     "crates/dsfb-starship",
     "crates/dsfb-hret",
     "crates/dsfb-ddmf",
+    "crates/dsfb-add",
 ]
 default-members = ["crates/dsfb"]
 resolver = "2"
