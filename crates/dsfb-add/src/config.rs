@@ -36,7 +36,7 @@ impl Default for SimulationConfig {
             lambda_min: 0.0,
             lambda_max: 1.0,
             steps_per_run: 512,
-            multi_steps_per_run: Vec::new(),
+            multi_steps_per_run: vec![512, 5_000, 10_000, 20_000],
             random_seed: 0xADD2_0260_0001_u64,
             enable_aet: true,
             enable_tcp: true,
