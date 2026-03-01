@@ -1,0 +1,30 @@
+[package]
+name = "dsfb-add"
+version = "0.1.0"
+edition = "2021"
+authors = ["Riaan de Beer"]
+license = "Apache-2.0"
+description = "Deterministic Algebraic Deterministic Dynamics (ADD) parameter sweeps for AET, TCP, RLT, and IWLT"
+repository = "https://github.com/infinityabundance/dsfb"
+homepage = "https://github.com/infinityabundance/dsfb"
+readme = "README.md"
+keywords = ["deterministic", "simulation", "algebra", "topology", "sweep"]
+categories = ["science", "algorithms", "command-line-utilities"]
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+csv = "1.3"
+dsfb = { path = "../dsfb" }
+rand = { version = "0.8", features = ["std_rng"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_with = "3.12"
+thiserror = "2.0"
+
+[lib]
+name = "dsfb_add"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb_add_sweep"
+path = "src/bin/dsfb_add_sweep.rs"
