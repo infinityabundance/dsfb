@@ -6,6 +6,8 @@ use crate::config::SimulationConfig;
 use crate::sweep::deterministic_drive;
 use crate::AddError;
 
+pub const IWLT_PERTURBATION_STRENGTH: f64 = 0.03;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IwltSweep {
     pub entropy_density: Vec<f64>,
@@ -23,6 +25,21 @@ pub fn run_iwlt_sweep(
     config: &SimulationConfig,
     lambda_grid: &[f64],
 ) -> Result<IwltSweep, AddError> {
+    run_iwlt_sweep_with_perturbation(config, lambda_grid, 0.0)
+}
+
+pub fn run_iwlt_sweep_perturbed(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+) -> Result<IwltSweep, AddError> {
+    run_iwlt_sweep_with_perturbation(config, lambda_grid, IWLT_PERTURBATION_STRENGTH)
+}
+
+fn run_iwlt_sweep_with_perturbation(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+    perturbation_strength: f64,
+) -> Result<IwltSweep, AddError> {
     let mut entropy_density = Vec::with_capacity(lambda_grid.len());
     let mut avg_increment = Vec::with_capacity(lambda_grid.len());
 
@@ -36,10 +53,16 @@ pub fn run_iwlt_sweep(
         entropies.push(0.0);
 
         for step in 0..config.steps_per_run {
+            let bias_perturbation = perturbation_strength
+                * ((step as f64) * 0.04375 + lambda * 4.5 + drive.phase_bias * 2.0).sin();
             let irreversible_bias =
-                (0.20 + 0.70 * lambda_norm + 0.08 * drive.phase_bias).clamp(0.0, 1.0);
-            let structural_bias =
-                (0.10 + 0.20 * (step as f64 * 0.05 + drive.trust_bias).cos()).abs();
+                (0.20 + 0.70 * lambda_norm + 0.08 * drive.phase_bias + bias_perturbation)
+                    .clamp(0.0, 1.0);
+            let structural_bias = (0.10
+                + 0.20 * (step as f64 * 0.05 + drive.trust_bias).cos()
+                + 0.5 * bias_perturbation)
+                .abs()
+                .clamp(0.0, 1.0);
 
             if rng.gen::<f64>() < irreversible_bias {
                 history.push(Event::I);

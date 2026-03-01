@@ -9,6 +9,7 @@ use crate::AddError;
 pub const RLT_EXAMPLE_STEPS: usize = 240;
 pub const RLT_BOUNDED_THRESHOLD: f64 = 0.05;
 pub const RLT_EXPANDING_THRESHOLD: f64 = 0.95;
+pub const RLT_PERTURBATION_STRENGTH: f64 = 0.025;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RltSweep {
@@ -55,11 +56,31 @@ enum RltRegime {
 }
 
 pub fn run_rlt_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<RltSweep, AddError> {
+    run_rlt_sweep_with_perturbation(config, lambda_grid, 0.0)
+}
+
+pub fn run_rlt_sweep_perturbed(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+) -> Result<RltSweep, AddError> {
+    run_rlt_sweep_with_perturbation(config, lambda_grid, RLT_PERTURBATION_STRENGTH)
+}
+
+fn run_rlt_sweep_with_perturbation(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+    perturbation_strength: f64,
+) -> Result<RltSweep, AddError> {
     let mut escape_rate = Vec::with_capacity(lambda_grid.len());
     let mut expansion_ratio = Vec::with_capacity(lambda_grid.len());
 
     for &lambda in lambda_grid {
-        let vertices = simulate_vertices(config, lambda, config.steps_per_run);
+        let vertices = simulate_vertices_with_perturbation(
+            config,
+            lambda,
+            config.steps_per_run,
+            perturbation_strength,
+        );
         let (escape, expansion) = summarize_trajectory(&vertices, config.steps_per_run);
         escape_rate.push(escape);
         expansion_ratio.push(expansion);
@@ -132,6 +153,15 @@ fn nearest_index(values: &[f64], target: f64) -> usize {
 }
 
 fn simulate_vertices(config: &SimulationConfig, lambda: f64, steps: usize) -> Vec<Vertex> {
+    simulate_vertices_with_perturbation(config, lambda, steps, 0.0)
+}
+
+fn simulate_vertices_with_perturbation(
+    config: &SimulationConfig,
+    lambda: f64,
+    steps: usize,
+    perturbation_strength: f64,
+) -> Vec<Vertex> {
     let lambda_norm = config.normalized_lambda(lambda);
     let drive = deterministic_drive(config.random_seed, lambda, 0xB170_u64);
     let mut current = Vertex { x: 0, y: 0 };
@@ -139,7 +169,14 @@ fn simulate_vertices(config: &SimulationConfig, lambda: f64, steps: usize) -> Ve
     vertices.push(current);
 
     for step in 0..steps {
-        current = resonance_step(current, step, lambda_norm, drive);
+        current = resonance_step(
+            current,
+            step,
+            lambda,
+            lambda_norm,
+            drive,
+            perturbation_strength,
+        );
         vertices.push(current);
     }
 
@@ -171,20 +208,38 @@ fn summarize_trajectory(vertices: &[Vertex], steps: usize) -> (f64, f64) {
 fn resonance_step(
     current: Vertex,
     step: usize,
+    lambda: f64,
     lambda_norm: f64,
     drive: crate::sweep::DriveSignal,
+    perturbation_strength: f64,
 ) -> Vertex {
-    let regime = classify_regime(lambda_norm);
-    let phase_bucket =
-        (lambda_norm * 11.0).round() as i32 + (drive.phase_bias * 5.0).round() as i32;
+    let lambda_perturbation = perturbation_strength
+        * ((step as f64) * 0.0175 + lambda * 6.0 + drive.drift_bias * 2.0).sin();
+    let lambda_effective = (lambda_norm + lambda_perturbation).clamp(0.0, 1.0);
+    let regime = classify_regime(lambda_effective);
+    let phase_bucket = (lambda_effective * 11.0).round() as i32
+        + (drive.phase_bias * 5.0).round() as i32
+        + (perturbation_strength * 12.0 * ((step as f64) * 0.025 + lambda * 3.0).cos()).round()
+            as i32;
     let trust_sign = if drive.trust_bias >= 0.0 { 1 } else { -1 };
 
     match regime {
         RltRegime::Bounded => bounded_step(step, phase_bucket, trust_sign),
-        RltRegime::Transitional => {
-            transitional_step(current, step, lambda_norm, phase_bucket, trust_sign)
-        }
-        RltRegime::Expanding => expanding_step(current, step, phase_bucket, trust_sign),
+        RltRegime::Transitional => transitional_step(
+            current,
+            step,
+            lambda_effective,
+            phase_bucket,
+            trust_sign,
+            perturbation_strength,
+        ),
+        RltRegime::Expanding => expanding_step(
+            current,
+            step,
+            phase_bucket,
+            trust_sign,
+            perturbation_strength,
+        ),
     }
 }
 
@@ -214,8 +269,12 @@ fn transitional_step(
     lambda_norm: f64,
     phase_bucket: i32,
     trust_sign: i32,
+    perturbation_strength: f64,
 ) -> Vertex {
-    let leash = 2 + (lambda_norm * 10.0).round() as i32;
+    let leash = 2
+        + (lambda_norm * 10.0).round() as i32
+        + (perturbation_strength * 6.0 * ((step as f64) * 0.05 + lambda_norm * 4.0).sin()).round()
+            as i32;
     let resonance_class = (step as i32 + phase_bucket).rem_euclid(6);
     let mut next = match resonance_class {
         0 => Vertex {
@@ -257,13 +316,21 @@ fn transitional_step(
     next
 }
 
-fn expanding_step(current: Vertex, step: usize, phase_bucket: i32, trust_sign: i32) -> Vertex {
+fn expanding_step(
+    current: Vertex,
+    step: usize,
+    phase_bucket: i32,
+    trust_sign: i32,
+    perturbation_strength: f64,
+) -> Vertex {
     let resonance_class = (step as i32 + phase_bucket).rem_euclid(5);
+    let perturbation_dy =
+        (perturbation_strength * 10.0 * ((step as f64) * 0.0375).sin()).round() as i32;
     let dy = match resonance_class {
         0 => 0,
         1 | 2 => 1,
         _ => 2,
-    };
+    } + perturbation_dy.max(0);
 
     Vertex {
         x: current.x + 1,
