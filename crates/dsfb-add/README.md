@@ -79,28 +79,39 @@ The notebook is structured so Rust remains the authoritative simulation layer an
 Expected runtime files:
 
 - `aet_sweep.csv`
+- `aet_sweep_perturbed.csv`
 - `tcp_sweep.csv`
 - `rlt_sweep.csv`
+- `rlt_sweep_perturbed.csv`
 - `iwlt_sweep.csv`
+- `iwlt_sweep_perturbed.csv`
 - `tcp_points/lambda_<idx>_run_<r>.csv`
 - `rlt_examples/trajectory_bounded_lambda_<idx>.csv`
 - `rlt_examples/trajectory_expanding_lambda_<idx>.csv`
 - `tcp_ph_summary.csv` (written by the Colab notebook after persistent-homology post-processing)
+- `aet_iwlt_law_summary.csv` (written by the Colab notebook after regression analysis)
 
 Expected notebook figure outputs:
 
 - `fig_aet_echo_slope_vs_lambda.png`
+- `fig_aet_robustness.png`
 - `fig_iwlt_entropy_density_vs_lambda.png`
+- `fig_iwlt_robustness.png`
 - `fig_rlt_escape_rate_vs_lambda.png`
 - `fig_rlt_expansion_ratio_vs_lambda.png`
 - `fig_rlt_expansion_ratio_vs_lambda_zoom.png`
+- `fig_rlt_robustness.png`
 - `fig_rlt_trajectory_bounded.png`
 - `fig_rlt_trajectory_expanding.png`
 - `fig_tcp_betti1_mean_vs_lambda.png`
 - `fig_tcp_total_persistence_vs_lambda.png`
+- `fig_aet_iwlt_structural_law.png`
 - `fig_cross_layer_summary_vs_lambda.png`
+- `fig_hero_add_stack.png`
 
 `tcp_sweep.csv` includes coarse Rust-side topological proxies (`betti0`, `betti1`, `l_tcp`) plus radius statistics. The notebook augments those proxies with `ripser`-based H1 summary statistics computed from the exported per-lambda run clouds. The RLT example trajectories provide a compact visual contrast between bounded recurrence and expanding transport.
+
+The perturbed sweep CSVs are small deterministic robustness experiments: they nudge the update laws without changing the overall structural regime picture. `aet_iwlt_law_summary.csv` and `fig_aet_iwlt_structural_law.png` quantify the high-correlation AET-IWLT relation between echo slope and entropy density. Together with `fig_hero_add_stack.png`, these outputs are meant to support the numerical section of the ADD paper.
 
 ## Relationship To The DSFB / ADD Papers
 

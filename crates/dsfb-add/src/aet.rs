@@ -6,6 +6,8 @@ use crate::config::SimulationConfig;
 use crate::sweep::deterministic_drive;
 use crate::AddError;
 
+pub const AET_PERTURBATION_STRENGTH: f64 = 0.035;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AetSweep {
     pub echo_slope: Vec<f64>,
@@ -19,6 +21,21 @@ enum Symbol {
 }
 
 pub fn run_aet_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<AetSweep, AddError> {
+    run_aet_sweep_with_perturbation(config, lambda_grid, 0.0)
+}
+
+pub fn run_aet_sweep_perturbed(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+) -> Result<AetSweep, AddError> {
+    run_aet_sweep_with_perturbation(config, lambda_grid, AET_PERTURBATION_STRENGTH)
+}
+
+fn run_aet_sweep_with_perturbation(
+    config: &SimulationConfig,
+    lambda_grid: &[f64],
+    perturbation_strength: f64,
+) -> Result<AetSweep, AddError> {
     let mut echo_slope = Vec::with_capacity(lambda_grid.len());
     let mut avg_increment = Vec::with_capacity(lambda_grid.len());
 
@@ -33,8 +50,11 @@ pub fn run_aet_sweep(config: &SimulationConfig, lambda_grid: &[f64]) -> Result<A
 
         for step in 0..config.steps_per_run {
             let phase_term = ((step as f64) * 0.03125 + drive.phase_bias).sin() * 0.05;
+            let perturbation = perturbation_strength
+                * ((step as f64) * 0.0625 + lambda * 5.0 + drive.trust_bias * 1.75).cos();
             let growth_bias =
-                (0.12 + 0.76 * lambda_norm + 0.10 * drive.phase_bias + phase_term).clamp(0.0, 1.0);
+                (0.12 + 0.76 * lambda_norm + 0.10 * drive.phase_bias + phase_term + perturbation)
+                    .clamp(0.0, 1.0);
 
             let generator = if rng.gen::<f64>() < growth_bias {
                 Symbol::A

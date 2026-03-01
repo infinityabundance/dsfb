@@ -77,6 +77,14 @@ pub fn run_sweeps_into_dir(
             &sweep.echo_slope,
             &sweep.avg_increment,
         )?;
+
+        let perturbed = aet::run_aet_sweep_perturbed(config, &lambda_grid)?;
+        write_aet_csv(
+            &output_dir.join("aet_sweep_perturbed.csv"),
+            &lambda_grid,
+            &perturbed.echo_slope,
+            &perturbed.avg_increment,
+        )?;
         Some(sweep)
     } else {
         None
@@ -118,6 +126,14 @@ pub fn run_sweeps_into_dir(
             &sweep.expansion_ratio,
         )?;
 
+        let perturbed = rlt::run_rlt_sweep_perturbed(config, &lambda_grid)?;
+        write_rlt_csv(
+            &output_dir.join("rlt_sweep_perturbed.csv"),
+            &lambda_grid,
+            &perturbed.escape_rate,
+            &perturbed.expansion_ratio,
+        )?;
+
         let examples_dir = output_dir.join("rlt_examples");
         fs::create_dir_all(&examples_dir)?;
         let (bounded_idx, expanding_idx) =
@@ -145,6 +161,14 @@ pub fn run_sweeps_into_dir(
             &lambda_grid,
             &sweep.entropy_density,
             &sweep.avg_increment,
+        )?;
+
+        let perturbed = iwlt::run_iwlt_sweep_perturbed(config, &lambda_grid)?;
+        write_iwlt_csv(
+            &output_dir.join("iwlt_sweep_perturbed.csv"),
+            &lambda_grid,
+            &perturbed.entropy_density,
+            &perturbed.avg_increment,
         )?;
         Some(sweep)
     } else {
