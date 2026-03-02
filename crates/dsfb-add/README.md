@@ -15,6 +15,30 @@ The stack it sweeps is:
 - Resonance Lattice Theory (RLT)
 - Invariant Word-Length Thermodynamics (IWLT)
 
+## Citation
+
+Primary paper for this crate:
+
+- de Beer, R. (2026). *Algebraic Deterministic Dynamics (ADD): A Non-Stochastic Structural Extension of DSFB* (v1.0). Zenodo. DOI: [10.5281/zenodo.18830567](https://doi.org/10.5281/zenodo.18830567)
+
+Zenodo record:
+
+- https://zenodo.org/records/18830567
+
+Suggested BibTeX:
+
+```bibtex
+@misc{debeer2026add,
+  author       = {Riaan de Beer},
+  title        = {Algebraic Deterministic Dynamics (ADD): A Non-Stochastic Structural Extension of DSFB},
+  year         = {2026},
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.18830567},
+  url          = {https://doi.org/10.5281/zenodo.18830567},
+  version      = {1.0}
+}
+```
+
 ## Motivation
 
 ADD extends the deterministic style of DSFB upward into structural dynamics. Instead of using stochastic primitives as the default language for memory, disorder, spread, and irreversibility, the ADD paper frames those effects through exact evolution rules on words, graphs, and trajectory-generated complexes.
@@ -298,6 +322,110 @@ If `multi_steps_per_run` is populated, the crate repeats the full sweep for ever
 
 The crate also depends on the workspace `dsfb` crate. That dependency is used to build a small deterministic drive signal shared across the ADD toy models, so the sweep remains aligned with the DSFB repository's observer-first philosophy without modifying any existing DSFB source code.
 
+## Code-Level Walkthrough
+
+The crate is intentionally split so the Rust side handles deterministic data generation and the notebook side handles heavier plotting and PH post-processing.
+
+### Library Entry Points
+
+The main library entry point is:
+
+```rust
+pub fn run_all_sweeps(config: &SimulationConfig) -> Result<(), AddError>;
+```
+
+This is the simplest API when embedding `dsfb-add` from another Rust program: pass a `SimulationConfig`, let the crate create a fresh timestamped output directory, and write the full sweep there.
+
+The lower-level entry point used by the binary is:
+
+```rust
+pub fn run_sweeps_into_dir(
+    config: &SimulationConfig,
+    output_dir: &Path,
+) -> Result<SweepResult, AddError>;
+```
+
+This is the better choice when you want explicit control over where outputs are written or when integrating ADD sweeps into a larger orchestration layer.
+
+### CLI Binary
+
+The binary target is:
+
+```text
+dsfb_add_sweep
+```
+
+It accepts:
+
+- `--config path/to/config.json`
+- `--steps-per-run-list 512,5000,10000,20000`
+
+If a `config.json` exists in the current working directory, it is loaded automatically. Otherwise the binary uses `SimulationConfig::default()`.
+
+### SimulationConfig Parameters
+
+`SimulationConfig` is the central contract for the crate. Its fields are:
+
+- `num_lambda`:
+  number of lambda samples in the sweep grid
+- `lambda_min`, `lambda_max`:
+  inclusive sweep bounds used by `lambda_grid()`
+- `steps_per_run`:
+  fallback single run length when no multi-`N` sweep is requested
+- `multi_steps_per_run`:
+  optional list of run lengths for finite-size scaling; if non-empty this takes precedence over `steps_per_run`
+- `random_seed`:
+  deterministic seed for all pseudo-random branch choices
+- `enable_aet`, `enable_tcp`, `enable_rlt`, `enable_iwlt`:
+  per-layer switches that allow focused runs
+
+Default values are chosen to make the crate useful out of the box:
+
+- `num_lambda = 360`
+- `lambda_min = 0.0`
+- `lambda_max = 1.0`
+- `steps_per_run = 512`
+- `multi_steps_per_run = [512, 5000, 10000, 20000]`
+
+That means the default binary run is already a finite-size scaling experiment across four trajectory lengths. For a one-off local production run, you can override this with:
+
+```bash
+cargo run --release -p dsfb-add --bin dsfb_add_sweep -- \
+  --steps-per-run-list 512,5000,10000,20000,50000,100000
+```
+
+### What Each Rust Module Does
+
+- `src/aet.rs`
+  implements the AET word-evolution sweep and its perturbed variant
+- `src/iwlt.rs`
+  implements the IWLT append-and-reduce entropy sweep and its perturbed variant
+- `src/rlt.rs`
+  implements deterministic resonance walks, phase-transition proxies, and example trajectories
+- `src/tcp.rs`
+  implements deterministic 2D trajectory generation and exports multi-run point clouds for notebook-side PH
+- `src/analysis/rlt_phase.rs`
+  extracts `lambda_star`, transition-width brackets, and related phase-boundary quantities
+- `src/analysis/structural_law.rs`
+  fits the AET-IWLT structural law and computes the confidence interval used in downstream summaries
+- `src/output.rs`
+  owns CSV schema definitions and file-writing helpers
+- `src/sweep.rs`
+  is the orchestration layer: it loops over enabled `steps_per_run` values, runs baseline and perturbed sweeps, aggregates summaries, and writes the full output set
+- `src/bin/dsfb_add_sweep.rs`
+  is the CLI wrapper around `SimulationConfig` loading and sweep execution
+
+### Progress Reporting
+
+The sweep binary emits percentage-based progress updates while it runs. This is especially useful for large local finite-size runs where `steps_per_run` may extend up to `100000` or higher.
+
+The progress tracker reports:
+
+- the current subsystem,
+- whether the run is baseline or perturbed,
+- the current `steps_per_run`,
+- and the overall percentage through the entire ADD job.
+
 ## Running The Sweep
 
 From the repo root:
@@ -336,6 +464,18 @@ output-dsfb-add/<YYYY-MM-DDTHH-MM-SSZ>/
 ```
 
 inside the workspace root and writes the requested CSV outputs there.
+
+## Why The Crate Is Split Between Rust And Colab
+
+The Rust crate is responsible for deterministic generation, reproducibility, and explicit CSV schemas. The notebooks are responsible for figure production, persistent-homology post-processing, and exploratory views that would be awkward or heavyweight to maintain directly in Rust.
+
+That split is intentional:
+
+- Rust owns deterministic execution and file layout.
+- CSVs provide stable interchange points for the paper workflow.
+- Colab owns presentation, diagnostics, and final publication figures.
+
+This design keeps the core ADD experiment reproducible from the command line while still making the paper's figure pipeline easy to rerun in the cloud.
 
 ## Using The Colab Notebook
 
@@ -454,6 +594,20 @@ Taken together, the outputs are meant to support the numerical section of the AD
 - phase-boundary summaries quantify the RLT transport transition,
 - structural-law summaries quantify the AET-IWLT coupling,
 - and the hero figure condenses the stack into a single paper-facing panel.
+
+## Publishability Notes
+
+The crate is intended to be publishable on crates.io as a normal Rust package:
+
+- it exposes a reusable library API,
+- it ships a documented CLI binary,
+- it includes the notebooks that consume the exported CSVs,
+- and it depends on the published `dsfb` crate rather than on unpublished workspace-only internals.
+
+The crate is therefore usable in two ways:
+
+1. as a command-line experiment runner for ADD paper reproduction, and
+2. as a library dependency for projects that want to orchestrate ADD sweeps programmatically.
 
 ## Relationship To The DSFB / ADD Papers
 
