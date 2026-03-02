@@ -55,6 +55,10 @@ Don’t believe a sensor all at once.
 > *Deterministic Disturbance Modeling Framework for Residual-Envelope Fusion Systems* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.18806150]
 
+> **de Beer, R.** (2026). 
+> *Algebraic Deterministic Dynamics (ADD): A Non-Stochastic Structural Extension of DSFB* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.18830567]
+
 ---
 
 `DSFB Simulation Notebook:`
