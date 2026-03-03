@@ -1,5 +1,5 @@
 use anyhow::{ensure, Result};
-use dsfb::sim::{run_simulation_trace, SimConfig};
+use dsfb::sim::{run_simulation, SimConfig};
 use dsfb::DsfbParams;
 use dsfb_add::aet::run_aet_sweep;
 use dsfb_add::analysis::structural_law::fit_with_ci;
@@ -205,66 +205,59 @@ pub fn generate_dscd_events_from_dsfb(
     let mut run_cfg = scenario.clone();
     run_cfg.steps = num_events;
 
-    let trace = run_simulation_trace(run_cfg, dsfb_params);
-    let mut events = Vec::with_capacity(trace.len());
+    let simulation = run_simulation(run_cfg, dsfb_params);
+    let mut events = Vec::with_capacity(simulation.len());
     let mut observer_samples = Vec::new();
-    let channels = trace
-        .first()
-        .map(|step| step.trust_stats.len())
-        .unwrap_or(0);
+    let channels = 2_usize;
     let mut trust_state = vec![0.0; channels];
 
-    if let Some(first_step) = trace.first() {
+    if let Some(first_step) = simulation.first() {
         for (observer_index, trust_slot) in trust_state.iter_mut().enumerate().take(channels) {
-            let baseline = first_step
-                .trust_stats
-                .get(observer_index)
-                .map(|stats| stats.weight)
-                .unwrap_or(1.0 / channels.max(1) as f64);
+            let baseline = if observer_index == 1 {
+                first_step.w2
+            } else {
+                (1.0 - first_step.w2).clamp(0.0, 1.0)
+            };
             let profile = TrustProfile::from_observer_index(observer_index as u32);
             *trust_slot = initialize_profiled_trust(profile, baseline);
         }
     }
 
-    for step in trace {
-        let structural_tag = if step.trust_stats.is_empty() {
-            None
-        } else {
-            Some(
-                step.trust_stats
-                    .iter()
-                    .map(|stats| stats.residual_ema)
-                    .sum::<f64>()
-                    / step.trust_stats.len() as f64,
-            )
-        };
+    for (step_idx, step) in simulation.into_iter().enumerate() {
+        let synthesized_residuals = [
+            step.s2 * 0.85 + 0.02 * (step_idx as f64 * 0.017).sin().abs(),
+            step.s2,
+        ];
+        let structural_tag = Some(
+            synthesized_residuals.iter().copied().sum::<f64>() / synthesized_residuals.len() as f64,
+        );
 
         events.push(Event {
-            id: EventId(step.step as u64),
+            id: EventId(step_idx as u64),
             timestamp: Some(step.t),
             structural_tag,
         });
 
-        for (observer_id, stats) in step.trust_stats.iter().enumerate() {
+        for (observer_id, residual_summary) in synthesized_residuals.iter().enumerate() {
             let observer_id_u32 = observer_id as u32;
             let profile = TrustProfile::from_observer_index(observer_id_u32);
-            let residual_state = ResidualState::from_residual(stats.residual_ema);
-            let envelope_ok = stats.residual_ema <= profile.envelope_limit();
+            let residual_state = ResidualState::from_residual(*residual_summary);
+            let envelope_ok = *residual_summary <= profile.envelope_limit();
             let next_trust = update_profiled_trust(
                 profile,
                 trust_state[observer_id],
-                stats.residual_ema,
+                *residual_summary,
                 envelope_ok,
             );
             trust_state[observer_id] = next_trust;
             let rewrite_rule = RewriteRule::from_residual_state(residual_state, envelope_ok);
 
             observer_samples.push(DscdObserverSample {
-                event_id: step.step as u64,
-                time_index: step.step,
+                event_id: step_idx as u64,
+                time_index: step_idx,
                 observer_id: observer_id_u32,
                 trust: next_trust,
-                residual_summary: stats.residual_ema,
+                residual_summary: *residual_summary,
                 residual_state,
                 rewrite_rule_id: rewrite_rule.id(),
                 rewrite_rule_label: rewrite_rule.as_str(),
