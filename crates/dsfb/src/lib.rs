@@ -11,7 +11,7 @@ pub mod state;
 pub mod trust;
 
 // Re-export main types
-pub use observer::DsfbObserver;
+pub use observer::{DsfbObserver, DsfbStepDiagnostics};
 pub use params::DsfbParams;
 pub use state::DsfbState;
 pub use trust::TrustStats;
