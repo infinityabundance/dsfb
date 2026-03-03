@@ -6,6 +6,19 @@ use crate::params::DsfbParams;
 use crate::state::DsfbState;
 use crate::trust::{calculate_trust_weights, TrustStats};
 
+/// Diagnostics captured for a single DSFB observer step.
+#[derive(Debug, Clone)]
+pub struct DsfbStepDiagnostics {
+    /// Per-channel measurement residuals against the predicted state.
+    pub residuals: Vec<f64>,
+    /// Weighted residual used for the correction step.
+    pub aggregate_residual: f64,
+    /// Trust statistics after the step update.
+    pub trust_stats: Vec<TrustStats>,
+    /// Corrected state estimate after the step update.
+    pub state: DsfbState,
+}
+
 /// DSFB Observer
 pub struct DsfbObserver {
     /// Observer parameters
@@ -46,6 +59,11 @@ impl DsfbObserver {
     /// # Returns
     /// The corrected state estimate
     pub fn step(&mut self, measurements: &[f64], dt: f64) -> DsfbState {
+        self.step_with_diagnostics(measurements, dt).state
+    }
+
+    /// Perform one step of the DSFB algorithm and return diagnostics.
+    pub fn step_with_diagnostics(&mut self, measurements: &[f64], dt: f64) -> DsfbStepDiagnostics {
         assert_eq!(
             measurements.len(),
             self.channels,
@@ -90,7 +108,12 @@ impl DsfbObserver {
         let alpha = alpha_pred + self.params.k_alpha * aggregate_residual;
 
         self.state = DsfbState::new(phi, omega, alpha);
-        self.state
+        DsfbStepDiagnostics {
+            residuals,
+            aggregate_residual,
+            trust_stats: self.trust_stats.clone(),
+            state: self.state,
+        }
     }
 
     /// Get the current state
