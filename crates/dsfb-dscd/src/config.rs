@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::graph::EventId;
 use anyhow::{ensure, Context, Result};
 use chrono::Utc;
 use dsfb::DsfbParams;
@@ -54,6 +55,65 @@ impl DscdSweepConfig {
     }
 }
 
+/// Configuration for deterministic finite-size scaling of the DSCD trust
+/// threshold transition.
+///
+/// This configuration drives reproducible scaling sweeps over event counts and
+/// trust thresholds with no random sampling, supporting the finite-size
+/// threshold-sharpening analysis described in Theorem 4 of the DSCD paper.
+#[derive(Debug, Clone)]
+pub struct DscdScalingConfig {
+    pub event_counts: Vec<usize>,
+    pub tau_grid: Vec<f64>,
+    pub initial_event: EventId,
+    pub max_path_length: usize,
+    pub critical_fraction: f64,
+    pub dsfb_params: DsfbParams,
+}
+
+impl Default for DscdScalingConfig {
+    fn default() -> Self {
+        Self {
+            event_counts: vec![2_048, 4_096, 8_192, 16_384, 32_768],
+            tau_grid: (0..=200).map(|idx| idx as f64 / 200.0).collect(),
+            initial_event: EventId(0),
+            max_path_length: usize::MAX,
+            critical_fraction: 0.5,
+            dsfb_params: DsfbParams::default(),
+        }
+    }
+}
+
+impl DscdScalingConfig {
+    pub fn validate(&self) -> Result<()> {
+        ensure!(
+            !self.event_counts.is_empty(),
+            "event_counts must contain at least one N"
+        );
+        ensure!(
+            self.event_counts.iter().all(|&n| n > 0),
+            "event_counts values must be greater than zero"
+        );
+        ensure!(
+            !self.tau_grid.is_empty(),
+            "tau_grid must contain at least one threshold"
+        );
+        ensure!(
+            self.tau_grid.iter().all(|tau| tau.is_finite()),
+            "tau_grid must contain finite thresholds"
+        );
+        ensure!(
+            self.tau_grid.windows(2).all(|pair| pair[1] >= pair[0]),
+            "tau_grid must be sorted in nondecreasing order"
+        );
+        ensure!(
+            (0.0..=1.0).contains(&self.critical_fraction),
+            "critical_fraction must be in [0, 1]"
+        );
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct OutputPaths {
     pub root: PathBuf,
@@ -71,7 +131,11 @@ pub fn workspace_root_dir() -> PathBuf {
 
 pub fn create_timestamped_output_dir() -> Result<OutputPaths> {
     let root = workspace_root_dir().join("output-dsfb-dscd");
-    fs::create_dir_all(&root)
+    create_timestamped_output_dir_in(&root)
+}
+
+pub fn create_timestamped_output_dir_in(root: &Path) -> Result<OutputPaths> {
+    fs::create_dir_all(root)
         .with_context(|| format!("failed to create output root {}", root.display()))?;
 
     let timestamp = Utc::now().format("%Y%m%d_%H%M%S").to_string();
@@ -86,5 +150,8 @@ pub fn create_timestamped_output_dir() -> Result<OutputPaths> {
     fs::create_dir_all(&run_dir)
         .with_context(|| format!("failed to create run directory {}", run_dir.display()))?;
 
-    Ok(OutputPaths { root, run_dir })
+    Ok(OutputPaths {
+        root: root.to_path_buf(),
+        run_dir,
+    })
 }
