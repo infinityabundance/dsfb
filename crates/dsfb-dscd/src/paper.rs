@@ -16,6 +16,7 @@ use dsfb::DsfbParams;
 use dsfb_add::aet::run_aet_sweep;
 use dsfb_add::iwlt::run_iwlt_sweep;
 use dsfb_add::SimulationConfig as AddSimulationConfig;
+use rayon::prelude::*;
 use serde::Serialize;
 
 use crate::integrations::{
@@ -458,7 +459,7 @@ fn compute_threshold_curve(
     taus: &[f64],
     root_event_id: u64,
 ) -> Vec<CurvePoint> {
-    taus.iter()
+    taus.par_iter()
         .map(|tau| {
             let graph = build_graph_for_tau(events, candidate_edges, *tau);
             CurvePoint {
