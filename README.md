@@ -103,19 +103,31 @@ It generates CSV outputs and figures used in the ADD paper.
 
 The `dsfb-dscd` crate runs deterministic trust-gated causal graph sweeps and finite-size scaling analyses on top of the DSFB and ADD stacks.
 
-Quickstart finite-size scaling run:
+Quick mode (Colab-friendly):
 
 ```bash
-cargo run -p dsfb-dscd --bin dscd_threshold_scaling -- --event-counts 2048,4096,8192,16384,32768 --tau-steps 201
+cargo run -p dsfb-dscd -- --quick
 ```
 
-This writes timestamped CSV outputs under `output-dsfb-dscd/<timestamp>/` (including `threshold_scaling_summary.csv`, `threshold_curve_N_<N>.csv`, `graph_events.csv`, and `graph_edges.csv`).
+Full mode (workstation):
+
+```bash
+cargo run -p dsfb-dscd -- --full
+```
+
+Explicit scale override:
+
+```bash
+cargo run -p dsfb-dscd -- --num-events 100000 --scaling-ns 4096,8192,16384,32768,65536,100000 --num-tau-samples 1001
+```
+
+This writes timestamped CSV outputs under `output-dsfb-dscd/<timestamp>/` (including `threshold_scaling_summary.csv`, `threshold_curve_N_<N>.csv`, `graph_events.csv`, `graph_edges.csv`, `degree_distribution.csv`, `interval_sizes.csv`, `path_lengths.csv`, and `edge_provenance.csv`).
 
 All DSCD paper figures are reproducible from those generated CSVs and the notebook:
 
-- `crates/dsfb-dscd/dscd_sweep.ipynb`
+- `crates/dsfb-dscd/notebooks/dscd_plots.ipynb`
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-dscd/dscd_sweep.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-dscd/notebooks/dscd_plots.ipynb)
 
 ---
 

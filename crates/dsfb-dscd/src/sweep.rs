@@ -396,7 +396,7 @@ fn scaling_worker_threads() -> usize {
     let available = std::thread::available_parallelism()
         .map(|value| value.get())
         .unwrap_or(1);
-    let default_threads = available.min(8).max(1);
+    let default_threads = available.clamp(1, 8);
 
     std::env::var("DSFB_DSCD_THREADS")
         .ok()
