@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::graph::EventId;
 use anyhow::{ensure, Context, Result};
-use chrono::Utc;
+use chrono::Local;
 use dsfb::DsfbParams;
 
 #[derive(Debug, Clone)]
@@ -138,7 +138,7 @@ pub fn create_timestamped_output_dir_in(root: &Path) -> Result<OutputPaths> {
     fs::create_dir_all(root)
         .with_context(|| format!("failed to create output root {}", root.display()))?;
 
-    let timestamp = Utc::now().format("%Y%m%d_%H%M%S").to_string();
+    let timestamp = Local::now().format("%Y%m%d_%H%M%S").to_string();
     let mut run_dir = root.join(&timestamp);
     let mut suffix = 1_u32;
 
