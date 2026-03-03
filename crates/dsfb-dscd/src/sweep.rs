@@ -6,6 +6,7 @@ use anyhow::{anyhow, Context, Result};
 use csv::{StringRecord, Writer};
 use dsfb::sim::SimConfig;
 use dsfb_add::SimulationConfig;
+use rayon::prelude::*;
 
 use crate::config::{DscdScalingConfig, DscdSweepConfig, OutputPaths};
 use crate::graph::{
@@ -40,9 +41,27 @@ struct ThresholdEvalOptions {
     progress_end: Option<usize>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct CandidateEdge {
+    from: EventId,
+    to: EventId,
+    observer_id: u32,
+    trust: f64,
+    rewrite_rule_id: u32,
+}
+
 pub fn build_graph_from_samples(
     events: &[Event],
     samples: &[DscdObserverSample],
+    trust_threshold: f64,
+) -> DscdGraph {
+    let candidate_edges = prepare_candidate_edges(samples);
+    build_graph_from_candidate_edges(events, &candidate_edges, trust_threshold)
+}
+
+fn build_graph_from_candidate_edges(
+    events: &[Event],
+    candidate_edges: &[CandidateEdge],
     trust_threshold: f64,
 ) -> DscdGraph {
     let mut graph = DscdGraph::default();
@@ -50,6 +69,22 @@ pub fn build_graph_from_samples(
         graph.add_event(event.clone());
     }
 
+    for candidate in candidate_edges {
+        add_trust_gated_edge_with_provenance(
+            &mut graph,
+            candidate.from,
+            candidate.to,
+            candidate.observer_id,
+            candidate.trust,
+            trust_threshold,
+            candidate.rewrite_rule_id,
+        );
+    }
+
+    graph
+}
+
+fn prepare_candidate_edges(samples: &[DscdObserverSample]) -> Vec<CandidateEdge> {
     let mut by_observer: BTreeMap<u32, Vec<&DscdObserverSample>> = BTreeMap::new();
     for sample in samples {
         by_observer
@@ -58,24 +93,21 @@ pub fn build_graph_from_samples(
             .push(sample);
     }
 
+    let mut candidate_edges = Vec::new();
     for (observer_id, samples_for_observer) in &mut by_observer {
         samples_for_observer.sort_by_key(|sample| sample.event_id);
         for pair in samples_for_observer.windows(2) {
-            let from = EventId(pair[0].event_id);
-            let to = EventId(pair[1].event_id);
-            add_trust_gated_edge_with_provenance(
-                &mut graph,
-                from,
-                to,
-                *observer_id,
-                pair[1].trust,
-                trust_threshold,
-                pair[0].rewrite_rule_id,
-            );
+            candidate_edges.push(CandidateEdge {
+                from: EventId(pair[0].event_id),
+                to: EventId(pair[1].event_id),
+                observer_id: *observer_id,
+                trust: pair[1].trust,
+                rewrite_rule_id: pair[0].rewrite_rule_id,
+            });
         }
     }
 
-    graph
+    candidate_edges
 }
 
 pub fn run_trust_threshold_sweep(
@@ -283,27 +315,44 @@ fn compute_threshold_records(
     tau_grid: &[f64],
     options: ThresholdEvalOptions,
 ) -> Vec<ThresholdRecord> {
+    let candidate_edges = prepare_candidate_edges(samples);
+
+    if options.progress_start.is_none() && options.progress_end.is_none() {
+        let worker_threads = scaling_worker_threads();
+        if worker_threads > 1 && tau_grid.len() > 1 {
+            if let Ok(pool) = rayon::ThreadPoolBuilder::new()
+                .num_threads(worker_threads)
+                .build()
+            {
+                return pool.install(|| {
+                    tau_grid
+                        .par_iter()
+                        .copied()
+                        .map(|tau| {
+                            compute_threshold_record_for_tau(events, &candidate_edges, tau, options)
+                        })
+                        .collect()
+                });
+            }
+        }
+
+        return tau_grid
+            .iter()
+            .copied()
+            .map(|tau| compute_threshold_record_for_tau(events, &candidate_edges, tau, options))
+            .collect();
+    }
+
     let mut records = Vec::with_capacity(tau_grid.len());
     let mut last_reported = options.progress_start.unwrap_or(0).saturating_sub(1);
 
     for (idx, tau) in tau_grid.iter().copied().enumerate() {
-        let graph = build_graph_from_samples(events, samples, tau);
-        let reachable_size = options
-            .start
-            .map(|start_event| reachable_from(&graph, start_event, options.max_depth).len())
-            .unwrap_or(0);
-        let expansion_ratio = if events.is_empty() {
-            0.0
-        } else {
-            reachable_size as f64 / events.len() as f64
-        };
-
-        records.push(ThresholdRecord {
+        records.push(compute_threshold_record_for_tau(
+            events,
+            &candidate_edges,
             tau,
-            expansion_ratio,
-            reachable_size,
-            s_infty: options.s_infty,
-        });
+            options,
+        ));
 
         if let (Some(start_pct), Some(end_pct)) = (options.progress_start, options.progress_end) {
             let span = end_pct.saturating_sub(start_pct);
@@ -316,6 +365,44 @@ fn compute_threshold_records(
     }
 
     records
+}
+
+fn compute_threshold_record_for_tau(
+    events: &[Event],
+    candidate_edges: &[CandidateEdge],
+    tau: f64,
+    options: ThresholdEvalOptions,
+) -> ThresholdRecord {
+    let graph = build_graph_from_candidate_edges(events, candidate_edges, tau);
+    let reachable_size = options
+        .start
+        .map(|start_event| reachable_from(&graph, start_event, options.max_depth).len())
+        .unwrap_or(0);
+    let expansion_ratio = if events.is_empty() {
+        0.0
+    } else {
+        reachable_size as f64 / events.len() as f64
+    };
+
+    ThresholdRecord {
+        tau,
+        expansion_ratio,
+        reachable_size,
+        s_infty: options.s_infty,
+    }
+}
+
+fn scaling_worker_threads() -> usize {
+    let available = std::thread::available_parallelism()
+        .map(|value| value.get())
+        .unwrap_or(1);
+    let default_threads = available.min(8).max(1);
+
+    std::env::var("DSFB_DSCD_THREADS")
+        .ok()
+        .and_then(|raw| raw.parse::<usize>().ok())
+        .map(|requested| requested.clamp(1, available))
+        .unwrap_or(default_threads)
 }
 
 fn report_progress(percent: usize, message: impl AsRef<str>) {
