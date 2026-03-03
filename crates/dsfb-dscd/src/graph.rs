@@ -12,10 +12,13 @@ pub struct Event {
 
 #[derive(Debug, Clone)]
 pub struct DscdEdge {
+    pub edge_id: u64,
     pub from: EventId,
     pub to: EventId,
     pub observer_id: u32,
     pub trust_value: f64,
+    pub trust_at_creation: f64,
+    pub rewrite_rule_at_source: u32,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -52,6 +55,26 @@ pub fn add_trust_gated_edge(
     trust_value: f64,
     trust_threshold: f64,
 ) {
+    add_trust_gated_edge_with_provenance(
+        graph,
+        from,
+        to,
+        observer_id,
+        trust_value,
+        trust_threshold,
+        0,
+    );
+}
+
+pub fn add_trust_gated_edge_with_provenance(
+    graph: &mut DscdGraph,
+    from: EventId,
+    to: EventId,
+    observer_id: u32,
+    trust_value: f64,
+    trust_threshold: f64,
+    rewrite_rule_at_source: u32,
+) {
     if from >= to || trust_value < trust_threshold {
         return;
     }
@@ -72,11 +95,15 @@ pub fn add_trust_gated_edge(
         return;
     }
 
+    let edge_id = graph.edges.len() as u64;
     graph.edges.push(DscdEdge {
+        edge_id,
         from,
         to,
         observer_id,
         trust_value,
+        trust_at_creation: trust_value,
+        rewrite_rule_at_source,
     });
 }
 

@@ -99,6 +99,26 @@ It generates CSV outputs and figures used in the ADD paper.
 
 ---
 
+## Deterministic Structural Causal Dynamics (DSCD)
+
+The `dsfb-dscd` crate runs deterministic trust-gated causal graph sweeps and finite-size scaling analyses on top of the DSFB and ADD stacks.
+
+Quickstart finite-size scaling run:
+
+```bash
+cargo run -p dsfb-dscd --bin dscd_threshold_scaling -- --event-counts 2048,4096,8192,16384,32768 --tau-steps 201
+```
+
+This writes timestamped CSV outputs under `output-dsfb-dscd/<timestamp>/` (including `threshold_scaling_summary.csv`, `threshold_curve_N_<N>.csv`, `graph_events.csv`, and `graph_edges.csv`).
+
+All DSCD paper figures are reproducible from those generated CSVs and the notebook:
+
+- `crates/dsfb-dscd/dscd_sweep.ipynb`
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-dscd/dscd_sweep.ipynb)
+
+---
+
 ## Workspace Crates
 
 This repository contains six crates for different DSFB workflows:
