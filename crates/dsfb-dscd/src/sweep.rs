@@ -65,28 +65,37 @@ pub fn run_trust_threshold_sweep(
 ) -> Result<Vec<ThresholdRecord>> {
     cfg.validate()?;
 
+    report_progress(2, "generating DSCD events from DSFB");
     let event_batch = generate_dscd_events_from_dsfb(dsfb_cfg, cfg.dsfb_params, cfg.num_events)?;
+    report_progress(15, format!("generated {} events", event_batch.events.len()));
+    report_progress(20, "computing structural growth baseline");
     let growth = compute_structural_growth_for_dscd(add_cfg)?;
     let tau_grid = cfg.tau_grid();
+    let tau_total = tau_grid.len();
+    report_progress(25, format!("prepared tau grid with {tau_total} steps"));
     let start = event_batch.events.first().map(|event| event.id);
+    let first_tau = tau_grid[0];
 
     let base_graph = build_graph_from_samples(
         &event_batch.events,
         &event_batch.observer_samples,
-        tau_grid[0],
+        first_tau,
     );
+    report_progress(28, "writing graph event and edge snapshots");
     write_graph_events_csv(
         &output_paths.run_dir.join("graph_events.csv"),
         &event_batch.events,
     )?;
     write_graph_edges_csv(
         &output_paths.run_dir.join("graph_edges.csv"),
-        tau_grid[0],
+        first_tau,
         &base_graph.edges,
     )?;
 
     let mut records = Vec::with_capacity(tau_grid.len());
-    for tau in tau_grid {
+    let mut last_reported = 29_usize;
+    report_progress(30, "running trust-threshold sweep");
+    for (idx, tau) in tau_grid.into_iter().enumerate() {
         let graph =
             build_graph_from_samples(&event_batch.events, &event_batch.observer_samples, tau);
         let reachable_size = start
@@ -104,11 +113,24 @@ pub fn run_trust_threshold_sweep(
             reachable_size,
             s_infty: Some(growth.s_infty),
         });
+
+        let progress = 30 + ((idx + 1) * 65) / tau_total;
+        if progress > last_reported {
+            report_progress(progress, format!("tau step {}/{}", idx + 1, tau_total));
+            last_reported = progress;
+        }
     }
 
+    report_progress(97, "writing threshold_sweep.csv");
     write_threshold_sweep_csv(&output_paths.run_dir.join("threshold_sweep.csv"), &records)?;
+    report_progress(100, "DSCD sweep complete");
 
     Ok(records)
+}
+
+fn report_progress(percent: usize, message: impl AsRef<str>) {
+    let pct = percent.min(100);
+    eprintln!("[{pct:>3}%] {}", message.as_ref());
 }
 
 fn write_graph_events_csv(path: &Path, events: &[Event]) -> Result<()> {
