@@ -250,6 +250,7 @@ pub fn run_dscd_simulation(cfg: &DscdConfig) -> std::result::Result<(), DscdErro
         &cfg.output_dir.join("threshold_scaling_summary.csv"),
         &summary_rows,
     )?;
+    write_finite_size_scaling_csv(&cfg.output_dir.join("finite_size_scaling.csv"), &summary_rows)?;
 
     let Some(main_curve) = curve_by_n.get(&cfg.num_events) else {
         bail!(
@@ -544,6 +545,26 @@ fn write_threshold_scaling_summary_csv(path: &Path, rows: &[ScalingMetrics]) -> 
         writer.write_record([
             row.num_events.to_string(),
             row.tau_star.to_string(),
+            row.transition_width.to_string(),
+            row.max_derivative.to_string(),
+        ])?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_finite_size_scaling_csv(path: &Path, rows: &[ScalingMetrics]) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    writer.write_record([
+        "num_events",
+        "transition_width",
+        "width_0_1_to_0_9",
+        "max_derivative",
+    ])?;
+    for row in rows {
+        writer.write_record([
+            row.num_events.to_string(),
+            row.transition_width.to_string(),
             row.transition_width.to_string(),
             row.max_derivative.to_string(),
         ])?;
@@ -920,6 +941,7 @@ mod tests {
         run_dscd_simulation(&cfg).expect("simulation should run");
 
         assert!(out_dir.join("threshold_scaling_summary.csv").exists());
+        assert!(out_dir.join("finite_size_scaling.csv").exists());
         assert!(out_dir.join("threshold_curve_N_64.csv").exists());
         assert!(out_dir.join("threshold_curve_N_128.csv").exists());
         assert!(out_dir.join("graph_events.csv").exists());
