@@ -1,0 +1,21 @@
+[package]
+name = "dsfb-dscd"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+default-run = "dsfb_dscd_main"
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+csv = "1.3"
+dsfb = { path = "../dsfb" }
+dsfb-add = { path = "../dsfb-add" }
+
+[lib]
+name = "dsfb_dscd"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb_dscd_main"
+path = "src/bin/dsfb_dscd_main.rs"

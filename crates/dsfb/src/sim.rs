@@ -5,6 +5,7 @@
 use crate::observer::DsfbObserver;
 use crate::params::DsfbParams;
 use crate::state::DsfbState;
+use crate::trust::TrustStats;
 use rand::SeedableRng;
 use rand_distr::{Distribution, Normal};
 
@@ -105,8 +106,58 @@ pub struct SimStep {
     pub s2: f64,
 }
 
+/// Rich DSFB simulation trace for downstream consumers.
+#[derive(Debug, Clone)]
+pub struct SimulationTraceStep {
+    pub step: usize,
+    pub t: f64,
+    pub phi_true: f64,
+    pub measurements: Vec<f64>,
+    pub phi_mean: f64,
+    pub phi_freqonly: f64,
+    pub dsfb_state: DsfbState,
+    pub err_mean: f64,
+    pub err_freqonly: f64,
+    pub err_dsfb: f64,
+    pub trust_stats: Vec<TrustStats>,
+    pub residuals: Vec<f64>,
+    pub aggregate_residual: f64,
+}
+
 /// Run the drift-impulse simulation
 pub fn run_simulation(config: SimConfig, dsfb_params: DsfbParams) -> Vec<SimStep> {
+    run_simulation_trace(config, dsfb_params)
+        .into_iter()
+        .map(|step| SimStep {
+            t: step.t,
+            phi_true: step.phi_true,
+            y1: step.measurements.first().copied().unwrap_or_default(),
+            y2: step.measurements.get(1).copied().unwrap_or_default(),
+            phi_mean: step.phi_mean,
+            phi_freqonly: step.phi_freqonly,
+            phi_dsfb: step.dsfb_state.phi,
+            err_mean: step.err_mean,
+            err_freqonly: step.err_freqonly,
+            err_dsfb: step.err_dsfb,
+            w2: step
+                .trust_stats
+                .get(1)
+                .map(|stats| stats.weight)
+                .unwrap_or_default(),
+            s2: step
+                .trust_stats
+                .get(1)
+                .map(|stats| stats.residual_ema)
+                .unwrap_or_default(),
+        })
+        .collect()
+}
+
+/// Run the drift-impulse simulation and capture DSFB diagnostics for every step.
+pub fn run_simulation_trace(
+    config: SimConfig,
+    dsfb_params: DsfbParams,
+) -> Vec<SimulationTraceStep> {
     let mut rng = rand::rngs::StdRng::seed_from_u64(config.seed);
     let noise_dist = Normal::new(0.0, config.sigma_noise).unwrap();
     let alpha_dist = Normal::new(0.0, config.sigma_alpha).unwrap();
@@ -120,7 +171,7 @@ pub fn run_simulation(config: SimConfig, dsfb_params: DsfbParams) -> Vec<SimStep
 
     let mut freqonly = FreqOnlyObserver::new(0.5, 0.1);
 
-    let mut results = Vec::with_capacity(config.steps);
+    let mut trace = Vec::with_capacity(config.steps);
 
     for step in 0..config.steps {
         let t = step as f64 * config.dt;
@@ -146,31 +197,29 @@ pub fn run_simulation(config: SimConfig, dsfb_params: DsfbParams) -> Vec<SimStep
         let phi_freqonly = freqonly.step(&[y1, y2], config.dt);
 
         // DSFB observer
-        let dsfb_state = dsfb.step(&[y1, y2], config.dt);
+        let diagnostics = dsfb.step_with_diagnostics(&[y1, y2], config.dt);
+        let dsfb_state = diagnostics.state;
         let phi_dsfb = dsfb_state.phi;
-
-        // Trust stats
-        let w2 = dsfb.trust_weight(1);
-        let s2 = dsfb.ema_residual(1);
 
         // Errors
         let err_mean = (phi_mean - true_state.phi).abs();
         let err_freqonly = (phi_freqonly - true_state.phi).abs();
         let err_dsfb = (phi_dsfb - true_state.phi).abs();
 
-        results.push(SimStep {
+        trace.push(SimulationTraceStep {
+            step,
             t,
             phi_true: true_state.phi,
-            y1,
-            y2,
+            measurements: vec![y1, y2],
             phi_mean,
             phi_freqonly,
-            phi_dsfb,
+            dsfb_state,
             err_mean,
             err_freqonly,
             err_dsfb,
-            w2,
-            s2,
+            trust_stats: diagnostics.trust_stats,
+            residuals: diagnostics.residuals,
+            aggregate_residual: diagnostics.aggregate_residual,
         });
 
         // Update true dynamics
@@ -179,7 +228,7 @@ pub fn run_simulation(config: SimConfig, dsfb_params: DsfbParams) -> Vec<SimStep
         true_state.alpha += alpha_dist.sample(&mut rng);
     }
 
-    results
+    trace
 }
 
 /// Calculate RMS error
@@ -229,6 +278,19 @@ mod tests {
         let params = DsfbParams::default();
         let results = run_simulation(config, params);
         assert_eq!(results.len(), 100);
+    }
+
+    #[test]
+    fn test_simulation_trace_runs() {
+        let config = SimConfig {
+            steps: 16,
+            ..Default::default()
+        };
+        let params = DsfbParams::default();
+        let trace = run_simulation_trace(config, params);
+        assert_eq!(trace.len(), 16);
+        assert_eq!(trace[0].trust_stats.len(), 2);
+        assert_eq!(trace[0].residuals.len(), 2);
     }
 
     #[test]
