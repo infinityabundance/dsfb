@@ -59,6 +59,11 @@ Don’t believe a sensor all at once.
 > *Algebraic Deterministic Dynamics (ADD): A Non-Stochastic Structural Extension of DSFB* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.18830567]
 
+
+> **de Beer, R.** (2026). 
+> *Deterministic Structural Causal Dynamics (DSCD): Trust-Gated Emergence of Certifiable Causal Graphs for Safety-Critical Aerospace Autonomy* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.18867217]
+
 ---
 
 `DSFB Simulation Notebook:`
