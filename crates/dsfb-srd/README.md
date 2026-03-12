@@ -151,7 +151,7 @@ crates/dsfb-srd/notebooks/dsfb_srd_colab.ipynb
 Workflow:
 
 1. Make sure the repository or the `output-dsfb-srd/` folder is available in Colab.
-2. Set `REPO_ROOT` in the notebook to the repository path.
+2. If needed, set `OUTPUT_ROOT` directly to the folder that contains the timestamped runs, or set `REPO_ROOT` to the cloned repository path.
 3. Leave `RUN_NAME = None` to select the latest timestamp folder, or set a specific folder name.
 4. Run all cells.
 
