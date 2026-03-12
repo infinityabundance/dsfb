@@ -1,5 +1,7 @@
 # dsfb-srd
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-srd/notebooks/dsfb_srd_colab.ipynb)
+
 ## Overview
 
 `dsfb-srd` is a deterministic Structural Regime Dynamics (SRD) demonstrator for the paper *Deterministic Causal Architecture for Safety-Critical Autonomous Systems*. It generates a replayable structural event stream, evolves trust from residual envelopes, builds trust-gated causal graphs, sweeps trust thresholds, and exports CSV outputs plus a notebook that reconstructs the figures.
@@ -29,6 +31,10 @@ The crate operationalizes a compact structural model rather than a full autonomy
 - causal edges are admitted only when ordering, windowing, compatibility, structural similarity, and source-trust constraints all hold.
 
 The empirical role of the crate is to show how those deterministic rules induce trust-controlled causal topology and a threshold-sensitive connectivity transition.
+
+Citation:
+
+- de Beer, R. (2026). *Deterministic Causal Dynamics for Safety-Critical Autonomous Systems - Trust-Controlled Causal Topology (TCCT) and Structural Regime Dynamics (SRD)* (v1.0). Zenodo. https://doi.org/10.5281/zenodo.18976566
 
 ## What is empirically demonstrated
 
