@@ -150,12 +150,13 @@ crates/dsfb-srd/notebooks/dsfb_srd_colab.ipynb
 
 Workflow:
 
-1. Make sure the repository or the `output-dsfb-srd/` folder is available in Colab.
-2. If needed, set `OUTPUT_ROOT` directly to the folder that contains the timestamped runs, or set `REPO_ROOT` to the cloned repository path.
-3. Leave `RUN_NAME = None` to select the latest timestamp folder, or set a specific folder name.
-4. Run all cells.
+1. Open the notebook in Colab and run the setup cell.
+2. If `output-dsfb-srd/` is already available, set `OUTPUT_ROOT` directly or point `REPO_ROOT` at the cloned repository.
+3. If no outputs are present, leave `AUTO_CLONE_REPO = True` and `AUTO_GENERATE_OUTPUTS = True`; the notebook will clone the DSFB repository, install Rust if needed, and generate a fresh SRD run automatically.
+4. Leave `RUN_NAME = None` to select the latest timestamp folder, or set a specific folder name.
+5. Run the remaining cells to produce the figures.
 
-The notebook uses only `pandas` and `matplotlib`.
+The plotting cells use only `pandas` and `matplotlib`. The bootstrap path may also invoke `git`, `curl`, and `cargo` inside Colab when outputs are not already present.
 
 ## Interpretation of the figures
 
