@@ -22,7 +22,7 @@ impl Default for SimulationConfig {
             n_events: 2_000,
             n_channels: 4,
             causal_window: 24,
-            tau_steps: 101,
+            tau_steps: 401,
             shock_start: 800,
             shock_end: 1_200,
             beta: 4.0,
