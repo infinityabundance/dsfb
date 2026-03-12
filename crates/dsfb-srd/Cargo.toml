@@ -1,0 +1,31 @@
+[package]
+name = "dsfb-srd"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+default-run = "dsfb-srd-generate"
+authors = ["Riaan de Beer"]
+license = "Apache-2.0"
+description = "Deterministic Structural Regime Dynamics demonstrator for trust-gated causal topology sweeps"
+readme = "README.md"
+keywords = ["deterministic", "causal", "simulation", "trust", "srd"]
+categories = ["science", "simulation", "command-line-utilities"]
+include = [
+    "src/**",
+    "Cargo.toml",
+    "README.md",
+    "notebooks/**",
+]
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[lib]
+name = "dsfb_srd"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb-srd-generate"
+path = "src/main.rs"
+
+[workspace]
