@@ -10,10 +10,15 @@ use crate::graph::{
     build_candidate_graph, collect_active_edges, compute_graph_stats, compute_graph_stats_in_range,
     CandidateGraph,
 };
-use crate::metrics::{discrete_derivative, low_high_thresholds, window_ranges, window_regime};
+use crate::metrics::{
+    discrete_derivative, low_high_thresholds, nearest_threshold, window_ranges, window_regime,
+};
 use crate::signal::generate_events;
 
 const FINITE_SIZE_SWEEP: [usize; 4] = [250, 500, 1_000, 2_000];
+const SNAPSHOT_TAU_020: f64 = 0.20;
+const SNAPSHOT_TAU_030: f64 = 0.30;
+const SNAPSHOT_TAU_040: f64 = 0.40;
 
 #[derive(Clone, Debug)]
 pub struct GeneratedRun {
@@ -34,6 +39,9 @@ pub fn run_simulation(config: SimulationConfig) -> Result<GeneratedRun, DynError
     let primary_graph = build_candidate_graph(&primary_events, &config);
     let thresholds = config.tau_thresholds();
     let (tau_low, tau_high) = low_high_thresholds(&thresholds);
+    let tau_020 = nearest_threshold(&thresholds, SNAPSHOT_TAU_020);
+    let tau_030 = nearest_threshold(&thresholds, SNAPSHOT_TAU_030);
+    let tau_040 = nearest_threshold(&thresholds, SNAPSHOT_TAU_040);
 
     let mut sweep_sizes = FINITE_SIZE_SWEEP.to_vec();
     if !sweep_sizes.contains(&config.n_events) {
@@ -92,6 +100,12 @@ pub fn run_simulation(config: SimulationConfig) -> Result<GeneratedRun, DynError
     );
     let graph_snapshot_high =
         build_graph_snapshot_rows(&run_id, tau_high, &primary_events, &primary_graph);
+    let graph_snapshot_tau_020 =
+        build_graph_snapshot_rows(&run_id, tau_020, &primary_events, &primary_graph);
+    let graph_snapshot_tau_030 =
+        build_graph_snapshot_rows(&run_id, tau_030, &primary_events, &primary_graph);
+    let graph_snapshot_tau_040 =
+        build_graph_snapshot_rows(&run_id, tau_040, &primary_events, &primary_graph);
 
     let output = prepare_output_dir(&SimulationConfig::repo_root())?;
     let manifest = RunManifestRow {
@@ -119,6 +133,9 @@ pub fn run_simulation(config: SimulationConfig) -> Result<GeneratedRun, DynError
         graph_snapshot_low,
         graph_snapshot_critical,
         graph_snapshot_high,
+        graph_snapshot_tau_020,
+        graph_snapshot_tau_030,
+        graph_snapshot_tau_040,
     };
 
     write_bundle(&bundle, &output.run_dir)?;
@@ -151,6 +168,7 @@ fn build_threshold_sweep_rows(
                 edge_count: stats.edge_count,
                 mean_out_degree: stats.mean_out_degree,
                 largest_component_fraction: stats.largest_component_fraction,
+                component_entropy: stats.component_entropy,
             }
         })
         .collect()

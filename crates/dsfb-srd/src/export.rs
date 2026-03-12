@@ -36,6 +36,7 @@ pub struct ThresholdSweepRow {
     pub edge_count: usize,
     pub mean_out_degree: f64,
     pub largest_component_fraction: f64,
+    pub component_entropy: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -81,6 +82,9 @@ pub struct ExportBundle {
     pub graph_snapshot_low: Vec<GraphSnapshotRow>,
     pub graph_snapshot_critical: Vec<GraphSnapshotRow>,
     pub graph_snapshot_high: Vec<GraphSnapshotRow>,
+    pub graph_snapshot_tau_020: Vec<GraphSnapshotRow>,
+    pub graph_snapshot_tau_030: Vec<GraphSnapshotRow>,
+    pub graph_snapshot_tau_040: Vec<GraphSnapshotRow>,
 }
 
 #[derive(Clone, Debug)]
@@ -139,6 +143,18 @@ pub fn write_bundle(bundle: &ExportBundle, run_dir: &Path) -> Result<(), DynErro
         &run_dir.join("graph_snapshot_high.csv"),
         &bundle.graph_snapshot_high,
     )?;
+    write_graph_snapshot(
+        &run_dir.join("graph_snapshot_tau_020.csv"),
+        &bundle.graph_snapshot_tau_020,
+    )?;
+    write_graph_snapshot(
+        &run_dir.join("graph_snapshot_tau_030.csv"),
+        &bundle.graph_snapshot_tau_030,
+    )?;
+    write_graph_snapshot(
+        &run_dir.join("graph_snapshot_tau_040.csv"),
+        &bundle.graph_snapshot_tau_040,
+    )?;
 
     Ok(())
 }
@@ -196,7 +212,7 @@ fn write_events(path: &Path, run_id: &str, events: &[StructuralEvent]) -> Result
 fn write_threshold_sweep(path: &Path, rows: &[ThresholdSweepRow]) -> Result<(), DynError> {
     let lines = rows.iter().map(|row| {
         format!(
-            "{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{}",
             row.run_id,
             row.n_events,
             fmt_f64(row.tau_threshold),
@@ -205,12 +221,13 @@ fn write_threshold_sweep(path: &Path, rows: &[ThresholdSweepRow]) -> Result<(), 
             row.edge_count,
             fmt_f64(row.mean_out_degree),
             fmt_f64(row.largest_component_fraction),
+            fmt_f64(row.component_entropy),
         )
     });
 
     write_lines(
         path,
-        "run_id,n_events,tau_threshold,reachable_count,reachable_fraction,edge_count,mean_out_degree,largest_component_fraction",
+        "run_id,n_events,tau_threshold,reachable_count,reachable_fraction,edge_count,mean_out_degree,largest_component_fraction,component_entropy",
         lines,
     )
 }

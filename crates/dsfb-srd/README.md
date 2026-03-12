@@ -36,6 +36,8 @@ The empirical role of the crate is to show how those deterministic rules induce 
 - Deterministic trust evolution from residual envelopes.
 - Trust-gated DAG construction over structural events.
 - Threshold sweeps for the expansion observable `rho(tau)`.
+- Global coherence tracking with the giant-component fraction `G(tau)`.
+- Fragmentation tracking with the weak-component Shannon entropy `H(tau)`.
 - Finite-size sharpening across `N = 250, 500, 1000, 2000`.
 - Time-local connectivity degradation across baseline, degradation, shock, and recovery intervals.
 
@@ -59,6 +61,34 @@ Each run computes a deterministic `run_id` from configuration parameters only.
 - `run_id` is the first 32 hex characters of that digest.
 
 Two runs with identical configuration parameters will therefore produce identical `run_id` values, even though their timestamp folders differ. This lets results be checked independently while keeping output folders non-overlapping.
+
+## Why `tau_steps` defaults to 401
+
+The default threshold sweep uses `tau_steps = 401`, which keeps the inclusive `linspace` grid over `[0, 1]` but reduces the spacing to `Delta tau = 0.0025`.
+
+- The denser grid smooths `rho(tau)` without changing the deterministic model.
+- It reduces finite-difference noise in `|d rho / d tau|`.
+- It localizes the transition band more cleanly for the giant-component and entropy observables as well.
+
+You can still override `--tau-steps` from the CLI, but `401` is the crate default because the structural transition is easier to inspect at that resolution.
+
+## Core observables
+
+- `rho(tau)`: anchor-centered causal expansion, defined as the reachable fraction from the anchor event in the trust-gated DAG.
+- `G(tau)`: largest weakly connected component fraction, defined as `|C_max(tau)| / |V|`, and used here as the global graph-coherence order parameter.
+- `component_entropy(tau) = H(tau)`: Shannon entropy of weakly connected component sizes, used as a fragmentation indicator.
+
+`G(tau)` and `H(tau)` are computed on weakly connected components of the thresholded graph. When one weak component spans all nodes, `H(tau) = 0`. When the graph fully fragments into isolated nodes, `H(tau)` rises toward `ln(N)`. For a degenerate zero-node case, the implementation returns `0`.
+
+## Why these observables matter
+
+A monotonic decline in `rho(tau)` by itself could be criticized as a generic consequence of threshold pruning. This crate therefore exports three coordinated observables:
+
+- `rho(tau)` for anchor-centered expansion,
+- `G(tau)` for global coherence,
+- `H(tau)` for fragmentation.
+
+When the derivative peak in `|d rho / d tau|` co-localizes with a rapid decline in `G(tau)` and a peak in `H(tau)`, the resulting pattern is harder to dismiss as a purely local thresholding artifact. In this deterministic synthetic setting, the point is not to prove operational validity; it is to show that multiple independent graph observables align around the same structural regime boundary.
 
 ## Crate layout
 
@@ -104,7 +134,7 @@ cargo run \
   --bin dsfb-srd-generate -- \
   --n-events 2000 \
   --n-channels 4 \
-  --tau-steps 101 \
+  --tau-steps 401 \
   --shock-start 800 \
   --shock-end 1200 \
   --beta 4.0 \
@@ -131,12 +161,15 @@ The crate detects the repository root relative to `crates/dsfb-srd`, creates `ou
 
 - `run_manifest.csv`: one-row manifest with `run_id`, timestamp folder name, full configuration hash, and primary run parameters.
 - `events.csv`: the deterministic primary event stream with latent state, prediction, observation, residual, envelope, trust, and regime label.
-- `threshold_sweep.csv`: trust-threshold sweep rows with `rho(tau)` and graph summary statistics across the finite-size experiments.
+- `threshold_sweep.csv`: trust-threshold sweep rows with `rho(tau)`, `G(tau)`, and `H(tau)` across the finite-size experiments.
 - `transition_sharpness.csv`: discrete derivatives of `rho(tau)` used to identify the structural transition and its sharpening.
 - `time_local_metrics.csv`: windowed connectivity summaries across time for low, critical, and high trust thresholds.
 - `graph_snapshot_low.csv`: active edges at a low trust threshold.
 - `graph_snapshot_critical.csv`: active edges near the maximal transition sharpness.
 - `graph_snapshot_high.csv`: active edges at a high trust threshold.
+- `graph_snapshot_tau_020.csv`: fixed-threshold edge list near the connected regime.
+- `graph_snapshot_tau_030.csv`: fixed-threshold edge list near the transition regime.
+- `graph_snapshot_tau_040.csv`: fixed-threshold edge list near the fragmented regime.
 
 `threshold_sweep.csv` always includes the paper-facing finite-size set `250, 500, 1000, 2000`. If the primary `--n-events` differs from those sizes, the primary history size is included as an additional sweep size so the event stream and threshold diagnostics remain aligned.
 
@@ -163,6 +196,9 @@ This notebook is intentionally wired to execute the crate and regenerate outputs
 
 - Figure 1 plots `rho(tau)` against the trust threshold for multiple event-history sizes. The expected pattern is monotone connectivity collapse, with a sharper transition for larger histories.
 - Figure 2 plots `|drho/dtau|` against the midpoint threshold. The peak identifies the structural transition band and shows how the transition sharpens with system size.
-- Figure 3 plots time-local reachable fraction against event index and marks the shock interval. The expected pattern is a local connectivity drop during degradation and shock, with partial recovery afterward.
+- Figure 3 plots `G(tau)` against threshold and treats the giant-component fraction as the global coherence order parameter.
+- Figure 4 plots `H(tau)`, the Shannon entropy of weak-component sizes. The expected pattern is an entropy peak near the transition region where fragmentation is strongest.
+- Figure 5 plots time-local reachable fraction against event index and marks the shock interval. The expected pattern is a local connectivity drop during degradation and shock, with partial recovery afterward.
+- Figure 6 visualizes fixed-threshold graph snapshots at `tau = 0.20`, `0.30`, and `0.40` so the connected, transitional, and fragmented regimes are visually comparable.
 
 Those figures support the paper's internal structural claims about trust-gated causal topology. They do not constitute operational validation of an autonomy system.
