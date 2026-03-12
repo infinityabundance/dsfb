@@ -87,6 +87,9 @@ Don’t believe a sensor all at once.
 `Deterministic Disturbance Modeling Framework (DDMF)`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-ddmf/dsfb_ddmf_colab.ipynb)
 
+`Structural Regime Dynamics (SRD)`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-srd/notebooks/dsfb_srd_colab.ipynb)
+
 ---
 
 ## Algebraic Deterministic Dynamics (ADD) Sweep
@@ -138,7 +141,7 @@ All DSCD paper figures are reproducible from those generated CSVs and the notebo
 
 ## Workspace Crates
 
-This repository contains six crates for different DSFB workflows:
+This repository contains seven crates for different DSFB workflows:
 
 Crates.io:
 [![dsfb](https://img.shields.io/crates/v/dsfb.svg)](https://crates.io/crates/dsfb)
@@ -146,6 +149,7 @@ Crates.io:
 [![dsfb-fusion-bench](https://img.shields.io/crates/v/dsfb-fusion-bench.svg)](https://crates.io/crates/dsfb-fusion-bench)
 [![dsfb-hret](https://img.shields.io/crates/v/dsfb-hret.svg)](https://crates.io/crates/dsfb-hret)
 [![dsfb-lcss-hret](https://img.shields.io/crates/v/dsfb-lcss-hret.svg)](https://crates.io/crates/dsfb-lcss-hret)
+[![dsfb-srd](https://img.shields.io/crates/v/dsfb-srd.svg)](https://crates.io/crates/dsfb-srd)
 [![dsfb-starship](https://img.shields.io/crates/v/dsfb-starship.svg)](https://crates.io/crates/dsfb-starship)
 
 
@@ -174,6 +178,11 @@ Crates.io:
   standalone high-rate estimation trust analysis benchmarking crate
   workspace path: `crates/dsfb-lcss-hret`
   local README: `crates/dsfb-lcss-hret/README.md`
+  isolated crate (not part of workspace) - compiles independently
+- `dsfb-srd`:
+  deterministic Structural Regime Dynamics phase-transition demonstrator for trust-gated causal graphs
+  workspace path: `crates/dsfb-srd`
+  local README: `crates/dsfb-srd/README.md`
   isolated crate (not part of workspace) - compiles independently
 - `dsfb-starship`:
   Starship high-fidelity 6-DoF re-entry simulation + DSFB trust-adaptive fusion demo
