@@ -151,12 +151,13 @@ crates/dsfb-srd/notebooks/dsfb_srd_colab.ipynb
 Workflow:
 
 1. Open the notebook in Colab and run the setup cell.
-2. If `output-dsfb-srd/` is already available, set `OUTPUT_ROOT` directly or point `REPO_ROOT` at the cloned repository.
-3. If no outputs are present, leave `AUTO_CLONE_REPO = True` and `AUTO_GENERATE_OUTPUTS = True`; the notebook will clone the DSFB repository, install Rust if needed, and generate a fresh SRD run automatically.
-4. Leave `RUN_NAME = None` to select the latest timestamp folder, or set a specific folder name.
-5. Run the remaining cells to produce the figures.
+2. The setup cell clones the DSFB repository into `/content/dsfb` if needed.
+3. The setup cell installs Rust with `rustup` if `cargo` is not already available.
+4. The setup cell runs `cargo run --manifest-path crates/dsfb-srd/Cargo.toml --release --bin dsfb-srd-generate` from scratch.
+5. The notebook then selects the newly created timestamped folder under `output-dsfb-srd/` and uses that fresh run for every figure.
+6. Run the remaining cells to produce the figures.
 
-The plotting cells use only `pandas` and `matplotlib`. The bootstrap path may also invoke `git`, `curl`, and `cargo` inside Colab when outputs are not already present.
+This notebook is intentionally wired to execute the crate and regenerate outputs rather than rely on bundled sample CSVs or manual output uploads. The plotting cells use only `pandas` and `matplotlib`; the setup cell may also invoke `git`, `curl`, and `cargo` inside Colab.
 
 ## Interpretation of the figures
 
