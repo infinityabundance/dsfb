@@ -83,9 +83,6 @@ Don’t believe a sensor all at once.
 `High-Rate Estimation Trust Figures Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lcss-hret/dsfb_lcss_hret_figures.ipynb)
 
-`TMTR Research Notebook:`
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-tmtr/notebooks/dsfb_tmtr_colab.ipynb)
-
 `HRET Correlated Group Figures Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lcss-hret/dsfb-lcss-hret-correlated.ipynb)
 
@@ -100,6 +97,9 @@ Don’t believe a sensor all at once.
 
 `Structural Regime Dynamics (SRD)`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-srd/notebooks/dsfb_srd_colab.ipynb)
+
+`TMTR Research Notebook:`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-tmtr/notebooks/dsfb_tmtr_colab.ipynb)
 
 ---
 
