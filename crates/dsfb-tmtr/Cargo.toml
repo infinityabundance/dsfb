@@ -3,10 +3,30 @@ name = "dsfb-tmtr"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.70"
+authors = ["Riaan de Beer"]
+license = "Apache-2.0"
 default-run = "dsfb-tmtr"
 description = "Deterministic Trust-Monotone Temporal Recursion simulation framework"
+repository = "https://github.com/infinityabundance/dsfb"
+homepage = "https://github.com/infinityabundance/dsfb"
+documentation = "https://docs.rs/dsfb-tmtr"
+readme = "README.md"
+keywords = ["deterministic", "tmtr", "causal", "simulation", "trust"]
+categories = ["science", "simulation", "algorithms"]
+include = [
+    "src/**",
+    "tests/**",
+    "notebooks/dsfb_tmtr_colab.ipynb",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+]
 
 [workspace]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 anyhow = "1"
