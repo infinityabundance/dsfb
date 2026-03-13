@@ -1,5 +1,7 @@
 # dsfb-tmtr
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-tmtr/notebooks/dsfb_tmtr_colab.ipynb)
+
 Deterministic Trust-Monotone Temporal Recursion simulation framework.
 
 ## Overview
@@ -83,7 +85,7 @@ The CLI writes a new timestamped directory on each run and prints the final outp
 
 This crate is intentionally self-contained and buildable from `crates/dsfb-tmtr` without modifying the monorepo root.
 
-Because the root workspace remains immutable, `cargo run -p dsfb-tmtr` from the repository root is not enabled here. The minimal root change that would be required is adding `"crates/dsfb-tmtr"` to the `[workspace].members` list in [/dsfb/Cargo.toml](/dsfb/Cargo.toml). No such change is made by this crate.
+Because the root workspace remains immutable, `cargo run -p dsfb-tmtr` from the repository root is not enabled here. The minimal root change that would be required is adding `crates/dsfb-tmtr` to the root workspace members list. No such change is made by this crate.
 
 ## Output Artifacts
 
@@ -152,16 +154,22 @@ The current implementation keeps the simulation model simple enough to remain au
 
 ## License
 
-License information is not yet specified for publication.
+Apache-2.0. See [LICENSE](LICENSE).
 
 ## Citation
 
+Reference citation:
+
+de Beer, R. (2026). *Trust-Monotone Temporal Recursion in Deterministic Structural Dynamics* (v1.0). Zenodo. https://doi.org/10.5281/zenodo.18998208
+
 ```bibtex
 @misc{debeer_tmtr,
+  author       = {de Beer, R.},
   title        = {Trust-Monotone Temporal Recursion in Deterministic Structural Dynamics},
-  author       = {Riaan de Beer},
   year         = {2026},
-  note         = {Reference implementation companion crate: dsfb-tmtr},
-  howpublished = {Manuscript and reproducibility artifacts}
+  version      = {v1.0},
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.18998208},
+  url          = {https://doi.org/10.5281/zenodo.18998208}
 }
 ```
