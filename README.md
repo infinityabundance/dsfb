@@ -67,6 +67,11 @@ Don’t believe a sensor all at once.
 > *Deterministic Causal Dynamics for Safety-Critical Autonomous Systems - Trust-Controlled Causal Topology (TCCT) and Structural Regime Dynamics (SRD)* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.18976566]
 
+> **de Beer, R.** (2026). 
+> *Trust-Monotone Temporal Recursion in Deterministic Structural Dynamics* (v1.0).
+> Zenodo. [https://doi.org/10.5281/zenodo.18998208]
+
+
 ---
 
 `DSFB Simulation Notebook:`
