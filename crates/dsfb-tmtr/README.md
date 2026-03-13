@@ -83,7 +83,7 @@ The CLI writes a new timestamped directory on each run and prints the final outp
 
 This crate is intentionally self-contained and buildable from `crates/dsfb-tmtr` without modifying the monorepo root.
 
-Because the root workspace remains immutable, `cargo run -p dsfb-tmtr` from the repository root is not enabled here. The minimal root change that would be required is adding `"crates/dsfb-tmtr"` to the `[workspace].members` list in [/home/one/dsfb/Cargo.toml](/home/one/dsfb/Cargo.toml). No such change is made by this crate.
+Because the root workspace remains immutable, `cargo run -p dsfb-tmtr` from the repository root is not enabled here. The minimal root change that would be required is adding `"crates/dsfb-tmtr"` to the `[workspace].members` list in [/dsfb/Cargo.toml](/dsfb/Cargo.toml). No such change is made by this crate.
 
 ## Output Artifacts
 
