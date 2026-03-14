@@ -1,5 +1,7 @@
 # dsfb-bank
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-bank/colab/dsfb_bank_repro.ipynb)
+
 `dsfb-bank` is the executable empirical companion crate for the DSFB paper and theorem banks. It turns the theorem banks into machine-readable YAML specifications, loads them into a Rust theorem registry, runs deterministic witness demonstrations, and writes plotting-friendly CSV outputs into fresh timestamped run directories.
 
 ## Purpose

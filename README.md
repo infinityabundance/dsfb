@@ -77,6 +77,9 @@ Don’t believe a sensor all at once.
 `DSFB Simulation Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb/dsfb_simulation.ipynb)
 
+`DSFB Bank Repro Notebook:`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-bank/colab/dsfb_bank_repro.ipynb)
+
 `Fusion Bench Figures Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
 
