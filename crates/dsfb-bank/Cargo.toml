@@ -1,0 +1,41 @@
+[package]
+name = "dsfb-bank"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+default-run = "dsfb-bank"
+description = "Executable empirical companion for the DSFB theorem banks and paper figures"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/infinityabundance/dsfb"
+homepage = "https://github.com/infinityabundance/dsfb"
+keywords = ["dsfb", "theorem-bank", "reproducibility", "csv", "research"]
+categories = ["science", "simulation", "command-line-utilities"]
+include = [
+    "src/**",
+    "spec/**",
+    "tests/**",
+    "colab/dsfb_bank_repro.ipynb",
+    "Cargo.toml",
+    "README.md",
+]
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+clap = { version = "4", features = ["derive"] }
+csv = "1.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lib]
+name = "dsfb_bank"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb-bank"
+path = "src/main.rs"

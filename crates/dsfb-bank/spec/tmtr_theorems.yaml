@@ -1,0 +1,383 @@
+- id: TMTR-01
+  component: tmtr
+  ordinal: 1
+  title: Monotonicity of Trust Along TMTR Orbits
+  statement_summary: "For s_{n+1}=U(s_n), trust values T(s_n) form a nonincreasing sequence."
+  assumptions:
+    - T(U(s)) <= T(s)
+  variables:
+    - "U: TMTR update operator"
+    - "T: trust function"
+    - "s_n: orbit states"
+  expected_behavior:
+    - trust sequence monotone descending
+  witness_cases:
+    - descending trust orbit rows
+    - stabilization suffix rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-02
+  component: tmtr
+  ordinal: 2
+  title: k-Step Trust Monotonicity
+  statement_summary: "For all k>=1, T(U^k(s)) <= T(s)."
+  assumptions:
+    - trust monotonicity
+  variables:
+    - "U^k: k-step iterate"
+    - "T: trust function"
+    - "s: initial state"
+  expected_behavior:
+    - iterated updates never increase trust
+  witness_cases:
+    - multi-step descent orbit rows
+    - long-horizon trust comparison rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-03
+  component: tmtr
+  ordinal: 3
+  title: Order Preservation Under Iteration
+  statement_summary: "Along an orbit, later trust values never exceed earlier trust values."
+  assumptions:
+    - trust monotone update
+  variables:
+    - "s_n: orbit states"
+    - "T: trust function"
+    - "n,m: iteration indices"
+  expected_behavior:
+    - pairwise comparisons satisfy ordering
+  witness_cases:
+    - pairwise trust-order rows along a descending orbit
+    - stabilized suffix rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-04
+  component: tmtr
+  ordinal: 4
+  title: Lower-Bounded Trust Convergence
+  statement_summary: "If trust is lower bounded, the monotone trust sequence converges in the codomain order or numerically when embedded in R."
+  assumptions:
+    - lower bounded trust values
+  variables:
+    - "T: trust function"
+    - "s_n: orbit states"
+    - "inf T: lower trust bound"
+  expected_behavior:
+    - convergent trust traces
+  witness_cases:
+    - lower-bounded descending orbit rows
+    - stable suffix rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-05
+  component: tmtr
+  ordinal: 5
+  title: Fixed Points Preserve Trust
+  statement_summary: "If s* is a fixed point of U, then T(U(s*))=T(s*)."
+  assumptions:
+    - fixed point exists
+  variables:
+    - "s*: fixed point"
+    - "U: update operator"
+    - "T: trust function"
+  expected_behavior:
+    - fixed-point rows show equality
+  witness_cases:
+    - fixed-point orbit rows
+    - repeated equality rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-06
+  component: tmtr
+  ordinal: 6
+  title: Minimal Trust Along an Orbit
+  statement_summary: "At step N, T(s_N) equals the minimum trust value seen up to step N."
+  assumptions:
+    - monotone descent
+  variables:
+    - "s_N: orbit state at step N"
+    - "T: trust function"
+    - "min_{0<=n<=N} T(s_n): rolling minimum"
+  expected_behavior:
+    - rolling minimum equals current value
+  witness_cases:
+    - descending orbit rows
+    - rolling-minimum comparison rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-07
+  component: tmtr
+  ordinal: 7
+  title: Strict Descent Excludes Nontrivial Fixed Points
+  statement_summary: "If T(U(s)) < T(s), then s is not a fixed point."
+  assumptions:
+    - strict descent at s
+  variables:
+    - "s: current state"
+    - "U(s): updated state"
+    - "T: trust function"
+  expected_behavior:
+    - strict descent rows have s != U(s)
+  witness_cases:
+    - strict-descent non-fixed rows
+    - fixed-point contrast rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-08
+  component: tmtr
+  ordinal: 8
+  title: No Trust-Increasing Cycles
+  statement_summary: "Any periodic orbit has constant trust along the cycle."
+  assumptions:
+    - trust monotonicity
+  variables:
+    - "s_n: periodic orbit"
+    - "T: trust function"
+    - "p: cycle period"
+  expected_behavior:
+    - periodic cycles show equal trust values
+  witness_cases:
+    - trust-neutral periodic cycle rows
+    - constant-trust cycle comparison rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-09
+  component: tmtr
+  ordinal: 9
+  title: Strict Trust Gap Implies No Nontrivial Cycles
+  statement_summary: "If every non-fixed update reduces trust by at least delta>0, then all periodic orbits are fixed points."
+  assumptions:
+    - positive trust gap
+  variables:
+    - "delta: positive trust gap"
+    - "U: update operator"
+    - "T: trust function"
+  expected_behavior:
+    - no nontrivial periodic cycles in witness systems
+  witness_cases:
+    - strict-gap descent orbit rows
+    - fixed-point cycle-only contrast rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-10
+  component: tmtr
+  ordinal: 10
+  title: Finite-Time Stabilization on Finite Trust Levels
+  statement_summary: "If the set of trust values is finite, every orbit eventually has constant trust."
+  assumptions:
+    - finite trust value set
+  variables:
+    - "T(S): finite trust-value set"
+    - "s_n: orbit"
+    - "N: stabilization index"
+  expected_behavior:
+    - eventual constant suffix in trust trace
+  witness_cases:
+    - finite-level descent orbit rows
+    - stable suffix rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-11
+  component: tmtr
+  ordinal: 11
+  title: Finite-Time Arrival to a Fixed Point Under a Trust Gap
+  statement_summary: "If trust is lower bounded and every non-fixed step decreases trust by at least delta>0, every orbit reaches a fixed point in finite time."
+  assumptions:
+    - lower bound
+    - trust gap
+  variables:
+    - "delta: positive trust gap"
+    - "s_n: orbit"
+    - "T: trust function"
+  expected_behavior:
+    - finite hitting time to fixed point
+  witness_cases:
+    - trust-gap descent orbit rows
+    - fixed-point hitting-time rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-12
+  component: tmtr
+  ordinal: 12
+  title: Invariance of Sublevel Sets
+  statement_summary: "For any threshold c, the trust sublevel set {s : T(s) <= c} is forward invariant."
+  assumptions:
+    - trust monotone update
+  variables:
+    - "c: trust threshold"
+    - "{s : T(s) <= c}: trust sublevel set"
+    - "U: update operator"
+  expected_behavior:
+    - once in sublevel set, all future iterates remain
+  witness_cases:
+    - threshold-crossing orbit rows
+    - forward-invariant suffix rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-13
+  component: tmtr
+  ordinal: 13
+  title: Forward Invariance of Trust-Minimal States
+  statement_summary: "States of minimal trust map to states of minimal trust."
+  assumptions:
+    - minimal trust exists
+  variables:
+    - "s_min: trust-minimal state"
+    - "U: update operator"
+    - "T: trust function"
+  expected_behavior:
+    - minimal-trust states stay minimal
+  witness_cases:
+    - trust-minimal fixed-state rows
+    - repeated minimal-trust rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-14
+  component: tmtr
+  ordinal: 14
+  title: Composition of TMTR Operators
+  statement_summary: "The composition of two trust-monotone update operators is trust-monotone."
+  assumptions:
+    - common trust function
+    - both operators monotone
+  variables:
+    - "U1,U2: trust-monotone updates"
+    - "U2∘U1: composed update"
+    - "T: trust function"
+  expected_behavior:
+    - composed updates remain monotone
+  witness_cases:
+    - composed-update orbit rows
+    - monotonicity comparison rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-15
+  component: tmtr
+  ordinal: 15
+  title: Identity Operator is TMTR
+  statement_summary: "The identity map satisfies trust monotonicity."
+  assumptions:
+    - deterministic trust map
+  variables:
+    - "Id: identity operator"
+    - "T: trust function"
+    - "s: state"
+  expected_behavior:
+    - trust unchanged under identity
+  witness_cases:
+    - identity-orbit equality rows
+    - unchanged trust trace rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-16
+  component: tmtr
+  ordinal: 16
+  title: Constant-Map TMTR Criterion
+  statement_summary: "A constant map U(s)=c is trust-monotone iff T(c)<=T(s) for all s."
+  assumptions:
+    - fixed state c
+  variables:
+    - "c: constant target state"
+    - "U(s)=c: constant map"
+    - "T: trust function"
+  expected_behavior:
+    - criterion verified on examples
+  witness_cases:
+    - admissible constant-map rows
+    - violating constant-map contrast rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-17
+  component: tmtr
+  ordinal: 17
+  title: TMTR Induces a Preorder-Compatible Dynamics
+  statement_summary: "The update satisfies U(s) <=_T s in the preorder induced by trust."
+  assumptions:
+    - trust preorder defined by T
+  variables:
+    - "<=_T: trust-induced preorder"
+    - "U: update operator"
+    - "T: trust function"
+  expected_behavior:
+    - every update respects preorder
+  witness_cases:
+    - preorder-compatible update rows
+    - descending orbit rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-18
+  component: tmtr
+  ordinal: 18
+  title: Eventual Stationarity on Finite State Spaces
+  statement_summary: "On a finite state space, trust-monotone recursion with a trust gap eventually becomes stationary."
+  assumptions:
+    - finite state space
+    - trust gap
+  variables:
+    - "S: finite state space"
+    - "delta: positive trust gap"
+    - "s_n: orbit"
+  expected_behavior:
+    - orbits enter fixed state
+  witness_cases:
+    - finite-state descent orbit rows
+    - stationary suffix rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-19
+  component: tmtr
+  ordinal: 19
+  title: Trust Equality Along an Orbit Implies Local TMTR Balance
+  statement_summary: "If T(s_{n+1})=T(s_n), the nth update is trust-neutral."
+  assumptions:
+    - monotone update
+  variables:
+    - "s_n,s_{n+1}: consecutive states"
+    - "T: trust function"
+    - "trust-neutral update: equality case"
+  expected_behavior:
+    - equality rows marked neutral
+  witness_cases:
+    - identity-orbit equality rows
+    - neutral-cycle equality rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv
+- id: TMTR-20
+  component: tmtr
+  ordinal: 20
+  title: TMTR as a Lyapunov-Type Descent Principle
+  statement_summary: "The trust function acts as a nonincreasing Lyapunov-type quantity for the recursion."
+  assumptions:
+    - trust monotonicity
+  variables:
+    - "T: Lyapunov-type trust function"
+    - "U: update operator"
+    - "s_n: orbit"
+  expected_behavior:
+    - trust plot is descent certificate
+  witness_cases:
+    - descending orbit rows
+    - stabilization suffix rows
+  runner: runners::tmtr
+  outputs:
+    - theorem_witness_csv

@@ -1,0 +1,387 @@
+- id: DSFB-01
+  component: dsfb
+  ordinal: 1
+  title: Observation Equivalence is an Equivalence Relation
+  statement_summary: "For a forward map F : S -> Y, define s1 ~F s2 iff F(s1)=F(s2). Then ~F is reflexive, symmetric, and transitive."
+  assumptions:
+    - F is a deterministic function
+  variables:
+    - "S: structural state space"
+    - "Y: observation space"
+    - "F: forward operator"
+  expected_behavior:
+    - witness CSV shows reflexive, symmetric, transitive cases
+    - no counterexample under function semantics
+  witness_cases:
+    - reflexive singleton observation-class witness
+    - noninjective multi-state observation-class witness for symmetry and transitivity
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-02
+  component: dsfb
+  ordinal: 2
+  title: Injective Forward Map Implies Unique Structural Observability
+  statement_summary: "If F is injective on S0 subseteq S, then every y in F(S0) corresponds to at most one s in S0."
+  assumptions:
+    - F injective on admissible class S0
+  variables:
+    - "S0: admissible structural class"
+    - "F: forward operator"
+    - "y: admissible observation"
+  expected_behavior:
+    - injective examples yield unique inverse image
+    - non-injective examples show ambiguity
+  witness_cases:
+    - injective singleton inverse-image rows
+    - noninjective collision contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-03
+  component: dsfb
+  ordinal: 3
+  title: Existence of Exact Reconstruction on the Image
+  statement_summary: "If F is injective on S0, there exists a unique reconstruction map R : F(S0) -> S0 with R(F(s))=s."
+  assumptions:
+    - injective F on S0
+  variables:
+    - "F: forward operator"
+    - "R: reconstruction map on F(S0)"
+    - "S0: admissible class"
+  expected_behavior:
+    - construct explicit inverse on image
+    - verify exact recovery rows
+  witness_cases:
+    - exact inverse rows on the admissible image
+    - outside-image contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-04
+  component: dsfb
+  ordinal: 4
+  title: Exact Recoverability Implies Forward Injectivity
+  statement_summary: "If there exists R such that R(F(s))=s for all s in S0, then F is injective on S0."
+  assumptions:
+    - exact reconstruction holds on S0
+  variables:
+    - "F: forward operator"
+    - "R: exact left inverse"
+    - "S0: admissible class"
+  expected_behavior:
+    - exact recovery implies no collisions in forward image
+  witness_cases:
+    - exact recovery rows with no collisions
+    - collision contrast rows showing why exact recovery would fail
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-05
+  component: dsfb
+  ordinal: 5
+  title: Exact Recoverability is Equivalent to Injective Structural Observability
+  statement_summary: "On S0, existence of exact reconstruction is equivalent to injectivity of F."
+  assumptions:
+    - deterministic F
+  variables:
+    - "F: forward operator"
+    - "R: reconstruction map"
+    - "S0: admissible class"
+  expected_behavior:
+    - paired examples showing both directions
+  witness_cases:
+    - injective-implies-recoverable witness rows
+    - recoverable-implies-injective witness rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-06
+  component: dsfb
+  ordinal: 6
+  title: Replayability of DSFB Reconstruction
+  statement_summary: "If R is deterministic, equal observations produce equal reconstructed structural states."
+  assumptions:
+    - R deterministic
+  variables:
+    - "R: deterministic reconstruction map"
+    - "y: observation"
+    - "s: reconstructed structural state"
+  expected_behavior:
+    - duplicated observation rows map to identical outputs
+  witness_cases:
+    - duplicated observation replay rows
+    - distinct observation contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-07
+  component: dsfb
+  ordinal: 7
+  title: Exact Reconstruction Eliminates Structural Residual
+  statement_summary: "If exact recoverability holds on S0, then for every s in S0, F(R(F(s)))=F(s), so the residual vanishes on F(S0)."
+  assumptions:
+    - exact recoverability
+    - residual defined as E(y)=y-F(R(y))
+  variables:
+    - "F: forward operator"
+    - "R: reconstruction map"
+    - "E: residual operator"
+  expected_behavior:
+    - zero residual on exact cases
+    - nonzero residual on approximate or mismatched cases
+  witness_cases:
+    - exact-image residual-zero rows
+    - mismatched reconstruction contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-08
+  component: dsfb
+  ordinal: 8
+  title: Residual Vanishing Implies Forward Consistency
+  statement_summary: "If E(y)=0, then F(R(y))=y."
+  assumptions:
+    - residual well-defined
+  variables:
+    - "E: residual operator"
+    - "F: forward operator"
+    - "R: reconstruction map"
+  expected_behavior:
+    - rows with zero residual satisfy forward consistency
+  witness_cases:
+    - zero-residual forward-consistency rows
+    - nonzero-residual contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-09
+  component: dsfb
+  ordinal: 9
+  title: Idempotence of Reconstruct-Forward-Reconstruct
+  statement_summary: "If R is exact on F(S0), then R(F(R(y)))=R(y) for all y in F(S0)."
+  assumptions:
+    - exact recoverability on image
+  variables:
+    - "R: reconstruction map"
+    - "F: forward operator"
+    - "y: admissible observation"
+  expected_behavior:
+    - repeated round-trip stabilizes after one step
+  witness_cases:
+    - exact-image round-trip stabilization rows
+    - outside-image contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-10
+  component: dsfb
+  ordinal: 10
+  title: Idempotence of Forward-Reconstruct-Forward
+  statement_summary: "If R is exact on F(S0), then F(R(F(R(y))))=F(R(y))."
+  assumptions:
+    - exact recoverability on image
+  variables:
+    - "F: forward operator"
+    - "R: reconstruction map"
+    - "y: admissible observation"
+  expected_behavior:
+    - repeated forward/reconstruct cycles stabilize
+  witness_cases:
+    - exact-image forward/reconstruct stabilization rows
+    - outside-image contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-11
+  component: dsfb
+  ordinal: 11
+  title: Singleton Observation Classes Under Exact Recoverability
+  statement_summary: "If exact recoverability holds on S0, each observation equivalence class restricted to S0 has size one."
+  assumptions:
+    - exact recoverability on S0
+  variables:
+    - "S0: admissible class"
+    - "F: forward operator"
+    - "observation classes: equivalence classes induced by F"
+  expected_behavior:
+    - class cardinality one under exact conditions
+  witness_cases:
+    - singleton exact-image classes
+    - collision-class contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-12
+  component: dsfb
+  ordinal: 12
+  title: Finite Structural Classes Admit Exact DSFB
+  statement_summary: "Every finite admissible structural class S0 admits an injective code-like forward map and exact inverse reconstruction on the image."
+  assumptions:
+    - finite S0
+  variables:
+    - "S0: finite admissible structural class"
+    - "F: injective code-like forward map"
+    - "R: exact inverse on the image"
+  expected_behavior:
+    - explicit finite coding examples
+  witness_cases:
+    - finite injective code assignments
+    - exact code/decode reconstruction rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-13
+  component: dsfb
+  ordinal: 13
+  title: Composition with Injective Observation Preserves Recoverability
+  statement_summary: "If F is injective on S0 and G is injective on F(S0), then G∘F is injective on S0 and admits exact reconstruction on its image."
+  assumptions:
+    - F injective on S0
+    - G injective on F(S0)
+  variables:
+    - "F: first-stage forward operator"
+    - "G: injective observation post-map"
+    - "R: exact reconstruction on the composed image"
+  expected_behavior:
+    - two-stage encoding remains exactly recoverable
+  witness_cases:
+    - composed injective code rows
+    - noninjective second-stage contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-14
+  component: dsfb
+  ordinal: 14
+  title: Restriction Preserves Exact Recoverability
+  statement_summary: "If exact recoverability holds on S0, it also holds on every subset S1 subseteq S0."
+  assumptions:
+    - exact recoverability on S0
+  variables:
+    - "S0: admissible class"
+    - "S1: restricted subset"
+    - "R: exact reconstruction map"
+  expected_behavior:
+    - subset witness cases inherit exact recovery
+  witness_cases:
+    - restricted subset exact-recovery rows
+    - excluded-state contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-15
+  component: dsfb
+  ordinal: 15
+  title: Product Structural Recovery
+  statement_summary: "If F1 and F2 are injective on A1 and A2, then the product map F(s1,s2)=(F1(s1),F2(s2)) is injective on A1×A2 and admits exact reconstruction there."
+  assumptions:
+    - componentwise injectivity
+  variables:
+    - "F1,F2: component forward maps"
+    - "A1,A2: admissible component classes"
+    - "F: product forward map"
+  expected_behavior:
+    - product encoding/reconstruction examples
+  witness_cases:
+    - exact product-code rows
+    - component-collision contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-16
+  component: dsfb
+  ordinal: 16
+  title: Exact Recoverability Implies Structural Distinguishability
+  statement_summary: "Under exact recoverability on S0, distinct structural states in S0 must have distinct observations."
+  assumptions:
+    - exact recoverability
+  variables:
+    - "S0: admissible class"
+    - "F: forward operator"
+    - "R: exact reconstruction map"
+  expected_behavior:
+    - verify distinct states map to distinct outputs
+  witness_cases:
+    - distinct-state distinct-observation rows
+    - collision contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-17
+  component: dsfb
+  ordinal: 17
+  title: Minimal Residual on Exactly Recoverable Observations
+  statement_summary: "If y is in F(S0) and exact recoverability holds on S0, then the DSFB residual at y is zero."
+  assumptions:
+    - exact recoverability
+    - residual semantics
+  variables:
+    - "y: admissible observation"
+    - "F: forward operator"
+    - "E: residual operator"
+  expected_behavior:
+    - exact-image observations have minimal residual 0
+  witness_cases:
+    - exact-image residual-zero rows
+    - outside-image positive-residual contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-18
+  component: dsfb
+  ordinal: 18
+  title: Exact Reconstruction is Unique on the Image
+  statement_summary: "If two reconstruction maps are both exact on F(S0), they agree on F(S0)."
+  assumptions:
+    - exact recoverability
+  variables:
+    - "R1,R2: exact reconstruction maps on F(S0)"
+    - "F: forward operator"
+    - "S0: admissible class"
+  expected_behavior:
+    - compare alternative inverses, verify equality on image
+  witness_cases:
+    - agreement rows for two exact inverses on the image
+    - outside-image disagreement contrast rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-19
+  component: dsfb
+  ordinal: 19
+  title: Periodic Structural States Yield Periodic Observations
+  statement_summary: "If s_{t+p}=s_t for all t, then F(s_t) is periodic with period dividing p."
+  assumptions:
+    - deterministic F
+  variables:
+    - "s_t: structural state trace"
+    - "p: structural period"
+    - "F: forward operator"
+  expected_behavior:
+    - periodic input state traces produce periodic observations
+  witness_cases:
+    - periodic structural trace rows
+    - resulting periodic observation rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv
+- id: DSFB-20
+  component: dsfb
+  ordinal: 20
+  title: Periodic Observations Yield Periodic Reconstructed Structure Under Exact DSFB
+  statement_summary: "If y_t in F(S0) is periodic and exact recoverability holds, then R(y_t) is periodic with period dividing the observation period."
+  assumptions:
+    - exact recoverability on image
+  variables:
+    - "y_t: periodic observation trace"
+    - "R: exact reconstruction map"
+    - "p: observation period"
+  expected_behavior:
+    - periodic observation traces reconstruct to periodic state traces
+  witness_cases:
+    - periodic exact-image observation rows
+    - resulting periodic reconstructed-state rows
+  runner: runners::dsfb
+  outputs:
+    - theorem_witness_csv

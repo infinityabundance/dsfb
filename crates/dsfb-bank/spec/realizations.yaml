@@ -1,0 +1,126 @@
+- component: dsfb
+  realization_name: Finite Exact Coding DSFB
+  category: exact_reconstruction
+  operator_domain: finite structural class S0
+  operator_codomain: admissible observation image F(S0)
+  notes: Injective code-like forward map with exact inverse on the image.
+  empirical_status: deterministic_witness_implemented
+- component: dsfb
+  realization_name: Residual-Nulling Image Reconstruction
+  category: residual_semantics
+  operator_domain: admissible observations
+  operator_codomain: reconstructed structural states with residual diagnostics
+  notes: Exact-image observations yield zero residual under deterministic reconstruction.
+  empirical_status: deterministic_witness_implemented
+- component: dsfb
+  realization_name: Periodic DSFB Replay
+  category: temporal_replay
+  operator_domain: periodic structural traces
+  operator_codomain: periodic observation and reconstruction traces
+  notes: Periodic states and periodic exact-image observations are replayed deterministically.
+  empirical_status: deterministic_witness_implemented
+- component: dscd
+  realization_name: Finite DAG Ordering
+  category: admissible_graph
+  operator_domain: finite directed acyclic graphs
+  operator_codomain: topological orders and reachability summaries
+  notes: Deterministic graph metrics cover ordering, reachability, and path bounds.
+  empirical_status: deterministic_witness_implemented
+- component: dscd
+  realization_name: Transitive Reduction Preservation
+  category: reduction
+  operator_domain: finite DAGs
+  operator_codomain: reachability-preserving reduced DAGs
+  notes: Transitive reduction preserves reachability while shrinking edge sets.
+  empirical_status: deterministic_witness_implemented
+- component: dscd
+  realization_name: Back-Edge Repair
+  category: repair
+  operator_domain: finite directed graphs with a chosen linear order
+  operator_codomain: repaired admissible DAGs
+  notes: Back-edge removal with respect to a linear order yields an acyclic repair.
+  empirical_status: deterministic_witness_implemented
+- component: tmtr
+  realization_name: Trust-Gap Descent Orbit
+  category: monotone_orbit
+  operator_domain: finite trust states
+  operator_codomain: descending trust trajectories
+  notes: Strict trust gaps drive finite-time stabilization to a fixed point.
+  empirical_status: deterministic_witness_implemented
+- component: tmtr
+  realization_name: Trust-Neutral Cycle
+  category: neutral_cycle
+  operator_domain: periodic finite-state orbit
+  operator_codomain: constant-trust periodic traces
+  notes: Nonincreasing trust allows periodic orbits only with constant trust along the cycle.
+  empirical_status: deterministic_witness_implemented
+- component: tmtr
+  realization_name: Identity and Constant TMTR Maps
+  category: operator_family
+  operator_domain: deterministic trust-labeled state space
+  operator_codomain: trust-monotone update family
+  notes: Identity and admissible constant maps witness closure of the TMTR class.
+  empirical_status: deterministic_witness_implemented
+- component: add
+  realization_name: Residual Threshold ADD
+  category: residual_detection
+  operator_domain: deterministic signal traces
+  operator_codomain: residual-based anomaly flags
+  notes: Residual thresholding marks exact-image deviations without stochastic noise.
+  empirical_status: deterministic_witness_implemented
+- component: add
+  realization_name: Difference Threshold ADD
+  category: drift_detection
+  operator_domain: deterministic signal traces
+  operator_codomain: first-difference anomaly flags
+  notes: Persistent drift and step changes are detected by first-difference thresholds.
+  empirical_status: deterministic_witness_implemented
+- component: add
+  realization_name: Curvature Threshold ADD
+  category: spike_detection
+  operator_domain: deterministic signal traces
+  operator_codomain: second-difference anomaly flags
+  notes: Impulse-like spikes generate curvature anomalies in deterministic traces.
+  empirical_status: deterministic_witness_implemented
+- component: srd
+  realization_name: Threshold Regime Partition
+  category: regime_partition
+  operator_domain: discrete structural state trajectories
+  operator_codomain: fine regime labels
+  notes: Negative, zero, and positive states are labeled deterministically.
+  empirical_status: deterministic_witness_implemented
+- component: srd
+  realization_name: Coarsened Regime Replay
+  category: regime_coarsening
+  operator_domain: fine regime traces
+  operator_codomain: coarsened regime traces
+  notes: Coarsening preserves determinism and never creates fine-scale transitions.
+  empirical_status: deterministic_witness_implemented
+- component: srd
+  realization_name: Periodic Regime Timeline
+  category: temporal_regime
+  operator_domain: periodic state trajectories
+  operator_codomain: periodic regime sequences
+  notes: Periodic states induce periodic fine and coarse regime labels.
+  empirical_status: deterministic_witness_implemented
+- component: hret
+  realization_name: Finite Injective Trace Codebook
+  category: observation_code
+  operator_domain: finite admissible trace class
+  operator_codomain: integer observation codes
+  notes: Collision-free codes support exact historical reconstruction on the image.
+  empirical_status: deterministic_witness_implemented
+- component: hret
+  realization_name: Prefix and Suffix Replay
+  category: trace_factorization
+  operator_domain: finite traces
+  operator_codomain: deterministic prefix and suffix fragments
+  notes: Prefix and suffix decompositions reconstruct the original trace deterministically.
+  empirical_status: deterministic_witness_implemented
+- component: hret
+  realization_name: Periodic Window Observation
+  category: temporal_observation
+  operator_domain: periodic event traces
+  operator_codomain: periodic fixed-window observation strings
+  notes: Deterministic fixed-window observation preserves periodicity up to a divisor of the trace period.
+  empirical_status: deterministic_witness_implemented
