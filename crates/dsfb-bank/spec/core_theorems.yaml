@@ -1,0 +1,239 @@
+- id: CORE-01
+  component: core
+  ordinal: 1
+  title: Structural Equivalence Theorem
+  statement_summary: "On an admissible structural class with injective F, exact recoverability, residual nulling, and regime preservation coincide under the stack’s exact-reconstruction semantics."
+  assumptions:
+    - F injective on S0
+    - exact reconstruction map
+    - regime map defined
+    - residual semantics defined
+  variables:
+    - "S0: admissible structural class"
+    - "F: forward operator"
+    - "R: exact reconstruction map"
+    - "Gamma: regime map"
+  expected_behavior:
+    - exact witness cases align injectivity, exact recovery, zero residual, and stable regime labels
+    - boundary cases show which coincidence fails when exact assumptions are removed
+  witness_cases:
+    - exact cross-stack pipeline trace on an admissible class
+    - contrast case with residual mismatch outside exact semantics
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-02
+  component: core
+  ordinal: 2
+  title: DSFB Representation Theorem
+  statement_summary: "Any admissible exact DSFB reconstruction can be represented as projection onto admissible observations followed by inversion of the forward operator on the image."
+  assumptions:
+    - exact recoverability
+    - injective forward map on admissible class
+  variables:
+    - "F: forward operator"
+    - "R: reconstruction map"
+    - "P: projection onto admissible observations"
+  expected_behavior:
+    - witness rows show admissible observations projected to the image and exactly inverted
+    - contrast rows show outside-image observations require projection before inversion
+  witness_cases:
+    - admissible exact-image observation trace
+    - outside-image projection contrast
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-03
+  component: core
+  ordinal: 3
+  title: TMTR Stability Theorem
+  statement_summary: "Trust-monotone recursion over a lower-bounded or complete trust order converges to a stable trust level or fixed-point regime under the theorem assumptions."
+  assumptions:
+    - trust monotonicity
+    - lower bound or completeness
+  variables:
+    - "U: trust-monotone update"
+    - "T: trust observable"
+    - "s_n: trust orbit"
+  expected_behavior:
+    - trust traces descend to a stable suffix
+    - fixed-point or stable-trust rows appear after finite iteration in the finite witness systems
+  witness_cases:
+    - descending trust orbit with fixed-point stabilization
+    - stable suffix trace on a bounded trust scale
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-04
+  component: core
+  ordinal: 4
+  title: Trust–Graph Galois Correspondence
+  statement_summary: "Trust thresholds and trust-gated causal graphs form a Galois-style correspondence between threshold order and edge-admissibility order."
+  assumptions:
+    - trust lattice
+    - trust-valued edges
+    - threshold gating rule
+  variables:
+    - "tau: trust threshold"
+    - "G_tau: trust-gated causal graph"
+    - "w(e): trust value on edge e"
+  expected_behavior:
+    - increasing thresholds monotonically prune admissible edges
+    - threshold-order witness rows align with edge-admissibility order
+  witness_cases:
+    - low, medium, and high threshold graph gating
+    - monotone edge-count comparison across thresholds
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-05
+  component: core
+  ordinal: 5
+  title: HRET Factorization Theorem
+  statement_summary: "Structural reconstruction can be factorized through historical replay and a trace realization map, R_S = Q∘R_T."
+  assumptions:
+    - deterministic historical reconstruction
+    - deterministic trace realization
+  variables:
+    - "R_S: structural reconstruction"
+    - "R_T: historical replay reconstruction"
+    - "Q: trace realization map"
+  expected_behavior:
+    - witness rows show historical replay codes feeding deterministic structural realization
+    - reconstructed structure agrees with direct exact DSFB outputs
+  witness_cases:
+    - exact history-to-structure replay case
+    - factorized reconstruction trace with matching outputs
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-06
+  component: core
+  ordinal: 6
+  title: DSCD–TMTR Compatibility Theorem
+  statement_summary: "Trust tightening and trust-gated causal pruning commute under threshold-only edge-admissibility semantics."
+  assumptions:
+    - graph edges gated only by trust thresholds
+    - deterministic pruning
+  variables:
+    - "tau: trust threshold"
+    - "P_tau: pruning operator"
+    - "U: trust tightening operator"
+  expected_behavior:
+    - prune-then-tighten and tighten-then-prune witness rows agree
+    - commuting edge counts appear under threshold-only semantics
+  witness_cases:
+    - prune-then-tighten cross-stack case
+    - tighten-then-prune comparison case
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-07
+  component: core
+  ordinal: 7
+  title: SRD Coarsening Theorem
+  statement_summary: "Regime coarsening preserves transition ordering and cannot create new fine-grained transitions."
+  assumptions:
+    - deterministic regime map
+    - deterministic coarsening map
+  variables:
+    - "Gamma: fine regime map"
+    - "pi: coarsening map"
+    - "Gamma': coarsened regime map"
+  expected_behavior:
+    - coarse transition rows align with fine transition order
+    - coarsened transition counts do not exceed fine counts
+  witness_cases:
+    - fine-to-coarse regime timeline
+    - transition-count comparison under coarsening
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-08
+  component: core
+  ordinal: 8
+  title: ADD Soundness Theorem
+  statement_summary: "If anomaly detection fires under deterministic residual semantics, the observation is structurally inconsistent with the reconstructed forward image."
+  assumptions:
+    - residual operator defined
+    - anomaly predicate thresholded on residual semantics
+  variables:
+    - "r_t: residual"
+    - "A: anomaly predicate"
+    - "F(R(y)): reconstructed forward image"
+  expected_behavior:
+    - nominal rows stay on the reconstructed forward image with anomaly false
+    - anomaly rows show nonzero residual and structural inconsistency with anomaly true
+  witness_cases:
+    - nominal exact-image case
+    - anomalous residual-threshold case
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-09
+  component: core
+  ordinal: 9
+  title: DSFB–TMTR Convergence Theorem
+  statement_summary: "Under the stated completeness, continuity, and monotone-descent assumptions, trust recursion plus reconstruction converges to a structurally stable inference state."
+  assumptions:
+    - complete metric or finite state setting
+    - trust monotone update
+    - reconstruction error descent condition
+    - trust-stationary implies fixed point
+  variables:
+    - "U: trust update"
+    - "R: reconstruction map"
+    - "e_n: reconstruction error"
+  expected_behavior:
+    - trust and reconstruction metrics descend together
+    - witness traces settle into a structurally stable suffix
+  witness_cases:
+    - finite-state convergence trace
+    - joint trust-error descent trace
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-10
+  component: core
+  ordinal: 10
+  title: Grand Unification Theorem
+  statement_summary: "The DSFB stack forms a deterministic compositional inference algebra closed under operator composition and preserving reconstruction compatibility across trust, regime, causal, anomaly, and history layers."
+  assumptions:
+    - deterministic component maps
+    - exact recoverability on admissible class
+    - acyclic causal assignment
+  variables:
+    - "F,R: forward and reconstruction operators"
+    - "T: trust observable"
+    - "Gamma: regime observable"
+    - "C: causal assignment"
+  expected_behavior:
+    - full-stack witness traces remain deterministic across layers
+    - composed outputs preserve compatibility between reconstruction, trust, regime, anomaly, and history channels
+  witness_cases:
+    - end-to-end DSFB pipeline trace
+    - anomaly-marked but deterministic cross-stack replay trace
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv
+- id: CORE-11
+  component: core
+  ordinal: 11
+  title: Functorial Compression Theorem
+  statement_summary: "The stack induces a functor-like compression from observation-side inference to structural-side inference, with H∘R_S∘F = H for structural observables H in {Γ,T,C} on the admissible class."
+  assumptions:
+    - exact recoverability
+    - deterministic structural observables
+  variables:
+    - "H: structural observable in {Gamma, T, C}"
+    - "F: forward operator"
+    - "R_S: structural reconstruction"
+  expected_behavior:
+    - witness rows verify observable preservation for regime, trust, and causal summaries
+    - exact-image rows show zero observable discrepancy after compression and recovery
+  witness_cases:
+    - regime observable preservation case
+    - trust and causal observable preservation cases
+  runner: runners::core
+  outputs:
+    - theorem_witness_csv

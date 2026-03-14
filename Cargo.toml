@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/dsfb",
+    "crates/dsfb-bank",
     "crates/dsfb-fusion-bench",
     "crates/dsfb-starship",
     "crates/dsfb-hret",

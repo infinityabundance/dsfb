@@ -1,0 +1,382 @@
+- id: ADD-01
+  component: add
+  ordinal: 1
+  title: Zero Residual Implies No Residual-Threshold Anomaly
+  statement_summary: "If residual is zero on an interval, no residual-threshold anomaly occurs there."
+  assumptions:
+    - residual detector threshold tau_r>0
+  variables:
+    - "r_t: residual trace"
+    - "tau_r: residual detector threshold"
+    - "A_r: residual-threshold detector"
+  expected_behavior:
+    - zero residual rows are non-anomalous
+  witness_cases:
+    - exact-model residual-zero rows
+    - threshold comparison rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-02
+  component: add
+  ordinal: 2
+  title: Residual Threshold Detectability
+  statement_summary: "If |r_t| > tau_r, the residual detector triggers."
+  assumptions:
+    - threshold detector
+  variables:
+    - "r_t: residual"
+    - "tau_r: residual threshold"
+    - "A_r: residual detector"
+  expected_behavior:
+    - threshold exceedance rows flagged
+  witness_cases:
+    - residual-threshold exceedance rows
+    - detector-flag witness rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-03
+  component: add
+  ordinal: 3
+  title: Difference Threshold Detectability
+  statement_summary: "If |Δy_t| > tau_Δ, the difference detector triggers."
+  assumptions:
+    - first-difference detector
+  variables:
+    - "Delta y_t: first difference"
+    - "tau_Delta: difference threshold"
+    - "A_Delta: difference detector"
+  expected_behavior:
+    - large jump rows flagged
+  witness_cases:
+    - persistent drift rows
+    - first-difference threshold rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-04
+  component: add
+  ordinal: 4
+  title: Curvature Threshold Detectability
+  statement_summary: "If |Δ²y_t| > tau_Δ², the curvature detector triggers."
+  assumptions:
+    - second-difference detector
+  variables:
+    - "Delta^2 y_t: second difference"
+    - "tau_Delta2: curvature threshold"
+    - "A_Delta2: curvature detector"
+  expected_behavior:
+    - large curvature rows flagged
+  witness_cases:
+    - spike-induced curvature rows
+    - curvature threshold rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-05
+  component: add
+  ordinal: 5
+  title: Constant Signals are ADD-Silent Under Difference Tests
+  statement_summary: "Constant signals have zero first and second differences, so no difference-based anomaly occurs for positive thresholds."
+  assumptions:
+    - positive thresholds
+  variables:
+    - "y_t: constant signal"
+    - "Delta y_t: first difference"
+    - "Delta^2 y_t: second difference"
+  expected_behavior:
+    - flat traces show no detections
+  witness_cases:
+    - constant-signal rows
+    - difference-detector silence rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-06
+  component: add
+  ordinal: 6
+  title: Linear Signals Have Zero Second Difference
+  statement_summary: "For y_t = at+b, second differences vanish identically."
+  assumptions:
+    - linear signal
+  variables:
+    - "a,b: linear parameters"
+    - "y_t = at+b: linear signal"
+    - "Delta^2 y_t: second difference"
+  expected_behavior:
+    - computed second difference zero
+  witness_cases:
+    - linear-signal rows
+    - second-difference zero rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-07
+  component: add
+  ordinal: 7
+  title: Monotone Drift Produces Constant-Sign First Difference
+  statement_summary: "Nondecreasing signals have nonnegative first differences; nonincreasing signals have nonpositive first differences."
+  assumptions:
+    - monotonic signal segment
+  variables:
+    - "y_t: monotone signal segment"
+    - "Delta y_t: first difference"
+    - "sign(Delta y_t): difference sign"
+  expected_behavior:
+    - sign-consistent difference rows
+  witness_cases:
+    - nondecreasing drift rows
+    - first-difference sign rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-08
+  component: add
+  ordinal: 8
+  title: Persistent Monotone Drift is Detectable by Difference Threshold
+  statement_summary: "If |Δy_t| >= epsilon > tau_Δ on an interval, every step on that interval triggers difference-based detection."
+  assumptions:
+    - persistent drift exceeds threshold
+  variables:
+    - "Delta y_t: first difference"
+    - "epsilon: deterministic drift floor"
+    - "tau_Delta: threshold"
+  expected_behavior:
+    - interval-wide detections
+  witness_cases:
+    - persistent drift rows
+    - interval-wide detector rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-09
+  component: add
+  ordinal: 9
+  title: Step Discontinuities Produce Difference Anomalies
+  statement_summary: "A step change of amplitude A yields |Δy|=|A| at the step time, so threshold exceedance triggers if |A|>tau_Δ."
+  assumptions:
+    - step signal
+  variables:
+    - "A: step amplitude"
+    - "Delta y_t: first difference at the step"
+    - "tau_Delta: threshold"
+  expected_behavior:
+    - single-step anomaly at discontinuity
+  witness_cases:
+    - step-signal rows
+    - discontinuity detector rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-10
+  component: add
+  ordinal: 10
+  title: Impulse-Like Spikes Produce Curvature Anomalies
+  statement_summary: "Isolated spikes generate large second differences at and immediately after the spike."
+  assumptions:
+    - impulse-like event
+  variables:
+    - "spike amplitude: deterministic impulse magnitude"
+    - "Delta^2 y_t: second difference"
+    - "tau_Delta2: curvature threshold"
+  expected_behavior:
+    - curvature detector flags spike neighborhood
+  witness_cases:
+    - spike-signal rows
+    - curvature-flag rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-11
+  component: add
+  ordinal: 11
+  title: Residual Representation of Model Mismatch
+  statement_summary: "If true evolution is y_t=g(y_{t-1}) but the detector uses f, then residual equals g(y_{t-1})-f(y_{t-1})."
+  assumptions:
+    - deterministic true and reference models
+  variables:
+    - "g: true deterministic model"
+    - "f: reference detector model"
+    - "r_t: residual"
+  expected_behavior:
+    - mismatch rows reflect model discrepancy
+  witness_cases:
+    - reference-model mismatch rows
+    - residual-equality rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-12
+  component: add
+  ordinal: 12
+  title: Exact Model Match Gives Zero Residual
+  statement_summary: "If y_t=f(y_{t-1}) exactly, residual is zero."
+  assumptions:
+    - reference equals true model
+  variables:
+    - "f: deterministic reference model"
+    - "y_t: signal trace"
+    - "r_t: residual"
+  expected_behavior:
+    - all residual rows zero
+  witness_cases:
+    - exact-model signal rows
+    - zero-residual rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-13
+  component: add
+  ordinal: 13
+  title: Bounded Model Error Gives Bounded Residual
+  statement_summary: "If |g(x)-f(x)|<=M on relevant states, then residual magnitude is bounded by M."
+  assumptions:
+    - bounded model discrepancy
+  variables:
+    - "g,f: deterministic models"
+    - "M: model-discrepancy bound"
+    - "r_t: residual"
+  expected_behavior:
+    - residuals remain within bound
+  witness_cases:
+    - bounded mismatch rows
+    - residual-bound comparison rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-14
+  component: add
+  ordinal: 14
+  title: Threshold Separation Eliminates False Negatives Relative to a Deterministic Bound
+  statement_summary: "If every anomaly of interest satisfies |r_t|>=gamma>tau_r, none of those anomalies are missed."
+  assumptions:
+    - anomaly lower bound gamma
+    - threshold below gamma
+  variables:
+    - "gamma: anomaly residual floor"
+    - "tau_r: detector threshold"
+    - "A_r: residual detector"
+  expected_behavior:
+    - all anomalous rows detected
+  witness_cases:
+    - high-residual anomaly rows
+    - detector-hit rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-15
+  component: add
+  ordinal: 15
+  title: Threshold Safety Eliminates False Positives Relative to a Deterministic Bound
+  statement_summary: "If all nominal behavior satisfies |r_t|<=beta<tau_r, no nominal row is flagged."
+  assumptions:
+    - nominal bound beta
+    - threshold above beta
+  variables:
+    - "beta: nominal residual bound"
+    - "tau_r: detector threshold"
+    - "A_r: residual detector"
+  expected_behavior:
+    - no nominal detections
+  witness_cases:
+    - nominal exact-trace rows
+    - no-flag detector rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-16
+  component: add
+  ordinal: 16
+  title: Finite Union of Deterministic ADD Rules is Deterministic
+  statement_summary: "The OR of finitely many deterministic detectors is deterministic."
+  assumptions:
+    - finite set of deterministic predicates
+  variables:
+    - "A_i: deterministic detector predicates"
+    - "OR_i A_i: combined detector"
+    - "y_t: observed history"
+  expected_behavior:
+    - repeated evaluation stable and identical
+  witness_cases:
+    - combined detector rows
+    - replayed OR-evaluation rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-17
+  component: add
+  ordinal: 17
+  title: Simultaneous Multi-Rule Detection
+  statement_summary: "If multiple detector inequalities hold at the same time, each corresponding rule fires."
+  assumptions:
+    - multiple detector family
+  variables:
+    - "A_r,A_Delta,A_Delta2: detector family"
+    - "y_t: observed signal"
+    - "r_t,Delta y_t,Delta^2 y_t: detector inputs"
+  expected_behavior:
+    - joint detection rows marked for each rule
+  witness_cases:
+    - spike rows with simultaneous detector triggers
+    - multi-rule flag rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-18
+  component: add
+  ordinal: 18
+  title: Bounded Variation Implies Bounded First Difference
+  statement_summary: "If |y_t-y_{t-1}|<=M, then |Δy_t|<=M."
+  assumptions:
+    - bounded variation per step
+  variables:
+    - "M: per-step variation bound"
+    - "y_t: signal trace"
+    - "Delta y_t: first difference"
+  expected_behavior:
+    - first differences respect bound
+  witness_cases:
+    - bounded-variation trace rows
+    - first-difference bound rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-19
+  component: add
+  ordinal: 19
+  title: Bounded First Difference Implies Bounded Second Difference
+  statement_summary: "If |Δy_t|<=M, then |Δ²y_t|<=2M."
+  assumptions:
+    - bounded first differences
+  variables:
+    - "M: first-difference bound"
+    - "Delta y_t: first difference"
+    - "Delta^2 y_t: second difference"
+  expected_behavior:
+    - second differences within 2M
+  witness_cases:
+    - bounded first-difference rows
+    - second-difference bound rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv
+- id: ADD-20
+  component: add
+  ordinal: 20
+  title: ADD Replayability
+  statement_summary: "Equal observed histories produce equal deterministic ADD decisions."
+  assumptions:
+    - deterministic detectors
+  variables:
+    - "y_{0:t}: observed history"
+    - "A: deterministic ADD decision"
+    - "replayed history: duplicate observation stream"
+  expected_behavior:
+    - replayed histories yield identical flags
+  witness_cases:
+    - first ADD evaluation rows
+    - replayed ADD evaluation rows
+  runner: runners::add
+  outputs:
+    - theorem_witness_csv

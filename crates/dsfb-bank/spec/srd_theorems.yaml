@@ -1,0 +1,380 @@
+- id: SRD-01
+  component: srd
+  ordinal: 1
+  title: Partition of State Space by Regimes
+  statement_summary: "The regime regions X_r = {x : Γ(x)=r} partition the state space."
+  assumptions:
+    - deterministic regime map Γ
+  variables:
+    - "Gamma: regime map"
+    - "X_r: regime region"
+    - "x: state"
+  expected_behavior:
+    - every state assigned exactly one label
+  witness_cases:
+    - fine-regime labeling rows
+    - indicator-sum rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-02
+  component: srd
+  ordinal: 2
+  title: Uniqueness of Regime Membership
+  statement_summary: "Every state belongs to exactly one regime."
+  assumptions:
+    - deterministic labeling
+  variables:
+    - "Gamma: regime map"
+    - "x: state"
+    - "r: regime label"
+  expected_behavior:
+    - no multi-regime assignments
+  witness_cases:
+    - one-label-per-state rows
+    - indicator-sum rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-03
+  component: srd
+  ordinal: 3
+  title: Transition Detection by Label Change
+  statement_summary: "A regime transition occurs exactly when consecutive regime labels differ."
+  assumptions:
+    - discrete-time trajectory
+  variables:
+    - "Gamma(x_t): regime label at time t"
+    - "transition_flag: regime-change indicator"
+    - "x_t: trajectory state"
+  expected_behavior:
+    - transition rows align with label changes
+  witness_cases:
+    - fine-regime trajectory rows
+    - transition-flag rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-04
+  component: srd
+  ordinal: 4
+  title: No Transition Under Constant Regime Label
+  statement_summary: "If Γ(x_t)=Γ(x_{t-1}), no transition occurs at time t."
+  assumptions:
+    - deterministic labels
+  variables:
+    - "Gamma(x_t): regime label"
+    - "transition_flag: transition indicator"
+    - "x_t: trajectory state"
+  expected_behavior:
+    - constant-label pairs marked non-transition
+  witness_cases:
+    - constant-regime trajectory rows
+    - no-transition rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-05
+  component: srd
+  ordinal: 5
+  title: Transition Count Bound on Finite Trajectories
+  statement_summary: "A trajectory segment of length N+1 has at most N transitions."
+  assumptions:
+    - finite discrete trajectory
+  variables:
+    - "x_0,...,x_N: finite trajectory"
+    - "transition_count: number of regime changes"
+    - "N: number of adjacent pairs"
+  expected_behavior:
+    - counted transitions <= number of adjacent pairs
+  witness_cases:
+    - finite trajectory rows
+    - transition-count summary rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-06
+  component: srd
+  ordinal: 6
+  title: Pigeonhole Recurrence of Regimes
+  statement_summary: "If a trajectory is longer than the number of regime labels, at least one label repeats."
+  assumptions:
+    - finite regime set
+  variables:
+    - "R: finite regime set"
+    - "Gamma(x_t): regime sequence"
+    - "trajectory length: number of samples"
+  expected_behavior:
+    - long trajectories show repeated labels
+  witness_cases:
+    - periodic regime-sequence rows
+    - repeated-label witness rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-07
+  component: srd
+  ordinal: 7
+  title: Existence of a Constant-Regime Subsegment
+  statement_summary: "If a finite trajectory has fewer than N transitions over N+1 points, at least one adjacent pair shares the same regime."
+  assumptions:
+    - finite trajectory
+  variables:
+    - "x_0,...,x_N: finite trajectory"
+    - "transition_count: regime changes"
+    - "Gamma(x_t): regime labels"
+  expected_behavior:
+    - identify constant-regime adjacent pair
+  witness_cases:
+    - block-constant regime rows
+    - adjacent non-transition rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-08
+  component: srd
+  ordinal: 8
+  title: Indicator Characterization of Regime Membership
+  statement_summary: "x in X_r iff indicator 1_r(x)=1."
+  assumptions:
+    - regime indicator functions defined
+  variables:
+    - "1_r: regime indicator"
+    - "X_r: regime region"
+    - "x: state"
+  expected_behavior:
+    - indicator table matches labels
+  witness_cases:
+    - indicator rows
+    - fine-regime membership rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-09
+  component: srd
+  ordinal: 9
+  title: Indicator Sum Identity
+  statement_summary: "For every state, the sum of regime indicators equals 1."
+  assumptions:
+    - deterministic unique labeling
+  variables:
+    - "1_r: regime indicators"
+    - "x: state"
+    - "sum_r 1_r(x): indicator sum"
+  expected_behavior:
+    - row-wise indicator sums equal 1
+  witness_cases:
+    - indicator-sum rows
+    - regime assignment rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-10
+  component: srd
+  ordinal: 10
+  title: Transition Detection by Indicator Difference
+  statement_summary: "A transition occurs iff some regime indicator changes value between consecutive states."
+  assumptions:
+    - indicator functions defined
+  variables:
+    - "1_r(x_t): regime indicators over time"
+    - "transition_flag: transition indicator"
+    - "x_t: trajectory state"
+  expected_behavior:
+    - indicator changes coincide with label transitions
+  witness_cases:
+    - indicator-change rows
+    - transition-flag rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-11
+  component: srd
+  ordinal: 11
+  title: Deterministic Replayability of SRD
+  statement_summary: "Identical state trajectories yield identical regime sequences."
+  assumptions:
+    - deterministic Γ
+  variables:
+    - "Gamma: deterministic regime map"
+    - "x_t: state trajectory"
+    - "Gamma(x_t): regime sequence"
+  expected_behavior:
+    - duplicate trajectories produce identical labels
+  witness_cases:
+    - original trajectory rows
+    - replayed trajectory rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-12
+  component: srd
+  ordinal: 12
+  title: Deterministic Replayability of Transition Decisions
+  statement_summary: "Identical trajectories yield identical transition decisions."
+  assumptions:
+    - deterministic Γ
+  variables:
+    - "x_t: state trajectory"
+    - "transition_flag: deterministic decision"
+    - "Gamma: regime map"
+  expected_behavior:
+    - duplicate trajectories produce identical transition flags
+  witness_cases:
+    - original transition-decision rows
+    - replayed transition-decision rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-13
+  component: srd
+  ordinal: 13
+  title: Eventually Constant State Implies Eventually Constant Regime
+  statement_summary: "If the state trajectory becomes constant, the regime sequence becomes constant."
+  assumptions:
+    - eventual constant state suffix
+  variables:
+    - "x_t: state trajectory"
+    - "Gamma(x_t): regime sequence"
+    - "eventual suffix: stabilized segment"
+  expected_behavior:
+    - regime suffix constant as well
+  witness_cases:
+    - stabilizing state rows
+    - constant-regime suffix rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-14
+  component: srd
+  ordinal: 14
+  title: Eventually Constant Regime Implies Finitely Many Transitions
+  statement_summary: "If regime labels eventually stabilize, only finitely many transitions occur."
+  assumptions:
+    - eventual constant regime
+  variables:
+    - "Gamma(x_t): regime sequence"
+    - "transition_count: number of regime changes"
+    - "stabilized suffix: eventual constant segment"
+  expected_behavior:
+    - no transitions beyond stabilization point
+  witness_cases:
+    - stabilizing regime rows
+    - finite-transition summary rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-15
+  component: srd
+  ordinal: 15
+  title: Two-Regime Alternation Produces a Transition at Every Step
+  statement_summary: "If labels alternate r,s,r,s,... then every adjacent pair is a transition."
+  assumptions:
+    - two distinct regimes alternating
+  variables:
+    - "r,s: distinct regimes"
+    - "Gamma(x_t): alternating regime sequence"
+    - "transition_flag: transition indicator"
+  expected_behavior:
+    - transition count maximal
+  witness_cases:
+    - alternating regime rows
+    - all-step transition rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-16
+  component: srd
+  ordinal: 16
+  title: Block-Constant Regime Sequences Have Boundary-Localized Transitions
+  statement_summary: "If the regime sequence is constant on blocks, transitions occur only at block boundaries."
+  assumptions:
+    - piecewise-constant labels
+  variables:
+    - "Gamma(x_t): block-constant regime sequence"
+    - "block boundaries: regime-change indices"
+    - "transition_flag: transition indicator"
+  expected_behavior:
+    - transitions only at boundaries
+  witness_cases:
+    - block-constant regime rows
+    - boundary-localized transition rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-17
+  component: srd
+  ordinal: 17
+  title: Merged-Regime Coarsening Preserves Determinism
+  statement_summary: "If π : R -> Q is a coarsening map, then Γ' = π∘Γ is deterministic."
+  assumptions:
+    - deterministic Γ and π
+  variables:
+    - "Gamma: fine regime map"
+    - "pi: coarsening map"
+    - "Gamma': coarsened regime map"
+  expected_behavior:
+    - coarsened labels uniquely defined
+  witness_cases:
+    - fine-to-coarse labeling rows
+    - deterministic coarse-label rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-18
+  component: srd
+  ordinal: 18
+  title: Coarsening Cannot Create New Fine-Scale Transitions
+  statement_summary: "If Γ'(x_t) != Γ'(x_{t-1}), then Γ(x_t) != Γ(x_{t-1})."
+  assumptions:
+    - Γ' = π∘Γ
+  variables:
+    - "Gamma: fine regime map"
+    - "Gamma': coarsened regime map"
+    - "transition_flag: fine/coarse transition indicators"
+  expected_behavior:
+    - every coarse transition corresponds to a fine transition
+  witness_cases:
+    - fine/coarse transition rows
+    - coarsening implication rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-19
+  component: srd
+  ordinal: 19
+  title: Regime Transition Count Under Coarsening
+  statement_summary: "The number of transitions under coarsened labels is <= the number under fine labels."
+  assumptions:
+    - coarsening map π
+  variables:
+    - "Gamma: fine regime map"
+    - "Gamma': coarsened regime map"
+    - "transition_count: fine vs coarse"
+  expected_behavior:
+    - coarse transition count bounded by fine count
+  witness_cases:
+    - fine/coarse count rows
+    - coarsened transition summary rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv
+- id: SRD-20
+  component: srd
+  ordinal: 20
+  title: Finite Regime Sequence Eventual Periodicity Under Periodic States
+  statement_summary: "If the state trajectory is periodic with period p, the induced regime sequence is periodic with period dividing p."
+  assumptions:
+    - periodic state trajectory
+  variables:
+    - "x_t: periodic state trajectory"
+    - "Gamma(x_t): regime sequence"
+    - "p: state period"
+  expected_behavior:
+    - periodic label sequence
+  witness_cases:
+    - periodic state rows
+    - periodic regime rows
+  runner: runners::srd
+  outputs:
+    - theorem_witness_csv

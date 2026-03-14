@@ -1,0 +1,381 @@
+- id: HRET-01
+  component: hret
+  ordinal: 1
+  title: Associativity of Trace Concatenation
+  statement_summary: "For traces τ,σ,ρ, one has (τ·σ)·ρ = τ·(σ·ρ)."
+  assumptions:
+    - finite traces over event alphabet
+  variables:
+    - "tau,sigma,rho: finite traces"
+    - "·: trace concatenation"
+    - "|tau|: trace length"
+  expected_behavior:
+    - concatenation outputs identical both ways
+  witness_cases:
+    - left-associated concatenation rows
+    - right-associated concatenation rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-02
+  component: hret
+  ordinal: 2
+  title: Length Additivity
+  statement_summary: "|τ·σ| = |τ| + |σ|."
+  assumptions:
+    - finite traces
+  variables:
+    - "tau,sigma: finite traces"
+    - "|tau|,|sigma|: trace lengths"
+    - "tau·sigma: concatenated trace"
+  expected_behavior:
+    - concatenated lengths add correctly
+  witness_cases:
+    - concatenated trace rows
+    - length comparison rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-03
+  component: hret
+  ordinal: 3
+  title: Prefix Length Bound
+  statement_summary: "Every prefix π of τ satisfies |π| <= |τ|."
+  assumptions:
+    - prefix relation defined
+  variables:
+    - "tau: finite trace"
+    - "pi: prefix of tau"
+    - "|pi|,|tau|: lengths"
+  expected_behavior:
+    - prefix lengths bounded by trace length
+  witness_cases:
+    - prefix rows for multiple lengths
+    - prefix-length comparison rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-04
+  component: hret
+  ordinal: 4
+  title: Suffix Length Bound
+  statement_summary: "Every suffix σ of τ satisfies |σ| <= |τ|."
+  assumptions:
+    - suffix relation defined
+  variables:
+    - "tau: finite trace"
+    - "sigma: suffix of tau"
+    - "|sigma|,|tau|: lengths"
+  expected_behavior:
+    - suffix lengths bounded
+  witness_cases:
+    - suffix rows for multiple lengths
+    - suffix-length comparison rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-05
+  component: hret
+  ordinal: 5
+  title: Unique Prefix of a Given Length
+  statement_summary: "For each k with 0<=k<=|τ|, there exists exactly one prefix of τ of length k."
+  assumptions:
+    - finite trace
+  variables:
+    - "tau: finite trace"
+    - "k: prefix length"
+    - "pi_k: unique prefix of length k"
+  expected_behavior:
+    - exactly one prefix per valid length
+  witness_cases:
+    - prefix catalog rows
+    - one-prefix-per-length rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-06
+  component: hret
+  ordinal: 6
+  title: Unique Suffix of a Given Length
+  statement_summary: "For each k with 0<=k<=|τ|, there exists exactly one suffix of τ of length k."
+  assumptions:
+    - finite trace
+  variables:
+    - "tau: finite trace"
+    - "k: suffix length"
+    - "sigma_k: unique suffix of length k"
+  expected_behavior:
+    - exactly one suffix per valid length
+  witness_cases:
+    - suffix catalog rows
+    - one-suffix-per-length rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-07
+  component: hret
+  ordinal: 7
+  title: Prefix Decomposition
+  statement_summary: "Every trace τ decomposes uniquely as τ = π·σ for a chosen prefix π and complementary suffix σ."
+  assumptions:
+    - finite trace
+  variables:
+    - "tau: finite trace"
+    - "pi: chosen prefix"
+    - "sigma: complementary suffix"
+  expected_behavior:
+    - decomposition rows reconstruct original trace
+  witness_cases:
+    - prefix/suffix decomposition rows
+    - reconstructed-whole-trace rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-08
+  component: hret
+  ordinal: 8
+  title: Observation Equality Under Determinism
+  statement_summary: "If τ=σ, then O(τ)=O(σ) for deterministic observation map O."
+  assumptions:
+    - deterministic observation map
+  variables:
+    - "tau,sigma: traces"
+    - "O: deterministic observation map"
+    - "O(tau): observation code"
+  expected_behavior:
+    - equal traces give equal observations
+  witness_cases:
+    - duplicate trace rows
+    - equal observation-code rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-09
+  component: hret
+  ordinal: 9
+  title: Injective Observation Implies Unique Historical Reconstruction
+  statement_summary: "If O is injective on T0, each observation in O(T0) corresponds to at most one trace in T0."
+  assumptions:
+    - injective O on admissible trace class
+  variables:
+    - "O: injective observation map"
+    - "T0: admissible trace class"
+    - "observation in O(T0): coded trace"
+  expected_behavior:
+    - unique inverse-image traces
+  witness_cases:
+    - finite injective codebook rows
+    - unique reconstruction rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-10
+  component: hret
+  ordinal: 10
+  title: Existence of Reconstruction on the Image
+  statement_summary: "If O is injective on T0, there exists unique R : O(T0)->T0 with R(O(τ))=τ."
+  assumptions:
+    - injective O
+  variables:
+    - "O: injective observation map"
+    - "R: reconstruction map"
+    - "T0: admissible trace class"
+  expected_behavior:
+    - exact trace reconstruction on image
+  witness_cases:
+    - code/decode rows on the admissible image
+    - exact reconstruction rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-11
+  component: hret
+  ordinal: 11
+  title: Left-Inverse Correctness Implies Replayability
+  statement_summary: "If R(O(τ))=τ on T0, reconstructed history equals original history for every admissible trace."
+  assumptions:
+    - correct left inverse
+  variables:
+    - "R: left inverse"
+    - "O: observation map"
+    - "tau: admissible trace"
+  expected_behavior:
+    - replay rows equal original traces
+  witness_cases:
+    - exact replay rows
+    - original-vs-reconstructed trace rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-12
+  component: hret
+  ordinal: 12
+  title: Reconstruction Uniqueness from a Left Inverse
+  statement_summary: "If O(τ)=O(σ) on T0 and R is correct, then τ=σ."
+  assumptions:
+    - correct left inverse on T0
+  variables:
+    - "tau,sigma: admissible traces"
+    - "O: observation map"
+    - "R: correct left inverse"
+  expected_behavior:
+    - equal observations imply equal traces
+  witness_cases:
+    - equal-code reconstruction rows
+    - trace-equality rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-13
+  component: hret
+  ordinal: 13
+  title: Prefix Consistency of Deterministic Reconstruction
+  statement_summary: "Reconstruction from prefix-restricted observations recovers the corresponding trace prefix exactly."
+  assumptions:
+    - correct per-prefix reconstruction
+  variables:
+    - "tau[:k]: trace prefix"
+    - "O_k: prefix-restricted observation map"
+    - "R_k: prefix reconstruction map"
+  expected_behavior:
+    - kth reconstruction equals kth prefix
+  witness_cases:
+    - prefix observation-code rows
+    - exact prefix reconstruction rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-14
+  component: hret
+  ordinal: 14
+  title: Historical Extension Preserves Earlier Prefixes
+  statement_summary: "If σ = τ·ρ, then the prefix of σ of length |τ| is exactly τ."
+  assumptions:
+    - trace extension
+  variables:
+    - "tau,rho: traces"
+    - "sigma = tau·rho: extended trace"
+    - "prefix_|tau|(sigma): preserved prefix"
+  expected_behavior:
+    - extended traces preserve original prefix
+  witness_cases:
+    - trace-extension rows
+    - preserved-prefix rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-15
+  component: hret
+  ordinal: 15
+  title: Finite Trace Class Implies Existence of a Collision-Free Code
+  statement_summary: "Any finite admissible trace set admits an injective code-like observation map into N."
+  assumptions:
+    - finite trace class
+  variables:
+    - "T0: finite admissible trace class"
+    - "O: injective code-like observation map"
+    - "N: code space"
+  expected_behavior:
+    - assign unique codes to traces
+  witness_cases:
+    - finite trace-code assignment rows
+    - collision-free code rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-16
+  component: hret
+  ordinal: 16
+  title: Finite Trace Class Admits Exact HRET Reconstruction
+  statement_summary: "Any finite trace class admits deterministic observation and reconstruction maps with exact inversion on the image."
+  assumptions:
+    - finite trace class
+  variables:
+    - "T0: finite trace class"
+    - "O: deterministic observation map"
+    - "R: exact reconstruction map"
+  expected_behavior:
+    - exact code/decode examples
+  witness_cases:
+    - finite codebook rows
+    - exact reconstruction rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-17
+  component: hret
+  ordinal: 17
+  title: Observation Equality Defines an Equivalence Relation
+  statement_summary: "Define τ~σ iff O(τ)=O(σ). Then ~ is an equivalence relation on traces."
+  assumptions:
+    - deterministic observation map
+  variables:
+    - "tau,sigma: traces"
+    - "O: observation map"
+    - "~: observational equivalence relation"
+  expected_behavior:
+    - reflexive, symmetric, transitive witness rows
+  witness_cases:
+    - reflexive duplicate-trace rows
+    - symmetry/transitivity observation-equality rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-18
+  component: hret
+  ordinal: 18
+  title: Perfect Reconstruction Forces Singleton Observation Classes
+  statement_summary: "If R is correct on T0, each observational equivalence class restricted to T0 is a singleton."
+  assumptions:
+    - exact reconstruction
+  variables:
+    - "R: correct reconstruction map"
+    - "T0: admissible trace class"
+    - "observational equivalence classes: classes induced by O"
+  expected_behavior:
+    - class sizes equal one on admissible set
+  witness_cases:
+    - singleton code-class rows
+    - exact reconstruction rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-19
+  component: hret
+  ordinal: 19
+  title: Periodic Observation Under Periodic Traces
+  statement_summary: "For fixed-window deterministic observation maps, periodic event sequences induce periodic observation sequences with period dividing the trace period."
+  assumptions:
+    - periodic trace
+    - deterministic finite-window observation
+  variables:
+    - "tau_t: periodic event trace"
+    - "O_w: deterministic fixed-window observation map"
+    - "p: trace period"
+  expected_behavior:
+    - periodic trace and periodic observation rows
+  witness_cases:
+    - periodic event-trace rows
+    - periodic fixed-window observation rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv
+- id: HRET-20
+  component: hret
+  ordinal: 20
+  title: Deterministic Replayability of HRET
+  statement_summary: "Equal observations imply equal reconstructed historical traces when R is deterministic."
+  assumptions:
+    - deterministic reconstruction map
+  variables:
+    - "R: deterministic reconstruction map"
+    - "O(tau): observation code"
+    - "replayed traces: reconstructed histories"
+  expected_behavior:
+    - duplicate observations reconstruct identically
+  witness_cases:
+    - repeated observation-code rows
+    - replayed reconstruction rows
+  runner: runners::hret
+  outputs:
+    - theorem_witness_csv

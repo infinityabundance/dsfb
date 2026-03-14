@@ -1,0 +1,384 @@
+- id: DSCD-01
+  component: dscd
+  ordinal: 1
+  title: Existence of Topological Ordering
+  statement_summary: "Every finite admissible DSCD graph (DAG) admits at least one topological ordering."
+  assumptions:
+    - graph finite
+    - graph acyclic
+  variables:
+    - "G: admissible DSCD graph"
+    - "V: finite vertex set"
+    - "rho: topological ordering"
+  expected_behavior:
+    - generate DAGs and topological orders
+  witness_cases:
+    - finite chain and diamond DAGs
+    - deterministic topological-order witness rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-02
+  component: dscd
+  ordinal: 2
+  title: Causal Antisymmetry
+  statement_summary: "In an admissible DSCD graph, if u reaches v and u != v, then v cannot reach u."
+  assumptions:
+    - graph acyclic
+  variables:
+    - "u,v: vertices"
+    - "reachability: directed path relation"
+    - "G: admissible DSCD graph"
+  expected_behavior:
+    - reachability matrix has no mutual reachability for distinct nodes
+  witness_cases:
+    - DAG reachability witness rows
+    - antisymmetry verification rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-03
+  component: dscd
+  ordinal: 3
+  title: Irreflexive Reachability
+  statement_summary: "No vertex can strictly reach itself through a nontrivial directed path in an admissible DSCD graph."
+  assumptions:
+    - graph acyclic
+  variables:
+    - "u: vertex"
+    - "G: admissible DSCD graph"
+    - "reachability: directed path relation"
+  expected_behavior:
+    - no positive-length self-reachability
+  witness_cases:
+    - DAG self-reachability checks
+    - path-matrix witness rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-04
+  component: dscd
+  ordinal: 4
+  title: Edge Addition Criterion for Acyclicity
+  statement_summary: "Adding edge (u,v) to an admissible DSCD graph preserves acyclicity iff v does not already reach u."
+  assumptions:
+    - initial graph acyclic
+  variables:
+    - "G: initial admissible graph"
+    - "(u,v): candidate added edge"
+    - "reachability: directed path relation"
+  expected_behavior:
+    - test safe vs unsafe edge additions
+  witness_cases:
+    - safe shortcut edge addition
+    - unsafe back-edge addition
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-05
+  component: dscd
+  ordinal: 5
+  title: Edge Removal Preserves Admissibility
+  statement_summary: "Removing edges from an admissible DSCD graph cannot create a cycle."
+  assumptions:
+    - initial graph acyclic
+  variables:
+    - "G: admissible graph"
+    - "E': removed edge subset"
+    - "G-E': pruned graph"
+  expected_behavior:
+    - all edge-pruned subgraphs remain DAGs
+  witness_cases:
+    - single-edge pruning rows
+    - multi-edge pruning rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-06
+  component: dscd
+  ordinal: 6
+  title: Monotone Reachability Under Admissible Edge Addition
+  statement_summary: "Adding an admissible edge cannot destroy existing reachability relations."
+  assumptions:
+    - edge addition preserves acyclicity
+  variables:
+    - "G: initial DAG"
+    - "G': admissibly augmented DAG"
+    - "reachability: directed path relation"
+  expected_behavior:
+    - old reachability subset of new reachability
+  witness_cases:
+    - safe edge augmentation rows
+    - reachability containment comparison rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-07
+  component: dscd
+  ordinal: 7
+  title: Reachability Reduction Under Edge Removal
+  statement_summary: "If reachability holds in a pruned graph, it held in the original graph."
+  assumptions:
+    - edge set reduced
+  variables:
+    - "G: original graph"
+    - "G': pruned graph"
+    - "reachability: directed path relation"
+  expected_behavior:
+    - reduced reachability contained in original reachability
+  witness_cases:
+    - pruned DAG rows
+    - reachability containment rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-08
+  component: dscd
+  ordinal: 8
+  title: Bound on Directed Path Length
+  statement_summary: "In a finite admissible DSCD graph with |V| nodes, every directed path has length at most |V|-1."
+  assumptions:
+    - graph finite, acyclic
+  variables:
+    - "G: finite DAG"
+    - "|V|: node count"
+    - "ell: directed path length"
+  expected_behavior:
+    - longest path computation respects bound
+  witness_cases:
+    - small DAG longest-path rows
+    - path-length-vs-node-count comparison rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-09
+  component: dscd
+  ordinal: 9
+  title: Termination of Causal Propagation
+  statement_summary: "Any deterministic propagation process that traverses edges without revisiting vertices terminates finitely on an admissible DSCD graph."
+  assumptions:
+    - graph finite, acyclic
+  variables:
+    - "G: admissible DAG"
+    - "P: deterministic propagation process"
+    - "V: finite vertex set"
+  expected_behavior:
+    - propagation logs terminate
+  witness_cases:
+    - finite DAG propagation traces
+    - termination witness rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-10
+  component: dscd
+  ordinal: 10
+  title: Existence of Source and Sink Vertices
+  statement_summary: "Every finite DAG contains at least one source and at least one sink."
+  assumptions:
+    - graph finite, acyclic
+  variables:
+    - "G: finite DAG"
+    - "source: indegree-zero vertex"
+    - "sink: outdegree-zero vertex"
+  expected_behavior:
+    - identify source/sink in each generated DAG
+  witness_cases:
+    - source and sink count rows
+    - per-graph admissibility rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-11
+  component: dscd
+  ordinal: 11
+  title: Partial Order Induced by Reachability
+  statement_summary: "Define u <= v iff u=v or u reaches v. Then this relation is a partial order on vertices."
+  assumptions:
+    - graph acyclic
+  variables:
+    - "u,v: vertices"
+    - "<=: reachability-induced relation"
+    - "G: admissible DAG"
+  expected_behavior:
+    - verify reflexivity, antisymmetry, transitivity
+  witness_cases:
+    - reachability partial-order rows
+    - per-graph relation summary rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-12
+  component: dscd
+  ordinal: 12
+  title: Uniqueness of Transitive Reduction for Finite DAGs
+  statement_summary: "Every finite DAG has a unique transitive reduction preserving reachability."
+  assumptions:
+    - graph finite, acyclic
+  variables:
+    - "G: finite DAG"
+    - "TR(G): transitive reduction"
+    - "reachability: preserved path relation"
+  expected_behavior:
+    - compute and compare reductions
+  witness_cases:
+    - repeated transitive-reduction rows
+    - reduced-edge-count comparison rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-13
+  component: dscd
+  ordinal: 13
+  title: Reachability Preservation Under Transitive Reduction
+  statement_summary: "The transitive reduction has exactly the same reachability relation as the original DAG."
+  assumptions:
+    - transitive reduction exists
+  variables:
+    - "G: original DAG"
+    - "TR(G): transitive reduction"
+    - "reachability: directed path relation"
+  expected_behavior:
+    - reachability matrices match
+  witness_cases:
+    - original-vs-reduced reachability rows
+    - reduced-edge-count rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-14
+  component: dscd
+  ordinal: 14
+  title: Determinism of Graph Update
+  statement_summary: "A deterministic DSCD graph update operator maps equal input graphs to equal output graphs."
+  assumptions:
+    - update operator deterministic
+  variables:
+    - "U: deterministic graph update operator"
+    - "G: input graph"
+    - "U(G): updated graph"
+  expected_behavior:
+    - duplicate inputs produce duplicate outputs
+  witness_cases:
+    - repeated update rows on identical input graphs
+    - equal-output comparison rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-15
+  component: dscd
+  ordinal: 15
+  title: Replayability of DSCD Evolution
+  statement_summary: "A deterministic admissibility-preserving graph update operator uniquely determines the graph evolution from the initial graph."
+  assumptions:
+    - deterministic update
+    - admissibility preserved
+  variables:
+    - "U: deterministic admissibility-preserving update"
+    - "G0: initial graph"
+    - "G_n: replayed evolution sequence"
+  expected_behavior:
+    - repeated replay gives identical sequence
+  witness_cases:
+    - deterministic evolution trace rows
+    - replayed-sequence comparison rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-16
+  component: dscd
+  ordinal: 16
+  title: Finite-State Eventual Periodicity
+  statement_summary: "For fixed finite vertex set and deterministic admissibility-preserving graph update, the graph evolution is eventually periodic."
+  assumptions:
+    - finite admissible state space
+    - deterministic update
+  variables:
+    - "U: deterministic graph update operator"
+    - "G_n: graph evolution"
+    - "p: eventual period"
+  expected_behavior:
+    - repeated graph sequence eventually repeats
+  witness_cases:
+    - finite-state graph evolution rows
+    - repeated-state periodicity rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-17
+  component: dscd
+  ordinal: 17
+  title: Locality of Descendant Effect
+  statement_summary: "If only outgoing edges of u are modified, new reachability must pass through u."
+  assumptions:
+    - localized edge update
+  variables:
+    - "u: updated vertex"
+    - "G,G': pre/post localized update graphs"
+    - "new reachability: paths created by the update"
+  expected_behavior:
+    - detect new paths and verify u lies on them
+  witness_cases:
+    - localized outgoing-edge update rows
+    - new reachability comparison rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-18
+  component: dscd
+  ordinal: 18
+  title: Closure of Admissible Composition Under Common Order
+  statement_summary: "If two admissible DSCD graphs share a common topological order, their union is admissible."
+  assumptions:
+    - common topological ordering
+  variables:
+    - "G1,G2: admissible DAGs"
+    - "rho: common topological order"
+    - "G1 union G2: graph union"
+  expected_behavior:
+    - union graph remains acyclic
+  witness_cases:
+    - common-order DAG union rows
+    - union-acyclicity verification rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-19
+  component: dscd
+  ordinal: 19
+  title: Consistency of Topological Rank
+  statement_summary: "If rho is a topological rank and u reaches v, then rho(u) < rho(v)."
+  assumptions:
+    - valid topological rank
+  variables:
+    - "rho: topological rank"
+    - "u,v: vertices"
+    - "reachability: directed path relation"
+  expected_behavior:
+    - all reachability pairs respect rank order
+  witness_cases:
+    - topological-rank witness rows
+    - reachability-rank comparison rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
+- id: DSCD-20
+  component: dscd
+  ordinal: 20
+  title: Acyclic Repair by Back-Edge Removal
+  statement_summary: "Removing all edges that violate a chosen linear order yields an admissible graph."
+  assumptions:
+    - finite directed graph
+    - chosen linear order
+  variables:
+    - "G: finite directed graph"
+    - "rho: chosen linear order"
+    - "G_rho: repaired graph"
+  expected_behavior:
+    - repaired graph is acyclic
+  witness_cases:
+    - cyclic candidate graph rows
+    - repaired-graph acyclicity rows
+  runner: runners::dscd
+  outputs:
+    - theorem_witness_csv
