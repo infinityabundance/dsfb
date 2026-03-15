@@ -1,14 +1,17 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result};
+use csv::StringRecord;
 use serde::Serialize;
 
 use crate::cli::{Cli, RunSelection};
+use crate::csv_writer::write_csv_rows;
 use crate::registry::{workspace_root, Component, TheoremRegistry};
+use crate::runners::common::CaseClass;
 use crate::runners::RunExecution;
 use crate::timestamp::RunDirectory;
 
@@ -35,6 +38,56 @@ struct ManifestComponentCounts {
     csv_count: usize,
 }
 
+#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+pub struct CaseClassCounts {
+    passing: usize,
+    boundary: usize,
+    violating: usize,
+}
+
+impl CaseClassCounts {
+    fn record(&mut self, case_class: CaseClass) {
+        match case_class {
+            CaseClass::Passing => self.passing += 1,
+            CaseClass::Boundary => self.boundary += 1,
+            CaseClass::Violating => self.violating += 1,
+        }
+    }
+
+    fn extend(&mut self, other: &Self) {
+        self.passing += other.passing;
+        self.boundary += other.boundary;
+        self.violating += other.violating;
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ComponentSummaryRow {
+    component: String,
+    theorem_count: usize,
+    cases: usize,
+    pass: usize,
+    fail: usize,
+    boundary: usize,
+    violating: usize,
+    passing: usize,
+    assumption_satisfied_count: usize,
+    assumption_violated_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ManifestCaseClassCounts {
+    global: CaseClassCounts,
+    by_component: BTreeMap<String, CaseClassCounts>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TheoremCsvSummary {
+    component_rows: Vec<ComponentSummaryRow>,
+    case_class_counts_global: CaseClassCounts,
+    case_class_counts_by_component: BTreeMap<String, CaseClassCounts>,
+}
+
 #[derive(Debug, Serialize)]
 struct Manifest {
     timestamp: String,
@@ -45,6 +98,7 @@ struct Manifest {
     theorem_demos_run: Vec<String>,
     output_file_inventory: Vec<String>,
     counts_by_component: BTreeMap<String, ManifestComponentCounts>,
+    case_class_counts: ManifestCaseClassCounts,
     selection: String,
 }
 
@@ -83,6 +137,125 @@ pub fn write_logs(path: &Path, lines: &[String]) -> Result<()> {
     Ok(())
 }
 
+pub fn summarize_theorem_csv_outputs(layout: &OutputLayout) -> Result<TheoremCsvSummary> {
+    let mut component_rows = Vec::new();
+    let mut case_class_counts_global = CaseClassCounts::default();
+    let mut case_class_counts_by_component = BTreeMap::new();
+
+    for component in Component::ALL {
+        let mut theorem_ids = BTreeSet::new();
+        let mut cases = 0usize;
+        let mut pass = 0usize;
+        let mut fail = 0usize;
+        let mut boundary = 0usize;
+        let mut violating = 0usize;
+        let mut passing = 0usize;
+        let mut assumption_satisfied_count = 0usize;
+        let mut assumption_violated_count = 0usize;
+        let mut component_case_counts = CaseClassCounts::default();
+
+        let mut csv_paths = fs::read_dir(layout.component_dir(component))
+            .with_context(|| {
+                format!(
+                    "failed to read theorem output directory {}",
+                    layout.component_dir(component).display()
+                )
+            })?
+            .map(|entry| entry.map(|item| item.path()))
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .with_context(|| {
+                format!(
+                    "failed to enumerate theorem output directory {}",
+                    layout.component_dir(component).display()
+                )
+            })?;
+        csv_paths.retain(|path| path.extension().and_then(|value| value.to_str()) == Some("csv"));
+        csv_paths.sort();
+
+        for csv_path in csv_paths {
+            let mut reader = csv::Reader::from_path(&csv_path)
+                .with_context(|| format!("failed to open {}", csv_path.display()))?;
+            let headers = reader
+                .headers()
+                .with_context(|| format!("failed to read headers from {}", csv_path.display()))?
+                .clone();
+            let theorem_id_index = header_index(&headers, "theorem_id", &csv_path)?;
+            let pass_index = header_index(&headers, "pass", &csv_path)?;
+            let case_class_index = header_index(&headers, "case_class", &csv_path)?;
+            let assumption_index = header_index(&headers, "assumption_satisfied", &csv_path)?;
+
+            for record in reader.records() {
+                let record = record
+                    .with_context(|| format!("failed to read row from {}", csv_path.display()))?;
+                theorem_ids
+                    .insert(cell(&record, theorem_id_index, &csv_path, "theorem_id")?.to_string());
+                cases += 1;
+
+                if parse_bool(
+                    cell(&record, pass_index, &csv_path, "pass")?,
+                    &csv_path,
+                    "pass",
+                )? {
+                    pass += 1;
+                } else {
+                    fail += 1;
+                }
+
+                match parse_case_class(
+                    cell(&record, case_class_index, &csv_path, "case_class")?,
+                    &csv_path,
+                )? {
+                    CaseClass::Passing => passing += 1,
+                    CaseClass::Boundary => boundary += 1,
+                    CaseClass::Violating => violating += 1,
+                }
+                component_case_counts.record(parse_case_class(
+                    cell(&record, case_class_index, &csv_path, "case_class")?,
+                    &csv_path,
+                )?);
+
+                if parse_bool(
+                    cell(&record, assumption_index, &csv_path, "assumption_satisfied")?,
+                    &csv_path,
+                    "assumption_satisfied",
+                )? {
+                    assumption_satisfied_count += 1;
+                } else {
+                    assumption_violated_count += 1;
+                }
+            }
+        }
+
+        case_class_counts_global.extend(&component_case_counts);
+        case_class_counts_by_component.insert(
+            component.as_str().to_string(),
+            component_case_counts.clone(),
+        );
+        component_rows.push(ComponentSummaryRow {
+            component: component.as_str().to_string(),
+            theorem_count: theorem_ids.len(),
+            cases,
+            pass,
+            fail,
+            boundary,
+            violating,
+            passing,
+            assumption_satisfied_count,
+            assumption_violated_count,
+        });
+    }
+
+    Ok(TheoremCsvSummary {
+        component_rows,
+        case_class_counts_global,
+        case_class_counts_by_component,
+    })
+}
+
+pub fn write_component_summary(path: &Path, summary: &TheoremCsvSummary) -> Result<()> {
+    write_csv_rows(path, &summary.component_rows)
+}
+
 pub fn write_manifest(
     path: &Path,
     run_dir: &RunDirectory,
@@ -90,6 +263,7 @@ pub fn write_manifest(
     selection: &RunSelection,
     registry: &TheoremRegistry,
     execution: &RunExecution,
+    theorem_csv_summary: &TheoremCsvSummary,
     output_file_inventory: Vec<String>,
 ) -> Result<()> {
     let mut counts_by_component = BTreeMap::new();
@@ -143,6 +317,10 @@ pub fn write_manifest(
             .collect(),
         output_file_inventory,
         counts_by_component,
+        case_class_counts: ManifestCaseClassCounts {
+            global: theorem_csv_summary.case_class_counts_global.clone(),
+            by_component: theorem_csv_summary.case_class_counts_by_component.clone(),
+        },
         selection: format!("{selection:?}"),
     };
 
@@ -197,4 +375,48 @@ fn git_commit_hash() -> Option<String> {
         .and_then(|output| String::from_utf8(output.stdout).ok())
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
+}
+
+fn header_index(headers: &StringRecord, name: &str, path: &Path) -> Result<usize> {
+    headers
+        .iter()
+        .position(|header| header == name)
+        .with_context(|| format!("{} is missing required column {}", path.display(), name))
+}
+
+fn cell<'a>(
+    record: &'a StringRecord,
+    index: usize,
+    path: &Path,
+    column_name: &str,
+) -> Result<&'a str> {
+    record.get(index).with_context(|| {
+        format!(
+            "{} row is missing value for column {}",
+            path.display(),
+            column_name
+        )
+    })
+}
+
+fn parse_bool(value: &str, path: &Path, column_name: &str) -> Result<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => anyhow::bail!(
+            "{} has invalid boolean {}={} ",
+            path.display(),
+            column_name,
+            value
+        ),
+    }
+}
+
+fn parse_case_class(value: &str, path: &Path) -> Result<CaseClass> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "passing" => Ok(CaseClass::Passing),
+        "boundary" => Ok(CaseClass::Boundary),
+        "violating" => Ok(CaseClass::Violating),
+        _ => anyhow::bail!("{} has invalid case_class={}", path.display(), value),
+    }
 }

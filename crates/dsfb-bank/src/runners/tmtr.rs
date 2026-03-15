@@ -21,6 +21,7 @@ struct TmtrRow {
     orbit_id: String,
     iteration: usize,
     trust_value: f64,
+    residual_value: f64,
     fixed_point_flag: bool,
     stabilization_iteration: usize,
     trust_gap: f64,
@@ -29,6 +30,8 @@ struct TmtrRow {
     next_trust_value: f64,
     trust_neutral_flag: bool,
     trust_increase_attempt_flag: bool,
+    trust_gap_satisfied_flag: bool,
+    monotonicity_satisfied_flag: bool,
 }
 
 pub fn run(
@@ -47,6 +50,9 @@ fn build_rows(spec: &TheoremSpec) -> Vec<TmtrRow> {
     let identity = custom_orbit("identity", &[2, 2, 2, 2]);
     let neutral = neutral_cycle_orbit("neutral_cycle", 5);
     let increase_attempt = custom_orbit("increase_attempt", &[1, 3]);
+    let accelerating_increase = custom_orbit("accelerating_increase", &[0, 2, 4]);
+    let bounce_up = custom_orbit("bounce_up", &[1, 2, 1]);
+    let gap_failure = custom_orbit("gap_failure", &[3, 3, 2, 1]);
 
     match spec.ordinal {
         1 | 2 | 3 | 4 | 6 | 10 | 11 | 12 | 17 | 18 | 20 => orbit_rows(
@@ -83,7 +89,16 @@ fn build_rows(spec: &TheoremSpec) -> Vec<TmtrRow> {
             CaseClass::Passing,
             true,
             "Positive trust gap forces periodic behavior to collapse to fixed points.",
-        ),
+        )
+        .into_iter()
+        .chain(orbit_rows(
+            spec,
+            &gap_failure,
+            CaseClass::Violating,
+            false,
+            "Intentional violating witness: the orbit contains a trust-neutral step, so the theorem's strictly positive trust-gap premise does not hold.",
+        ))
+        .collect(),
         13 => orbit_rows(
             spec,
             &fixed,
@@ -119,6 +134,20 @@ fn build_rows(spec: &TheoremSpec) -> Vec<TmtrRow> {
                 CaseClass::Violating,
                 false,
                 "Intentional violating witness: the proposed update increases trust and should be flagged as non-TMTR.",
+            ));
+            rows.extend(orbit_rows(
+                spec,
+                &accelerating_increase,
+                CaseClass::Violating,
+                false,
+                "Intentional violating witness: repeated trust increases make the orbit non-monotone and non-admissible for TMTR.",
+            ));
+            rows.extend(orbit_rows(
+                spec,
+                &bounce_up,
+                CaseClass::Violating,
+                false,
+                "Intentional violating witness: the first step increases trust before descending, so the update fails TMTR monotonicity at the boundary.",
             ));
             rows
         }
@@ -156,19 +185,33 @@ fn orbit_rows(
         .map(|step| {
             let trust_gap = step.trust_value - step.next_trust_value;
             let trust_increase_attempt_flag = step.next_trust_value > step.trust_value;
+            let trust_gap_satisfied_flag = trust_gap > 0.0;
+            let monotonicity_satisfied_flag = !trust_increase_attempt_flag;
+            let residual_value = stability_residual(step.next_state_value);
             let pass = if assumption_satisfied {
-                !trust_increase_attempt_flag
+                monotonicity_satisfied_flag
             } else {
                 false
             };
             let expected_outcome = if assumption_satisfied {
                 String::from("TMTR witnesses should be monotone non-increasing in trust and stabilize at a fixed point or neutral plateau.")
+            } else if trust_increase_attempt_flag {
+                String::from("A trust-increasing proposal should be emitted as an intentional TMTR assumption-violating witness.")
+            } else if !trust_gap_satisfied_flag {
+                String::from("A theorem requiring a strictly positive trust gap should flag zero-gap or neutral-step witnesses as non-admissible.")
             } else {
-                String::from("A trust-increasing proposal should violate TMTR monotonicity and appear as a failing witness.")
+                String::from("An assumption-violating TMTR witness should be emitted explicitly as a failing row.")
             };
             let observed_outcome = format!(
-                "orbit={} iteration={} trust={} next_trust={} gap={}",
-                orbit.orbit_id, step.iteration, step.trust_value, step.next_trust_value, trust_gap
+                "orbit={} iteration={} trust={} next_trust={} gap={} residual={} monotone={} gap_satisfied={}",
+                orbit.orbit_id,
+                step.iteration,
+                step.trust_value,
+                step.next_trust_value,
+                trust_gap,
+                residual_value,
+                monotonicity_satisfied_flag,
+                trust_gap_satisfied_flag
             );
 
             let case = CaseMetadata::new(
@@ -197,6 +240,7 @@ fn orbit_rows(
                 orbit_id: orbit.orbit_id.clone(),
                 iteration: step.iteration,
                 trust_value: step.trust_value,
+                residual_value,
                 fixed_point_flag: step.fixed_point_flag,
                 stabilization_iteration: orbit.stabilization_iteration,
                 trust_gap,
@@ -205,7 +249,13 @@ fn orbit_rows(
                 next_trust_value: step.next_trust_value,
                 trust_neutral_flag: trust_gap.abs() < f64::EPSILON,
                 trust_increase_attempt_flag,
+                trust_gap_satisfied_flag,
+                monotonicity_satisfied_flag,
             }
         })
         .collect()
+}
+
+fn stability_residual(next_state_value: i32) -> f64 {
+    next_state_value.max(0) as f64
 }

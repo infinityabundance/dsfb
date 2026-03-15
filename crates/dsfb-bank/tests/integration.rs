@@ -11,6 +11,7 @@ use dsfb_bank::registry::{Component, TheoremRegistry};
 use dsfb_bank::runners::run_selection;
 use dsfb_bank::timestamp::{create_timestamped_run_dir, RunDirectory};
 use serde::Serialize;
+use serde_json::Value;
 use tempfile::tempdir;
 
 #[test]
@@ -137,6 +138,10 @@ fn full_run_emits_hardened_schema_and_explicit_violations() {
         "manifest.json missing"
     );
     assert!(
+        run_dir.join("component_summary.csv").exists(),
+        "component_summary.csv missing"
+    );
+    assert!(
         run_dir.join("run_summary.md").exists(),
         "run_summary.md missing"
     );
@@ -156,6 +161,7 @@ fn full_run_emits_hardened_schema_and_explicit_violations() {
     ];
 
     let mut violating_components = BTreeSet::new();
+    let mut tmtr_violating_rows = 0usize;
     for (component, fields) in [
         (
             "core",
@@ -206,10 +212,13 @@ fn full_run_emits_hardened_schema_and_explicit_violations() {
                 "orbit_id",
                 "iteration",
                 "trust_value",
+                "residual_value",
                 "fixed_point_flag",
                 "stabilization_iteration",
                 "trust_gap",
                 "trust_increase_attempt_flag",
+                "trust_gap_satisfied_flag",
+                "monotonicity_satisfied_flag",
             ],
         ),
         (
@@ -268,6 +277,9 @@ fn full_run_emits_hardened_schema_and_explicit_violations() {
                     && row_value(&headers, &row, "pass") == "false"
                 {
                     violating_components.insert(component.to_string());
+                    if component == "tmtr" {
+                        tmtr_violating_rows += 1;
+                    }
                 }
             }
         }
@@ -284,6 +296,96 @@ fn full_run_emits_hardened_schema_and_explicit_violations() {
             String::from("tmtr"),
         ])
     );
+    assert!(
+        tmtr_violating_rows > 1,
+        "expected multiple TMTR violating rows, found {tmtr_violating_rows}"
+    );
+
+    let component_summary_path = run_dir.join("component_summary.csv");
+    let mut component_summary_reader =
+        csv::Reader::from_path(&component_summary_path).expect("open component_summary.csv");
+    let component_summary_headers = component_summary_reader
+        .headers()
+        .expect("component_summary headers")
+        .clone();
+    assert_has_columns(
+        &component_summary_headers,
+        &[
+            "component",
+            "theorem_count",
+            "cases",
+            "pass",
+            "fail",
+            "boundary",
+            "violating",
+            "passing",
+            "assumption_satisfied_count",
+            "assumption_violated_count",
+        ],
+        &component_summary_path,
+    );
+    let component_summary_rows = component_summary_reader
+        .records()
+        .map(|row| row.expect("component_summary row"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        component_summary_rows.len(),
+        7,
+        "expected one component_summary row per theorem component"
+    );
+    let component_summary_components = component_summary_rows
+        .iter()
+        .map(|row| row_value(&component_summary_headers, row, "component").to_string())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        component_summary_components,
+        BTreeSet::from([
+            String::from("core"),
+            String::from("dsfb"),
+            String::from("dscd"),
+            String::from("tmtr"),
+            String::from("add"),
+            String::from("srd"),
+            String::from("hret"),
+        ])
+    );
+
+    let manifest: Value = serde_json::from_str(
+        &fs::read_to_string(run_dir.join("manifest.json")).expect("manifest body"),
+    )
+    .expect("manifest json");
+    let case_class_counts = manifest
+        .get("case_class_counts")
+        .and_then(Value::as_object)
+        .expect("manifest.case_class_counts object");
+    let global_counts = case_class_counts
+        .get("global")
+        .and_then(Value::as_object)
+        .expect("manifest.case_class_counts.global object");
+    for key in ["passing", "boundary", "violating"] {
+        assert!(
+            global_counts.contains_key(key),
+            "manifest.case_class_counts.global missing {key}"
+        );
+    }
+    let by_component = case_class_counts
+        .get("by_component")
+        .and_then(Value::as_object)
+        .expect("manifest.case_class_counts.by_component object");
+    for component in ["core", "dsfb", "dscd", "tmtr", "add", "srd", "hret"] {
+        let component_counts = by_component
+            .get(component)
+            .and_then(Value::as_object)
+            .unwrap_or_else(|| {
+                panic!("manifest.case_class_counts.by_component missing {component}")
+            });
+        for key in ["passing", "boundary", "violating"] {
+            assert!(
+                component_counts.contains_key(key),
+                "manifest.case_class_counts.by_component.{component} missing {key}"
+            );
+        }
+    }
 }
 
 fn manual_run_dir(root: &std::path::Path, name: &str) -> RunDirectory {

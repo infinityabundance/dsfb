@@ -1,6 +1,8 @@
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrustStep {
     pub iteration: usize,
+    pub state_value: i32,
+    pub next_state_value: i32,
     pub state_id: String,
     pub next_state_id: String,
     pub trust_value: f64,
@@ -51,6 +53,8 @@ fn orbit_from_states(id: &str, states: &[i32]) -> TrustOrbit {
         let next_state = states[iteration + 1];
         steps.push(TrustStep {
             iteration,
+            state_value: state,
+            next_state_value: next_state,
             state_id: format!("s{state}"),
             next_state_id: format!("s{next_state}"),
             trust_value: trust_value(state),
