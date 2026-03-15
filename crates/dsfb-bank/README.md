@@ -2,7 +2,13 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-bank/colab/dsfb_bank_repro.ipynb)
 
-`dsfb-bank` is the executable empirical companion crate for the DSFB paper and theorem banks. It turns the theorem banks into machine-readable YAML specifications, loads them into a Rust theorem registry, runs deterministic witness demonstrations, and writes plotting-friendly CSV outputs into fresh timestamped run directories.
+`dsfb-bank` is the executable empirical companion crate for the DSFB paper and theorem banks. It turns the theorem banks into machine-readable YAML specifications, loads them into a Rust theorem registry, runs deterministic witness demonstrations, and writes fresh timestamped CSV, manifest, summary, and notebook-ready figure artifacts for every run.
+
+## Citation
+
+If you use `dsfb-bank` or cite the associated paper artifact, cite:
+
+de Beer, R. (2026). *Alternative Deterministic Structural Inference: The DSFB Stack for Reconstruction, Causal Architecture, Trust Recursion, and Historical Replay* (v1.0). Zenodo. https://doi.org/10.5281/zenodo.19028440
 
 ## Purpose
 
@@ -13,6 +19,34 @@ The crate exists to make the theorem banks executable and reproducible:
 - deterministic bank-specific runners emit theorem-level CSV artifacts for `core`, `dsfb`, `dscd`, `tmtr`, `add`, `srd`, and `hret`
 - realization-space YAML drives realization CSV exports under `realizations/`
 - every run creates a new timestamped output directory so previous empirical figures are never overwritten
+
+## How a Run Works
+
+The current code path is intentionally simple and auditable:
+
+1. load the theorem-bank and realization-space specifications from `spec/`
+2. resolve the CLI selection for `--all`, `--core`, `--bank <component>`, or `--list`
+3. create a fresh timestamped run directory under `output-dsfb-bank/YYYY-MM-DD_HH-MM-SS/`
+4. execute deterministic witness generators for the selected theorems
+5. write one theorem CSV per theorem into the matching component directory
+6. write realization-space CSVs under `realizations/`
+7. derive `component_summary.csv` from the emitted theorem CSV rows
+8. derive `run_summary.md` from the same theorem-row aggregation
+9. collect the generated file inventory and write `manifest.json`
+
+This order matters. The summary layers are not hand-authored and they are not maintained separately from the theorem outputs. The code writes the witness rows first and only then derives the component summary, run summary, and manifest from those actual rows.
+
+## Why the Artifact Is Structured This Way
+
+The crate is opinionated because the paper artifact has to be reviewable:
+
+- theorem rows are the primary empirical record
+- `component_summary.csv`, `manifest.json`, and `run_summary.md` are secondary summaries derived from those rows
+- passing, boundary, and violating witnesses are all kept visible so the artifact does not look curated to always succeed
+- fresh timestamped output directories prevent accidental reuse of prior runs
+- the Colab notebook is designed to prove that its figures come from the current run rather than from cached outputs
+
+The result is an artifact that is deterministic, assumption-sensitive, and easy to audit end to end.
 
 ## Theorem Bank Architecture
 
@@ -46,6 +80,7 @@ Every theorem CSV row now carries the same empirical case metadata:
 
 Bank-specific plotting fields are retained and extended per component. The artifact intentionally includes explicit assumption-violating witness families for:
 
+- core cross-layer theorem non-applicability witnesses
 - non-injective DSFB observation maps
 - cycle-creating DSCD edge insertions
 - trust-increasing TMTR updates
@@ -75,6 +110,8 @@ This is especially important for the DSFB and core layers:
 
 - DSFB violating rows illustrate ambiguity under non-injective or non-image observations, where exact recovery is not admissible.
 - Core violating rows illustrate the same assumption sensitivity for the 11 cross-layer theorems, so the core layer is not curated to look artificially all-clean.
+
+TMTR is treated the same way: the bank includes multiple deterministic monotonicity-breaking or trust-gap-breaking witnesses so the stability layer visibly shows what happens when its hypotheses are not met.
 
 ## Machine-Readable Spec System
 
@@ -183,6 +220,8 @@ Each fresh run also emits summary layers derived from the actual theorem rows:
 - `run_summary.md`
   Human-readable run narrative including theorem counts, global case-class counts, by-component case-class counts, pass/fail and assumption summaries, and a reminder that violating rows are non-admissible witnesses rather than theorem falsifications.
 
+These three summary layers should agree exactly because they are all derived from the same emitted theorem CSV rows.
+
 ## Reproducibility Model
 
 Reproducibility is enforced by construction:
@@ -220,6 +259,8 @@ Reproducibility is enforced by construction:
 - writes `figure_manifest.csv` recording figure id, title, source CSVs, theorem families, notebook section, and output PNG path
 - creates `dsfb-bank-YYYY-MM-DD_HH-MM-SS.zip` in the same run directory without removing the original CSV or PNG files
 - ends with summary tables and an explicit reproducibility confirmation stating that the build, run, figures, and zip all came from the current session
+
+In other words, the notebook is not just a plotting notebook. It is a current-session provenance check over the crate outputs.
 
 For every major figure section, the notebook explicitly states:
 
