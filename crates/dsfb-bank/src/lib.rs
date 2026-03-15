@@ -13,7 +13,8 @@ use anyhow::Result;
 
 use crate::cli::{Cli, RunSelection};
 use crate::output::{
-    collect_inventory, default_output_root, prepare_output_layout, write_logs, write_manifest,
+    collect_inventory, default_output_root, prepare_output_layout, summarize_theorem_csv_outputs,
+    write_component_summary, write_logs, write_manifest,
 };
 use crate::registry::TheoremRegistry;
 use crate::run_summary::write_run_summary;
@@ -38,6 +39,11 @@ pub fn execute(cli: &Cli) -> Result<Option<PathBuf>> {
     let run_dir = create_timestamped_run_dir(&output_root)?;
     let layout = prepare_output_layout(&run_dir)?;
     let execution = run_selection(&registry, &selection, &layout, cli.seed.unwrap_or(0))?;
+    let theorem_csv_summary = summarize_theorem_csv_outputs(&layout)?;
+    write_component_summary(
+        &run_dir.run_dir.join("component_summary.csv"),
+        &theorem_csv_summary,
+    )?;
 
     write_run_summary(
         &run_dir.run_dir.join("run_summary.md"),
@@ -58,6 +64,7 @@ pub fn execute(cli: &Cli) -> Result<Option<PathBuf>> {
         &selection,
         &registry,
         &execution,
+        &theorem_csv_summary,
         output_file_inventory,
     )?;
 
