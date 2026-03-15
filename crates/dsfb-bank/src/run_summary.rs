@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::Result;
 
 use crate::cli::RunSelection;
 use crate::output::write_run_notes;
+use crate::output::TheoremCsvSummary;
 use crate::registry::Component;
 use crate::runners::RunExecution;
 use crate::timestamp::RunDirectory;
@@ -14,8 +14,9 @@ pub fn write_run_summary(
     run_dir: &RunDirectory,
     selection: &RunSelection,
     execution: &RunExecution,
+    theorem_csv_summary: &TheoremCsvSummary,
 ) -> Result<()> {
-    let body = render_run_summary(run_dir, selection, execution);
+    let body = render_run_summary(run_dir, selection, execution, theorem_csv_summary);
     write_run_notes(path, &body)
 }
 
@@ -23,8 +24,8 @@ fn render_run_summary(
     run_dir: &RunDirectory,
     selection: &RunSelection,
     execution: &RunExecution,
+    theorem_csv_summary: &TheoremCsvSummary,
 ) -> String {
-    let theorem_counts = component_counts(execution);
     let mut lines = Vec::new();
     lines.push(format!("# dsfb-bank run summary"));
     lines.push(String::new());
@@ -41,36 +42,66 @@ fn render_run_summary(
     lines.push(String::new());
     lines.push(String::from("## Theorem count by component"));
     lines.push(String::new());
-    for component in Component::ALL {
-        let count = theorem_counts
-            .get(component.as_str())
-            .copied()
-            .unwrap_or_default();
-        lines.push(format!("- `{}`: `{}`", component.as_str(), count));
+    for row in &theorem_csv_summary.component_rows {
+        lines.push(format!(
+            "- `{}`: `{}` theorems, `{}` rows",
+            row.component, row.theorem_count, row.cases
+        ));
     }
     lines.push(String::new());
-    lines.push(String::from("## Pass/fail summary"));
+    lines.push(String::from("## Case-class interpretation"));
     lines.push(String::new());
     lines.push(String::from(
-        "Failing rows in this artifact are deliberate boundary or assumption-violating witnesses, not claimed theorem counterexamples.",
+        "Boundary and violating rows in this artifact are deliberate assumption-sensitive witnesses. They mark admissible boundary behavior or non-admissible / assumption-violating cases where the theorem is not expected to apply; they are not presented as theorem falsifications.",
     ));
     lines.push(String::new());
+    lines.push(String::from(
+        "Core violating rows are intentional theorem-non-applicable witnesses for the cross-layer statements, while DSFB violating rows highlight non-injective or non-image observations where exact recovery is not admissible.",
+    ));
+    lines.push(String::new());
+    lines.push(String::from("## Global case-class counts"));
+    lines.push(String::new());
+    lines.push(format!(
+        "- `passing`: `{}`",
+        theorem_csv_summary.case_class_counts_global.passing
+    ));
+    lines.push(format!(
+        "- `boundary`: `{}`",
+        theorem_csv_summary.case_class_counts_global.boundary
+    ));
+    lines.push(format!(
+        "- `violating`: `{}`",
+        theorem_csv_summary.case_class_counts_global.violating
+    ));
+    lines.push(String::new());
+    lines.push(String::from("## By-component case-class counts"));
+    lines.push(String::new());
     for component in Component::ALL {
-        let results = execution
-            .theorem_results
-            .iter()
-            .filter(|result| result.component == component)
-            .collect::<Vec<_>>();
-        let passes: usize = results.iter().map(|result| result.pass_count).sum();
-        let fails: usize = results.iter().map(|result| result.fail_count).sum();
-        if !results.is_empty() {
-            lines.push(format!(
-                "- `{}`: `{}` passing rows, `{}` failing rows",
-                component.as_str(),
-                passes,
-                fails
-            ));
-        }
+        let counts = theorem_csv_summary
+            .case_class_counts_by_component
+            .get(component.as_str())
+            .cloned()
+            .unwrap_or_default();
+        lines.push(format!(
+            "- `{}`: `passing={}`, `boundary={}`, `violating={}`",
+            component.as_str(),
+            counts.passing,
+            counts.boundary,
+            counts.violating
+        ));
+    }
+    lines.push(String::new());
+    lines.push(String::from("## Pass/fail and assumption summary"));
+    lines.push(String::new());
+    for row in &theorem_csv_summary.component_rows {
+        lines.push(format!(
+            "- `{}`: `pass={}`, `fail={}`, `assumption_satisfied={}`, `assumption_violated={}`",
+            row.component,
+            row.pass,
+            row.fail,
+            row.assumption_satisfied_count,
+            row.assumption_violated_count
+        ));
     }
     lines.push(String::new());
     lines.push(String::from("## Generated CSVs"));
@@ -98,14 +129,4 @@ fn render_run_summary(
         }
     }
     lines.join("\n")
-}
-
-fn component_counts(execution: &RunExecution) -> BTreeMap<String, usize> {
-    let mut counts = BTreeMap::new();
-    for result in &execution.theorem_results {
-        *counts
-            .entry(result.component.as_str().to_string())
-            .or_default() += 1;
-    }
-    counts
 }
