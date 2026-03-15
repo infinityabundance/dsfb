@@ -1,7 +1,11 @@
+use std::collections::BTreeSet;
 use std::fs;
+use std::path::Path;
 
+use csv::StringRecord;
 use dsfb_bank::cli::{BankSelection, RunSelection};
 use dsfb_bank::csv_writer::write_csv_rows;
+use dsfb_bank::execute;
 use dsfb_bank::output::prepare_output_layout;
 use dsfb_bank::registry::{Component, TheoremRegistry};
 use dsfb_bank::runners::run_selection;
@@ -112,6 +116,176 @@ fn csv_writer_emits_headers_and_rows() {
     assert!(body.contains("TEST-01"));
 }
 
+#[test]
+fn full_run_emits_hardened_schema_and_explicit_violations() {
+    let temp = tempdir().expect("tempdir");
+    let cli = dsfb_bank::cli::Cli {
+        all: true,
+        core: false,
+        bank: None,
+        list: false,
+        output: Some(temp.path().join("artifact")),
+        seed: Some(0),
+    };
+
+    let run_dir = execute(&cli)
+        .expect("full run succeeds")
+        .expect("run dir returned");
+
+    assert!(
+        run_dir.join("manifest.json").exists(),
+        "manifest.json missing"
+    );
+    assert!(
+        run_dir.join("run_summary.md").exists(),
+        "run_summary.md missing"
+    );
+    assert!(run_dir.join("logs.txt").exists(), "logs.txt missing");
+
+    let common_columns = [
+        "theorem_id",
+        "theorem_name",
+        "component",
+        "case_id",
+        "case_class",
+        "assumption_satisfied",
+        "expected_outcome",
+        "observed_outcome",
+        "pass",
+        "notes",
+    ];
+
+    let mut violating_components = BTreeSet::new();
+    for (component, fields) in [
+        (
+            "core",
+            vec![
+                "time_step",
+                "signal_value",
+                "observation_value",
+                "reconstructed_state",
+                "residual_value",
+                "trust_value",
+                "regime_label",
+                "anomaly_flag",
+            ],
+        ),
+        (
+            "dsfb",
+            vec![
+                "injective_flag",
+                "observation_id",
+                "structural_state_id",
+                "reconstructed_state_id",
+                "residual_value",
+                "exact_recovery_flag",
+                "time_step",
+                "signal_value",
+                "observation_value",
+                "reconstructed_state",
+            ],
+        ),
+        (
+            "dscd",
+            vec![
+                "graph_id",
+                "node_count",
+                "edge_count",
+                "longest_path",
+                "reachability_count",
+                "acyclic_flag",
+                "attempted_edge_addition_flag",
+                "cycle_created_flag",
+                "reduction_edge_count",
+                "repaired_edge_count",
+            ],
+        ),
+        (
+            "tmtr",
+            vec![
+                "orbit_id",
+                "iteration",
+                "trust_value",
+                "fixed_point_flag",
+                "stabilization_iteration",
+                "trust_gap",
+                "trust_increase_attempt_flag",
+            ],
+        ),
+        (
+            "add",
+            vec![
+                "signal_id",
+                "time_step",
+                "signal_value",
+                "residual_value",
+                "first_difference",
+                "second_difference",
+                "threshold",
+                "detector_output",
+                "anomaly_magnitude",
+            ],
+        ),
+        (
+            "srd",
+            vec![
+                "trajectory_id",
+                "time_step",
+                "state_id",
+                "fine_regime",
+                "coarse_regime",
+                "transition_flag",
+                "coarse_transition_flag",
+                "regime_valid_flag",
+            ],
+        ),
+        (
+            "hret",
+            vec![
+                "trace_id",
+                "event_index",
+                "trace_length",
+                "prefix_length",
+                "suffix_length",
+                "observation_code",
+                "reconstruction_success",
+                "replayability_flag",
+                "injective_observation_flag",
+            ],
+        ),
+    ] {
+        for csv_path in sorted_csvs(&run_dir.join(component)) {
+            let mut reader = csv::Reader::from_path(&csv_path).expect("open csv");
+            let headers = reader.headers().expect("csv headers").clone();
+            assert_has_columns(&headers, &common_columns, &csv_path);
+            assert_has_columns(&headers, &fields, &csv_path);
+
+            for row in reader.records() {
+                let row = row.expect("csv row");
+                if component != "core"
+                    && row_value(&headers, &row, "case_class") == "violating"
+                    && row_value(&headers, &row, "assumption_satisfied") == "false"
+                    && row_value(&headers, &row, "pass") == "false"
+                {
+                    violating_components.insert(component.to_string());
+                }
+            }
+        }
+    }
+
+    assert_eq!(
+        violating_components,
+        BTreeSet::from([
+            String::from("add"),
+            String::from("dsfb"),
+            String::from("dscd"),
+            String::from("hret"),
+            String::from("srd"),
+            String::from("tmtr"),
+        ])
+    );
+}
+
 fn manual_run_dir(root: &std::path::Path, name: &str) -> RunDirectory {
     let run_dir = root.join(name);
     fs::create_dir_all(&run_dir).expect("create run dir");
@@ -120,4 +294,34 @@ fn manual_run_dir(root: &std::path::Path, name: &str) -> RunDirectory {
         timestamp: name.to_string(),
         run_dir,
     }
+}
+
+fn sorted_csvs(dir: &Path) -> Vec<std::path::PathBuf> {
+    let mut paths = fs::read_dir(dir)
+        .expect("read component dir")
+        .map(|entry| entry.expect("dir entry").path())
+        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("csv"))
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths
+}
+
+fn assert_has_columns(headers: &StringRecord, required: &[&str], path: &Path) {
+    let header_set = headers.iter().collect::<BTreeSet<_>>();
+    for column in required {
+        assert!(
+            header_set.contains(column),
+            "{} missing required column {}",
+            path.display(),
+            column
+        );
+    }
+}
+
+fn row_value<'a>(headers: &'a StringRecord, row: &'a StringRecord, name: &str) -> &'a str {
+    let index = headers
+        .iter()
+        .position(|header| header == name)
+        .unwrap_or_else(|| panic!("missing header {name}"));
+    row.get(index).unwrap_or("")
 }
