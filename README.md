@@ -71,14 +71,15 @@ Don’t believe a sensor all at once.
 > *Trust-Monotone Temporal Recursion in Deterministic Structural Dynamics* (v1.0).
 > Zenodo. [https://doi.org/10.5281/zenodo.18998208]
 
+> **de Beer, R.** (2026).
+> *Alternative Deterministic Structural Inference: The DSFB Stack for Reconstruction, Causal Architecture, Trust Recursion, and Historical Replay* (v1.0).
+> Zenodo. [https://doi.org/10.5281/zenodo.19028440]
+
 
 ---
 
 `DSFB Simulation Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb/dsfb_simulation.ipynb)
-
-`DSFB Bank Repro Notebook:`
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-bank/colab/dsfb_bank_repro.ipynb)
 
 `Fusion Bench Figures Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-fusion-bench/dsfb_fusion_figures.ipynb)
@@ -103,6 +104,9 @@ Don’t believe a sensor all at once.
 
 `TMTR Research Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-tmtr/notebooks/dsfb_tmtr_colab.ipynb)
+
+`DSFB Bank Repro Notebook:`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-bank/colab/dsfb_bank_repro.ipynb)
 
 ---
 
