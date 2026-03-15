@@ -1,4 +1,5 @@
 pub mod add;
+pub mod common;
 pub mod core;
 pub mod dscd;
 pub mod dsfb;

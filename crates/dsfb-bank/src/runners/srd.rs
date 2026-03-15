@@ -2,6 +2,7 @@ use anyhow::Result;
 use serde::Serialize;
 
 use crate::registry::TheoremSpec;
+use crate::runners::common::{CaseClass, CaseMetadata};
 use crate::runners::{write_component_rows, RunnerContext};
 use crate::sim::regime::{coarse_regime, fine_regime, trajectories, StateTrajectory};
 
@@ -11,10 +12,12 @@ struct SrdRow {
     theorem_name: String,
     component: &'static str,
     case_id: String,
-    case_type: String,
+    case_class: CaseClass,
+    assumption_satisfied: bool,
+    expected_outcome: String,
+    observed_outcome: String,
     pass: bool,
     notes: String,
-    assumptions_satisfied: bool,
     trajectory_id: String,
     time_step: usize,
     state_id: String,
@@ -22,6 +25,7 @@ struct SrdRow {
     coarse_regime: String,
     transition_flag: bool,
     coarse_transition_flag: bool,
+    regime_valid_flag: bool,
     indicator_sum: usize,
 }
 
@@ -44,23 +48,143 @@ fn build_rows(spec: &TheoremSpec) -> Vec<SrdRow> {
     let stabilizing = &cases[4];
 
     match spec.ordinal {
-        1 | 2 | 8 | 9 | 17 => all_rows(spec, &cases, "satisfying", true, "Deterministic regime assignment gives every state exactly one regime label."),
-        3 | 10 => all_rows(spec, &cases, "satisfying", true, "Transition flags coincide with fine-label changes."),
-        4 => rows_for(spec, constant, "satisfying", true, "Constant fine label produces no transition."),
-        5 => all_rows(spec, &cases, "satisfying", true, "Finite trajectory transition count is bounded by the number of adjacent pairs."),
-        6 => rows_for(spec, periodic, "satisfying", true, "A trajectory longer than the regime set repeats at least one regime label."),
-        7 => rows_for(spec, block, "satisfying", true, "Fewer than N transitions over N+1 points forces at least one constant-regime adjacent pair."),
-        11 | 12 => {
-            let replay = StateTrajectory::new("alternating_replay", alternating.states.clone());
-            let mut rows = rows_for(spec, alternating, "satisfying", true, "Original trajectory.");
-            rows.extend(rows_for(spec, &replay, "satisfying", true, "Replay trajectory reproduces labels and transitions exactly."));
+        1 | 2 | 8 | 9 | 17 => {
+            let mut rows = all_rows(
+                spec,
+                &cases,
+                CaseClass::Passing,
+                true,
+                "Deterministic regime assignment gives every state exactly one regime label.",
+            );
+            if spec.ordinal == 1 {
+                rows.push(manual_row(
+                    spec,
+                    "invalid_regime_label",
+                    CaseClass::Violating,
+                    false,
+                    false,
+                    "invalid_partition",
+                    0,
+                    "x_invalid",
+                    "mixed",
+                    "unknown",
+                    false,
+                    false,
+                    false,
+                    "Intentional violating witness: an invalid fine/coarse label pair breaks the admissible regime partition.",
+                ));
+            }
             rows
         }
-        13 | 14 => rows_for(spec, stabilizing, "satisfying", true, "Eventually constant states induce an eventually constant regime suffix with finitely many transitions."),
-        15 => rows_for(spec, alternating, "satisfying", true, "Two-regime alternation produces a transition at every step."),
-        16 => rows_for(spec, block, "satisfying", true, "Piecewise-constant regime blocks localize transitions to block boundaries."),
-        18 | 19 => rows_for(spec, block, "satisfying", true, "Coarsening preserves determinism and cannot create new fine-scale transitions."),
-        20 => rows_for(spec, periodic, "satisfying", true, "Periodic states induce a periodic regime sequence with period dividing the state period."),
+        3 | 10 => all_rows(
+            spec,
+            &cases,
+            CaseClass::Passing,
+            true,
+            "Transition flags coincide with fine-label changes.",
+        ),
+        4 => rows_for(
+            spec,
+            constant,
+            CaseClass::Boundary,
+            true,
+            "Constant fine label produces no transition.",
+        ),
+        5 => all_rows(
+            spec,
+            &cases,
+            CaseClass::Passing,
+            true,
+            "Finite trajectory transition count is bounded by the number of adjacent pairs.",
+        ),
+        6 => rows_for(
+            spec,
+            periodic,
+            CaseClass::Boundary,
+            true,
+            "A trajectory longer than the regime set repeats at least one regime label.",
+        ),
+        7 => rows_for(
+            spec,
+            block,
+            CaseClass::Boundary,
+            true,
+            "Fewer than N transitions over N+1 points forces at least one constant-regime adjacent pair.",
+        ),
+        11 | 12 => {
+            let replay = StateTrajectory::new("alternating_replay", alternating.states.clone());
+            let mut rows = rows_for(
+                spec,
+                alternating,
+                CaseClass::Passing,
+                true,
+                "Original trajectory.",
+            );
+            rows.extend(rows_for(
+                spec,
+                &replay,
+                CaseClass::Passing,
+                true,
+                "Replay trajectory reproduces labels and transitions exactly.",
+            ));
+            rows
+        }
+        13 | 14 => rows_for(
+            spec,
+            stabilizing,
+            CaseClass::Passing,
+            true,
+            "Eventually constant states induce an eventually constant regime suffix with finitely many transitions.",
+        ),
+        15 => rows_for(
+            spec,
+            alternating,
+            CaseClass::Passing,
+            true,
+            "Two-regime alternation produces a transition at every step.",
+        ),
+        16 => rows_for(
+            spec,
+            block,
+            CaseClass::Passing,
+            true,
+            "Piecewise-constant regime blocks localize transitions to block boundaries.",
+        ),
+        18 | 19 => {
+            let mut rows = rows_for(
+                spec,
+                block,
+                CaseClass::Boundary,
+                true,
+                "Coarsening preserves determinism and cannot create new fine-scale transitions.",
+            );
+            if spec.ordinal == 18 {
+                rows.push(manual_row(
+                    spec,
+                    "invalid_coarsening_semantics",
+                    CaseClass::Violating,
+                    false,
+                    false,
+                    "coarsening_violation",
+                    1,
+                    "x2",
+                    "positive",
+                    "low",
+                    false,
+                    true,
+                    false,
+                    "Intentional violating witness: the coarse regime contradicts the admissible coarsening map and invents a transition.",
+                ));
+            }
+            rows
+        }
+        20 => rows_for(
+            spec,
+            periodic,
+            CaseClass::Passing,
+            true,
+            "Periodic states induce a periodic regime sequence with period dividing the state period.",
+        ),
         _ => unreachable!("unexpected SRD theorem ordinal"),
     }
 }
@@ -68,8 +192,8 @@ fn build_rows(spec: &TheoremSpec) -> Vec<SrdRow> {
 fn all_rows(
     spec: &TheoremSpec,
     trajectories: &[StateTrajectory],
-    case_type: &str,
-    assumptions_satisfied: bool,
+    case_class: CaseClass,
+    assumption_satisfied: bool,
     notes: &str,
 ) -> Vec<SrdRow> {
     let mut rows = Vec::new();
@@ -77,8 +201,8 @@ fn all_rows(
         rows.extend(rows_for(
             spec,
             trajectory,
-            case_type,
-            assumptions_satisfied,
+            case_class,
+            assumption_satisfied,
             notes,
         ));
     }
@@ -88,8 +212,8 @@ fn all_rows(
 fn rows_for(
     spec: &TheoremSpec,
     trajectory: &StateTrajectory,
-    case_type: &str,
-    assumptions_satisfied: bool,
+    case_class: CaseClass,
+    assumption_satisfied: bool,
     notes: &str,
 ) -> Vec<SrdRow> {
     let fine = trajectory
@@ -174,24 +298,92 @@ fn rows_for(
                 }
                 _ => true,
             };
-            SrdRow {
-                theorem_id: spec.id.clone(),
-                theorem_name: spec.title.clone(),
-                component: "srd",
-                case_id: format!("{}_t{}", trajectory.id, time_step),
-                case_type: case_type.to_string(),
+
+            manual_row(
+                spec,
+                &format!("{}_t{}", trajectory.id, time_step),
+                case_class,
+                assumption_satisfied,
                 pass,
-                notes: notes.to_string(),
-                assumptions_satisfied,
-                trajectory_id: trajectory.id.clone(),
+                &trajectory.id,
                 time_step,
-                state_id: format!("x{}", state),
-                fine_regime: fine[time_step].clone(),
-                coarse_regime: coarse[time_step].clone(),
+                &format!("x{}", state),
+                &fine[time_step],
+                &coarse[time_step],
                 transition_flag,
                 coarse_transition_flag,
-                indicator_sum,
-            }
+                true,
+                notes,
+            )
         })
         .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn manual_row(
+    spec: &TheoremSpec,
+    case_id: &str,
+    case_class: CaseClass,
+    assumption_satisfied: bool,
+    pass: bool,
+    trajectory_id: &str,
+    time_step: usize,
+    state_id: &str,
+    fine_regime_label: &str,
+    coarse_regime_label: &str,
+    transition_flag: bool,
+    coarse_transition_flag: bool,
+    regime_valid_flag: bool,
+    notes: &str,
+) -> SrdRow {
+    let expected_outcome = if assumption_satisfied {
+        String::from("SRD witnesses should use valid fine/coarse regime labels and transitions consistent with admissible partition semantics.")
+    } else {
+        String::from("Invalid regime labels or invalid coarsening semantics should appear as failing witnesses outside the theorem assumptions.")
+    };
+    let observed_outcome = format!(
+        "trajectory={} t={} state={} fine={} coarse={} transition={} coarse_transition={} regime_valid={}",
+        trajectory_id,
+        time_step,
+        state_id,
+        fine_regime_label,
+        coarse_regime_label,
+        transition_flag,
+        coarse_transition_flag,
+        regime_valid_flag
+    );
+
+    let case = CaseMetadata::new(
+        spec,
+        "srd",
+        case_id,
+        case_class,
+        assumption_satisfied,
+        expected_outcome,
+        observed_outcome,
+        pass,
+        notes,
+    );
+
+    SrdRow {
+        theorem_id: case.theorem_id,
+        theorem_name: case.theorem_name,
+        component: case.component,
+        case_id: case.case_id,
+        case_class: case.case_class,
+        assumption_satisfied: case.assumption_satisfied,
+        expected_outcome: case.expected_outcome,
+        observed_outcome: case.observed_outcome,
+        pass: case.pass,
+        notes: case.notes,
+        trajectory_id: trajectory_id.to_string(),
+        time_step,
+        state_id: state_id.to_string(),
+        fine_regime: fine_regime_label.to_string(),
+        coarse_regime: coarse_regime_label.to_string(),
+        transition_flag,
+        coarse_transition_flag,
+        regime_valid_flag,
+        indicator_sum: usize::from(regime_valid_flag),
+    }
 }

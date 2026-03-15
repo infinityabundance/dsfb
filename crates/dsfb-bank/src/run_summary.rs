@@ -51,6 +51,10 @@ fn render_run_summary(
     lines.push(String::new());
     lines.push(String::from("## Pass/fail summary"));
     lines.push(String::new());
+    lines.push(String::from(
+        "Failing rows in this artifact are deliberate boundary or assumption-violating witnesses, not claimed theorem counterexamples.",
+    ));
+    lines.push(String::new());
     for component in Component::ALL {
         let results = execution
             .theorem_results

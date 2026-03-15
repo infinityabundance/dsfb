@@ -29,6 +29,32 @@ The crate is organized around four layers:
 
 Supporting deterministic witness generators live in `src/sim/` for signals, trust dynamics, causal graphs, regimes, anomalies, and trace replay.
 
+## Theorem CSV Contract
+
+Every theorem CSV row now carries the same empirical case metadata:
+
+- `theorem_id`
+- `theorem_name`
+- `component`
+- `case_id`
+- `case_class` with values such as `passing`, `boundary`, and `violating`
+- `assumption_satisfied`
+- `expected_outcome`
+- `observed_outcome`
+- `pass`
+- `notes`
+
+Bank-specific plotting fields are retained and extended per component. The artifact intentionally includes explicit assumption-violating witness families for:
+
+- non-injective DSFB observation maps
+- cycle-creating DSCD edge insertions
+- trust-increasing TMTR updates
+- ADD threshold misconfiguration
+- invalid SRD regime labels or coarsening semantics
+- non-injective HRET observation maps
+
+These rows are not presented as theorem counterexamples. They are marked as non-admissible or assumption-violating witnesses to show why the theorem hypotheses matter.
+
 ## Machine-Readable Spec System
 
 Each theorem spec in `spec/` contains:
@@ -124,6 +150,7 @@ Reproducibility is enforced by construction:
 - outputs are timestamped and never overwritten
 - `manifest.json` records the crate version, git hash when available, command line, theorem IDs, generated files, and component counts
 - `run_summary.md` records theorem counts, pass/fail totals, generated CSVs, and realization-space outputs
+- theorem CSVs expose explicit `passing` / `boundary` / `violating` case classes for downstream analysis and plotting
 
 ## Google Colab Notebook
 
@@ -131,21 +158,27 @@ Reproducibility is enforced by construction:
 
 - installs or verifies Rust in the current Colab session
 - operates relative to the repository root
-- runs a clean build of `dsfb-bank`
+- runs `cargo clean -p dsfb-bank` followed by `cargo build -p dsfb-bank`
 - runs `cargo run -p dsfb-bank -- --all`
-- captures the fresh timestamped output directory from the current notebook session
-- validates the output inventory before plotting
+- proves that the selected `output-dsfb-bank/YYYY-MM-DD_HH-MM-SS/` directory was created in the current notebook session
+- validates `manifest.json`, `run_summary.md`, `logs.txt`, theorem CSV counts, realization CSVs, and theorem-row schemas before plotting
 - loads only CSVs from that fresh run
-- generates empirical figures and summary tables directly from those outputs
-- ends with an explicit reproducibility confirmation stating that the build, run, and figures all came from the current session
+- generates the paper-critical figures:
+  - Full DSFB Stack Timeline
+  - Theorem Bank Coverage Heatmap
+  - TMTR Trust Convergence
+- retains additional per-bank behavior figures for DSFB, DSCD, ADD, SRD, and HRET
+- saves every figure as an individual PNG under `output-dsfb-bank/YYYY-MM-DD_HH-MM-SS/figures/`
+- creates `dsfb-bank-YYYY-MM-DD_HH-MM-SS.zip` in the same run directory without removing the original CSV or PNG files
+- ends with summary tables and an explicit reproducibility confirmation stating that the build, run, figures, and zip all came from the current session
 
 ## Figure Generation
 
 The notebook generates:
 
-- theorem coverage figures
-- per-bank behavior figures for DSFB, DSCD, TMTR, ADD, SRD, and HRET
-- a full DSFB pipeline trace figure
-- a core-theorem dashboard
+- the full DSFB stack timeline hero figure
+- the theorem-bank coverage heatmap
+- TMTR trust convergence
+- per-bank behavior figures for DSFB, DSCD, ADD, SRD, and HRET
 
-Every figure is sourced from fresh CSV outputs generated during the current Colab execution.
+Every figure is sourced from fresh CSV outputs generated during the current Colab execution, and every figure PNG remains available individually after the notebook finishes.
