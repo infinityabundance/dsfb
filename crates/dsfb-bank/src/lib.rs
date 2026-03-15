@@ -50,6 +50,7 @@ pub fn execute(cli: &Cli) -> Result<Option<PathBuf>> {
         &run_dir,
         &selection,
         &execution,
+        &theorem_csv_summary,
     )?;
     write_logs(&run_dir.run_dir.join("logs.txt"), &execution.logs)?;
 

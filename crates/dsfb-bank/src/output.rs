@@ -40,9 +40,9 @@ struct ManifestComponentCounts {
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
 pub struct CaseClassCounts {
-    passing: usize,
-    boundary: usize,
-    violating: usize,
+    pub passing: usize,
+    pub boundary: usize,
+    pub violating: usize,
 }
 
 impl CaseClassCounts {
@@ -63,16 +63,16 @@ impl CaseClassCounts {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ComponentSummaryRow {
-    component: String,
-    theorem_count: usize,
-    cases: usize,
-    pass: usize,
-    fail: usize,
-    boundary: usize,
-    violating: usize,
-    passing: usize,
-    assumption_satisfied_count: usize,
-    assumption_violated_count: usize,
+    pub component: String,
+    pub theorem_count: usize,
+    pub cases: usize,
+    pub pass: usize,
+    pub fail: usize,
+    pub boundary: usize,
+    pub violating: usize,
+    pub passing: usize,
+    pub assumption_satisfied_count: usize,
+    pub assumption_violated_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -83,9 +83,9 @@ struct ManifestCaseClassCounts {
 
 #[derive(Debug, Clone)]
 pub struct TheoremCsvSummary {
-    component_rows: Vec<ComponentSummaryRow>,
-    case_class_counts_global: CaseClassCounts,
-    case_class_counts_by_component: BTreeMap<String, CaseClassCounts>,
+    pub component_rows: Vec<ComponentSummaryRow>,
+    pub case_class_counts_global: CaseClassCounts,
+    pub case_class_counts_by_component: BTreeMap<String, CaseClassCounts>,
 }
 
 #[derive(Debug, Serialize)]

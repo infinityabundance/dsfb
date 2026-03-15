@@ -271,8 +271,7 @@ fn full_run_emits_hardened_schema_and_explicit_violations() {
 
             for row in reader.records() {
                 let row = row.expect("csv row");
-                if component != "core"
-                    && row_value(&headers, &row, "case_class") == "violating"
+                if row_value(&headers, &row, "case_class") == "violating"
                     && row_value(&headers, &row, "assumption_satisfied") == "false"
                     && row_value(&headers, &row, "pass") == "false"
                 {
@@ -289,6 +288,7 @@ fn full_run_emits_hardened_schema_and_explicit_violations() {
         violating_components,
         BTreeSet::from([
             String::from("add"),
+            String::from("core"),
             String::from("dsfb"),
             String::from("dscd"),
             String::from("hret"),
@@ -385,6 +385,23 @@ fn full_run_emits_hardened_schema_and_explicit_violations() {
                 "manifest.case_class_counts.by_component.{component} missing {key}"
             );
         }
+    }
+
+    let run_summary = fs::read_to_string(run_dir.join("run_summary.md")).expect("run_summary body");
+    for required_fragment in [
+        "## Case-class interpretation",
+        "## Global case-class counts",
+        "## By-component case-class counts",
+        "## Pass/fail and assumption summary",
+        "assumption-violating",
+        "non-admissible",
+        "`core`: `passing=",
+        "`tmtr`: `passing=",
+    ] {
+        assert!(
+            run_summary.contains(required_fragment),
+            "run_summary.md missing required fragment: {required_fragment}"
+        );
     }
 }
 
