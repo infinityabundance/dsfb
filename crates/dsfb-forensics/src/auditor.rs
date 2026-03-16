@@ -11,12 +11,13 @@ use chrono::Utc;
 use dsfb::{DsfbObserver, DsfbParams, DsfbState};
 use serde::Serialize;
 
+use crate::benchmark::{BenchmarkConfig, BenchmarkMetadata};
 use crate::cli::BaselineComparison;
 use crate::complexity::{classify_step_complexity, StepComplexity};
 use crate::ekf::{BaselineEkf, EkfStepResult};
 use crate::graph::{build_causal_graph, CausalGraph, ChannelAuditInput, GraphMetrics};
-use crate::report::{award_seal, SealLevel};
 use crate::input::{TraceDocument, TraceStep};
+use crate::report::{award_seal, SealLevel};
 
 /// Runtime configuration for the forensic auditor.
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -43,6 +44,8 @@ pub struct StateSnapshot {
 /// One channel-local provenance update written into `causal_trace.json`.
 #[derive(Clone, Debug, Serialize)]
 pub struct ChannelUpdate {
+    /// Stable channel index.
+    pub channel_index: usize,
     /// Stable channel label.
     pub channel: String,
     /// The rule or theorem ID that dominated the update.
@@ -90,6 +93,14 @@ pub struct StepAuditRecord {
     pub shatter_event: bool,
     /// Number of silent failures in the step.
     pub silent_failures: usize,
+    /// Whether this step satisfied the sustained DSFB alert rule.
+    pub dsfb_alert: bool,
+    /// Whether the conventional QA comparator failed on this step.
+    pub conventional_qa_failed: bool,
+    /// Maximum absolute measurement deviation from the latent reference, when available.
+    pub max_measurement_deviation: Option<f64>,
+    /// Maximum inter-channel spread for the step, when available.
+    pub channel_spread: Option<f64>,
     /// Graph metrics for the step.
     pub graph: GraphMetrics,
     /// Complexity log for the step.
@@ -111,6 +122,8 @@ pub struct CausalTraceDocument {
     pub generated_at_utc: String,
     /// Active forensic configuration.
     pub config: ForensicConfig,
+    /// Optional benchmark metadata when built-in benchmark mode is active.
+    pub benchmark: Option<BenchmarkMetadata>,
     /// Stable channel names.
     pub channel_names: Vec<String>,
     /// One deterministic record per input step.
@@ -158,6 +171,26 @@ pub struct ForensicRunSummary {
     pub slew_threshold: f64,
     /// Active trust alpha.
     pub trust_alpha: f64,
+    /// Optional benchmark scenario name.
+    pub benchmark_scenario: Option<String>,
+    /// Optional benchmark drift start step.
+    pub benchmark_drift_start_step: Option<usize>,
+    /// Benchmark anomaly channels, if benchmark mode was active.
+    pub benchmark_anomaly_channels: Vec<usize>,
+    /// Optional first raw-measurement conventional QA failure step.
+    pub conventional_raw_fail_step: Option<usize>,
+    /// Optional first derived-feature conventional QA failure step.
+    pub conventional_feature_fail_step: Option<usize>,
+    /// Optional first conventional QA failure step.
+    pub conventional_qa_fail_step: Option<usize>,
+    /// Optional first sustained DSFB alert step.
+    pub dsfb_first_alert_step: Option<usize>,
+    /// Optional DSFB lead time in steps.
+    pub dsfb_lead_time_steps: Option<isize>,
+    /// Optional DSFB lead time in seconds.
+    pub dsfb_lead_time_seconds: Option<f64>,
+    /// Whether DSFB provided an early structural warning.
+    pub degradation_detected_early: bool,
     /// Optional DSFB MAE against truth, if truth was present.
     pub dsfb_phi_mae: Option<f64>,
     /// Optional EKF MAE against truth, if truth was present and baseline was enabled.
@@ -173,6 +206,17 @@ pub struct AuditRun {
     pub causal_trace: CausalTraceDocument,
     /// Run-level summary used by the markdown report.
     pub summary: ForensicRunSummary,
+}
+
+#[derive(Clone, Debug, Default)]
+struct BenchmarkAnalysis {
+    conventional_raw_fail_step: Option<usize>,
+    conventional_feature_fail_step: Option<usize>,
+    conventional_qa_fail_step: Option<usize>,
+    dsfb_first_alert_step: Option<usize>,
+    dsfb_lead_time_steps: Option<isize>,
+    dsfb_lead_time_seconds: Option<f64>,
+    degradation_detected_early: bool,
 }
 
 /// Stateful forensic auditor.
@@ -215,6 +259,18 @@ impl ForensicAuditor {
     ///
     /// References: `CORE-04`, `CORE-08`, `CORE-10`, `DSCD-05`, and `TMTR-10`.
     pub fn audit_trace(&mut self, trace: &TraceDocument, input_label: &str) -> Result<AuditRun> {
+        self.audit_trace_with_benchmark(trace, input_label, None)
+    }
+
+    /// Audit a full trace with optional benchmark metadata.
+    ///
+    /// References: `CORE-04`, `CORE-08`, `CORE-10`, `DSCD-05`, and `TMTR-10`.
+    pub fn audit_trace_with_benchmark(
+        &mut self,
+        trace: &TraceDocument,
+        input_label: &str,
+        benchmark_config: Option<&BenchmarkConfig>,
+    ) -> Result<AuditRun> {
         if trace.channel_names.len() != self.channel_names.len() {
             bail!(
                 "trace channel count {} does not match auditor channel count {}",
@@ -272,6 +328,12 @@ impl ForensicAuditor {
             records.push(record);
         }
 
+        let benchmark_metadata = benchmark_config.map(BenchmarkConfig::metadata);
+        let benchmark_analysis = benchmark_metadata
+            .as_ref()
+            .map(|metadata| analyze_benchmark(trace, &mut records, metadata, self.config.trust_alpha))
+            .unwrap_or_default();
+
         let total_updates = trust_count;
         let mean_trust_score = if trust_count > 0 {
             trust_sum / trust_count as f64
@@ -315,6 +377,19 @@ impl ForensicAuditor {
             baseline_enabled,
             slew_threshold: self.config.slew_threshold,
             trust_alpha: self.config.trust_alpha,
+            benchmark_scenario: benchmark_metadata.as_ref().map(|metadata| metadata.scenario.clone()),
+            benchmark_drift_start_step: benchmark_metadata.as_ref().map(|metadata| metadata.drift_start_step),
+            benchmark_anomaly_channels: benchmark_metadata
+                .as_ref()
+                .map(|metadata| metadata.anomaly_channels.clone())
+                .unwrap_or_default(),
+            conventional_raw_fail_step: benchmark_analysis.conventional_raw_fail_step,
+            conventional_feature_fail_step: benchmark_analysis.conventional_feature_fail_step,
+            conventional_qa_fail_step: benchmark_analysis.conventional_qa_fail_step,
+            dsfb_first_alert_step: benchmark_analysis.dsfb_first_alert_step,
+            dsfb_lead_time_steps: benchmark_analysis.dsfb_lead_time_steps,
+            dsfb_lead_time_seconds: benchmark_analysis.dsfb_lead_time_seconds,
+            degradation_detected_early: benchmark_analysis.degradation_detected_early,
             dsfb_phi_mae,
             ekf_phi_mae,
             seal: SealLevel::Level1,
@@ -326,6 +401,7 @@ impl ForensicAuditor {
                 input_trace: input_label.to_string(),
                 generated_at_utc: Utc::now().to_rfc3339(),
                 config: self.config,
+                benchmark: benchmark_metadata,
                 channel_names: trace.channel_names.clone(),
                 steps: records,
             },
@@ -373,6 +449,7 @@ impl ForensicAuditor {
             let silent_failure = ekf_accepted && dsfb_pruned;
             let rule_id = dominant_rule_id(dsfb_pruned, silent_failure, shatter_event).to_string();
             updates.push(ChannelUpdate {
+                channel_index: index,
                 channel: self.channel_names[index].clone(),
                 rule_id,
                 trust_score: input.trust_score,
@@ -414,6 +491,10 @@ impl ForensicAuditor {
             causal_depth: graph.metrics().max_causal_depth,
             shatter_event,
             silent_failures,
+            dsfb_alert: false,
+            conventional_qa_failed: false,
+            max_measurement_deviation: None,
+            channel_spread: None,
             graph: graph.metrics().clone(),
             complexity,
             dsfb_state: state_snapshot(dsfb_diag.state),
@@ -556,5 +637,142 @@ fn state_snapshot(state: DsfbState) -> StateSnapshot {
         phi: state.phi,
         omega: state.omega,
         alpha: state.alpha,
+    }
+}
+
+fn analyze_benchmark(
+    trace: &TraceDocument,
+    records: &mut [StepAuditRecord],
+    benchmark: &BenchmarkMetadata,
+    trust_alpha: f64,
+) -> BenchmarkAnalysis {
+    let mut analysis = BenchmarkAnalysis::default();
+    let anomaly_channels = &benchmark.anomaly_channels;
+    let mut consecutive_alerts = 0usize;
+
+    for (step, record) in trace.steps.iter().zip(records.iter_mut()) {
+        let max_measurement_deviation = step
+            .truth
+            .map(|truth| max_measurement_deviation(step, truth.phi, anomaly_channels));
+        let channel_spread = Some(measurement_spread(step));
+        let raw_failed = max_measurement_deviation
+            .map(|value| value >= benchmark.conventional_qa_threshold)
+            .unwrap_or(false);
+        let feature_failed = channel_spread
+            .map(|value| value >= benchmark.conventional_qa_threshold)
+            .unwrap_or(false);
+        let conventional_failed = raw_failed || feature_failed;
+
+        record.max_measurement_deviation = max_measurement_deviation;
+        record.channel_spread = channel_spread;
+        record.conventional_qa_failed = conventional_failed;
+
+        if raw_failed && analysis.conventional_raw_fail_step.is_none() {
+            analysis.conventional_raw_fail_step = Some(step.step);
+        }
+        if feature_failed && analysis.conventional_feature_fail_step.is_none() {
+            analysis.conventional_feature_fail_step = Some(step.step);
+        }
+        if conventional_failed && analysis.conventional_qa_fail_step.is_none() {
+            analysis.conventional_qa_fail_step = Some(step.step);
+        }
+
+        if benchmark_step_alert(record, anomaly_channels, trust_alpha) {
+            consecutive_alerts += 1;
+        } else {
+            consecutive_alerts = 0;
+        }
+        record.dsfb_alert = consecutive_alerts >= benchmark.alert_consecutive_steps;
+        if record.dsfb_alert && analysis.dsfb_first_alert_step.is_none() {
+            analysis.dsfb_first_alert_step = Some(step.step);
+        }
+    }
+
+    match (analysis.dsfb_first_alert_step, analysis.conventional_qa_fail_step) {
+        (Some(dsfb_alert_step), Some(conventional_fail_step)) => {
+            analysis.dsfb_lead_time_steps = Some(conventional_fail_step as isize - dsfb_alert_step as isize);
+            analysis.dsfb_lead_time_seconds =
+                benchmark_time_delta_seconds(trace, dsfb_alert_step, conventional_fail_step);
+            analysis.degradation_detected_early = dsfb_alert_step < conventional_fail_step;
+        }
+        (Some(_), None) => {
+            analysis.degradation_detected_early = true;
+        }
+        _ => {}
+    }
+
+    analysis
+}
+
+fn max_measurement_deviation(step: &TraceStep, reference: f64, anomaly_channels: &[usize]) -> f64 {
+    if anomaly_channels.is_empty() {
+        return step
+            .measurements
+            .iter()
+            .map(|measurement| (measurement - reference).abs())
+            .fold(0.0, f64::max);
+    }
+    step.measurements
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| anomaly_channels.contains(index))
+        .map(|(_, measurement)| (measurement - reference).abs())
+        .fold(0.0, f64::max)
+}
+
+fn measurement_spread(step: &TraceStep) -> f64 {
+    let minimum = step.measurements.iter().copied().fold(f64::INFINITY, f64::min);
+    let maximum = step
+        .measurements
+        .iter()
+        .copied()
+        .fold(f64::NEG_INFINITY, f64::max);
+    maximum - minimum
+}
+
+fn benchmark_step_alert(
+    record: &StepAuditRecord,
+    anomaly_channels: &[usize],
+    trust_alpha: f64,
+) -> bool {
+    let anomaly_alert = record.updates.iter().any(|update| {
+        (anomaly_channels.is_empty() || anomaly_channels.contains(&update.channel_index))
+            && (update.trust_score < trust_alpha
+                || update.raw_trust_weight < trust_alpha
+                || update.dsfb_pruned
+                || update.silent_failure)
+    });
+    anomaly_alert || record.graph.fragmented || record.silent_failures > 0 || record.shatter_event
+}
+
+fn benchmark_time_delta_seconds(
+    trace: &TraceDocument,
+    dsfb_alert_step: usize,
+    conventional_fail_step: usize,
+) -> Option<f64> {
+    if dsfb_alert_step == conventional_fail_step {
+        return Some(0.0);
+    }
+
+    let start_position = trace.steps.iter().position(|step| step.step == dsfb_alert_step)?;
+    let end_position = trace
+        .steps
+        .iter()
+        .position(|step| step.step == conventional_fail_step)?;
+
+    if end_position < start_position {
+        Some(
+            -trace.steps[end_position + 1..=start_position]
+                .iter()
+                .map(|step| step.dt)
+                .sum::<f64>(),
+        )
+    } else {
+        Some(
+            trace.steps[start_position + 1..=end_position]
+                .iter()
+                .map(|step| step.dt)
+                .sum::<f64>(),
+        )
     }
 }
