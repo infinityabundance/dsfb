@@ -1,0 +1,43 @@
+[package]
+name = "dsfb-forensics"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+default-run = "dsfb-forensics"
+description = "Reference specification and forensic audit layer for the Drift-Slew Fusion Bootstrap stack"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/infinityabundance/dsfb"
+homepage = "https://github.com/infinityabundance/dsfb"
+keywords = ["dsfb", "forensics", "audit", "ekf", "causal-graph"]
+categories = ["science", "simulation", "command-line-utilities"]
+include = [
+    "src/**",
+    "tests/**",
+    "fixtures/**",
+    "dsfb_forensics_repro.ipynb",
+    "Cargo.toml",
+    "README.md",
+]
+
+[workspace]
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+clap = { version = "4", features = ["derive"] }
+csv = "1.3"
+dsfb = { version = "0.1.2", path = "../dsfb" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lib]
+name = "dsfb_forensics"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb-forensics"
+path = "src/main.rs"
