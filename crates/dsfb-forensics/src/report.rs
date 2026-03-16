@@ -80,6 +80,23 @@ pub fn render_markdown_report(summary: &ForensicRunSummary) -> String {
         summary.max_total_ops,
         summary.max_memory_words,
     ));
+    if let Some(scenario) = &summary.benchmark_scenario {
+        body.push_str("## Benchmark Early-Warning Analysis\n\n");
+        body.push_str(&format!(
+            "- Scenario: `{}`\n- Drift start step: `{}`\n- Anomaly channels: `{:?}`\n- Conventional QA fail step: `{}`\n- DSFB first alert step: `{}`\n- DSFB lead time (steps): `{}`\n- DSFB lead time (seconds): `{}`\n- Early detection: `{}`\n\n",
+            scenario,
+            summary.benchmark_drift_start_step.unwrap_or_default(),
+            summary.benchmark_anomaly_channels,
+            option_step_text(summary.conventional_qa_fail_step),
+            option_step_text(summary.dsfb_first_alert_step),
+            option_isize_text(summary.dsfb_lead_time_steps),
+            option_f64_text(summary.dsfb_lead_time_seconds),
+            summary.degradation_detected_early,
+        ));
+        body.push_str("Interpretation: ");
+        body.push_str(&benchmark_interpretation(summary));
+        body.push_str("\n\n");
+    }
     if let Some(mae) = summary.dsfb_phi_mae {
         body.push_str("## Accuracy Context\n\n");
         body.push_str(&format!("- DSFB phi MAE: `{:.6}`\n", mae));
@@ -101,4 +118,41 @@ pub fn render_markdown_report(summary: &ForensicRunSummary) -> String {
         ),
     }
     body
+}
+
+fn benchmark_interpretation(summary: &ForensicRunSummary) -> &'static str {
+    match (
+        summary.dsfb_first_alert_step,
+        summary.conventional_qa_fail_step,
+        summary.degradation_detected_early,
+    ) {
+        (Some(_), Some(_), true) => {
+            "DSFB raised a sustained structural warning before the conventional scalar QA threshold failed."
+        }
+        (Some(_), None, true) => {
+            "DSFB raised a sustained structural warning even though the conventional scalar QA threshold never failed during the benchmark horizon."
+        }
+        (Some(_), Some(_), false) => {
+            "DSFB did not provide lead time ahead of the conventional scalar QA threshold in this run."
+        }
+        _ => "The benchmark did not produce a sustained DSFB alert in this run.",
+    }
+}
+
+fn option_step_text(value: Option<usize>) -> String {
+    value
+        .map(|step| step.to_string())
+        .unwrap_or_else(|| "not reached".to_string())
+}
+
+fn option_isize_text(value: Option<isize>) -> String {
+    value
+        .map(|step| step.to_string())
+        .unwrap_or_else(|| "n/a".to_string())
+}
+
+fn option_f64_text(value: Option<f64>) -> String {
+    value
+        .map(|seconds| format!("{seconds:.6}"))
+        .unwrap_or_else(|| "n/a".to_string())
 }

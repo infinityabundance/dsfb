@@ -115,6 +115,53 @@ Arguments:
 - `--report-format <markdown|json|both>`
   Markdown is always written because `forensic_report.md` is mandatory. `json` and `both` additionally write `forensic_report.json`.
 
+## Benchmark Mode
+
+`dsfb-forensics` also includes a built-in domain-agnostic latent degradation benchmark. The benchmark does not model any device-specific physics. It models generic structural signature drift across otherwise coherent channels so the same experiment can be reused for any component class, process family, or QA context.
+
+In this crate, **latent structural drift** means:
+
+- healthy channels continue to follow a coherent latent trajectory
+- one or more channels accumulate gradual pattern mismatch, slew mismatch, or asymmetric recovery behavior
+- simple scalar QA can still pass for an initial interval
+- DSFB can still surface structural concern earlier through trust decay, pruning, or related alert criteria
+
+This is a manufacturing-QA-style reference experiment, not a device-specific failure model.
+
+Benchmark-specific CLI options:
+
+- `--benchmark-scenario <none|healthy-reference|latent-signature-drift|channel-fragmentation-ramp>`
+- `--benchmark-steps <N>`
+- `--benchmark-dt <SECONDS>`
+- `--benchmark-channel-count <N>`
+- `--benchmark-drift-start <N>`
+- `--benchmark-drift-rate <FLOAT>`
+- `--benchmark-drift-max <FLOAT>`
+- `--benchmark-qa-threshold <FLOAT>`
+- `--benchmark-jitter-level <FLOAT>`
+- `--benchmark-anomaly-channels <comma-separated indices>`
+- `--benchmark-recovery-step <N>`
+- `--benchmark-alert-consecutive-steps <N>`
+- `--benchmark-write-trace <on|off>`
+
+Example:
+
+```bash
+cargo run --release --manifest-path crates/dsfb-forensics/Cargo.toml -- \
+  --benchmark-scenario latent-signature-drift \
+  --benchmark-steps 40 \
+  --benchmark-drift-start 12 \
+  --benchmark-drift-rate 0.02 \
+  --benchmark-drift-max 0.35 \
+  --benchmark-qa-threshold 0.40 \
+  --benchmark-anomaly-channels 2 \
+  --benchmark-write-trace on \
+  --slew-threshold 6.0 \
+  --trust-alpha 0.20 \
+  --baseline-comparison on \
+  --report-format both
+```
+
 ## Output Layout
 
 Every execution creates:
@@ -132,6 +179,10 @@ Each run writes:
   The human-readable audit report, including the DSFB Seal of Integrity, reasoning-consistency score, event counts, and complexity bound.
 - `forensic_report.json`
   Optional JSON summary written when `--report-format json` or `--report-format both` is selected.
+- `benchmark_config.json`
+  Written when benchmark mode is active. Captures the built-in benchmark configuration that generated the trace.
+- `benchmark_trace.csv`
+  Written when benchmark mode is active and `--benchmark-write-trace on` is selected.
 
 When the Colab notebook is used, the same timestamped run directory also receives:
 
@@ -153,10 +204,26 @@ The report awards one of three levels:
 
 The seal is not an accuracy score. It is a reasoning-consistency score derived from graph fragmentation, prune activity, and EKF disagreement with DSFB structure.
 
+## Benchmark Early-Warning Metrics
+
+When benchmark mode is active, the JSON summary and markdown report also include:
+
+- `conventional_raw_fail_step`
+- `conventional_feature_fail_step`
+- `conventional_qa_fail_step`
+- `dsfb_first_alert_step`
+- `dsfb_lead_time_steps`
+- `dsfb_lead_time_seconds`
+- `degradation_detected_early`
+
+These metrics compare a simple scalar QA comparator against the DSFB alert condition. If conventional QA never crosses threshold during the benchmark horizon, the report states that explicitly rather than forcing a fake lead-time number.
+
 ## Implementation Map
 
 - `src/input.rs`
   Trace loader and schema validation.
+- `src/benchmark.rs`
+  Deterministic benchmark generation, metadata, and fixture-ready CSV writing.
 - `src/ekf.rs`
   Standard EKF baseline used as the stochastic shadow.
 - `src/graph.rs`
@@ -174,7 +241,7 @@ The seal is not an accuracy score. It is a reasoning-consistency score derived f
 
 ## Colab Reproduction
 
-The notebook [dsfb_forensics_repro.ipynb](./dsfb_forensics_repro.ipynb) clones the repository, installs Rust, builds this crate from scratch, generates a deterministic trace, runs the CLI, loads the emitted JSON outputs with Pandas, visualizes trust decay, fragmentation, and silent failures with Matplotlib, saves the notebook-generated tables and figures into the run folder, and automatically creates `output-dsfb-forensics/<timestamp>.zip` for download.
+The notebook [dsfb_forensics_repro.ipynb](./dsfb_forensics_repro.ipynb) clones the repository, installs Rust, builds this crate from scratch, runs both the direct replay flow and the built-in latent structural drift benchmark, loads the emitted JSON outputs with Pandas, visualizes raw measurements, trust decay, fragmentation, and early-warning markers with Matplotlib, saves the notebook-generated tables and figures into the run folders, and automatically creates `output-dsfb-forensics/<timestamp>.zip` archives for download.
 
 Use the Colab badge at the top of this README to open it directly.
 

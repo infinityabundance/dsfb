@@ -8,6 +8,7 @@
 //! and `TMTR-01` and `TMTR-04` for monotone trust descent and stabilization.
 
 pub mod auditor;
+pub mod benchmark;
 pub mod cli;
 pub mod complexity;
 pub mod ekf;
@@ -18,6 +19,10 @@ pub mod report;
 
 pub use auditor::{
     infer_initial_state, AuditRun, ForensicAuditor, ForensicConfig, ForensicRunSummary,
+};
+pub use benchmark::{
+    generate_trace as generate_benchmark_trace, write_trace_csv as write_benchmark_trace_csv,
+    BenchmarkConfig, BenchmarkMetadata, BenchmarkScenario, BenchmarkWriteTrace,
 };
 pub use cli::{BaselineComparison, Cli, ReportFormat};
 pub use fs::{create_run_directory, create_run_directory_at, RunDirectory};
