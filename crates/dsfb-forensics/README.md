@@ -133,6 +133,13 @@ Each run writes:
 - `forensic_report.json`
   Optional JSON summary written when `--report-format json` or `--report-format both` is selected.
 
+When the Colab notebook is used, the same timestamped run directory also receives:
+
+- `notebook_artifacts/`
+  Notebook-generated CSV tables, PNG figures, copied trace inputs, command logs, and JSON manifests.
+- `output-dsfb-forensics/<timestamp>.zip`
+  A zip archive named after the run folder itself. The archive contains the full `<timestamp>/` directory tree so it is easy to download one file and keep every JSON, CSV, PNG, log, and notebook-generated artifact together.
+
 ## Seal Semantics
 
 The report awards one of three levels:
@@ -167,7 +174,7 @@ The seal is not an accuracy score. It is a reasoning-consistency score derived f
 
 ## Colab Reproduction
 
-The notebook [dsfb_forensics_repro.ipynb](./dsfb_forensics_repro.ipynb) clones the repository, installs Rust, builds this crate from scratch, generates a deterministic trace, runs the CLI, loads the emitted JSON outputs with Pandas, and visualizes trust decay, fragmentation, and silent failures with Matplotlib.
+The notebook [dsfb_forensics_repro.ipynb](./dsfb_forensics_repro.ipynb) clones the repository, installs Rust, builds this crate from scratch, generates a deterministic trace, runs the CLI, loads the emitted JSON outputs with Pandas, visualizes trust decay, fragmentation, and silent failures with Matplotlib, saves the notebook-generated tables and figures into the run folder, and automatically creates `output-dsfb-forensics/<timestamp>.zip` for download.
 
 Use the Colab badge at the top of this README to open it directly.
 
