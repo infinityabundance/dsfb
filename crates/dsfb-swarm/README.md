@@ -328,8 +328,18 @@ The notebook at `notebooks/dsfb_swarm_colab.ipynb` is designed to:
 - locate the newest timestamped output directory,
 - load CSV/JSON artifacts,
 - display figures and tables inline,
-- assemble a PDF report,
-- create a zip archive containing the full artifact bundle.
+- assemble a notebook-side PDF report of the Colab results,
+- copy the notebook itself into the run’s report folder,
+- write a JSON manifest for notebook-produced artifacts,
+- create a zip archive containing the full artifact bundle,
+- surface direct download links for the PDF, zip archive, and manifest at the end of the run.
+
+When the notebook completes, the run’s `report/` directory contains these Colab-specific outputs in addition to the Rust-generated report:
+
+- `dsfb_swarm_colab_report.pdf`
+- `dsfb_swarm_artifacts.zip`
+- `colab_artifact_manifest.json`
+- `dsfb_swarm_colab.ipynb`
 
 The Colab badge and notebook bootstrap default to `https://github.com/infinityabundance/dsfb.git`. You can still override that at runtime with `DSFB_REPO_URL`, `DSFB_REPO_REF`, or `DSFB_REPO_ROOT`.
 
