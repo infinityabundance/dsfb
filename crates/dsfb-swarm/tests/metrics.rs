@@ -86,10 +86,52 @@ fn benchmark_artifact_generation_smoke() -> Result<()> {
     let run_dir = run_benchmark_suite(config)?;
     assert!(run_dir.join("benchmark_summary.csv").exists());
     assert!(run_dir.join("hero_benchmark_summary.csv").exists());
+    assert!(run_dir.join("detector_debug.csv").exists());
     assert!(run_dir.join("figures/scaling_curves.png").exists());
     assert!(run_dir.join("figures/hero_leadtime_comparison.png").exists());
     assert!(run_dir.join("figures/hero_benchmark_table.png").exists());
     assert!(run_dir.join("report/dsfb_swarm_report.pdf").exists());
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn hero_summary_contains_required_scenarios_and_winner_column() -> Result<()> {
+    let root = test_root("hero-summary");
+    let config = BenchmarkConfig {
+        steps: 120,
+        sizes: vec![20, 100],
+        noise_levels: vec![0.01],
+        scenarios: vec![
+            ScenarioKind::GradualEdgeDegradation,
+            ScenarioKind::AdversarialAgent,
+            ScenarioKind::CommunicationLoss,
+        ],
+        multi_mode: true,
+        monitored_modes: 4,
+        mode_shapes: true,
+        predictor: dsfb_swarm::config::PredictorKind::SmoothCorrective,
+        trust_mode: dsfb_swarm::config::TrustGateMode::SmoothDecay,
+        output_root: root.clone(),
+    };
+    let run_dir = run_benchmark_suite(config)?;
+    let mut reader = Reader::from_path(run_dir.join("hero_benchmark_summary.csv"))?;
+    let headers = reader.headers()?.clone();
+    assert!(headers.iter().any(|header| header == "winner"));
+    let rows = reader
+        .deserialize::<std::collections::BTreeMap<String, String>>()
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    for scenario in [
+        "gradual_edge_degradation",
+        "adversarial_agent",
+        "communication_loss",
+    ] {
+        let row = rows
+            .iter()
+            .find(|row| row.get("scenario").map(String::as_str) == Some(scenario))
+            .expect("hero scenario row");
+        assert!(!row.get("winner").unwrap_or(&String::new()).is_empty());
+    }
     let _ = fs::remove_dir_all(root);
     Ok(())
 }
@@ -104,6 +146,21 @@ fn communication_loss_exports_positive_scalar_lead_time() -> Result<()> {
     assert!(run.summary.scalar_detection_step.is_some());
     assert!(run.summary.scalar_detection_lead_time.unwrap_or(0.0) > 0.0);
     assert!(run.summary.scalar_true_positive_rate > 0.0);
+    Ok(())
+}
+
+#[test]
+fn large_scale_communication_loss_keeps_meaningful_detection() -> Result<()> {
+    let mut config = benchmark_like_run_config(ScenarioKind::CommunicationLoss);
+    config.agents = 100;
+    let run = run_scenario(
+        &config,
+        ScenarioDefinition::from_kind(ScenarioKind::CommunicationLoss, config.steps),
+    )?;
+    assert!(
+        run.summary.scalar_detection_lead_time.unwrap_or(0.0) > 0.0
+            || run.summary.multimode_detection_lead_time.unwrap_or(0.0) > 0.0
+    );
     Ok(())
 }
 
@@ -179,6 +236,7 @@ fn benchmark_summary_contains_calibrated_metric_columns() -> Result<()> {
         "best_baseline_lead_time",
         "lead_time_gain_vs_best_baseline",
         "tpr_gain_vs_best_baseline",
+        "fpr_delta_vs_best_baseline",
         "fpr_reduction_vs_best_baseline",
         "baseline_lambda2_lead_time",
         "multimode_minus_scalar_seconds",
@@ -199,6 +257,7 @@ fn benchmark_summary_contains_calibrated_metric_columns() -> Result<()> {
         .expect("communication_loss row");
     assert!(!communication.get("scalar_detection_lead_time").unwrap_or(&String::new()).is_empty());
     assert!(!communication.get("best_baseline_name").unwrap_or(&String::new()).is_empty());
+    assert!(!communication.get("lead_time_gain_vs_best_baseline").unwrap_or(&String::new()).is_empty());
 
     let adversarial = rows
         .iter()

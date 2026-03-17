@@ -48,8 +48,11 @@ pub struct ScenarioSummary {
     pub baseline_lambda2_lead_time: Option<f64>,
     pub best_baseline_name: String,
     pub best_baseline_lead_time: Option<f64>,
+    pub best_baseline_true_positive_rate: Option<f64>,
+    pub best_baseline_false_positive_rate: Option<f64>,
     pub lead_time_gain_vs_best_baseline: Option<f64>,
     pub tpr_gain_vs_best_baseline: Option<f64>,
+    pub fpr_delta_vs_best_baseline: Option<f64>,
     pub fpr_reduction_vs_best_baseline: Option<f64>,
     pub multimode_minus_scalar_seconds: Option<f64>,
     pub trust_drop_step: Option<usize>,
@@ -131,6 +134,9 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
     let tpr_gain_vs_best_baseline = best_baseline
         .as_ref()
         .map(|(_, _, baseline_tpr, _)| best_detector_tpr - *baseline_tpr);
+    let fpr_delta_vs_best_baseline = best_baseline
+        .as_ref()
+        .map(|(_, _, _, baseline_fpr)| baseline_fpr - best_detector_fpr);
     let fpr_reduction_vs_best_baseline = best_baseline
         .as_ref()
         .map(|(_, _, _, baseline_fpr)| baseline_fpr - best_detector_fpr);
@@ -189,8 +195,11 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
             .map(|(name, _, _, _)| (*name).to_string())
             .unwrap_or_else(|| "n/a".to_string()),
         best_baseline_lead_time: best_baseline.as_ref().map(|(_, lead, _, _)| *lead),
+        best_baseline_true_positive_rate: best_baseline.as_ref().map(|(_, _, tpr, _)| *tpr),
+        best_baseline_false_positive_rate: best_baseline.as_ref().map(|(_, _, _, fpr)| *fpr),
         lead_time_gain_vs_best_baseline,
         tpr_gain_vs_best_baseline,
+        fpr_delta_vs_best_baseline,
         fpr_reduction_vs_best_baseline,
         multimode_minus_scalar_seconds,
         trust_drop_step,
@@ -218,8 +227,8 @@ fn visible_failure_step(kind: ScenarioKind, lambda2: &[f64], onset: usize) -> Op
         ScenarioKind::Nominal => None,
         ScenarioKind::GradualEdgeDegradation => {
             let (peak_step, peak_value) = post_onset_peak(lambda2, onset)?;
-            let threshold = (0.58 * peak_value).max(0.02);
-            first_sustained_below(lambda2, peak_step.saturating_add(1), threshold, 3)
+            let threshold = (0.30 * peak_value).max(0.02);
+            first_sustained_below(lambda2, peak_step.saturating_add(1), threshold, 6)
         }
         ScenarioKind::AdversarialAgent => None,
         ScenarioKind::CommunicationLoss | ScenarioKind::All => {
@@ -270,7 +279,7 @@ fn trust_drop_step(values: &[f64], onset: usize) -> Option<usize> {
 
 fn lead_time_seconds(detection: Option<usize>, failure: Option<usize>, dt: f64) -> Option<f64> {
     match (detection, failure) {
-        (Some(detection), Some(failure)) if detection <= failure => Some((failure - detection) as f64 * dt),
+        (Some(detection), Some(failure)) => Some((failure as f64 - detection as f64) * dt),
         _ => None,
     }
 }

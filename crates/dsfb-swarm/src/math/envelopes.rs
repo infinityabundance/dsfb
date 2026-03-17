@@ -26,6 +26,8 @@ pub struct EnvelopeMonitor {
     cached_combined_limit: f64,
     recent_negative_count: usize,
     recent_exceedance_count: usize,
+    recent_signal_count: usize,
+    candidate_streak: usize,
     signal_ema: f64,
     drift_ema: f64,
     slew_ema: f64,
@@ -44,6 +46,7 @@ pub struct EnvelopeState {
 #[derive(Debug, Clone, Serialize)]
 pub struct AnomalyCertificate {
     pub flagged: bool,
+    pub candidate_flag: bool,
     pub residual_violation: bool,
     pub drift_violation: bool,
     pub slew_violation: bool,
@@ -57,6 +60,9 @@ pub struct AnomalyCertificate {
     pub scalar_ratio: f64,
     pub drift_ratio: f64,
     pub combined_ratio: f64,
+    pub recent_exceedance_count: usize,
+    pub recent_signal_count: usize,
+    pub candidate_streak: usize,
     pub score: f64,
     pub reasons: Vec<String>,
 }
@@ -80,6 +86,8 @@ impl EnvelopeMonitor {
             cached_combined_limit: 0.06,
             recent_negative_count: 0,
             recent_exceedance_count: 0,
+            recent_signal_count: 0,
+            candidate_streak: 0,
             signal_ema: 0.0,
             drift_ema: 0.0,
             slew_ema: 0.0,
@@ -106,6 +114,8 @@ impl EnvelopeMonitor {
             cached_combined_limit: 0.14,
             recent_negative_count: 0,
             recent_exceedance_count: 0,
+            recent_signal_count: 0,
+            candidate_streak: 0,
             signal_ema: 0.0,
             drift_ema: 0.0,
             slew_ema: 0.0,
@@ -126,7 +136,12 @@ impl EnvelopeMonitor {
                 let stack_rms = residuals.stack_norm / mode_count.sqrt();
                 let mode_shape_rms = residuals.mode_shape_norm / mode_count.sqrt();
                 let scalar_support = (-residuals.scalar_residual).max(0.0);
-                0.82 * stack_rms + 0.14 * mode_shape_rms + 0.24 * scalar_support
+                let mode_shape_term = if stack_rms > 0.45 {
+                    0.08 * mode_shape_rms
+                } else {
+                    0.04 * mode_shape_rms
+                };
+                0.80 * stack_rms + mode_shape_term + 0.28 * scalar_support
             }
         };
         let raw_negative_drift_value = (-residuals.scalar_drift).max(0.0).sqrt();
@@ -159,6 +174,7 @@ impl EnvelopeMonitor {
             push_bounded(&mut self.warmup_combined_samples, combined_value, 48);
             AnomalyCertificate {
                 flagged: false,
+                candidate_flag: false,
                 residual_violation: false,
                 drift_violation: false,
                 slew_violation: false,
@@ -172,6 +188,9 @@ impl EnvelopeMonitor {
                 scalar_ratio: 0.0,
                 drift_ratio: 0.0,
                 combined_ratio: 0.0,
+                recent_exceedance_count: 0,
+                recent_signal_count: 0,
+                candidate_streak: 0,
                 score: combined_value,
                 reasons: Vec::new(),
             }
@@ -212,6 +231,11 @@ impl EnvelopeMonitor {
                 combined_ratio > 0.90 || scalar_ratio > 0.95,
                 combined_ratio < 0.88 && scalar_ratio < 1.0,
             );
+            update_counter(
+                &mut self.recent_signal_count,
+                scalar_ratio > 1.02,
+                scalar_ratio < 0.84 && combined_ratio < 0.80,
+            );
             let persistent_negative_drift = self.recent_negative_count >= self.persistent_window;
 
             let mut reasons = Vec::new();
@@ -231,7 +255,7 @@ impl EnvelopeMonitor {
                 reasons.push("persistent negative residual drift".to_string());
             }
 
-            let flagged = match self.mode {
+            let candidate_flag = match self.mode {
                 MonitorMode::ScalarNegative => {
                     (self.recent_exceedance_count >= 4
                         && combined_ratio > 1.20
@@ -246,21 +270,37 @@ impl EnvelopeMonitor {
                             && combined_ratio > 1.26
                             && scalar_ratio > 1.50
                             && persistent_negative_drift)
+                        || (self.recent_signal_count >= 9
+                            && scalar_ratio > 1.12
+                            && combined_ratio > 0.48)
                 }
                 MonitorMode::MultiStack => {
                     (combined_ratio > 1.24 && self.recent_exceedance_count >= 3)
                         || (combined_ratio > 1.30
                             && (scalar_ratio > 0.78 || persistent_negative_drift))
-                        || (combined_ratio > 0.92 && self.recent_exceedance_count >= 8)
+                        || (combined_ratio > 1.00
+                            && scalar_ratio > 1.04
+                            && self.recent_exceedance_count >= 6)
                         || (persistent_negative_drift
                             && scalar_ratio > 0.88
                             && combined_ratio > 1.08
                             && self.recent_exceedance_count >= 3)
                 }
             };
+            self.candidate_streak = if candidate_flag {
+                self.candidate_streak + 1
+            } else {
+                0
+            };
+            let required_streak = match self.mode {
+                MonitorMode::ScalarNegative => 1,
+                MonitorMode::MultiStack => 3,
+            };
+            let flagged = candidate_flag && self.candidate_streak >= required_streak;
 
             AnomalyCertificate {
                 flagged,
+                candidate_flag,
                 residual_violation,
                 drift_violation,
                 slew_violation,
@@ -274,6 +314,9 @@ impl EnvelopeMonitor {
                 scalar_ratio,
                 drift_ratio,
                 combined_ratio,
+                recent_exceedance_count: self.recent_exceedance_count,
+                recent_signal_count: self.recent_signal_count,
+                candidate_streak: self.candidate_streak,
                 score: combined_value,
                 reasons,
             }
