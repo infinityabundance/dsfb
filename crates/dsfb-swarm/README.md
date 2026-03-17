@@ -271,6 +271,7 @@ Core artifacts:
 - `benchmark_summary.csv`
 - `hero_benchmark_summary.csv`
 - `time_series.csv`
+- `detector_debug.csv`
 - `spectra.csv`
 - `residuals.csv`
 - `trust.csv`
@@ -308,7 +309,7 @@ Calibration-critical columns now exported in the CSV summaries:
     - `gradual_edge_degradation`
     - `adversarial_agent`
     - `communication_loss`
-  - scalar lead, multi lead, best-baseline lead, lead-time gain, trust delay, and TPR/FPR pairs.
+  - scalar lead, multi lead, best-baseline lead, lead-time gain, trust delay, TPR/FPR pairs, and a deterministic `winner` label.
 
 - `time_series.csv`
   - calibrated scalar and multi-mode detector signals,
@@ -317,6 +318,9 @@ Calibration-critical columns now exported in the CSV summaries:
   - trust scores and trust alarm inputs,
   - baseline flags,
   - scalar-vs-multimode anomaly decisions at every step.
+
+- `detector_debug.csv`
+  - the same per-step detector trace as `time_series.csv`, retained as an explicitly named debug export for calibration audits and notebook-side inspection.
 
 ## What the figures and tables are meant to show
 
@@ -348,10 +352,10 @@ Calibration-critical columns now exported in the CSV summaries:
   - Concrete graph changes corresponding to spectral warnings.
 
 - `hero_leadtime_comparison.png`
-  - The strongest calibrated scalar, multi-mode, and best-baseline lead times for the three headline scenarios.
+  - The strongest calibrated scalar, multi-mode, and best-baseline lead times for the three headline scenarios, annotated by the computed winner.
 
 - `hero_benchmark_table.png`
-  - A compact publication-style table view of the hero benchmark rows.
+  - A compact publication-style table view of the hero benchmark rows with the winner column exposed directly.
 
 ## Reproducibility notes
 
@@ -362,9 +366,9 @@ Calibration-critical columns now exported in the CSV summaries:
 
 With the current calibration, the representative benchmark is designed to show:
 
-- positive scalar lead time for `communication_loss`,
-- positive lead time with negative residual-drift evidence for `gradual_edge_degradation`,
-- earlier multi-mode detection than scalar-only in `adversarial_agent`,
+- a clear scalar lead-time win over raw `lambda_2` thresholding in `communication_loss`,
+- a clear multi-mode lead-time win over the best baseline in `gradual_edge_degradation`,
+- stronger adversarial diagnosis from multi-mode plus trust than from scalar-only monitoring,
 - measurable trust suppression delay in adversarial and communication-loss cases,
 - non-empty baseline and benchmark comparison tables rather than placeholder zeros.
 

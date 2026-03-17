@@ -45,6 +45,7 @@ fn quickstart_writes_expected_artifacts() -> Result<()> {
         "benchmark_summary.csv",
         "hero_benchmark_summary.csv",
         "time_series.csv",
+        "detector_debug.csv",
         "spectra.csv",
         "residuals.csv",
         "trust.csv",

@@ -176,6 +176,7 @@ where
     write_csv_rows(&run_dir.join("benchmark_summary.csv"), benchmark_rows.iter().cloned())?;
     write_csv_rows(&run_dir.join("hero_benchmark_summary.csv"), hero_rows.iter().cloned())?;
     write_csv_rows(&run_dir.join("time_series.csv"), time_series.iter().cloned())?;
+    write_csv_rows(&run_dir.join("detector_debug.csv"), time_series.iter().cloned())?;
     write_csv_rows(&run_dir.join("spectra.csv"), spectra.iter().cloned())?;
     write_csv_rows(&run_dir.join("residuals.csv"), residuals.iter().cloned())?;
     write_csv_rows(&run_dir.join("trust.csv"), trust.iter().cloned())?;
@@ -218,6 +219,7 @@ where
             "benchmark_summary.csv".to_string(),
             "hero_benchmark_summary.csv".to_string(),
             "time_series.csv".to_string(),
+            "detector_debug.csv".to_string(),
             "spectra.csv".to_string(),
             "residuals.csv".to_string(),
             "trust.csv".to_string(),
@@ -268,6 +270,25 @@ fn build_markdown_report(
     body.push_str(
         "The demonstrator evolves a dynamic interaction graph `G(t)` with adjacency `A(t)`, degree `D(t)`, and Laplacian `L(t) = D(t) - A(t)`. The monitored observables are the Laplacian eigenvalues, especially `lambda_2(t)`, together with deterministic predictors `hat lambda_k(t)`, residuals `r_k(t) = lambda_k(t) - hat lambda_k(t)`, residual drift, residual slew, residual envelopes, and trust-gated interaction attenuation.\n\n",
     );
+    body.push_str("## Hero view\n\n");
+    body.push_str("| scenario | scalar LT (s) | multimode LT (s) | best baseline LT (s) | trust delay (s) | scalar TPR/FPR | multimode TPR/FPR | winner |\n");
+    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | --- | --- |\n");
+    for row in hero_rows {
+        body.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {:.3}/{:.3} | {:.3}/{:.3} | {} |\n",
+            row.scenario,
+            display_option(row.scalar_lead_time),
+            display_option(row.multimode_lead_time),
+            display_option(row.best_baseline_lead_time),
+            display_option(row.trust_suppression_delay),
+            row.scalar_true_positive_rate,
+            row.scalar_false_positive_rate,
+            row.multimode_true_positive_rate,
+            row.multimode_false_positive_rate,
+            row.winner,
+        ));
+    }
+    body.push_str("\n");
     body.push_str("## Scenario summary\n\n");
     body.push_str("| scenario | visible failure | scalar detect | multi detect | scalar lead (s) | multi lead (s) | multi advantage (s) | trust delay (s) | corr(score, ||Delta L||_F) |\n");
     body.push_str("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
@@ -308,11 +329,11 @@ fn build_markdown_report(
         ));
     }
     body.push_str("\n## Hero benchmark rows\n\n");
-    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | best baseline | baseline lead (s) | lead gain (s) | trust delay (s) | scalar TPR/FPR | multi TPR/FPR |\n");
-    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- | --- |\n");
+    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | best baseline | baseline lead (s) | lead gain (s) | trust delay (s) | scalar TPR/FPR | multi TPR/FPR | winner |\n");
+    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- | --- | --- |\n");
     for row in hero_rows {
         body.push_str(&format!(
-            "| {} | {} | {:.3} | {} | {} | {} | {} | {} | {} | {:.3}/{:.3} | {:.3}/{:.3} |\n",
+            "| {} | {} | {:.3} | {} | {} | {} | {} | {} | {} | {:.3}/{:.3} | {:.3}/{:.3} | {} |\n",
             row.scenario,
             row.agents,
             row.noise_level,
@@ -326,6 +347,7 @@ fn build_markdown_report(
             row.scalar_false_positive_rate,
             row.multimode_true_positive_rate,
             row.multimode_false_positive_rate,
+            row.winner,
         ));
     }
     body.push_str("\n## Figure inventory\n\n");
@@ -345,7 +367,7 @@ fn build_markdown_report(
         body.push_str(&format!("- `{figure}`\n"));
     }
     body.push_str("\n## Observed findings\n\n");
-    for line in observed_findings(summaries) {
+    for line in observed_findings(hero_rows, summaries) {
         body.push_str(&format!("- {line}\n"));
     }
     body
@@ -394,7 +416,7 @@ fn build_pdf_lines(
     lines.push("hero rows:".to_string());
     for row in hero_rows {
         lines.push(format!(
-            "{} | N={} | noise={:.3} | scalar={} | multi={} | baseline={}({}) | gain={} | trust={}",
+            "{} | N={} | noise={:.3} | scalar={} | multi={} | baseline={}({}) | gain={} | trust={} | winner={}",
             row.scenario,
             row.agents,
             row.noise_level,
@@ -404,6 +426,7 @@ fn build_pdf_lines(
             display_option(row.best_baseline_lead_time),
             display_option(row.lead_time_gain_vs_best_baseline),
             display_option(row.trust_suppression_delay),
+            row.winner,
         ));
     }
     lines.push(String::new());
@@ -500,34 +523,34 @@ fn display_option_usize(value: Option<usize>) -> String {
         .unwrap_or_else(|| "n/a".to_string())
 }
 
-fn observed_findings(summaries: &[ScenarioSummary]) -> Vec<String> {
+fn observed_findings(hero_rows: &[HeroBenchmarkRow], summaries: &[ScenarioSummary]) -> Vec<String> {
     let mut findings = Vec::new();
-    if let Some(summary) = summaries.iter().find(|summary| summary.scenario == "communication_loss") {
+    if let Some(row) = hero_rows.iter().find(|row| row.scenario == "communication_loss") {
         findings.push(format!(
-            "communication_loss reached visible failure at step {} with scalar detection at step {} and lead time {} s; the strongest baseline in the representative run lagged to {} s.",
-            display_option_usize(summary.visible_failure_step),
-            display_option_usize(summary.scalar_detection_step),
-            display_option(summary.scalar_detection_lead_time),
-            display_option(summary.best_baseline_lead_time),
+            "communication_loss is a clear DSFB lead-time win in the hero row: scalar LT {} s versus best baseline LT {} s, with winner `{}`.",
+            display_option(row.scalar_lead_time),
+            display_option(row.best_baseline_lead_time),
+            row.winner,
         ));
     }
-    if let Some(summary) = summaries
-        .iter()
-        .find(|summary| summary.scenario == "gradual_edge_degradation")
-    {
+    if let Some(row) = hero_rows.iter().find(|row| row.scenario == "gradual_edge_degradation") {
         findings.push(format!(
-            "gradual_edge_degradation produced scalar detection at step {} and multi-mode detection at step {}, with lead times {} s and {} s before the sustained post-peak degradation threshold.",
-            display_option_usize(summary.scalar_detection_step),
-            display_option_usize(summary.multimode_detection_step),
-            display_option(summary.scalar_detection_lead_time),
-            display_option(summary.multimode_detection_lead_time),
+            "gradual_edge_degradation shows earlier DSFB warning than the chosen baseline in the hero row: scalar LT {} s, multi-mode LT {} s, baseline LT {} s, winner `{}`.",
+            display_option(row.scalar_lead_time),
+            display_option(row.multimode_lead_time),
+            display_option(row.best_baseline_lead_time),
+            row.winner,
         ));
     }
-    if let Some(summary) = summaries.iter().find(|summary| summary.scenario == "adversarial_agent") {
+    if let Some(row) = hero_rows.iter().find(|row| row.scenario == "adversarial_agent") {
         findings.push(format!(
-            "adversarial_agent showed multi-mode advantage of {} s over scalar-only detection and trust suppression delay {} s; visible failure remained scenario-dependent in the representative run.",
-            display_option(summary.multimode_minus_scalar_seconds),
-            display_option(summary.trust_suppression_delay),
+            "adversarial_agent is carried by structural diagnostics rather than visible-failure lead time: trust delay {} s, scalar TPR/FPR {:.3}/{:.3}, multimode TPR/FPR {:.3}/{:.3}, winner `{}`.",
+            display_option(row.trust_suppression_delay),
+            row.scalar_true_positive_rate,
+            row.scalar_false_positive_rate,
+            row.multimode_true_positive_rate,
+            row.multimode_false_positive_rate,
+            row.winner,
         ));
     }
     if let Some(summary) = summaries.iter().find(|summary| summary.scenario == "nominal") {

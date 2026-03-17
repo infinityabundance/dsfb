@@ -59,6 +59,7 @@ impl BaselineMonitor {
         lambda2: f64,
         time: f64,
     ) -> BaselineRow {
+        let agent_count = agents.len();
         let mean_scalar = agents.iter().map(|agent| agent.scalar).sum::<f64>() / agents.len() as f64;
         let scalar_energy = agents
             .iter()
@@ -99,12 +100,18 @@ impl BaselineMonitor {
             (false, false, false)
         } else {
             if self.step == self.warmup_steps {
+                let (state_factor, disagreement_factor, lambda2_factor) =
+                    threshold_factors(agent_count);
                 self.state_norm_threshold =
-                    upper_limit(tail_window(&self.state_norm_samples, 18), 2.8, 0.03);
+                    upper_limit(tail_window(&self.state_norm_samples, 18), state_factor, 0.03);
                 self.disagreement_threshold =
-                    upper_limit(tail_window(&self.disagreement_samples, 18), 2.6, 0.03);
+                    upper_limit(
+                        tail_window(&self.disagreement_samples, 18),
+                        disagreement_factor,
+                        0.03,
+                    );
                 self.lambda2_threshold =
-                    lower_limit(tail_window(&self.lambda2_samples, 18), 2.4, 0.02);
+                    lower_limit(tail_window(&self.lambda2_samples, 18), lambda2_factor, 0.02);
             }
 
             update_counter(
@@ -116,11 +123,13 @@ impl BaselineMonitor {
                 disagreement_energy_score > self.disagreement_threshold,
             );
             update_counter(&mut self.lambda2_persistence, lambda2 < self.lambda2_threshold);
+            let (state_requirement, disagreement_requirement, lambda2_requirement) =
+                persistence_requirements(agent_count);
 
             (
-                self.state_norm_persistence >= 3,
-                self.disagreement_persistence >= 3,
-                self.lambda2_persistence >= 3,
+                self.state_norm_persistence >= state_requirement,
+                self.disagreement_persistence >= disagreement_requirement,
+                self.lambda2_persistence >= lambda2_requirement,
             )
         };
         let row = BaselineRow {
@@ -139,6 +148,22 @@ impl BaselineMonitor {
         };
         self.step += 1;
         row
+    }
+}
+
+fn threshold_factors(agent_count: usize) -> (f64, f64, f64) {
+    if agent_count >= 100 {
+        (3.0, 3.0, 2.7)
+    } else {
+        (2.8, 2.7, 2.5)
+    }
+}
+
+fn persistence_requirements(agent_count: usize) -> (usize, usize, usize) {
+    if agent_count >= 100 {
+        (4, 6, 5)
+    } else {
+        (3, 4, 4)
     }
 }
 
