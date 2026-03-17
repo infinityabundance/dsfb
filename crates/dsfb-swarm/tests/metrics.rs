@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use csv::Reader;
 
 use dsfb_swarm::config::{BenchmarkConfig, RunConfig, ScenarioKind};
 use dsfb_swarm::report::run_benchmark_suite;
@@ -20,6 +21,27 @@ fn test_root(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("test-output")
         .join(unique)
+}
+
+fn benchmark_like_run_config(scenario: ScenarioKind) -> RunConfig {
+    RunConfig {
+        scenario,
+        steps: 120,
+        agents: 20,
+        dt: 0.08,
+        interaction_radius: 1.45,
+        k_neighbors: 4,
+        base_gain: 1.0,
+        noise_level: 0.01,
+        warmup_steps: 24,
+        multi_mode: true,
+        monitored_modes: 4,
+        mode_shapes: true,
+        predictor: dsfb_swarm::config::PredictorKind::SmoothCorrective,
+        trust_mode: dsfb_swarm::config::TrustGateMode::SmoothDecay,
+        output_root: test_root("scenario-metrics"),
+        report_pdf: true,
+    }
 }
 
 #[test]
@@ -56,6 +78,118 @@ fn benchmark_artifact_generation_smoke() -> Result<()> {
     assert!(run_dir.join("benchmark_summary.csv").exists());
     assert!(run_dir.join("figures/scaling_curves.png").exists());
     assert!(run_dir.join("report/dsfb_swarm_report.pdf").exists());
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
+fn communication_loss_exports_positive_scalar_lead_time() -> Result<()> {
+    let config = benchmark_like_run_config(ScenarioKind::CommunicationLoss);
+    let run = run_scenario(
+        &config,
+        ScenarioDefinition::from_kind(ScenarioKind::CommunicationLoss, config.steps),
+    )?;
+    assert!(run.summary.scalar_detection_step.is_some());
+    assert!(run.summary.scalar_detection_lead_time.unwrap_or(0.0) > 0.0);
+    assert!(run.summary.scalar_true_positive_rate > 0.0);
+    assert!(
+        run.summary
+            .baseline_lambda2_lead_time
+            .map(|baseline| run.summary.scalar_detection_lead_time.unwrap_or(0.0) >= baseline)
+            .unwrap_or(false)
+    );
+    Ok(())
+}
+
+#[test]
+fn gradual_degradation_exports_persistent_drift_and_lead_time() -> Result<()> {
+    let config = benchmark_like_run_config(ScenarioKind::GradualEdgeDegradation);
+    let run = run_scenario(
+        &config,
+        ScenarioDefinition::from_kind(ScenarioKind::GradualEdgeDegradation, config.steps),
+    )?;
+    assert!(run.summary.scalar_detection_step.is_some());
+    assert!(run.summary.scalar_detection_lead_time.unwrap_or(0.0) > 0.0);
+    assert!(
+        run.time_series
+            .iter()
+            .skip(run.summary.onset_step)
+            .any(|row| row.scalar_drift < -0.25 && row.scalar_drift_ratio > 1.0)
+    );
+    Ok(())
+}
+
+#[test]
+fn adversarial_run_shows_trust_delay_and_multimode_advantage() -> Result<()> {
+    let config = benchmark_like_run_config(ScenarioKind::AdversarialAgent);
+    let run = run_scenario(
+        &config,
+        ScenarioDefinition::from_kind(ScenarioKind::AdversarialAgent, config.steps),
+    )?;
+    assert!(run.summary.trust_suppression_delay.unwrap_or(0.0) > 0.0);
+    assert!(run.summary.multimode_minus_scalar_seconds.unwrap_or(0.0) > 0.0);
+    assert!(
+        run.summary
+            .multimode_detection_step
+            .zip(run.summary.scalar_detection_step)
+            .map(|(multi, scalar)| multi < scalar)
+            .unwrap_or(false)
+    );
+    Ok(())
+}
+
+#[test]
+fn benchmark_summary_contains_calibrated_metric_columns() -> Result<()> {
+    let root = test_root("benchmark-metrics");
+    let config = BenchmarkConfig {
+        steps: 120,
+        sizes: vec![20],
+        noise_levels: vec![0.01],
+        scenarios: vec![
+            ScenarioKind::GradualEdgeDegradation,
+            ScenarioKind::AdversarialAgent,
+            ScenarioKind::CommunicationLoss,
+        ],
+        multi_mode: true,
+        monitored_modes: 4,
+        mode_shapes: true,
+        predictor: dsfb_swarm::config::PredictorKind::SmoothCorrective,
+        trust_mode: dsfb_swarm::config::TrustGateMode::SmoothDecay,
+        output_root: root.clone(),
+    };
+    let run_dir = run_benchmark_suite(config)?;
+    let mut reader = Reader::from_path(run_dir.join("benchmark_summary.csv"))?;
+    let headers = reader.headers()?.clone();
+    for expected in [
+        "visible_failure_step",
+        "scalar_detection_step",
+        "multimode_detection_step",
+        "baseline_lambda2_lead_time",
+        "multimode_minus_scalar_seconds",
+        "trust_drop_step",
+        "trust_suppression_delay",
+        "peak_mode_shape_norm",
+        "peak_stack_score",
+    ] {
+        assert!(headers.iter().any(|header| header == expected), "missing {expected}");
+    }
+
+    let rows = reader
+        .deserialize::<std::collections::BTreeMap<String, String>>()
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let communication = rows
+        .iter()
+        .find(|row| row.get("scenario").map(String::as_str) == Some("communication_loss"))
+        .expect("communication_loss row");
+    assert!(!communication.get("scalar_detection_lead_time").unwrap_or(&String::new()).is_empty());
+
+    let adversarial = rows
+        .iter()
+        .find(|row| row.get("scenario").map(String::as_str) == Some("adversarial_agent"))
+        .expect("adversarial_agent row");
+    assert!(!adversarial.get("multimode_minus_scalar_seconds").unwrap_or(&String::new()).is_empty());
+    assert!(!adversarial.get("trust_suppression_delay").unwrap_or(&String::new()).is_empty());
+
     let _ = fs::remove_dir_all(root);
     Ok(())
 }

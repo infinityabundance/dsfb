@@ -15,7 +15,7 @@ impl PredictorState {
     pub fn new(kind: PredictorKind) -> Self {
         Self {
             kind,
-            smoothing: 0.35,
+            smoothing: 0.82,
             previous: None,
             previous_previous: None,
             previous_vectors: None,

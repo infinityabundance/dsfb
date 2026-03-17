@@ -281,16 +281,43 @@ Core artifacts:
 - `report/dsfb_swarm_report.md`
 - `report/dsfb_swarm_report.pdf`
 
+Calibration-critical columns now exported in the CSV summaries:
+
+- `scenarios_summary.csv`
+  - `visible_failure_step`
+  - `scalar_detection_step`
+  - `multimode_detection_step`
+  - `scalar_detection_lead_time`
+  - `multimode_detection_lead_time`
+  - `baseline_*_lead_time`
+  - `multimode_minus_scalar_seconds`
+  - `trust_drop_step`
+  - `trust_suppression_delay`
+  - `residual_topology_correlation`
+
+- `benchmark_summary.csv`
+  - the same lead-time and trust-delay fields across size/noise sweeps,
+  - `peak_mode_shape_norm` and `peak_stack_score` for multi-mode diagnostics,
+  - runtime and residual-to-topology correlation for scaling studies.
+
+- `time_series.csv`
+  - calibrated scalar and multi-mode detector signals,
+  - signal/combined ratios,
+  - calibrated limits,
+  - trust scores and trust alarm inputs,
+  - baseline flags,
+  - scalar-vs-multimode anomaly decisions at every step.
+
 ## What the figures and tables are meant to show
 
 - `lambda2_timeseries.png`
   - Visible contraction or collapse of algebraic connectivity.
 
 - `residual_timeseries.png`
-  - Predictor versus observation and the residual envelope.
+  - Predictor versus observation together with the calibrated negative-residual detector signal and its crossing limit.
 
 - `drift_slew.png`
-  - Residual derivative diagnostics for finite-time detectability.
+  - Negative residual drift magnitude, drift threshold, and slew diagnostics for finite-time detectability.
 
 - `trust_evolution.png`
   - Trust suppression of degraded or adversarial influence.
@@ -305,7 +332,7 @@ Core artifacts:
   - TPR/FPR behavior under bounded deterministic noise stress.
 
 - `multimode_comparison.png`
-  - Benefit of stacked multi-eigenvalue monitoring over `lambda_2` only.
+  - Scalar-vs-multi lead times plus direct multi-mode detection advantage in seconds.
 
 - `topology_snapshots.png`
   - Concrete graph changes corresponding to spectral warnings.
@@ -316,6 +343,14 @@ Core artifacts:
 - Identical settings reproduce the same metrics and figures except for the timestamped folder name.
 - The output root is local to this crate by default, which keeps the crate self-contained.
 - The notebook rebuilds the crate and reruns the benchmark suite from scratch every time.
+
+With the current calibration, the representative benchmark is designed to show:
+
+- positive scalar lead time for `communication_loss`,
+- positive lead time with negative residual-drift evidence for `gradual_edge_degradation`,
+- earlier multi-mode detection than scalar-only in `adversarial_agent`,
+- measurable trust suppression delay in adversarial and communication-loss cases,
+- non-empty baseline and benchmark comparison tables rather than placeholder zeros.
 
 ## Colab notebook
 
@@ -349,6 +384,7 @@ The Colab badge and notebook bootstrap default to `https://github.com/infinityab
 - Trust is driven by deterministic residual and disagreement logic, not by a learned model.
 - The PDF written by the Rust crate is a compact summary report; the notebook can regenerate a richer PDF bundle using the figure outputs.
 - The benchmark suite is designed for demonstrative reproducibility, not for maximum numerical efficiency.
+- Some scenario-level claims remain scenario-dependent: for example, adversarial runs often show earlier multi-mode detection without a clean `lambda_2`-based visible-failure threshold.
 
 ## Future extensions
 

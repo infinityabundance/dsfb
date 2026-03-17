@@ -50,6 +50,7 @@ pub fn compute_residual_stack(
     current_vectors: &DMatrix<f64>,
     previous_vectors: Option<&DMatrix<f64>>,
     dt: f64,
+    include_mode_shapes: bool,
 ) -> ResidualStack {
     let residuals = observed
         .iter()
@@ -78,7 +79,11 @@ pub fn compute_residual_stack(
             (drift - previous) / dt
         })
         .collect::<Vec<_>>();
-    let mode_shape_residuals = compute_mode_shape_residuals(current_vectors, previous_vectors, observed.len());
+    let mode_shape_residuals = if include_mode_shapes {
+        compute_mode_shape_residuals(current_vectors, previous_vectors, observed.len())
+    } else {
+        vec![0.0; observed.len()]
+    };
     let stack_norm = euclidean_norm(&residuals);
     let mode_shape_norm = euclidean_norm(&mode_shape_residuals);
     let combined_score = stack_norm + 0.5 * mode_shape_norm;

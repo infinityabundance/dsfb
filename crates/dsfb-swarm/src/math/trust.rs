@@ -25,8 +25,8 @@ impl TrustModel {
     pub fn new(mode: TrustGateMode, node_count: usize) -> Self {
         Self {
             mode,
-            recovery: 0.86,
-            floor: 0.05,
+            recovery: 0.90,
+            floor: 0.08,
             node_trust: vec![1.0; node_count],
             edge_trust: DMatrix::from_element(node_count, node_count, 1.0),
         }
@@ -44,35 +44,55 @@ impl TrustModel {
         affected_nodes: &[usize],
     ) -> TrustSnapshot {
         let global_score = global_score.max(0.0);
-        let max_pair = pair_disagreement
-            .iter()
-            .copied()
-            .fold(0.0_f64, f64::max)
-            .max(1.0e-9);
-
+        let mut node_scores = vec![0.0; self.node_trust.len()];
         for node in 0..self.node_trust.len() {
             let mut weighted = 0.0;
             let mut total_weight = 0.0;
             for other in 0..self.node_trust.len() {
                 let weight = adjacency[(node, other)];
-                weighted += weight * pair_disagreement[(node, other)] / max_pair;
+                weighted += weight * pair_disagreement[(node, other)];
                 total_weight += weight;
             }
-            let local_score = if total_weight > 0.0 {
-                weighted / total_weight
-            } else {
-                0.0
-            };
+            node_scores[node] = if total_weight > 0.0 { weighted / total_weight } else { 0.0 };
+        }
+
+        let score_mean = node_scores.iter().sum::<f64>() / node_scores.len() as f64;
+        let score_std = (node_scores
+            .iter()
+            .map(|value| {
+                let delta = value - score_mean;
+                delta * delta
+            })
+            .sum::<f64>()
+            / node_scores.len() as f64)
+            .sqrt()
+            .max(1.0e-6);
+
+        let pair_mean = pair_disagreement.iter().sum::<f64>()
+            / (pair_disagreement.nrows() * pair_disagreement.ncols()).max(1) as f64;
+        let pair_scale = (pair_disagreement
+            .iter()
+            .map(|value| {
+                let delta = value - pair_mean;
+                delta * delta
+            })
+            .sum::<f64>()
+            / (pair_disagreement.nrows() * pair_disagreement.ncols()).max(1) as f64)
+            .sqrt()
+            .max(1.0e-6);
+
+        for node in 0..self.node_trust.len() {
+            let local_score = ((node_scores[node] - score_mean) / score_std).max(0.0);
             let target = match self.mode {
                 TrustGateMode::BinaryEnvelope => {
-                    if local_score < 0.65 && global_score < 1.0 {
+                    if local_score < 0.75 && global_score < 0.9 {
                         1.0
                     } else {
                         self.floor
                     }
                 }
                 TrustGateMode::SmoothDecay => {
-                    (-2.8 * (0.7 * local_score + 0.3 * global_score.min(3.0))).exp()
+                    (-1.35 * local_score - 1.10 * global_score.min(4.0)).exp()
                 }
             }
             .clamp(self.floor, 1.0);
@@ -84,7 +104,8 @@ impl TrustModel {
         for row in 0..n {
             self.edge_trust[(row, row)] = 0.0;
             for col in (row + 1)..n {
-                let pair_factor = (-1.2 * (pair_disagreement[(row, col)] / max_pair)).exp();
+                let pair_relative = ((pair_disagreement[(row, col)] - pair_mean) / pair_scale).max(0.0);
+                let pair_factor = (-0.45 * pair_relative).exp();
                 let value = self.node_trust[row].min(self.node_trust[col]) * pair_factor;
                 self.edge_trust[(row, col)] = value;
                 self.edge_trust[(col, row)] = value;
