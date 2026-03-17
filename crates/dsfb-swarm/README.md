@@ -4,6 +4,10 @@
 
 `dsfb-swarm` is a standalone Rust crate that turns the paper *Deterministic Spectral Residual Inference for Swarm Interaction Networks: A DSFB Framework for Structural Phase Stability* into a reproducible empirical workflow. It simulates time-varying swarm interaction graphs, computes Laplacian spectra, predicts `lambda_k(t)` deterministically, measures residuals and residual derivatives, applies trust-gated interaction attenuation, compares against baselines, and writes a timestamped artifact bundle with figures, CSVs, JSON, Markdown, and PDF output.
 
+## Citation
+
+- de Beer, R. (2026). *Deterministic Spectral Residual Inference for Swarm Interaction Networks: A DSFB Framework for Structural Phase Stability (v1.0)*. Zenodo. DOI: [10.5281/zenodo.19073826](https://doi.org/10.5281/zenodo.19073826)
+
 ## Why this crate exists
 
 The paper is about more than plotting `lambda_2(t)`. Its main point is that deterministic spectral prediction plus residual-centered diagnosis can reveal structural phase changes in a swarm interaction network before visible fragmentation is obvious. This crate exists to make those claims inspectable:
