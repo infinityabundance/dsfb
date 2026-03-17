@@ -38,7 +38,10 @@ fn eigenvalues_are_sorted() {
         ],
     );
     let spectrum = compute_spectrum(&laplacian(&adjacency));
-    assert!(spectrum.eigenvalues.windows(2).all(|pair| pair[0] <= pair[1]));
+    assert!(spectrum
+        .eigenvalues
+        .windows(2)
+        .all(|pair| pair[0] <= pair[1]));
     assert!(spectrum.lambda2 > 0.0);
 }
 

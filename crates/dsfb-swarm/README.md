@@ -300,6 +300,7 @@ Calibration-critical columns now exported in the CSV summaries:
 - `benchmark_summary.csv`
   - the same lead-time and trust-delay fields across size/noise sweeps,
   - `best_baseline_name`, `best_baseline_lead_time`, and `lead_time_gain_vs_best_baseline`,
+  - `dsfb_advantage_margin` as the exported headline margin against the best baseline,
   - `tpr_gain_vs_best_baseline` and `fpr_reduction_vs_best_baseline`,
   - `peak_mode_shape_norm` and `peak_stack_score` for multi-mode diagnostics,
   - runtime and residual-to-topology correlation for scaling studies.
@@ -309,7 +310,7 @@ Calibration-critical columns now exported in the CSV summaries:
     - `gradual_edge_degradation`
     - `adversarial_agent`
     - `communication_loss`
-  - scalar lead, multi lead, best-baseline lead, lead-time gain, trust delay, TPR/FPR pairs, and a deterministic `winner` label.
+  - scalar lead, multi lead, best-baseline lead, `dsfb_advantage_margin`, trust delay, TPR/FPR pairs, and a deterministic `winner` label.
 
 - `time_series.csv`
   - calibrated scalar and multi-mode detector signals,
@@ -352,10 +353,13 @@ Calibration-critical columns now exported in the CSV summaries:
   - Concrete graph changes corresponding to spectral warnings.
 
 - `hero_leadtime_comparison.png`
-  - The strongest calibrated scalar, multi-mode, and best-baseline lead times for the three headline scenarios, annotated by the computed winner.
+  - The strongest calibrated scalar, multi-mode, and best-baseline lead times for the three headline scenarios, paired with the exported DSFB advantage margin and annotated by the computed winner.
 
 - `hero_benchmark_table.png`
-  - A compact publication-style table view of the hero benchmark rows with the winner column exposed directly.
+  - A compact publication-style table view of the hero benchmark rows with the winner and DSFB advantage margin exposed directly.
+
+- `adversarial_trust_detection_focus.png`
+  - A paper-ready adversarial timing view showing onset, multi-mode detection, scalar detection, trust-drop timing, and trust suppression on one aligned time axis.
 
 ## Reproducibility notes
 
@@ -369,6 +373,7 @@ With the current calibration, the representative benchmark is designed to show:
 - a clear scalar lead-time win over raw `lambda_2` thresholding in `communication_loss`,
 - a clear multi-mode lead-time win over the best baseline in `gradual_edge_degradation`,
 - stronger adversarial diagnosis from multi-mode plus trust than from scalar-only monitoring,
+- explicit positive DSFB advantage margins in the hero rows where structural diagnosis matters,
 - measurable trust suppression delay in adversarial and communication-loss cases,
 - non-empty baseline and benchmark comparison tables rather than placeholder zeros.
 
@@ -382,7 +387,7 @@ The notebook at `notebooks/dsfb_swarm_colab.ipynb` is designed to:
 - run the benchmark suite from scratch,
 - locate the newest timestamped output directory,
 - load CSV/JSON artifacts,
-- display figures and tables inline,
+- display the hero figures, adversarial timing view, and supporting tables inline,
 - display the hero benchmark rows inline,
 - assemble a notebook-side PDF report of the Colab results,
 - copy the notebook itself into the run’s report folder,

@@ -51,7 +51,10 @@ fn scenario_runner_produces_nonempty_diagnostics() -> Result<()> {
     config.steps = 64;
     config.agents = 16;
     config.warmup_steps = 12;
-    let run = run_scenario(&config, ScenarioDefinition::from_kind(ScenarioKind::Nominal, config.steps))?;
+    let run = run_scenario(
+        &config,
+        ScenarioDefinition::from_kind(ScenarioKind::Nominal, config.steps),
+    )?;
     assert_eq!(run.time_series.len(), config.steps);
     assert!(!run.spectra.is_empty());
     assert!(!run.residuals.is_empty());
@@ -62,7 +65,10 @@ fn scenario_runner_produces_nonempty_diagnostics() -> Result<()> {
 #[test]
 fn nominal_run_keeps_false_positive_rate_low() -> Result<()> {
     let config = benchmark_like_run_config(ScenarioKind::Nominal);
-    let run = run_scenario(&config, ScenarioDefinition::from_kind(ScenarioKind::Nominal, config.steps))?;
+    let run = run_scenario(
+        &config,
+        ScenarioDefinition::from_kind(ScenarioKind::Nominal, config.steps),
+    )?;
     assert!(run.summary.scalar_false_positive_rate <= 0.02);
     assert!(run.summary.multimode_false_positive_rate <= 0.02);
     Ok(())
@@ -87,9 +93,17 @@ fn benchmark_artifact_generation_smoke() -> Result<()> {
     assert!(run_dir.join("benchmark_summary.csv").exists());
     assert!(run_dir.join("hero_benchmark_summary.csv").exists());
     assert!(run_dir.join("detector_debug.csv").exists());
-    assert!(run_dir.join("figures/scaling_curves.png").exists());
-    assert!(run_dir.join("figures/hero_leadtime_comparison.png").exists());
-    assert!(run_dir.join("figures/hero_benchmark_table.png").exists());
+    for artifact in [
+        "figures/scaling_curves.png",
+        "figures/hero_leadtime_comparison.png",
+        "figures/hero_benchmark_table.png",
+        "figures/adversarial_trust_detection_focus.png",
+    ] {
+        let path = run_dir.join(artifact);
+        assert!(path.exists(), "missing {artifact}");
+        assert!(path.metadata()?.len() > 0, "empty {artifact}");
+    }
+    assert!(run_dir.join("hero_benchmark_summary.csv").metadata()?.len() > 0);
     assert!(run_dir.join("report/dsfb_swarm_report.pdf").exists());
     let _ = fs::remove_dir_all(root);
     Ok(())
@@ -118,6 +132,9 @@ fn hero_summary_contains_required_scenarios_and_winner_column() -> Result<()> {
     let mut reader = Reader::from_path(run_dir.join("hero_benchmark_summary.csv"))?;
     let headers = reader.headers()?.clone();
     assert!(headers.iter().any(|header| header == "winner"));
+    assert!(headers
+        .iter()
+        .any(|header| header == "dsfb_advantage_margin"));
     let rows = reader
         .deserialize::<std::collections::BTreeMap<String, String>>()
         .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -131,6 +148,16 @@ fn hero_summary_contains_required_scenarios_and_winner_column() -> Result<()> {
             .find(|row| row.get("scenario").map(String::as_str) == Some(scenario))
             .expect("hero scenario row");
         assert!(!row.get("winner").unwrap_or(&String::new()).is_empty());
+    }
+    for scenario in ["gradual_edge_degradation", "communication_loss"] {
+        let row = rows
+            .iter()
+            .find(|row| row.get("scenario").map(String::as_str) == Some(scenario))
+            .expect("hero scenario row");
+        assert!(!row
+            .get("dsfb_advantage_margin")
+            .unwrap_or(&String::new())
+            .is_empty());
     }
     let _ = fs::remove_dir_all(root);
     Ok(())
@@ -161,6 +188,20 @@ fn large_scale_communication_loss_keeps_meaningful_detection() -> Result<()> {
         run.summary.scalar_detection_lead_time.unwrap_or(0.0) > 0.0
             || run.summary.multimode_detection_lead_time.unwrap_or(0.0) > 0.0
     );
+    assert!(run.summary.scalar_detection_step.is_some());
+    Ok(())
+}
+
+#[test]
+fn nominal_tail_multimode_overfire_stays_low_at_scale() -> Result<()> {
+    let mut config = benchmark_like_run_config(ScenarioKind::Nominal);
+    config.agents = 100;
+    config.noise_level = 0.10;
+    let run = run_scenario(
+        &config,
+        ScenarioDefinition::from_kind(ScenarioKind::Nominal, config.steps),
+    )?;
+    assert!(run.summary.multimode_false_positive_rate <= 0.02);
     Ok(())
 }
 
@@ -172,18 +213,18 @@ fn gradual_degradation_exports_persistent_drift_and_lead_time() -> Result<()> {
         ScenarioDefinition::from_kind(ScenarioKind::GradualEdgeDegradation, config.steps),
     )?;
     assert!(
-        run.summary.scalar_detection_step.is_some() || run.summary.multimode_detection_step.is_some()
+        run.summary.scalar_detection_step.is_some()
+            || run.summary.multimode_detection_step.is_some()
     );
     assert!(
         run.summary.scalar_detection_lead_time.unwrap_or(0.0) > 0.0
             || run.summary.multimode_detection_lead_time.unwrap_or(0.0) > 0.0
     );
-    assert!(
-        run.time_series
-            .iter()
-            .skip(run.summary.onset_step)
-            .any(|row| row.scalar_drift < -0.25 && row.scalar_combined_ratio > 0.5)
-    );
+    assert!(run
+        .time_series
+        .iter()
+        .skip(run.summary.onset_step)
+        .any(|row| row.scalar_drift < -0.25 && row.scalar_combined_ratio > 0.5));
     Ok(())
 }
 
@@ -196,13 +237,12 @@ fn adversarial_run_shows_trust_delay_and_multimode_advantage() -> Result<()> {
     )?;
     assert!(run.summary.trust_suppression_delay.unwrap_or(0.0) > 0.0);
     assert!(run.summary.multimode_minus_scalar_seconds.unwrap_or(0.0) > 0.0);
-    assert!(
-        run.summary
-            .multimode_detection_step
-            .zip(run.summary.scalar_detection_step)
-            .map(|(multi, scalar)| multi < scalar)
-            .unwrap_or(false)
-    );
+    assert!(run
+        .summary
+        .multimode_detection_step
+        .zip(run.summary.scalar_detection_step)
+        .map(|(multi, scalar)| multi < scalar)
+        .unwrap_or(false));
     Ok(())
 }
 
@@ -235,6 +275,7 @@ fn benchmark_summary_contains_calibrated_metric_columns() -> Result<()> {
         "best_baseline_name",
         "best_baseline_lead_time",
         "lead_time_gain_vs_best_baseline",
+        "dsfb_advantage_margin",
         "tpr_gain_vs_best_baseline",
         "fpr_delta_vs_best_baseline",
         "fpr_reduction_vs_best_baseline",
@@ -245,7 +286,10 @@ fn benchmark_summary_contains_calibrated_metric_columns() -> Result<()> {
         "peak_mode_shape_norm",
         "peak_stack_score",
     ] {
-        assert!(headers.iter().any(|header| header == expected), "missing {expected}");
+        assert!(
+            headers.iter().any(|header| header == expected),
+            "missing {expected}"
+        );
     }
 
     let rows = reader
@@ -255,16 +299,35 @@ fn benchmark_summary_contains_calibrated_metric_columns() -> Result<()> {
         .iter()
         .find(|row| row.get("scenario").map(String::as_str) == Some("communication_loss"))
         .expect("communication_loss row");
-    assert!(!communication.get("scalar_detection_lead_time").unwrap_or(&String::new()).is_empty());
-    assert!(!communication.get("best_baseline_name").unwrap_or(&String::new()).is_empty());
-    assert!(!communication.get("lead_time_gain_vs_best_baseline").unwrap_or(&String::new()).is_empty());
+    assert!(!communication
+        .get("scalar_detection_lead_time")
+        .unwrap_or(&String::new())
+        .is_empty());
+    assert!(!communication
+        .get("best_baseline_name")
+        .unwrap_or(&String::new())
+        .is_empty());
+    assert!(!communication
+        .get("lead_time_gain_vs_best_baseline")
+        .unwrap_or(&String::new())
+        .is_empty());
+    assert!(!communication
+        .get("dsfb_advantage_margin")
+        .unwrap_or(&String::new())
+        .is_empty());
 
     let adversarial = rows
         .iter()
         .find(|row| row.get("scenario").map(String::as_str) == Some("adversarial_agent"))
         .expect("adversarial_agent row");
-    assert!(!adversarial.get("multimode_minus_scalar_seconds").unwrap_or(&String::new()).is_empty());
-    assert!(!adversarial.get("trust_suppression_delay").unwrap_or(&String::new()).is_empty());
+    assert!(!adversarial
+        .get("multimode_minus_scalar_seconds")
+        .unwrap_or(&String::new())
+        .is_empty());
+    assert!(!adversarial
+        .get("trust_suppression_delay")
+        .unwrap_or(&String::new())
+        .is_empty());
 
     let _ = fs::remove_dir_all(root);
     Ok(())

@@ -76,7 +76,9 @@ impl ScenarioDefinition {
                     ScenarioKind::Nominal => 1.0,
                     ScenarioKind::GradualEdgeDegradation => gradual_modifier(progress, row, col, n),
                     ScenarioKind::AdversarialAgent => adversarial_modifier(step, row, col),
-                    ScenarioKind::CommunicationLoss => communication_loss_modifier(progress, row, col, n),
+                    ScenarioKind::CommunicationLoss => {
+                        communication_loss_modifier(progress, row, col, n)
+                    }
                     ScenarioKind::All => 1.0,
                 };
                 effective[(row, col)] = base * modifier;
@@ -121,7 +123,11 @@ impl ScenarioDefinition {
             ScenarioKind::Nominal => Vector2::new(0.0, 0.0),
             ScenarioKind::GradualEdgeDegradation => {
                 if self.is_bridge_node(index, agent_count) {
-                    let direction = if cluster_of(index, agent_count) == 0 { -1.0 } else { 1.0 };
+                    let direction = if cluster_of(index, agent_count) == 0 {
+                        -1.0
+                    } else {
+                        1.0
+                    };
                     Vector2::new(0.04 * progress * direction, 0.0)
                 } else {
                     Vector2::zeros()
@@ -129,13 +135,20 @@ impl ScenarioDefinition {
             }
             ScenarioKind::AdversarialAgent => {
                 if index == 0 && step >= self.onset_step {
-                    Vector2::new(0.18 * (0.2 * step as f64).cos(), 0.18 * (0.2 * step as f64).sin())
+                    Vector2::new(
+                        0.18 * (0.2 * step as f64).cos(),
+                        0.18 * (0.2 * step as f64).sin(),
+                    )
                 } else {
                     Vector2::zeros()
                 }
             }
             ScenarioKind::CommunicationLoss => {
-                let direction = if cluster_of(index, agent_count) == 0 { -1.0 } else { 1.0 };
+                let direction = if cluster_of(index, agent_count) == 0 {
+                    -1.0
+                } else {
+                    1.0
+                };
                 Vector2::new(0.10 * progress * direction, 0.0)
             }
             ScenarioKind::All => Vector2::zeros(),

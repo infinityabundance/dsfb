@@ -238,7 +238,10 @@ impl Default for BenchmarkConfig {
 }
 
 impl BenchmarkConfig {
-    pub fn resolve_with_patch(config_path: Option<&Path>, patch: BenchmarkArgsPatch) -> Result<Self> {
+    pub fn resolve_with_patch(
+        config_path: Option<&Path>,
+        patch: BenchmarkArgsPatch,
+    ) -> Result<Self> {
         let mut config = Self::default();
         if let Some(path) = config_path {
             let file_config = FileConfig::load(path)?;
@@ -411,7 +414,10 @@ impl FileConfig {
     pub fn load(path: &Path) -> Result<Self> {
         let raw = fs::read_to_string(path)
             .with_context(|| format!("failed to read config file {}", path.display()))?;
-        let extension = path.extension().and_then(|value| value.to_str()).unwrap_or_default();
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default();
         match extension {
             "json" => serde_json::from_str(&raw)
                 .with_context(|| format!("failed to parse JSON config {}", path.display())),
@@ -478,7 +484,10 @@ fn parse_f64_list(input: &str) -> Result<Vec<f64>> {
         .collect()
 }
 
-fn parse_scenarios_argument(input: Option<&str>, all_scenarios: bool) -> Result<Option<Vec<ScenarioKind>>> {
+fn parse_scenarios_argument(
+    input: Option<&str>,
+    all_scenarios: bool,
+) -> Result<Option<Vec<ScenarioKind>>> {
     if all_scenarios {
         return Ok(Some(vec![
             ScenarioKind::Nominal,

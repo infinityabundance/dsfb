@@ -90,9 +90,13 @@ fn smooth_corrective_prediction(
 ) -> f64 {
     let local_scale = current.abs().max(previous.abs()).max(0.05);
     let reversal = previous_delta * delta < 0.0;
+    let downward_reversal = reversal && delta < 0.0 && previous_delta > 0.0;
     let acceleration = delta - previous_delta;
     let capped_delta = delta.clamp(-0.35 * local_scale, 0.35 * local_scale);
-    let trend_step = if reversal {
+    let inertial_reversal_step = (0.12 * previous_delta.max(0.0)).min(0.18 * local_scale);
+    let trend_step = if downward_reversal {
+        inertial_reversal_step
+    } else if reversal {
         0.0
     } else if acceleration.abs() > 0.30 * local_scale {
         0.45 * capped_delta

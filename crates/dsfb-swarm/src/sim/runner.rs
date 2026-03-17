@@ -142,14 +142,17 @@ pub struct ScenarioRun {
 }
 
 pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Result<ScenarioRun> {
-    let monitored_modes = config.monitored_modes.min(config.agents.saturating_sub(1).max(1));
+    let monitored_modes = config
+        .monitored_modes
+        .min(config.agents.saturating_sub(1).max(1));
     let scalar_modes = 1;
     let detector_warmup = calibrated_warmup_steps(config, &definition);
     let mut agents = initialize_agents(config.agents);
     let mut predictor_scalar = PredictorState::new(config.predictor);
     let mut predictor_multi = PredictorState::new(config.predictor);
-    let mut scalar_monitor = EnvelopeMonitor::new_scalar(detector_warmup);
-    let mut multimode_monitor = EnvelopeMonitor::new_multimode(detector_warmup);
+    let mut scalar_monitor = EnvelopeMonitor::new_scalar_for_agents(detector_warmup, config.agents);
+    let mut multimode_monitor =
+        EnvelopeMonitor::new_multimode_for_agents(detector_warmup, config.agents);
     let mut trust_model = TrustModel::new(config.trust_mode, config.agents);
     let mut baseline_monitor = BaselineMonitor::new(detector_warmup);
 
@@ -189,8 +192,12 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
         let scalar_residual = compute_residual_stack(
             &scalar_observed,
             &scalar_predicted,
-            previous_scalar.as_ref().map(|stack| stack.residuals.as_slice()),
-            previous_scalar.as_ref().map(|stack| stack.drifts.as_slice()),
+            previous_scalar
+                .as_ref()
+                .map(|stack| stack.residuals.as_slice()),
+            previous_scalar
+                .as_ref()
+                .map(|stack| stack.drifts.as_slice()),
             &spectral.eigenvectors,
             predictor_scalar.previous_vectors(),
             config.dt,
@@ -213,7 +220,9 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
         let multi_residual = compute_residual_stack(
             &multi_observed,
             &multi_predicted,
-            previous_multi.as_ref().map(|stack| stack.residuals.as_slice()),
+            previous_multi
+                .as_ref()
+                .map(|stack| stack.residuals.as_slice()),
             previous_multi.as_ref().map(|stack| stack.drifts.as_slice()),
             &spectral.eigenvectors,
             predictor_multi.previous_vectors(),
@@ -356,15 +365,30 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
     }
 
     let runtime_ms = run_start.elapsed().as_secs_f64() * 1_000.0;
-    let lambda2 = time_series.iter().map(|row| row.lambda2).collect::<Vec<_>>();
-    let scalar_flags = time_series.iter().map(|row| row.anomaly_scalar).collect::<Vec<_>>();
-    let multimode_flags = time_series.iter().map(|row| row.anomaly_multimode).collect::<Vec<_>>();
-    let baseline_state_flags = baseline_rows.iter().map(|row| row.state_norm_flag).collect::<Vec<_>>();
+    let lambda2 = time_series
+        .iter()
+        .map(|row| row.lambda2)
+        .collect::<Vec<_>>();
+    let scalar_flags = time_series
+        .iter()
+        .map(|row| row.anomaly_scalar)
+        .collect::<Vec<_>>();
+    let multimode_flags = time_series
+        .iter()
+        .map(|row| row.anomaly_multimode)
+        .collect::<Vec<_>>();
+    let baseline_state_flags = baseline_rows
+        .iter()
+        .map(|row| row.state_norm_flag)
+        .collect::<Vec<_>>();
     let baseline_disagreement_flags = baseline_rows
         .iter()
         .map(|row| row.disagreement_energy_flag)
         .collect::<Vec<_>>();
-    let baseline_lambda2_flags = baseline_rows.iter().map(|row| row.raw_lambda2_flag).collect::<Vec<_>>();
+    let baseline_lambda2_flags = baseline_rows
+        .iter()
+        .map(|row| row.raw_lambda2_flag)
+        .collect::<Vec<_>>();
     let affected_trust = time_series
         .iter()
         .map(|row| row.affected_mean_trust)
@@ -377,8 +401,14 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
         .iter()
         .map(|row| row.scalar_residual_envelope)
         .collect::<Vec<_>>();
-    let combined_scores = time_series.iter().map(|row| row.combined_score).collect::<Vec<_>>();
-    let mode_shape_norms = time_series.iter().map(|row| row.mode_shape_norm).collect::<Vec<_>>();
+    let combined_scores = time_series
+        .iter()
+        .map(|row| row.combined_score)
+        .collect::<Vec<_>>();
+    let mode_shape_norms = time_series
+        .iter()
+        .map(|row| row.mode_shape_norm)
+        .collect::<Vec<_>>();
     let stack_scores = time_series
         .iter()
         .map(|row| row.multimode_stack_score)
@@ -483,7 +513,9 @@ fn record_trust(
 }
 
 fn should_capture_snapshot(step: usize, total_steps: usize, onset_step: usize) -> bool {
-    step == 0 || step == onset_step.min(total_steps.saturating_sub(1)) || step == total_steps.saturating_sub(1)
+    step == 0
+        || step == onset_step.min(total_steps.saturating_sub(1))
+        || step == total_steps.saturating_sub(1)
 }
 
 fn snapshot_label(step: usize, total_steps: usize, onset_step: usize) -> String {
