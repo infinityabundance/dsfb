@@ -75,7 +75,9 @@ Don’t believe a sensor all at once.
 > *Alternative Deterministic Structural Inference: The DSFB Stack for Reconstruction, Causal Architecture, Trust Recursion, and Historical Replay* (v1.0).
 > Zenodo. [https://doi.org/10.5281/zenodo.19028440]
 
-
+> **de Beer, R.** (2026). 
+> *Deterministic Spectral Residual Inference for Swarm Interaction Networks: A DSFB Framework for Structural Phase Stability* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19073826]
 ---
 
 `DSFB Simulation Notebook:`
