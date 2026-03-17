@@ -1,6 +1,6 @@
 # dsfb-swarm
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/REPLACE_WITH_YOUR_REPO/blob/main/crates/dsfb-swarm/notebooks/dsfb_swarm_colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]([https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-swarm/notebooks/dsfb_swarm_colab.ipynb](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-swarm/notebooks/dsfb_swarm_colab.ipynb)
 
 `dsfb-swarm` is a standalone Rust crate that turns the paper *Deterministic Spectral Residual Inference for Swarm Interaction Networks: A DSFB Framework for Structural Phase Stability* into a reproducible empirical workflow. It simulates time-varying swarm interaction graphs, computes Laplacian spectra, predicts `lambda_k(t)` deterministically, measures residuals and residual derivatives, applies trust-gated interaction attenuation, compares against baselines, and writes a timestamped artifact bundle with figures, CSVs, JSON, Markdown, and PDF output.
 
