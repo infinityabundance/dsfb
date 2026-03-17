@@ -32,9 +32,8 @@ pub fn build_nominal_graph(
             let distance = (agents[row].position - agents[col].position).norm();
             distances[(row, col)] = distance;
             distances[(col, row)] = distance;
-            let connected = distance <= radius
-                || nearest[row].contains(&col)
-                || nearest[col].contains(&row);
+            let connected =
+                distance <= radius || nearest[row].contains(&col) || nearest[col].contains(&row);
             if connected {
                 let weight = gain * (-(distance / radius).powi(2)).exp();
                 adjacency[(row, col)] = weight;
@@ -43,7 +42,10 @@ pub fn build_nominal_graph(
         }
     }
 
-    GraphSnapshot { adjacency, distances }
+    GraphSnapshot {
+        adjacency,
+        distances,
+    }
 }
 
 pub fn edge_records(adjacency: &DMatrix<f64>) -> Vec<EdgeRecord> {
@@ -71,7 +73,8 @@ pub fn pair_disagreement(agents: &[AgentState], adjacency: &DMatrix<f64>) -> DMa
             let scalar_gap = (agents[row].scalar - agents[col].scalar).abs();
             let velocity_gap = (agents[row].velocity - agents[col].velocity).norm();
             let position_gap = (agents[row].position - agents[col].position).norm();
-            let score = adjacency[(row, col)] * (0.65 * scalar_gap + 0.20 * velocity_gap + 0.15 * position_gap);
+            let score = adjacency[(row, col)]
+                * (0.65 * scalar_gap + 0.20 * velocity_gap + 0.15 * position_gap);
             disagreement[(row, col)] = score;
             disagreement[(col, row)] = score;
         }
@@ -85,7 +88,12 @@ fn nearest_neighbors(agents: &[AgentState], k_neighbors: usize) -> Vec<Vec<usize
         .map(|index| {
             let mut others = (0..n)
                 .filter(|other| *other != index)
-                .map(|other| (other, (agents[index].position - agents[other].position).norm()))
+                .map(|other| {
+                    (
+                        other,
+                        (agents[index].position - agents[other].position).norm(),
+                    )
+                })
                 .collect::<Vec<_>>();
             others.sort_by(|left, right| left.1.total_cmp(&right.1));
             others

@@ -11,6 +11,7 @@ enum MonitorMode {
 #[derive(Debug, Clone)]
 pub struct EnvelopeMonitor {
     mode: MonitorMode,
+    agent_count: usize,
     decay: f64,
     smoothing: f64,
     warmup_steps: usize,
@@ -69,8 +70,13 @@ pub struct AnomalyCertificate {
 
 impl EnvelopeMonitor {
     pub fn new_scalar(warmup_steps: usize) -> Self {
+        Self::new_scalar_for_agents(warmup_steps, 0)
+    }
+
+    pub fn new_scalar_for_agents(warmup_steps: usize, agent_count: usize) -> Self {
         Self {
             mode: MonitorMode::ScalarNegative,
+            agent_count,
             decay: 0.94,
             smoothing: 0.80,
             warmup_steps,
@@ -97,8 +103,13 @@ impl EnvelopeMonitor {
     }
 
     pub fn new_multimode(warmup_steps: usize) -> Self {
+        Self::new_multimode_for_agents(warmup_steps, 0)
+    }
+
+    pub fn new_multimode_for_agents(warmup_steps: usize, agent_count: usize) -> Self {
         Self {
             mode: MonitorMode::MultiStack,
+            agent_count,
             decay: 0.94,
             smoothing: 0.70,
             warmup_steps,
@@ -153,8 +164,11 @@ impl EnvelopeMonitor {
             MonitorMode::MultiStack => 0.88 * raw_signal_value + 0.12 * raw_negative_drift_value,
         };
         let signal_value = ema_step(&mut self.signal_ema, raw_signal_value, self.smoothing);
-        let negative_drift_value =
-            ema_step(&mut self.drift_ema, raw_negative_drift_value, self.smoothing);
+        let negative_drift_value = ema_step(
+            &mut self.drift_ema,
+            raw_negative_drift_value,
+            self.smoothing,
+        );
         let slew_value = ema_step(&mut self.slew_ema, raw_slew_value, self.smoothing);
         let combined_value = ema_step(&mut self.combined_ema, raw_combined_value, self.smoothing);
 
@@ -212,6 +226,8 @@ impl EnvelopeMonitor {
             let drift_violation = drift_ratio > 1.0;
             let slew_violation = slew_value > slew_limit;
             let combined_violation = combined_ratio > 1.0;
+            let mode_count = residuals.residuals.len().max(1) as f64;
+            let mode_shape_support = residuals.mode_shape_norm / mode_count.sqrt();
 
             if combined_ratio < 0.82 && scalar_ratio < 0.82 {
                 push_bounded(&mut self.warmup_signal_samples, signal_value, 48);
@@ -270,14 +286,22 @@ impl EnvelopeMonitor {
                             && combined_ratio > 1.26
                             && scalar_ratio > 1.50
                             && persistent_negative_drift)
-                        || (self.recent_signal_count >= 9
+                        || (self.recent_signal_count
+                            >= scalar_signal_streak_requirement(self.agent_count)
                             && scalar_ratio > 1.12
-                            && combined_ratio > 0.48)
+                            && combined_ratio > 0.46)
                 }
                 MonitorMode::MultiStack => {
-                    (combined_ratio > 1.24 && self.recent_exceedance_count >= 3)
+                    let structured_support = scalar_ratio > 0.82
+                        || persistent_negative_drift
+                        || mode_shape_support > 0.14;
+                    (combined_ratio > 1.24
+                        && self.recent_exceedance_count >= 3
+                        && structured_support)
                         || (combined_ratio > 1.30
-                            && (scalar_ratio > 0.78 || persistent_negative_drift))
+                            && (scalar_ratio > 0.82
+                                || persistent_negative_drift
+                                || mode_shape_support > 0.10))
                         || (combined_ratio > 1.00
                             && scalar_ratio > 1.04
                             && self.recent_exceedance_count >= 6)
@@ -294,7 +318,7 @@ impl EnvelopeMonitor {
             };
             let required_streak = match self.mode {
                 MonitorMode::ScalarNegative => 1,
-                MonitorMode::MultiStack => 3,
+                MonitorMode::MultiStack => multimode_required_streak(self.agent_count),
             };
             let flagged = candidate_flag && self.candidate_streak >= required_streak;
 
@@ -336,11 +360,22 @@ impl EnvelopeMonitor {
         let drift_samples = tail_window(&self.warmup_drift_samples, 18);
         let slew_samples = tail_window(&self.warmup_slew_samples, 18);
         let combined_samples = tail_window(&self.warmup_combined_samples, 18);
-        let (signal_factor, drift_factor, slew_factor, combined_factor, signal_floor, drift_floor, slew_floor, combined_floor) =
-            match self.mode {
-                MonitorMode::ScalarNegative => (2.4, 2.2, 2.2, 2.3, 0.006, 0.03, 0.06, 0.04),
-                MonitorMode::MultiStack => (2.0, 2.0, 2.0, 2.0, 0.05, 0.03, 0.06, 0.07),
-            };
+        let large_scale = self.agent_count >= 100;
+        let (
+            signal_factor,
+            drift_factor,
+            slew_factor,
+            combined_factor,
+            signal_floor,
+            drift_floor,
+            slew_floor,
+            combined_floor,
+        ) = match (self.mode, large_scale) {
+            (MonitorMode::ScalarNegative, true) => (2.2, 2.1, 2.2, 2.15, 0.005, 0.028, 0.06, 0.038),
+            (MonitorMode::ScalarNegative, false) => (2.4, 2.2, 2.2, 2.3, 0.006, 0.03, 0.06, 0.04),
+            (MonitorMode::MultiStack, true) => (2.1, 2.0, 2.0, 2.1, 0.055, 0.03, 0.06, 0.075),
+            (MonitorMode::MultiStack, false) => (2.0, 2.0, 2.0, 2.0, 0.05, 0.03, 0.06, 0.07),
+        };
         self.cached_signal_limit = calibrated_limit(signal_samples, signal_factor, signal_floor);
         self.cached_drift_limit = calibrated_limit(drift_samples, drift_factor, drift_floor);
         self.cached_slew_limit = calibrated_limit(slew_samples, slew_factor, slew_floor);
@@ -406,5 +441,21 @@ fn median(samples: &[f64]) -> f64 {
         0.5 * (ordered[middle - 1] + ordered[middle])
     } else {
         ordered[middle]
+    }
+}
+
+fn scalar_signal_streak_requirement(agent_count: usize) -> usize {
+    if agent_count >= 100 {
+        7
+    } else {
+        8
+    }
+}
+
+fn multimode_required_streak(agent_count: usize) -> usize {
+    if agent_count >= 100 {
+        4
+    } else {
+        3
     }
 }

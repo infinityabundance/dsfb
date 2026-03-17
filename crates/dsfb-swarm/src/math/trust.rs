@@ -53,7 +53,11 @@ impl TrustModel {
                 weighted += weight * pair_disagreement[(node, other)];
                 total_weight += weight;
             }
-            node_scores[node] = if total_weight > 0.0 { weighted / total_weight } else { 0.0 };
+            node_scores[node] = if total_weight > 0.0 {
+                weighted / total_weight
+            } else {
+                0.0
+            };
         }
 
         let score_mean = node_scores.iter().sum::<f64>() / node_scores.len() as f64;
@@ -96,7 +100,8 @@ impl TrustModel {
                 }
             }
             .clamp(self.floor, 1.0);
-            self.node_trust[node] = (self.recovery * self.node_trust[node] + (1.0 - self.recovery) * target)
+            self.node_trust[node] = (self.recovery * self.node_trust[node]
+                + (1.0 - self.recovery) * target)
                 .clamp(self.floor, 1.0);
         }
 
@@ -104,7 +109,8 @@ impl TrustModel {
         for row in 0..n {
             self.edge_trust[(row, row)] = 0.0;
             for col in (row + 1)..n {
-                let pair_relative = ((pair_disagreement[(row, col)] - pair_mean) / pair_scale).max(0.0);
+                let pair_relative =
+                    ((pair_disagreement[(row, col)] - pair_mean) / pair_scale).max(0.0);
                 let pair_factor = (-0.45 * pair_relative).exp();
                 let value = self.node_trust[row].min(self.node_trust[col]) * pair_factor;
                 self.edge_trust[(row, col)] = value;

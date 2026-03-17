@@ -139,7 +139,9 @@ fn compute_mode_shape_residuals(
 ) -> Vec<f64> {
     (0..monitored_modes)
         .map(|offset| match previous_vectors {
-            Some(previous) if current_vectors.ncols() > offset + 1 && previous.ncols() > offset + 1 => {
+            Some(previous)
+                if current_vectors.ncols() > offset + 1 && previous.ncols() > offset + 1 =>
+            {
                 sign_ambiguous_distance(
                     &current_vectors.column(offset + 1).into_owned(),
                     &previous.column(offset + 1).into_owned(),

@@ -42,7 +42,10 @@ pub fn compute_spectrum(laplacian: &DMatrix<f64>) -> SpectralSnapshot {
     }
 }
 
-pub fn monitored_modes(snapshot: &SpectralSnapshot, monitored_modes: usize) -> Vec<ModeObservation> {
+pub fn monitored_modes(
+    snapshot: &SpectralSnapshot,
+    monitored_modes: usize,
+) -> Vec<ModeObservation> {
     let available = snapshot.eigenvalues.len().saturating_sub(1);
     let count = monitored_modes.min(available);
     (0..count)

@@ -60,7 +60,8 @@ impl BaselineMonitor {
         time: f64,
     ) -> BaselineRow {
         let agent_count = agents.len();
-        let mean_scalar = agents.iter().map(|agent| agent.scalar).sum::<f64>() / agents.len() as f64;
+        let mean_scalar =
+            agents.iter().map(|agent| agent.scalar).sum::<f64>() / agents.len() as f64;
         let scalar_energy = agents
             .iter()
             .map(|agent| agent.scalar * agent.scalar)
@@ -93,45 +94,51 @@ impl BaselineMonitor {
                 (disagreement_energy_score / total_weight).sqrt() / scalar_scale;
         }
 
-        let (state_norm_flag, disagreement_energy_flag, raw_lambda2_flag) = if self.step < self.warmup_steps {
-            self.state_norm_samples.push(state_norm_score);
-            self.disagreement_samples.push(disagreement_energy_score);
-            self.lambda2_samples.push(lambda2);
-            (false, false, false)
-        } else {
-            if self.step == self.warmup_steps {
-                let (state_factor, disagreement_factor, lambda2_factor) =
-                    threshold_factors(agent_count);
-                self.state_norm_threshold =
-                    upper_limit(tail_window(&self.state_norm_samples, 18), state_factor, 0.03);
-                self.disagreement_threshold =
-                    upper_limit(
+        let (state_norm_flag, disagreement_energy_flag, raw_lambda2_flag) =
+            if self.step < self.warmup_steps {
+                self.state_norm_samples.push(state_norm_score);
+                self.disagreement_samples.push(disagreement_energy_score);
+                self.lambda2_samples.push(lambda2);
+                (false, false, false)
+            } else {
+                if self.step == self.warmup_steps {
+                    let (state_factor, disagreement_factor, lambda2_factor) =
+                        threshold_factors(agent_count);
+                    self.state_norm_threshold = upper_limit(
+                        tail_window(&self.state_norm_samples, 18),
+                        state_factor,
+                        0.03,
+                    );
+                    self.disagreement_threshold = upper_limit(
                         tail_window(&self.disagreement_samples, 18),
                         disagreement_factor,
                         0.03,
                     );
-                self.lambda2_threshold =
-                    lower_limit(tail_window(&self.lambda2_samples, 18), lambda2_factor, 0.02);
-            }
+                    self.lambda2_threshold =
+                        lower_limit(tail_window(&self.lambda2_samples, 18), lambda2_factor, 0.02);
+                }
 
-            update_counter(
-                &mut self.state_norm_persistence,
-                state_norm_score > self.state_norm_threshold,
-            );
-            update_counter(
-                &mut self.disagreement_persistence,
-                disagreement_energy_score > self.disagreement_threshold,
-            );
-            update_counter(&mut self.lambda2_persistence, lambda2 < self.lambda2_threshold);
-            let (state_requirement, disagreement_requirement, lambda2_requirement) =
-                persistence_requirements(agent_count);
+                update_counter(
+                    &mut self.state_norm_persistence,
+                    state_norm_score > self.state_norm_threshold,
+                );
+                update_counter(
+                    &mut self.disagreement_persistence,
+                    disagreement_energy_score > self.disagreement_threshold,
+                );
+                update_counter(
+                    &mut self.lambda2_persistence,
+                    lambda2 < self.lambda2_threshold,
+                );
+                let (state_requirement, disagreement_requirement, lambda2_requirement) =
+                    persistence_requirements(agent_count);
 
-            (
-                self.state_norm_persistence >= state_requirement,
-                self.disagreement_persistence >= disagreement_requirement,
-                self.lambda2_persistence >= lambda2_requirement,
-            )
-        };
+                (
+                    self.state_norm_persistence >= state_requirement,
+                    self.disagreement_persistence >= disagreement_requirement,
+                    self.lambda2_persistence >= lambda2_requirement,
+                )
+            };
         let row = BaselineRow {
             scenario: scenario.to_string(),
             step: self.step,

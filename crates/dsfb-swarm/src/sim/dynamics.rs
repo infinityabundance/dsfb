@@ -49,7 +49,8 @@ pub fn evolve_agents(
         let scalar_drive = 0.06 * (0.03 * step as f64 + index as f64 * 0.11).sin();
         let scalar_noise = deterministic_noise_scalar(step, index, config.noise_level * 0.25);
         let scalar_bias = scenario.scalar_bias(step, index, n);
-        scalars[index] = agents[index].scalar + dt * (0.95 * consensus_scalar + scalar_drive + scalar_noise + scalar_bias);
+        scalars[index] = agents[index].scalar
+            + dt * (0.95 * consensus_scalar + scalar_drive + scalar_noise + scalar_bias);
     }
 
     for index in 0..n {

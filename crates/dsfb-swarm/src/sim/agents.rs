@@ -28,7 +28,8 @@ pub fn initialize_agents(count: usize) -> Vec<AgentState> {
             if index == half {
                 base_x = 0.28;
             }
-            let scalar = if index < half { -0.35 } else { 0.35 } + 0.05 * (0.19 * index as f64).cos();
+            let scalar =
+                if index < half { -0.35 } else { 0.35 } + 0.05 * (0.19 * index as f64).cos();
             AgentState {
                 id: index,
                 position: Vector2::new(base_x, base_y),

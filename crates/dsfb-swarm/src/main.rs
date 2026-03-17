@@ -1,6 +1,6 @@
+use clap::Parser;
 use dsfb_swarm::cli::Cli;
 use dsfb_swarm::error::DsfbSwarmResult;
-use clap::Parser;
 
 fn main() -> DsfbSwarmResult<()> {
     let cli = Cli::parse();

@@ -23,10 +23,17 @@ pub fn render_figures(
     render_baseline_comparison(&figures_dir.join("baseline_comparison.png"), benchmark_rows)?;
     render_scaling_curves(&figures_dir.join("scaling_curves.png"), benchmark_rows)?;
     render_noise_stress_curves(&figures_dir.join("noise_stress_curves.png"), benchmark_rows)?;
-    render_multimode_comparison(&figures_dir.join("multimode_comparison.png"), benchmark_rows)?;
+    render_multimode_comparison(
+        &figures_dir.join("multimode_comparison.png"),
+        benchmark_rows,
+    )?;
     render_topology_snapshots(&figures_dir.join("topology_snapshots.png"), scenarios)?;
     render_hero_leadtime_comparison(&figures_dir.join("hero_leadtime_comparison.png"), hero_rows)?;
     render_hero_benchmark_table(&figures_dir.join("hero_benchmark_table.png"), hero_rows)?;
+    render_adversarial_trust_detection_focus(
+        &figures_dir.join("adversarial_trust_detection_focus.png"),
+        scenarios,
+    )?;
     Ok(())
 }
 
@@ -44,18 +51,28 @@ fn render_lambda2_timeseries(path: &Path, scenarios: &[ScenarioRun]) -> Result<(
         .max(0.2);
 
     let mut chart = ChartBuilder::on(&root)
-        .caption("Algebraic connectivity lambda_2(t) under structural scenarios", ("sans-serif", 28))
+        .caption(
+            "Algebraic connectivity lambda_2(t) under structural scenarios",
+            ("sans-serif", 28),
+        )
         .margin(16)
         .x_label_area_size(48)
         .y_label_area_size(60)
         .build_cartesian_2d(0.0..max_time, 0.0..(max_lambda2 * 1.05))?;
-    chart.configure_mesh().x_desc("time").y_desc("lambda_2(t)").draw()?;
+    chart
+        .configure_mesh()
+        .x_desc("time")
+        .y_desc("lambda_2(t)")
+        .draw()?;
 
     for (index, scenario) in scenarios.iter().enumerate() {
         let color = COLORS[index % COLORS.len()];
         chart
             .draw_series(LineSeries::new(
-                scenario.time_series.iter().map(|row| (row.time, row.lambda2)),
+                scenario
+                    .time_series
+                    .iter()
+                    .map(|row| (row.time, row.lambda2)),
                 &color,
             ))?
             .label(scenario.definition.name)
@@ -82,20 +99,30 @@ fn render_residual_timeseries(path: &Path, scenarios: &[ScenarioRun]) -> Result<
 
     let mut upper_chart = ChartBuilder::on(upper)
         .caption(
-            format!("Observed vs predicted lambda_2(t): {}", focus.definition.name),
+            format!(
+                "Observed vs predicted lambda_2(t): {}",
+                focus.definition.name
+            ),
             ("sans-serif", 24),
         )
         .margin(12)
         .x_label_area_size(32)
         .y_label_area_size(56)
         .build_cartesian_2d(0.0..max_time, 0.0..(max_y * 1.05))?;
-    upper_chart.configure_mesh().x_desc("time").y_desc("lambda_2").draw()?;
+    upper_chart
+        .configure_mesh()
+        .x_desc("time")
+        .y_desc("lambda_2")
+        .draw()?;
     upper_chart.draw_series(LineSeries::new(
         focus.time_series.iter().map(|row| (row.time, row.lambda2)),
         &BLUE,
     ))?;
     upper_chart.draw_series(LineSeries::new(
-        focus.time_series.iter().map(|row| (row.time, row.predicted_lambda2)),
+        focus
+            .time_series
+            .iter()
+            .map(|row| (row.time, row.predicted_lambda2)),
         &RED,
     ))?;
 
@@ -105,7 +132,10 @@ fn render_residual_timeseries(path: &Path, scenarios: &[ScenarioRun]) -> Result<
         .map(|row| row.scalar_signal.max(row.scalar_signal_limit))
         .fold(0.2_f64, f64::max);
     let mut lower_chart = ChartBuilder::on(lower)
-        .caption("Negative residual detector signal and calibrated limit", ("sans-serif", 24))
+        .caption(
+            "Negative residual detector signal and calibrated limit",
+            ("sans-serif", 24),
+        )
         .margin(12)
         .x_label_area_size(42)
         .y_label_area_size(56)
@@ -116,11 +146,15 @@ fn render_residual_timeseries(path: &Path, scenarios: &[ScenarioRun]) -> Result<
         .y_desc("max(-r_lambda2(t), 0)")
         .draw()?;
     lower_chart.draw_series(LineSeries::new(
-        focus.time_series.iter().map(|row| (row.time, row.scalar_signal)),
+        focus
+            .time_series
+            .iter()
+            .map(|row| (row.time, row.scalar_signal)),
         &MAGENTA,
     ))?;
     lower_chart.draw_series(LineSeries::new(
-        focus.time_series
+        focus
+            .time_series
             .iter()
             .map(|row| (row.time, row.scalar_signal_limit)),
         &BLACK,
@@ -160,13 +194,15 @@ fn render_drift_slew(path: &Path, scenarios: &[ScenarioRun]) -> Result<()> {
         .y_desc("max(-dot r_lambda2(t), 0)")
         .draw()?;
     drift_chart.draw_series(LineSeries::new(
-        focus.time_series
+        focus
+            .time_series
             .iter()
             .map(|row| (row.time, (-row.scalar_drift).max(0.0))),
         &BLUE,
     ))?;
     drift_chart.draw_series(LineSeries::new(
-        focus.time_series
+        focus
+            .time_series
             .iter()
             .map(|row| (row.time, row.scalar_drift_limit)),
         &BLACK,
@@ -178,9 +214,16 @@ fn render_drift_slew(path: &Path, scenarios: &[ScenarioRun]) -> Result<()> {
         .x_label_area_size(42)
         .y_label_area_size(56)
         .build_cartesian_2d(0.0..max_time, -slew_limit..slew_limit)?;
-    slew_chart.configure_mesh().x_desc("time").y_desc("ddot r_lambda2(t)").draw()?;
+    slew_chart
+        .configure_mesh()
+        .x_desc("time")
+        .y_desc("ddot r_lambda2(t)")
+        .draw()?;
     slew_chart.draw_series(LineSeries::new(
-        focus.time_series.iter().map(|row| (row.time, row.scalar_slew)),
+        focus
+            .time_series
+            .iter()
+            .map(|row| (row.time, row.scalar_slew)),
         &RED,
     ))?;
     Ok(())
@@ -194,12 +237,19 @@ fn render_trust_evolution(path: &Path, scenarios: &[ScenarioRun]) -> Result<()> 
         .flat_map(|scenario| scenario.time_series.iter().map(|row| row.time))
         .fold(1.0_f64, f64::max);
     let mut chart = ChartBuilder::on(&root)
-        .caption("Trust-gated attenuation of effective interactions", ("sans-serif", 28))
+        .caption(
+            "Trust-gated attenuation of effective interactions",
+            ("sans-serif", 28),
+        )
         .margin(16)
         .x_label_area_size(48)
         .y_label_area_size(60)
         .build_cartesian_2d(0.0..max_time, 0.0..1.05)?;
-    chart.configure_mesh().x_desc("time").y_desc("affected-set trust").draw()?;
+    chart
+        .configure_mesh()
+        .x_desc("time")
+        .y_desc("affected-set trust")
+        .draw()?;
     for (index, scenario) in scenarios.iter().enumerate() {
         let color = COLORS[index % COLORS.len()];
         chart
@@ -265,7 +315,10 @@ fn render_baseline_comparison(path: &Path, benchmark_rows: &[BenchmarkRow]) -> R
             .collect::<Vec<_>>();
         let baseline = average_option(rows.iter().filter_map(|row| row.best_baseline_lead_time));
         let scalar = average_option(rows.iter().filter_map(|row| row.scalar_detection_lead_time));
-        let multi = average_option(rows.iter().filter_map(|row| row.multimode_detection_lead_time));
+        let multi = average_option(
+            rows.iter()
+                .filter_map(|row| row.multimode_detection_lead_time),
+        );
         let base = scenario_index * 3;
         lead_chart.draw_series([
             Rectangle::new([(base, 0.0), (base + 1, baseline)], GREEN.filled()),
@@ -277,28 +330,40 @@ fn render_baseline_comparison(path: &Path, benchmark_rows: &[BenchmarkRow]) -> R
     let max_gain = benchmark_rows
         .iter()
         .filter(|row| hero_scenarios.contains(&row.scenario.as_str()))
-        .filter_map(|row| row.lead_time_gain_vs_best_baseline)
+        .filter_map(|row| row.dsfb_advantage_margin)
         .map(f64::abs)
         .fold(0.4_f64, f64::max)
         * 1.18;
     let mut gain_chart = ChartBuilder::on(&areas[1])
-        .caption("Average DSFB gain over best baseline", ("sans-serif", 24))
+        .caption("Average DSFB advantage margin", ("sans-serif", 24))
         .margin(16)
         .x_label_area_size(56)
         .y_label_area_size(60)
         .build_cartesian_2d(0..hero_scenarios.len().max(1), -max_gain..max_gain)?;
     gain_chart
         .configure_mesh()
-        .y_desc("lead-time gain (s)")
+        .y_desc("margin (s-equivalent)")
         .x_labels(hero_scenarios.len().max(1))
-        .x_label_formatter(&|index| hero_scenarios.get(*index).copied().unwrap_or("").to_string())
+        .x_label_formatter(&|index| {
+            hero_scenarios
+                .get(*index)
+                .copied()
+                .unwrap_or("")
+                .to_string()
+        })
         .draw()?;
     gain_chart.draw_series(hero_scenarios.iter().enumerate().map(|(index, scenario)| {
-        let rows = benchmark_rows.iter().filter(|row| row.scenario == *scenario);
-        let value = average_option(rows.filter_map(|row| row.lead_time_gain_vs_best_baseline));
+        let rows = benchmark_rows
+            .iter()
+            .filter(|row| row.scenario == *scenario);
+        let value = average_option(rows.filter_map(|row| row.dsfb_advantage_margin));
         Rectangle::new(
             [(index, 0.0), (index + 1, value)],
-            if value >= 0.0 { MAGENTA.filled() } else { BLACK.filled() },
+            if value >= 0.0 {
+                MAGENTA.filled()
+            } else {
+                BLACK.filled()
+            },
         )
     }))?;
     Ok(())
@@ -307,15 +372,25 @@ fn render_baseline_comparison(path: &Path, benchmark_rows: &[BenchmarkRow]) -> R
 fn render_scaling_curves(path: &Path, benchmark_rows: &[BenchmarkRow]) -> Result<()> {
     let root = BitMapBackend::new(path, (1280, 720)).into_drawing_area();
     root.fill(&WHITE)?;
-    let max_agents = benchmark_rows.iter().map(|row| row.agents as f64).fold(1.0_f64, f64::max);
-    let max_runtime = benchmark_rows.iter().map(|row| row.runtime_ms).fold(1.0_f64, f64::max);
+    let max_agents = benchmark_rows
+        .iter()
+        .map(|row| row.agents as f64)
+        .fold(1.0_f64, f64::max);
+    let max_runtime = benchmark_rows
+        .iter()
+        .map(|row| row.runtime_ms)
+        .fold(1.0_f64, f64::max);
     let mut chart = ChartBuilder::on(&root)
         .caption("Scaling cost versus swarm size", ("sans-serif", 28))
         .margin(16)
         .x_label_area_size(48)
         .y_label_area_size(60)
         .build_cartesian_2d(0.0..max_agents, 0.0..(max_runtime * 1.1).max(1.0))?;
-    chart.configure_mesh().x_desc("agents").y_desc("runtime (ms)").draw()?;
+    chart
+        .configure_mesh()
+        .x_desc("agents")
+        .y_desc("runtime (ms)")
+        .draw()?;
     let scenario_names = unique_scenario_names(benchmark_rows);
     for (index, name) in scenario_names.iter().enumerate() {
         let color = COLORS[index % COLORS.len()];
@@ -364,7 +439,11 @@ fn render_noise_stress_curves(path: &Path, benchmark_rows: &[BenchmarkRow]) -> R
         .x_label_area_size(40)
         .y_label_area_size(56)
         .build_cartesian_2d(0.0..max_noise, 0.0..1.05)?;
-    right.configure_mesh().x_desc("noise").y_desc("FPR").draw()?;
+    right
+        .configure_mesh()
+        .x_desc("noise")
+        .y_desc("FPR")
+        .draw()?;
     right.draw_series(LineSeries::new(
         aggregate_by_noise(benchmark_rows, |row| row.multimode_false_positive_rate),
         &BLUE,
@@ -395,21 +474,37 @@ fn render_multimode_comparison(path: &Path, benchmark_rows: &[BenchmarkRow]) -> 
         .x_label_formatter(&|index| {
             let scenario_index = index / 2;
             let detector = if index % 2 == 0 { "scalar" } else { "multi" };
-            format!("{}-{}", scenario_names.get(scenario_index).cloned().unwrap_or_default(), detector)
+            format!(
+                "{}-{}",
+                scenario_names
+                    .get(scenario_index)
+                    .cloned()
+                    .unwrap_or_default(),
+                detector
+            )
         })
         .draw()?;
 
     for (scenario_index, name) in scenario_names.iter().enumerate() {
-        let rows = benchmark_rows.iter().filter(|row| row.scenario == *name).collect::<Vec<_>>();
+        let rows = benchmark_rows
+            .iter()
+            .filter(|row| row.scenario == *name)
+            .collect::<Vec<_>>();
         let scalar = average_option(rows.iter().filter_map(|row| row.scalar_detection_lead_time));
-        let multi = average_option(rows.iter().filter_map(|row| row.multimode_detection_lead_time));
+        let multi = average_option(
+            rows.iter()
+                .filter_map(|row| row.multimode_detection_lead_time),
+        );
         lead_chart.draw_series([
             Rectangle::new(
                 [(scenario_index * 2, 0.0), (scenario_index * 2 + 1, scalar)],
                 BLUE.filled(),
             ),
             Rectangle::new(
-                [(scenario_index * 2 + 1, 0.0), (scenario_index * 2 + 2, multi)],
+                [
+                    (scenario_index * 2 + 1, 0.0),
+                    (scenario_index * 2 + 2, multi),
+                ],
                 RED.filled(),
             ),
         ])?;
@@ -438,7 +533,11 @@ fn render_multimode_comparison(path: &Path, benchmark_rows: &[BenchmarkRow]) -> 
         let value = average_option(rows.filter_map(|row| row.multimode_minus_scalar_seconds));
         Rectangle::new(
             [(index, 0.0), (index + 1, value)],
-            if value >= 0.0 { GREEN.filled() } else { RED.filled() },
+            if value >= 0.0 {
+                GREEN.filled()
+            } else {
+                RED.filled()
+            },
         )
     }))?;
     Ok(())
@@ -458,6 +557,7 @@ fn render_topology_snapshots(path: &Path, scenarios: &[ScenarioRun]) -> Result<(
 fn render_hero_leadtime_comparison(path: &Path, hero_rows: &[HeroBenchmarkRow]) -> Result<()> {
     let root = BitMapBackend::new(path, (1280, 720)).into_drawing_area();
     root.fill(&WHITE)?;
+    let areas = root.split_evenly((1, 2));
     let max_value = hero_rows
         .iter()
         .flat_map(|row| {
@@ -469,8 +569,8 @@ fn render_hero_leadtime_comparison(path: &Path, hero_rows: &[HeroBenchmarkRow]) 
         })
         .fold(0.5_f64, f64::max)
         * 1.15;
-    let mut chart = ChartBuilder::on(&root)
-        .caption("Hero lead-time comparison across calibrated scenarios", ("sans-serif", 28))
+    let mut chart = ChartBuilder::on(&areas[0])
+        .caption("Hero lead-time comparison", ("sans-serif", 28))
         .margin(16)
         .x_label_area_size(64)
         .y_label_area_size(64)
@@ -505,25 +605,73 @@ fn render_hero_leadtime_comparison(path: &Path, hero_rows: &[HeroBenchmarkRow]) 
                 BLUE.filled(),
             ),
             Rectangle::new(
-                [(base + 1, 0.0), (base + 2, row.multimode_lead_time.unwrap_or(0.0))],
+                [
+                    (base + 1, 0.0),
+                    (base + 2, row.multimode_lead_time.unwrap_or(0.0)),
+                ],
                 RED.filled(),
             ),
             Rectangle::new(
-                [(base + 2, 0.0), (base + 3, row.best_baseline_lead_time.unwrap_or(0.0))],
+                [
+                    (base + 2, 0.0),
+                    (base + 3, row.best_baseline_lead_time.unwrap_or(0.0)),
+                ],
                 GREEN.filled(),
             ),
         ])?;
         chart.draw_series(std::iter::once(Text::new(
-            row.winner.clone(),
+            format!(
+                "{} | margin {}",
+                row.winner,
+                display_option(row.dsfb_advantage_margin)
+            ),
             (base + 1, max_value * 0.94),
-            ("sans-serif", 18).into_font(),
+            ("sans-serif", 16).into_font(),
         )))?;
     }
+
+    let margin_limit = hero_rows
+        .iter()
+        .filter_map(|row| row.dsfb_advantage_margin)
+        .map(f64::abs)
+        .fold(0.5_f64, f64::max)
+        * 1.15;
+    let mut margin_chart = ChartBuilder::on(&areas[1])
+        .caption(
+            "DSFB advantage margin versus best baseline",
+            ("sans-serif", 28),
+        )
+        .margin(16)
+        .x_label_area_size(56)
+        .y_label_area_size(92)
+        .build_cartesian_2d(-margin_limit..margin_limit, 0..hero_rows.len().max(1))?;
+    margin_chart
+        .configure_mesh()
+        .x_desc("margin (s-equivalent)")
+        .y_labels(hero_rows.len().max(1))
+        .y_label_formatter(&|index| {
+            hero_rows
+                .get(*index)
+                .map(|row| row.scenario.clone())
+                .unwrap_or_default()
+        })
+        .draw()?;
+    margin_chart.draw_series(hero_rows.iter().enumerate().map(|(index, row)| {
+        let value = row.dsfb_advantage_margin.unwrap_or(0.0);
+        Rectangle::new(
+            [(0.0, index), (value, index + 1)],
+            if value >= 0.0 {
+                MAGENTA.mix(0.75).filled()
+            } else {
+                BLACK.filled()
+            },
+        )
+    }))?;
     Ok(())
 }
 
 fn render_hero_benchmark_table(path: &Path, hero_rows: &[HeroBenchmarkRow]) -> Result<()> {
-    let root = BitMapBackend::new(path, (1700, 520)).into_drawing_area();
+    let root = BitMapBackend::new(path, (1860, 540)).into_drawing_area();
     root.fill(&WHITE)?;
     root.draw(&Text::new(
         "Hero benchmark summary",
@@ -539,29 +687,44 @@ fn render_hero_benchmark_table(path: &Path, hero_rows: &[HeroBenchmarkRow]) -> R
         ("scalar TPR/FPR", 1050),
         ("multimode TPR/FPR", 1290),
         ("winner", 1540),
+        ("DSFB margin", 1700),
     ];
     for (label, x) in columns {
         root.draw(&Text::new(label, (x, 90), ("sans-serif", 20).into_font()))?;
     }
     for y in [105, 155, 215, 275, 335, 395, 455, 515] {
-        root.draw(&PathElement::new(vec![(30, y), (1660, y)], BLACK.mix(0.2)))?;
+        root.draw(&PathElement::new(vec![(30, y), (1820, y)], BLACK.mix(0.2)))?;
     }
     for (index, row) in hero_rows.iter().enumerate() {
         let y = 140 + index as i32 * 60;
+        let row_top = 110 + index as i32 * 60;
+        let row_bottom = row_top + 45;
+        let row_fill = match row.winner.as_str() {
+            "scalar" | "multimode" | "multimode + trust" | "dsfb tie" => RGBColor(236, 244, 255),
+            _ => RGBColor(248, 248, 248),
+        };
+        root.draw(&Rectangle::new(
+            [(30, row_top), (1820, row_bottom)],
+            row_fill.filled(),
+        ))?;
         let values = [
             row.scenario.clone(),
             display_option(row.scalar_lead_time),
             display_option(row.multimode_lead_time),
             display_option(row.best_baseline_lead_time),
             display_option(row.trust_suppression_delay),
-            format!("{:.3}/{:.3}", row.scalar_true_positive_rate, row.scalar_false_positive_rate),
+            format!(
+                "{:.3}/{:.3}",
+                row.scalar_true_positive_rate, row.scalar_false_positive_rate
+            ),
             format!(
                 "{:.3}/{:.3}",
                 row.multimode_true_positive_rate, row.multimode_false_positive_rate
             ),
             row.winner.clone(),
+            display_option(row.dsfb_advantage_margin),
         ];
-        let x_positions = [40, 260, 430, 640, 870, 1050, 1290, 1540];
+        let x_positions = [40, 260, 430, 640, 870, 1050, 1290, 1540, 1700];
         for (value, x) in values.iter().zip(x_positions.iter()) {
             root.draw(&Text::new(
                 value.clone(),
@@ -573,7 +736,175 @@ fn render_hero_benchmark_table(path: &Path, hero_rows: &[HeroBenchmarkRow]) -> R
     Ok(())
 }
 
-fn draw_snapshot(area: &DrawingArea<BitMapBackend<'_>, plotters::coord::Shift>, snapshot: &TopologySnapshot) -> Result<()> {
+fn render_adversarial_trust_detection_focus(path: &Path, scenarios: &[ScenarioRun]) -> Result<()> {
+    let scenario = adversarial_focus_scenario(scenarios);
+    let root = BitMapBackend::new(path, (1280, 960)).into_drawing_area();
+    root.fill(&WHITE)?;
+    let areas = root.split_evenly((3, 1));
+    let max_time = scenario
+        .time_series
+        .last()
+        .map(|row| row.time)
+        .unwrap_or(1.0);
+    let onset_step = scenario
+        .definition
+        .onset_step
+        .min(scenario.time_series.len().saturating_sub(1));
+    let onset_time = scenario
+        .time_series
+        .get(onset_step)
+        .map(|row| row.time)
+        .unwrap_or(0.0);
+    let trust_drop_step = scenario.summary.trust_drop_step;
+    let multimode_step = scenario.summary.multimode_detection_step;
+    let scalar_step = scenario.summary.scalar_detection_step;
+    let event_times = [
+        trust_drop_step
+            .and_then(|step| scenario.time_series.get(step))
+            .map(|row| row.time),
+        multimode_step
+            .and_then(|step| scenario.time_series.get(step))
+            .map(|row| row.time),
+        scalar_step
+            .and_then(|step| scenario.time_series.get(step))
+            .map(|row| row.time),
+    ];
+    let max_ratio = scenario
+        .time_series
+        .iter()
+        .map(|row| {
+            row.scalar_combined_ratio
+                .max(row.multimode_combined_ratio)
+                .max(row.scalar_signal_ratio)
+                .max(row.multimode_signal_ratio)
+        })
+        .fold(1.2_f64, f64::max)
+        * 1.1;
+    let mut detector_chart = ChartBuilder::on(&areas[0])
+        .caption(
+            "Adversarial focus: scalar vs multi-mode detector timing",
+            ("sans-serif", 26),
+        )
+        .margin(12)
+        .x_label_area_size(32)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0.0..max_time, 0.0..max_ratio)?;
+    detector_chart
+        .configure_mesh()
+        .x_desc("time")
+        .y_desc("detector ratio")
+        .draw()?;
+    detector_chart.draw_series(LineSeries::new(
+        scenario
+            .time_series
+            .iter()
+            .map(|row| (row.time, row.scalar_combined_ratio)),
+        &BLUE,
+    ))?;
+    detector_chart.draw_series(LineSeries::new(
+        scenario
+            .time_series
+            .iter()
+            .map(|row| (row.time, row.multimode_combined_ratio)),
+        &RED,
+    ))?;
+    detector_chart.draw_series(std::iter::once(PathElement::new(
+        vec![(0.0, 1.0), (max_time, 1.0)],
+        BLACK.mix(0.6),
+    )))?;
+    draw_timing_markers(&mut detector_chart, onset_time, &event_times, max_ratio)?;
+
+    let mut trust_chart = ChartBuilder::on(&areas[1])
+        .caption(
+            "Trust attenuation aligned to adversarial onset and detection events",
+            ("sans-serif", 26),
+        )
+        .margin(12)
+        .x_label_area_size(32)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0.0..max_time, 0.0..1.05)?;
+    trust_chart
+        .configure_mesh()
+        .x_desc("time")
+        .y_desc("trust")
+        .draw()?;
+    trust_chart.draw_series(LineSeries::new(
+        scenario
+            .time_series
+            .iter()
+            .map(|row| (row.time, row.affected_mean_trust)),
+        &MAGENTA,
+    ))?;
+    trust_chart.draw_series(LineSeries::new(
+        scenario
+            .time_series
+            .iter()
+            .map(|row| (row.time, row.min_node_trust)),
+        &GREEN,
+    ))?;
+    draw_timing_markers(&mut trust_chart, onset_time, &event_times, 1.05)?;
+
+    let mut event_chart = ChartBuilder::on(&areas[2])
+        .caption(
+            format!(
+                "Timing strip: onset, trust drop, and detector hits (trust delay {})",
+                display_option(scenario.summary.trust_suppression_delay)
+            ),
+            ("sans-serif", 24),
+        )
+        .margin(12)
+        .x_label_area_size(42)
+        .y_label_area_size(110)
+        .build_cartesian_2d(0.0..max_time, 0.0..4.2)?;
+    event_chart
+        .configure_mesh()
+        .disable_mesh()
+        .x_desc("time")
+        .y_labels(4)
+        .y_label_formatter(&|value| match *value as i32 {
+            1 => "scalar detect".to_string(),
+            2 => "multimode detect".to_string(),
+            3 => "trust drop".to_string(),
+            4 => "adversarial onset".to_string(),
+            _ => String::new(),
+        })
+        .draw()?;
+    let events = [
+        (onset_time, 4.0, BLACK, "onset"),
+        (
+            event_times[0].unwrap_or(onset_time),
+            3.0,
+            MAGENTA,
+            "trust drop",
+        ),
+        (
+            event_times[1].unwrap_or(onset_time),
+            2.0,
+            RED,
+            "multi detect",
+        ),
+        (
+            event_times[2].unwrap_or(onset_time),
+            1.0,
+            BLUE,
+            "scalar detect",
+        ),
+    ];
+    for (time, y, color, label) in events {
+        event_chart.draw_series(std::iter::once(Circle::new((time, y), 6, color.filled())))?;
+        event_chart.draw_series(std::iter::once(Text::new(
+            label.to_string(),
+            (time + 0.06, y + 0.08),
+            ("sans-serif", 16).into_font(),
+        )))?;
+    }
+    Ok(())
+}
+
+fn draw_snapshot(
+    area: &DrawingArea<BitMapBackend<'_>, plotters::coord::Shift>,
+    snapshot: &TopologySnapshot,
+) -> Result<()> {
     let mut chart = ChartBuilder::on(area)
         .caption(
             format!("{}: {}", snapshot.scenario, snapshot.label),
@@ -592,9 +923,12 @@ fn draw_snapshot(area: &DrawingArea<BitMapBackend<'_>, plotters::coord::Shift>, 
             BLACK.mix(edge.weight.min(1.0)),
         )
     }))?;
-    chart.draw_series(snapshot.agents.iter().map(|agent| {
-        Circle::new((agent.position.x, agent.position.y), 4, BLUE.filled())
-    }))?;
+    chart.draw_series(
+        snapshot
+            .agents
+            .iter()
+            .map(|agent| Circle::new((agent.position.x, agent.position.y), 4, BLUE.filled())),
+    )?;
     Ok(())
 }
 
@@ -602,7 +936,11 @@ fn focus_scenario(scenarios: &[ScenarioRun]) -> &ScenarioRun {
     scenarios
         .iter()
         .find(|scenario| scenario.definition.name == "communication_loss")
-        .or_else(|| scenarios.iter().find(|scenario| scenario.definition.name == "gradual_edge_degradation"))
+        .or_else(|| {
+            scenarios
+                .iter()
+                .find(|scenario| scenario.definition.name == "gradual_edge_degradation")
+        })
         .unwrap_or(&scenarios[0])
 }
 
@@ -613,8 +951,23 @@ fn focus_scenario_with_snapshots(scenarios: &[ScenarioRun]) -> &ScenarioRun {
         .unwrap_or(&scenarios[0])
 }
 
+fn adversarial_focus_scenario(scenarios: &[ScenarioRun]) -> &ScenarioRun {
+    scenarios
+        .iter()
+        .find(|scenario| scenario.definition.name == "adversarial_agent")
+        .or_else(|| {
+            scenarios
+                .iter()
+                .find(|scenario| scenario.definition.name == "communication_loss")
+        })
+        .unwrap_or(&scenarios[0])
+}
+
 fn unique_scenario_names(rows: &[BenchmarkRow]) -> Vec<String> {
-    let mut names = rows.iter().map(|row| row.scenario.clone()).collect::<Vec<_>>();
+    let mut names = rows
+        .iter()
+        .map(|row| row.scenario.clone())
+        .collect::<Vec<_>>();
     names.sort();
     names.dedup();
     names
@@ -630,7 +983,9 @@ where
     noises
         .into_iter()
         .map(|noise| {
-            let filtered = rows.iter().filter(|row| (row.noise_level - noise).abs() < 1.0e-9);
+            let filtered = rows
+                .iter()
+                .filter(|row| (row.noise_level - noise).abs() < 1.0e-9);
             let mean = average(filtered.map(&value));
             (noise, mean)
         })
@@ -659,7 +1014,12 @@ where
 
 fn max_multimode_value(rows: &[BenchmarkRow]) -> f64 {
     rows.iter()
-        .flat_map(|row| [row.scalar_detection_lead_time.unwrap_or(0.0), row.multimode_detection_lead_time.unwrap_or(0.0)])
+        .flat_map(|row| {
+            [
+                row.scalar_detection_lead_time.unwrap_or(0.0),
+                row.multimode_detection_lead_time.unwrap_or(0.0),
+            ]
+        })
         .fold(0.5_f64, f64::max)
         * 1.2
 }
@@ -668,4 +1028,30 @@ fn display_option(value: Option<f64>) -> String {
     value
         .map(|number| format!("{number:.3}"))
         .unwrap_or_else(|| "n/a".to_string())
+}
+
+fn draw_timing_markers<DB, CT>(
+    chart: &mut ChartContext<'_, DB, CT>,
+    onset_time: f64,
+    event_times: &[Option<f64>; 3],
+    y_max: f64,
+) -> Result<()>
+where
+    DB: DrawingBackend,
+    DB::ErrorType: 'static,
+    CT: CoordTranslate<From = (f64, f64)>,
+{
+    let markers = [
+        (onset_time, BLACK.mix(0.7)),
+        (event_times[0].unwrap_or(onset_time), MAGENTA.mix(0.7)),
+        (event_times[1].unwrap_or(onset_time), RED.mix(0.7)),
+        (event_times[2].unwrap_or(onset_time), BLUE.mix(0.7)),
+    ];
+    for (time, color) in markers {
+        chart.draw_series(std::iter::once(PathElement::new(
+            vec![(time, 0.0), (time, y_max)],
+            color,
+        )))?;
+    }
+    Ok(())
 }

@@ -62,6 +62,7 @@ fn quickstart_writes_expected_artifacts() -> Result<()> {
         "figures/topology_snapshots.png",
         "figures/hero_leadtime_comparison.png",
         "figures/hero_benchmark_table.png",
+        "figures/adversarial_trust_detection_focus.png",
         "report/dsfb_swarm_report.md",
         "report/dsfb_swarm_report.pdf",
     ] {

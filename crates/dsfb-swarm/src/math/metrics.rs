@@ -54,6 +54,7 @@ pub struct ScenarioSummary {
     pub tpr_gain_vs_best_baseline: Option<f64>,
     pub fpr_delta_vs_best_baseline: Option<f64>,
     pub fpr_reduction_vs_best_baseline: Option<f64>,
+    pub dsfb_advantage_margin: Option<f64>,
     pub multimode_minus_scalar_seconds: Option<f64>,
     pub trust_drop_step: Option<usize>,
     pub trust_suppression_delay: Option<f64>,
@@ -75,10 +76,12 @@ pub struct ScenarioSummary {
 }
 
 pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
-    let visible_failure_step = visible_failure_step(input.scenario, input.lambda2, input.onset_step);
+    let visible_failure_step =
+        visible_failure_step(input.scenario, input.lambda2, input.onset_step);
     let scalar_detection_step = first_true_at_or_after(input.scalar_flags, input.onset_step);
     let multimode_detection_step = first_true_at_or_after(input.multimode_flags, input.onset_step);
-    let baseline_state_detection_step = first_true_at_or_after(input.baseline_state_flags, input.onset_step);
+    let baseline_state_detection_step =
+        first_true_at_or_after(input.baseline_state_flags, input.onset_step);
     let baseline_disagreement_detection_step =
         first_true_at_or_after(input.baseline_disagreement_flags, input.onset_step);
     let baseline_lambda2_detection_step =
@@ -89,45 +92,57 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
         lead_time_seconds(scalar_detection_step, visible_failure_step, input.dt);
     let multimode_detection_lead_time =
         lead_time_seconds(multimode_detection_step, visible_failure_step, input.dt);
-    let baseline_state_lead_time =
-        lead_time_seconds(baseline_state_detection_step, visible_failure_step, input.dt);
-    let baseline_disagreement_lead_time =
-        lead_time_seconds(baseline_disagreement_detection_step, visible_failure_step, input.dt);
-    let baseline_lambda2_lead_time =
-        lead_time_seconds(baseline_lambda2_detection_step, visible_failure_step, input.dt);
+    let baseline_state_lead_time = lead_time_seconds(
+        baseline_state_detection_step,
+        visible_failure_step,
+        input.dt,
+    );
+    let baseline_disagreement_lead_time = lead_time_seconds(
+        baseline_disagreement_detection_step,
+        visible_failure_step,
+        input.dt,
+    );
+    let baseline_lambda2_lead_time = lead_time_seconds(
+        baseline_lambda2_detection_step,
+        visible_failure_step,
+        input.dt,
+    );
     let baseline_state_tpr = rate_after_onset(input.baseline_state_flags, input.onset_step);
     let baseline_state_fpr = rate_before_onset(input.baseline_state_flags, input.onset_step);
-    let baseline_disagreement_tpr = rate_after_onset(input.baseline_disagreement_flags, input.onset_step);
-    let baseline_disagreement_fpr = rate_before_onset(input.baseline_disagreement_flags, input.onset_step);
+    let baseline_disagreement_tpr =
+        rate_after_onset(input.baseline_disagreement_flags, input.onset_step);
+    let baseline_disagreement_fpr =
+        rate_before_onset(input.baseline_disagreement_flags, input.onset_step);
     let baseline_lambda2_tpr = rate_after_onset(input.baseline_lambda2_flags, input.onset_step);
     let baseline_lambda2_fpr = rate_before_onset(input.baseline_lambda2_flags, input.onset_step);
     let best_baseline = select_best_baseline([
-        ("state_norm", baseline_state_lead_time, baseline_state_tpr, baseline_state_fpr),
+        (
+            "state_norm",
+            baseline_state_lead_time,
+            baseline_state_tpr,
+            baseline_state_fpr,
+        ),
         (
             "disagreement_energy",
             baseline_disagreement_lead_time,
             baseline_disagreement_tpr,
             baseline_disagreement_fpr,
         ),
-        ("raw_lambda2", baseline_lambda2_lead_time, baseline_lambda2_tpr, baseline_lambda2_fpr),
+        (
+            "raw_lambda2",
+            baseline_lambda2_lead_time,
+            baseline_lambda2_tpr,
+            baseline_lambda2_fpr,
+        ),
     ]);
-    let best_detector_lead = best_available(scalar_detection_lead_time, multimode_detection_lead_time);
-    let best_detector_tpr = input
-        .scalar_flags
-        .iter()
-        .skip(input.onset_step)
-        .filter(|flag| **flag)
-        .count()
-        .max(
-            input.multimode_flags
-                .iter()
-                .skip(input.onset_step)
-                .filter(|flag| **flag)
-                .count(),
-        ) as f64
-        / input.steps.saturating_sub(input.onset_step).max(1) as f64;
-    let best_detector_fpr = rate_before_onset(input.scalar_flags, input.onset_step)
-        .min(rate_before_onset(input.multimode_flags, input.onset_step));
+    let best_detector_lead =
+        best_available(scalar_detection_lead_time, multimode_detection_lead_time);
+    let scalar_false_positive_rate = rate_before_onset(input.scalar_flags, input.onset_step);
+    let scalar_true_positive_rate = rate_after_onset(input.scalar_flags, input.onset_step);
+    let multimode_false_positive_rate = rate_before_onset(input.multimode_flags, input.onset_step);
+    let multimode_true_positive_rate = rate_after_onset(input.multimode_flags, input.onset_step);
+    let best_detector_tpr = scalar_true_positive_rate.max(multimode_true_positive_rate);
+    let best_detector_fpr = scalar_false_positive_rate.min(multimode_false_positive_rate);
     let lead_time_gain_vs_best_baseline = best_baseline
         .as_ref()
         .and_then(|(_, lead, _, _)| best_detector_lead.map(|detector| detector - *lead));
@@ -140,11 +155,23 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
     let fpr_reduction_vs_best_baseline = best_baseline
         .as_ref()
         .map(|(_, _, _, baseline_fpr)| baseline_fpr - best_detector_fpr);
+    let dsfb_advantage_margin =
+        best_baseline
+            .as_ref()
+            .and_then(|(_, lead, baseline_tpr, baseline_fpr)| {
+                best_detector_lead.map(|detector| {
+                    let lead_gain = detector - *lead;
+                    let tpr_bonus = 0.35 * (best_detector_tpr - *baseline_tpr).max(0.0);
+                    let fpr_penalty = 1.25 * (best_detector_fpr - *baseline_fpr).max(0.0);
+                    lead_gain + tpr_bonus - fpr_penalty
+                })
+            });
     let multimode_minus_scalar_seconds = match (scalar_detection_step, multimode_detection_step) {
         (Some(scalar), Some(multimode)) => Some((scalar as f64 - multimode as f64) * input.dt),
         _ => None,
     };
-    let trust_suppression_delay = trust_drop_step.map(|step| ((step - input.onset_step) as f64) * input.dt);
+    let trust_suppression_delay =
+        trust_drop_step.map(|step| ((step - input.onset_step) as f64) * input.dt);
     let max_abs_residual = input
         .scalar_residuals
         .iter()
@@ -160,12 +187,17 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
         .iter()
         .copied()
         .fold(0.0_f64, f64::max);
-    let peak_mode_shape_norm = input.mode_shape_norms.iter().copied().fold(0.0_f64, f64::max);
+    let peak_mode_shape_norm = input
+        .mode_shape_norms
+        .iter()
+        .copied()
+        .fold(0.0_f64, f64::max);
     let peak_stack_score = input.stack_scores.iter().copied().fold(0.0_f64, f64::max);
     let lambda2_min = input.lambda2.iter().copied().fold(f64::INFINITY, f64::min);
     let lambda2_mean = input.lambda2.iter().sum::<f64>() / input.lambda2.len().max(1) as f64;
     let lambda2_final = input.lambda2.last().copied().unwrap_or(0.0);
-    let residual_topology_correlation = pearson_correlation_abs(input.combined_scores, input.laplacian_delta_norms);
+    let residual_topology_correlation =
+        pearson_correlation_abs(input.combined_scores, input.laplacian_delta_norms);
     let residual_bound_ratio = if max_scalar_envelope > 0.0 {
         max_abs_residual / max_scalar_envelope
     } else {
@@ -201,13 +233,14 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
         tpr_gain_vs_best_baseline,
         fpr_delta_vs_best_baseline,
         fpr_reduction_vs_best_baseline,
+        dsfb_advantage_margin,
         multimode_minus_scalar_seconds,
         trust_drop_step,
         trust_suppression_delay,
-        scalar_false_positive_rate: rate_before_onset(input.scalar_flags, input.onset_step),
-        scalar_true_positive_rate: rate_after_onset(input.scalar_flags, input.onset_step),
-        multimode_false_positive_rate: rate_before_onset(input.multimode_flags, input.onset_step),
-        multimode_true_positive_rate: rate_after_onset(input.multimode_flags, input.onset_step),
+        scalar_false_positive_rate,
+        scalar_true_positive_rate,
+        multimode_false_positive_rate,
+        multimode_true_positive_rate,
         max_abs_residual,
         max_scalar_envelope,
         max_combined_score,
@@ -241,7 +274,8 @@ fn visible_failure_step(kind: ScenarioKind, lambda2: &[f64], onset: usize) -> Op
 }
 
 fn first_true_at_or_after(flags: &[bool], start: usize) -> Option<usize> {
-    flags.iter()
+    flags
+        .iter()
         .enumerate()
         .skip(start)
         .find_map(|(index, flag)| (*flag).then_some(index))
@@ -378,5 +412,10 @@ fn select_best_baseline<const N: usize>(
     candidates
         .into_iter()
         .filter_map(|(name, lead_time, tpr, fpr)| lead_time.map(|lead| (name, lead, tpr, fpr)))
-        .max_by(|left, right| left.1.total_cmp(&right.1))
+        .max_by(|left, right| baseline_rank(left).total_cmp(&baseline_rank(right)))
+}
+
+fn baseline_rank(candidate: &(&'static str, f64, f64, f64)) -> f64 {
+    let (_, lead_time, tpr, fpr) = *candidate;
+    lead_time + 0.30 * tpr - 0.60 * fpr
 }

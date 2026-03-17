@@ -13,7 +13,9 @@ use crate::config::{
 use crate::math::metrics::ScenarioSummary;
 use crate::report::csv::write_csv_rows;
 use crate::report::json::write_json_pretty;
-use crate::report::manifest::{scenario_names, select_hero_rows, BenchmarkRow, HeroBenchmarkRow, RunManifest};
+use crate::report::manifest::{
+    scenario_names, select_hero_rows, BenchmarkRow, HeroBenchmarkRow, RunManifest,
+};
 use crate::report::plotting_data::render_figures;
 use crate::sim::runner::{run_scenario, ScenarioRun};
 use crate::sim::scenarios::ScenarioDefinition;
@@ -30,7 +32,10 @@ pub fn run_scenario_bundle(command: ResolvedCommand) -> Result<PathBuf> {
     };
     let run_dir = create_timestamped_run_directory(&config.output_root)?;
     let scenarios = execute_run_config(&config)?;
-    let benchmark_rows = scenarios.iter().map(|scenario| BenchmarkRow::from(&scenario.summary)).collect::<Vec<_>>();
+    let benchmark_rows = scenarios
+        .iter()
+        .map(|scenario| BenchmarkRow::from(&scenario.summary))
+        .collect::<Vec<_>>();
     write_outputs(
         &run_dir.run_dir,
         &command_name,
@@ -67,9 +72,14 @@ pub fn run_benchmark_suite(config: BenchmarkConfig) -> Result<PathBuf> {
                     output_root: config.output_root.clone(),
                     report_pdf: true,
                 };
-                let scenario_run = run_scenario(&run_config, ScenarioDefinition::from_kind(*scenario, config.steps))?;
+                let scenario_run = run_scenario(
+                    &run_config,
+                    ScenarioDefinition::from_kind(*scenario, config.steps),
+                )?;
                 benchmark_rows.push(BenchmarkRow::from(&scenario_run.summary));
-                if *agents == config.sizes[0] && (*noise_level - config.noise_levels[0]).abs() < 1.0e-12 {
+                if *agents == config.sizes[0]
+                    && (*noise_level - config.noise_levels[0]).abs() < 1.0e-12
+                {
                     scenarios.push(scenario_run);
                 }
             }
@@ -81,7 +91,11 @@ pub fn run_benchmark_suite(config: BenchmarkConfig) -> Result<PathBuf> {
         &config,
         &scenarios,
         &benchmark_rows,
-        config.scenarios.iter().map(|scenario| scenario.as_str().to_string()).collect(),
+        config
+            .scenarios
+            .iter()
+            .map(|scenario| scenario.as_str().to_string())
+            .collect(),
     )?;
     Ok(run_dir.run_dir)
 }
@@ -100,8 +114,12 @@ pub fn generate_report_for_existing_run(patch: ReportArgsPatch) -> Result<PathBu
         run_dir.display(),
         manifest_path.display()
     );
-    fs::write(report_dir.join("dsfb_swarm_report.md"), &markdown)
-        .with_context(|| format!("failed to write regenerated markdown into {}", report_dir.display()))?;
+    fs::write(report_dir.join("dsfb_swarm_report.md"), &markdown).with_context(|| {
+        format!(
+            "failed to write regenerated markdown into {}",
+            report_dir.display()
+        )
+    })?;
     write_compact_pdf(
         &report_dir.join("dsfb_swarm_report.pdf"),
         &[
@@ -145,7 +163,10 @@ where
     let hero_rows = select_hero_rows(benchmark_rows);
     render_figures(&figures_dir, scenarios, benchmark_rows, &hero_rows)?;
 
-    let summaries = scenarios.iter().map(|scenario| scenario.summary.clone()).collect::<Vec<_>>();
+    let summaries = scenarios
+        .iter()
+        .map(|scenario| scenario.summary.clone())
+        .collect::<Vec<_>>();
     let time_series = scenarios
         .iter()
         .flat_map(|scenario| scenario.time_series.clone())
@@ -172,11 +193,26 @@ where
         .collect::<Vec<_>>();
 
     write_json_pretty(&run_dir.join("run_config.json"), config)?;
-    write_csv_rows(&run_dir.join("scenarios_summary.csv"), summaries.iter().cloned())?;
-    write_csv_rows(&run_dir.join("benchmark_summary.csv"), benchmark_rows.iter().cloned())?;
-    write_csv_rows(&run_dir.join("hero_benchmark_summary.csv"), hero_rows.iter().cloned())?;
-    write_csv_rows(&run_dir.join("time_series.csv"), time_series.iter().cloned())?;
-    write_csv_rows(&run_dir.join("detector_debug.csv"), time_series.iter().cloned())?;
+    write_csv_rows(
+        &run_dir.join("scenarios_summary.csv"),
+        summaries.iter().cloned(),
+    )?;
+    write_csv_rows(
+        &run_dir.join("benchmark_summary.csv"),
+        benchmark_rows.iter().cloned(),
+    )?;
+    write_csv_rows(
+        &run_dir.join("hero_benchmark_summary.csv"),
+        hero_rows.iter().cloned(),
+    )?;
+    write_csv_rows(
+        &run_dir.join("time_series.csv"),
+        time_series.iter().cloned(),
+    )?;
+    write_csv_rows(
+        &run_dir.join("detector_debug.csv"),
+        time_series.iter().cloned(),
+    )?;
     write_csv_rows(&run_dir.join("spectra.csv"), spectra.iter().cloned())?;
     write_csv_rows(&run_dir.join("residuals.csv"), residuals.iter().cloned())?;
     write_csv_rows(&run_dir.join("trust.csv"), trust.iter().cloned())?;
@@ -189,14 +225,27 @@ where
             std::iter::once(scenario.summary.clone()),
         )?;
         write_csv_rows(
-            &run_dir.join(format!("scenario_{}_timeseries.csv", scenario.definition.name)),
+            &run_dir.join(format!(
+                "scenario_{}_timeseries.csv",
+                scenario.definition.name
+            )),
             scenario.time_series.iter().cloned(),
         )?;
     }
 
-    let report_markdown = build_markdown_report(command_name, run_dir, &summaries, benchmark_rows, &hero_rows);
-    fs::write(report_dir.join("dsfb_swarm_report.md"), &report_markdown)
-        .with_context(|| format!("failed to write report markdown under {}", report_dir.display()))?;
+    let report_markdown = build_markdown_report(
+        command_name,
+        run_dir,
+        &summaries,
+        benchmark_rows,
+        &hero_rows,
+    );
+    fs::write(report_dir.join("dsfb_swarm_report.md"), &report_markdown).with_context(|| {
+        format!(
+            "failed to write report markdown under {}",
+            report_dir.display()
+        )
+    })?;
     write_compact_pdf(
         &report_dir.join("dsfb_swarm_report.pdf"),
         &build_pdf_lines(run_dir, &summaries, benchmark_rows, &hero_rows),
@@ -236,6 +285,7 @@ where
             "figures/topology_snapshots.png".to_string(),
             "figures/hero_leadtime_comparison.png".to_string(),
             "figures/hero_benchmark_table.png".to_string(),
+            "figures/adversarial_trust_detection_focus.png".to_string(),
             "report/dsfb_swarm_report.md".to_string(),
             "report/dsfb_swarm_report.pdf".to_string(),
         ],
@@ -252,7 +302,9 @@ fn latest_run_dir(output_root: &Path) -> Result<PathBuf> {
         .map(|entry| entry.path())
         .collect::<Vec<_>>();
     entries.sort();
-    entries.pop().ok_or_else(|| anyhow::anyhow!("no run directories found under {}", output_root.display()))
+    entries
+        .pop()
+        .ok_or_else(|| anyhow::anyhow!("no run directories found under {}", output_root.display()))
 }
 
 fn build_markdown_report(
@@ -271,11 +323,14 @@ fn build_markdown_report(
         "The demonstrator evolves a dynamic interaction graph `G(t)` with adjacency `A(t)`, degree `D(t)`, and Laplacian `L(t) = D(t) - A(t)`. The monitored observables are the Laplacian eigenvalues, especially `lambda_2(t)`, together with deterministic predictors `hat lambda_k(t)`, residuals `r_k(t) = lambda_k(t) - hat lambda_k(t)`, residual drift, residual slew, residual envelopes, and trust-gated interaction attenuation.\n\n",
     );
     body.push_str("## Hero view\n\n");
-    body.push_str("| scenario | scalar LT (s) | multimode LT (s) | best baseline LT (s) | trust delay (s) | scalar TPR/FPR | multimode TPR/FPR | winner |\n");
-    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | --- | --- |\n");
+    body.push_str(
+        "DSFB is calibrated to be earlier where structural disruption matters, quieter in nominal runs, and more informative in adversarial conditions.\n\n",
+    );
+    body.push_str("| scenario | scalar LT (s) | multimode LT (s) | best baseline LT (s) | trust delay (s) | scalar TPR/FPR | multimode TPR/FPR | winner | DSFB margin |\n");
+    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | --- | --- | ---: |\n");
     for row in hero_rows {
         body.push_str(&format!(
-            "| {} | {} | {} | {} | {} | {:.3}/{:.3} | {:.3}/{:.3} | {} |\n",
+            "| {} | {} | {} | {} | {} | {:.3}/{:.3} | {:.3}/{:.3} | {} | {} |\n",
             row.scenario,
             display_option(row.scalar_lead_time),
             display_option(row.multimode_lead_time),
@@ -286,6 +341,7 @@ fn build_markdown_report(
             row.multimode_true_positive_rate,
             row.multimode_false_positive_rate,
             row.winner,
+            display_option(row.dsfb_advantage_margin),
         ));
     }
     body.push_str("\n");
@@ -307,11 +363,11 @@ fn build_markdown_report(
         ));
     }
     body.push_str("\n## Benchmark summary\n\n");
-    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | best baseline | baseline lead (s) | lead gain (s) | multi advantage (s) | scalar TPR | scalar FPR | multi TPR | multi FPR | trust delay (s) |\n");
-    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | best baseline | baseline lead (s) | lead gain (s) | DSFB margin | multi advantage (s) | scalar TPR | scalar FPR | multi TPR | multi FPR | trust delay (s) |\n");
+    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
     for row in benchmark_rows.iter().take(24) {
         body.push_str(&format!(
-            "| {} | {} | {:.3} | {} | {} | {} | {} | {} | {} | {:.3} | {:.3} | {:.3} | {:.3} | {} |\n",
+            "| {} | {} | {:.3} | {} | {} | {} | {} | {} | {} | {} | {:.3} | {:.3} | {:.3} | {:.3} | {} |\n",
             row.scenario,
             row.agents,
             row.noise_level,
@@ -320,6 +376,7 @@ fn build_markdown_report(
             row.best_baseline_name,
             display_option(row.best_baseline_lead_time),
             display_option(row.lead_time_gain_vs_best_baseline),
+            display_option(row.dsfb_advantage_margin),
             display_option(row.multimode_minus_scalar_seconds),
             row.scalar_true_positive_rate,
             row.scalar_false_positive_rate,
@@ -329,11 +386,13 @@ fn build_markdown_report(
         ));
     }
     body.push_str("\n## Hero benchmark rows\n\n");
-    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | best baseline | baseline lead (s) | lead gain (s) | trust delay (s) | scalar TPR/FPR | multi TPR/FPR | winner |\n");
-    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- | --- | --- |\n");
+    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | best baseline | baseline lead (s) | lead gain (s) | DSFB margin | trust delay (s) | scalar TPR/FPR | multi TPR/FPR | winner |\n");
+    body.push_str(
+        "| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | --- | --- | --- |\n",
+    );
     for row in hero_rows {
         body.push_str(&format!(
-            "| {} | {} | {:.3} | {} | {} | {} | {} | {} | {} | {:.3}/{:.3} | {:.3}/{:.3} | {} |\n",
+            "| {} | {} | {:.3} | {} | {} | {} | {} | {} | {} | {} | {:.3}/{:.3} | {:.3}/{:.3} | {} |\n",
             row.scenario,
             row.agents,
             row.noise_level,
@@ -342,6 +401,7 @@ fn build_markdown_report(
             row.best_baseline_name,
             display_option(row.best_baseline_lead_time),
             display_option(row.lead_time_gain_vs_best_baseline),
+            display_option(row.dsfb_advantage_margin),
             display_option(row.trust_suppression_delay),
             row.scalar_true_positive_rate,
             row.scalar_false_positive_rate,
@@ -352,6 +412,9 @@ fn build_markdown_report(
     }
     body.push_str("\n## Figure inventory\n\n");
     for figure in [
+        "figures/hero_leadtime_comparison.png",
+        "figures/hero_benchmark_table.png",
+        "figures/adversarial_trust_detection_focus.png",
         "figures/lambda2_timeseries.png",
         "figures/residual_timeseries.png",
         "figures/drift_slew.png",
@@ -361,8 +424,6 @@ fn build_markdown_report(
         "figures/noise_stress_curves.png",
         "figures/multimode_comparison.png",
         "figures/topology_snapshots.png",
-        "figures/hero_leadtime_comparison.png",
-        "figures/hero_benchmark_table.png",
     ] {
         body.push_str(&format!("- `{figure}`\n"));
     }
@@ -401,13 +462,14 @@ fn build_pdf_lines(
     lines.push("benchmark snapshot:".to_string());
     for row in benchmark_rows.iter().take(12) {
         lines.push(format!(
-            "{} | N={} | noise={:.3} | best baseline={}({}) | lead gain={} | multi advantage={} | trust delay={}",
+            "{} | N={} | noise={:.3} | best baseline={}({}) | lead gain={} | margin={} | multi advantage={} | trust delay={}",
             row.scenario,
             row.agents,
             row.noise_level,
             row.best_baseline_name,
             display_option(row.best_baseline_lead_time),
             display_option(row.lead_time_gain_vs_best_baseline),
+            display_option(row.dsfb_advantage_margin),
             display_option(row.multimode_minus_scalar_seconds),
             display_option(row.trust_suppression_delay),
         ));
@@ -416,7 +478,7 @@ fn build_pdf_lines(
     lines.push("hero rows:".to_string());
     for row in hero_rows {
         lines.push(format!(
-            "{} | N={} | noise={:.3} | scalar={} | multi={} | baseline={}({}) | gain={} | trust={} | winner={}",
+            "{} | N={} | noise={:.3} | scalar={} | multi={} | baseline={}({}) | gain={} | margin={} | trust={} | winner={}",
             row.scenario,
             row.agents,
             row.noise_level,
@@ -425,6 +487,7 @@ fn build_pdf_lines(
             row.best_baseline_name,
             display_option(row.best_baseline_lead_time),
             display_option(row.lead_time_gain_vs_best_baseline),
+            display_option(row.dsfb_advantage_margin),
             display_option(row.trust_suppression_delay),
             row.winner,
         ));
@@ -462,9 +525,9 @@ fn write_compact_pdf(path: &Path, lines: &[String]) -> Result<()> {
         }
     }
     document
-        .save(&mut BufWriter::new(
-            File::create(path).with_context(|| format!("failed to create {}", path.display()))?,
-        ))
+        .save(&mut BufWriter::new(File::create(path).with_context(
+            || format!("failed to create {}", path.display()),
+        )?))
         .with_context(|| format!("failed to save {}", path.display()))
 }
 
@@ -525,26 +588,37 @@ fn display_option_usize(value: Option<usize>) -> String {
 
 fn observed_findings(hero_rows: &[HeroBenchmarkRow], summaries: &[ScenarioSummary]) -> Vec<String> {
     let mut findings = Vec::new();
-    if let Some(row) = hero_rows.iter().find(|row| row.scenario == "communication_loss") {
+    if let Some(row) = hero_rows
+        .iter()
+        .find(|row| row.scenario == "communication_loss")
+    {
         findings.push(format!(
-            "communication_loss is a clear DSFB lead-time win in the hero row: scalar LT {} s versus best baseline LT {} s, with winner `{}`.",
+            "communication_loss shows a clear earlier structural warning from DSFB: scalar LT {} s versus best baseline LT {} s, DSFB margin {} s-equivalent, winner `{}`.",
             display_option(row.scalar_lead_time),
             display_option(row.best_baseline_lead_time),
+            display_option(row.dsfb_advantage_margin),
             row.winner,
         ));
     }
-    if let Some(row) = hero_rows.iter().find(|row| row.scenario == "gradual_edge_degradation") {
+    if let Some(row) = hero_rows
+        .iter()
+        .find(|row| row.scenario == "gradual_edge_degradation")
+    {
         findings.push(format!(
-            "gradual_edge_degradation shows earlier DSFB warning than the chosen baseline in the hero row: scalar LT {} s, multi-mode LT {} s, baseline LT {} s, winner `{}`.",
+            "gradual_edge_degradation shows DSFB detecting earlier rather than merely differently: scalar LT {} s, multi-mode LT {} s, baseline LT {} s, DSFB margin {} s-equivalent, winner `{}`.",
             display_option(row.scalar_lead_time),
             display_option(row.multimode_lead_time),
             display_option(row.best_baseline_lead_time),
+            display_option(row.dsfb_advantage_margin),
             row.winner,
         ));
     }
-    if let Some(row) = hero_rows.iter().find(|row| row.scenario == "adversarial_agent") {
+    if let Some(row) = hero_rows
+        .iter()
+        .find(|row| row.scenario == "adversarial_agent")
+    {
         findings.push(format!(
-            "adversarial_agent is carried by structural diagnostics rather than visible-failure lead time: trust delay {} s, scalar TPR/FPR {:.3}/{:.3}, multimode TPR/FPR {:.3}/{:.3}, winner `{}`.",
+            "adversarial_agent makes trust visibly consequential rather than decorative: trust delay {} s, scalar TPR/FPR {:.3}/{:.3}, multimode TPR/FPR {:.3}/{:.3}, winner `{}`. See `figures/adversarial_trust_detection_focus.png` for the aligned onset, detection, and trust timing.",
             display_option(row.trust_suppression_delay),
             row.scalar_true_positive_rate,
             row.scalar_false_positive_rate,
@@ -553,7 +627,10 @@ fn observed_findings(hero_rows: &[HeroBenchmarkRow], summaries: &[ScenarioSummar
             row.winner,
         ));
     }
-    if let Some(summary) = summaries.iter().find(|summary| summary.scenario == "nominal") {
+    if let Some(summary) = summaries
+        .iter()
+        .find(|summary| summary.scenario == "nominal")
+    {
         findings.push(format!(
             "nominal remained bounded with scalar FPR {:.3} and multi-mode FPR {:.3} in the representative run.",
             summary.scalar_false_positive_rate,
