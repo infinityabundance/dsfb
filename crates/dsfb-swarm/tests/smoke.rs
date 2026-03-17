@@ -43,6 +43,7 @@ fn quickstart_writes_expected_artifacts() -> Result<()> {
         "run_config.json",
         "scenarios_summary.csv",
         "benchmark_summary.csv",
+        "hero_benchmark_summary.csv",
         "time_series.csv",
         "spectra.csv",
         "residuals.csv",
@@ -58,6 +59,8 @@ fn quickstart_writes_expected_artifacts() -> Result<()> {
         "figures/noise_stress_curves.png",
         "figures/multimode_comparison.png",
         "figures/topology_snapshots.png",
+        "figures/hero_leadtime_comparison.png",
+        "figures/hero_benchmark_table.png",
         "report/dsfb_swarm_report.md",
         "report/dsfb_swarm_report.pdf",
     ] {

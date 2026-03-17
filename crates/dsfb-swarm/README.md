@@ -269,6 +269,7 @@ Core artifacts:
 - `run_config.json`
 - `scenarios_summary.csv`
 - `benchmark_summary.csv`
+- `hero_benchmark_summary.csv`
 - `time_series.csv`
 - `spectra.csv`
 - `residuals.csv`
@@ -297,8 +298,17 @@ Calibration-critical columns now exported in the CSV summaries:
 
 - `benchmark_summary.csv`
   - the same lead-time and trust-delay fields across size/noise sweeps,
+  - `best_baseline_name`, `best_baseline_lead_time`, and `lead_time_gain_vs_best_baseline`,
+  - `tpr_gain_vs_best_baseline` and `fpr_reduction_vs_best_baseline`,
   - `peak_mode_shape_norm` and `peak_stack_score` for multi-mode diagnostics,
   - runtime and residual-to-topology correlation for scaling studies.
+
+- `hero_benchmark_summary.csv`
+  - one strongest-evidence row per scenario for:
+    - `gradual_edge_degradation`
+    - `adversarial_agent`
+    - `communication_loss`
+  - scalar lead, multi lead, best-baseline lead, lead-time gain, trust delay, and TPR/FPR pairs.
 
 - `time_series.csv`
   - calibrated scalar and multi-mode detector signals,
@@ -337,6 +347,12 @@ Calibration-critical columns now exported in the CSV summaries:
 - `topology_snapshots.png`
   - Concrete graph changes corresponding to spectral warnings.
 
+- `hero_leadtime_comparison.png`
+  - The strongest calibrated scalar, multi-mode, and best-baseline lead times for the three headline scenarios.
+
+- `hero_benchmark_table.png`
+  - A compact publication-style table view of the hero benchmark rows.
+
 ## Reproducibility notes
 
 - The swarm dynamics are deterministic except for bounded analytic pseudo-noise terms generated from fixed trigonometric expressions.
@@ -363,6 +379,7 @@ The notebook at `notebooks/dsfb_swarm_colab.ipynb` is designed to:
 - locate the newest timestamped output directory,
 - load CSV/JSON artifacts,
 - display figures and tables inline,
+- display the hero benchmark rows inline,
 - assemble a notebook-side PDF report of the Colab results,
 - copy the notebook itself into the run’s report folder,
 - write a JSON manifest for notebook-produced artifacts,

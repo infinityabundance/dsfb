@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use plotters::prelude::*;
 
-use crate::report::manifest::BenchmarkRow;
+use crate::report::manifest::{BenchmarkRow, HeroBenchmarkRow};
 use crate::sim::runner::{ScenarioRun, TopologySnapshot};
 
 const COLORS: [RGBColor; 6] = [RED, BLUE, GREEN, MAGENTA, CYAN, BLACK];
@@ -12,6 +12,7 @@ pub fn render_figures(
     figures_dir: &Path,
     scenarios: &[ScenarioRun],
     benchmark_rows: &[BenchmarkRow],
+    hero_rows: &[HeroBenchmarkRow],
 ) -> Result<()> {
     std::fs::create_dir_all(figures_dir)
         .with_context(|| format!("failed to create {}", figures_dir.display()))?;
@@ -19,11 +20,13 @@ pub fn render_figures(
     render_residual_timeseries(&figures_dir.join("residual_timeseries.png"), scenarios)?;
     render_drift_slew(&figures_dir.join("drift_slew.png"), scenarios)?;
     render_trust_evolution(&figures_dir.join("trust_evolution.png"), scenarios)?;
-    render_baseline_comparison(&figures_dir.join("baseline_comparison.png"), scenarios)?;
+    render_baseline_comparison(&figures_dir.join("baseline_comparison.png"), benchmark_rows)?;
     render_scaling_curves(&figures_dir.join("scaling_curves.png"), benchmark_rows)?;
     render_noise_stress_curves(&figures_dir.join("noise_stress_curves.png"), benchmark_rows)?;
     render_multimode_comparison(&figures_dir.join("multimode_comparison.png"), benchmark_rows)?;
     render_topology_snapshots(&figures_dir.join("topology_snapshots.png"), scenarios)?;
+    render_hero_leadtime_comparison(&figures_dir.join("hero_leadtime_comparison.png"), hero_rows)?;
+    render_hero_benchmark_table(&figures_dir.join("hero_benchmark_table.png"), hero_rows)?;
     Ok(())
 }
 
@@ -214,11 +217,11 @@ fn render_trust_evolution(path: &Path, scenarios: &[ScenarioRun]) -> Result<()> 
     Ok(())
 }
 
-fn render_baseline_comparison(path: &Path, scenarios: &[ScenarioRun]) -> Result<()> {
+fn render_baseline_comparison(path: &Path, benchmark_rows: &[BenchmarkRow]) -> Result<()> {
     let root = BitMapBackend::new(path, (1280, 720)).into_drawing_area();
     root.fill(&WHITE)?;
     let labels = ["state-norm", "disagreement", "raw-lambda2", "scalar-residual", "multi-mode"];
-    let values = average_detection_metrics(scenarios);
+    let values = average_detection_metrics(benchmark_rows);
     let max_value = values.iter().copied().fold(1.0_f64, f64::max).max(0.1);
 
     let mut chart = ChartBuilder::on(&root)
@@ -390,6 +393,125 @@ fn render_topology_snapshots(path: &Path, scenarios: &[ScenarioRun]) -> Result<(
     Ok(())
 }
 
+fn render_hero_leadtime_comparison(path: &Path, hero_rows: &[HeroBenchmarkRow]) -> Result<()> {
+    let root = BitMapBackend::new(path, (1280, 720)).into_drawing_area();
+    root.fill(&WHITE)?;
+    let max_value = hero_rows
+        .iter()
+        .flat_map(|row| {
+            [
+                row.scalar_lead_time.unwrap_or(0.0),
+                row.multimode_lead_time.unwrap_or(0.0),
+                row.best_baseline_lead_time.unwrap_or(0.0),
+            ]
+        })
+        .fold(0.5_f64, f64::max)
+        * 1.15;
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Hero lead-time comparison across calibrated scenarios", ("sans-serif", 28))
+        .margin(16)
+        .x_label_area_size(64)
+        .y_label_area_size(64)
+        .build_cartesian_2d(0..(hero_rows.len() * 3).max(3), 0.0..max_value)?;
+    chart
+        .configure_mesh()
+        .y_desc("lead time (s)")
+        .x_labels((hero_rows.len() * 3).max(3))
+        .x_label_formatter(&|index| {
+            let scenario_index = index / 3;
+            let label = match index % 3 {
+                0 => "scalar",
+                1 => "multi",
+                _ => "baseline",
+            };
+            format!(
+                "{}-{}",
+                hero_rows
+                    .get(scenario_index)
+                    .map(|row| row.scenario.as_str())
+                    .unwrap_or("n/a"),
+                label
+            )
+        })
+        .draw()?;
+
+    for (scenario_index, row) in hero_rows.iter().enumerate() {
+        let base = scenario_index * 3;
+        chart.draw_series([
+            Rectangle::new(
+                [(base, 0.0), (base + 1, row.scalar_lead_time.unwrap_or(0.0))],
+                BLUE.filled(),
+            ),
+            Rectangle::new(
+                [(base + 1, 0.0), (base + 2, row.multimode_lead_time.unwrap_or(0.0))],
+                RED.filled(),
+            ),
+            Rectangle::new(
+                [(base + 2, 0.0), (base + 3, row.best_baseline_lead_time.unwrap_or(0.0))],
+                GREEN.filled(),
+            ),
+        ])?;
+    }
+    Ok(())
+}
+
+fn render_hero_benchmark_table(path: &Path, hero_rows: &[HeroBenchmarkRow]) -> Result<()> {
+    let root = BitMapBackend::new(path, (1640, 560)).into_drawing_area();
+    root.fill(&WHITE)?;
+    root.draw(&Text::new(
+        "Hero benchmark summary",
+        (40, 40),
+        ("sans-serif", 30).into_font(),
+    ))?;
+    let columns = [
+        ("scenario", 40),
+        ("N", 250),
+        ("noise", 310),
+        ("scalar lead", 420),
+        ("multi lead", 560),
+        ("best baseline", 700),
+        ("baseline lead", 900),
+        ("gain", 1040),
+        ("trust delay", 1140),
+        ("scalar TPR/FPR", 1270),
+        ("multi TPR/FPR", 1460),
+    ];
+    for (label, x) in columns {
+        root.draw(&Text::new(label, (x, 90), ("sans-serif", 20).into_font()))?;
+    }
+    for y in [105, 155, 215, 275, 335, 395, 455, 515] {
+        root.draw(&PathElement::new(vec![(30, y), (1600, y)], BLACK.mix(0.2)))?;
+    }
+    for (index, row) in hero_rows.iter().enumerate() {
+        let y = 140 + index as i32 * 60;
+        let values = [
+            row.scenario.clone(),
+            row.agents.to_string(),
+            format!("{:.3}", row.noise_level),
+            display_option(row.scalar_lead_time),
+            display_option(row.multimode_lead_time),
+            row.best_baseline_name.clone(),
+            display_option(row.best_baseline_lead_time),
+            display_option(row.lead_time_gain_vs_best_baseline),
+            display_option(row.trust_suppression_delay),
+            format!("{:.3}/{:.3}", row.scalar_true_positive_rate, row.scalar_false_positive_rate),
+            format!(
+                "{:.3}/{:.3}",
+                row.multimode_true_positive_rate, row.multimode_false_positive_rate
+            ),
+        ];
+        let x_positions = [40, 250, 310, 420, 560, 700, 900, 1040, 1140, 1270, 1460];
+        for (value, x) in values.iter().zip(x_positions.iter()) {
+            root.draw(&Text::new(
+                value.clone(),
+                (*x, y),
+                ("sans-serif", 18).into_font(),
+            ))?;
+        }
+    }
+    Ok(())
+}
+
 fn draw_snapshot(area: &DrawingArea<BitMapBackend<'_>, plotters::coord::Shift>, snapshot: &TopologySnapshot) -> Result<()> {
     let mut chart = ChartBuilder::on(area)
         .caption(
@@ -454,17 +576,17 @@ where
         .collect()
 }
 
-fn average_detection_metrics(scenarios: &[ScenarioRun]) -> [f64; 5] {
-    let non_nominal = scenarios
+fn average_detection_metrics(rows: &[BenchmarkRow]) -> [f64; 5] {
+    let non_nominal = rows
         .iter()
-        .filter(|scenario| scenario.definition.name != "nominal")
+        .filter(|row| row.scenario != "nominal")
         .collect::<Vec<_>>();
-    let scalar = average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.scalar_detection_lead_time));
-    let multi = average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.multimode_detection_lead_time));
-    let state = average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.baseline_state_lead_time));
+    let scalar = average_option(non_nominal.iter().filter_map(|row| row.scalar_detection_lead_time));
+    let multi = average_option(non_nominal.iter().filter_map(|row| row.multimode_detection_lead_time));
+    let state = average_option(non_nominal.iter().filter_map(|row| row.baseline_state_lead_time));
     let disagreement =
-        average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.baseline_disagreement_lead_time));
-    let lambda2 = average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.baseline_lambda2_lead_time));
+        average_option(non_nominal.iter().filter_map(|row| row.baseline_disagreement_lead_time));
+    let lambda2 = average_option(non_nominal.iter().filter_map(|row| row.baseline_lambda2_lead_time));
     [state, disagreement, lambda2, scalar, multi]
 }
 
@@ -493,4 +615,10 @@ fn max_multimode_value(rows: &[BenchmarkRow]) -> f64 {
         .flat_map(|row| [row.scalar_detection_lead_time.unwrap_or(0.0), row.multimode_detection_lead_time.unwrap_or(0.0)])
         .fold(0.5_f64, f64::max)
         * 1.2
+}
+
+fn display_option(value: Option<f64>) -> String {
+    value
+        .map(|number| format!("{number:.3}"))
+        .unwrap_or_else(|| "n/a".to_string())
 }
