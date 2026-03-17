@@ -110,6 +110,9 @@ Don’t believe a sensor all at once.
 `DSFB Bank Repro Notebook:`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-bank/colab/dsfb_bank_repro.ipynb)
 
+`DSFB Swarm Notebook`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-swarm/notebooks/dsfb_swarm_colab.ipynb)
+
 ---
 
 ## Algebraic Deterministic Dynamics (ADD) Sweep
