@@ -46,6 +46,11 @@ pub struct ScenarioSummary {
     pub baseline_state_lead_time: Option<f64>,
     pub baseline_disagreement_lead_time: Option<f64>,
     pub baseline_lambda2_lead_time: Option<f64>,
+    pub best_baseline_name: String,
+    pub best_baseline_lead_time: Option<f64>,
+    pub lead_time_gain_vs_best_baseline: Option<f64>,
+    pub tpr_gain_vs_best_baseline: Option<f64>,
+    pub fpr_reduction_vs_best_baseline: Option<f64>,
     pub multimode_minus_scalar_seconds: Option<f64>,
     pub trust_drop_step: Option<usize>,
     pub trust_suppression_delay: Option<f64>,
@@ -87,6 +92,48 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
         lead_time_seconds(baseline_disagreement_detection_step, visible_failure_step, input.dt);
     let baseline_lambda2_lead_time =
         lead_time_seconds(baseline_lambda2_detection_step, visible_failure_step, input.dt);
+    let baseline_state_tpr = rate_after_onset(input.baseline_state_flags, input.onset_step);
+    let baseline_state_fpr = rate_before_onset(input.baseline_state_flags, input.onset_step);
+    let baseline_disagreement_tpr = rate_after_onset(input.baseline_disagreement_flags, input.onset_step);
+    let baseline_disagreement_fpr = rate_before_onset(input.baseline_disagreement_flags, input.onset_step);
+    let baseline_lambda2_tpr = rate_after_onset(input.baseline_lambda2_flags, input.onset_step);
+    let baseline_lambda2_fpr = rate_before_onset(input.baseline_lambda2_flags, input.onset_step);
+    let best_baseline = select_best_baseline([
+        ("state_norm", baseline_state_lead_time, baseline_state_tpr, baseline_state_fpr),
+        (
+            "disagreement_energy",
+            baseline_disagreement_lead_time,
+            baseline_disagreement_tpr,
+            baseline_disagreement_fpr,
+        ),
+        ("raw_lambda2", baseline_lambda2_lead_time, baseline_lambda2_tpr, baseline_lambda2_fpr),
+    ]);
+    let best_detector_lead = best_available(scalar_detection_lead_time, multimode_detection_lead_time);
+    let best_detector_tpr = input
+        .scalar_flags
+        .iter()
+        .skip(input.onset_step)
+        .filter(|flag| **flag)
+        .count()
+        .max(
+            input.multimode_flags
+                .iter()
+                .skip(input.onset_step)
+                .filter(|flag| **flag)
+                .count(),
+        ) as f64
+        / input.steps.saturating_sub(input.onset_step).max(1) as f64;
+    let best_detector_fpr = rate_before_onset(input.scalar_flags, input.onset_step)
+        .min(rate_before_onset(input.multimode_flags, input.onset_step));
+    let lead_time_gain_vs_best_baseline = best_baseline
+        .as_ref()
+        .and_then(|(_, lead, _, _)| best_detector_lead.map(|detector| detector - *lead));
+    let tpr_gain_vs_best_baseline = best_baseline
+        .as_ref()
+        .map(|(_, _, baseline_tpr, _)| best_detector_tpr - *baseline_tpr);
+    let fpr_reduction_vs_best_baseline = best_baseline
+        .as_ref()
+        .map(|(_, _, _, baseline_fpr)| baseline_fpr - best_detector_fpr);
     let multimode_minus_scalar_seconds = match (scalar_detection_step, multimode_detection_step) {
         (Some(scalar), Some(multimode)) => Some((scalar as f64 - multimode as f64) * input.dt),
         _ => None,
@@ -137,6 +184,14 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
         baseline_state_lead_time,
         baseline_disagreement_lead_time,
         baseline_lambda2_lead_time,
+        best_baseline_name: best_baseline
+            .as_ref()
+            .map(|(name, _, _, _)| (*name).to_string())
+            .unwrap_or_else(|| "n/a".to_string()),
+        best_baseline_lead_time: best_baseline.as_ref().map(|(_, lead, _, _)| *lead),
+        lead_time_gain_vs_best_baseline,
+        tpr_gain_vs_best_baseline,
+        fpr_reduction_vs_best_baseline,
         multimode_minus_scalar_seconds,
         trust_drop_step,
         trust_suppression_delay,
@@ -159,22 +214,21 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
 }
 
 fn visible_failure_step(kind: ScenarioKind, lambda2: &[f64], onset: usize) -> Option<usize> {
-    if matches!(kind, ScenarioKind::Nominal) {
-        return None;
+    match kind {
+        ScenarioKind::Nominal => None,
+        ScenarioKind::GradualEdgeDegradation => {
+            let (peak_step, peak_value) = post_onset_peak(lambda2, onset)?;
+            let threshold = (0.58 * peak_value).max(0.02);
+            first_sustained_below(lambda2, peak_step.saturating_add(1), threshold, 3)
+        }
+        ScenarioKind::AdversarialAgent => None,
+        ScenarioKind::CommunicationLoss | ScenarioKind::All => {
+            let baseline = pre_onset_baseline(lambda2, onset);
+            let warmup_mean = baseline.iter().sum::<f64>() / baseline.len().max(1) as f64;
+            let threshold = (0.50 * warmup_mean).max(0.015);
+            first_sustained_below(lambda2, onset, threshold, 3)
+        }
     }
-    let baseline = pre_onset_baseline(lambda2, onset);
-    let warmup_mean = baseline.iter().sum::<f64>() / baseline.len().max(1) as f64;
-    let threshold = match kind {
-        ScenarioKind::GradualEdgeDegradation => (0.70 * warmup_mean).max(0.02),
-        ScenarioKind::AdversarialAgent => (0.68 * warmup_mean).max(0.02),
-        ScenarioKind::CommunicationLoss => (0.45 * warmup_mean).max(0.015),
-        ScenarioKind::Nominal | ScenarioKind::All => (0.45 * warmup_mean).max(0.015),
-    };
-    lambda2
-        .iter()
-        .enumerate()
-        .skip(onset)
-        .find_map(|(step, value)| (*value < threshold).then_some(step))
 }
 
 fn first_true_at_or_after(flags: &[bool], start: usize) -> Option<usize> {
@@ -269,4 +323,51 @@ fn pre_onset_baseline<'a>(values: &'a [f64], onset: usize) -> &'a [f64] {
     let window = end.clamp(12, 24);
     let start = end.saturating_sub(window);
     &values[start..end]
+}
+
+fn first_sustained_below(
+    values: &[f64],
+    start: usize,
+    threshold: f64,
+    persistence: usize,
+) -> Option<usize> {
+    let mut count = 0usize;
+    for (step, value) in values.iter().enumerate().skip(start) {
+        if *value < threshold {
+            count += 1;
+            if count >= persistence {
+                return Some(step + 1 - persistence);
+            }
+        } else {
+            count = 0;
+        }
+    }
+    None
+}
+
+fn post_onset_peak(values: &[f64], onset: usize) -> Option<(usize, f64)> {
+    values
+        .iter()
+        .enumerate()
+        .skip(onset)
+        .max_by(|left, right| left.1.total_cmp(right.1))
+        .map(|(index, value)| (index, *value))
+}
+
+fn best_available(left: Option<f64>, right: Option<f64>) -> Option<f64> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.max(right)),
+        (Some(left), None) => Some(left),
+        (None, Some(right)) => Some(right),
+        (None, None) => None,
+    }
+}
+
+fn select_best_baseline<const N: usize>(
+    candidates: [(&'static str, Option<f64>, f64, f64); N],
+) -> Option<(&'static str, f64, f64, f64)> {
+    candidates
+        .into_iter()
+        .filter_map(|(name, lead_time, tpr, fpr)| lead_time.map(|lead| (name, lead, tpr, fpr)))
+        .max_by(|left, right| left.1.total_cmp(&right.1))
 }

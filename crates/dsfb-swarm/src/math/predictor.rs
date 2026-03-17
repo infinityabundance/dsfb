@@ -33,9 +33,18 @@ impl PredictorState {
             (Some(previous_previous), Some(previous), PredictorKind::SmoothCorrective) => previous
                 .iter()
                 .zip(previous_previous.iter())
-                .map(|(curr, prev)| {
-                    let first_order = curr + (curr - prev);
-                    self.smoothing * curr + (1.0 - self.smoothing) * first_order
+                .enumerate()
+                .map(|(index, (current, previous_value))| {
+                    let previous_previous_value = previous_previous[index];
+                    let delta = current - previous_value;
+                    let previous_delta = previous_value - previous_previous_value;
+                    smooth_corrective_prediction(
+                        *current,
+                        *previous_value,
+                        previous_delta,
+                        delta,
+                        self.smoothing,
+                    )
                 })
                 .collect(),
             (_, Some(previous), PredictorKind::FirstOrder | PredictorKind::SmoothCorrective) => {
@@ -70,4 +79,28 @@ fn enforce_spectral_order(mut values: Vec<f64>, monitored_values: usize) -> Vec<
         }
     }
     values
+}
+
+fn smooth_corrective_prediction(
+    current: f64,
+    previous: f64,
+    previous_delta: f64,
+    delta: f64,
+    smoothing: f64,
+) -> f64 {
+    let local_scale = current.abs().max(previous.abs()).max(0.05);
+    let reversal = previous_delta * delta < 0.0;
+    let acceleration = delta - previous_delta;
+    let capped_delta = delta.clamp(-0.35 * local_scale, 0.35 * local_scale);
+    let trend_step = if reversal {
+        0.0
+    } else if acceleration.abs() > 0.30 * local_scale {
+        0.45 * capped_delta
+    } else if delta.abs() > 0.25 * local_scale {
+        0.60 * capped_delta
+    } else {
+        capped_delta
+    };
+    let first_order = current + trend_step;
+    smoothing * current + (1.0 - smoothing) * first_order
 }

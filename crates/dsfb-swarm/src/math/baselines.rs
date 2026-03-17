@@ -29,6 +29,9 @@ pub struct BaselineMonitor {
     state_norm_threshold: f64,
     disagreement_threshold: f64,
     lambda2_threshold: f64,
+    state_norm_persistence: usize,
+    disagreement_persistence: usize,
+    lambda2_persistence: usize,
 }
 
 impl BaselineMonitor {
@@ -42,6 +45,9 @@ impl BaselineMonitor {
             state_norm_threshold: 0.04,
             disagreement_threshold: 0.04,
             lambda2_threshold: 0.02,
+            state_norm_persistence: 0,
+            disagreement_persistence: 0,
+            lambda2_persistence: 0,
         }
     }
 
@@ -54,6 +60,12 @@ impl BaselineMonitor {
         time: f64,
     ) -> BaselineRow {
         let mean_scalar = agents.iter().map(|agent| agent.scalar).sum::<f64>() / agents.len() as f64;
+        let scalar_energy = agents
+            .iter()
+            .map(|agent| agent.scalar * agent.scalar)
+            .sum::<f64>()
+            / agents.len() as f64;
+        let scalar_scale = 1.0 + scalar_energy.sqrt();
         let state_norm_score = (agents
             .iter()
             .map(|agent| {
@@ -62,15 +74,22 @@ impl BaselineMonitor {
             })
             .sum::<f64>()
             / agents.len() as f64)
-            .sqrt();
+            .sqrt()
+            / scalar_scale;
 
         let mut disagreement_energy_score = 0.0;
+        let mut total_weight = 0.0;
         for row in 0..adjacency.nrows() {
             for col in (row + 1)..adjacency.ncols() {
                 let weight = adjacency[(row, col)];
                 let delta = agents[row].scalar - agents[col].scalar;
                 disagreement_energy_score += weight * delta * delta;
+                total_weight += weight;
             }
+        }
+        if total_weight > 0.0 {
+            disagreement_energy_score =
+                (disagreement_energy_score / total_weight).sqrt() / scalar_scale;
         }
 
         let (state_norm_flag, disagreement_energy_flag, raw_lambda2_flag) = if self.step < self.warmup_steps {
@@ -80,15 +99,28 @@ impl BaselineMonitor {
             (false, false, false)
         } else {
             if self.step == self.warmup_steps {
-                self.state_norm_threshold = upper_limit(tail_window(&self.state_norm_samples, 14), 1.75, 0.03);
+                self.state_norm_threshold =
+                    upper_limit(tail_window(&self.state_norm_samples, 18), 2.8, 0.03);
                 self.disagreement_threshold =
-                    upper_limit(tail_window(&self.disagreement_samples, 14), 1.55, 0.03);
-                self.lambda2_threshold = lower_limit(tail_window(&self.lambda2_samples, 14), 0.84, 0.02);
+                    upper_limit(tail_window(&self.disagreement_samples, 18), 2.6, 0.03);
+                self.lambda2_threshold =
+                    lower_limit(tail_window(&self.lambda2_samples, 18), 2.4, 0.02);
             }
-            (
+
+            update_counter(
+                &mut self.state_norm_persistence,
                 state_norm_score > self.state_norm_threshold,
+            );
+            update_counter(
+                &mut self.disagreement_persistence,
                 disagreement_energy_score > self.disagreement_threshold,
-                lambda2 < self.lambda2_threshold,
+            );
+            update_counter(&mut self.lambda2_persistence, lambda2 < self.lambda2_threshold);
+
+            (
+                self.state_norm_persistence >= 3,
+                self.disagreement_persistence >= 3,
+                self.lambda2_persistence >= 3,
             )
         };
         let row = BaselineRow {
@@ -114,27 +146,53 @@ fn upper_limit(samples: &[f64], factor: f64, floor: f64) -> f64 {
     if samples.is_empty() {
         return floor;
     }
-    let mean = samples.iter().sum::<f64>() / samples.len() as f64;
-    let variance = samples
+    let center = median(samples);
+    let deviations = samples
         .iter()
-        .map(|value| {
-            let delta = value - mean;
-            delta * delta
-        })
-        .sum::<f64>()
-        / samples.len() as f64;
-    (mean + factor * variance.sqrt()).max(floor)
+        .map(|value| (value - center).abs())
+        .collect::<Vec<_>>();
+    let mad = median(&deviations);
+    let scale = (1.4826 * mad).max(0.12 * center.abs());
+    (center + factor * scale).max(floor)
 }
 
-fn lower_limit(samples: &[f64], fraction_of_mean: f64, floor: f64) -> f64 {
+fn lower_limit(samples: &[f64], factor: f64, floor: f64) -> f64 {
     if samples.is_empty() {
         return floor;
     }
-    let mean = samples.iter().sum::<f64>() / samples.len() as f64;
-    (fraction_of_mean * mean).max(floor)
+    let center = median(samples);
+    let deviations = samples
+        .iter()
+        .map(|value| (value - center).abs())
+        .collect::<Vec<_>>();
+    let mad = median(&deviations);
+    let scale = (1.4826 * mad).max(0.08 * center.abs());
+    (center - factor * scale).max(floor)
 }
 
 fn tail_window(samples: &[f64], max_len: usize) -> &[f64] {
     let start = samples.len().saturating_sub(max_len);
     &samples[start..]
+}
+
+fn update_counter(counter: &mut usize, active: bool) {
+    if active {
+        *counter += 1;
+    } else {
+        *counter = 0;
+    }
+}
+
+fn median(samples: &[f64]) -> f64 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+    let mut ordered = samples.to_vec();
+    ordered.sort_by(|left, right| left.total_cmp(right));
+    let middle = ordered.len() / 2;
+    if ordered.len() % 2 == 0 {
+        0.5 * (ordered[middle - 1] + ordered[middle])
+    } else {
+        ordered[middle]
+    }
 }

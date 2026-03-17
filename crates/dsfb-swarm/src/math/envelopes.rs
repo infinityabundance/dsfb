@@ -12,6 +12,7 @@ enum MonitorMode {
 pub struct EnvelopeMonitor {
     mode: MonitorMode,
     decay: f64,
+    smoothing: f64,
     warmup_steps: usize,
     persistent_window: usize,
     step: usize,
@@ -25,6 +26,10 @@ pub struct EnvelopeMonitor {
     cached_combined_limit: f64,
     recent_negative_count: usize,
     recent_exceedance_count: usize,
+    signal_ema: f64,
+    drift_ema: f64,
+    slew_ema: f64,
+    combined_ema: f64,
     state: EnvelopeState,
 }
 
@@ -61,6 +66,7 @@ impl EnvelopeMonitor {
         Self {
             mode: MonitorMode::ScalarNegative,
             decay: 0.94,
+            smoothing: 0.80,
             warmup_steps,
             persistent_window: 2,
             step: 0,
@@ -74,6 +80,10 @@ impl EnvelopeMonitor {
             cached_combined_limit: 0.06,
             recent_negative_count: 0,
             recent_exceedance_count: 0,
+            signal_ema: 0.0,
+            drift_ema: 0.0,
+            slew_ema: 0.0,
+            combined_ema: 0.0,
             state: EnvelopeState::default(),
         }
     }
@@ -82,6 +92,7 @@ impl EnvelopeMonitor {
         Self {
             mode: MonitorMode::MultiStack,
             decay: 0.94,
+            smoothing: 0.70,
             warmup_steps,
             persistent_window: 2,
             step: 0,
@@ -95,6 +106,10 @@ impl EnvelopeMonitor {
             cached_combined_limit: 0.14,
             recent_negative_count: 0,
             recent_exceedance_count: 0,
+            signal_ema: 0.0,
+            drift_ema: 0.0,
+            slew_ema: 0.0,
+            combined_ema: 0.0,
             state: EnvelopeState::default(),
         }
     }
@@ -104,16 +119,29 @@ impl EnvelopeMonitor {
     }
 
     pub fn update(&mut self, residuals: &ResidualStack) -> AnomalyCertificate {
-        let signal_value = match self.mode {
+        let raw_signal_value = match self.mode {
             MonitorMode::ScalarNegative => (-residuals.scalar_residual).max(0.0),
-            MonitorMode::MultiStack => residuals.stack_norm + 1.10 * residuals.mode_shape_norm,
+            MonitorMode::MultiStack => {
+                let mode_count = residuals.residuals.len().max(1) as f64;
+                let stack_rms = residuals.stack_norm / mode_count.sqrt();
+                let mode_shape_rms = residuals.mode_shape_norm / mode_count.sqrt();
+                let scalar_support = (-residuals.scalar_residual).max(0.0);
+                0.82 * stack_rms + 0.14 * mode_shape_rms + 0.24 * scalar_support
+            }
         };
-        let negative_drift_value = (-residuals.scalar_drift).max(0.0);
-        let slew_value = residuals.scalar_slew.abs();
-        let combined_value = match self.mode {
-            MonitorMode::ScalarNegative => 0.65 * signal_value + 0.35 * negative_drift_value,
-            MonitorMode::MultiStack => signal_value,
+        let raw_negative_drift_value = (-residuals.scalar_drift).max(0.0).sqrt();
+        let raw_slew_value = residuals.scalar_slew.abs().sqrt();
+        let raw_combined_value = match self.mode {
+            MonitorMode::ScalarNegative => {
+                0.78 * raw_signal_value + 0.22 * raw_negative_drift_value
+            }
+            MonitorMode::MultiStack => 0.88 * raw_signal_value + 0.12 * raw_negative_drift_value,
         };
+        let signal_value = ema_step(&mut self.signal_ema, raw_signal_value, self.smoothing);
+        let negative_drift_value =
+            ema_step(&mut self.drift_ema, raw_negative_drift_value, self.smoothing);
+        let slew_value = ema_step(&mut self.slew_ema, raw_slew_value, self.smoothing);
+        let combined_value = ema_step(&mut self.combined_ema, raw_combined_value, self.smoothing);
 
         self.state.scalar_residual_envelope =
             (self.decay * self.state.scalar_residual_envelope).max(signal_value);
@@ -125,10 +153,10 @@ impl EnvelopeMonitor {
             (self.decay * self.state.combined_envelope).max(combined_value);
 
         let certificate = if self.step < self.warmup_steps {
-            self.warmup_signal_samples.push(signal_value);
-            self.warmup_drift_samples.push(negative_drift_value);
-            self.warmup_slew_samples.push(slew_value);
-            self.warmup_combined_samples.push(combined_value);
+            push_bounded(&mut self.warmup_signal_samples, signal_value, 48);
+            push_bounded(&mut self.warmup_drift_samples, negative_drift_value, 48);
+            push_bounded(&mut self.warmup_slew_samples, slew_value, 48);
+            push_bounded(&mut self.warmup_combined_samples, combined_value, 48);
             AnomalyCertificate {
                 flagged: false,
                 residual_violation: false,
@@ -149,14 +177,7 @@ impl EnvelopeMonitor {
             }
         } else {
             if self.step == self.warmup_steps {
-                let signal_samples = tail_window(&self.warmup_signal_samples, 14);
-                let drift_samples = tail_window(&self.warmup_drift_samples, 14);
-                let slew_samples = tail_window(&self.warmup_slew_samples, 14);
-                let combined_samples = tail_window(&self.warmup_combined_samples, 14);
-                self.cached_signal_limit = calibrated_limit(signal_samples, 1.55, 0.006);
-                self.cached_drift_limit = calibrated_limit(drift_samples, 1.35, 0.03);
-                self.cached_slew_limit = calibrated_limit(slew_samples, 1.6, 0.06);
-                self.cached_combined_limit = calibrated_limit(combined_samples, 1.45, 0.04);
+                self.refresh_limits();
             }
 
             let scalar_limit = self.cached_signal_limit.max(1.0e-6);
@@ -173,16 +194,24 @@ impl EnvelopeMonitor {
             let slew_violation = slew_value > slew_limit;
             let combined_violation = combined_ratio > 1.0;
 
-            if drift_violation {
-                self.recent_negative_count += 1;
-            } else {
-                self.recent_negative_count = 0;
+            if combined_ratio < 0.82 && scalar_ratio < 0.82 {
+                push_bounded(&mut self.warmup_signal_samples, signal_value, 48);
+                push_bounded(&mut self.warmup_drift_samples, negative_drift_value, 48);
+                push_bounded(&mut self.warmup_slew_samples, slew_value, 48);
+                push_bounded(&mut self.warmup_combined_samples, combined_value, 48);
+                self.refresh_limits();
             }
-            if combined_ratio > 0.85 || scalar_ratio > 0.85 {
-                self.recent_exceedance_count += 1;
-            } else {
-                self.recent_exceedance_count = 0;
-            }
+
+            update_counter(
+                &mut self.recent_negative_count,
+                drift_ratio > 0.92,
+                drift_ratio < 0.55,
+            );
+            update_counter(
+                &mut self.recent_exceedance_count,
+                combined_ratio > 0.90 || scalar_ratio > 0.95,
+                combined_ratio < 0.88 && scalar_ratio < 1.0,
+            );
             let persistent_negative_drift = self.recent_negative_count >= self.persistent_window;
 
             let mut reasons = Vec::new();
@@ -204,14 +233,29 @@ impl EnvelopeMonitor {
 
             let flagged = match self.mode {
                 MonitorMode::ScalarNegative => {
-                    (persistent_negative_drift && (scalar_ratio > 0.22 || combined_ratio > 0.24))
-                        || (combined_ratio > 1.0 && self.recent_exceedance_count >= 2)
-                        || (scalar_ratio > 1.15)
+                    (self.recent_exceedance_count >= 4
+                        && combined_ratio > 1.20
+                        && scalar_ratio > 1.50)
+                        || (self.recent_exceedance_count >= 3
+                            && combined_ratio > 1.30
+                            && scalar_ratio > 1.60)
+                        || (self.recent_exceedance_count >= 8
+                            && combined_ratio > 0.90
+                            && scalar_ratio > 4.0)
+                        || (self.recent_exceedance_count >= 3
+                            && combined_ratio > 1.26
+                            && scalar_ratio > 1.50
+                            && persistent_negative_drift)
                 }
                 MonitorMode::MultiStack => {
-                    (combined_ratio > 0.88 && self.recent_exceedance_count >= 2)
-                        || (combined_ratio > 1.08)
-                        || (persistent_negative_drift && scalar_ratio > 0.52)
+                    (combined_ratio > 1.24 && self.recent_exceedance_count >= 3)
+                        || (combined_ratio > 1.30
+                            && (scalar_ratio > 0.78 || persistent_negative_drift))
+                        || (combined_ratio > 0.92 && self.recent_exceedance_count >= 8)
+                        || (persistent_negative_drift
+                            && scalar_ratio > 0.88
+                            && combined_ratio > 1.08
+                            && self.recent_exceedance_count >= 3)
                 }
             };
 
@@ -243,23 +287,81 @@ impl EnvelopeMonitor {
     }
 }
 
+impl EnvelopeMonitor {
+    fn refresh_limits(&mut self) {
+        let signal_samples = tail_window(&self.warmup_signal_samples, 18);
+        let drift_samples = tail_window(&self.warmup_drift_samples, 18);
+        let slew_samples = tail_window(&self.warmup_slew_samples, 18);
+        let combined_samples = tail_window(&self.warmup_combined_samples, 18);
+        let (signal_factor, drift_factor, slew_factor, combined_factor, signal_floor, drift_floor, slew_floor, combined_floor) =
+            match self.mode {
+                MonitorMode::ScalarNegative => (2.4, 2.2, 2.2, 2.3, 0.006, 0.03, 0.06, 0.04),
+                MonitorMode::MultiStack => (2.0, 2.0, 2.0, 2.0, 0.05, 0.03, 0.06, 0.07),
+            };
+        self.cached_signal_limit = calibrated_limit(signal_samples, signal_factor, signal_floor);
+        self.cached_drift_limit = calibrated_limit(drift_samples, drift_factor, drift_floor);
+        self.cached_slew_limit = calibrated_limit(slew_samples, slew_factor, slew_floor);
+        self.cached_combined_limit =
+            calibrated_limit(combined_samples, combined_factor, combined_floor);
+    }
+}
+
 fn calibrated_limit(samples: &[f64], factor: f64, floor: f64) -> f64 {
     if samples.is_empty() {
         return floor;
     }
-    let mean = samples.iter().sum::<f64>() / samples.len() as f64;
-    let variance = samples
+    let center = median(samples);
+    let deviations = samples
         .iter()
-        .map(|value| {
-            let delta = value - mean;
-            delta * delta
-        })
-        .sum::<f64>()
-        / samples.len() as f64;
-    (mean + factor * variance.sqrt()).max(floor)
+        .map(|value| (value - center).abs())
+        .collect::<Vec<_>>();
+    let mad = median(&deviations);
+    let robust_scale = (1.4826 * mad).max(0.15 * center.abs());
+    (center + factor * robust_scale).max(floor)
 }
 
 fn tail_window(samples: &[f64], max_len: usize) -> &[f64] {
     let start = samples.len().saturating_sub(max_len);
     &samples[start..]
+}
+
+fn ema_step(state: &mut f64, sample: f64, smoothing: f64) -> f64 {
+    if *state == 0.0 {
+        *state = sample;
+    } else {
+        *state = smoothing * *state + (1.0 - smoothing) * sample;
+    }
+    *state
+}
+
+fn push_bounded(samples: &mut Vec<f64>, sample: f64, max_len: usize) {
+    samples.push(sample);
+    if samples.len() > max_len {
+        let excess = samples.len() - max_len;
+        samples.drain(..excess);
+    }
+}
+
+fn update_counter(counter: &mut usize, positive: bool, reset: bool) {
+    if positive {
+        *counter += 1;
+    } else if reset {
+        *counter = 0;
+    } else {
+        *counter = counter.saturating_sub(1);
+    }
+}
+
+fn median(samples: &[f64]) -> f64 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+    let mut ordered = samples.to_vec();
+    ordered.sort_by(|left, right| left.total_cmp(right));
+    let middle = ordered.len() / 2;
+    if ordered.len() % 2 == 0 {
+        0.5 * (ordered[middle - 1] + ordered[middle])
+    } else {
+        ordered[middle]
+    }
 }

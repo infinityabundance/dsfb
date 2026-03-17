@@ -13,7 +13,7 @@ use crate::config::{
 use crate::math::metrics::ScenarioSummary;
 use crate::report::csv::write_csv_rows;
 use crate::report::json::write_json_pretty;
-use crate::report::manifest::{scenario_names, BenchmarkRow, RunManifest};
+use crate::report::manifest::{scenario_names, select_hero_rows, BenchmarkRow, HeroBenchmarkRow, RunManifest};
 use crate::report::plotting_data::render_figures;
 use crate::sim::runner::{run_scenario, ScenarioRun};
 use crate::sim::scenarios::ScenarioDefinition;
@@ -142,7 +142,8 @@ where
     fs::create_dir_all(&report_dir)
         .with_context(|| format!("failed to create {}", report_dir.display()))?;
 
-    render_figures(&figures_dir, scenarios, benchmark_rows)?;
+    let hero_rows = select_hero_rows(benchmark_rows);
+    render_figures(&figures_dir, scenarios, benchmark_rows, &hero_rows)?;
 
     let summaries = scenarios.iter().map(|scenario| scenario.summary.clone()).collect::<Vec<_>>();
     let time_series = scenarios
@@ -173,6 +174,7 @@ where
     write_json_pretty(&run_dir.join("run_config.json"), config)?;
     write_csv_rows(&run_dir.join("scenarios_summary.csv"), summaries.iter().cloned())?;
     write_csv_rows(&run_dir.join("benchmark_summary.csv"), benchmark_rows.iter().cloned())?;
+    write_csv_rows(&run_dir.join("hero_benchmark_summary.csv"), hero_rows.iter().cloned())?;
     write_csv_rows(&run_dir.join("time_series.csv"), time_series.iter().cloned())?;
     write_csv_rows(&run_dir.join("spectra.csv"), spectra.iter().cloned())?;
     write_csv_rows(&run_dir.join("residuals.csv"), residuals.iter().cloned())?;
@@ -191,12 +193,12 @@ where
         )?;
     }
 
-    let report_markdown = build_markdown_report(command_name, run_dir, &summaries, benchmark_rows);
+    let report_markdown = build_markdown_report(command_name, run_dir, &summaries, benchmark_rows, &hero_rows);
     fs::write(report_dir.join("dsfb_swarm_report.md"), &report_markdown)
         .with_context(|| format!("failed to write report markdown under {}", report_dir.display()))?;
     write_compact_pdf(
         &report_dir.join("dsfb_swarm_report.pdf"),
-        &build_pdf_lines(run_dir, &summaries, benchmark_rows),
+        &build_pdf_lines(run_dir, &summaries, benchmark_rows, &hero_rows),
     )?;
 
     let manifest = RunManifest {
@@ -214,6 +216,7 @@ where
             "run_config.json".to_string(),
             "scenarios_summary.csv".to_string(),
             "benchmark_summary.csv".to_string(),
+            "hero_benchmark_summary.csv".to_string(),
             "time_series.csv".to_string(),
             "spectra.csv".to_string(),
             "residuals.csv".to_string(),
@@ -229,6 +232,8 @@ where
             "figures/noise_stress_curves.png".to_string(),
             "figures/multimode_comparison.png".to_string(),
             "figures/topology_snapshots.png".to_string(),
+            "figures/hero_leadtime_comparison.png".to_string(),
+            "figures/hero_benchmark_table.png".to_string(),
             "report/dsfb_swarm_report.md".to_string(),
             "report/dsfb_swarm_report.pdf".to_string(),
         ],
@@ -253,6 +258,7 @@ fn build_markdown_report(
     run_dir: &Path,
     summaries: &[ScenarioSummary],
     benchmark_rows: &[BenchmarkRow],
+    hero_rows: &[HeroBenchmarkRow],
 ) -> String {
     let mut body = String::new();
     body.push_str("# DSFB-Swarm empirical report\n\n");
@@ -280,23 +286,46 @@ fn build_markdown_report(
         ));
     }
     body.push_str("\n## Benchmark summary\n\n");
-    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | baseline lambda2 lead (s) | multi advantage (s) | scalar TPR | scalar FPR | multi TPR | multi FPR | trust delay (s) |\n");
-    body.push_str("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | best baseline | baseline lead (s) | lead gain (s) | multi advantage (s) | scalar TPR | scalar FPR | multi TPR | multi FPR | trust delay (s) |\n");
+    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
     for row in benchmark_rows.iter().take(24) {
         body.push_str(&format!(
-            "| {} | {} | {:.3} | {} | {} | {} | {} | {:.3} | {:.3} | {:.3} | {:.3} | {} |\n",
+            "| {} | {} | {:.3} | {} | {} | {} | {} | {} | {} | {:.3} | {:.3} | {:.3} | {:.3} | {} |\n",
             row.scenario,
             row.agents,
             row.noise_level,
             display_option(row.scalar_detection_lead_time),
             display_option(row.multimode_detection_lead_time),
-            display_option(row.baseline_lambda2_lead_time),
+            row.best_baseline_name,
+            display_option(row.best_baseline_lead_time),
+            display_option(row.lead_time_gain_vs_best_baseline),
             display_option(row.multimode_minus_scalar_seconds),
             row.scalar_true_positive_rate,
             row.scalar_false_positive_rate,
             row.multimode_true_positive_rate,
             row.multimode_false_positive_rate,
             display_option(row.trust_suppression_delay)
+        ));
+    }
+    body.push_str("\n## Hero benchmark rows\n\n");
+    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | best baseline | baseline lead (s) | lead gain (s) | trust delay (s) | scalar TPR/FPR | multi TPR/FPR |\n");
+    body.push_str("| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- | --- |\n");
+    for row in hero_rows {
+        body.push_str(&format!(
+            "| {} | {} | {:.3} | {} | {} | {} | {} | {} | {} | {:.3}/{:.3} | {:.3}/{:.3} |\n",
+            row.scenario,
+            row.agents,
+            row.noise_level,
+            display_option(row.scalar_lead_time),
+            display_option(row.multimode_lead_time),
+            row.best_baseline_name,
+            display_option(row.best_baseline_lead_time),
+            display_option(row.lead_time_gain_vs_best_baseline),
+            display_option(row.trust_suppression_delay),
+            row.scalar_true_positive_rate,
+            row.scalar_false_positive_rate,
+            row.multimode_true_positive_rate,
+            row.multimode_false_positive_rate,
         ));
     }
     body.push_str("\n## Figure inventory\n\n");
@@ -310,6 +339,8 @@ fn build_markdown_report(
         "figures/noise_stress_curves.png",
         "figures/multimode_comparison.png",
         "figures/topology_snapshots.png",
+        "figures/hero_leadtime_comparison.png",
+        "figures/hero_benchmark_table.png",
     ] {
         body.push_str(&format!("- `{figure}`\n"));
     }
@@ -320,7 +351,12 @@ fn build_markdown_report(
     body
 }
 
-fn build_pdf_lines(run_dir: &Path, summaries: &[ScenarioSummary], benchmark_rows: &[BenchmarkRow]) -> Vec<String> {
+fn build_pdf_lines(
+    run_dir: &Path,
+    summaries: &[ScenarioSummary],
+    benchmark_rows: &[BenchmarkRow],
+    hero_rows: &[HeroBenchmarkRow],
+) -> Vec<String> {
     let mut lines = vec![
         "DSFB-Swarm compact PDF report".to_string(),
         format!("run directory: {}", run_dir.display()),
@@ -343,12 +379,30 @@ fn build_pdf_lines(run_dir: &Path, summaries: &[ScenarioSummary], benchmark_rows
     lines.push("benchmark snapshot:".to_string());
     for row in benchmark_rows.iter().take(12) {
         lines.push(format!(
-            "{} | N={} | noise={:.3} | scalar lead={} | multi advantage={} | trust delay={}",
+            "{} | N={} | noise={:.3} | best baseline={}({}) | lead gain={} | multi advantage={} | trust delay={}",
             row.scenario,
             row.agents,
             row.noise_level,
-            display_option(row.scalar_detection_lead_time),
+            row.best_baseline_name,
+            display_option(row.best_baseline_lead_time),
+            display_option(row.lead_time_gain_vs_best_baseline),
             display_option(row.multimode_minus_scalar_seconds),
+            display_option(row.trust_suppression_delay),
+        ));
+    }
+    lines.push(String::new());
+    lines.push("hero rows:".to_string());
+    for row in hero_rows {
+        lines.push(format!(
+            "{} | N={} | noise={:.3} | scalar={} | multi={} | baseline={}({}) | gain={} | trust={}",
+            row.scenario,
+            row.agents,
+            row.noise_level,
+            display_option(row.scalar_lead_time),
+            display_option(row.multimode_lead_time),
+            row.best_baseline_name,
+            display_option(row.best_baseline_lead_time),
+            display_option(row.lead_time_gain_vs_best_baseline),
             display_option(row.trust_suppression_delay),
         ));
     }
@@ -450,11 +504,11 @@ fn observed_findings(summaries: &[ScenarioSummary]) -> Vec<String> {
     let mut findings = Vec::new();
     if let Some(summary) = summaries.iter().find(|summary| summary.scenario == "communication_loss") {
         findings.push(format!(
-            "communication_loss reached visible failure at step {} with scalar detection at step {} and lead time {} s; raw lambda2 thresholding lagged to {} s in the representative run.",
+            "communication_loss reached visible failure at step {} with scalar detection at step {} and lead time {} s; the strongest baseline in the representative run lagged to {} s.",
             display_option_usize(summary.visible_failure_step),
             display_option_usize(summary.scalar_detection_step),
             display_option(summary.scalar_detection_lead_time),
-            display_option(summary.baseline_lambda2_lead_time),
+            display_option(summary.best_baseline_lead_time),
         ));
     }
     if let Some(summary) = summaries
@@ -462,7 +516,7 @@ fn observed_findings(summaries: &[ScenarioSummary]) -> Vec<String> {
         .find(|summary| summary.scenario == "gradual_edge_degradation")
     {
         findings.push(format!(
-            "gradual_edge_degradation produced scalar detection at step {} and multi-mode detection at step {}, with lead times {} s and {} s before the visibility threshold.",
+            "gradual_edge_degradation produced scalar detection at step {} and multi-mode detection at step {}, with lead times {} s and {} s before the sustained post-peak degradation threshold.",
             display_option_usize(summary.scalar_detection_step),
             display_option_usize(summary.multimode_detection_step),
             display_option(summary.scalar_detection_lead_time),
