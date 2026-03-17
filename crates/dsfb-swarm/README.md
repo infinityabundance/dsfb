@@ -331,7 +331,7 @@ The notebook at `notebooks/dsfb_swarm_colab.ipynb` is designed to:
 - assemble a PDF report,
 - create a zip archive containing the full artifact bundle.
 
-The Colab badge uses a placeholder repository URL. Replace `REPLACE_WITH_YOUR_REPO` with the actual repository path when publishing the notebook.
+The Colab badge and notebook bootstrap default to `https://github.com/infinityabundance/dsfb.git`. You can still override that at runtime with `DSFB_REPO_URL`, `DSFB_REPO_REF`, or `DSFB_REPO_ROOT`.
 
 ## Limitations
 
