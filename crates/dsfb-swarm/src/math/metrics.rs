@@ -21,6 +21,8 @@ pub struct MetricsInput<'a> {
     pub scalar_residuals: &'a [f64],
     pub scalar_envelopes: &'a [f64],
     pub combined_scores: &'a [f64],
+    pub mode_shape_norms: &'a [f64],
+    pub stack_scores: &'a [f64],
     pub laplacian_delta_norms: &'a [f64],
     pub runtime_ms: f64,
 }
@@ -41,6 +43,11 @@ pub struct ScenarioSummary {
     pub baseline_lambda2_detection_step: Option<usize>,
     pub scalar_detection_lead_time: Option<f64>,
     pub multimode_detection_lead_time: Option<f64>,
+    pub baseline_state_lead_time: Option<f64>,
+    pub baseline_disagreement_lead_time: Option<f64>,
+    pub baseline_lambda2_lead_time: Option<f64>,
+    pub multimode_minus_scalar_seconds: Option<f64>,
+    pub trust_drop_step: Option<usize>,
     pub trust_suppression_delay: Option<f64>,
     pub scalar_false_positive_rate: f64,
     pub scalar_true_positive_rate: f64,
@@ -49,6 +56,8 @@ pub struct ScenarioSummary {
     pub max_abs_residual: f64,
     pub max_scalar_envelope: f64,
     pub max_combined_score: f64,
+    pub peak_mode_shape_norm: f64,
+    pub peak_stack_score: f64,
     pub lambda2_min: f64,
     pub lambda2_mean: f64,
     pub lambda2_final: f64,
@@ -58,7 +67,7 @@ pub struct ScenarioSummary {
 }
 
 pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
-    let visible_failure_step = visible_failure_step(input.lambda2, input.onset_step);
+    let visible_failure_step = visible_failure_step(input.scenario, input.lambda2, input.onset_step);
     let scalar_detection_step = first_true_at_or_after(input.scalar_flags, input.onset_step);
     let multimode_detection_step = first_true_at_or_after(input.multimode_flags, input.onset_step);
     let baseline_state_detection_step = first_true_at_or_after(input.baseline_state_flags, input.onset_step);
@@ -66,13 +75,23 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
         first_true_at_or_after(input.baseline_disagreement_flags, input.onset_step);
     let baseline_lambda2_detection_step =
         first_true_at_or_after(input.baseline_lambda2_flags, input.onset_step);
+    let trust_drop_step = trust_drop_step(input.affected_trust, input.onset_step);
 
     let scalar_detection_lead_time =
         lead_time_seconds(scalar_detection_step, visible_failure_step, input.dt);
     let multimode_detection_lead_time =
         lead_time_seconds(multimode_detection_step, visible_failure_step, input.dt);
-    let trust_suppression_delay = first_below_threshold_at_or_after(input.affected_trust, input.onset_step, 0.55)
-        .map(|step| ((step - input.onset_step) as f64) * input.dt);
+    let baseline_state_lead_time =
+        lead_time_seconds(baseline_state_detection_step, visible_failure_step, input.dt);
+    let baseline_disagreement_lead_time =
+        lead_time_seconds(baseline_disagreement_detection_step, visible_failure_step, input.dt);
+    let baseline_lambda2_lead_time =
+        lead_time_seconds(baseline_lambda2_detection_step, visible_failure_step, input.dt);
+    let multimode_minus_scalar_seconds = match (scalar_detection_step, multimode_detection_step) {
+        (Some(scalar), Some(multimode)) => Some((scalar as f64 - multimode as f64) * input.dt),
+        _ => None,
+    };
+    let trust_suppression_delay = trust_drop_step.map(|step| ((step - input.onset_step) as f64) * input.dt);
     let max_abs_residual = input
         .scalar_residuals
         .iter()
@@ -88,10 +107,12 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
         .iter()
         .copied()
         .fold(0.0_f64, f64::max);
+    let peak_mode_shape_norm = input.mode_shape_norms.iter().copied().fold(0.0_f64, f64::max);
+    let peak_stack_score = input.stack_scores.iter().copied().fold(0.0_f64, f64::max);
     let lambda2_min = input.lambda2.iter().copied().fold(f64::INFINITY, f64::min);
     let lambda2_mean = input.lambda2.iter().sum::<f64>() / input.lambda2.len().max(1) as f64;
     let lambda2_final = input.lambda2.last().copied().unwrap_or(0.0);
-    let residual_topology_correlation = pearson_correlation_abs(input.scalar_residuals, input.laplacian_delta_norms);
+    let residual_topology_correlation = pearson_correlation_abs(input.combined_scores, input.laplacian_delta_norms);
     let residual_bound_ratio = if max_scalar_envelope > 0.0 {
         max_abs_residual / max_scalar_envelope
     } else {
@@ -113,6 +134,11 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
         baseline_lambda2_detection_step,
         scalar_detection_lead_time,
         multimode_detection_lead_time,
+        baseline_state_lead_time,
+        baseline_disagreement_lead_time,
+        baseline_lambda2_lead_time,
+        multimode_minus_scalar_seconds,
+        trust_drop_step,
         trust_suppression_delay,
         scalar_false_positive_rate: rate_before_onset(input.scalar_flags, input.onset_step),
         scalar_true_positive_rate: rate_after_onset(input.scalar_flags, input.onset_step),
@@ -121,6 +147,8 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
         max_abs_residual,
         max_scalar_envelope,
         max_combined_score,
+        peak_mode_shape_norm,
+        peak_stack_score,
         lambda2_min,
         lambda2_mean,
         lambda2_final,
@@ -130,9 +158,18 @@ pub fn summarize(input: MetricsInput<'_>) -> ScenarioSummary {
     }
 }
 
-fn visible_failure_step(lambda2: &[f64], onset: usize) -> Option<usize> {
-    let warmup_mean = lambda2.iter().take(onset.max(1)).sum::<f64>() / onset.max(1) as f64;
-    let threshold = (0.45 * warmup_mean).max(0.015);
+fn visible_failure_step(kind: ScenarioKind, lambda2: &[f64], onset: usize) -> Option<usize> {
+    if matches!(kind, ScenarioKind::Nominal) {
+        return None;
+    }
+    let baseline = pre_onset_baseline(lambda2, onset);
+    let warmup_mean = baseline.iter().sum::<f64>() / baseline.len().max(1) as f64;
+    let threshold = match kind {
+        ScenarioKind::GradualEdgeDegradation => (0.70 * warmup_mean).max(0.02),
+        ScenarioKind::AdversarialAgent => (0.68 * warmup_mean).max(0.02),
+        ScenarioKind::CommunicationLoss => (0.45 * warmup_mean).max(0.015),
+        ScenarioKind::Nominal | ScenarioKind::All => (0.45 * warmup_mean).max(0.015),
+    };
     lambda2
         .iter()
         .enumerate()
@@ -147,12 +184,34 @@ fn first_true_at_or_after(flags: &[bool], start: usize) -> Option<usize> {
         .find_map(|(index, flag)| (*flag).then_some(index))
 }
 
-fn first_below_threshold_at_or_after(values: &[f64], start: usize, threshold: f64) -> Option<usize> {
-    values
+fn trust_drop_step(values: &[f64], onset: usize) -> Option<usize> {
+    if onset == 0 || values.is_empty() {
+        return None;
+    }
+    let baseline = pre_onset_baseline(values, onset);
+    let baseline_mean = baseline.iter().sum::<f64>() / baseline.len() as f64;
+    let baseline_std = (baseline
         .iter()
-        .enumerate()
-        .skip(start)
-        .find_map(|(index, value)| (*value < threshold).then_some(index))
+        .map(|value| {
+            let delta = value - baseline_mean;
+            delta * delta
+        })
+        .sum::<f64>()
+        / baseline.len() as f64)
+        .sqrt();
+    let threshold = (baseline_mean - 2.5 * baseline_std).min(0.80 * baseline_mean);
+    let mut consecutive = 0usize;
+    for (index, value) in values.iter().enumerate().skip(onset) {
+        if *value < threshold {
+            consecutive += 1;
+            if consecutive >= 3 {
+                return Some(index);
+            }
+        } else {
+            consecutive = 0;
+        }
+    }
+    None
 }
 
 fn lead_time_seconds(detection: Option<usize>, failure: Option<usize>, dt: f64) -> Option<f64> {
@@ -200,4 +259,14 @@ fn pearson_correlation_abs(left: &[f64], right: &[f64]) -> f64 {
     } else {
         numerator / (left_denom.sqrt() * right_denom.sqrt())
     }
+}
+
+fn pre_onset_baseline<'a>(values: &'a [f64], onset: usize) -> &'a [f64] {
+    let end = onset.min(values.len());
+    if end == 0 {
+        return &values[..values.len().min(1)];
+    }
+    let window = end.clamp(12, 24);
+    let start = end.saturating_sub(window);
+    &values[start..end]
 }

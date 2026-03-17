@@ -54,6 +54,7 @@ fn residual_computation_matches_toy_case() {
         &current_vectors,
         Some(&previous_vectors),
         0.5,
+        true,
     );
     assert!((residuals.scalar_residual + 0.2).abs() < 1.0e-9);
     assert!((residuals.scalar_drift + 0.2).abs() < 1.0e-9);

@@ -28,15 +28,38 @@ pub struct TimeSeriesRow {
     pub scalar_residual: f64,
     pub scalar_drift: f64,
     pub scalar_slew: f64,
+    pub scalar_signal: f64,
     pub scalar_residual_envelope: f64,
+    pub scalar_signal_limit: f64,
+    pub scalar_drift_limit: f64,
+    pub scalar_combined_limit: f64,
+    pub scalar_signal_ratio: f64,
+    pub scalar_drift_ratio: f64,
+    pub scalar_combined_ratio: f64,
+    pub scalar_persistent_negative_drift: bool,
     pub combined_score: f64,
     pub combined_envelope: f64,
+    pub multimode_signal: f64,
+    pub multimode_signal_limit: f64,
+    pub multimode_combined_limit: f64,
+    pub multimode_signal_ratio: f64,
+    pub multimode_combined_ratio: f64,
+    pub multimode_stack_score: f64,
+    pub mode_shape_norm: f64,
     pub laplacian_delta_norm: f64,
     pub mean_node_trust: f64,
     pub min_node_trust: f64,
     pub affected_mean_trust: f64,
+    pub edge_trust_mean: f64,
+    pub trust_global_score: f64,
+    pub trust_alarm_input: f64,
     pub anomaly_scalar: bool,
     pub anomaly_multimode: bool,
+    pub baseline_state_flag: bool,
+    pub baseline_disagreement_flag: bool,
+    pub baseline_lambda2_flag: bool,
+    pub scalar_calibrated: bool,
+    pub multimode_calibrated: bool,
     pub connected: bool,
 }
 
@@ -113,13 +136,14 @@ pub struct ScenarioRun {
 pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Result<ScenarioRun> {
     let monitored_modes = config.monitored_modes.min(config.agents.saturating_sub(1).max(1));
     let scalar_modes = 1;
+    let detector_warmup = calibrated_warmup_steps(config, &definition);
     let mut agents = initialize_agents(config.agents);
     let mut predictor_scalar = PredictorState::new(config.predictor);
     let mut predictor_multi = PredictorState::new(config.predictor);
-    let mut scalar_monitor = EnvelopeMonitor::new(config.warmup_steps);
-    let mut multimode_monitor = EnvelopeMonitor::new(config.warmup_steps);
+    let mut scalar_monitor = EnvelopeMonitor::new_scalar(detector_warmup);
+    let mut multimode_monitor = EnvelopeMonitor::new_multimode(detector_warmup);
     let mut trust_model = TrustModel::new(config.trust_mode, config.agents);
-    let mut baseline_monitor = BaselineMonitor::new(config.warmup_steps);
+    let mut baseline_monitor = BaselineMonitor::new(detector_warmup);
 
     let mut previous_laplacian: Option<DMatrix<f64>> = None;
     let mut previous_scalar: Option<ResidualStack> = None;
@@ -149,7 +173,11 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
         let spectral = compute_spectrum(&lap);
 
         let scalar_observed = vec![spectral.lambda2];
-        let scalar_predicted = predictor_scalar.predict_values(scalar_modes);
+        let scalar_predicted = if step == 0 {
+            scalar_observed.clone()
+        } else {
+            predictor_scalar.predict_values(scalar_modes)
+        };
         let scalar_residual = compute_residual_stack(
             &scalar_observed,
             &scalar_predicted,
@@ -158,6 +186,7 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
             &spectral.eigenvectors,
             predictor_scalar.previous_vectors(),
             config.dt,
+            false,
         );
         let scalar_certificate = scalar_monitor.update(&scalar_residual);
 
@@ -168,7 +197,11 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
             .take(monitored_modes)
             .copied()
             .collect::<Vec<_>>();
-        let multi_predicted = predictor_multi.predict_values(monitored_modes);
+        let multi_predicted = if step == 0 {
+            multi_observed.clone()
+        } else {
+            predictor_multi.predict_values(monitored_modes)
+        };
         let multi_residual = compute_residual_stack(
             &multi_observed,
             &multi_predicted,
@@ -177,22 +210,34 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
             &spectral.eigenvectors,
             predictor_multi.previous_vectors(),
             config.dt,
+            config.mode_shapes,
         );
         let multimode_certificate = multimode_monitor.update(&multi_residual);
 
-        let global_score = if config.multi_mode {
-            multi_residual.combined_score
+        let trust_global_score = if config.multi_mode {
+            multimode_certificate
+                .combined_ratio
+                .max(multimode_certificate.scalar_ratio)
         } else {
-            scalar_residual.combined_score
+            scalar_certificate
+                .combined_ratio
+                .max(scalar_certificate.scalar_ratio)
         };
+        let trust_alarm_input = (trust_global_score - 0.85).max(0.0) * 2.0;
         let trust_snapshot = trust_model.update(
             &perturbed,
             &pair_disagreement_matrix,
-            global_score,
+            trust_alarm_input,
             &definition.affected_nodes(config.agents),
         );
 
-        let baseline = baseline_monitor.update(&agents, &effective_adjacency, spectral.lambda2, time);
+        let baseline = baseline_monitor.update(
+            definition.name,
+            &agents,
+            &effective_adjacency,
+            spectral.lambda2,
+            time,
+        );
         baseline_rows.push(baseline.clone());
         record_spectra(
             &definition,
@@ -235,15 +280,42 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
             scalar_residual: scalar_residual.scalar_residual,
             scalar_drift: scalar_residual.scalar_drift,
             scalar_slew: scalar_residual.scalar_slew,
+            scalar_signal: scalar_certificate.signal_value,
             scalar_residual_envelope: envelope.scalar_residual_envelope,
-            combined_score: multi_residual.combined_score,
+            scalar_signal_limit: scalar_certificate.scalar_limit,
+            scalar_drift_limit: scalar_certificate.drift_limit,
+            scalar_combined_limit: scalar_certificate.combined_limit,
+            scalar_signal_ratio: scalar_certificate.scalar_ratio,
+            scalar_drift_ratio: scalar_certificate.drift_ratio,
+            scalar_combined_ratio: scalar_certificate.combined_ratio,
+            scalar_persistent_negative_drift: scalar_certificate.persistent_negative_drift,
+            combined_score: if config.multi_mode {
+                multimode_certificate.score
+            } else {
+                scalar_certificate.score
+            },
             combined_envelope: multimode_monitor.state().combined_envelope,
+            multimode_signal: multimode_certificate.signal_value,
+            multimode_signal_limit: multimode_certificate.scalar_limit,
+            multimode_combined_limit: multimode_certificate.combined_limit,
+            multimode_signal_ratio: multimode_certificate.scalar_ratio,
+            multimode_combined_ratio: multimode_certificate.combined_ratio,
+            multimode_stack_score: multi_residual.stack_norm,
+            mode_shape_norm: multi_residual.mode_shape_norm,
             laplacian_delta_norm: delta_norm(&lap, previous_laplacian.as_ref()),
             mean_node_trust: trust_snapshot.mean_node_trust,
             min_node_trust: trust_snapshot.min_node_trust,
             affected_mean_trust: trust_snapshot.affected_mean_trust,
+            edge_trust_mean: trust_snapshot.edge_trust_mean,
+            trust_global_score,
+            trust_alarm_input,
             anomaly_scalar: scalar_certificate.flagged,
             anomaly_multimode: multimode_certificate.flagged,
+            baseline_state_flag: baseline.state_norm_flag,
+            baseline_disagreement_flag: baseline.disagreement_energy_flag,
+            baseline_lambda2_flag: baseline.raw_lambda2_flag,
+            scalar_calibrated: scalar_monitor.is_calibrated(),
+            multimode_calibrated: multimode_monitor.is_calibrated(),
             connected: spectral.lambda2 > 1.0e-5,
         });
 
@@ -268,6 +340,37 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
     }
 
     let runtime_ms = run_start.elapsed().as_secs_f64() * 1_000.0;
+    let lambda2 = time_series.iter().map(|row| row.lambda2).collect::<Vec<_>>();
+    let scalar_flags = time_series.iter().map(|row| row.anomaly_scalar).collect::<Vec<_>>();
+    let multimode_flags = time_series.iter().map(|row| row.anomaly_multimode).collect::<Vec<_>>();
+    let baseline_state_flags = baseline_rows.iter().map(|row| row.state_norm_flag).collect::<Vec<_>>();
+    let baseline_disagreement_flags = baseline_rows
+        .iter()
+        .map(|row| row.disagreement_energy_flag)
+        .collect::<Vec<_>>();
+    let baseline_lambda2_flags = baseline_rows.iter().map(|row| row.raw_lambda2_flag).collect::<Vec<_>>();
+    let affected_trust = time_series
+        .iter()
+        .map(|row| row.affected_mean_trust)
+        .collect::<Vec<_>>();
+    let scalar_residuals = time_series
+        .iter()
+        .map(|row| row.scalar_residual)
+        .collect::<Vec<_>>();
+    let scalar_envelopes = time_series
+        .iter()
+        .map(|row| row.scalar_residual_envelope)
+        .collect::<Vec<_>>();
+    let combined_scores = time_series.iter().map(|row| row.combined_score).collect::<Vec<_>>();
+    let mode_shape_norms = time_series.iter().map(|row| row.mode_shape_norm).collect::<Vec<_>>();
+    let stack_scores = time_series
+        .iter()
+        .map(|row| row.multimode_stack_score)
+        .collect::<Vec<_>>();
+    let laplacian_delta_norms = time_series
+        .iter()
+        .map(|row| row.laplacian_delta_norm)
+        .collect::<Vec<_>>();
     let summary = summarize(MetricsInput {
         scenario: definition.kind,
         scenario_name: definition.name,
@@ -275,33 +378,20 @@ pub fn run_scenario(config: &RunConfig, definition: ScenarioDefinition) -> Resul
         steps: config.steps,
         dt: config.dt,
         noise_level: config.noise_level,
-        onset_step: definition.onset_step.min(config.steps.saturating_sub(1)),
-        lambda2: &time_series.iter().map(|row| row.lambda2).collect::<Vec<_>>(),
-        scalar_flags: &time_series.iter().map(|row| row.anomaly_scalar).collect::<Vec<_>>(),
-        multimode_flags: &time_series.iter().map(|row| row.anomaly_multimode).collect::<Vec<_>>(),
-        baseline_state_flags: &baseline_rows.iter().map(|row| row.state_norm_flag).collect::<Vec<_>>(),
-        baseline_disagreement_flags: &baseline_rows
-            .iter()
-            .map(|row| row.disagreement_energy_flag)
-            .collect::<Vec<_>>(),
-        baseline_lambda2_flags: &baseline_rows.iter().map(|row| row.raw_lambda2_flag).collect::<Vec<_>>(),
-        affected_trust: &time_series
-            .iter()
-            .map(|row| row.affected_mean_trust)
-            .collect::<Vec<_>>(),
-        scalar_residuals: &time_series
-            .iter()
-            .map(|row| row.scalar_residual)
-            .collect::<Vec<_>>(),
-        scalar_envelopes: &time_series
-            .iter()
-            .map(|row| row.scalar_residual_envelope)
-            .collect::<Vec<_>>(),
-        combined_scores: &time_series.iter().map(|row| row.combined_score).collect::<Vec<_>>(),
-        laplacian_delta_norms: &time_series
-            .iter()
-            .map(|row| row.laplacian_delta_norm)
-            .collect::<Vec<_>>(),
+        onset_step: definition.onset_step.min(config.steps),
+        lambda2: &lambda2,
+        scalar_flags: &scalar_flags,
+        multimode_flags: &multimode_flags,
+        baseline_state_flags: &baseline_state_flags,
+        baseline_disagreement_flags: &baseline_disagreement_flags,
+        baseline_lambda2_flags: &baseline_lambda2_flags,
+        affected_trust: &affected_trust,
+        scalar_residuals: &scalar_residuals,
+        scalar_envelopes: &scalar_envelopes,
+        combined_scores: &combined_scores,
+        mode_shape_norms: &mode_shape_norms,
+        stack_scores: &stack_scores,
+        laplacian_delta_norms: &laplacian_delta_norms,
         runtime_ms,
     });
 
@@ -388,4 +478,13 @@ fn snapshot_label(step: usize, total_steps: usize, onset_step: usize) -> String 
     } else {
         "late".to_string()
     }
+}
+
+fn calibrated_warmup_steps(config: &RunConfig, definition: &ScenarioDefinition) -> usize {
+    let onset = definition.onset_step.min(config.steps);
+    let pre_onset_target = onset.saturating_sub(6);
+    config
+        .warmup_steps
+        .max(pre_onset_target)
+        .min(config.steps.saturating_sub(1))
 }

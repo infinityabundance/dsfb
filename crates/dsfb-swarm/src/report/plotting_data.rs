@@ -99,29 +99,27 @@ fn render_residual_timeseries(path: &Path, scenarios: &[ScenarioRun]) -> Result<
     let residual_limit = focus
         .time_series
         .iter()
-        .map(|row| row.scalar_residual.abs().max(row.scalar_residual_envelope))
+        .map(|row| row.scalar_signal.max(row.scalar_signal_limit))
         .fold(0.2_f64, f64::max);
     let mut lower_chart = ChartBuilder::on(lower)
-        .caption("Residual and envelope", ("sans-serif", 24))
+        .caption("Negative residual detector signal and calibrated limit", ("sans-serif", 24))
         .margin(12)
         .x_label_area_size(42)
         .y_label_area_size(56)
-        .build_cartesian_2d(0.0..max_time, -residual_limit..residual_limit)?;
-    lower_chart.configure_mesh().x_desc("time").y_desc("r_lambda2(t)").draw()?;
+        .build_cartesian_2d(0.0..max_time, 0.0..(residual_limit * 1.05))?;
+    lower_chart
+        .configure_mesh()
+        .x_desc("time")
+        .y_desc("max(-r_lambda2(t), 0)")
+        .draw()?;
     lower_chart.draw_series(LineSeries::new(
-        focus.time_series.iter().map(|row| (row.time, row.scalar_residual)),
+        focus.time_series.iter().map(|row| (row.time, row.scalar_signal)),
         &MAGENTA,
     ))?;
     lower_chart.draw_series(LineSeries::new(
         focus.time_series
             .iter()
-            .map(|row| (row.time, row.scalar_residual_envelope)),
-        &BLACK,
-    ))?;
-    lower_chart.draw_series(LineSeries::new(
-        focus.time_series
-            .iter()
-            .map(|row| (row.time, -row.scalar_residual_envelope)),
+            .map(|row| (row.time, row.scalar_signal_limit)),
         &BLACK,
     ))?;
     Ok(())
@@ -136,7 +134,7 @@ fn render_drift_slew(path: &Path, scenarios: &[ScenarioRun]) -> Result<()> {
     let drift_limit = focus
         .time_series
         .iter()
-        .map(|row| row.scalar_drift.abs())
+        .map(|row| (-row.scalar_drift).max(0.0).max(row.scalar_drift_limit))
         .fold(0.2_f64, f64::max);
     let slew_limit = focus
         .time_series
@@ -152,11 +150,23 @@ fn render_drift_slew(path: &Path, scenarios: &[ScenarioRun]) -> Result<()> {
         .margin(12)
         .x_label_area_size(32)
         .y_label_area_size(56)
-        .build_cartesian_2d(0.0..max_time, -drift_limit..drift_limit)?;
-    drift_chart.configure_mesh().x_desc("time").y_desc("dot r_lambda2(t)").draw()?;
+        .build_cartesian_2d(0.0..max_time, 0.0..(drift_limit * 1.05))?;
+    drift_chart
+        .configure_mesh()
+        .x_desc("time")
+        .y_desc("max(-dot r_lambda2(t), 0)")
+        .draw()?;
     drift_chart.draw_series(LineSeries::new(
-        focus.time_series.iter().map(|row| (row.time, row.scalar_drift)),
+        focus.time_series
+            .iter()
+            .map(|row| (row.time, (-row.scalar_drift).max(0.0))),
         &BLUE,
+    ))?;
+    drift_chart.draw_series(LineSeries::new(
+        focus.time_series
+            .iter()
+            .map(|row| (row.time, row.scalar_drift_limit)),
+        &BLACK,
     ))?;
 
     let mut slew_chart = ChartBuilder::on(&areas[1])
@@ -304,14 +314,16 @@ fn render_noise_stress_curves(path: &Path, benchmark_rows: &[BenchmarkRow]) -> R
 fn render_multimode_comparison(path: &Path, benchmark_rows: &[BenchmarkRow]) -> Result<()> {
     let root = BitMapBackend::new(path, (1280, 720)).into_drawing_area();
     root.fill(&WHITE)?;
+    let areas = root.split_evenly((1, 2));
     let scenario_names = unique_scenario_names(benchmark_rows);
-    let mut chart = ChartBuilder::on(&root)
-        .caption("Scalar versus multi-mode residual monitoring", ("sans-serif", 28))
+    let max_lead = max_multimode_value(benchmark_rows);
+    let mut lead_chart = ChartBuilder::on(&areas[0])
+        .caption("Scalar vs multi-mode lead time", ("sans-serif", 24))
         .margin(16)
         .x_label_area_size(56)
         .y_label_area_size(60)
-        .build_cartesian_2d(0..(scenario_names.len() * 2).max(2), 0.0..max_multimode_value(benchmark_rows))?;
-    chart
+        .build_cartesian_2d(0..(scenario_names.len() * 2).max(2), 0.0..max_lead)?;
+    lead_chart
         .configure_mesh()
         .y_desc("lead time (s)")
         .x_labels(scenario_names.len() * 2)
@@ -326,7 +338,7 @@ fn render_multimode_comparison(path: &Path, benchmark_rows: &[BenchmarkRow]) -> 
         let rows = benchmark_rows.iter().filter(|row| row.scenario == *name).collect::<Vec<_>>();
         let scalar = average_option(rows.iter().filter_map(|row| row.scalar_detection_lead_time));
         let multi = average_option(rows.iter().filter_map(|row| row.multimode_detection_lead_time));
-        chart.draw_series([
+        lead_chart.draw_series([
             Rectangle::new(
                 [(scenario_index * 2, 0.0), (scenario_index * 2 + 1, scalar)],
                 BLUE.filled(),
@@ -337,6 +349,33 @@ fn render_multimode_comparison(path: &Path, benchmark_rows: &[BenchmarkRow]) -> 
             ),
         ])?;
     }
+
+    let delta_limit = benchmark_rows
+        .iter()
+        .filter_map(|row| row.multimode_minus_scalar_seconds)
+        .map(f64::abs)
+        .fold(0.5_f64, f64::max)
+        * 1.1;
+    let mut delta_chart = ChartBuilder::on(&areas[1])
+        .caption("Multi-mode detection advantage", ("sans-serif", 24))
+        .margin(16)
+        .x_label_area_size(56)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0..scenario_names.len().max(1), -delta_limit..delta_limit)?;
+    delta_chart
+        .configure_mesh()
+        .y_desc("scalar_detection_step - multimode_detection_step (s)")
+        .x_labels(scenario_names.len().max(1))
+        .x_label_formatter(&|index| scenario_names.get(*index).cloned().unwrap_or_default())
+        .draw()?;
+    delta_chart.draw_series(scenario_names.iter().enumerate().map(|(index, name)| {
+        let rows = benchmark_rows.iter().filter(|row| row.scenario == *name);
+        let value = average_option(rows.filter_map(|row| row.multimode_minus_scalar_seconds));
+        Rectangle::new(
+            [(index, 0.0), (index + 1, value)],
+            if value >= 0.0 { GREEN.filled() } else { RED.filled() },
+        )
+    }))?;
     Ok(())
 }
 
@@ -422,50 +461,11 @@ fn average_detection_metrics(scenarios: &[ScenarioRun]) -> [f64; 5] {
         .collect::<Vec<_>>();
     let scalar = average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.scalar_detection_lead_time));
     let multi = average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.multimode_detection_lead_time));
-    let state = average_option(
-        non_nominal
-            .iter()
-            .filter_map(|scenario| {
-                scenario.summary.visible_failure_step.zip(scenario.summary.baseline_state_detection_step).map(
-                    |(failure, detection)| ((failure as f64 - detection as f64).max(0.0)) * scenario_dt(scenario),
-                )
-            }),
-    );
-    let disagreement = average_option(
-        non_nominal
-            .iter()
-            .filter_map(|scenario| {
-                scenario
-                    .summary
-                    .visible_failure_step
-                    .zip(scenario.summary.baseline_disagreement_detection_step)
-                    .map(|(failure, detection)| {
-                        ((failure as f64 - detection as f64).max(0.0)) * scenario_dt(scenario)
-                    })
-            }),
-    );
-    let lambda2 = average_option(
-        non_nominal
-            .iter()
-            .filter_map(|scenario| {
-                scenario
-                    .summary
-                    .visible_failure_step
-                    .zip(scenario.summary.baseline_lambda2_detection_step)
-                    .map(|(failure, detection)| {
-                        ((failure as f64 - detection as f64).max(0.0)) * scenario_dt(scenario)
-                    })
-            }),
-    );
+    let state = average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.baseline_state_lead_time));
+    let disagreement =
+        average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.baseline_disagreement_lead_time));
+    let lambda2 = average_option(non_nominal.iter().filter_map(|scenario| scenario.summary.baseline_lambda2_lead_time));
     [state, disagreement, lambda2, scalar, multi]
-}
-
-fn scenario_dt(scenario: &&ScenarioRun) -> f64 {
-    if scenario.time_series.len() >= 2 {
-        scenario.time_series[1].time - scenario.time_series[0].time
-    } else {
-        1.0
-    }
 }
 
 fn average_option<I>(iter: I) -> f64

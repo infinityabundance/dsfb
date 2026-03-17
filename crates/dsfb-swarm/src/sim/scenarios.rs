@@ -19,7 +19,7 @@ impl ScenarioDefinition {
                 kind,
                 name: "nominal",
                 description: "Stable coordination with bounded deterministic excitation and no persistent topology loss.",
-                onset_step: total_steps + 1,
+                onset_step: total_steps,
             },
             ScenarioKind::GradualEdgeDegradation => Self {
                 kind,
@@ -43,7 +43,7 @@ impl ScenarioDefinition {
                 kind: ScenarioKind::Nominal,
                 name: "nominal",
                 description: "Alias scenario definition",
-                onset_step: total_steps + 1,
+                onset_step: total_steps,
             },
         }
     }

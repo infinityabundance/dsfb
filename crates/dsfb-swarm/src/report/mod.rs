@@ -263,33 +263,40 @@ fn build_markdown_report(
         "The demonstrator evolves a dynamic interaction graph `G(t)` with adjacency `A(t)`, degree `D(t)`, and Laplacian `L(t) = D(t) - A(t)`. The monitored observables are the Laplacian eigenvalues, especially `lambda_2(t)`, together with deterministic predictors `hat lambda_k(t)`, residuals `r_k(t) = lambda_k(t) - hat lambda_k(t)`, residual drift, residual slew, residual envelopes, and trust-gated interaction attenuation.\n\n",
     );
     body.push_str("## Scenario summary\n\n");
-    body.push_str("| scenario | lambda2_min | scalar lead time (s) | multi-mode lead time (s) | trust suppression delay (s) | corr(|r|, ||Delta L||_F) |\n");
-    body.push_str("| --- | ---: | ---: | ---: | ---: | ---: |\n");
+    body.push_str("| scenario | visible failure | scalar detect | multi detect | scalar lead (s) | multi lead (s) | multi advantage (s) | trust delay (s) | corr(score, ||Delta L||_F) |\n");
+    body.push_str("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
     for summary in summaries {
         body.push_str(&format!(
-            "| {} | {:.4} | {} | {} | {} | {:.4} |\n",
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {:.4} |\n",
             summary.scenario,
-            summary.lambda2_min,
+            display_option_usize(summary.visible_failure_step),
+            display_option_usize(summary.scalar_detection_step),
+            display_option_usize(summary.multimode_detection_step),
             display_option(summary.scalar_detection_lead_time),
             display_option(summary.multimode_detection_lead_time),
+            display_option(summary.multimode_minus_scalar_seconds),
             display_option(summary.trust_suppression_delay),
             summary.residual_topology_correlation
         ));
     }
     body.push_str("\n## Benchmark summary\n\n");
-    body.push_str("| scenario | agents | noise | scalar TPR | scalar FPR | multi-mode TPR | multi-mode FPR | runtime (ms) |\n");
-    body.push_str("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+    body.push_str("| scenario | agents | noise | scalar lead (s) | multi lead (s) | baseline lambda2 lead (s) | multi advantage (s) | scalar TPR | scalar FPR | multi TPR | multi FPR | trust delay (s) |\n");
+    body.push_str("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
     for row in benchmark_rows.iter().take(24) {
         body.push_str(&format!(
-            "| {} | {} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.2} |\n",
+            "| {} | {} | {:.3} | {} | {} | {} | {} | {:.3} | {:.3} | {:.3} | {:.3} | {} |\n",
             row.scenario,
             row.agents,
             row.noise_level,
+            display_option(row.scalar_detection_lead_time),
+            display_option(row.multimode_detection_lead_time),
+            display_option(row.baseline_lambda2_lead_time),
+            display_option(row.multimode_minus_scalar_seconds),
             row.scalar_true_positive_rate,
             row.scalar_false_positive_rate,
             row.multimode_true_positive_rate,
             row.multimode_false_positive_rate,
-            row.runtime_ms
+            display_option(row.trust_suppression_delay)
         ));
     }
     body.push_str("\n## Figure inventory\n\n");
@@ -306,10 +313,10 @@ fn build_markdown_report(
     ] {
         body.push_str(&format!("- `{figure}`\n"));
     }
-    body.push_str("\n## Interpretation\n\n");
-    body.push_str(
-        "The intended empirical reading is that persistent negative residual drift appears before visible connectivity collapse in the degradation and communication-loss scenarios, residual magnitude co-varies with the Laplacian perturbation norm, multi-mode monitoring improves detectability relative to lambda_2-only monitoring, and trust-gated attenuation suppresses the adversarial agent by contracting its effective influence before global fragmentation occurs.\n",
-    );
+    body.push_str("\n## Observed findings\n\n");
+    for line in observed_findings(summaries) {
+        body.push_str(&format!("- {line}\n"));
+    }
     body
 }
 
@@ -323,20 +330,26 @@ fn build_pdf_lines(run_dir: &Path, summaries: &[ScenarioSummary], benchmark_rows
     ];
     for summary in summaries {
         lines.push(format!(
-            "{} | lambda2_min={:.4} | scalar_lead={} | multimode_lead={} | corr={:.3}",
+            "{} | fail={} | scalar={} | multi={} | scalar_lead={} | multi_lead={}",
             summary.scenario,
-            summary.lambda2_min,
+            display_option_usize(summary.visible_failure_step),
+            display_option_usize(summary.scalar_detection_step),
+            display_option_usize(summary.multimode_detection_step),
             display_option(summary.scalar_detection_lead_time),
             display_option(summary.multimode_detection_lead_time),
-            summary.residual_topology_correlation
         ));
     }
     lines.push(String::new());
     lines.push("benchmark snapshot:".to_string());
     for row in benchmark_rows.iter().take(12) {
         lines.push(format!(
-            "{} | N={} | noise={:.3} | scalar TPR={:.3} | multi TPR={:.3} | runtime={:.2}ms",
-            row.scenario, row.agents, row.noise_level, row.scalar_true_positive_rate, row.multimode_true_positive_rate, row.runtime_ms
+            "{} | N={} | noise={:.3} | scalar lead={} | multi advantage={} | trust delay={}",
+            row.scenario,
+            row.agents,
+            row.noise_level,
+            display_option(row.scalar_detection_lead_time),
+            display_option(row.multimode_minus_scalar_seconds),
+            display_option(row.trust_suppression_delay),
         ));
     }
     lines.push(String::new());
@@ -368,4 +381,53 @@ fn display_option(value: Option<f64>) -> String {
     value
         .map(|number| format!("{number:.3}"))
         .unwrap_or_else(|| "n/a".to_string())
+}
+
+fn display_option_usize(value: Option<usize>) -> String {
+    value
+        .map(|number| number.to_string())
+        .unwrap_or_else(|| "n/a".to_string())
+}
+
+fn observed_findings(summaries: &[ScenarioSummary]) -> Vec<String> {
+    let mut findings = Vec::new();
+    if let Some(summary) = summaries.iter().find(|summary| summary.scenario == "communication_loss") {
+        findings.push(format!(
+            "communication_loss reached visible failure at step {} with scalar detection at step {} and lead time {} s; raw lambda2 thresholding lagged to {} s in the representative run.",
+            display_option_usize(summary.visible_failure_step),
+            display_option_usize(summary.scalar_detection_step),
+            display_option(summary.scalar_detection_lead_time),
+            display_option(summary.baseline_lambda2_lead_time),
+        ));
+    }
+    if let Some(summary) = summaries
+        .iter()
+        .find(|summary| summary.scenario == "gradual_edge_degradation")
+    {
+        findings.push(format!(
+            "gradual_edge_degradation produced scalar detection at step {} and multi-mode detection at step {}, with lead times {} s and {} s before the visibility threshold.",
+            display_option_usize(summary.scalar_detection_step),
+            display_option_usize(summary.multimode_detection_step),
+            display_option(summary.scalar_detection_lead_time),
+            display_option(summary.multimode_detection_lead_time),
+        ));
+    }
+    if let Some(summary) = summaries.iter().find(|summary| summary.scenario == "adversarial_agent") {
+        findings.push(format!(
+            "adversarial_agent showed multi-mode advantage of {} s over scalar-only detection and trust suppression delay {} s; visible failure remained scenario-dependent in the representative run.",
+            display_option(summary.multimode_minus_scalar_seconds),
+            display_option(summary.trust_suppression_delay),
+        ));
+    }
+    if let Some(summary) = summaries.iter().find(|summary| summary.scenario == "nominal") {
+        findings.push(format!(
+            "nominal remained bounded with scalar FPR {:.3} and multi-mode FPR {:.3} in the representative run.",
+            summary.scalar_false_positive_rate,
+            summary.multimode_false_positive_rate,
+        ));
+    }
+    if findings.is_empty() {
+        findings.push("No scenario summaries were available.".to_string());
+    }
+    findings
 }
