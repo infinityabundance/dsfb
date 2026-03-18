@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser;
 use dsfb_lattice::{
-    default_output_root, run_demo, DemoConfig, ExampleSelection,
-    PressureTestSettings,
+    default_output_root, run_demo, DemoConfig, ExampleSelection, PressureTestSettings,
 };
+use dsfb_lattice::failure_map::FailureMapSettings;
 use dsfb_lattice::heuristics::HeuristicSettings;
 
 #[derive(Parser, Debug)]
@@ -60,6 +60,8 @@ struct Cli {
     heuristics_ambiguity_tolerance: f64,
     #[arg(long, default_value_t = 0.01)]
     heuristics_low_noise_threshold: f64,
+    #[arg(long, default_value_t = true)]
+    failure_map_enabled: bool,
 }
 
 fn main() -> Result<()> {
@@ -87,11 +89,16 @@ fn main() -> Result<()> {
             ambiguity_point_spring_scale: cli.pressure_test_ambiguity_point_spring_scale,
             ambiguity_strain_strength: cli.pressure_test_ambiguity_strain_strength,
         },
+        failure_map: FailureMapSettings {
+            enabled: cli.failure_map_enabled,
+            ..FailureMapSettings::default()
+        },
         heuristics: HeuristicSettings {
             enabled: cli.heuristics_enabled,
             ambiguity_tolerance: cli.heuristics_ambiguity_tolerance,
             low_noise_threshold: cli.heuristics_low_noise_threshold,
             similarity_metric: "weighted_l1".to_string(),
+            weights: Default::default(),
         },
     };
 

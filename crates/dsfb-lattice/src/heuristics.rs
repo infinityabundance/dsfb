@@ -3,11 +3,45 @@ use serde::{Deserialize, Serialize};
 use crate::canonical::CanonicalCaseMetrics;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HeuristicWeights {
+    pub delta_norm_2: f64,
+    pub max_abs_eigenvalue_shift: f64,
+    pub mean_abs_eigenvalue_shift: f64,
+    pub max_normalized_residual_norm: f64,
+    pub residual_energy_ratio: f64,
+    pub max_drift_norm: f64,
+    pub covariance_trace: f64,
+    pub covariance_offdiag_energy: f64,
+    pub covariance_rank_estimate: f64,
+    pub detected_flag: f64,
+    pub normalized_first_crossing_time: f64,
+}
+
+impl Default for HeuristicWeights {
+    fn default() -> Self {
+        Self {
+            delta_norm_2: 0.9,
+            max_abs_eigenvalue_shift: 0.9,
+            mean_abs_eigenvalue_shift: 1.2,
+            max_normalized_residual_norm: 1.0,
+            residual_energy_ratio: 8.0,
+            max_drift_norm: 1.0,
+            covariance_trace: 0.5,
+            covariance_offdiag_energy: 0.8,
+            covariance_rank_estimate: 0.5,
+            detected_flag: 0.4,
+            normalized_first_crossing_time: 0.3,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HeuristicSettings {
     pub enabled: bool,
     pub ambiguity_tolerance: f64,
     pub low_noise_threshold: f64,
     pub similarity_metric: String,
+    pub weights: HeuristicWeights,
 }
 
 impl Default for HeuristicSettings {
@@ -17,6 +51,7 @@ impl Default for HeuristicSettings {
             ambiguity_tolerance: 0.18,
             low_noise_threshold: 0.01,
             similarity_metric: "weighted_l1".to_string(),
+            weights: HeuristicWeights::default(),
         }
     }
 }
@@ -24,10 +59,12 @@ impl Default for HeuristicSettings {
 #[derive(Clone, Debug, Serialize)]
 pub struct HeuristicDescriptor {
     pub delta_norm_2: f64,
+    pub max_abs_eigenvalue_shift: f64,
     pub mean_abs_eigenvalue_shift: f64,
     pub max_normalized_residual_norm: f64,
     pub residual_energy_ratio: f64,
     pub max_drift_norm: f64,
+    pub covariance_trace: f64,
     pub covariance_offdiag_energy: f64,
     pub covariance_rank_estimate: f64,
     pub detected_flag: f64,
@@ -62,6 +99,8 @@ pub struct HeuristicRanking {
     pub descriptor: HeuristicDescriptor,
     pub top_match: Option<String>,
     pub top_distance: Option<f64>,
+    pub runner_up_match: Option<String>,
+    pub runner_up_distance: Option<f64>,
     pub ambiguity_flag: bool,
     pub ambiguity_gap: Option<f64>,
     pub ambiguity_tolerance: f64,
@@ -74,7 +113,10 @@ pub struct HeuristicBankSummary {
     pub description: String,
     pub similarity_metric: String,
     pub ambiguity_tolerance: f64,
+    pub descriptor_fields: Vec<String>,
+    pub weights: HeuristicWeights,
     pub admissibility_note: String,
+    pub retrieval_note: String,
     pub entries: Vec<HeuristicEntry>,
 }
 
@@ -85,6 +127,8 @@ pub struct HeuristicRankingRow {
     pub observed_perturbation_class: String,
     pub top_match: Option<String>,
     pub top_distance: Option<f64>,
+    pub runner_up_match: Option<String>,
+    pub runner_up_distance: Option<f64>,
     pub ambiguity_flag: bool,
     pub ambiguity_gap: Option<f64>,
     pub candidate_rank: usize,
@@ -121,7 +165,10 @@ pub fn build_heuristic_bank(
         description: "The heuristic bank is a transparent retrieval layer over compact canonical descriptors. It ranks candidate perturbation classes rather than forcing a unique classification.".to_string(),
         similarity_metric: settings.similarity_metric.clone(),
         ambiguity_tolerance: settings.ambiguity_tolerance,
+        descriptor_fields: descriptor_fields(),
+        weights: settings.weights.clone(),
         admissibility_note: "Candidates can be filtered by simple admissibility tags such as harmonic_only, low_noise_only, and grouped_mode_case. Filtered entries remain visible in the ranking artifact with exclusion notes.".to_string(),
+        retrieval_note: "Similarity is computed with an explicit weighted L1 distance over the exported descriptor fields. The weights are part of the serialized heuristic-bank configuration so the ranking remains inspectable.".to_string(),
         entries,
     }
 }
@@ -145,7 +192,11 @@ pub fn rank_case_against_bank(
             .collect::<Vec<_>>();
         let admissible = excluded_tags.is_empty();
         let distance = if admissible {
-            Some(weighted_l1_distance(&descriptor, &entry.descriptor))
+            Some(weighted_l1_distance(
+                &descriptor,
+                &entry.descriptor,
+                &settings.weights,
+            ))
         } else {
             None
         };
@@ -176,10 +227,13 @@ pub fn rank_case_against_bank(
         .iter()
         .find(|candidate| candidate.admissible)
         .map(|candidate| candidate.perturbation_class.clone());
-    let second_distance = ranked_candidates
+    let runner_up = ranked_candidates
         .iter()
-        .filter_map(|candidate| candidate.distance)
+        .filter(|candidate| candidate.admissible)
         .nth(1);
+    let runner_up_match = runner_up.map(|candidate| candidate.perturbation_class.clone());
+    let runner_up_distance = runner_up.and_then(|candidate| candidate.distance);
+    let second_distance = runner_up_distance;
     let ambiguity_gap = top_distance.zip(second_distance).map(|(top, second)| second - top);
     let ambiguity_flag = ambiguity_gap
         .map(|gap| gap <= settings.ambiguity_tolerance)
@@ -202,6 +256,8 @@ pub fn rank_case_against_bank(
             descriptor,
             top_match: None,
             top_distance: None,
+            runner_up_match: None,
+            runner_up_distance: None,
             ambiguity_flag: false,
             ambiguity_gap: None,
             ambiguity_tolerance: settings.ambiguity_tolerance,
@@ -220,6 +276,8 @@ pub fn rank_case_against_bank(
         descriptor,
         top_match,
         top_distance,
+        runner_up_match,
+        runner_up_distance,
         ambiguity_flag,
         ambiguity_gap,
         ambiguity_tolerance: settings.ambiguity_tolerance,
@@ -238,6 +296,8 @@ pub fn flatten_rankings(rankings: &[HeuristicRanking]) -> Vec<HeuristicRankingRo
                 observed_perturbation_class: ranking.observed_perturbation_class.clone(),
                 top_match: ranking.top_match.clone(),
                 top_distance: ranking.top_distance,
+                runner_up_match: ranking.runner_up_match.clone(),
+                runner_up_distance: ranking.runner_up_distance,
                 ambiguity_flag: ranking.ambiguity_flag,
                 ambiguity_gap: ranking.ambiguity_gap,
                 candidate_rank: index + 1,
@@ -262,10 +322,12 @@ pub fn descriptor_from_canonical(metrics: &CanonicalCaseMetrics) -> HeuristicDes
 
     HeuristicDescriptor {
         delta_norm_2: metrics.spectral.delta_norm_2,
+        max_abs_eigenvalue_shift: metrics.spectral.max_abs_eigenvalue_shift,
         mean_abs_eigenvalue_shift: metrics.spectral.mean_abs_eigenvalue_shift,
         max_normalized_residual_norm: metrics.residual.max_normalized_residual_norm,
         residual_energy_ratio: metrics.residual.residual_energy_ratio,
         max_drift_norm: metrics.temporal.max_drift_norm,
+        covariance_trace: metrics.correlation.covariance_trace,
         covariance_offdiag_energy: metrics.correlation.covariance_offdiag_energy,
         covariance_rank_estimate: metrics.correlation.covariance_rank_estimate as f64,
         detected_flag: if metrics.detectability.detected { 1.0 } else { 0.0 },
@@ -306,14 +368,43 @@ fn default_notes_for_class(perturbation_class: &str) -> String {
     }
 }
 
-fn weighted_l1_distance(left: &HeuristicDescriptor, right: &HeuristicDescriptor) -> f64 {
-    0.9 * (left.delta_norm_2 - right.delta_norm_2).abs()
-        + 1.2 * (left.mean_abs_eigenvalue_shift - right.mean_abs_eigenvalue_shift).abs()
-        + 1.0 * (left.max_normalized_residual_norm - right.max_normalized_residual_norm).abs()
-        + 8.0 * (left.residual_energy_ratio - right.residual_energy_ratio).abs()
-        + 1.0 * (left.max_drift_norm - right.max_drift_norm).abs()
-        + 0.8 * (left.covariance_offdiag_energy - right.covariance_offdiag_energy).abs()
-        + 0.5 * (left.covariance_rank_estimate - right.covariance_rank_estimate).abs()
-        + 0.4 * (left.detected_flag - right.detected_flag).abs()
-        + 0.3 * (left.normalized_first_crossing_time - right.normalized_first_crossing_time).abs()
+fn weighted_l1_distance(
+    left: &HeuristicDescriptor,
+    right: &HeuristicDescriptor,
+    weights: &HeuristicWeights,
+) -> f64 {
+    weights.delta_norm_2 * (left.delta_norm_2 - right.delta_norm_2).abs()
+        + weights.max_abs_eigenvalue_shift
+            * (left.max_abs_eigenvalue_shift - right.max_abs_eigenvalue_shift).abs()
+        + weights.mean_abs_eigenvalue_shift
+            * (left.mean_abs_eigenvalue_shift - right.mean_abs_eigenvalue_shift).abs()
+        + weights.max_normalized_residual_norm
+            * (left.max_normalized_residual_norm - right.max_normalized_residual_norm).abs()
+        + weights.residual_energy_ratio
+            * (left.residual_energy_ratio - right.residual_energy_ratio).abs()
+        + weights.max_drift_norm * (left.max_drift_norm - right.max_drift_norm).abs()
+        + weights.covariance_trace * (left.covariance_trace - right.covariance_trace).abs()
+        + weights.covariance_offdiag_energy
+            * (left.covariance_offdiag_energy - right.covariance_offdiag_energy).abs()
+        + weights.covariance_rank_estimate
+            * (left.covariance_rank_estimate - right.covariance_rank_estimate).abs()
+        + weights.detected_flag * (left.detected_flag - right.detected_flag).abs()
+        + weights.normalized_first_crossing_time
+            * (left.normalized_first_crossing_time - right.normalized_first_crossing_time).abs()
+}
+
+fn descriptor_fields() -> Vec<String> {
+    vec![
+        "delta_norm_2".to_string(),
+        "max_abs_eigenvalue_shift".to_string(),
+        "mean_abs_eigenvalue_shift".to_string(),
+        "max_normalized_residual_norm".to_string(),
+        "residual_energy_ratio".to_string(),
+        "max_drift_norm".to_string(),
+        "covariance_trace".to_string(),
+        "covariance_offdiag_energy".to_string(),
+        "covariance_rank_estimate".to_string(),
+        "detected_flag".to_string(),
+        "normalized_first_crossing_time".to_string(),
+    ]
 }
