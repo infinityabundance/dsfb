@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::detectability::{
     CrossingRegimeLabel, DetectabilityInterpretationClass, DetectabilitySummary,
-    EnvelopeProvenance,
+    DetectionStrengthBand, EnvelopeProvenance, SemanticStatus,
 };
 use crate::residuals::TimeSeriesBundle;
 use crate::spectra::SpectralComparison;
@@ -44,6 +44,9 @@ pub struct DetectabilityCanonicalMetrics {
     pub detected: bool,
     pub crossing_regime_label: CrossingRegimeLabel,
     pub interpretation_class: DetectabilityInterpretationClass,
+    pub detection_strength_band: DetectionStrengthBand,
+    pub semantic_status: SemanticStatus,
+    pub boundary_proximate_crossing: bool,
     pub first_crossing_time: Option<f64>,
     pub first_crossing_step: Option<usize>,
     pub signal_at_first_crossing: Option<f64>,
@@ -103,6 +106,9 @@ pub struct CanonicalMetricRow {
     pub detected: bool,
     pub crossing_regime_label: CrossingRegimeLabel,
     pub interpretation_class: DetectabilityInterpretationClass,
+    pub detection_strength_band: DetectionStrengthBand,
+    pub semantic_status: SemanticStatus,
+    pub boundary_proximate_crossing: bool,
     pub first_crossing_time: Option<f64>,
     pub first_crossing_step: Option<usize>,
     pub signal_at_first_crossing: Option<f64>,
@@ -142,6 +148,9 @@ pub fn canonical_metric_guide() -> CanonicalMetricGuide {
             "detected".to_string(),
             "crossing_regime_label".to_string(),
             "interpretation_class".to_string(),
+            "detection_strength_band".to_string(),
+            "semantic_status".to_string(),
+            "boundary_proximate_crossing".to_string(),
             "first_crossing_time".to_string(),
             "first_crossing_step".to_string(),
             "signal_at_first_crossing".to_string(),
@@ -217,6 +226,15 @@ pub fn build_canonical_case_metrics(
             interpretation_class: detectability
                 .map(|summary| summary.interpretation_class)
                 .unwrap_or(DetectabilityInterpretationClass::NotDetected),
+            detection_strength_band: detectability
+                .map(|summary| summary.detection_strength_band)
+                .unwrap_or(DetectionStrengthBand::NotDetected),
+            semantic_status: detectability
+                .map(|summary| summary.semantic_status)
+                .unwrap_or(SemanticStatus::NotDetected),
+            boundary_proximate_crossing: detectability
+                .map(|summary| summary.boundary_proximate_crossing)
+                .unwrap_or(false),
             first_crossing_time: detectability.and_then(|summary| summary.first_crossing_time),
             first_crossing_step: detectability.and_then(|summary| summary.first_crossing_step),
             signal_at_first_crossing: detectability.and_then(|summary| summary.signal_at_first_crossing),
@@ -267,6 +285,9 @@ pub fn flatten_canonical_metrics(metrics: &[CanonicalCaseMetrics]) -> Vec<Canoni
             detected: metric.detectability.detected,
             crossing_regime_label: metric.detectability.crossing_regime_label,
             interpretation_class: metric.detectability.interpretation_class,
+            detection_strength_band: metric.detectability.detection_strength_band,
+            semantic_status: metric.detectability.semantic_status,
+            boundary_proximate_crossing: metric.detectability.boundary_proximate_crossing,
             first_crossing_time: metric.detectability.first_crossing_time,
             first_crossing_step: metric.detectability.first_crossing_step,
             signal_at_first_crossing: metric.detectability.signal_at_first_crossing,

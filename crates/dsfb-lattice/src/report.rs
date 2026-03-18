@@ -858,9 +858,10 @@ fn plot_failure_map_status(path: &Path, failure_map: &FailureMapSummary) -> Resu
             .find(|item| item.scenario_name == scenario.scenario_name);
         let title = if let Some(aggregate) = aggregate {
             format!(
-                "{}: detected {} / degraded {} / ambiguous {} / degr+amb {} / fail {}",
+                "{}: clear {} / marginal {} / degraded {} / amb {} / degr+amb {} / fail {}",
                 scenario.scenario_name,
-                aggregate.detected_count,
+                aggregate.clear_structural_detection_count,
+                aggregate.marginal_structural_detection_count,
                 aggregate.degraded_count,
                 aggregate.ambiguous_count,
                 aggregate.degraded_ambiguous_count,
@@ -943,7 +944,8 @@ fn pressure_case_style(case_name: &str) -> (&RGBColor, String) {
 
 fn failure_map_status_color(label: &str) -> RGBColor {
     match label {
-        "detected" => RGBColor(58, 122, 77),
+        "clear_structural_detection" => RGBColor(58, 122, 77),
+        "marginal_structural_detection" => RGBColor(167, 155, 56),
         "degraded" => RGBColor(209, 146, 58),
         "ambiguous" => RGBColor(80, 123, 196),
         "degraded_ambiguous" => RGBColor(142, 94, 168),
@@ -953,7 +955,8 @@ fn failure_map_status_color(label: &str) -> RGBColor {
 
 fn failure_map_status_abbrev(label: &str) -> &'static str {
     match label {
-        "detected" => "D",
+        "clear_structural_detection" => "C",
+        "marginal_structural_detection" => "M",
         "degraded" => "G",
         "ambiguous" => "A",
         "degraded_ambiguous" => "DA",
@@ -1156,8 +1159,24 @@ fn render_markdown(summary: &RunSummary) -> String {
             detectability.interpretation_class.as_str()
         ));
         lines.push(format!(
+            "- detection strength band: `{}`",
+            detectability.detection_strength_band.as_str()
+        ));
+        lines.push(format!(
+            "- semantic status: `{}`",
+            detectability.semantic_status.as_str()
+        ));
+        lines.push(format!(
+            "- boundary-proximate crossing: `{}`",
+            detectability.boundary_proximate_crossing
+        ));
+        lines.push(format!(
             "- interpretive note: {}",
             detectability.interpretation_note
+        ));
+        lines.push(format!(
+            "- semantic reason: {}",
+            detectability.semantic_reason
         ));
         if let Some(step) = detectability.first_crossing_step {
             lines.push(format!("- first envelope crossing step: {step}"));
@@ -1227,7 +1246,7 @@ fn render_markdown(summary: &RunSummary) -> String {
         lines.push("## Controlled Pressure Test".to_string());
         lines.push(pressure_test.description.clone());
         lines.push(String::new());
-        lines.push("| case | class | detectability interpretation | first crossing time | normalized crossing margin | post-crossing fraction | max normalized residual | heuristic top match | ambiguity tier |".to_string());
+        lines.push("| case | class | semantic status | first crossing time | normalized crossing margin | post-crossing fraction | max normalized residual | heuristic top match | ambiguity tier |".to_string());
         lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- |".to_string());
         for case in &pressure_test.cases {
             let first_crossing_time = case
@@ -1250,7 +1269,7 @@ fn render_markdown(summary: &RunSummary) -> String {
                 "| {} | {} | {} | {} | {} | {} | {:.4} | {} | {} |",
                 case.case_name,
                 case.perturbation_class,
-                case.detectability_interpretation_class.as_str(),
+                case.semantic_status.as_str(),
                 first_crossing_time,
                 normalized_crossing_margin,
                 post_crossing_fraction,
@@ -1260,7 +1279,7 @@ fn render_markdown(summary: &RunSummary) -> String {
             ));
         }
         lines.push(String::new());
-        lines.push("Each pressure-test case uses its own baseline-derived envelope under the same additive-noise and predictor-mismatch settings. These comparisons are controlled synthetic stress tests of the deterministic pipeline, not a claim of universal robustness. They are included specifically to show that detectability is not monotone in raw residual size alone.".to_string());
+        lines.push("Each pressure-test case uses its own baseline-derived envelope under the same additive-noise and predictor-mismatch settings. Pointwise crossing remains the mathematical criterion, but the semantic status layer separates clear structural detection from marginal boundary-proximate crossing and from stress-degraded cases. These comparisons are controlled synthetic stress tests, not a claim of universal robustness.".to_string());
     }
     if let Some(heuristics) = &summary.heuristics {
         lines.push(String::new());
@@ -1294,7 +1313,7 @@ fn render_markdown(summary: &RunSummary) -> String {
             heuristics.bank.retrieval_note
         ));
         lines.push(
-            "- The ranking is a constrained retrieval mechanism over compact descriptors. It is not presented as a universal classifier."
+            "- The ranking is a constrained retrieval mechanism over compact descriptors. It is not presented as a universal classifier, and its ambiguity band is intentionally cautious near borderline separations."
                 .to_string(),
         );
         lines.push(String::new());
@@ -1341,14 +1360,15 @@ fn render_markdown(summary: &RunSummary) -> String {
                 .to_string(),
         );
         lines.push(String::new());
-        lines.push("| scenario | class | detected | degraded | ambiguous | degraded ambiguous | not detected |".to_string());
-        lines.push("| --- | --- | --- | --- | --- | --- | --- |".to_string());
+        lines.push("| scenario | class | clear structural | marginal structural | degraded | ambiguous | degraded ambiguous | not detected |".to_string());
+        lines.push("| --- | --- | --- | --- | --- | --- | --- | --- |".to_string());
         for scenario in &failure_map.scenarios {
             lines.push(format!(
-                "| {} | {} | {} | {} | {} | {} | {} |",
+                "| {} | {} | {} | {} | {} | {} | {} | {} |",
                 scenario.scenario_name,
                 scenario.perturbation_class,
-                scenario.detected_count,
+                scenario.clear_structural_detection_count,
+                scenario.marginal_structural_detection_count,
                 scenario.degraded_count,
                 scenario.ambiguous_count,
                 scenario.degraded_ambiguous_count,
@@ -1532,9 +1552,11 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
         lines.push("Detectability".to_string());
         lines.push("Detectability is evaluated pointwise in time using the same-time condition ||r(t)|| > E(t). Global peaks are reported separately for context and can occur at different times without contradiction.".to_string());
         lines.push(format!(
-            "crossing regime = {}, interpretive class = {}",
+            "crossing regime = {}, interpretive class = {}, detection strength band = {}, semantic status = {}",
             detectability.crossing_regime_label.as_str(),
-            detectability.interpretation_class.as_str()
+            detectability.interpretation_class.as_str(),
+            detectability.detection_strength_band.as_str(),
+            detectability.semantic_status.as_str()
         ));
         if let Some(step) = detectability.first_crossing_step {
             lines.push(format!(
@@ -1594,10 +1616,10 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
                 .map(|value| format!("{value:.6}"))
                 .unwrap_or_else(|| "n/a".to_string());
             lines.push(format!(
-                "{} [{}]: interpretive class = {}, first crossing time = {}, normalized crossing margin = {}, post-crossing fraction = {}, max normalized residual = {:.6}, top heuristic match = {}, ambiguity tier = {}",
+                "{} [{}]: semantic status = {}, first crossing time = {}, normalized crossing margin = {}, post-crossing fraction = {}, max normalized residual = {:.6}, top heuristic match = {}, ambiguity tier = {}",
                 case.case_name,
                 case.perturbation_class,
-                case.detectability_interpretation_class.as_str(),
+                case.semantic_status.as_str(),
                 first_crossing,
                 normalized_margin,
                 post_fraction,
@@ -1628,7 +1650,7 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
         lines.push(heuristics.bank.admissibility_note.clone());
         lines.push(heuristics.bank.retrieval_note.clone());
         lines.push(
-            "The heuristic layer ranks admissible candidates in descriptor space. It does not force a unique classification and can mark near-tied interpretations as ambiguous."
+            "The heuristic layer ranks admissible candidates in descriptor space. It does not force a unique classification and now uses a slightly broader caution band around borderline separations."
                 .to_string(),
         );
         for ranking in &heuristics.rankings {
@@ -1673,10 +1695,11 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
         );
         for scenario in &failure_map.scenarios {
             lines.push(format!(
-                "{} [{}]: detected = {}, degraded = {}, ambiguous = {}, degraded ambiguous = {}, not detected = {}",
+                "{} [{}]: clear structural = {}, marginal structural = {}, degraded = {}, ambiguous = {}, degraded ambiguous = {}, not detected = {}",
                 scenario.scenario_name,
                 scenario.perturbation_class,
-                scenario.detected_count,
+                scenario.clear_structural_detection_count,
+                scenario.marginal_structural_detection_count,
                 scenario.degraded_count,
                 scenario.ambiguous_count,
                 scenario.degraded_ambiguous_count,

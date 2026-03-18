@@ -53,16 +53,16 @@ The implementation covers a bounded subset of the paper's ideas.
    Residual covariance is computed across observed modal channels so the grouped perturbation can be compared against the more localized point-defect case.
 
 9. Controlled pressure test
-   The point-defect detectability path is also rerun under four synthetic cases: clean, noise only, predictor mismatch only, and noise plus mismatch. An additional optional ambiguity case mixes a weak localized defect with a weak smooth gradient so descriptor-space retrieval can become near-tied. Each case uses its own baseline-derived envelope under the same settings, and the outputs distinguish clean structural detectability from stressed early low-margin crossings.
+   The point-defect detectability path is also rerun under four synthetic cases: clean, noise only, predictor mismatch only, and noise plus mismatch. An additional optional ambiguity case mixes a weak localized defect with a weak smooth gradient so descriptor-space retrieval can become near-tied. Each case uses its own baseline-derived envelope under the same settings, and the outputs now distinguish clear structural detection, marginal boundary-proximate detection, and stressed early low-margin crossings.
 
 10. Canonical evaluation quantities
    A fixed set of spectral, residual, temporal, detectability, correlation, and envelope-provenance quantities is exported as the comparison backbone for this synthetic benchmark. The crate treats them as canonical for run-to-run comparability inside `dsfb-lattice`, while still allowing auxiliary metrics to be added later.
 
 11. Minimal heuristic bank
-   Existing experiment descriptors are stored as simple heuristic entries with admissibility tags. Observed cases are ranked against them with a weighted L1 distance, and the retrieval layer now exposes `unambiguous`, `near_tie`, and `ambiguous` tiers rather than forcing brittle yes/no ambiguity decisions.
+   Existing experiment descriptors are stored as simple heuristic entries with admissibility tags. Observed cases are ranked against them with a weighted L1 distance, and the retrieval layer now exposes `unambiguous`, `near_tie`, and `ambiguous` tiers with a slightly broader caution band rather than forcing brittle yes/no ambiguity decisions.
 
 12. Controlled failure map
-   A small synthetic grid over noise and predictor mismatch makes explicit where the method is cleanly detected, where detection is degraded or ambiguity-dominated, and where it stops detecting in this toy setting. The map is not presented as a universal operating boundary, and it is used in part to show that detectability is not monotone in raw residual size alone.
+   A small synthetic grid over noise and predictor mismatch makes explicit where the method is clearly structurally detected, only marginally above the boundary, degraded, ambiguity-dominated, or not detected in this toy setting. The map is not presented as a universal operating boundary, and it is used in part to show that detectability is not monotone in raw residual size alone.
 
 13. Softening precursor toy example
    A global spring-softening sweep pushes the smallest eigenvalue toward zero and tracks the resulting residual / drift / slew growth. This is a toy precursor study only.
@@ -75,6 +75,7 @@ The implementation covers a bounded subset of the paper's ideas.
 - residual, drift, and slew generation from deterministic simulations
 - normalized residual metrics for more interpretable cross-regime comparison inside this toy crate
 - envelope crossing logic with finite-time detectability in a toy setting
+- a semantic status layer that separates clear structural detection from marginal boundary-proximate crossing
 - explicit baseline-derived envelope provenance and parameters
 - a controlled synthetic stress-test suite under additive observation noise, predictor mismatch, and an optional ambiguity case
 - canonical evaluation quantities that form the crate's comparison backbone across runs
@@ -115,16 +116,16 @@ Runs symmetric eigendecomposition and computes spectral-shift / norm comparisons
 Simulates deterministic lattice responses, computes raw and normalized residual metrics, and can inject controlled additive observation noise.
 
 `src/detectability.rs`
-Builds explicit baseline-derived envelopes with provenance metadata, reports first / sustained crossings, and adds post-crossing persistence plus an interpretive layer for structural vs stress-confounded crossings.
+Builds explicit baseline-derived envelopes with provenance metadata, reports first / sustained crossings, and adds post-crossing persistence plus an interpretive layer for structural vs stress-confounded crossings, including a clear-vs-marginal band for boundary-proximate clean detections.
 
 `src/canonical.rs`
 Defines the canonical evaluation quantities and flattens them into CSV-friendly rows.
 
 `src/heuristics.rs`
-Builds the transparent heuristic-bank descriptors, admissibility tags, weighted-L1 similarity scores, and tiered ambiguity signaling.
+Builds the transparent heuristic-bank descriptors, admissibility tags, weighted-L1 similarity scores, and tiered ambiguity signaling with an explicit caution band around borderline rankings.
 
 `src/failure_map.rs`
-Runs the controlled stress grid used for the failure/degradation map and exports structured rows and summaries with explicit detected / degraded / ambiguous / not-detected labels.
+Runs the controlled stress grid used for the failure/degradation map and exports structured rows and summaries with explicit clear / marginal / degraded / ambiguous / not-detected semantic labels.
 
 `src/io.rs`
 Creates timestamped run folders, writes JSON / CSV outputs, and zips completed runs.
@@ -318,6 +319,8 @@ Each perturbation produces a new lattice and therefore a new operator `D'`.
 
 `src/detectability.rs` constructs an upper residual envelope from several nominal baseline runs with small forcing variations. The point-defect residual norm is then checked for first and sustained crossings using a same-time comparison, and the summary distinguishes global peaks from the values observed at the first crossing itself. The module also records post-crossing persistence duration, post-crossing fraction, and peak margin after crossing so stressed early low-margin events can be labeled separately from cleaner structural separation. The envelope provenance records the baseline run count, sigma multiplier, additive floor, and the fact that the threshold is not universal.
 
+The same module also adds a semantic-discipline band for nominal detections: a mathematically valid crossing can still be marked as `marginal_structural_detection` when the first-crossing margin is boundary-proximate. This does not change the crossing math; it only prevents tiny-margin clean crossings from being overstated as strong structural separation.
+
 ### Controlled Pressure Test
 
 `src/lib.rs` also runs a bounded synthetic pressure test around the point-defect detectability path. The measurement side can receive additive Gaussian noise from a fixed-seed deterministic RNG, while the predictor can use a slightly mismatched global spring scale. The resulting clean / noise-only / mismatch-only / noise-plus-mismatch cases each get their own baseline-derived envelope, CSV summary, JSON summary, and comparison plots. An optional ambiguity case blends a weak localized defect with a weak smooth gradient so the heuristic ranking can surface near-tied candidate interpretations. The pressure-test outputs explicitly separate pointwise crossing from its interpretation, so a very early small-margin crossing under stress is not silently treated as clean structural detectability.
@@ -330,9 +333,11 @@ Each perturbation produces a new lattice and therefore a new operator `D'`.
 
 `src/heuristics.rs` turns the previously conceptual heuristic bank into a small executable retrieval object. It stores compact descriptors for the reference perturbation classes, filters candidates by simple admissibility tags, ranks candidates with an explicit weighted L1 distance, exposes the descriptor fields and weights in the serialized outputs, and now uses a tiered `unambiguous` / `near_tie` / `ambiguous` interpretation instead of a brittle single threshold.
 
+The ambiguity band is intentionally slightly broader than before so borderline descriptor separations are surfaced more cautiously. The crate still preserves clearly unambiguous cases, but it no longer treats every small numerical lead as semantically decisive.
+
 ### Failure / Degradation Map
 
-`src/failure_map.rs` runs a controlled grid over additive noise and predictor mismatch for two synthetic scenarios: a weak localized defect and a mixed-signature ambiguous case. Each grid point records canonical metrics, detectability interpretation, heuristic ambiguity tier, and a final semantic status such as `detected`, `degraded`, `ambiguous`, `degraded_ambiguous`, or `not_detected`. The point of the artifact is to make degradation legible, not to claim a universal operating boundary. In particular, the exported grid makes visible that larger residuals do not by themselves guarantee cleaner detectability when envelope construction, stress, and descriptor-space ambiguity change together.
+`src/failure_map.rs` runs a controlled grid over additive noise and predictor mismatch for two synthetic scenarios: a weak localized defect and a mixed-signature ambiguous case. Each grid point records canonical metrics, detectability interpretation, heuristic ambiguity tier, and a final semantic status such as `clear_structural_detection`, `marginal_structural_detection`, `degraded`, `ambiguous`, `degraded_ambiguous`, or `not_detected`. The point of the artifact is to make degradation legible, not to claim a universal operating boundary. In particular, the exported grid makes visible that larger residuals do not by themselves guarantee cleaner detectability when envelope construction, stress, and descriptor-space ambiguity change together.
 
 ### Report Generation
 
