@@ -39,6 +39,9 @@ impl Default for HeuristicWeights {
 pub struct HeuristicSettings {
     pub enabled: bool,
     pub ambiguity_tolerance: f64,
+    pub near_tie_band: f64,
+    pub near_tie_relative_gap_threshold: f64,
+    pub near_tie_distance_ratio_threshold: f64,
     pub low_noise_threshold: f64,
     pub similarity_metric: String,
     pub weights: HeuristicWeights,
@@ -49,9 +52,32 @@ impl Default for HeuristicSettings {
         Self {
             enabled: true,
             ambiguity_tolerance: 0.18,
+            near_tie_band: 0.04,
+            near_tie_relative_gap_threshold: 0.15,
+            near_tie_distance_ratio_threshold: 0.88,
             low_noise_threshold: 0.01,
             similarity_metric: "weighted_l1".to_string(),
             weights: HeuristicWeights::default(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AmbiguityTier {
+    Unambiguous,
+    NearTie,
+    Ambiguous,
+    Unavailable,
+}
+
+impl AmbiguityTier {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Unambiguous => "unambiguous",
+            Self::NearTie => "near_tie",
+            Self::Ambiguous => "ambiguous",
+            Self::Unavailable => "unavailable",
         }
     }
 }
@@ -101,8 +127,11 @@ pub struct HeuristicRanking {
     pub top_distance: Option<f64>,
     pub runner_up_match: Option<String>,
     pub runner_up_distance: Option<f64>,
+    pub ambiguity_tier: AmbiguityTier,
     pub ambiguity_flag: bool,
     pub ambiguity_gap: Option<f64>,
+    pub relative_gap: Option<f64>,
+    pub distance_ratio: Option<f64>,
     pub ambiguity_tolerance: f64,
     pub ambiguity_note: Option<String>,
     pub ranked_candidates: Vec<HeuristicCandidate>,
@@ -113,6 +142,9 @@ pub struct HeuristicBankSummary {
     pub description: String,
     pub similarity_metric: String,
     pub ambiguity_tolerance: f64,
+    pub near_tie_band: f64,
+    pub near_tie_relative_gap_threshold: f64,
+    pub near_tie_distance_ratio_threshold: f64,
     pub descriptor_fields: Vec<String>,
     pub weights: HeuristicWeights,
     pub admissibility_note: String,
@@ -129,8 +161,11 @@ pub struct HeuristicRankingRow {
     pub top_distance: Option<f64>,
     pub runner_up_match: Option<String>,
     pub runner_up_distance: Option<f64>,
+    pub ambiguity_tier: AmbiguityTier,
     pub ambiguity_flag: bool,
     pub ambiguity_gap: Option<f64>,
+    pub relative_gap: Option<f64>,
+    pub distance_ratio: Option<f64>,
     pub candidate_rank: usize,
     pub candidate_id: String,
     pub candidate_class: String,
@@ -165,10 +200,13 @@ pub fn build_heuristic_bank(
         description: "The heuristic bank is a transparent retrieval layer over compact canonical descriptors. It ranks candidate perturbation classes rather than forcing a unique classification.".to_string(),
         similarity_metric: settings.similarity_metric.clone(),
         ambiguity_tolerance: settings.ambiguity_tolerance,
+        near_tie_band: settings.near_tie_band,
+        near_tie_relative_gap_threshold: settings.near_tie_relative_gap_threshold,
+        near_tie_distance_ratio_threshold: settings.near_tie_distance_ratio_threshold,
         descriptor_fields: descriptor_fields(),
         weights: settings.weights.clone(),
         admissibility_note: "Candidates can be filtered by simple admissibility tags such as harmonic_only, low_noise_only, and grouped_mode_case. Filtered entries remain visible in the ranking artifact with exclusion notes.".to_string(),
-        retrieval_note: "Similarity is computed with an explicit weighted L1 distance over the exported descriptor fields. The weights are part of the serialized heuristic-bank configuration so the ranking remains inspectable.".to_string(),
+        retrieval_note: "Similarity is computed with an explicit weighted L1 distance over the exported descriptor fields. The weights and ambiguity thresholds are serialized with the bank so the ranking and its caution bands remain inspectable.".to_string(),
         entries,
     }
 }
@@ -235,17 +273,22 @@ pub fn rank_case_against_bank(
     let runner_up_distance = runner_up.and_then(|candidate| candidate.distance);
     let second_distance = runner_up_distance;
     let ambiguity_gap = top_distance.zip(second_distance).map(|(top, second)| second - top);
-    let ambiguity_flag = ambiguity_gap
-        .map(|gap| gap <= settings.ambiguity_tolerance)
-        .unwrap_or(false);
-    let ambiguity_note = if ambiguity_flag {
-        Some(
-            "Ambiguous ranking: the top candidate and runner-up are near-tied within the configured descriptor-space tolerance."
-                .to_string(),
-        )
-    } else {
-        None
-    };
+    let relative_gap = top_distance.zip(second_distance).map(|(top, second)| {
+        (second - top) / second.abs().max(1.0e-9)
+    });
+    let distance_ratio = top_distance.zip(second_distance).map(|(top, second)| {
+        top / second.abs().max(1.0e-9)
+    });
+    let ambiguity_tier = classify_ambiguity(
+        top_distance,
+        runner_up_distance,
+        ambiguity_gap,
+        relative_gap,
+        distance_ratio,
+        settings,
+    );
+    let ambiguity_flag = ambiguity_tier == AmbiguityTier::Ambiguous;
+    let ambiguity_note = ambiguity_note(ambiguity_tier);
 
     if admissible_candidates.is_empty() {
         return HeuristicRanking {
@@ -258,8 +301,11 @@ pub fn rank_case_against_bank(
             top_distance: None,
             runner_up_match: None,
             runner_up_distance: None,
+            ambiguity_tier: AmbiguityTier::Unavailable,
             ambiguity_flag: false,
             ambiguity_gap: None,
+            relative_gap: None,
+            distance_ratio: None,
             ambiguity_tolerance: settings.ambiguity_tolerance,
             ambiguity_note: Some(
                 "No heuristic candidates remained admissible for the current case tags.".to_string(),
@@ -278,8 +324,11 @@ pub fn rank_case_against_bank(
         top_distance,
         runner_up_match,
         runner_up_distance,
+        ambiguity_tier,
         ambiguity_flag,
         ambiguity_gap,
+        relative_gap,
+        distance_ratio,
         ambiguity_tolerance: settings.ambiguity_tolerance,
         ambiguity_note,
         ranked_candidates,
@@ -298,8 +347,11 @@ pub fn flatten_rankings(rankings: &[HeuristicRanking]) -> Vec<HeuristicRankingRo
                 top_distance: ranking.top_distance,
                 runner_up_match: ranking.runner_up_match.clone(),
                 runner_up_distance: ranking.runner_up_distance,
+                ambiguity_tier: ranking.ambiguity_tier,
                 ambiguity_flag: ranking.ambiguity_flag,
                 ambiguity_gap: ranking.ambiguity_gap,
+                relative_gap: ranking.relative_gap,
+                distance_ratio: ranking.distance_ratio,
                 candidate_rank: index + 1,
                 candidate_id: candidate.id.clone(),
                 candidate_class: candidate.perturbation_class.clone(),
@@ -407,4 +459,52 @@ fn descriptor_fields() -> Vec<String> {
         "detected_flag".to_string(),
         "normalized_first_crossing_time".to_string(),
     ]
+}
+
+fn classify_ambiguity(
+    top_distance: Option<f64>,
+    runner_up_distance: Option<f64>,
+    ambiguity_gap: Option<f64>,
+    relative_gap: Option<f64>,
+    distance_ratio: Option<f64>,
+    settings: &HeuristicSettings,
+) -> AmbiguityTier {
+    if top_distance.is_none() {
+        return AmbiguityTier::Unavailable;
+    }
+    if runner_up_distance.is_none() {
+        return AmbiguityTier::Unambiguous;
+    }
+
+    let gap = ambiguity_gap.unwrap_or(f64::INFINITY);
+    let relative = relative_gap.unwrap_or(f64::INFINITY);
+    let ratio = distance_ratio.unwrap_or(0.0);
+
+    if gap <= settings.ambiguity_tolerance {
+        AmbiguityTier::Ambiguous
+    } else if gap <= settings.ambiguity_tolerance + settings.near_tie_band
+        || relative <= settings.near_tie_relative_gap_threshold
+        || ratio >= settings.near_tie_distance_ratio_threshold
+    {
+        AmbiguityTier::NearTie
+    } else {
+        AmbiguityTier::Unambiguous
+    }
+}
+
+fn ambiguity_note(tier: AmbiguityTier) -> Option<String> {
+    match tier {
+        AmbiguityTier::Ambiguous => Some(
+            "Ambiguous ranking: the top candidate and runner-up are within the configured descriptor-space ambiguity tolerance."
+                .to_string(),
+        ),
+        AmbiguityTier::NearTie => Some(
+            "Near-tie ranking: the top candidate remains first, but the runner-up is close enough in descriptor space that the interpretation should be treated cautiously."
+                .to_string(),
+        ),
+        AmbiguityTier::Unavailable => Some(
+            "No heuristic candidates remained admissible for the current case tags.".to_string(),
+        ),
+        AmbiguityTier::Unambiguous => None,
+    }
 }

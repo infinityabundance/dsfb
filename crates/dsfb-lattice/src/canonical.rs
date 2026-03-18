@@ -1,7 +1,10 @@
 use nalgebra::{DMatrix, SymmetricEigen};
 use serde::Serialize;
 
-use crate::detectability::{DetectabilitySummary, EnvelopeProvenance};
+use crate::detectability::{
+    CrossingRegimeLabel, DetectabilityInterpretationClass, DetectabilitySummary,
+    EnvelopeProvenance,
+};
 use crate::residuals::TimeSeriesBundle;
 use crate::spectra::SpectralComparison;
 use crate::utils::{covariance_trace, offdiag_energy};
@@ -39,12 +42,17 @@ pub struct TemporalCanonicalMetrics {
 #[derive(Clone, Debug, Serialize)]
 pub struct DetectabilityCanonicalMetrics {
     pub detected: bool,
+    pub crossing_regime_label: CrossingRegimeLabel,
+    pub interpretation_class: DetectabilityInterpretationClass,
     pub first_crossing_time: Option<f64>,
     pub first_crossing_step: Option<usize>,
     pub signal_at_first_crossing: Option<f64>,
     pub envelope_at_first_crossing: Option<f64>,
     pub crossing_margin: Option<f64>,
     pub normalized_crossing_margin: Option<f64>,
+    pub post_crossing_persistence_duration: Option<f64>,
+    pub post_crossing_fraction: Option<f64>,
+    pub peak_margin_after_crossing: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -93,12 +101,17 @@ pub struct CanonicalMetricRow {
     pub max_slew_norm: f64,
     pub time_to_peak_drift: f64,
     pub detected: bool,
+    pub crossing_regime_label: CrossingRegimeLabel,
+    pub interpretation_class: DetectabilityInterpretationClass,
     pub first_crossing_time: Option<f64>,
     pub first_crossing_step: Option<usize>,
     pub signal_at_first_crossing: Option<f64>,
     pub envelope_at_first_crossing: Option<f64>,
     pub crossing_margin: Option<f64>,
     pub normalized_crossing_margin: Option<f64>,
+    pub post_crossing_persistence_duration: Option<f64>,
+    pub post_crossing_fraction: Option<f64>,
+    pub peak_margin_after_crossing: Option<f64>,
     pub covariance_trace: f64,
     pub covariance_offdiag_energy: f64,
     pub covariance_rank_estimate: usize,
@@ -127,12 +140,17 @@ pub fn canonical_metric_guide() -> CanonicalMetricGuide {
             "max_slew_norm".to_string(),
             "time_to_peak_drift".to_string(),
             "detected".to_string(),
+            "crossing_regime_label".to_string(),
+            "interpretation_class".to_string(),
             "first_crossing_time".to_string(),
             "first_crossing_step".to_string(),
             "signal_at_first_crossing".to_string(),
             "envelope_at_first_crossing".to_string(),
             "crossing_margin".to_string(),
             "normalized_crossing_margin".to_string(),
+            "post_crossing_persistence_duration".to_string(),
+            "post_crossing_fraction".to_string(),
+            "peak_margin_after_crossing".to_string(),
             "covariance_trace".to_string(),
             "covariance_offdiag_energy".to_string(),
             "covariance_rank_estimate".to_string(),
@@ -193,6 +211,12 @@ pub fn build_canonical_case_metrics(
             detected: detectability
                 .and_then(|summary| summary.first_crossing_step)
                 .is_some(),
+            crossing_regime_label: detectability
+                .map(|summary| summary.crossing_regime_label)
+                .unwrap_or(CrossingRegimeLabel::Clean),
+            interpretation_class: detectability
+                .map(|summary| summary.interpretation_class)
+                .unwrap_or(DetectabilityInterpretationClass::NotDetected),
             first_crossing_time: detectability.and_then(|summary| summary.first_crossing_time),
             first_crossing_step: detectability.and_then(|summary| summary.first_crossing_step),
             signal_at_first_crossing: detectability.and_then(|summary| summary.signal_at_first_crossing),
@@ -200,6 +224,12 @@ pub fn build_canonical_case_metrics(
             crossing_margin: detectability.and_then(|summary| summary.crossing_margin),
             normalized_crossing_margin: detectability
                 .and_then(|summary| summary.normalized_crossing_margin),
+            post_crossing_persistence_duration: detectability
+                .and_then(|summary| summary.post_crossing_persistence_duration),
+            post_crossing_fraction: detectability
+                .and_then(|summary| summary.post_crossing_fraction),
+            peak_margin_after_crossing: detectability
+                .and_then(|summary| summary.peak_margin_after_crossing),
         },
         correlation: CorrelationCanonicalMetrics {
             covariance_trace: covariance_trace(covariance),
@@ -235,12 +265,19 @@ pub fn flatten_canonical_metrics(metrics: &[CanonicalCaseMetrics]) -> Vec<Canoni
             max_slew_norm: metric.temporal.max_slew_norm,
             time_to_peak_drift: metric.temporal.time_to_peak_drift,
             detected: metric.detectability.detected,
+            crossing_regime_label: metric.detectability.crossing_regime_label,
+            interpretation_class: metric.detectability.interpretation_class,
             first_crossing_time: metric.detectability.first_crossing_time,
             first_crossing_step: metric.detectability.first_crossing_step,
             signal_at_first_crossing: metric.detectability.signal_at_first_crossing,
             envelope_at_first_crossing: metric.detectability.envelope_at_first_crossing,
             crossing_margin: metric.detectability.crossing_margin,
             normalized_crossing_margin: metric.detectability.normalized_crossing_margin,
+            post_crossing_persistence_duration: metric
+                .detectability
+                .post_crossing_persistence_duration,
+            post_crossing_fraction: metric.detectability.post_crossing_fraction,
+            peak_margin_after_crossing: metric.detectability.peak_margin_after_crossing,
             covariance_trace: metric.correlation.covariance_trace,
             covariance_offdiag_energy: metric.correlation.covariance_offdiag_energy,
             covariance_rank_estimate: metric.correlation.covariance_rank_estimate,

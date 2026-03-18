@@ -5,6 +5,7 @@ use clap::Parser;
 use dsfb_lattice::{
     default_output_root, run_demo, DemoConfig, ExampleSelection, PressureTestSettings,
 };
+use dsfb_lattice::detectability::DetectabilityInterpretationSettings;
 use dsfb_lattice::failure_map::FailureMapSettings;
 use dsfb_lattice::heuristics::HeuristicSettings;
 
@@ -79,6 +80,7 @@ fn main() -> Result<()> {
         envelope_floor: cli.envelope_floor,
         consecutive_crossings: cli.consecutive_crossings,
         normalization_epsilon: cli.normalization_epsilon,
+        detectability_interpretation: DetectabilityInterpretationSettings::default(),
         pressure_test: PressureTestSettings {
             enabled: cli.pressure_test_enabled,
             observation_noise_std: cli.pressure_test_noise_std,
@@ -97,8 +99,7 @@ fn main() -> Result<()> {
             enabled: cli.heuristics_enabled,
             ambiguity_tolerance: cli.heuristics_ambiguity_tolerance,
             low_noise_threshold: cli.heuristics_low_noise_threshold,
-            similarity_metric: "weighted_l1".to_string(),
-            weights: Default::default(),
+            ..HeuristicSettings::default()
         },
     };
 
