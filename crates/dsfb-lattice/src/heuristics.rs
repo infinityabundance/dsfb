@@ -51,10 +51,10 @@ impl Default for HeuristicSettings {
     fn default() -> Self {
         Self {
             enabled: true,
-            ambiguity_tolerance: 0.18,
-            near_tie_band: 0.04,
-            near_tie_relative_gap_threshold: 0.15,
-            near_tie_distance_ratio_threshold: 0.88,
+            ambiguity_tolerance: 0.20,
+            near_tie_band: 0.06,
+            near_tie_relative_gap_threshold: 0.18,
+            near_tie_distance_ratio_threshold: 0.85,
             low_noise_threshold: 0.01,
             similarity_metric: "weighted_l1".to_string(),
             weights: HeuristicWeights::default(),
@@ -288,7 +288,13 @@ pub fn rank_case_against_bank(
         settings,
     );
     let ambiguity_flag = ambiguity_tier == AmbiguityTier::Ambiguous;
-    let ambiguity_note = ambiguity_note(ambiguity_tier);
+    let ambiguity_note = ambiguity_note(
+        ambiguity_tier,
+        ambiguity_gap,
+        relative_gap,
+        distance_ratio,
+        settings,
+    );
 
     if admissible_candidates.is_empty() {
         return HeuristicRanking {
@@ -492,15 +498,31 @@ fn classify_ambiguity(
     }
 }
 
-fn ambiguity_note(tier: AmbiguityTier) -> Option<String> {
+fn ambiguity_note(
+    tier: AmbiguityTier,
+    ambiguity_gap: Option<f64>,
+    relative_gap: Option<f64>,
+    distance_ratio: Option<f64>,
+    settings: &HeuristicSettings,
+) -> Option<String> {
     match tier {
         AmbiguityTier::Ambiguous => Some(
-            "Ambiguous ranking: the top candidate and runner-up are within the configured descriptor-space ambiguity tolerance."
-                .to_string(),
+            format!(
+                "Ambiguous ranking: descriptor-space separation is inside the ambiguity band (gap = {:.6}, tolerance = {:.6}, relative gap = {:.6}, distance ratio = {:.6}).",
+                ambiguity_gap.unwrap_or(f64::NAN),
+                settings.ambiguity_tolerance,
+                relative_gap.unwrap_or(f64::NAN),
+                distance_ratio.unwrap_or(f64::NAN)
+            ),
         ),
         AmbiguityTier::NearTie => Some(
-            "Near-tie ranking: the top candidate remains first, but the runner-up is close enough in descriptor space that the interpretation should be treated cautiously."
-                .to_string(),
+            format!(
+                "Near-tie ranking: the top candidate remains first, but descriptor-space separation is still inside the caution band (gap = {:.6}, near-tie limit = {:.6}, relative gap = {:.6}, ratio = {:.6}).",
+                ambiguity_gap.unwrap_or(f64::NAN),
+                settings.ambiguity_tolerance + settings.near_tie_band,
+                relative_gap.unwrap_or(f64::NAN),
+                distance_ratio.unwrap_or(f64::NAN)
+            ),
         ),
         AmbiguityTier::Unavailable => Some(
             "No heuristic candidates remained admissible for the current case tags.".to_string(),

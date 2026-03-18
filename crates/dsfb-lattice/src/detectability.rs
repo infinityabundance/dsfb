@@ -69,6 +69,50 @@ impl DetectabilityInterpretationClass {
     }
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DetectionStrengthBand {
+    ClearStructuralDetection,
+    MarginalStructuralDetection,
+    Degraded,
+    NotDetected,
+}
+
+impl DetectionStrengthBand {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ClearStructuralDetection => "clear_structural_detection",
+            Self::MarginalStructuralDetection => "marginal_structural_detection",
+            Self::Degraded => "degraded",
+            Self::NotDetected => "not_detected",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SemanticStatus {
+    ClearStructuralDetection,
+    MarginalStructuralDetection,
+    Degraded,
+    Ambiguous,
+    DegradedAmbiguous,
+    NotDetected,
+}
+
+impl SemanticStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ClearStructuralDetection => "clear_structural_detection",
+            Self::MarginalStructuralDetection => "marginal_structural_detection",
+            Self::Degraded => "degraded",
+            Self::Ambiguous => "ambiguous",
+            Self::DegradedAmbiguous => "degraded_ambiguous",
+            Self::NotDetected => "not_detected",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DetectabilityInterpretationSettings {
     pub persistence_window_steps: usize,
@@ -76,6 +120,10 @@ pub struct DetectabilityInterpretationSettings {
     pub low_margin_threshold: f64,
     pub structural_margin_threshold: f64,
     pub structural_post_crossing_fraction_threshold: f64,
+    pub marginal_absolute_margin_threshold: f64,
+    pub marginal_normalized_margin_threshold: f64,
+    pub marginal_peak_margin_after_crossing_threshold: f64,
+    pub marginal_post_crossing_fraction_threshold: f64,
 }
 
 impl Default for DetectabilityInterpretationSettings {
@@ -86,6 +134,10 @@ impl Default for DetectabilityInterpretationSettings {
             low_margin_threshold: 0.08,
             structural_margin_threshold: 0.15,
             structural_post_crossing_fraction_threshold: 0.60,
+            marginal_absolute_margin_threshold: 0.001,
+            marginal_normalized_margin_threshold: 0.005,
+            marginal_peak_margin_after_crossing_threshold: 0.03,
+            marginal_post_crossing_fraction_threshold: 0.90,
         }
     }
 }
@@ -110,6 +162,10 @@ pub struct DetectabilitySummary {
     pub peak_margin_after_crossing: Option<f64>,
     pub interpretation_class: DetectabilityInterpretationClass,
     pub interpretation_note: String,
+    pub detection_strength_band: DetectionStrengthBand,
+    pub boundary_proximate_crossing: bool,
+    pub semantic_status: SemanticStatus,
+    pub semantic_reason: String,
 }
 
 pub fn build_envelope(
@@ -239,6 +295,20 @@ pub fn evaluate_signal(
         post_crossing_fraction,
         interpretation_settings,
     );
+    let (
+        detection_strength_band,
+        boundary_proximate_crossing,
+        semantic_reason,
+    ) = classify_detection_strength(
+        regime_label,
+        first_crossing_step,
+        interpretation_class,
+        crossing_margin,
+        normalized_crossing_margin,
+        post_crossing_fraction,
+        peak_margin_after_crossing,
+        interpretation_settings,
+    );
 
     DetectabilitySummary {
         global_signal_peak,
@@ -259,6 +329,10 @@ pub fn evaluate_signal(
         peak_margin_after_crossing,
         interpretation_class,
         interpretation_note,
+        detection_strength_band,
+        boundary_proximate_crossing,
+        semantic_status: semantic_status_from_strength(detection_strength_band),
+        semantic_reason,
     }
 }
 
@@ -404,6 +478,88 @@ fn classify_detectability(
         "A pointwise crossing occurred, but under the current stressed regime the margin and persistence are not strong enough to label it as clean structural separation. It is therefore retained as a stress-detected event."
             .to_string(),
     )
+}
+
+fn classify_detection_strength(
+    regime_label: CrossingRegimeLabel,
+    first_crossing_step: Option<usize>,
+    interpretation_class: DetectabilityInterpretationClass,
+    crossing_margin: Option<f64>,
+    normalized_crossing_margin: Option<f64>,
+    post_crossing_fraction: Option<f64>,
+    peak_margin_after_crossing: Option<f64>,
+    settings: &DetectabilityInterpretationSettings,
+) -> (DetectionStrengthBand, bool, String) {
+    if first_crossing_step.is_none() {
+        return (
+            DetectionStrengthBand::NotDetected,
+            false,
+            "No mathematical pointwise crossing was observed, so the semantic band is not_detected."
+                .to_string(),
+        );
+    }
+
+    let raw_margin = crossing_margin.unwrap_or(0.0);
+    let normalized_margin = normalized_crossing_margin.unwrap_or(0.0);
+    let post_fraction = post_crossing_fraction.unwrap_or(0.0);
+    let peak_margin = peak_margin_after_crossing.unwrap_or(0.0);
+    let boundary_proximate_crossing = raw_margin <= settings.marginal_absolute_margin_threshold
+        || normalized_margin <= settings.marginal_normalized_margin_threshold;
+    let weak_follow_up = post_fraction < settings.marginal_post_crossing_fraction_threshold
+        || peak_margin <= settings.marginal_peak_margin_after_crossing_threshold;
+
+    match interpretation_class {
+        DetectabilityInterpretationClass::NotDetected => (
+            DetectionStrengthBand::NotDetected,
+            false,
+            "No mathematical pointwise crossing was observed, so the semantic band is not_detected."
+                .to_string(),
+        ),
+        DetectabilityInterpretationClass::StressDetected
+        | DetectabilityInterpretationClass::EarlyLowMarginCrossing => (
+            DetectionStrengthBand::Degraded,
+            boundary_proximate_crossing,
+            "A crossing exists, but the stressed regime or early low-margin behavior weakens structural interpretation, so the semantic band is degraded."
+                .to_string(),
+        ),
+        DetectabilityInterpretationClass::StructuralDetected => {
+            if regime_label != CrossingRegimeLabel::Clean {
+                (
+                    DetectionStrengthBand::Degraded,
+                    boundary_proximate_crossing,
+                    "The crossing is mathematically valid, but it occurs under a stressed regime rather than a clean nominal setting, so the semantic band remains degraded."
+                        .to_string(),
+                )
+            } else if boundary_proximate_crossing || weak_follow_up {
+                (
+                    DetectionStrengthBand::MarginalStructuralDetection,
+                    boundary_proximate_crossing,
+                    "The crossing is mathematically valid in a clean setting, but the first-crossing margin is boundary-proximate or the immediate follow-up separation remains weak, so the semantic band is marginal_structural_detection."
+                        .to_string(),
+                )
+            } else {
+                (
+                    DetectionStrengthBand::ClearStructuralDetection,
+                    false,
+                    "The crossing occurs in a clean setting with nontrivial separation beyond the boundary, so the semantic band is clear_structural_detection."
+                        .to_string(),
+                )
+            }
+        }
+    }
+}
+
+pub fn semantic_status_from_strength(strength: DetectionStrengthBand) -> SemanticStatus {
+    match strength {
+        DetectionStrengthBand::ClearStructuralDetection => {
+            SemanticStatus::ClearStructuralDetection
+        }
+        DetectionStrengthBand::MarginalStructuralDetection => {
+            SemanticStatus::MarginalStructuralDetection
+        }
+        DetectionStrengthBand::Degraded => SemanticStatus::Degraded,
+        DetectionStrengthBand::NotDetected => SemanticStatus::NotDetected,
+    }
 }
 
 fn peak_with_time(values: &[f64], dt: f64) -> (f64, f64) {

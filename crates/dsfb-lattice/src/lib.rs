@@ -7,6 +7,7 @@ pub mod lattice;
 pub mod perturbation;
 pub mod report;
 pub mod residuals;
+pub mod semantic;
 pub mod spectra;
 pub mod utils;
 
@@ -25,7 +26,7 @@ use crate::canonical::{
 use crate::detectability::{
     build_envelope, crossing_regime_label, evaluate_signal, CrossingRegimeLabel,
     DetectabilityInterpretationClass, DetectabilityInterpretationSettings,
-    DetectabilitySummary, Envelope, EnvelopeProvenance,
+    DetectabilitySummary, DetectionStrengthBand, Envelope, EnvelopeProvenance, SemanticStatus,
 };
 use crate::failure_map::{
     flatten_failure_map_points, run_failure_map, summarize_failure_map, FailureMapResult,
@@ -43,6 +44,7 @@ use crate::residuals::{
     add_observation_noise, build_time_series, covariance_matrix, simulate_response,
     SimulationConfig, TimeSeriesBundle,
 };
+use crate::semantic::assess_semantic_status;
 use crate::spectra::{analyze_symmetric, compare_spectra, SpectralComparison, SpectrumAnalysis};
 use crate::utils::{covariance_trace, offdiag_energy, path_string};
 
@@ -234,6 +236,10 @@ pub struct PressureTestCaseSummary {
     pub detected: bool,
     pub crossing_regime_label: CrossingRegimeLabel,
     pub detectability_interpretation_class: DetectabilityInterpretationClass,
+    pub detection_strength_band: DetectionStrengthBand,
+    pub boundary_proximate_crossing: bool,
+    pub semantic_status: SemanticStatus,
+    pub semantic_reason: String,
     pub detectability_interpretation_note: String,
     pub first_crossing_time: Option<f64>,
     pub first_crossing_step: Option<usize>,
@@ -413,6 +419,9 @@ struct PressureTestRow {
     detected: bool,
     crossing_regime_label: CrossingRegimeLabel,
     detectability_interpretation_class: DetectabilityInterpretationClass,
+    detection_strength_band: DetectionStrengthBand,
+    boundary_proximate_crossing: bool,
+    semantic_status: SemanticStatus,
     first_crossing_step: Option<usize>,
     first_crossing_time: Option<f64>,
     signal_at_first_crossing: Option<f64>,
@@ -439,6 +448,7 @@ struct PressureTestRow {
     heuristic_ambiguity_gap: Option<f64>,
     heuristic_relative_gap: Option<f64>,
     heuristic_distance_ratio: Option<f64>,
+    semantic_reason: String,
 }
 
 pub fn default_output_root() -> PathBuf {
@@ -883,6 +893,29 @@ fn validate_config(config: &DemoConfig) -> Result<()> {
     {
         bail!(
             "detectability_interpretation fraction thresholds must lie in [0, 1]"
+        );
+    }
+    if config
+        .detectability_interpretation
+        .marginal_absolute_margin_threshold
+        < 0.0
+        || config
+            .detectability_interpretation
+            .marginal_peak_margin_after_crossing_threshold
+            < 0.0
+        || !(0.0..=1.0).contains(
+            &config
+                .detectability_interpretation
+                .marginal_normalized_margin_threshold,
+        )
+        || !(0.0..=1.0).contains(
+            &config
+                .detectability_interpretation
+                .marginal_post_crossing_fraction_threshold,
+        )
+    {
+        bail!(
+            "detectability_interpretation marginal thresholds must be non-negative, and normalized/fraction thresholds must lie in [0, 1]"
         );
     }
     if config.pressure_test.observation_noise_std < 0.0 {
@@ -1340,7 +1373,7 @@ fn summarize_pressure_test(
     heuristic_summary: Option<&HeuristicRunSummary>,
 ) -> Result<PressureTestSummary> {
     Ok(PressureTestSummary {
-        description: "Controlled synthetic pressure test comparing clean, additive-noise, predictor-mismatch, and combined cases. Each case uses its own baseline-derived envelope under the same configuration, so the comparison remains regime-specific rather than universal.".to_string(),
+        description: "Controlled synthetic pressure test comparing clean, additive-noise, predictor-mismatch, and combined cases. Each case uses its own baseline-derived envelope under the same configuration, so the comparison remains regime-specific rather than universal. Pointwise crossing remains the mathematical event, while the exported semantic status distinguishes clear structural detection, marginal boundary-proximate detection, degraded stressed cases, and ambiguity-dominated retrieval outcomes.".to_string(),
         cases: result
             .cases
             .iter()
@@ -1364,6 +1397,7 @@ fn summarize_pressure_test(
                                 && entry.observed_case == case.case_name
                         })
                 });
+                let semantic_assessment = assess_semantic_status(&case.detectability, ranking);
                 Ok(PressureTestCaseSummary {
                     case_name: case.case_name.clone(),
                     description: case.description.clone(),
@@ -1374,6 +1408,10 @@ fn summarize_pressure_test(
                     detected: case.detectability.first_crossing_step.is_some(),
                     crossing_regime_label: case.detectability.crossing_regime_label,
                     detectability_interpretation_class: case.detectability.interpretation_class,
+                    detection_strength_band: case.detectability.detection_strength_band,
+                    boundary_proximate_crossing: case.detectability.boundary_proximate_crossing,
+                    semantic_status: semantic_assessment.semantic_status,
+                    semantic_reason: semantic_assessment.semantic_reason,
                     detectability_interpretation_note: case
                         .detectability
                         .interpretation_note
@@ -1666,6 +1704,7 @@ fn write_primary_csvs(
                                 && entry.observed_case == case.case_name
                         })
                 });
+                let semantic_assessment = assess_semantic_status(&case.detectability, ranking);
                 Ok(PressureTestRow {
                     case_name: case.case_name.clone(),
                     perturbation_class: case.perturbation_class.clone(),
@@ -1680,6 +1719,11 @@ fn write_primary_csvs(
                     detectability_interpretation_class: canonical
                         .detectability
                         .interpretation_class,
+                    detection_strength_band: canonical.detectability.detection_strength_band,
+                    boundary_proximate_crossing: canonical
+                        .detectability
+                        .boundary_proximate_crossing,
+                    semantic_status: semantic_assessment.semantic_status,
                     first_crossing_step: canonical.detectability.first_crossing_step,
                     first_crossing_time: canonical.detectability.first_crossing_time,
                     signal_at_first_crossing: canonical.detectability.signal_at_first_crossing,
@@ -1712,6 +1756,7 @@ fn write_primary_csvs(
                     heuristic_ambiguity_gap: ranking.and_then(|entry| entry.ambiguity_gap),
                     heuristic_relative_gap: ranking.and_then(|entry| entry.relative_gap),
                     heuristic_distance_ratio: ranking.and_then(|entry| entry.distance_ratio),
+                    semantic_reason: semantic_assessment.semantic_reason,
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -2248,6 +2293,7 @@ fn limitations() -> Vec<String> {
         "The observation model uses nominal modal coordinates under deterministic forcing. Any added noise or predictor mismatch settings are controlled synthetic pressure tests rather than calibrated sensor-noise, identification, or uncertainty models.".to_string(),
         "The spectral inequality is illustrated numerically on finite matrices and should not be read as an empirical proof of the full theoretical framework.".to_string(),
         "Detectability results depend on the baseline envelope construction used here and therefore do not establish universal thresholds or universal defect identifiability.".to_string(),
+        "The semantic status layer is interpretive rather than mathematical. It is intended to separate clear structural detection from marginal or degraded cases without overriding the underlying pointwise crossing event.".to_string(),
         "Normalized residual metrics improve comparability inside this crate, but they remain tied to the chosen observation scaling and denominator definition used here.".to_string(),
         "The heuristic bank is a constrained descriptor-space retrieval layer with admissibility filtering and ambiguity signaling. It does not claim universal classification or full structural identifiability.".to_string(),
         "The failure map is a controlled synthetic degradation map over selected stress coordinates. It should not be read as a universal operating boundary or a certified robustness region.".to_string(),

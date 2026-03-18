@@ -57,7 +57,7 @@ struct Cli {
     pressure_test_ambiguity_strain_strength: f64,
     #[arg(long, default_value_t = true)]
     heuristics_enabled: bool,
-    #[arg(long, default_value_t = 0.18)]
+    #[arg(long, default_value_t = 0.20)]
     heuristics_ambiguity_tolerance: f64,
     #[arg(long, default_value_t = 0.01)]
     heuristics_low_noise_threshold: f64,

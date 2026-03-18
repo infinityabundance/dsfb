@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::canonical::{build_canonical_case_metrics, CanonicalCaseMetrics};
 use crate::detectability::{
     build_envelope, crossing_regime_label, evaluate_signal,
-    DetectabilityInterpretationSettings, DetectabilitySummary,
+    DetectabilityInterpretationSettings, SemanticStatus,
 };
 use crate::heuristics::{
     case_tags_for_case, rank_case_against_bank, AmbiguityTier, HeuristicBankSummary,
@@ -16,6 +16,7 @@ use crate::residuals::{
     add_observation_noise, build_time_series, covariance_matrix, simulate_response,
     SimulationConfig,
 };
+use crate::semantic::assess_semantic_status;
 use crate::spectra::{analyze_symmetric, compare_spectra, SpectrumAnalysis};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -76,7 +77,9 @@ pub struct FailureMapPoint {
     pub rng_seed: u64,
     pub canonical_metrics: CanonicalCaseMetrics,
     pub heuristic_ranking: HeuristicRanking,
-    pub status_label: FailureMapStatusLabel,
+    pub semantic_status: SemanticStatus,
+    pub semantic_reason: String,
+    pub status_label: SemanticStatus,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -97,6 +100,8 @@ pub struct FailureMapRow {
     pub detected: bool,
     pub crossing_regime_label: crate::detectability::CrossingRegimeLabel,
     pub detectability_interpretation_class: crate::detectability::DetectabilityInterpretationClass,
+    pub detection_strength_band: crate::detectability::DetectionStrengthBand,
+    pub boundary_proximate_crossing: bool,
     pub first_crossing_time: Option<f64>,
     pub first_crossing_step: Option<usize>,
     pub crossing_margin: Option<f64>,
@@ -128,7 +133,9 @@ pub struct FailureMapRow {
     pub ambiguity_gap: Option<f64>,
     pub heuristic_relative_gap: Option<f64>,
     pub heuristic_distance_ratio: Option<f64>,
-    pub status_label: FailureMapStatusLabel,
+    pub semantic_status: SemanticStatus,
+    pub semantic_reason: String,
+    pub status_label: SemanticStatus,
     pub degradation_label: String,
 }
 
@@ -141,6 +148,8 @@ pub struct FailureMapSummaryPoint {
     pub detected: bool,
     pub crossing_regime_label: crate::detectability::CrossingRegimeLabel,
     pub detectability_interpretation_class: crate::detectability::DetectabilityInterpretationClass,
+    pub detection_strength_band: crate::detectability::DetectionStrengthBand,
+    pub boundary_proximate_crossing: bool,
     pub crossing_margin: Option<f64>,
     pub normalized_crossing_margin: Option<f64>,
     pub post_crossing_fraction: Option<f64>,
@@ -151,7 +160,9 @@ pub struct FailureMapSummaryPoint {
     pub ambiguity_gap: Option<f64>,
     pub heuristic_relative_gap: Option<f64>,
     pub heuristic_distance_ratio: Option<f64>,
-    pub status_label: FailureMapStatusLabel,
+    pub semantic_status: SemanticStatus,
+    pub semantic_reason: String,
+    pub status_label: SemanticStatus,
     pub degradation_label: String,
 }
 
@@ -159,7 +170,8 @@ pub struct FailureMapSummaryPoint {
 pub struct FailureMapScenarioAggregate {
     pub scenario_name: String,
     pub perturbation_class: String,
-    pub detected_count: usize,
+    pub clear_structural_detection_count: usize,
+    pub marginal_structural_detection_count: usize,
     pub degraded_count: usize,
     pub ambiguous_count: usize,
     pub degraded_ambiguous_count: usize,
@@ -172,28 +184,6 @@ pub struct FailureMapSummary {
     pub settings: FailureMapSettings,
     pub scenarios: Vec<FailureMapScenarioAggregate>,
     pub points: Vec<FailureMapSummaryPoint>,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum FailureMapStatusLabel {
-    Detected,
-    Degraded,
-    Ambiguous,
-    DegradedAmbiguous,
-    NotDetected,
-}
-
-impl FailureMapStatusLabel {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Detected => "detected",
-            Self::Degraded => "degraded",
-            Self::Ambiguous => "ambiguous",
-            Self::DegradedAmbiguous => "degraded_ambiguous",
-            Self::NotDetected => "not_detected",
-        }
-    }
 }
 
 pub fn run_failure_map(
@@ -332,7 +322,7 @@ pub fn run_failure_map(
                     heuristic_settings,
                     &case_tags,
                 );
-                let status_label = status_label(&detectability, &ranking);
+                let semantic_assessment = assess_semantic_status(&detectability, Some(&ranking));
                 points.push(FailureMapPoint {
                     scenario_name: scenario.scenario_name.clone(),
                     scenario_description: scenario.description.clone(),
@@ -342,14 +332,16 @@ pub fn run_failure_map(
                     rng_seed: cell_seed,
                     canonical_metrics,
                     heuristic_ranking: ranking,
-                    status_label,
+                    semantic_status: semantic_assessment.semantic_status,
+                    semantic_reason: semantic_assessment.semantic_reason,
+                    status_label: semantic_assessment.semantic_status,
                 });
             }
         }
     }
 
     Ok(FailureMapResult {
-        description: "Controlled synthetic failure map over noise and predictor mismatch. The map is intended to make explicit where pointwise crossing remains structurally legible, where stressed early or low-margin crossings become degraded, where descriptor-space ambiguity rises, and where detection fails under this bounded toy setup. In particular, it makes visible that detectability is not monotone in raw residual size alone.".to_string(),
+        description: "Controlled synthetic failure map over noise and predictor mismatch. The map is intended to make explicit where pointwise crossing remains clearly structurally legible, where clean detections are only marginally above the boundary, where stressed early or low-margin crossings become degraded, where descriptor-space ambiguity rises, and where detection fails under this bounded toy setup. In particular, it makes visible that detectability is not monotone in raw residual size alone.".to_string(),
         settings: settings.clone(),
         points,
     })
@@ -365,24 +357,31 @@ pub fn summarize_failure_map(result: &FailureMapResult) -> FailureMapSummary {
                 .points
                 .iter()
                 .filter(|point| point.scenario_name == scenario.scenario_name);
-            let mut clear_detected_count = 0usize;
+            let mut clear_structural_detection_count = 0usize;
+            let mut marginal_structural_detection_count = 0usize;
             let mut degraded_count = 0usize;
             let mut ambiguous_count = 0usize;
             let mut degraded_ambiguous_count = 0usize;
             let mut not_detected_count = 0usize;
             for point in points {
-                match point.status_label {
-                    FailureMapStatusLabel::Detected => clear_detected_count += 1,
-                    FailureMapStatusLabel::Degraded => degraded_count += 1,
-                    FailureMapStatusLabel::Ambiguous => ambiguous_count += 1,
-                    FailureMapStatusLabel::DegradedAmbiguous => degraded_ambiguous_count += 1,
-                    FailureMapStatusLabel::NotDetected => not_detected_count += 1,
+                match point.semantic_status {
+                    SemanticStatus::ClearStructuralDetection => {
+                        clear_structural_detection_count += 1
+                    }
+                    SemanticStatus::MarginalStructuralDetection => {
+                        marginal_structural_detection_count += 1
+                    }
+                    SemanticStatus::Degraded => degraded_count += 1,
+                    SemanticStatus::Ambiguous => ambiguous_count += 1,
+                    SemanticStatus::DegradedAmbiguous => degraded_ambiguous_count += 1,
+                    SemanticStatus::NotDetected => not_detected_count += 1,
                 }
             }
             FailureMapScenarioAggregate {
                 scenario_name: scenario.scenario_name.clone(),
                 perturbation_class: scenario.perturbation_class.clone(),
-                detected_count: clear_detected_count,
+                clear_structural_detection_count,
+                marginal_structural_detection_count,
                 degraded_count,
                 ambiguous_count,
                 degraded_ambiguous_count,
@@ -405,6 +404,14 @@ pub fn summarize_failure_map(result: &FailureMapResult) -> FailureMapSummary {
                 .canonical_metrics
                 .detectability
                 .interpretation_class,
+            detection_strength_band: point
+                .canonical_metrics
+                .detectability
+                .detection_strength_band,
+            boundary_proximate_crossing: point
+                .canonical_metrics
+                .detectability
+                .boundary_proximate_crossing,
             crossing_margin: point.canonical_metrics.detectability.crossing_margin,
             normalized_crossing_margin: point.canonical_metrics.detectability.normalized_crossing_margin,
             post_crossing_fraction: point.canonical_metrics.detectability.post_crossing_fraction,
@@ -415,8 +422,10 @@ pub fn summarize_failure_map(result: &FailureMapResult) -> FailureMapSummary {
             ambiguity_gap: point.heuristic_ranking.ambiguity_gap,
             heuristic_relative_gap: point.heuristic_ranking.relative_gap,
             heuristic_distance_ratio: point.heuristic_ranking.distance_ratio,
+            semantic_status: point.semantic_status,
+            semantic_reason: point.semantic_reason.clone(),
             status_label: point.status_label,
-            degradation_label: point.status_label.as_str().to_string(),
+            degradation_label: point.semantic_status.as_str().to_string(),
         })
         .collect::<Vec<_>>();
 
@@ -445,6 +454,14 @@ pub fn flatten_failure_map_points(result: &FailureMapResult) -> Vec<FailureMapRo
                 .canonical_metrics
                 .detectability
                 .interpretation_class,
+            detection_strength_band: point
+                .canonical_metrics
+                .detectability
+                .detection_strength_band,
+            boundary_proximate_crossing: point
+                .canonical_metrics
+                .detectability
+                .boundary_proximate_crossing,
             first_crossing_time: point.canonical_metrics.detectability.first_crossing_time,
             first_crossing_step: point.canonical_metrics.detectability.first_crossing_step,
             crossing_margin: point.canonical_metrics.detectability.crossing_margin,
@@ -506,8 +523,10 @@ pub fn flatten_failure_map_points(result: &FailureMapResult) -> Vec<FailureMapRo
             ambiguity_gap: point.heuristic_ranking.ambiguity_gap,
             heuristic_relative_gap: point.heuristic_ranking.relative_gap,
             heuristic_distance_ratio: point.heuristic_ranking.distance_ratio,
+            semantic_status: point.semantic_status,
+            semantic_reason: point.semantic_reason.clone(),
             status_label: point.status_label,
-            degradation_label: point.status_label.as_str().to_string(),
+            degradation_label: point.semantic_status.as_str().to_string(),
         })
         .collect()
 }
@@ -554,31 +573,4 @@ fn simulate_predictor_observations(
         )
         .observations,
     )
-}
-
-fn status_label(
-    detectability: &DetectabilitySummary,
-    ranking: &HeuristicRanking,
-) -> FailureMapStatusLabel {
-    if detectability.first_crossing_step.is_none() {
-        return FailureMapStatusLabel::NotDetected;
-    }
-
-    let degraded = matches!(
-        detectability.interpretation_class,
-        crate::detectability::DetectabilityInterpretationClass::StressDetected
-            | crate::detectability::DetectabilityInterpretationClass::EarlyLowMarginCrossing
-    );
-    let ambiguous = ranking.top_match.is_none()
-        || matches!(
-            ranking.ambiguity_tier,
-            AmbiguityTier::NearTie | AmbiguityTier::Ambiguous | AmbiguityTier::Unavailable
-        );
-
-    match (degraded, ambiguous) {
-        (false, false) => FailureMapStatusLabel::Detected,
-        (true, false) => FailureMapStatusLabel::Degraded,
-        (false, true) => FailureMapStatusLabel::Ambiguous,
-        (true, true) => FailureMapStatusLabel::DegradedAmbiguous,
-    }
 }
