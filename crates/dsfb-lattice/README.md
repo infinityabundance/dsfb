@@ -4,7 +4,7 @@
 
 `dsfb-lattice` is a standalone nested Rust crate under `crates/dsfb-lattice`. It exists to provide a bounded, reproducible, and inspectable empirical demonstrator for selected mathematical ideas from the paper *Deterministic Structural Inference in Solid-State Systems: A DSFB Engine for Crystal Lattices, Phonons, and Structural Forensics*.
 
-The crate is intentionally modest. It does not attempt ab initio crystal simulation, material calibration, or universal defect identification. Instead, it implements a fixed-end harmonic 1D lattice, applies controlled perturbations, compares nominal and perturbed spectra, simulates deterministic observations, computes raw and normalized residual / drift / slew statistics, builds explicit baseline-derived residual envelopes, runs a bounded synthetic stress-test suite with additive noise and predictor mismatch, locks a canonical evaluation layer for run-to-run comparison, executes a small heuristic-bank retrieval pass, and writes timestamped artifacts suitable for paper support and notebook replay.
+The crate is intentionally modest. It does not attempt ab initio crystal simulation, material calibration, or universal defect identification. Instead, it implements a fixed-end harmonic 1D lattice, applies controlled perturbations, compares nominal and perturbed spectra, simulates deterministic observations, computes raw and normalized residual / drift / slew statistics, builds explicit baseline-derived residual envelopes, runs a bounded synthetic stress-test suite with additive noise and predictor mismatch, locks a canonical evaluation layer for run-to-run comparison, executes a small heuristic-bank retrieval pass with explicit descriptor weights, generates a controlled failure/degradation map, and writes timestamped artifacts suitable for paper support and notebook replay.
 
 ## Why This Crate Exists
 
@@ -61,7 +61,10 @@ The implementation covers a bounded subset of the paper's ideas.
 11. Minimal heuristic bank
    Existing experiment descriptors are stored as simple heuristic entries with admissibility tags. Observed cases are ranked against them with a weighted L1 distance, and near-tied results are flagged as descriptor-space ambiguity rather than forced into a unique class.
 
-12. Softening precursor toy example
+12. Controlled failure map
+   A small synthetic grid over noise and predictor mismatch makes explicit where detection remains clear, where ambiguity appears, and where the method stops detecting in this toy setting. The map is not presented as a universal operating boundary.
+
+13. Softening precursor toy example
    A global spring-softening sweep pushes the smallest eigenvalue toward zero and tracks the resulting residual / drift / slew growth. This is a toy precursor study only.
 
 ## What The Crate Demonstrates
@@ -75,7 +78,8 @@ The implementation covers a bounded subset of the paper's ideas.
 - explicit baseline-derived envelope provenance and parameters
 - a controlled synthetic stress-test suite under additive observation noise, predictor mismatch, and an optional ambiguity case
 - canonical evaluation quantities that form the crate's comparison backbone across runs
-- a minimally algorithmic heuristic bank with admissibility filtering and ambiguity signaling
+- a minimally algorithmic heuristic bank with explicit descriptor fields, explicit weighted-L1 coefficients, admissibility filtering, and ambiguity signaling
+- a controlled synthetic failure/degradation map over noise and predictor mismatch
 - a covariance contrast between localized and grouped perturbations
 - a softening sweep consistent with an approaching-instability interpretation
 
@@ -118,6 +122,9 @@ Defines the canonical evaluation quantities and flattens them into CSV-friendly 
 
 `src/heuristics.rs`
 Builds the transparent heuristic-bank descriptors, admissibility tags, similarity scores, and ambiguity signaling.
+
+`src/failure_map.rs`
+Runs the controlled stress grid used for the failure/degradation map and exports the corresponding structured rows and summaries.
 
 `src/io.rs`
 Creates timestamped run folders, writes JSON / CSV outputs, and zips completed runs.
@@ -163,6 +170,7 @@ cargo run --release --manifest-path crates/dsfb-lattice/Cargo.toml -- \
   --pressure-test-ambiguity-point-mass-scale 1.08 \
   --pressure-test-ambiguity-point-spring-scale 0.96 \
   --pressure-test-ambiguity-strain-strength 0.14 \
+  --failure-map-enabled true \
   --heuristics-enabled true \
   --heuristics-ambiguity-tolerance 0.18
 ```
@@ -197,7 +205,10 @@ The crate defaults to `crates/dsfb-lattice/output-dsfb-lattice`, so it stays wit
 6. Canonical metrics and heuristic ranking
    Exports a fixed set of canonical evaluation quantities and uses them to drive a small admissibility-aware heuristic-bank ranking step.
 
-7. Softening sweep
+7. Failure / degradation map
+   Sweeps a weak localized defect and a mixed-signature scenario over noise and predictor mismatch to show where the method stays clear, becomes ambiguous, or fails to detect in this synthetic setting.
+
+8. Softening sweep
    Reduces global spring scale over a grid and tracks the smallest eigenvalue together with residual / drift / slew maxima.
 
 ## Artifacts Produced
@@ -208,6 +219,10 @@ Every run writes at least the following files into a new timestamped run directo
 - `summary.json`
 - `canonical_metrics.csv`
 - `canonical_metrics.json`
+- `canonical_metrics_summary.csv`
+- `canonical_metrics_summary.json`
+- `heuristic_ranking.csv`
+- `heuristic_ranking.json`
 - `heuristic_rankings.csv`
 - `heuristic_rankings.json`
 - `metrics.csv`
@@ -219,6 +234,8 @@ Every run writes at least the following files into a new timestamped run directo
 - `slew_timeseries.csv`
 - `covariance.csv`
 - `envelope_timeseries.csv`
+- `failure_map.csv`
+- `failure_map.json`
 - `pressure_test_summary.csv`
 - `pressure_test_summary.json`
 - `softening_sweep.csv`
@@ -233,6 +250,7 @@ Every run writes at least the following files into a new timestamped run directo
 - `figure_08_pressure_test_raw_residual_comparison.png`
 - `figure_09_pressure_test_normalized_residual_comparison.png`
 - `figure_10_pressure_test_detectability_summary.png`
+- `figure_11_failure_map_status.png`
 - `report.md`
 - `report.pdf`
   This PDF includes fixed-margin text pages, an inventory of the generated run artifacts, and one embedded page for each PNG figure.
@@ -310,7 +328,11 @@ Each perturbation produces a new lattice and therefore a new operator `D'`.
 
 ### Heuristic-Bank Retrieval
 
-`src/heuristics.rs` turns the previously conceptual heuristic bank into a small executable retrieval object. It stores compact descriptors for the reference perturbation classes, filters candidates by simple admissibility tags, ranks candidates with a weighted L1 distance, and marks near-tied results as descriptor-space ambiguity rather than forcing a unique class.
+`src/heuristics.rs` turns the previously conceptual heuristic bank into a small executable retrieval object. It stores compact descriptors for the reference perturbation classes, filters candidates by simple admissibility tags, ranks candidates with an explicit weighted L1 distance, exposes the descriptor fields and weights in the serialized outputs, and marks near-tied results as descriptor-space ambiguity rather than forcing a unique class.
+
+### Failure / Degradation Map
+
+`src/failure_map.rs` runs a controlled grid over additive noise and predictor mismatch for two synthetic scenarios: a weak localized defect and a mixed-signature ambiguous case. Each grid point records detectability status, crossing margins, canonical metrics, top and runner-up heuristic matches, ambiguity flags, and a degradation label such as `clear_detected`, `ambiguous_detected`, or `not_detected`.
 
 ### Report Generation
 

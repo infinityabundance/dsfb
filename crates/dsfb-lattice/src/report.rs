@@ -8,6 +8,7 @@ use flate2::Compression;
 use plotters::prelude::*;
 
 use crate::detectability::{DetectabilitySummary, Envelope};
+use crate::failure_map::FailureMapSummary;
 use crate::spectra::SpectrumAnalysis;
 use crate::utils::{escape_pdf_text, max_abs, min_max, time_points, wrap_text};
 use crate::{ExperimentResult, PressureTestResult, RunSummary, SofteningSweepResult};
@@ -91,6 +92,12 @@ pub fn write_reports(
             run_dir.join("figure_10_pressure_test_detectability_summary.png");
         plot_pressure_test_detectability_summary(&detectability_summary_path, pressure_test)?;
         figure_paths.push(detectability_summary_path);
+    }
+
+    if let Some(failure_map) = &summary.failure_map {
+        let failure_map_path = run_dir.join("figure_11_failure_map_status.png");
+        plot_failure_map_status(&failure_map_path, failure_map)?;
+        figure_paths.push(failure_map_path);
     }
 
     let markdown_path = run_dir.join("report.md");
@@ -834,6 +841,93 @@ fn plot_pressure_test_detectability_summary(
     Ok(())
 }
 
+fn plot_failure_map_status(path: &Path, failure_map: &FailureMapSummary) -> Result<()> {
+    let scenario_count = failure_map.settings.scenarios.len().max(1);
+    let root =
+        BitMapBackend::new(path, (800 * scenario_count as u32, 760)).into_drawing_area();
+    root.fill(&WHITE)?;
+    let areas = root.split_evenly((1, scenario_count));
+
+    let noise_levels = &failure_map.settings.noise_levels;
+    let predictor_scales = &failure_map.settings.predictor_spring_scales;
+
+    for (area, scenario) in areas.iter().zip(failure_map.settings.scenarios.iter()) {
+        let aggregate = failure_map
+            .scenarios
+            .iter()
+            .find(|item| item.scenario_name == scenario.scenario_name);
+        let title = if let Some(aggregate) = aggregate {
+            format!(
+                "{}: clear {} / ambiguous {} / failed {}",
+                scenario.scenario_name,
+                aggregate.clear_detected_count,
+                aggregate.ambiguous_detected_count,
+                aggregate.undetected_count
+            )
+        } else {
+            scenario.scenario_name.clone()
+        };
+        let mut chart = ChartBuilder::on(area)
+            .caption(title, ("sans-serif", 24))
+            .margin(20)
+            .x_label_area_size(55)
+            .y_label_area_size(70)
+            .build_cartesian_2d(
+                0.0_f64..predictor_scales.len() as f64,
+                0.0_f64..noise_levels.len() as f64,
+            )?;
+
+        chart
+            .configure_mesh()
+            .disable_mesh()
+            .x_desc("Predictor spring scale")
+            .y_desc("Noise std")
+            .x_labels(predictor_scales.len())
+            .y_labels(noise_levels.len())
+            .x_label_formatter(&|value| {
+                predictor_scales
+                    .get((*value).floor().clamp(0.0, predictor_scales.len().saturating_sub(1) as f64) as usize)
+                    .map(|scale| format!("{scale:.2}"))
+                    .unwrap_or_default()
+            })
+            .y_label_formatter(&|value| {
+                noise_levels
+                    .get((*value).floor().clamp(0.0, noise_levels.len().saturating_sub(1) as f64) as usize)
+                    .map(|noise| format!("{noise:.2}"))
+                    .unwrap_or_default()
+            })
+            .draw()?;
+
+        for point in failure_map
+            .points
+            .iter()
+            .filter(|point| point.scenario_name == scenario.scenario_name)
+        {
+            let x = predictor_scales
+                .iter()
+                .position(|scale| (*scale - point.predictor_spring_scale).abs() < 1.0e-12)
+                .unwrap_or(0);
+            let y = noise_levels
+                .iter()
+                .position(|noise| (*noise - point.noise_std).abs() < 1.0e-12)
+                .unwrap_or(0);
+            let color = failure_map_status_color(&point.degradation_label);
+            chart.draw_series(std::iter::once(Rectangle::new(
+                [(x as f64, y as f64), (x as f64 + 1.0, y as f64 + 1.0)],
+                color.filled(),
+            )))?;
+            chart.draw_series(std::iter::once(Text::new(
+                failure_map_status_abbrev(&point.degradation_label),
+                (x as f64 + 0.5, y as f64 + 0.5),
+                ("sans-serif", 18).into_font().color(&WHITE),
+            )))?;
+        }
+    }
+
+    root.present()?;
+    Ok(())
+}
+
 fn pressure_case_style(case_name: &str) -> (&RGBColor, String) {
     match case_name {
         "clean" => (&BLACK, "clean".to_string()),
@@ -842,6 +936,46 @@ fn pressure_case_style(case_name: &str) -> (&RGBColor, String) {
         "noise_plus_mismatch" => (&GREEN, "noise + mismatch".to_string()),
         "ambiguity_case" => (&MAGENTA, "ambiguity case".to_string()),
         _ => (&MAGENTA, case_name.replace('_', " ")),
+    }
+}
+
+fn failure_map_status_color(label: &str) -> RGBColor {
+    match label {
+        "clear_detected" => RGBColor(58, 122, 77),
+        "ambiguous_detected" => RGBColor(209, 146, 58),
+        "no_admissible_match" => RGBColor(120, 120, 120),
+        _ => RGBColor(176, 62, 62),
+    }
+}
+
+fn failure_map_status_abbrev(label: &str) -> &'static str {
+    match label {
+        "clear_detected" => "C",
+        "ambiguous_detected" => "A",
+        "no_admissible_match" => "N",
+        _ => "F",
+    }
+}
+
+fn format_heuristic_weights(summary: &RunSummary) -> String {
+    if let Some(heuristics) = &summary.heuristics {
+        let weights = &heuristics.bank.weights;
+        format!(
+            "delta_norm_2={:.2}, max_abs_shift={:.2}, mean_abs_shift={:.2}, max_norm_residual={:.2}, residual_energy_ratio={:.2}, max_drift={:.2}, covariance_trace={:.2}, covariance_offdiag={:.2}, covariance_rank={:.2}, detected_flag={:.2}, normalized_first_crossing_time={:.2}",
+            weights.delta_norm_2,
+            weights.max_abs_eigenvalue_shift,
+            weights.mean_abs_eigenvalue_shift,
+            weights.max_normalized_residual_norm,
+            weights.residual_energy_ratio,
+            weights.max_drift_norm,
+            weights.covariance_trace,
+            weights.covariance_offdiag_energy,
+            weights.covariance_rank_estimate,
+            weights.detected_flag,
+            weights.normalized_first_crossing_time
+        )
+    } else {
+        "n/a".to_string()
     }
 }
 
@@ -899,7 +1033,7 @@ fn render_markdown(summary: &RunSummary) -> String {
         summary.canonical_metric_guide.metric_names.join("`, `")
     ));
     lines.push(
-        "- These quantities are exported in both `canonical_metrics.csv` and `canonical_metrics.json` so the synthetic benchmark layer remains auditable across runs."
+        "- These quantities are exported in `canonical_metrics.csv`, `canonical_metrics_summary.csv`, `canonical_metrics.json`, and `canonical_metrics_summary.json` so the synthetic benchmark layer remains auditable across runs."
             .to_string(),
     );
     lines.push(String::new());
@@ -1113,6 +1247,14 @@ fn render_markdown(summary: &RunSummary) -> String {
             heuristics.bank.similarity_metric
         ));
         lines.push(format!(
+            "- Descriptor fields: `{}`",
+            heuristics.bank.descriptor_fields.join("`, `")
+        ));
+        lines.push(format!(
+            "- Weighted L1 coefficients: {}",
+            format_heuristic_weights(summary)
+        ));
+        lines.push(format!(
             "- Ambiguity tolerance: {:.6}",
             heuristics.bank.ambiguity_tolerance
         ));
@@ -1120,23 +1262,35 @@ fn render_markdown(summary: &RunSummary) -> String {
             "- Admissibility note: {}",
             heuristics.bank.admissibility_note
         ));
+        lines.push(format!(
+            "- Retrieval note: {}",
+            heuristics.bank.retrieval_note
+        ));
         lines.push(
             "- The ranking is a constrained retrieval mechanism over compact descriptors. It is not presented as a universal classifier."
                 .to_string(),
         );
         lines.push(String::new());
-        lines.push("| observed case | top match | top distance | ambiguity | note |".to_string());
-        lines.push("| --- | --- | --- | --- | --- |".to_string());
+        lines.push("| observed case | top match | runner-up | top distance | runner-up distance | ambiguity | note |".to_string());
+        lines.push("| --- | --- | --- | --- | --- | --- | --- |".to_string());
         for ranking in &heuristics.rankings {
             lines.push(format!(
-                "| {} | {} | {} | {} | {} |",
+                "| {} | {} | {} | {} | {} | {} | {} |",
                 ranking.observed_case,
                 ranking
                     .top_match
                     .clone()
                     .unwrap_or_else(|| "n/a".to_string()),
                 ranking
+                    .runner_up_match
+                    .clone()
+                    .unwrap_or_else(|| "n/a".to_string()),
+                ranking
                     .top_distance
+                    .map(|value| format!("{value:.4}"))
+                    .unwrap_or_else(|| "n/a".to_string()),
+                ranking
+                    .runner_up_distance
                     .map(|value| format!("{value:.4}"))
                     .unwrap_or_else(|| "n/a".to_string()),
                 ranking.ambiguity_flag,
@@ -1144,6 +1298,29 @@ fn render_markdown(summary: &RunSummary) -> String {
                     .ambiguity_note
                     .clone()
                     .unwrap_or_else(|| "none".to_string())
+            ));
+        }
+    }
+    if let Some(failure_map) = &summary.failure_map {
+        lines.push(String::new());
+        lines.push("## Failure Map".to_string());
+        lines.push(failure_map.description.clone());
+        lines.push(
+            "This failure map is a controlled synthetic stress grid over noise and predictor mismatch. It is intended to show where detection remains clear, where descriptor-space ambiguity appears, and where the method no longer detects in this toy setup. It is not a universal operating boundary."
+                .to_string(),
+        );
+        lines.push(String::new());
+        lines.push("| scenario | class | clear detected | ambiguous detected | not detected | no admissible match |".to_string());
+        lines.push("| --- | --- | --- | --- | --- | --- |".to_string());
+        for scenario in &failure_map.scenarios {
+            lines.push(format!(
+                "| {} | {} | {} | {} | {} | {} |",
+                scenario.scenario_name,
+                scenario.perturbation_class,
+                scenario.clear_detected_count,
+                scenario.ambiguous_detected_count,
+                scenario.undetected_count,
+                scenario.no_admissible_match_count
             ));
         }
     }
@@ -1269,6 +1446,10 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
         "canonical metric names = {}",
         summary.canonical_metric_guide.metric_names.join(", ")
     ));
+    lines.push(
+        "The canonical quantities are exported in both CSV and JSON summary forms for run-to-run comparability."
+            .to_string(),
+    );
     lines.push(String::new());
     lines.push("Envelope construction".to_string());
     lines.push("The envelope is baseline-derived, regime-specific, and not universal.".to_string());
@@ -1390,21 +1571,38 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
             "similarity metric = {}, ambiguity tolerance = {:.6}",
             heuristics.bank.similarity_metric, heuristics.bank.ambiguity_tolerance
         ));
+        lines.push(format!(
+            "descriptor fields = {}",
+            heuristics.bank.descriptor_fields.join(", ")
+        ));
+        lines.push(format!(
+            "weighted L1 coefficients = {}",
+            format_heuristic_weights(summary)
+        ));
         lines.push(heuristics.bank.admissibility_note.clone());
+        lines.push(heuristics.bank.retrieval_note.clone());
         lines.push(
             "The heuristic layer ranks admissible candidates in descriptor space. It does not force a unique classification and can mark near-tied interpretations as ambiguous."
                 .to_string(),
         );
         for ranking in &heuristics.rankings {
             lines.push(format!(
-                "{}: top match = {}, top distance = {}, ambiguity = {}, note = {}",
+                "{}: top match = {}, runner-up = {}, top distance = {}, runner-up distance = {}, ambiguity = {}, note = {}",
                 ranking.observed_case,
                 ranking
                     .top_match
                     .clone()
                     .unwrap_or_else(|| "n/a".to_string()),
                 ranking
+                    .runner_up_match
+                    .clone()
+                    .unwrap_or_else(|| "n/a".to_string()),
+                ranking
                     .top_distance
+                    .map(|value| format!("{value:.6}"))
+                    .unwrap_or_else(|| "n/a".to_string()),
+                ranking
+                    .runner_up_distance
                     .map(|value| format!("{value:.6}"))
                     .unwrap_or_else(|| "n/a".to_string()),
                 ranking.ambiguity_flag,
@@ -1412,6 +1610,26 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
                     .ambiguity_note
                     .clone()
                     .unwrap_or_else(|| "none".to_string())
+            ));
+        }
+        lines.push(String::new());
+    }
+    if let Some(failure_map) = &summary.failure_map {
+        lines.push("Failure map".to_string());
+        lines.push(failure_map.description.clone());
+        lines.push(
+            "The failure map is a controlled synthetic degradation grid over noise and predictor mismatch. It is meant to show where the method remains clear, becomes ambiguous, or stops detecting in this toy setting."
+                .to_string(),
+        );
+        for scenario in &failure_map.scenarios {
+            lines.push(format!(
+                "{} [{}]: clear detected = {}, ambiguous detected = {}, not detected = {}, no admissible match = {}",
+                scenario.scenario_name,
+                scenario.perturbation_class,
+                scenario.clear_detected_count,
+                scenario.ambiguous_detected_count,
+                scenario.undetected_count,
+                scenario.no_admissible_match_count
             ));
         }
         lines.push(String::new());

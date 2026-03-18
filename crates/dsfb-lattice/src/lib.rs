@@ -1,5 +1,6 @@
 pub mod canonical;
 pub mod detectability;
+pub mod failure_map;
 pub mod heuristics;
 pub mod io;
 pub mod lattice;
@@ -23,6 +24,10 @@ use crate::canonical::{
 };
 use crate::detectability::{
     build_envelope, evaluate_signal, DetectabilitySummary, Envelope, EnvelopeProvenance,
+};
+use crate::failure_map::{
+    flatten_failure_map_points, run_failure_map, summarize_failure_map, FailureMapResult,
+    FailureMapSettings, FailureMapSummary,
 };
 use crate::heuristics::{
     build_heuristic_bank, case_tags_for_case, flatten_rankings, rank_case_against_bank,
@@ -82,6 +87,7 @@ pub struct DemoConfig {
     pub consecutive_crossings: usize,
     pub normalization_epsilon: f64,
     pub pressure_test: PressureTestSettings,
+    pub failure_map: FailureMapSettings,
     pub heuristics: HeuristicSettings,
 }
 
@@ -101,6 +107,7 @@ impl Default for DemoConfig {
             consecutive_crossings: 3,
             normalization_epsilon: 1.0e-6,
             pressure_test: PressureTestSettings::default(),
+            failure_map: FailureMapSettings::default(),
             heuristics: HeuristicSettings::default(),
         }
     }
@@ -263,6 +270,7 @@ pub struct RunSummary {
     pub experiments: Vec<ExperimentSummary>,
     pub detectability: Option<DetectabilitySummary>,
     pub pressure_test: Option<PressureTestSummary>,
+    pub failure_map: Option<FailureMapSummary>,
     pub heuristics: Option<HeuristicRunSummary>,
     pub softening: Option<SofteningSummary>,
     pub limitations: Vec<String>,
@@ -626,13 +634,22 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         }
     }
 
+    let references = canonical_metrics
+        .iter()
+        .filter(|metric| metric.subject == "experiment")
+        .cloned()
+        .collect::<Vec<_>>();
+    let heuristic_bank = if config.heuristics.enabled || config.failure_map.enabled {
+        Some(build_heuristic_bank(&references, &config.heuristics))
+    } else {
+        None
+    };
+
     let heuristic_summary = if config.heuristics.enabled {
-        let references = canonical_metrics
-            .iter()
-            .filter(|metric| metric.subject == "experiment")
-            .cloned()
-            .collect::<Vec<_>>();
-        let bank = build_heuristic_bank(&references, &config.heuristics);
+        let bank = heuristic_bank
+            .as_ref()
+            .context("heuristic bank unexpectedly unavailable")?
+            .clone();
         let rankings = if let Some(pressure_test) = &pressure_test_result {
             pressure_test
                 .cases
@@ -661,6 +678,30 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         None
     };
 
+    let failure_map_result = if config.failure_map.enabled {
+        heuristic_bank
+            .as_ref()
+            .map(|bank| {
+                run_failure_map(
+                    &nominal_lattice,
+                    &nominal_spectrum,
+                    &simulation,
+                    config.baseline_runs,
+                    config.envelope_sigma,
+                    config.envelope_floor,
+                    config.consecutive_crossings,
+                    config.normalization_epsilon,
+                    bank,
+                    &config.heuristics,
+                    &config.failure_map,
+                )
+            })
+            .transpose()?
+    } else {
+        None
+    };
+    let failure_map_summary = failure_map_result.as_ref().map(summarize_failure_map);
+
     let pressure_test_summary = pressure_test_result
         .as_ref()
         .map(|result| summarize_pressure_test(result, &canonical_metrics, heuristic_summary.as_ref()))
@@ -686,6 +727,7 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         detectability.as_ref(),
         &softening_result,
         pressure_test_result.as_ref(),
+        failure_map_result.as_ref(),
         &canonical_metrics,
         heuristic_summary.as_ref(),
         experiments.as_slice(),
@@ -706,6 +748,7 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         experiments: experiments.iter().map(|experiment| summarize_experiment(experiment)).collect(),
         detectability: detectability.clone(),
         pressure_test: pressure_test_summary.clone(),
+        failure_map: failure_map_summary.clone(),
         heuristics: heuristic_summary.clone(),
         softening: softening_result.as_ref().map(summarize_softening),
         limitations: limitations(),
@@ -750,8 +793,16 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         )?;
     }
     write_json_pretty(&run_dir.join("canonical_metrics.json"), &summary.canonical_metrics)?;
+    write_json_pretty(
+        &run_dir.join("canonical_metrics_summary.json"),
+        &summary.canonical_metrics,
+    )?;
     if let Some(heuristics) = &summary.heuristics {
         write_json_pretty(&run_dir.join("heuristic_rankings.json"), heuristics)?;
+        write_json_pretty(&run_dir.join("heuristic_ranking.json"), heuristics)?;
+    }
+    if let Some(failure_map) = &failure_map_result {
+        write_json_pretty(&run_dir.join("failure_map.json"), failure_map)?;
     }
     write_pdf_report(
         &report_artifacts.pdf_path,
@@ -804,6 +855,39 @@ fn validate_config(config: &DemoConfig) -> Result<()> {
     }
     if config.pressure_test.ambiguity_strain_strength < 0.0 {
         bail!("pressure_test ambiguity_strain_strength must be non-negative");
+    }
+    if config.failure_map.noise_levels.is_empty()
+        || config.failure_map.predictor_spring_scales.is_empty()
+    {
+        bail!("failure_map noise_levels and predictor_spring_scales must be non-empty");
+    }
+    if config
+        .failure_map
+        .noise_levels
+        .iter()
+        .any(|value| *value < 0.0)
+    {
+        bail!("failure_map noise_levels must be non-negative");
+    }
+    if config
+        .failure_map
+        .predictor_spring_scales
+        .iter()
+        .any(|value| *value <= 0.0)
+    {
+        bail!("failure_map predictor_spring_scales must be positive");
+    }
+    if config.failure_map.scenarios.is_empty() {
+        bail!("failure_map scenarios must be non-empty");
+    }
+    if config.failure_map.scenarios.iter().any(|scenario| {
+        scenario.point_mass_scale <= 0.0
+            || scenario.point_spring_scale <= 0.0
+            || scenario.strain_strength < 0.0
+    }) {
+        bail!(
+            "failure_map scenario scales must be positive and strain strengths must be non-negative"
+        );
     }
     if !config.heuristics.similarity_metric.eq("weighted_l1") {
         bail!("only weighted_l1 similarity_metric is supported");
@@ -1283,6 +1367,7 @@ fn write_config_json(
         "normalization": normalization,
         "envelope": envelope_provenance,
         "pressure_test": config.pressure_test,
+        "failure_map": config.failure_map,
         "heuristics": config.heuristics,
         "nominal_lattice": nominal_lattice,
         "perturbation_specs": {
@@ -1322,6 +1407,7 @@ fn write_primary_csvs(
     detectability: Option<&DetectabilitySummary>,
     softening: &Option<SofteningSweepResult>,
     pressure_test: Option<&PressureTestResult>,
+    failure_map: Option<&FailureMapResult>,
     canonical_metrics: &[CanonicalCaseMetrics],
     heuristic_summary: Option<&HeuristicRunSummary>,
     experiments: &[&ExperimentResult],
@@ -1437,10 +1523,17 @@ fn write_primary_csvs(
 
     let canonical_rows = flatten_canonical_metrics(canonical_metrics);
     write_csv_rows(&run_dir.join("canonical_metrics.csv"), &canonical_rows)?;
+    write_csv_rows(&run_dir.join("canonical_metrics_summary.csv"), &canonical_rows)?;
 
     if let Some(heuristics) = heuristic_summary {
         let heuristic_rows = flatten_rankings(&heuristics.rankings);
         write_csv_rows(&run_dir.join("heuristic_rankings.csv"), &heuristic_rows)?;
+        write_csv_rows(&run_dir.join("heuristic_ranking.csv"), &heuristic_rows)?;
+    }
+
+    if let Some(failure_map) = failure_map {
+        let failure_rows = flatten_failure_map_points(failure_map);
+        write_csv_rows(&run_dir.join("failure_map.csv"), &failure_rows)?;
     }
 
     let metrics = build_metric_rows(
@@ -2023,6 +2116,7 @@ fn limitations() -> Vec<String> {
         "Detectability results depend on the baseline envelope construction used here and therefore do not establish universal thresholds or universal defect identifiability.".to_string(),
         "Normalized residual metrics improve comparability inside this crate, but they remain tied to the chosen observation scaling and denominator definition used here.".to_string(),
         "The heuristic bank is a constrained descriptor-space retrieval layer with admissibility filtering and ambiguity signaling. It does not claim universal classification or full structural identifiability.".to_string(),
+        "The failure map is a controlled synthetic degradation map over selected stress coordinates. It should not be read as a universal operating boundary or a certified robustness region.".to_string(),
         "The softening sweep is a toy precursor study consistent with the paper's interpretation of approaching instability, not a claim of general phase-transition forecasting.".to_string(),
     ]
 }
