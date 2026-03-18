@@ -268,6 +268,7 @@ pub struct PressureTestCaseSummary {
 #[derive(Clone, Debug, Serialize)]
 pub struct PressureTestSummary {
     pub description: String,
+    pub scope_note: String,
     pub cases: Vec<PressureTestCaseSummary>,
 }
 
@@ -1374,6 +1375,7 @@ fn summarize_pressure_test(
 ) -> Result<PressureTestSummary> {
     Ok(PressureTestSummary {
         description: "Controlled synthetic pressure test comparing clean, additive-noise, predictor-mismatch, and combined cases. Each case uses its own baseline-derived envelope under the same configuration, so the comparison remains regime-specific rather than universal. Pointwise crossing remains the mathematical event, while the exported semantic status distinguishes clear structural detection, marginal boundary-proximate detection, degraded stressed cases, and ambiguity-dominated retrieval outcomes.".to_string(),
+        scope_note: "The pressure-test suite is a curated set of representative regimes rather than a boundary sweep. It is therefore expected to include at least one clean clear_structural_detection case even when the separate failure-map sweep is concentrated on weaker or more stressed settings.".to_string(),
         cases: result
             .cases
             .iter()

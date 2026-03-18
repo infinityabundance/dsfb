@@ -325,6 +325,8 @@ The same module also adds a semantic-discipline band for nominal detections: a m
 
 `src/lib.rs` also runs a bounded synthetic pressure test around the point-defect detectability path. The measurement side can receive additive Gaussian noise from a fixed-seed deterministic RNG, while the predictor can use a slightly mismatched global spring scale. The resulting clean / noise-only / mismatch-only / noise-plus-mismatch cases each get their own baseline-derived envelope, CSV summary, JSON summary, and comparison plots. An optional ambiguity case blends a weak localized defect with a weak smooth gradient so the heuristic ranking can surface near-tied candidate interpretations. The pressure-test outputs explicitly separate pointwise crossing from its interpretation, so a very early small-margin crossing under stress is not silently treated as clean structural detectability.
 
+The pressure-test suite is a curated set of representative regimes, not a boundary sweep. It is therefore expected to include at least one `clear_structural_detection` case even when the separate failure-map sweep is concentrated on weaker or more stressed conditions.
+
 ### Canonical Evaluation Layer
 
 `src/canonical.rs` defines the canonical evaluation quantities by which `dsfb-lattice` runs are compared. These quantities are intended to be the crate's comparison backbone for synthetic benchmark runs: future revisions may add more metrics, but preserving the canonical layer helps maintain run-to-run comparability.
@@ -338,6 +340,8 @@ The ambiguity band is intentionally slightly broader than before so borderline d
 ### Failure / Degradation Map
 
 `src/failure_map.rs` runs a controlled grid over additive noise and predictor mismatch for two synthetic scenarios: a weak localized defect and a mixed-signature ambiguous case. Each grid point records canonical metrics, detectability interpretation, heuristic ambiguity tier, and a final semantic status such as `clear_structural_detection`, `marginal_structural_detection`, `degraded`, `ambiguous`, `degraded_ambiguous`, or `not_detected`. The point of the artifact is to make degradation legible, not to claim a universal operating boundary. In particular, the exported grid makes visible that larger residuals do not by themselves guarantee cleaner detectability when envelope construction, stress, and descriptor-space ambiguity change together.
+
+The failure-map sweep is explicitly boundary-focused and degradation-oriented. It is not an exhaustive census of all semantic-status classes, so the absence of `clear_structural_detection` rows in a particular sweep is interpretable rather than automatically suspicious. The crate now serializes this scope note directly in the failure-map summary metadata together with `includes_all_status_classes = false` and a comparison note pointing back to the curated pressure-test suite.
 
 ### Report Generation
 

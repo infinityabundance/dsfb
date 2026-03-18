@@ -7,16 +7,73 @@ use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use plotters::prelude::*;
 
-use crate::detectability::{DetectabilitySummary, Envelope};
+use crate::detectability::{DetectabilitySummary, Envelope, SemanticStatus};
 use crate::failure_map::FailureMapSummary;
 use crate::spectra::SpectrumAnalysis;
 use crate::utils::{escape_pdf_text, max_abs, min_max, time_points, wrap_text};
-use crate::{ExperimentResult, PressureTestResult, RunSummary, SofteningSweepResult};
+use crate::{ExperimentResult, PressureTestResult, PressureTestSummary, RunSummary, SofteningSweepResult};
 
 pub struct ReportArtifacts {
     pub markdown_path: PathBuf,
     pub pdf_path: PathBuf,
     pub figure_paths: Vec<PathBuf>,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct SemanticStatusCounts {
+    clear_structural_detection: usize,
+    marginal_structural_detection: usize,
+    degraded: usize,
+    ambiguous: usize,
+    degraded_ambiguous: usize,
+    not_detected: usize,
+}
+
+fn tally_semantic_status(counts: &mut SemanticStatusCounts, status: SemanticStatus) {
+    match status {
+        SemanticStatus::ClearStructuralDetection => counts.clear_structural_detection += 1,
+        SemanticStatus::MarginalStructuralDetection => {
+            counts.marginal_structural_detection += 1
+        }
+        SemanticStatus::Degraded => counts.degraded += 1,
+        SemanticStatus::Ambiguous => counts.ambiguous += 1,
+        SemanticStatus::DegradedAmbiguous => counts.degraded_ambiguous += 1,
+        SemanticStatus::NotDetected => counts.not_detected += 1,
+    }
+}
+
+fn pressure_test_status_counts(summary: &PressureTestSummary) -> SemanticStatusCounts {
+    let mut counts = SemanticStatusCounts::default();
+    for case in &summary.cases {
+        tally_semantic_status(&mut counts, case.semantic_status);
+    }
+    counts
+}
+
+fn failure_map_status_counts(summary: &FailureMapSummary) -> SemanticStatusCounts {
+    let mut counts = SemanticStatusCounts::default();
+    for scenario in &summary.scenarios {
+        counts.clear_structural_detection += scenario.clear_structural_detection_count;
+        counts.marginal_structural_detection += scenario.marginal_structural_detection_count;
+        counts.degraded += scenario.degraded_count;
+        counts.ambiguous += scenario.ambiguous_count;
+        counts.degraded_ambiguous += scenario.degraded_ambiguous_count;
+        counts.not_detected += scenario.not_detected_count;
+    }
+    counts
+}
+
+fn semantic_status_counts_line(label: &str, counts: SemanticStatusCounts) -> String {
+    format!(
+        "{} counts: clear = {}, marginal = {}, degraded = {}, ambiguous = {}, degraded ambiguous = {}, not detected = {}",
+        label,
+        counts.clear_structural_detection,
+        counts.marginal_structural_detection,
+        counts.degraded,
+        counts.ambiguous,
+        counts.degraded_ambiguous,
+        counts.not_detected
+    )
 }
 
 pub fn write_reports(
@@ -1245,6 +1302,7 @@ fn render_markdown(summary: &RunSummary) -> String {
         lines.push(String::new());
         lines.push("## Controlled Pressure Test".to_string());
         lines.push(pressure_test.description.clone());
+        lines.push(pressure_test.scope_note.clone());
         lines.push(String::new());
         lines.push("| case | class | semantic status | first crossing time | normalized crossing margin | post-crossing fraction | max normalized residual | heuristic top match | ambiguity tier |".to_string());
         lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- |".to_string());
@@ -1280,6 +1338,10 @@ fn render_markdown(summary: &RunSummary) -> String {
         }
         lines.push(String::new());
         lines.push("Each pressure-test case uses its own baseline-derived envelope under the same additive-noise and predictor-mismatch settings. Pointwise crossing remains the mathematical criterion, but the semantic status layer separates clear structural detection from marginal boundary-proximate crossing and from stress-degraded cases. These comparisons are controlled synthetic stress tests, not a claim of universal robustness.".to_string());
+        lines.push(semantic_status_counts_line(
+            "Pressure-test semantic status",
+            pressure_test_status_counts(pressure_test),
+        ));
     }
     if let Some(heuristics) = &summary.heuristics {
         lines.push(String::new());
@@ -1351,6 +1413,12 @@ fn render_markdown(summary: &RunSummary) -> String {
         lines.push(String::new());
         lines.push("## Failure Map".to_string());
         lines.push(failure_map.description.clone());
+        lines.push(format!(
+            "Sweep focus: `{}`. includes_all_status_classes = `{}`.",
+            failure_map.sweep_focus, failure_map.includes_all_status_classes
+        ));
+        lines.push(failure_map.interpretive_note.clone());
+        lines.push(failure_map.pressure_test_comparison_note.clone());
         lines.push(
             "This failure map is a controlled synthetic stress grid over noise and predictor mismatch. It is intended to show where detection remains structurally legible, where stress-confounded or early low-margin crossings degrade interpretation, where descriptor-space ambiguity appears, and where the method no longer detects in this toy setup. It is not a universal operating boundary."
                 .to_string(),
@@ -1375,6 +1443,11 @@ fn render_markdown(summary: &RunSummary) -> String {
                 scenario.not_detected_count
             ));
         }
+        lines.push(String::new());
+        lines.push(semantic_status_counts_line(
+            "Failure-map semantic status",
+            failure_map_status_counts(failure_map),
+        ));
     }
     if let Some(softening) = &summary.softening {
         lines.push(String::new());
@@ -1602,6 +1675,7 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
     if let Some(pressure_test) = &summary.pressure_test {
         lines.push("Controlled pressure test".to_string());
         lines.push(pressure_test.description.clone());
+        lines.push(pressure_test.scope_note.clone());
         for case in &pressure_test.cases {
             let first_crossing = case
                 .first_crossing_time
@@ -1628,6 +1702,10 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
                 case.heuristic_ambiguity_tier.as_str()
             ));
         }
+        lines.push(semantic_status_counts_line(
+            "Pressure-test semantic status",
+            pressure_test_status_counts(pressure_test),
+        ));
         lines.push(String::new());
     }
     if let Some(heuristics) = &summary.heuristics {
@@ -1685,6 +1763,12 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
     if let Some(failure_map) = &summary.failure_map {
         lines.push("Failure map".to_string());
         lines.push(failure_map.description.clone());
+        lines.push(format!(
+            "sweep focus = {}, includes_all_status_classes = {}",
+            failure_map.sweep_focus, failure_map.includes_all_status_classes
+        ));
+        lines.push(failure_map.interpretive_note.clone());
+        lines.push(failure_map.pressure_test_comparison_note.clone());
         lines.push(
             "The failure map is a controlled synthetic degradation grid over noise and predictor mismatch. It is meant to show where the method remains structurally legible, where detection becomes degraded or ambiguity-dominated, and where it stops detecting in this toy setting."
                 .to_string(),
@@ -1706,6 +1790,10 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
                 scenario.not_detected_count
             ));
         }
+        lines.push(semantic_status_counts_line(
+            "Failure-map semantic status",
+            failure_map_status_counts(failure_map),
+        ));
         lines.push(String::new());
     }
     if let Some(softening) = &summary.softening {
