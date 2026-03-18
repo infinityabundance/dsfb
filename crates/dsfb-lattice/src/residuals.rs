@@ -1,6 +1,8 @@
 use nalgebra::{DMatrix, DVector};
 use serde::{Deserialize, Serialize};
 
+use crate::utils::DeterministicRng;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SimulationConfig {
     pub steps: usize,
@@ -22,9 +24,13 @@ pub struct TimeSeriesBundle {
     pub residuals: Vec<DVector<f64>>,
     pub drifts: Vec<DVector<f64>>,
     pub slews: Vec<DVector<f64>>,
+    pub predicted_norms: Vec<f64>,
+    pub measured_norms: Vec<f64>,
     pub residual_norms: Vec<f64>,
+    pub normalized_residual_norms: Vec<f64>,
     pub drift_norms: Vec<f64>,
     pub slew_norms: Vec<f64>,
+    pub residual_energy_ratio: f64,
 }
 
 pub fn simulate_response(
@@ -62,13 +68,19 @@ pub fn simulate_response(
 pub fn build_time_series(
     predicted: &[DVector<f64>],
     measured: &[DVector<f64>],
+    normalization_epsilon: f64,
 ) -> TimeSeriesBundle {
     let mut residuals = Vec::with_capacity(predicted.len());
     let mut drifts = Vec::with_capacity(predicted.len());
     let mut slews = Vec::with_capacity(predicted.len());
+    let mut predicted_norms = Vec::with_capacity(predicted.len());
+    let mut measured_norms = Vec::with_capacity(predicted.len());
     let mut residual_norms = Vec::with_capacity(predicted.len());
+    let mut normalized_residual_norms = Vec::with_capacity(predicted.len());
     let mut drift_norms = Vec::with_capacity(predicted.len());
     let mut slew_norms = Vec::with_capacity(predicted.len());
+    let mut predicted_energy = 0.0;
+    let mut residual_energy = 0.0;
 
     let channels = predicted.first().map(|vector| vector.len()).unwrap_or(0);
     let zero = DVector::<f64>::zeros(channels);
@@ -88,9 +100,18 @@ pub fn build_time_series(
             &drift - &previous_drift
         };
 
-        residual_norms.push(residual.norm());
+        let predicted_norm = predicted_step.norm();
+        let measured_norm = measured_step.norm();
+        let residual_norm = residual.norm();
+        let normalized_residual_norm = residual_norm / (predicted_norm + normalization_epsilon);
+        predicted_norms.push(predicted_norm);
+        measured_norms.push(measured_norm);
+        residual_norms.push(residual_norm);
+        normalized_residual_norms.push(normalized_residual_norm);
         drift_norms.push(drift.norm());
         slew_norms.push(slew.norm());
+        predicted_energy += predicted_norm.powi(2);
+        residual_energy += residual_norm.powi(2);
 
         residuals.push(residual.clone());
         drifts.push(drift.clone());
@@ -99,16 +120,44 @@ pub fn build_time_series(
         previous_drift = drift;
     }
 
+    let residual_energy_ratio = residual_energy / (predicted_energy + normalization_epsilon);
+
     TimeSeriesBundle {
         predicted: predicted.to_vec(),
         measured: measured.to_vec(),
         residuals,
         drifts,
         slews,
+        predicted_norms,
+        measured_norms,
         residual_norms,
+        normalized_residual_norms,
         drift_norms,
         slew_norms,
+        residual_energy_ratio,
     }
+}
+
+pub fn add_observation_noise(
+    observations: &[DVector<f64>],
+    noise_std: f64,
+    seed: u64,
+) -> Vec<DVector<f64>> {
+    if noise_std <= 0.0 {
+        return observations.to_vec();
+    }
+
+    let mut rng = DeterministicRng::new(seed);
+    observations
+        .iter()
+        .map(|observation| {
+            let mut noisy = observation.clone();
+            for value in noisy.iter_mut() {
+                *value += noise_std * rng.next_gaussian();
+            }
+            noisy
+        })
+        .collect()
 }
 
 pub fn covariance_matrix(samples: &[DVector<f64>]) -> DMatrix<f64> {

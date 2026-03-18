@@ -1,11 +1,34 @@
 use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]
+pub struct EnvelopeParameters {
+    pub baseline_runs: usize,
+    pub sigma_multiplier: f64,
+    pub additive_floor: f64,
+    pub smoothing: String,
+    pub interpolation: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct EnvelopeProvenance {
+    pub regime_label: String,
+    pub envelope_mode: String,
+    pub envelope_basis: String,
+    pub envelope_universal: bool,
+    pub baseline_reference_residual_peak: f64,
+    pub baseline_ensemble_peak: f64,
+    pub baseline_reference_signal_peak: f64,
+    pub baseline_reference_signal_energy: f64,
+    pub parameters: EnvelopeParameters,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct Envelope {
     pub mean: Vec<f64>,
     pub std: Vec<f64>,
     pub max_baseline: Vec<f64>,
     pub upper: Vec<f64>,
+    pub provenance: EnvelopeProvenance,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -19,17 +42,36 @@ pub struct DetectabilitySummary {
     pub signal_at_first_crossing: Option<f64>,
     pub envelope_at_first_crossing: Option<f64>,
     pub crossing_margin: Option<f64>,
+    pub normalized_crossing_margin: Option<f64>,
     pub consecutive_crossing_time: Option<f64>,
     pub consecutive_crossing_step: Option<usize>,
 }
 
-pub fn build_envelope(baseline_norms: &[Vec<f64>], sigma_multiplier: f64, floor: f64) -> Envelope {
+pub fn build_envelope(
+    baseline_norms: &[Vec<f64>],
+    sigma_multiplier: f64,
+    floor: f64,
+    regime_label: &str,
+    baseline_reference_residual_peak: f64,
+    baseline_reference_signal_peak: f64,
+    baseline_reference_signal_energy: f64,
+) -> Envelope {
     if baseline_norms.is_empty() {
         return Envelope {
             mean: Vec::new(),
             std: Vec::new(),
             max_baseline: Vec::new(),
             upper: Vec::new(),
+            provenance: build_provenance(
+                regime_label,
+                baseline_norms.len(),
+                sigma_multiplier,
+                floor,
+                baseline_reference_residual_peak,
+                0.0,
+                baseline_reference_signal_peak,
+                baseline_reference_signal_energy,
+            ),
         };
     }
 
@@ -55,11 +97,23 @@ pub fn build_envelope(baseline_norms: &[Vec<f64>], sigma_multiplier: f64, floor:
         upper[step] = (average + sigma_multiplier * deviation).max(max_value) + floor;
     }
 
+    let baseline_ensemble_peak = max_baseline.iter().copied().fold(0.0_f64, f64::max);
+
     Envelope {
         mean,
         std,
         max_baseline,
         upper,
+        provenance: build_provenance(
+            regime_label,
+            baseline_norms.len(),
+            sigma_multiplier,
+            floor,
+            baseline_reference_residual_peak,
+            baseline_ensemble_peak,
+            baseline_reference_signal_peak,
+            baseline_reference_signal_energy,
+        ),
     }
 }
 
@@ -68,6 +122,7 @@ pub fn evaluate_signal(
     envelope: &Envelope,
     consecutive: usize,
     dt: f64,
+    normalization_epsilon: f64,
 ) -> DetectabilitySummary {
     let (global_signal_peak, global_signal_peak_time) = peak_with_time(signal, dt);
     let (global_envelope_peak, global_envelope_peak_time) = peak_with_time(&envelope.upper, dt);
@@ -98,6 +153,9 @@ pub fn evaluate_signal(
     let crossing_margin = signal_at_first_crossing
         .zip(envelope_at_first_crossing)
         .map(|(signal_value, envelope_value)| signal_value - envelope_value);
+    let normalized_crossing_margin = crossing_margin
+        .zip(envelope_at_first_crossing)
+        .map(|(margin, envelope_value)| margin / (envelope_value + normalization_epsilon));
 
     DetectabilitySummary {
         global_signal_peak,
@@ -109,8 +167,38 @@ pub fn evaluate_signal(
         signal_at_first_crossing,
         envelope_at_first_crossing,
         crossing_margin,
+        normalized_crossing_margin,
         consecutive_crossing_time: consecutive_crossing_step.map(|step| step as f64 * dt),
         consecutive_crossing_step,
+    }
+}
+
+fn build_provenance(
+    regime_label: &str,
+    baseline_runs: usize,
+    sigma_multiplier: f64,
+    floor: f64,
+    baseline_reference_residual_peak: f64,
+    baseline_ensemble_peak: f64,
+    baseline_reference_signal_peak: f64,
+    baseline_reference_signal_energy: f64,
+) -> EnvelopeProvenance {
+    EnvelopeProvenance {
+        regime_label: regime_label.to_string(),
+        envelope_mode: "baseline_derived".to_string(),
+        envelope_basis: "upper[t] = max(max_baseline[t], mean[t] + sigma_multiplier * std[t]) + additive_floor over baseline residual-norm runs under the same configuration.".to_string(),
+        envelope_universal: false,
+        baseline_reference_residual_peak,
+        baseline_ensemble_peak,
+        baseline_reference_signal_peak,
+        baseline_reference_signal_energy,
+        parameters: EnvelopeParameters {
+            baseline_runs,
+            sigma_multiplier,
+            additive_floor: floor,
+            smoothing: "none".to_string(),
+            interpolation: "none".to_string(),
+        },
     }
 }
 

@@ -10,7 +10,7 @@ use plotters::prelude::*;
 use crate::detectability::{DetectabilitySummary, Envelope};
 use crate::spectra::SpectrumAnalysis;
 use crate::utils::{escape_pdf_text, max_abs, min_max, time_points, wrap_text};
-use crate::{ExperimentResult, RunSummary, SofteningSweepResult};
+use crate::{ExperimentResult, PressureTestResult, RunSummary, SofteningSweepResult};
 
 pub struct ReportArtifacts {
     pub markdown_path: PathBuf,
@@ -28,6 +28,7 @@ pub fn write_reports(
     baseline_reference_norms: &[f64],
     detectability: Option<&DetectabilitySummary>,
     softening: Option<&SofteningSweepResult>,
+    pressure_test: Option<&PressureTestResult>,
     summary: &RunSummary,
     dt: f64,
 ) -> Result<ReportArtifacts> {
@@ -74,6 +75,17 @@ pub fn write_reports(
         let softening_path = run_dir.join("figure_07_softening_precursor.png");
         plot_softening_precursor(&softening_path, softening)?;
         figure_paths.push(softening_path);
+    }
+
+    if let Some(pressure_test) = pressure_test {
+        let raw_path = run_dir.join("figure_08_pressure_test_raw_residual_comparison.png");
+        plot_pressure_test_raw_residuals(&raw_path, pressure_test, dt)?;
+        figure_paths.push(raw_path);
+
+        let normalized_path =
+            run_dir.join("figure_09_pressure_test_normalized_residual_comparison.png");
+        plot_pressure_test_normalized_residuals(&normalized_path, pressure_test, dt)?;
+        figure_paths.push(normalized_path);
     }
 
     let markdown_path = run_dir.join("report.md");
@@ -596,6 +608,134 @@ fn plot_softening_precursor(path: &Path, softening: &SofteningSweepResult) -> Re
     Ok(())
 }
 
+fn plot_pressure_test_raw_residuals(
+    path: &Path,
+    pressure_test: &PressureTestResult,
+    dt: f64,
+) -> Result<()> {
+    let root = BitMapBackend::new(path, (1280, 720)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let steps = pressure_test
+        .cases
+        .first()
+        .map(|case| case.signal_bundle.residual_norms.len())
+        .unwrap_or(0);
+    let times = time_points(steps, dt);
+    let mut y_values = Vec::new();
+    for case in &pressure_test.cases {
+        y_values.extend(case.signal_bundle.residual_norms.iter().copied());
+    }
+    let (_, y_max) = min_max(&y_values);
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            "Pressure Test: Raw Residual Norm Comparison",
+            ("sans-serif", 30),
+        )
+        .margin(20)
+        .x_label_area_size(45)
+        .y_label_area_size(70)
+        .build_cartesian_2d(0.0_f64..times.last().copied().unwrap_or(1.0), 0.0_f64..(y_max * 1.1).max(1.0e-6))?;
+
+    chart
+        .configure_mesh()
+        .x_desc("Time")
+        .y_desc("Residual norm")
+        .draw()?;
+
+    for case in &pressure_test.cases {
+        let (color, label) = pressure_case_style(&case.case_name);
+        chart
+            .draw_series(LineSeries::new(
+                times
+                    .iter()
+                    .copied()
+                    .zip(case.signal_bundle.residual_norms.iter().copied()),
+                color,
+            ))?
+            .label(label)
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 16, y)], color));
+    }
+
+    chart
+        .configure_series_labels()
+        .background_style(WHITE.mix(0.88))
+        .border_style(BLACK)
+        .draw()?;
+    root.present()?;
+    Ok(())
+}
+
+fn plot_pressure_test_normalized_residuals(
+    path: &Path,
+    pressure_test: &PressureTestResult,
+    dt: f64,
+) -> Result<()> {
+    let root = BitMapBackend::new(path, (1280, 720)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let steps = pressure_test
+        .cases
+        .first()
+        .map(|case| case.signal_bundle.normalized_residual_norms.len())
+        .unwrap_or(0);
+    let times = time_points(steps, dt);
+    let mut y_values = Vec::new();
+    for case in &pressure_test.cases {
+        y_values.extend(case.signal_bundle.normalized_residual_norms.iter().copied());
+    }
+    let (_, y_max) = min_max(&y_values);
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            "Pressure Test: Normalized Residual Norm Comparison",
+            ("sans-serif", 30),
+        )
+        .margin(20)
+        .x_label_area_size(45)
+        .y_label_area_size(70)
+        .build_cartesian_2d(0.0_f64..times.last().copied().unwrap_or(1.0), 0.0_f64..(y_max * 1.1).max(1.0e-6))?;
+
+    chart
+        .configure_mesh()
+        .x_desc("Time")
+        .y_desc("Normalized residual norm")
+        .draw()?;
+
+    for case in &pressure_test.cases {
+        let (color, label) = pressure_case_style(&case.case_name);
+        chart
+            .draw_series(LineSeries::new(
+                times
+                    .iter()
+                    .copied()
+                    .zip(case.signal_bundle.normalized_residual_norms.iter().copied()),
+                color,
+            ))?
+            .label(label)
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 16, y)], color));
+    }
+
+    chart
+        .configure_series_labels()
+        .background_style(WHITE.mix(0.88))
+        .border_style(BLACK)
+        .draw()?;
+    root.present()?;
+    Ok(())
+}
+
+fn pressure_case_style(case_name: &str) -> (&RGBColor, String) {
+    match case_name {
+        "clean" => (&BLACK, "clean".to_string()),
+        "noise_only" => (&BLUE, "noise only".to_string()),
+        "mismatch_only" => (&RED, "mismatch only".to_string()),
+        "noise_plus_mismatch" => (&GREEN, "noise + mismatch".to_string()),
+        _ => (&MAGENTA, case_name.replace('_', " ")),
+    }
+}
+
 fn render_markdown(summary: &RunSummary) -> String {
     let mut lines = Vec::new();
     lines.push("# DSFB Lattice Demo Report".to_string());
@@ -623,6 +763,82 @@ fn render_markdown(summary: &RunSummary) -> String {
         summary.nominal_largest_eigenvalue
     ));
     lines.push(String::new());
+    lines.push("## Normalization".to_string());
+    lines.push(format!(
+        "- Method: `{}`",
+        summary.normalization.method
+    ));
+    lines.push(format!(
+        "- Denominator: `{}`",
+        summary.normalization.denominator
+    ));
+    lines.push(format!(
+        "- Epsilon: `{:.6e}`",
+        summary.normalization.epsilon
+    ));
+    lines.push(format!(
+        "- Note: {}",
+        summary.normalization.note
+    ));
+    lines.push(String::new());
+    lines.push("## Envelope Construction".to_string());
+    lines.push(
+        "The detectability envelope in this crate is baseline-derived, regime-specific, and not a universal threshold. It is constructed from nominal baseline runs under the same configuration used for the corresponding comparison."
+            .to_string(),
+    );
+    lines.push(format!(
+        "- Envelope mode: `{}`",
+        summary.envelope_provenance.envelope_mode
+    ));
+    lines.push(format!(
+        "- Envelope basis: {}",
+        summary.envelope_provenance.envelope_basis
+    ));
+    lines.push(format!(
+        "- Universal threshold: `{}`",
+        summary.envelope_provenance.envelope_universal
+    ));
+    lines.push(format!(
+        "- Baseline regime label: `{}`",
+        summary.envelope_provenance.regime_label
+    ));
+    lines.push(format!(
+        "- Baseline runs: {}",
+        summary.envelope_provenance.parameters.baseline_runs
+    ));
+    lines.push(format!(
+        "- Sigma multiplier: {:.6}",
+        summary.envelope_provenance.parameters.sigma_multiplier
+    ));
+    lines.push(format!(
+        "- Additive floor: {:.6}",
+        summary.envelope_provenance.parameters.additive_floor
+    ));
+    lines.push(format!(
+        "- Smoothing: `{}`",
+        summary.envelope_provenance.parameters.smoothing
+    ));
+    lines.push(format!(
+        "- Interpolation: `{}`",
+        summary.envelope_provenance.parameters.interpolation
+    ));
+    lines.push(format!(
+        "- Baseline reference residual peak: {:.6}",
+        summary.envelope_provenance.baseline_reference_residual_peak
+    ));
+    lines.push(format!(
+        "- Baseline ensemble peak: {:.6}",
+        summary.envelope_provenance.baseline_ensemble_peak
+    ));
+    lines.push(format!(
+        "- Baseline reference signal peak used by the normalized metric: {:.6}",
+        summary.envelope_provenance.baseline_reference_signal_peak
+    ));
+    lines.push(format!(
+        "- Baseline reference signal energy used by the energy-relative metric: {:.6}",
+        summary.envelope_provenance.baseline_reference_signal_energy
+    ));
+    lines.push(String::new());
     lines.push("## Experiment Highlights".to_string());
     for experiment in &summary.experiments {
         lines.push(format!("### {}", experiment.name));
@@ -644,6 +860,14 @@ fn render_markdown(summary: &RunSummary) -> String {
             experiment.max_residual_norm
         ));
         lines.push(format!(
+            "- max normalized residual norm: {:.6}",
+            experiment.max_normalized_residual_norm
+        ));
+        lines.push(format!(
+            "- residual energy ratio: {:.6}",
+            experiment.residual_energy_ratio
+        ));
+        lines.push(format!(
             "- max drift norm: {:.6}",
             experiment.max_drift_norm
         ));
@@ -660,7 +884,7 @@ fn render_markdown(summary: &RunSummary) -> String {
         lines.push(String::new());
         lines.push("## Detectability".to_string());
         lines.push(
-            "Detectability is evaluated pointwise in time using the same-time comparison `||r(t)|| > E(t)`. Global peaks of the signal and envelope are reported separately for context; they need not occur at the same time and do not by themselves determine detection."
+            "Detectability is evaluated pointwise in time using the same-time comparison `||r(t)|| > E(t)`. The envelope used here is baseline-derived for this run configuration only. Global peaks of the signal and envelope are reported separately for context; they need not occur at the same time and do not by themselves determine detection."
                 .to_string(),
         );
         if let Some(step) = detectability.first_crossing_step {
@@ -681,10 +905,15 @@ fn render_markdown(summary: &RunSummary) -> String {
                 "- crossing margin (signal - envelope) at first crossing: {:.6}",
                 detectability.crossing_margin.unwrap_or(0.0)
             ));
+            lines.push(format!(
+                "- normalized crossing margin at first crossing: {:.6}",
+                detectability.normalized_crossing_margin.unwrap_or(0.0)
+            ));
         } else {
             lines.push("- first envelope crossing: not observed".to_string());
             lines.push("- signal / envelope values at first crossing: not applicable".to_string());
             lines.push("- crossing margin: not applicable".to_string());
+            lines.push("- normalized crossing margin: not applicable".to_string());
         }
         if let Some(step) = detectability.consecutive_crossing_step {
             lines.push(format!("- first sustained crossing step: {step}"));
@@ -706,6 +935,41 @@ fn render_markdown(summary: &RunSummary) -> String {
             detectability.global_envelope_peak_time
         ));
     }
+    if let Some(pressure_test) = &summary.pressure_test {
+        lines.push(String::new());
+        lines.push("## Controlled Pressure Test".to_string());
+        lines.push(pressure_test.description.clone());
+        lines.push(String::new());
+        lines.push("| case | detected | first crossing time | crossing margin | normalized crossing margin | max raw residual | max normalized residual | residual energy ratio |".to_string());
+        lines.push("| --- | --- | --- | --- | --- | --- | --- | --- |".to_string());
+        for case in &pressure_test.cases {
+            let first_crossing_time = case
+                .first_crossing_time
+                .map(|value| format!("{value:.4}"))
+                .unwrap_or_else(|| "n/a".to_string());
+            let crossing_margin = case
+                .crossing_margin
+                .map(|value| format!("{value:.4}"))
+                .unwrap_or_else(|| "n/a".to_string());
+            let normalized_crossing_margin = case
+                .normalized_crossing_margin
+                .map(|value| format!("{value:.4}"))
+                .unwrap_or_else(|| "n/a".to_string());
+            lines.push(format!(
+                "| {} | {} | {} | {} | {} | {:.4} | {:.4} | {:.4} |",
+                case.case_name,
+                case.detected,
+                first_crossing_time,
+                crossing_margin,
+                normalized_crossing_margin,
+                case.max_raw_residual,
+                case.max_normalized_residual,
+                case.residual_energy_ratio
+            ));
+        }
+        lines.push(String::new());
+        lines.push("Each pressure-test case uses its own baseline-derived envelope under the same additive-noise and predictor-mismatch settings. These comparisons are synthetic stress tests of the deterministic pipeline, not a claim of universal robustness.".to_string());
+    }
     if let Some(softening) = &summary.softening {
         lines.push(String::new());
         lines.push("## Softening Sweep".to_string());
@@ -722,12 +986,20 @@ fn render_markdown(summary: &RunSummary) -> String {
             softening.softest_max_residual_norm
         ));
         lines.push(format!(
+            "- max normalized residual norm at softest scale: {:.6}",
+            softening.softest_max_normalized_residual_norm
+        ));
+        lines.push(format!(
             "- max drift norm at softest scale: {:.6}",
             softening.softest_max_drift_norm
         ));
         lines.push(format!(
             "- max slew norm at softest scale: {:.6}",
             softening.softest_max_slew_norm
+        ));
+        lines.push(format!(
+            "- residual energy ratio at softest scale: {:.6}",
+            softening.softest_residual_energy_ratio
         ));
     }
     lines.push(String::new());
@@ -801,7 +1073,37 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
     ));
     lines.push(String::new());
     lines.push("Scope".to_string());
-    lines.push("This PDF keeps all text inside fixed margins, includes an artifact inventory for the completed run, and embeds every generated PNG figure on its own page. Detectability remains a pointwise same-time comparison, not a peak-vs-peak comparison.".to_string());
+    lines.push("This PDF keeps all text inside fixed margins, includes an artifact inventory for the completed run, and embeds every generated PNG figure on its own page. Detectability remains a pointwise same-time comparison, not a peak-vs-peak comparison. The added noise and mismatch cases are controlled synthetic pressure tests only.".to_string());
+    lines.push(String::new());
+    lines.push("Normalization".to_string());
+    lines.push(format!(
+        "method = {}, denominator = {}, epsilon = {:.6e}",
+        summary.normalization.method,
+        summary.normalization.denominator,
+        summary.normalization.epsilon
+    ));
+    lines.push(summary.normalization.note.clone());
+    lines.push(String::new());
+    lines.push("Envelope construction".to_string());
+    lines.push("The envelope is baseline-derived, regime-specific, and not universal.".to_string());
+    lines.push(format!(
+        "mode = {}, regime = {}, baseline runs = {}, sigma = {:.6}, floor = {:.6}",
+        summary.envelope_provenance.envelope_mode,
+        summary.envelope_provenance.regime_label,
+        summary.envelope_provenance.parameters.baseline_runs,
+        summary.envelope_provenance.parameters.sigma_multiplier,
+        summary.envelope_provenance.parameters.additive_floor
+    ));
+    lines.push(format!(
+        "baseline residual peak = {:.6}, baseline ensemble peak = {:.6}",
+        summary.envelope_provenance.baseline_reference_residual_peak,
+        summary.envelope_provenance.baseline_ensemble_peak
+    ));
+    lines.push(format!(
+        "baseline signal peak = {:.6}, baseline signal energy = {:.6}",
+        summary.envelope_provenance.baseline_reference_signal_peak,
+        summary.envelope_provenance.baseline_reference_signal_energy
+    ));
     lines.push(String::new());
     lines.push("Experiment highlights".to_string());
     for experiment in &summary.experiments {
@@ -812,8 +1114,14 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
             experiment.delta_norm_2, experiment.max_abs_shift, experiment.bound_satisfied
         ));
         lines.push(format!(
-            "max residual = {:.6}, max drift = {:.6}, max slew = {:.6}",
-            experiment.max_residual_norm, experiment.max_drift_norm, experiment.max_slew_norm
+            "max residual = {:.6}, max normalized residual = {:.6}, residual energy ratio = {:.6}",
+            experiment.max_residual_norm,
+            experiment.max_normalized_residual_norm,
+            experiment.residual_energy_ratio
+        ));
+        lines.push(format!(
+            "max drift = {:.6}, max slew = {:.6}",
+            experiment.max_drift_norm, experiment.max_slew_norm
         ));
         lines.push(format!(
             "covariance off-diagonal energy = {:.6}",
@@ -830,10 +1138,11 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
                 detectability.first_crossing_time.unwrap_or(0.0)
             ));
             lines.push(format!(
-                "signal_at_first_crossing = {:.6}, envelope_at_first_crossing = {:.6}, crossing_margin = {:.6}",
+                "signal_at_first_crossing = {:.6}, envelope_at_first_crossing = {:.6}, crossing_margin = {:.6}, normalized_crossing_margin = {:.6}",
                 detectability.signal_at_first_crossing.unwrap_or(0.0),
                 detectability.envelope_at_first_crossing.unwrap_or(0.0),
-                detectability.crossing_margin.unwrap_or(0.0)
+                detectability.crossing_margin.unwrap_or(0.0),
+                detectability.normalized_crossing_margin.unwrap_or(0.0)
             ));
         } else {
             lines.push("no first pointwise crossing was observed in this run".to_string());
@@ -856,6 +1165,35 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
         ));
         lines.push(String::new());
     }
+    if let Some(pressure_test) = &summary.pressure_test {
+        lines.push("Controlled pressure test".to_string());
+        lines.push(pressure_test.description.clone());
+        for case in &pressure_test.cases {
+            let first_crossing = case
+                .first_crossing_time
+                .map(|value| format!("{value:.6}"))
+                .unwrap_or_else(|| "n/a".to_string());
+            let margin = case
+                .crossing_margin
+                .map(|value| format!("{value:.6}"))
+                .unwrap_or_else(|| "n/a".to_string());
+            let normalized_margin = case
+                .normalized_crossing_margin
+                .map(|value| format!("{value:.6}"))
+                .unwrap_or_else(|| "n/a".to_string());
+            lines.push(format!(
+                "{}: detected = {}, first crossing time = {}, crossing margin = {}, normalized crossing margin = {}, max raw residual = {:.6}, max normalized residual = {:.6}",
+                case.case_name,
+                case.detected,
+                first_crossing,
+                margin,
+                normalized_margin,
+                case.max_raw_residual,
+                case.max_normalized_residual
+            ));
+        }
+        lines.push(String::new());
+    }
     if let Some(softening) = &summary.softening {
         lines.push("Softening sweep".to_string());
         lines.push(format!(
@@ -863,10 +1201,15 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
             softening.softest_scale, softening.softest_smallest_eigenvalue
         ));
         lines.push(format!(
-            "softest-scale residual / drift / slew maxima = {:.6} / {:.6} / {:.6}",
+            "softest-scale residual / normalized residual / drift / slew maxima = {:.6} / {:.6} / {:.6} / {:.6}",
             softening.softest_max_residual_norm,
+            softening.softest_max_normalized_residual_norm,
             softening.softest_max_drift_norm,
             softening.softest_max_slew_norm
+        ));
+        lines.push(format!(
+            "softest-scale residual energy ratio = {:.6}",
+            softening.softest_residual_energy_ratio
         ));
         lines.push(String::new());
     }
