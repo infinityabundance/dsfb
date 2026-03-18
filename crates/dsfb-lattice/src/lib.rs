@@ -375,6 +375,7 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         &baseline_reference,
         &envelope,
         point_defect_result.as_ref(),
+        detectability.as_ref(),
         &softening_result,
         experiments.as_slice(),
         config.dt,
@@ -603,6 +604,7 @@ fn write_primary_csvs(
     baseline_reference: &TimeSeriesBundle,
     envelope: &Envelope,
     point_defect: Option<&ExperimentResult>,
+    detectability: Option<&DetectabilitySummary>,
     softening: &Option<SofteningSweepResult>,
     experiments: &[&ExperimentResult],
     dt: f64,
@@ -695,7 +697,15 @@ fn write_primary_csvs(
     }
     write_csv_rows(&run_dir.join("covariance.csv"), &covariance_rows)?;
 
-    let metrics = build_metric_rows(envelope, baseline_reference, point_defect, softening, experiments);
+    let metrics = build_metric_rows(
+        envelope,
+        baseline_reference,
+        point_defect,
+        detectability,
+        softening,
+        experiments,
+        dt,
+    );
     write_csv_rows(&run_dir.join("metrics.csv"), &metrics)?;
 
     let envelope_rows: Vec<EnvelopeRow> = envelope
@@ -781,16 +791,33 @@ fn build_metric_rows(
     envelope: &Envelope,
     baseline_reference: &TimeSeriesBundle,
     point_defect: Option<&ExperimentResult>,
+    detectability: Option<&DetectabilitySummary>,
     softening: &Option<SofteningSweepResult>,
     experiments: &[&ExperimentResult],
+    dt: f64,
 ) -> Vec<MetricRow> {
     let mut rows = Vec::new();
+    let (global_envelope_peak, global_envelope_peak_time) = envelope
+        .upper
+        .iter()
+        .copied()
+        .enumerate()
+        .max_by(|(_, left), (_, right)| left.partial_cmp(right).unwrap())
+        .map(|(step, value)| (value, step as f64))
+        .unwrap_or((0.0, 0.0));
     rows.push(MetricRow {
         experiment: "baseline".to_string(),
-        metric: "envelope_peak".to_string(),
-        value: envelope.upper.iter().copied().fold(0.0_f64, f64::max),
+        metric: "global_envelope_peak".to_string(),
+        value: global_envelope_peak,
         units: "residual_norm".to_string(),
-        note: "Nominal variability envelope upper bound.".to_string(),
+        note: "Global peak of the nominal variability envelope over the whole trajectory; this peak alone does not determine detectability.".to_string(),
+    });
+    rows.push(MetricRow {
+        experiment: "baseline".to_string(),
+        metric: "global_envelope_peak_time".to_string(),
+        value: global_envelope_peak_time * dt,
+        units: "time".to_string(),
+        note: "Time at which the global envelope peak occurs.".to_string(),
     });
     rows.push(MetricRow {
         experiment: "baseline".to_string(),
@@ -865,6 +892,83 @@ fn build_metric_rows(
             units: "ratio".to_string(),
             note: "max_i |lambda_i' - lambda_i| / ||Delta||_2".to_string(),
         });
+    }
+
+    if let Some(detectability) = detectability {
+        rows.push(MetricRow {
+            experiment: "detectability".to_string(),
+            metric: "global_signal_peak".to_string(),
+            value: detectability.global_signal_peak,
+            units: "residual_norm".to_string(),
+            note: "Global peak of the point-defect residual norm over the whole trajectory.".to_string(),
+        });
+        rows.push(MetricRow {
+            experiment: "detectability".to_string(),
+            metric: "global_signal_peak_time".to_string(),
+            value: detectability.global_signal_peak_time,
+            units: "time".to_string(),
+            note: "Time at which the global signal peak occurs.".to_string(),
+        });
+        rows.push(MetricRow {
+            experiment: "detectability".to_string(),
+            metric: "global_envelope_peak".to_string(),
+            value: detectability.global_envelope_peak,
+            units: "residual_norm".to_string(),
+            note: "Global peak of the detectability envelope over the whole trajectory.".to_string(),
+        });
+        rows.push(MetricRow {
+            experiment: "detectability".to_string(),
+            metric: "global_envelope_peak_time".to_string(),
+            value: detectability.global_envelope_peak_time,
+            units: "time".to_string(),
+            note: "Time at which the global envelope peak occurs.".to_string(),
+        });
+
+        if let Some(step) = detectability.first_crossing_step {
+            rows.push(MetricRow {
+                experiment: "detectability".to_string(),
+                metric: "first_crossing_step".to_string(),
+                value: step as f64,
+                units: "step".to_string(),
+                note: "First time index where the pointwise condition signal(t) > envelope(t) is satisfied.".to_string(),
+            });
+        }
+        if let Some(time) = detectability.first_crossing_time {
+            rows.push(MetricRow {
+                experiment: "detectability".to_string(),
+                metric: "first_crossing_time".to_string(),
+                value: time,
+                units: "time".to_string(),
+                note: "Physical time at the first pointwise detectability crossing.".to_string(),
+            });
+        }
+        if let Some(value) = detectability.signal_at_first_crossing {
+            rows.push(MetricRow {
+                experiment: "detectability".to_string(),
+                metric: "signal_at_first_crossing".to_string(),
+                value,
+                units: "residual_norm".to_string(),
+                note: "Residual norm evaluated at the first crossing time.".to_string(),
+            });
+        }
+        if let Some(value) = detectability.envelope_at_first_crossing {
+            rows.push(MetricRow {
+                experiment: "detectability".to_string(),
+                metric: "envelope_at_first_crossing".to_string(),
+                value,
+                units: "residual_norm".to_string(),
+                note: "Envelope value evaluated at the first crossing time.".to_string(),
+            });
+        }
+        if let Some(value) = detectability.crossing_margin {
+            rows.push(MetricRow {
+                experiment: "detectability".to_string(),
+                metric: "crossing_margin".to_string(),
+                value,
+                units: "residual_norm".to_string(),
+                note: "Pointwise margin signal_at_first_crossing - envelope_at_first_crossing.".to_string(),
+            });
+        }
     }
 
     if let Some(softening) = softening {
