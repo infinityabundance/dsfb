@@ -1,7 +1,10 @@
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use plotters::prelude::*;
 
 use crate::detectability::{DetectabilitySummary, Envelope};
@@ -79,7 +82,6 @@ pub fn write_reports(
         .with_context(|| format!("failed to write {}", markdown_path.display()))?;
 
     let pdf_path = run_dir.join("report.pdf");
-    write_text_pdf(&pdf_path, summary)?;
 
     Ok(ReportArtifacts {
         markdown_path,
@@ -736,25 +738,75 @@ fn render_markdown(summary: &RunSummary) -> String {
     lines.join("\n")
 }
 
-fn write_text_pdf(path: &Path, summary: &RunSummary) -> Result<()> {
+pub fn write_pdf_report(
+    path: &Path,
+    run_dir: &Path,
+    summary: &RunSummary,
+    figure_paths: &[PathBuf],
+) -> Result<()> {
+    let mut pages = Vec::new();
+    let overview_lines = build_pdf_overview_lines(summary);
+    push_paginated_text_pages(&mut pages, "DSFB Lattice Demo Report", &overview_lines, 42);
+
+    let inventory_lines = build_artifact_inventory_lines(run_dir, summary)?;
+    push_paginated_text_pages(&mut pages, "Artifact Inventory", &inventory_lines, 48);
+
+    for figure_path in figure_paths {
+        pages.push(PdfPageSpec::Figure {
+            title: humanize_figure_title(figure_path),
+            subtitle: format!(
+                "Embedded PNG artifact: {}",
+                figure_path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().to_string())
+                    .unwrap_or_else(|| figure_path.display().to_string())
+            ),
+            image_path: figure_path.clone(),
+        });
+    }
+
+    write_pdf_document(path, pages)
+}
+
+const PDF_PAGE_WIDTH: f64 = 595.0;
+const PDF_PAGE_HEIGHT: f64 = 842.0;
+const PDF_MARGIN_LEFT: f64 = 54.0;
+const PDF_MARGIN_RIGHT: f64 = 54.0;
+const PDF_MARGIN_TOP: f64 = 52.0;
+const PDF_MARGIN_BOTTOM: f64 = 52.0;
+const PDF_TITLE_FONT_SIZE: f64 = 18.0;
+const PDF_BODY_FONT_SIZE: f64 = 11.0;
+const PDF_CAPTION_FONT_SIZE: f64 = 10.0;
+const PDF_LINE_HEIGHT: f64 = 14.0;
+const PDF_WRAP_WIDTH: usize = 68;
+
+enum PdfPageSpec {
+    Text { title: String, lines: Vec<String> },
+    Figure { title: String, subtitle: String, image_path: PathBuf },
+}
+
+struct PdfImage {
+    width: u32,
+    height: u32,
+    compressed_rgb: Vec<u8>,
+}
+
+fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
     let mut lines = Vec::new();
-    lines.push("DSFB Lattice Demo Report".to_string());
-    lines.push(String::new());
     lines.push(format!("Run directory: {}", summary.run_dir));
     lines.push(format!("Selected example set: {}", summary.selected_example));
     lines.push(format!(
-        "Nominal smallest eigenvalue: {:.6}",
-        summary.nominal_smallest_eigenvalue
+        "Nominal eigenvalue range: {:.6} to {:.6}",
+        summary.nominal_smallest_eigenvalue, summary.nominal_largest_eigenvalue
     ));
-    lines.push(format!(
-        "Nominal largest eigenvalue: {:.6}",
-        summary.nominal_largest_eigenvalue
-    ));
+    lines.push(String::new());
+    lines.push("Scope".to_string());
+    lines.push("This PDF keeps all text inside fixed margins, includes an artifact inventory for the completed run, and embeds every generated PNG figure on its own page. Detectability remains a pointwise same-time comparison, not a peak-vs-peak comparison.".to_string());
     lines.push(String::new());
     lines.push("Experiment highlights".to_string());
     for experiment in &summary.experiments {
         lines.push(format!("{}:", experiment.name));
-        lines.extend(wrap_text(&experiment.description, 86));
+        lines.push(experiment.description.clone());
         lines.push(format!(
             "delta norm 2 = {:.6}, max shift = {:.6}, bound satisfied = {}",
             experiment.delta_norm_2, experiment.max_abs_shift, experiment.bound_satisfied
@@ -771,10 +823,7 @@ fn write_text_pdf(path: &Path, summary: &RunSummary) -> Result<()> {
     }
     if let Some(detectability) = &summary.detectability {
         lines.push("Detectability".to_string());
-        lines.extend(wrap_text(
-            "Detectability is evaluated pointwise in time using the same-time condition ||r(t)|| > E(t). Global peaks are reported separately for context and need not occur at the same time.",
-            86,
-        ));
+        lines.push("Detectability is evaluated pointwise in time using the same-time condition ||r(t)|| > E(t). Global peaks are reported separately for context and can occur at different times without contradiction.".to_string());
         if let Some(step) = detectability.first_crossing_step {
             lines.push(format!(
                 "first crossing step = {step}, first crossing time = {:.6}",
@@ -798,11 +847,12 @@ fn write_text_pdf(path: &Path, summary: &RunSummary) -> Result<()> {
             lines.push("no sustained crossing was observed under the configured consecutive-step rule".to_string());
         }
         lines.push(format!(
-            "global signal peak = {:.6} at time {:.6}, global envelope peak = {:.6} at time {:.6}",
-            detectability.global_signal_peak,
-            detectability.global_signal_peak_time,
-            detectability.global_envelope_peak,
-            detectability.global_envelope_peak_time
+            "global signal peak = {:.6} at time {:.6}",
+            detectability.global_signal_peak, detectability.global_signal_peak_time
+        ));
+        lines.push(format!(
+            "global envelope peak = {:.6} at time {:.6}",
+            detectability.global_envelope_peak, detectability.global_envelope_peak_time
         ));
         lines.push(String::new());
     }
@@ -822,38 +872,127 @@ fn write_text_pdf(path: &Path, summary: &RunSummary) -> Result<()> {
     }
     lines.push("Limitations".to_string());
     for limitation in &summary.limitations {
-        lines.extend(wrap_text(&format!("- {limitation}"), 86));
+        lines.push(format!("- {limitation}"));
+    }
+    lines
+}
+
+fn build_artifact_inventory_lines(run_dir: &Path, summary: &RunSummary) -> Result<Vec<String>> {
+    let mut entries = fs::read_dir(run_dir)
+        .with_context(|| format!("failed to read {}", run_dir.display()))?
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file())
+        .filter_map(|path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().to_string())
+        })
+        .collect::<Vec<_>>();
+    entries.push("report.pdf (this document)".to_string());
+    entries.sort();
+
+    let zip_name = Path::new(&summary.zip_archive)
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| summary.zip_archive.clone());
+
+    let mut lines = Vec::new();
+    lines.push("The completed run directory contains the following file artifacts:".to_string());
+    for entry in entries {
+        lines.push(format!("- {entry}"));
+    }
+    lines.push(format!(
+        "- sibling archive: {}",
+        zip_name
+    ));
+    lines.push(String::new());
+    lines.push("The following pages embed every generated PNG figure artifact directly into the PDF.".to_string());
+    Ok(lines)
+}
+
+fn push_paginated_text_pages(
+    pages: &mut Vec<PdfPageSpec>,
+    title: &str,
+    lines: &[String],
+    lines_per_page: usize,
+) {
+    let mut wrapped = Vec::new();
+    for line in lines {
+        if line.is_empty() {
+            wrapped.push(String::new());
+        } else {
+            wrapped.extend(wrap_text(line, PDF_WRAP_WIDTH));
+        }
     }
 
-    let pages = paginate_lines(&lines, 46);
+    if wrapped.is_empty() {
+        pages.push(PdfPageSpec::Text {
+            title: title.to_string(),
+            lines: vec![String::new()],
+        });
+        return;
+    }
+
+    for (page_index, chunk) in wrapped.chunks(lines_per_page).enumerate() {
+        let page_title = if page_index == 0 {
+            title.to_string()
+        } else {
+            format!("{title} (cont.)")
+        };
+        pages.push(PdfPageSpec::Text {
+            title: page_title,
+            lines: chunk.to_vec(),
+        });
+    }
+}
+
+fn write_pdf_document(path: &Path, pages: Vec<PdfPageSpec>) -> Result<()> {
+    let font_id = 3usize;
     let mut objects = Vec::new();
     let mut page_ids = Vec::new();
-    let font_id = 3usize;
     let mut next_id = 4usize;
 
-    for page_lines in pages {
-        let content_id = next_id;
-        next_id += 1;
-        let page_id = next_id;
-        next_id += 1;
-        let stream = build_pdf_stream(&page_lines);
-        objects.push((
-            content_id,
-            format!(
-                "<< /Length {} >>\nstream\n{}endstream\n",
-                stream.len(),
-                stream
-            )
-            .into_bytes(),
-        ));
-        objects.push((
-            page_id,
-            format!(
-                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 {font_id} 0 R >> >> /Contents {content_id} 0 R >>\n"
-            )
-            .into_bytes(),
-        ));
-        page_ids.push(page_id);
+    for page in pages {
+        match page {
+            PdfPageSpec::Text { title, lines } => {
+                let content_id = next_id;
+                next_id += 1;
+                let page_id = next_id;
+                next_id += 1;
+                let stream = build_text_page_stream(&title, &lines);
+                objects.push((content_id, build_stream_object(stream.as_bytes())));
+                objects.push((page_id, build_page_object(content_id, font_id, None)));
+                page_ids.push(page_id);
+            }
+            PdfPageSpec::Figure {
+                title,
+                subtitle,
+                image_path,
+            } => {
+                let image_id = next_id;
+                next_id += 1;
+                let content_id = next_id;
+                next_id += 1;
+                let page_id = next_id;
+                next_id += 1;
+                let image_name = format!("Im{image_id}");
+                let image = load_pdf_image(&image_path)?;
+                let stream = build_figure_page_stream(
+                    &title,
+                    &subtitle,
+                    &image_name,
+                    image.width,
+                    image.height,
+                );
+                objects.push((image_id, build_image_object(&image)));
+                objects.push((content_id, build_stream_object(stream.as_bytes())));
+                objects.push((
+                    page_id,
+                    build_page_object(content_id, font_id, Some((&image_name, image_id))),
+                ));
+                page_ids.push(page_id);
+            }
+        }
     }
 
     let kids = page_ids
@@ -898,37 +1037,141 @@ fn write_text_pdf(path: &Path, summary: &RunSummary) -> Result<()> {
     fs::write(path, pdf).with_context(|| format!("failed to write {}", path.display()))
 }
 
-fn paginate_lines(lines: &[String], lines_per_page: usize) -> Vec<Vec<String>> {
-    let mut pages = Vec::new();
-    let mut current = Vec::new();
-    for line in lines {
-        if current.len() == lines_per_page {
-            pages.push(current);
-            current = Vec::new();
-        }
-        current.push(line.clone());
-    }
-    if !current.is_empty() {
-        pages.push(current);
-    }
-    if pages.is_empty() {
-        pages.push(vec![String::new()]);
-    }
-    pages
+fn build_stream_object(content: &[u8]) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(format!("<< /Length {} >>\nstream\n", content.len()).as_bytes());
+    bytes.extend_from_slice(content);
+    bytes.extend_from_slice(b"\nendstream\n");
+    bytes
 }
 
-fn build_pdf_stream(lines: &[String]) -> String {
-    let mut stream = String::from("BT\n/F1 16 Tf\n72 800 Td\n");
-    let mut first = true;
+fn build_page_object(
+    content_id: usize,
+    font_id: usize,
+    image_resource: Option<(&str, usize)>,
+) -> Vec<u8> {
+    let resources = if let Some((image_name, image_id)) = image_resource {
+        format!(
+            "<< /Font << /F1 {font_id} 0 R >> /XObject << /{image_name} {image_id} 0 R >> >>"
+        )
+    } else {
+        format!("<< /Font << /F1 {font_id} 0 R >> >>")
+    };
+
+    format!(
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {PDF_PAGE_WIDTH:.0} {PDF_PAGE_HEIGHT:.0}] /Resources {resources} /Contents {content_id} 0 R >>\n"
+    )
+    .into_bytes()
+}
+
+fn build_text_page_stream(title: &str, lines: &[String]) -> String {
+    let mut stream = String::from("BT\n");
+    let mut y = PDF_PAGE_HEIGHT - PDF_MARGIN_TOP;
+    stream.push_str(&format!("/F1 {PDF_TITLE_FONT_SIZE:.1} Tf\n"));
+    stream.push_str(&format!(
+        "1 0 0 1 {PDF_MARGIN_LEFT:.1} {y:.1} Tm\n({}) Tj\n",
+        escape_pdf_text(title)
+    ));
+
+    y -= 28.0;
+    stream.push_str(&format!("/F1 {PDF_BODY_FONT_SIZE:.1} Tf\n"));
     for line in lines {
-        if first {
-            stream.push_str(&format!("({}) Tj\n", escape_pdf_text(line)));
-            first = false;
-        } else {
-            stream.push_str("0 -16 Td\n");
-            stream.push_str(&format!("({}) Tj\n", escape_pdf_text(line)));
-        }
+        stream.push_str(&format!(
+            "1 0 0 1 {PDF_MARGIN_LEFT:.1} {y:.1} Tm\n({}) Tj\n",
+            escape_pdf_text(line)
+        ));
+        y -= PDF_LINE_HEIGHT;
     }
     stream.push_str("ET\n");
     stream
+}
+
+fn build_figure_page_stream(
+    title: &str,
+    subtitle: &str,
+    image_name: &str,
+    image_width: u32,
+    image_height: u32,
+) -> String {
+    let title_lines = wrap_text(title, 52);
+    let subtitle_lines = wrap_text(subtitle, 68);
+    let mut stream = String::from("BT\n");
+    let mut y = PDF_PAGE_HEIGHT - PDF_MARGIN_TOP;
+
+    stream.push_str(&format!("/F1 {PDF_TITLE_FONT_SIZE:.1} Tf\n"));
+    for line in &title_lines {
+        stream.push_str(&format!(
+            "1 0 0 1 {PDF_MARGIN_LEFT:.1} {y:.1} Tm\n({}) Tj\n",
+            escape_pdf_text(line)
+        ));
+        y -= 18.0;
+    }
+
+    stream.push_str(&format!("/F1 {PDF_CAPTION_FONT_SIZE:.1} Tf\n"));
+    for line in &subtitle_lines {
+        stream.push_str(&format!(
+            "1 0 0 1 {PDF_MARGIN_LEFT:.1} {y:.1} Tm\n({}) Tj\n",
+            escape_pdf_text(line)
+        ));
+        y -= 12.0;
+    }
+    stream.push_str("ET\n");
+
+    let available_width = PDF_PAGE_WIDTH - PDF_MARGIN_LEFT - PDF_MARGIN_RIGHT;
+    let available_height = y - PDF_MARGIN_BOTTOM - 18.0;
+    let scale = (available_width / image_width as f64)
+        .min(available_height / image_height as f64)
+        .max(0.0);
+    let display_width = image_width as f64 * scale;
+    let display_height = image_height as f64 * scale;
+    let image_x = (PDF_PAGE_WIDTH - display_width) / 2.0;
+    let image_y = PDF_MARGIN_BOTTOM + (available_height - display_height).max(0.0) / 2.0;
+
+    stream.push_str("q\n");
+    stream.push_str(&format!(
+        "{display_width:.3} 0 0 {display_height:.3} {image_x:.3} {image_y:.3} cm\n/{image_name} Do\nQ\n"
+    ));
+    stream
+}
+
+fn load_pdf_image(path: &Path) -> Result<PdfImage> {
+    let rgb_image = ::image::open(path)
+        .with_context(|| format!("failed to open image {}", path.display()))?
+        .to_rgb8();
+    let (width, height) = rgb_image.dimensions();
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    encoder
+        .write_all(&rgb_image.into_raw())
+        .with_context(|| format!("failed to encode RGB payload for {}", path.display()))?;
+    let compressed_rgb = encoder
+        .finish()
+        .with_context(|| format!("failed to finalize image compression for {}", path.display()))?;
+
+    Ok(PdfImage {
+        width,
+        height,
+        compressed_rgb,
+    })
+}
+
+fn build_image_object(image: &PdfImage) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(
+        format!(
+            "<< /Type /XObject /Subtype /Image /Width {} /Height {} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {} >>\nstream\n",
+            image.width,
+            image.height,
+            image.compressed_rgb.len()
+        )
+        .as_bytes(),
+    );
+    bytes.extend_from_slice(&image.compressed_rgb);
+    bytes.extend_from_slice(b"\nendstream\n");
+    bytes
+}
+
+fn humanize_figure_title(path: &Path) -> String {
+    path.file_stem()
+        .map(|stem| stem.to_string_lossy().replace('_', " "))
+        .unwrap_or_else(|| "Embedded figure artifact".to_string())
 }

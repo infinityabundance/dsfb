@@ -94,7 +94,7 @@ Builds the baseline envelope and reports first / sustained crossings.
 Creates timestamped run folders, writes JSON / CSV outputs, and zips completed runs.
 
 `src/report.rs`
-Generates PNG figures, a Markdown report, and a simple text PDF report.
+Generates PNG figures, a Markdown report, and a paginated PDF report with fixed margins, an artifact inventory, and embedded figure pages.
 
 `src/utils.rs`
 Small shared helpers for ranges, PDF escaping, path formatting, and covariance summaries.
@@ -172,6 +172,7 @@ Every run writes at least the following files into a new timestamped run directo
 - `figure_07_softening_precursor.png`
 - `report.md`
 - `report.pdf`
+  This PDF includes fixed-margin text pages, an inventory of the generated run artifacts, and one embedded page for each PNG figure.
 
 After the run completes, a sibling archive is also written:
 
@@ -237,7 +238,7 @@ Each perturbation produces a new lattice and therefore a new operator `D'`.
 
 ### Report Generation
 
-`src/report.rs` renders all PNG figures with `plotters`, writes a Markdown report, and emits a simple text PDF report directly from Rust so the run is self-contained.
+`src/report.rs` renders all PNG figures with `plotters`, writes a Markdown report, and emits a multi-page PDF report directly from Rust. The PDF uses fixed margins, wraps long text safely, lists the generated artifacts, and embeds every PNG figure on its own page so the report remains self-contained.
 
 ### Zip Packaging
 

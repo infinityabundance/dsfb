@@ -19,7 +19,7 @@ use crate::detectability::{build_envelope, evaluate_signal, DetectabilitySummary
 use crate::io::{create_timestamped_run_directory, write_csv_rows, write_json_pretty, zip_directory};
 use crate::lattice::Lattice;
 use crate::perturbation::{distributed_strain, global_softening, grouped_cluster, point_defect, PointDefectSpec};
-use crate::report::write_reports;
+use crate::report::{write_pdf_report, write_reports};
 use crate::residuals::{build_time_series, covariance_matrix, simulate_response, SimulationConfig, TimeSeriesBundle};
 use crate::spectra::{analyze_symmetric, compare_spectra, SpectralComparison, SpectrumAnalysis};
 use crate::utils::{covariance_trace, offdiag_energy, path_string};
@@ -425,6 +425,12 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
 
     let summary_path = run_dir.join("summary.json");
     write_json_pretty(&summary_path, &summary)?;
+    write_pdf_report(
+        &report_artifacts.pdf_path,
+        &run_dir,
+        &summary,
+        &report_artifacts.figure_paths,
+    )?;
     zip_directory(&run_dir, &zip_path)?;
 
     Ok(RunOutcome {

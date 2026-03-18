@@ -67,19 +67,21 @@ pub fn wrap_text(input: &str, width: usize) -> Vec<String> {
     let mut current = String::new();
 
     for word in input.split_whitespace() {
-        let candidate_len = if current.is_empty() {
-            word.len()
-        } else {
-            current.len() + 1 + word.len()
-        };
-        if candidate_len > width && !current.is_empty() {
-            lines.push(current);
-            current = word.to_string();
-        } else if current.is_empty() {
-            current = word.to_string();
-        } else {
-            current.push(' ');
-            current.push_str(word);
+        for chunk in split_token(word, width) {
+            let candidate_len = if current.is_empty() {
+                chunk.len()
+            } else {
+                current.len() + 1 + chunk.len()
+            };
+            if candidate_len > width && !current.is_empty() {
+                lines.push(current);
+                current = chunk;
+            } else if current.is_empty() {
+                current = chunk;
+            } else {
+                current.push(' ');
+                current.push_str(&chunk);
+            }
         }
     }
 
@@ -92,4 +94,24 @@ pub fn wrap_text(input: &str, width: usize) -> Vec<String> {
     }
 
     lines
+}
+
+fn split_token(token: &str, width: usize) -> Vec<String> {
+    if width == 0 {
+        return vec![token.to_string()];
+    }
+
+    let characters: Vec<char> = token.chars().collect();
+    if characters.len() <= width {
+        return vec![token.to_string()];
+    }
+
+    let mut chunks = Vec::new();
+    let mut start = 0usize;
+    while start < characters.len() {
+        let end = (start + width).min(characters.len());
+        chunks.push(characters[start..end].iter().collect());
+        start = end;
+    }
+    chunks
 }

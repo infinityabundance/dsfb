@@ -356,6 +356,8 @@ dependencies = [
  "chrono",
  "clap",
  "csv",
+ "flate2",
+ "image",
  "nalgebra",
  "plotters",
  "serde",
