@@ -40,7 +40,7 @@ The implementation covers a bounded subset of the paper's ideas.
    `s_k = d_k - d_{k-1}`.
 
 6. Envelope-based detectability
-   A residual-norm envelope is estimated from several deterministic nominal baseline runs with small forcing variations. The point-defect example is then checked against that envelope for first crossing and sustained crossing.
+   A residual-norm envelope is estimated from several deterministic nominal baseline runs with small forcing variations. The point-defect example is then checked pointwise in time against that envelope, so first crossing is determined by the same-time condition `||r(t)|| > E(t)` rather than by comparing global peaks.
 
 7. Group-mode correlation
    Residual covariance is computed across observed modal channels so the grouped perturbation can be compared against the more localized point-defect case.
@@ -233,7 +233,7 @@ Each perturbation produces a new lattice and therefore a new operator `D'`.
 
 ### Envelope Detection
 
-`src/detectability.rs` constructs an upper residual envelope from several nominal baseline runs with small forcing variations. The point-defect residual norm is then checked for first and sustained crossings.
+`src/detectability.rs` constructs an upper residual envelope from several nominal baseline runs with small forcing variations. The point-defect residual norm is then checked for first and sustained crossings using a same-time comparison, and the summary distinguishes global peaks from the values observed at the first crossing itself.
 
 ### Report Generation
 

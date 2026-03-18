@@ -393,12 +393,34 @@ fn plot_detectability(
         .label("point defect residual")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 18, y)], RED));
 
-    if let Some(step) = detectability.consecutive_crossing_step {
+    if let Some(step) = detectability.first_crossing_step {
         let time = step as f64 * dt;
         chart.draw_series(std::iter::once(PathElement::new(
             vec![(time, 0.0), (time, y_max * 1.05)],
             RED.mix(0.35),
         )))?;
+    }
+    if let (Some(time), Some(signal_value)) = (
+        detectability.first_crossing_time,
+        detectability.signal_at_first_crossing,
+    ) {
+        chart.draw_series(std::iter::once(Circle::new(
+            (time, signal_value),
+            5,
+            RED.filled(),
+        )))?;
+    }
+    if let (Some(step), Some(first_crossing_step)) = (
+        detectability.consecutive_crossing_step,
+        detectability.first_crossing_step,
+    ) {
+        if step != first_crossing_step {
+            let time = step as f64 * dt;
+            chart.draw_series(std::iter::once(PathElement::new(
+                vec![(time, 0.0), (time, y_max * 1.05)],
+                RGBColor(255, 140, 0).mix(0.35),
+            )))?;
+        }
     }
 
     chart
@@ -635,21 +657,51 @@ fn render_markdown(summary: &RunSummary) -> String {
     if let Some(detectability) = &summary.detectability {
         lines.push(String::new());
         lines.push("## Detectability".to_string());
+        lines.push(
+            "Detectability is evaluated pointwise in time using the same-time comparison `||r(t)|| > E(t)`. Global peaks of the signal and envelope are reported separately for context; they need not occur at the same time and do not by themselves determine detection."
+                .to_string(),
+        );
+        if let Some(step) = detectability.first_crossing_step {
+            lines.push(format!("- first envelope crossing step: {step}"));
+            lines.push(format!(
+                "- first envelope crossing time: {:.6}",
+                detectability.first_crossing_time.unwrap_or(0.0)
+            ));
+            lines.push(format!(
+                "- signal at first crossing: {:.6}",
+                detectability.signal_at_first_crossing.unwrap_or(0.0)
+            ));
+            lines.push(format!(
+                "- envelope at first crossing: {:.6}",
+                detectability.envelope_at_first_crossing.unwrap_or(0.0)
+            ));
+            lines.push(format!(
+                "- crossing margin (signal - envelope) at first crossing: {:.6}",
+                detectability.crossing_margin.unwrap_or(0.0)
+            ));
+        } else {
+            lines.push("- first envelope crossing: not observed".to_string());
+            lines.push("- signal / envelope values at first crossing: not applicable".to_string());
+            lines.push("- crossing margin: not applicable".to_string());
+        }
+        if let Some(step) = detectability.consecutive_crossing_step {
+            lines.push(format!("- first sustained crossing step: {step}"));
+            lines.push(format!(
+                "- first sustained crossing time: {:.6}",
+                detectability.consecutive_crossing_time.unwrap_or(0.0)
+            ));
+        } else {
+            lines.push("- first sustained crossing: not observed".to_string());
+        }
         lines.push(format!(
-            "- first envelope crossing step: {:?}",
-            detectability.first_crossing_step
+            "- global signal peak: {:.6} at time {:.6}",
+            detectability.global_signal_peak,
+            detectability.global_signal_peak_time
         ));
         lines.push(format!(
-            "- first sustained crossing step: {:?}",
-            detectability.consecutive_crossing_step
-        ));
-        lines.push(format!(
-            "- envelope peak: {:.6}",
-            detectability.envelope_peak
-        ));
-        lines.push(format!(
-            "- signal peak: {:.6}",
-            detectability.signal_peak
+            "- global envelope peak: {:.6} at time {:.6}",
+            detectability.global_envelope_peak,
+            detectability.global_envelope_peak_time
         ));
     }
     if let Some(softening) = &summary.softening {
@@ -719,13 +771,38 @@ fn write_text_pdf(path: &Path, summary: &RunSummary) -> Result<()> {
     }
     if let Some(detectability) = &summary.detectability {
         lines.push("Detectability".to_string());
-        lines.push(format!(
-            "first crossing step = {:?}, sustained crossing step = {:?}",
-            detectability.first_crossing_step, detectability.consecutive_crossing_step
+        lines.extend(wrap_text(
+            "Detectability is evaluated pointwise in time using the same-time condition ||r(t)|| > E(t). Global peaks are reported separately for context and need not occur at the same time.",
+            86,
         ));
+        if let Some(step) = detectability.first_crossing_step {
+            lines.push(format!(
+                "first crossing step = {step}, first crossing time = {:.6}",
+                detectability.first_crossing_time.unwrap_or(0.0)
+            ));
+            lines.push(format!(
+                "signal_at_first_crossing = {:.6}, envelope_at_first_crossing = {:.6}, crossing_margin = {:.6}",
+                detectability.signal_at_first_crossing.unwrap_or(0.0),
+                detectability.envelope_at_first_crossing.unwrap_or(0.0),
+                detectability.crossing_margin.unwrap_or(0.0)
+            ));
+        } else {
+            lines.push("no first pointwise crossing was observed in this run".to_string());
+        }
+        if let Some(step) = detectability.consecutive_crossing_step {
+            lines.push(format!(
+                "sustained crossing step = {step}, sustained crossing time = {:.6}",
+                detectability.consecutive_crossing_time.unwrap_or(0.0)
+            ));
+        } else {
+            lines.push("no sustained crossing was observed under the configured consecutive-step rule".to_string());
+        }
         lines.push(format!(
-            "envelope peak = {:.6}, signal peak = {:.6}",
-            detectability.envelope_peak, detectability.signal_peak
+            "global signal peak = {:.6} at time {:.6}, global envelope peak = {:.6} at time {:.6}",
+            detectability.global_signal_peak,
+            detectability.global_signal_peak_time,
+            detectability.global_envelope_peak,
+            detectability.global_envelope_peak_time
         ));
         lines.push(String::new());
     }
