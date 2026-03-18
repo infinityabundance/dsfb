@@ -4,7 +4,7 @@
 
 `dsfb-lattice` is a standalone nested Rust crate under `crates/dsfb-lattice`. It exists to provide a bounded, reproducible, and inspectable empirical demonstrator for selected mathematical ideas from the paper *Deterministic Structural Inference in Solid-State Systems: A DSFB Engine for Crystal Lattices, Phonons, and Structural Forensics*.
 
-The crate is intentionally modest. It does not attempt ab initio crystal simulation, material calibration, or universal defect identification. Instead, it implements a fixed-end harmonic 1D lattice, applies controlled perturbations, compares nominal and perturbed spectra, simulates deterministic observations, computes residual / drift / slew statistics, builds a simple residual envelope from nominal baseline variability, and writes timestamped artifacts suitable for paper support and notebook replay.
+The crate is intentionally modest. It does not attempt ab initio crystal simulation, material calibration, or universal defect identification. Instead, it implements a fixed-end harmonic 1D lattice, applies controlled perturbations, compares nominal and perturbed spectra, simulates deterministic observations, computes raw and normalized residual / drift / slew statistics, builds explicit baseline-derived residual envelopes, runs a bounded synthetic pressure test with additive noise and predictor mismatch, and writes timestamped artifacts suitable for paper support and notebook replay.
 
 ## Why This Crate Exists
 
@@ -40,12 +40,22 @@ The implementation covers a bounded subset of the paper's ideas.
    `s_k = d_k - d_{k-1}`.
 
 6. Envelope-based detectability
-   A residual-norm envelope is estimated from several deterministic nominal baseline runs with small forcing variations. The point-defect example is then checked pointwise in time against that envelope, so first crossing is determined by the same-time condition `||r(t)|| > E(t)` rather than by comparing global peaks.
+   A residual-norm envelope is estimated from several deterministic nominal baseline runs with small forcing variations. The point-defect example is then checked pointwise in time against that envelope, so first crossing is determined by the same-time condition `||r(t)|| > E(t)` rather than by comparing global peaks. The envelope is reported explicitly as baseline-derived, regime-specific, and non-universal.
 
-7. Group-mode correlation
+7. Normalized residual metrics
+   Alongside raw residual norms, the crate reports a normalized residual norm
+   `||r(t)||_2 / (||y_pred(t)||_2 + epsilon)`
+   and an energy-relative ratio
+   `sum_t ||r(t)||_2^2 / (sum_t ||y_pred(t)||_2^2 + epsilon)`.
+   These are intended only as transparent within-crate comparison aids.
+
+8. Group-mode correlation
    Residual covariance is computed across observed modal channels so the grouped perturbation can be compared against the more localized point-defect case.
 
-8. Softening precursor toy example
+9. Controlled pressure test
+   The point-defect detectability path is also rerun under four synthetic cases: clean, noise only, predictor mismatch only, and noise plus mismatch. Each case uses its own baseline-derived envelope under the same settings.
+
+10. Softening precursor toy example
    A global spring-softening sweep pushes the smallest eigenvalue toward zero and tracks the resulting residual / drift / slew growth. This is a toy precursor study only.
 
 ## What The Crate Demonstrates
@@ -54,7 +64,10 @@ The implementation covers a bounded subset of the paper's ideas.
 - controlled perturbation of that operator
 - numerical spectrum and modal comparison
 - residual, drift, and slew generation from deterministic simulations
+- normalized residual metrics for more interpretable cross-regime comparison inside this toy crate
 - envelope crossing logic with finite-time detectability in a toy setting
+- explicit baseline-derived envelope provenance and parameters
+- a controlled synthetic pressure test under additive observation noise and predictor mismatch
 - a covariance contrast between localized and grouped perturbations
 - a softening sweep consistent with an approaching-instability interpretation
 
@@ -63,6 +76,8 @@ The implementation covers a bounded subset of the paper's ideas.
 - first-principles phonon prediction for real materials
 - universal defect identifiability
 - calibrated sensor physics or measurement noise models
+- universal thresholds for detectability
+- any claim that the synthetic pressure test constitutes statistical validation
 - anharmonic dynamics or temperature-dependent effects
 - general transition forecasting across solid-state systems
 - any claim that the notebook or crate validates the full paper
@@ -85,10 +100,10 @@ Creates the point defect, distributed strain, grouped perturbation, and softenin
 Runs symmetric eigendecomposition and computes spectral-shift / norm comparisons.
 
 `src/residuals.rs`
-Simulates deterministic lattice responses and computes residual, drift, slew, and covariance data.
+Simulates deterministic lattice responses, computes raw and normalized residual metrics, and can inject controlled additive observation noise.
 
 `src/detectability.rs`
-Builds the baseline envelope and reports first / sustained crossings.
+Builds explicit baseline-derived envelopes with provenance metadata and reports first / sustained crossings.
 
 `src/io.rs`
 Creates timestamped run folders, writes JSON / CSV outputs, and zips completed runs.
@@ -97,7 +112,7 @@ Creates timestamped run folders, writes JSON / CSV outputs, and zips completed r
 Generates PNG figures, a Markdown report, and a paginated PDF report with fixed margins, an artifact inventory, and embedded figure pages.
 
 `src/utils.rs`
-Small shared helpers for ranges, PDF escaping, path formatting, and covariance summaries.
+Small shared helpers for ranges, deterministic synthetic noise, PDF escaping, path formatting, and covariance summaries.
 
 `dsfb_lattice_colab.ipynb`
 Colab notebook that rebuilds the crate from scratch, runs the demo, displays figures inline, and confirms the PDF and zip artifacts.
@@ -119,6 +134,18 @@ The binary prints:
 - `SUMMARY_JSON=...`
 - `REPORT_PDF=...`
 - `ZIP_ARCHIVE=...`
+
+Key optional controls for the research extension include:
+
+```bash
+cargo run --release --manifest-path crates/dsfb-lattice/Cargo.toml -- \
+  --example all \
+  --normalization-epsilon 1e-6 \
+  --pressure-test-enabled true \
+  --pressure-test-noise-std 0.018 \
+  --pressure-test-predictor-spring-scale 0.97 \
+  --pressure-test-seed 20260318
+```
 
 You can also override the output root explicitly:
 
@@ -144,7 +171,10 @@ The crate defaults to `crates/dsfb-lattice/output-dsfb-lattice`, so it stays wit
 4. Group-mode perturbation
    Applies a clustered multi-site perturbation to highlight more correlated residual covariance than the localized point defect.
 
-5. Softening sweep
+5. Controlled pressure test
+   Replays the point-defect detectability pipeline in clean, noise-only, mismatch-only, and combined synthetic settings with case-specific baseline-derived envelopes.
+
+6. Softening sweep
    Reduces global spring scale over a grid and tracks the smallest eigenvalue together with residual / drift / slew maxima.
 
 ## Artifacts Produced
@@ -157,10 +187,13 @@ Every run writes at least the following files into a new timestamped run directo
 - `eigenvalues_nominal.csv`
 - `eigenvalues_perturbed.csv`
 - `residual_timeseries.csv`
+- `normalized_residual_norm_timeseries.csv`
 - `drift_timeseries.csv`
 - `slew_timeseries.csv`
 - `covariance.csv`
 - `envelope_timeseries.csv`
+- `pressure_test_summary.csv`
+- `pressure_test_summary.json`
 - `softening_sweep.csv`
 - `nominal_observations.csv`
 - `figure_01_nominal_vs_point_spectrum.png`
@@ -170,6 +203,8 @@ Every run writes at least the following files into a new timestamped run directo
 - `figure_05_detectability_envelope.png`
 - `figure_06_covariance_heatmap.png`
 - `figure_07_softening_precursor.png`
+- `figure_08_pressure_test_raw_residual_comparison.png`
+- `figure_09_pressure_test_normalized_residual_comparison.png`
 - `report.md`
 - `report.pdf`
   This PDF includes fixed-margin text pages, an inventory of the generated run artifacts, and one embedded page for each PNG figure.
@@ -201,6 +236,7 @@ If a directory already exists for the current second, the crate waits and uses t
 Reproducibility is handled by:
 
 - deterministic forcing and deterministic baseline variations
+- fixed RNG seeds recorded for the synthetic noisy pressure-test cases
 - no hidden local input files
 - a crate-local `Cargo.lock`
 - timestamped non-overwriting output folders
@@ -230,11 +266,15 @@ Each perturbation produces a new lattice and therefore a new operator `D'`.
 
 ### Residual Construction
 
-`src/residuals.rs` advances a deterministic damped lattice response under fixed forcing. Observations are taken in the nominal modal basis, which makes the residual comparison easy to inspect across channels.
+`src/residuals.rs` advances a deterministic damped lattice response under fixed forcing. Observations are taken in the nominal modal basis, which makes the residual comparison easy to inspect across channels. The same module also computes the normalized residual norm `||r(t)||_2 / (||y_pred(t)||_2 + epsilon)` and the residual energy ratio over the observation window.
 
 ### Envelope Detection
 
-`src/detectability.rs` constructs an upper residual envelope from several nominal baseline runs with small forcing variations. The point-defect residual norm is then checked for first and sustained crossings using a same-time comparison, and the summary distinguishes global peaks from the values observed at the first crossing itself.
+`src/detectability.rs` constructs an upper residual envelope from several nominal baseline runs with small forcing variations. The point-defect residual norm is then checked for first and sustained crossings using a same-time comparison, and the summary distinguishes global peaks from the values observed at the first crossing itself. The envelope provenance records the baseline run count, sigma multiplier, additive floor, and the fact that the threshold is not universal.
+
+### Controlled Pressure Test
+
+`src/lib.rs` also runs a bounded synthetic pressure test around the point-defect detectability path. The measurement side can receive additive Gaussian noise from a fixed-seed deterministic RNG, while the predictor can use a slightly mismatched global spring scale. The resulting clean / noise-only / mismatch-only / noise-plus-mismatch cases each get their own baseline-derived envelope, CSV summary, JSON summary, and comparison plots.
 
 ### Report Generation
 
@@ -269,6 +309,7 @@ The crate uses only a small set of stable dependencies:
 
 - `nalgebra` for linear algebra and symmetric eigendecomposition
 - `plotters` for PNG figures
+- `image` and `flate2` for self-contained PDF image embedding
 - `csv`, `serde`, and `serde_json` for machine-readable outputs
 - `clap` for the CLI
 - `chrono` for timestamped run folders

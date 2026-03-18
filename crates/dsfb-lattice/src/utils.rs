@@ -1,3 +1,4 @@
+use std::f64::consts::PI;
 use std::path::Path;
 
 use nalgebra::DMatrix;
@@ -53,6 +54,49 @@ pub fn covariance_trace(matrix: &DMatrix<f64>) -> f64 {
 
 pub fn path_string(path: &Path) -> String {
     path.to_string_lossy().to_string()
+}
+
+#[derive(Clone, Debug)]
+pub struct DeterministicRng {
+    state: u64,
+    cached_gaussian: Option<f64>,
+}
+
+impl DeterministicRng {
+    pub fn new(seed: u64) -> Self {
+        Self {
+            state: seed,
+            cached_gaussian: None,
+        }
+    }
+
+    pub fn next_f64(&mut self) -> f64 {
+        let bits = self.next_u64() >> 11;
+        bits as f64 / ((1_u64 << 53) as f64)
+    }
+
+    pub fn next_gaussian(&mut self) -> f64 {
+        if let Some(value) = self.cached_gaussian.take() {
+            return value;
+        }
+
+        let u1 = self.next_f64().max(1.0e-12);
+        let u2 = self.next_f64();
+        let radius = (-2.0 * u1.ln()).sqrt();
+        let angle = 2.0 * PI * u2;
+        let z0 = radius * angle.cos();
+        let z1 = radius * angle.sin();
+        self.cached_gaussian = Some(z1);
+        z0
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        self.state = self.state.wrapping_add(0x9E3779B97F4A7C15);
+        let mut z = self.state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
+        z ^ (z >> 31)
+    }
 }
 
 pub fn escape_pdf_text(input: &str) -> String {
