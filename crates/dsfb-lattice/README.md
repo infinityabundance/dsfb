@@ -1,4 +1,4 @@
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/infinityabundance/dsfb/blob/main/crates/dsfb-lattice/dsfb_lattice_colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lattice/dsfb_lattice_colab.ipynb)
 
 
 
