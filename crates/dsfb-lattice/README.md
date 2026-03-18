@@ -4,7 +4,7 @@
 
 `dsfb-lattice` is a standalone nested Rust crate under `crates/dsfb-lattice`. It exists to provide a bounded, reproducible, and inspectable empirical demonstrator for selected mathematical ideas from the paper *Deterministic Structural Inference in Solid-State Systems: A DSFB Engine for Crystal Lattices, Phonons, and Structural Forensics*.
 
-The crate is intentionally modest. It does not attempt ab initio crystal simulation, material calibration, or universal defect identification. Instead, it implements a fixed-end harmonic 1D lattice, applies controlled perturbations, compares nominal and perturbed spectra, simulates deterministic observations, computes raw and normalized residual / drift / slew statistics, builds explicit baseline-derived residual envelopes, runs a bounded synthetic pressure test with additive noise and predictor mismatch, and writes timestamped artifacts suitable for paper support and notebook replay.
+The crate is intentionally modest. It does not attempt ab initio crystal simulation, material calibration, or universal defect identification. Instead, it implements a fixed-end harmonic 1D lattice, applies controlled perturbations, compares nominal and perturbed spectra, simulates deterministic observations, computes raw and normalized residual / drift / slew statistics, builds explicit baseline-derived residual envelopes, runs a bounded synthetic stress-test suite with additive noise and predictor mismatch, locks a canonical evaluation layer for run-to-run comparison, executes a small heuristic-bank retrieval pass, and writes timestamped artifacts suitable for paper support and notebook replay.
 
 ## Why This Crate Exists
 
@@ -53,9 +53,15 @@ The implementation covers a bounded subset of the paper's ideas.
    Residual covariance is computed across observed modal channels so the grouped perturbation can be compared against the more localized point-defect case.
 
 9. Controlled pressure test
-   The point-defect detectability path is also rerun under four synthetic cases: clean, noise only, predictor mismatch only, and noise plus mismatch. Each case uses its own baseline-derived envelope under the same settings.
+   The point-defect detectability path is also rerun under four synthetic cases: clean, noise only, predictor mismatch only, and noise plus mismatch. An additional optional ambiguity case mixes a weak localized defect with a weak smooth gradient so descriptor-space retrieval can become near-tied. Each case uses its own baseline-derived envelope under the same settings.
 
-10. Softening precursor toy example
+10. Canonical evaluation quantities
+   A fixed set of spectral, residual, temporal, detectability, correlation, and envelope-provenance quantities is exported as the comparison backbone for this synthetic benchmark. The crate treats them as canonical for run-to-run comparability inside `dsfb-lattice`, while still allowing auxiliary metrics to be added later.
+
+11. Minimal heuristic bank
+   Existing experiment descriptors are stored as simple heuristic entries with admissibility tags. Observed cases are ranked against them with a weighted L1 distance, and near-tied results are flagged as descriptor-space ambiguity rather than forced into a unique class.
+
+12. Softening precursor toy example
    A global spring-softening sweep pushes the smallest eigenvalue toward zero and tracks the resulting residual / drift / slew growth. This is a toy precursor study only.
 
 ## What The Crate Demonstrates
@@ -67,7 +73,9 @@ The implementation covers a bounded subset of the paper's ideas.
 - normalized residual metrics for more interpretable cross-regime comparison inside this toy crate
 - envelope crossing logic with finite-time detectability in a toy setting
 - explicit baseline-derived envelope provenance and parameters
-- a controlled synthetic pressure test under additive observation noise and predictor mismatch
+- a controlled synthetic stress-test suite under additive observation noise, predictor mismatch, and an optional ambiguity case
+- canonical evaluation quantities that form the crate's comparison backbone across runs
+- a minimally algorithmic heuristic bank with admissibility filtering and ambiguity signaling
 - a covariance contrast between localized and grouped perturbations
 - a softening sweep consistent with an approaching-instability interpretation
 
@@ -104,6 +112,12 @@ Simulates deterministic lattice responses, computes raw and normalized residual 
 
 `src/detectability.rs`
 Builds explicit baseline-derived envelopes with provenance metadata and reports first / sustained crossings.
+
+`src/canonical.rs`
+Defines the canonical evaluation quantities and flattens them into CSV-friendly rows.
+
+`src/heuristics.rs`
+Builds the transparent heuristic-bank descriptors, admissibility tags, similarity scores, and ambiguity signaling.
 
 `src/io.rs`
 Creates timestamped run folders, writes JSON / CSV outputs, and zips completed runs.
@@ -144,7 +158,13 @@ cargo run --release --manifest-path crates/dsfb-lattice/Cargo.toml -- \
   --pressure-test-enabled true \
   --pressure-test-noise-std 0.018 \
   --pressure-test-predictor-spring-scale 0.97 \
-  --pressure-test-seed 20260318
+  --pressure-test-seed 20260318 \
+  --pressure-test-include-ambiguity-case true \
+  --pressure-test-ambiguity-point-mass-scale 1.08 \
+  --pressure-test-ambiguity-point-spring-scale 0.96 \
+  --pressure-test-ambiguity-strain-strength 0.14 \
+  --heuristics-enabled true \
+  --heuristics-ambiguity-tolerance 0.18
 ```
 
 You can also override the output root explicitly:
@@ -171,10 +191,13 @@ The crate defaults to `crates/dsfb-lattice/output-dsfb-lattice`, so it stays wit
 4. Group-mode perturbation
    Applies a clustered multi-site perturbation to highlight more correlated residual covariance than the localized point defect.
 
-5. Controlled pressure test
-   Replays the point-defect detectability pipeline in clean, noise-only, mismatch-only, and combined synthetic settings with case-specific baseline-derived envelopes.
+5. Controlled stress-test suite
+   Replays the point-defect detectability pipeline in clean, noise-only, mismatch-only, and combined synthetic settings with case-specific baseline-derived envelopes, and optionally adds a mixed-signature ambiguity case for descriptor-space ranking.
 
-6. Softening sweep
+6. Canonical metrics and heuristic ranking
+   Exports a fixed set of canonical evaluation quantities and uses them to drive a small admissibility-aware heuristic-bank ranking step.
+
+7. Softening sweep
    Reduces global spring scale over a grid and tracks the smallest eigenvalue together with residual / drift / slew maxima.
 
 ## Artifacts Produced
@@ -183,6 +206,10 @@ Every run writes at least the following files into a new timestamped run directo
 
 - `config.json`
 - `summary.json`
+- `canonical_metrics.csv`
+- `canonical_metrics.json`
+- `heuristic_rankings.csv`
+- `heuristic_rankings.json`
 - `metrics.csv`
 - `eigenvalues_nominal.csv`
 - `eigenvalues_perturbed.csv`
@@ -205,6 +232,7 @@ Every run writes at least the following files into a new timestamped run directo
 - `figure_07_softening_precursor.png`
 - `figure_08_pressure_test_raw_residual_comparison.png`
 - `figure_09_pressure_test_normalized_residual_comparison.png`
+- `figure_10_pressure_test_detectability_summary.png`
 - `report.md`
 - `report.pdf`
   This PDF includes fixed-margin text pages, an inventory of the generated run artifacts, and one embedded page for each PNG figure.
@@ -274,7 +302,15 @@ Each perturbation produces a new lattice and therefore a new operator `D'`.
 
 ### Controlled Pressure Test
 
-`src/lib.rs` also runs a bounded synthetic pressure test around the point-defect detectability path. The measurement side can receive additive Gaussian noise from a fixed-seed deterministic RNG, while the predictor can use a slightly mismatched global spring scale. The resulting clean / noise-only / mismatch-only / noise-plus-mismatch cases each get their own baseline-derived envelope, CSV summary, JSON summary, and comparison plots.
+`src/lib.rs` also runs a bounded synthetic pressure test around the point-defect detectability path. The measurement side can receive additive Gaussian noise from a fixed-seed deterministic RNG, while the predictor can use a slightly mismatched global spring scale. The resulting clean / noise-only / mismatch-only / noise-plus-mismatch cases each get their own baseline-derived envelope, CSV summary, JSON summary, and comparison plots. An optional ambiguity case blends a weak localized defect with a weak smooth gradient so the heuristic ranking can surface near-tied candidate interpretations.
+
+### Canonical Evaluation Layer
+
+`src/canonical.rs` defines the canonical evaluation quantities by which `dsfb-lattice` runs are compared. These quantities are intended to be the crate's comparison backbone for synthetic benchmark runs: future revisions may add more metrics, but preserving the canonical layer helps maintain run-to-run comparability.
+
+### Heuristic-Bank Retrieval
+
+`src/heuristics.rs` turns the previously conceptual heuristic bank into a small executable retrieval object. It stores compact descriptors for the reference perturbation classes, filters candidates by simple admissibility tags, ranks candidates with a weighted L1 distance, and marks near-tied results as descriptor-space ambiguity rather than forcing a unique class.
 
 ### Report Generation
 

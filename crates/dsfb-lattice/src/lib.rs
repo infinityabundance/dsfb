@@ -1,4 +1,6 @@
+pub mod canonical;
 pub mod detectability;
+pub mod heuristics;
 pub mod io;
 pub mod lattice;
 pub mod perturbation;
@@ -15,8 +17,16 @@ use nalgebra::DMatrix;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
+use crate::canonical::{
+    build_canonical_case_metrics, canonical_metric_guide, flatten_canonical_metrics,
+    CanonicalCaseMetrics, CanonicalMetricGuide,
+};
 use crate::detectability::{
     build_envelope, evaluate_signal, DetectabilitySummary, Envelope, EnvelopeProvenance,
+};
+use crate::heuristics::{
+    build_heuristic_bank, case_tags_for_case, flatten_rankings, rank_case_against_bank,
+    HeuristicBankSummary, HeuristicRanking, HeuristicSettings,
 };
 use crate::io::{create_timestamped_run_directory, write_csv_rows, write_json_pretty, zip_directory};
 use crate::lattice::Lattice;
@@ -72,6 +82,7 @@ pub struct DemoConfig {
     pub consecutive_crossings: usize,
     pub normalization_epsilon: f64,
     pub pressure_test: PressureTestSettings,
+    pub heuristics: HeuristicSettings,
 }
 
 impl Default for DemoConfig {
@@ -90,6 +101,7 @@ impl Default for DemoConfig {
             consecutive_crossings: 3,
             normalization_epsilon: 1.0e-6,
             pressure_test: PressureTestSettings::default(),
+            heuristics: HeuristicSettings::default(),
         }
     }
 }
@@ -100,6 +112,10 @@ pub struct PressureTestSettings {
     pub observation_noise_std: f64,
     pub predictor_spring_scale: f64,
     pub rng_seed: u64,
+    pub include_ambiguity_case: bool,
+    pub ambiguity_point_mass_scale: f64,
+    pub ambiguity_point_spring_scale: f64,
+    pub ambiguity_strain_strength: f64,
 }
 
 impl Default for PressureTestSettings {
@@ -109,6 +125,10 @@ impl Default for PressureTestSettings {
             observation_noise_std: 0.018,
             predictor_spring_scale: 0.97,
             rng_seed: 20_260_318,
+            include_ambiguity_case: true,
+            ambiguity_point_mass_scale: 1.08,
+            ambiguity_point_spring_scale: 0.96,
+            ambiguity_strain_strength: 0.14,
         }
     }
 }
@@ -139,12 +159,15 @@ pub struct SofteningSweepResult {
 pub struct PressureTestCaseResult {
     pub case_name: String,
     pub description: String,
+    pub perturbation_class: String,
     pub additive_noise_std: f64,
     pub predictor_spring_scale: f64,
     pub rng_seed: u64,
+    pub comparison: SpectralComparison,
     pub baseline_reference: TimeSeriesBundle,
     pub envelope: Envelope,
     pub signal_bundle: TimeSeriesBundle,
+    pub covariance: DMatrix<f64>,
     pub detectability: DetectabilitySummary,
 }
 
@@ -193,6 +216,7 @@ pub struct SofteningSummary {
 pub struct PressureTestCaseSummary {
     pub case_name: String,
     pub description: String,
+    pub perturbation_class: String,
     pub additive_noise_std: f64,
     pub predictor_spring_scale: f64,
     pub rng_seed: u64,
@@ -205,6 +229,12 @@ pub struct PressureTestCaseSummary {
     pub max_normalized_residual: f64,
     pub residual_energy_ratio: f64,
     pub envelope_provenance: EnvelopeProvenance,
+    pub canonical_metrics: CanonicalCaseMetrics,
+    pub heuristic_top_match: Option<String>,
+    pub heuristic_top_distance: Option<f64>,
+    pub heuristic_ambiguity_flag: bool,
+    pub heuristic_ambiguity_gap: Option<f64>,
+    pub heuristic_ambiguity_note: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -214,17 +244,26 @@ pub struct PressureTestSummary {
 }
 
 #[derive(Clone, Debug, Serialize)]
+pub struct HeuristicRunSummary {
+    pub bank: HeuristicBankSummary,
+    pub rankings: Vec<HeuristicRanking>,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct RunSummary {
     pub run_dir: String,
     pub selected_example: String,
     pub nominal_sites: usize,
     pub nominal_smallest_eigenvalue: f64,
     pub nominal_largest_eigenvalue: f64,
+    pub canonical_metric_guide: CanonicalMetricGuide,
+    pub canonical_metrics: Vec<CanonicalCaseMetrics>,
     pub normalization: NormalizationMetadata,
     pub envelope_provenance: EnvelopeProvenance,
     pub experiments: Vec<ExperimentSummary>,
     pub detectability: Option<DetectabilitySummary>,
     pub pressure_test: Option<PressureTestSummary>,
+    pub heuristics: Option<HeuristicRunSummary>,
     pub softening: Option<SofteningSummary>,
     pub limitations: Vec<String>,
     pub figures: Vec<String>,
@@ -341,17 +380,34 @@ struct SofteningRow {
 #[derive(Clone, Debug, Serialize)]
 struct PressureTestRow {
     case_name: String,
+    perturbation_class: String,
     additive_noise_std: f64,
     predictor_spring_scale: f64,
     rng_seed: u64,
+    delta_norm_2: f64,
+    max_abs_eigenvalue_shift: f64,
+    mean_abs_eigenvalue_shift: f64,
     detected: bool,
     first_crossing_step: Option<usize>,
     first_crossing_time: Option<f64>,
+    signal_at_first_crossing: Option<f64>,
+    envelope_at_first_crossing: Option<f64>,
     crossing_margin: Option<f64>,
     normalized_crossing_margin: Option<f64>,
     max_raw_residual: f64,
     max_normalized_residual: f64,
     residual_energy_ratio: f64,
+    time_to_peak_residual: f64,
+    max_drift_norm: f64,
+    max_slew_norm: f64,
+    time_to_peak_drift: f64,
+    covariance_trace: f64,
+    covariance_offdiag_energy: f64,
+    covariance_rank_estimate: usize,
+    heuristic_top_match: Option<String>,
+    heuristic_top_distance: Option<f64>,
+    heuristic_ambiguity_flag: bool,
+    heuristic_ambiguity_gap: Option<f64>,
 }
 
 pub fn default_output_root() -> PathBuf {
@@ -499,6 +555,17 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         )
     });
 
+    let mut experiments = Vec::new();
+    if let Some(point_defect) = &point_defect_result {
+        experiments.push(point_defect);
+    }
+    if let Some(strain) = &strain_result {
+        experiments.push(strain);
+    }
+    if let Some(group_mode) = &group_mode_result {
+        experiments.push(group_mode);
+    }
+
     let pressure_test_result = if config.pressure_test.enabled {
         point_defect_result
             .as_ref()
@@ -506,7 +573,7 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
                 run_pressure_test(
                     &nominal_lattice,
                     &nominal_spectrum,
-                    &point_defect.lattice,
+                    point_defect,
                     &simulation,
                     config.baseline_runs,
                     config.envelope_sigma,
@@ -520,20 +587,84 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
     } else {
         None
     };
+
+    let canonical_metric_guide = canonical_metric_guide();
+    let mut canonical_metrics = experiments
+        .iter()
+        .map(|experiment| {
+            let detectability_ref = if experiment.name == "point_defect" {
+                detectability.as_ref()
+            } else {
+                None
+            };
+            build_canonical_case_metrics(
+                "experiment",
+                "main",
+                &experiment.name,
+                &experiment.comparison,
+                &experiment.simulation,
+                detectability_ref,
+                &experiment.covariance,
+                &envelope.provenance,
+                config.dt,
+            )
+        })
+        .collect::<Vec<_>>();
+    if let Some(pressure_test) = &pressure_test_result {
+        for case in &pressure_test.cases {
+            canonical_metrics.push(build_canonical_case_metrics(
+                "pressure_test",
+                &case.case_name,
+                &case.perturbation_class,
+                &case.comparison,
+                &case.signal_bundle,
+                Some(&case.detectability),
+                &case.covariance,
+                &case.envelope.provenance,
+                config.dt,
+            ));
+        }
+    }
+
+    let heuristic_summary = if config.heuristics.enabled {
+        let references = canonical_metrics
+            .iter()
+            .filter(|metric| metric.subject == "experiment")
+            .cloned()
+            .collect::<Vec<_>>();
+        let bank = build_heuristic_bank(&references, &config.heuristics);
+        let rankings = if let Some(pressure_test) = &pressure_test_result {
+            pressure_test
+                .cases
+                .iter()
+                .filter_map(|case| {
+                    canonical_metrics
+                        .iter()
+                        .find(|metric| {
+                            metric.subject == "pressure_test" && metric.case == case.case_name
+                        })
+                        .map(|metric| {
+                            let tags = case_tags_for_case(
+                                case.additive_noise_std,
+                                &case.perturbation_class,
+                                &config.heuristics,
+                            );
+                            rank_case_against_bank(metric, &bank, &config.heuristics, &tags)
+                        })
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        Some(HeuristicRunSummary { bank, rankings })
+    } else {
+        None
+    };
+
     let pressure_test_summary = pressure_test_result
         .as_ref()
-        .map(summarize_pressure_test);
-
-    let mut experiments = Vec::new();
-    if let Some(point_defect) = &point_defect_result {
-        experiments.push(point_defect);
-    }
-    if let Some(strain) = &strain_result {
-        experiments.push(strain);
-    }
-    if let Some(group_mode) = &group_mode_result {
-        experiments.push(group_mode);
-    }
+        .map(|result| summarize_pressure_test(result, &canonical_metrics, heuristic_summary.as_ref()))
+        .transpose()?;
 
     write_config_json(
         &run_dir,
@@ -541,6 +672,7 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         &config,
         &nominal_lattice,
         &simulation,
+        &canonical_metric_guide,
         &normalization,
         &envelope.provenance,
     )?;
@@ -554,6 +686,8 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         detectability.as_ref(),
         &softening_result,
         pressure_test_result.as_ref(),
+        &canonical_metrics,
+        heuristic_summary.as_ref(),
         experiments.as_slice(),
         config.dt,
     )?;
@@ -565,11 +699,14 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
         nominal_sites: nominal_lattice.sites,
         nominal_smallest_eigenvalue: *nominal_spectrum.eigenvalues.first().unwrap_or(&0.0),
         nominal_largest_eigenvalue: *nominal_spectrum.eigenvalues.last().unwrap_or(&0.0),
+        canonical_metric_guide: canonical_metric_guide.clone(),
+        canonical_metrics: canonical_metrics.clone(),
         normalization: normalization.clone(),
         envelope_provenance: envelope.provenance.clone(),
         experiments: experiments.iter().map(|experiment| summarize_experiment(experiment)).collect(),
         detectability: detectability.clone(),
         pressure_test: pressure_test_summary.clone(),
+        heuristics: heuristic_summary.clone(),
         softening: softening_result.as_ref().map(summarize_softening),
         limitations: limitations(),
         figures: Vec::new(),
@@ -611,6 +748,10 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
             &run_dir.join("pressure_test_summary.json"),
             pressure_test_summary,
         )?;
+    }
+    write_json_pretty(&run_dir.join("canonical_metrics.json"), &summary.canonical_metrics)?;
+    if let Some(heuristics) = &summary.heuristics {
+        write_json_pretty(&run_dir.join("heuristic_rankings.json"), heuristics)?;
     }
     write_pdf_report(
         &report_artifacts.pdf_path,
@@ -655,6 +796,23 @@ fn validate_config(config: &DemoConfig) -> Result<()> {
     }
     if config.pressure_test.predictor_spring_scale <= 0.0 {
         bail!("pressure_test predictor_spring_scale must be positive");
+    }
+    if config.pressure_test.ambiguity_point_mass_scale <= 0.0
+        || config.pressure_test.ambiguity_point_spring_scale <= 0.0
+    {
+        bail!("pressure_test ambiguity point-defect scales must be positive");
+    }
+    if config.pressure_test.ambiguity_strain_strength < 0.0 {
+        bail!("pressure_test ambiguity_strain_strength must be non-negative");
+    }
+    if !config.heuristics.similarity_metric.eq("weighted_l1") {
+        bail!("only weighted_l1 similarity_metric is supported");
+    }
+    if config.heuristics.ambiguity_tolerance < 0.0 {
+        bail!("heuristics ambiguity_tolerance must be non-negative");
+    }
+    if config.heuristics.low_noise_threshold < 0.0 {
+        bail!("heuristics low_noise_threshold must be non-negative");
     }
     Ok(())
 }
@@ -751,7 +909,7 @@ fn run_softening_sweep(
 fn run_pressure_test(
     nominal_lattice: &Lattice,
     nominal_spectrum: &SpectrumAnalysis,
-    point_defect_lattice: &Lattice,
+    point_defect: &ExperimentResult,
     simulation: &SimulationConfig,
     baseline_runs: usize,
     envelope_sigma: f64,
@@ -761,47 +919,106 @@ fn run_pressure_test(
     settings: &PressureTestSettings,
 ) -> Result<PressureTestResult> {
     let nominal_dynamical = nominal_lattice.dynamical_matrix()?;
-    let point_defect_dynamical = point_defect_lattice.dynamical_matrix()?;
-    let case_specs = [
+    let mut case_specs = vec![
         (
-            "clean",
-            "Reference case with no additive observation noise and no predictor mismatch.",
+            "clean".to_string(),
+            "Reference stress-test case with no additive observation noise and no predictor mismatch."
+                .to_string(),
+            "point_defect".to_string(),
             0.0,
             1.0,
             settings.rng_seed,
+            point_defect.lattice.clone(),
+            point_defect.comparison.clone(),
         ),
         (
-            "noise_only",
-            "Controlled synthetic pressure test with additive observation noise only.",
+            "noise_only".to_string(),
+            "Controlled synthetic pressure test with additive observation noise only.".to_string(),
+            "point_defect".to_string(),
             settings.observation_noise_std,
             1.0,
             settings.rng_seed.wrapping_add(10_000),
+            point_defect.lattice.clone(),
+            point_defect.comparison.clone(),
         ),
         (
-            "mismatch_only",
-            "Controlled synthetic pressure test with predictor spring-scale mismatch only.",
+            "mismatch_only".to_string(),
+            "Controlled synthetic pressure test with predictor spring-scale mismatch only.".to_string(),
+            "point_defect".to_string(),
             0.0,
             settings.predictor_spring_scale,
             settings.rng_seed.wrapping_add(20_000),
+            point_defect.lattice.clone(),
+            point_defect.comparison.clone(),
         ),
         (
-            "noise_plus_mismatch",
-            "Controlled synthetic pressure test with both additive observation noise and predictor mismatch.",
+            "noise_plus_mismatch".to_string(),
+            "Controlled synthetic pressure test with both additive observation noise and predictor mismatch."
+                .to_string(),
+            "point_defect".to_string(),
             settings.observation_noise_std,
             settings.predictor_spring_scale,
             settings.rng_seed.wrapping_add(30_000),
+            point_defect.lattice.clone(),
+            point_defect.comparison.clone(),
         ),
     ];
+
+    if settings.include_ambiguity_case {
+        let base_ambiguity = crate::perturbation::point_defect(
+            nominal_lattice,
+            &PointDefectSpec {
+                site: nominal_lattice.sites / 2,
+                mass_scale: settings.ambiguity_point_mass_scale,
+                spring_index: nominal_lattice.sites / 2 + 1,
+                spring_scale: settings.ambiguity_point_spring_scale,
+            },
+        );
+        let mut ambiguous_lattice =
+            distributed_strain(&base_ambiguity, settings.ambiguity_strain_strength);
+        ambiguous_lattice.label = "ambiguous_point_defect_vs_strain".to_string();
+        let ambiguity_dynamical = ambiguous_lattice.dynamical_matrix()?;
+        let ambiguity_delta = &ambiguity_dynamical - &nominal_dynamical;
+        let ambiguity_spectrum = analyze_symmetric(&ambiguity_dynamical)?;
+        let ambiguity_comparison = compare_spectra(
+            "ambiguity_case",
+            nominal_spectrum,
+            &ambiguity_spectrum,
+            &ambiguity_delta,
+        )?;
+        case_specs.push((
+            "ambiguity_case".to_string(),
+            "Controlled synthetic mixed-signature case combining a weak localized defect with a weak smooth strain-like gradient so descriptor-space retrieval can become near-tied rather than forced."
+                .to_string(),
+            "ambiguous_point_defect_vs_strain".to_string(),
+            settings.observation_noise_std * 0.25,
+            1.0,
+            settings.rng_seed.wrapping_add(40_000),
+            ambiguous_lattice,
+            ambiguity_comparison,
+        ));
+    }
+
     let mut cases = Vec::with_capacity(case_specs.len());
 
-    for (case_name, description, additive_noise_std, predictor_spring_scale, case_seed) in case_specs {
+    for (
+        case_name,
+        description,
+        perturbation_class,
+        additive_noise_std,
+        predictor_spring_scale,
+        case_seed,
+        perturbed_lattice,
+        comparison,
+    ) in case_specs
+    {
         let predictor_observations = simulate_predictor_observations(
             nominal_lattice,
             nominal_spectrum,
             simulation,
             predictor_spring_scale,
         )?;
-        let baseline_runs = (1..=baseline_runs)
+        let baseline_ensemble = (1..=baseline_runs)
             .map(|variant| {
                 let baseline = simulate_response(
                     &nominal_dynamical,
@@ -821,11 +1038,11 @@ fn run_pressure_test(
                 )
             })
             .collect::<Vec<_>>();
-        let baseline_reference = baseline_runs
+        let baseline_reference = baseline_ensemble
             .first()
             .cloned()
             .context("pressure-test baseline ensemble unexpectedly empty")?;
-        let baseline_norms = baseline_runs
+        let baseline_norms = baseline_ensemble
             .iter()
             .map(|bundle| bundle.residual_norms.clone())
             .collect::<Vec<_>>();
@@ -833,7 +1050,7 @@ fn run_pressure_test(
             &baseline_norms,
             envelope_sigma,
             envelope_floor,
-            case_name,
+            &case_name,
             baseline_reference
                 .residual_norms
                 .iter()
@@ -850,14 +1067,15 @@ fn run_pressure_test(
                 .map(|value| value.powi(2))
                 .sum(),
         );
-        let point_defect_signal = simulate_response(
-            &point_defect_dynamical,
+        let perturbed_dynamical = perturbed_lattice.dynamical_matrix()?;
+        let perturbed_signal = simulate_response(
+            &perturbed_dynamical,
             &nominal_spectrum.eigenvectors,
             simulation,
             0,
         );
         let measured = add_observation_noise(
-            &point_defect_signal.observations,
+            &perturbed_signal.observations,
             additive_noise_std,
             case_seed.wrapping_add(50_000),
         );
@@ -873,15 +1091,19 @@ fn run_pressure_test(
             simulation.dt,
             normalization_epsilon,
         );
+        let covariance = covariance_matrix(&signal_bundle.residuals);
         cases.push(PressureTestCaseResult {
-            case_name: case_name.to_string(),
-            description: description.to_string(),
+            case_name,
+            description,
+            perturbation_class,
             additive_noise_std,
             predictor_spring_scale,
             rng_seed: case_seed,
+            comparison,
             baseline_reference,
             envelope,
             signal_bundle,
+            covariance,
             detectability,
         });
     }
@@ -972,40 +1194,74 @@ fn summarize_softening(softening: &SofteningSweepResult) -> SofteningSummary {
     }
 }
 
-fn summarize_pressure_test(result: &PressureTestResult) -> PressureTestSummary {
-    PressureTestSummary {
+fn summarize_pressure_test(
+    result: &PressureTestResult,
+    canonical_metrics: &[CanonicalCaseMetrics],
+    heuristic_summary: Option<&HeuristicRunSummary>,
+) -> Result<PressureTestSummary> {
+    Ok(PressureTestSummary {
         description: "Controlled synthetic pressure test comparing clean, additive-noise, predictor-mismatch, and combined cases. Each case uses its own baseline-derived envelope under the same configuration, so the comparison remains regime-specific rather than universal.".to_string(),
         cases: result
             .cases
             .iter()
-            .map(|case| PressureTestCaseSummary {
-                case_name: case.case_name.clone(),
-                description: case.description.clone(),
-                additive_noise_std: case.additive_noise_std,
-                predictor_spring_scale: case.predictor_spring_scale,
-                rng_seed: case.rng_seed,
-                detected: case.detectability.first_crossing_step.is_some(),
-                first_crossing_time: case.detectability.first_crossing_time,
-                first_crossing_step: case.detectability.first_crossing_step,
-                crossing_margin: case.detectability.crossing_margin,
-                normalized_crossing_margin: case.detectability.normalized_crossing_margin,
-                max_raw_residual: case
-                    .signal_bundle
-                    .residual_norms
+            .map(|case| {
+                let canonical = canonical_metrics
                     .iter()
-                    .copied()
-                    .fold(0.0_f64, f64::max),
-                max_normalized_residual: case
-                    .signal_bundle
-                    .normalized_residual_norms
-                    .iter()
-                    .copied()
-                    .fold(0.0_f64, f64::max),
-                residual_energy_ratio: case.signal_bundle.residual_energy_ratio,
-                envelope_provenance: case.envelope.provenance.clone(),
+                    .find(|metric| metric.subject == "pressure_test" && metric.case == case.case_name)
+                    .cloned()
+                    .with_context(|| {
+                        format!(
+                            "missing canonical metrics for pressure-test case {}",
+                            case.case_name
+                        )
+                    })?;
+                let ranking = heuristic_summary.and_then(|summary| {
+                    summary
+                        .rankings
+                        .iter()
+                        .find(|entry| {
+                            entry.observed_subject == "pressure_test"
+                                && entry.observed_case == case.case_name
+                        })
+                });
+                Ok(PressureTestCaseSummary {
+                    case_name: case.case_name.clone(),
+                    description: case.description.clone(),
+                    perturbation_class: case.perturbation_class.clone(),
+                    additive_noise_std: case.additive_noise_std,
+                    predictor_spring_scale: case.predictor_spring_scale,
+                    rng_seed: case.rng_seed,
+                    detected: case.detectability.first_crossing_step.is_some(),
+                    first_crossing_time: case.detectability.first_crossing_time,
+                    first_crossing_step: case.detectability.first_crossing_step,
+                    crossing_margin: case.detectability.crossing_margin,
+                    normalized_crossing_margin: case.detectability.normalized_crossing_margin,
+                    max_raw_residual: case
+                        .signal_bundle
+                        .residual_norms
+                        .iter()
+                        .copied()
+                        .fold(0.0_f64, f64::max),
+                    max_normalized_residual: case
+                        .signal_bundle
+                        .normalized_residual_norms
+                        .iter()
+                        .copied()
+                        .fold(0.0_f64, f64::max),
+                    residual_energy_ratio: case.signal_bundle.residual_energy_ratio,
+                    envelope_provenance: case.envelope.provenance.clone(),
+                    canonical_metrics: canonical,
+                    heuristic_top_match: ranking.and_then(|entry| entry.top_match.clone()),
+                    heuristic_top_distance: ranking.and_then(|entry| entry.top_distance),
+                    heuristic_ambiguity_flag: ranking
+                        .map(|entry| entry.ambiguity_flag)
+                        .unwrap_or(false),
+                    heuristic_ambiguity_gap: ranking.and_then(|entry| entry.ambiguity_gap),
+                    heuristic_ambiguity_note: ranking.and_then(|entry| entry.ambiguity_note.clone()),
+                })
             })
-            .collect(),
-    }
+            .collect::<Result<Vec<_>>>()?,
+    })
 }
 
 fn write_config_json(
@@ -1014,6 +1270,7 @@ fn write_config_json(
     config: &DemoConfig,
     nominal_lattice: &Lattice,
     simulation: &SimulationConfig,
+    canonical_metric_guide: &CanonicalMetricGuide,
     normalization: &NormalizationMetadata,
     envelope_provenance: &EnvelopeProvenance,
 ) -> Result<()> {
@@ -1022,9 +1279,11 @@ fn write_config_json(
         "selected_example": config.example.as_str(),
         "output_root": path_string(&config.output_root),
         "simulation": simulation,
+        "canonical_metric_guide": canonical_metric_guide,
         "normalization": normalization,
         "envelope": envelope_provenance,
         "pressure_test": config.pressure_test,
+        "heuristics": config.heuristics,
         "nominal_lattice": nominal_lattice,
         "perturbation_specs": {
             "point_defect": {
@@ -1040,6 +1299,12 @@ fn write_config_json(
                 "center": config.sites / 2,
                 "width": 1.8,
                 "strength": 0.38
+            },
+            "ambiguity_case": {
+                "enabled": config.pressure_test.include_ambiguity_case,
+                "point_mass_scale": config.pressure_test.ambiguity_point_mass_scale,
+                "point_spring_scale": config.pressure_test.ambiguity_point_spring_scale,
+                "strain_strength": config.pressure_test.ambiguity_strain_strength
             },
             "softening_scales": [1.00, 0.92, 0.84, 0.76, 0.68, 0.60, 0.52, 0.44, 0.36, 0.28, 0.20, 0.14]
         }
@@ -1057,6 +1322,8 @@ fn write_primary_csvs(
     detectability: Option<&DetectabilitySummary>,
     softening: &Option<SofteningSweepResult>,
     pressure_test: Option<&PressureTestResult>,
+    canonical_metrics: &[CanonicalCaseMetrics],
+    heuristic_summary: Option<&HeuristicRunSummary>,
     experiments: &[&ExperimentResult],
     dt: f64,
 ) -> Result<()> {
@@ -1134,6 +1401,17 @@ fn write_primary_csvs(
             dt,
         );
     }
+    if let Some(pressure_test) = pressure_test {
+        for case in &pressure_test.cases {
+            append_residual_norm_rows(
+                &mut residual_norm_rows,
+                "pressure_test",
+                &case.case_name,
+                &case.signal_bundle,
+                dt,
+            );
+        }
+    }
     write_csv_rows(&run_dir.join("residual_timeseries.csv"), &residual_rows)?;
     write_csv_rows(
         &run_dir.join("normalized_residual_norm_timeseries.csv"),
@@ -1156,6 +1434,14 @@ fn write_primary_csvs(
         }
     }
     write_csv_rows(&run_dir.join("covariance.csv"), &covariance_rows)?;
+
+    let canonical_rows = flatten_canonical_metrics(canonical_metrics);
+    write_csv_rows(&run_dir.join("canonical_metrics.csv"), &canonical_rows)?;
+
+    if let Some(heuristics) = heuristic_summary {
+        let heuristic_rows = flatten_rankings(&heuristics.rankings);
+        write_csv_rows(&run_dir.join("heuristic_rankings.csv"), &heuristic_rows)?;
+    }
 
     let metrics = build_metric_rows(
         envelope,
@@ -1193,45 +1479,61 @@ fn write_primary_csvs(
         let rows = pressure_test
             .cases
             .iter()
-            .map(|case| PressureTestRow {
-                case_name: case.case_name.clone(),
-                additive_noise_std: case.additive_noise_std,
-                predictor_spring_scale: case.predictor_spring_scale,
-                rng_seed: case.rng_seed,
-                detected: case.detectability.first_crossing_step.is_some(),
-                first_crossing_step: case.detectability.first_crossing_step,
-                first_crossing_time: case.detectability.first_crossing_time,
-                crossing_margin: case.detectability.crossing_margin,
-                normalized_crossing_margin: case.detectability.normalized_crossing_margin,
-                max_raw_residual: case
-                    .signal_bundle
-                    .residual_norms
+            .map(|case| {
+                let canonical = canonical_metrics
                     .iter()
-                    .copied()
-                    .fold(0.0_f64, f64::max),
-                max_normalized_residual: case
-                    .signal_bundle
-                    .normalized_residual_norms
-                    .iter()
-                    .copied()
-                    .fold(0.0_f64, f64::max),
-                residual_energy_ratio: case.signal_bundle.residual_energy_ratio,
+                    .find(|metric| metric.subject == "pressure_test" && metric.case == case.case_name)
+                    .with_context(|| {
+                        format!(
+                            "missing canonical metrics for pressure-test case {}",
+                            case.case_name
+                        )
+                    })?;
+                let ranking = heuristic_summary.and_then(|summary| {
+                    summary
+                        .rankings
+                        .iter()
+                        .find(|entry| {
+                            entry.observed_subject == "pressure_test"
+                                && entry.observed_case == case.case_name
+                        })
+                });
+                Ok(PressureTestRow {
+                    case_name: case.case_name.clone(),
+                    perturbation_class: case.perturbation_class.clone(),
+                    additive_noise_std: case.additive_noise_std,
+                    predictor_spring_scale: case.predictor_spring_scale,
+                    rng_seed: case.rng_seed,
+                    delta_norm_2: canonical.spectral.delta_norm_2,
+                    max_abs_eigenvalue_shift: canonical.spectral.max_abs_eigenvalue_shift,
+                    mean_abs_eigenvalue_shift: canonical.spectral.mean_abs_eigenvalue_shift,
+                    detected: canonical.detectability.detected,
+                    first_crossing_step: canonical.detectability.first_crossing_step,
+                    first_crossing_time: canonical.detectability.first_crossing_time,
+                    signal_at_first_crossing: canonical.detectability.signal_at_first_crossing,
+                    envelope_at_first_crossing: canonical.detectability.envelope_at_first_crossing,
+                    crossing_margin: canonical.detectability.crossing_margin,
+                    normalized_crossing_margin: canonical.detectability.normalized_crossing_margin,
+                    max_raw_residual: canonical.residual.max_raw_residual_norm,
+                    max_normalized_residual: canonical.residual.max_normalized_residual_norm,
+                    residual_energy_ratio: canonical.residual.residual_energy_ratio,
+                    time_to_peak_residual: canonical.residual.time_to_peak_residual,
+                    max_drift_norm: canonical.temporal.max_drift_norm,
+                    max_slew_norm: canonical.temporal.max_slew_norm,
+                    time_to_peak_drift: canonical.temporal.time_to_peak_drift,
+                    covariance_trace: canonical.correlation.covariance_trace,
+                    covariance_offdiag_energy: canonical.correlation.covariance_offdiag_energy,
+                    covariance_rank_estimate: canonical.correlation.covariance_rank_estimate,
+                    heuristic_top_match: ranking.and_then(|entry| entry.top_match.clone()),
+                    heuristic_top_distance: ranking.and_then(|entry| entry.top_distance),
+                    heuristic_ambiguity_flag: ranking
+                        .map(|entry| entry.ambiguity_flag)
+                        .unwrap_or(false),
+                    heuristic_ambiguity_gap: ranking.and_then(|entry| entry.ambiguity_gap),
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>>>()?;
         write_csv_rows(&run_dir.join("pressure_test_summary.csv"), &rows)?;
-        for case in &pressure_test.cases {
-            append_residual_norm_rows(
-                &mut residual_norm_rows,
-                "point_defect",
-                &case.case_name,
-                &case.signal_bundle,
-                dt,
-            );
-        }
-        write_csv_rows(
-            &run_dir.join("normalized_residual_norm_timeseries.csv"),
-            &residual_norm_rows,
-        )?;
     }
 
     if let Some(softening) = softening {
@@ -1720,6 +2022,7 @@ fn limitations() -> Vec<String> {
         "The spectral inequality is illustrated numerically on finite matrices and should not be read as an empirical proof of the full theoretical framework.".to_string(),
         "Detectability results depend on the baseline envelope construction used here and therefore do not establish universal thresholds or universal defect identifiability.".to_string(),
         "Normalized residual metrics improve comparability inside this crate, but they remain tied to the chosen observation scaling and denominator definition used here.".to_string(),
+        "The heuristic bank is a constrained descriptor-space retrieval layer with admissibility filtering and ambiguity signaling. It does not claim universal classification or full structural identifiability.".to_string(),
         "The softening sweep is a toy precursor study consistent with the paper's interpretation of approaching instability, not a claim of general phase-transition forecasting.".to_string(),
     ]
 }

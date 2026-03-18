@@ -2,7 +2,11 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-use dsfb_lattice::{default_output_root, run_demo, DemoConfig, ExampleSelection, PressureTestSettings};
+use dsfb_lattice::{
+    default_output_root, run_demo, DemoConfig, ExampleSelection,
+    PressureTestSettings,
+};
+use dsfb_lattice::heuristics::HeuristicSettings;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -42,6 +46,20 @@ struct Cli {
     pressure_test_predictor_spring_scale: f64,
     #[arg(long, default_value_t = 20_260_318)]
     pressure_test_seed: u64,
+    #[arg(long, default_value_t = true)]
+    pressure_test_include_ambiguity_case: bool,
+    #[arg(long, default_value_t = 1.08)]
+    pressure_test_ambiguity_point_mass_scale: f64,
+    #[arg(long, default_value_t = 0.96)]
+    pressure_test_ambiguity_point_spring_scale: f64,
+    #[arg(long, default_value_t = 0.14)]
+    pressure_test_ambiguity_strain_strength: f64,
+    #[arg(long, default_value_t = true)]
+    heuristics_enabled: bool,
+    #[arg(long, default_value_t = 0.18)]
+    heuristics_ambiguity_tolerance: f64,
+    #[arg(long, default_value_t = 0.01)]
+    heuristics_low_noise_threshold: f64,
 }
 
 fn main() -> Result<()> {
@@ -64,6 +82,16 @@ fn main() -> Result<()> {
             observation_noise_std: cli.pressure_test_noise_std,
             predictor_spring_scale: cli.pressure_test_predictor_spring_scale,
             rng_seed: cli.pressure_test_seed,
+            include_ambiguity_case: cli.pressure_test_include_ambiguity_case,
+            ambiguity_point_mass_scale: cli.pressure_test_ambiguity_point_mass_scale,
+            ambiguity_point_spring_scale: cli.pressure_test_ambiguity_point_spring_scale,
+            ambiguity_strain_strength: cli.pressure_test_ambiguity_strain_strength,
+        },
+        heuristics: HeuristicSettings {
+            enabled: cli.heuristics_enabled,
+            ambiguity_tolerance: cli.heuristics_ambiguity_tolerance,
+            low_noise_threshold: cli.heuristics_low_noise_threshold,
+            similarity_metric: "weighted_l1".to_string(),
         },
     };
 
