@@ -85,6 +85,10 @@ pub struct FailureMapPoint {
 #[derive(Clone, Debug, Serialize)]
 pub struct FailureMapResult {
     pub description: String,
+    pub sweep_focus: String,
+    pub includes_all_status_classes: bool,
+    pub interpretive_note: String,
+    pub pressure_test_comparison_note: String,
     pub settings: FailureMapSettings,
     pub points: Vec<FailureMapPoint>,
 }
@@ -181,9 +185,25 @@ pub struct FailureMapScenarioAggregate {
 #[derive(Clone, Debug, Serialize)]
 pub struct FailureMapSummary {
     pub description: String,
+    pub sweep_focus: String,
+    pub includes_all_status_classes: bool,
+    pub interpretive_note: String,
+    pub pressure_test_comparison_note: String,
     pub settings: FailureMapSettings,
     pub scenarios: Vec<FailureMapScenarioAggregate>,
     pub points: Vec<FailureMapSummaryPoint>,
+}
+
+fn failure_map_sweep_focus() -> String {
+    "boundary/degradation exploration".to_string()
+}
+
+fn failure_map_interpretive_note() -> String {
+    "This failure-map sweep is boundary-focused and degradation-oriented. It samples weak or stressed parameter combinations to expose marginal, degraded, ambiguous, and not-detected regions, so it is not an exhaustive census of all semantic-status classes.".to_string()
+}
+
+fn failure_map_pressure_test_comparison_note() -> String {
+    "The pressure-test suite is a curated set of representative regimes and can include clear_structural_detection cases. By contrast, the failure-map sweep may contain no clear_structural_detection rows when its parameter ranges are concentrated near weak or stressed boundaries.".to_string()
 }
 
 pub fn run_failure_map(
@@ -341,7 +361,11 @@ pub fn run_failure_map(
     }
 
     Ok(FailureMapResult {
-        description: "Controlled synthetic failure map over noise and predictor mismatch. The map is intended to make explicit where pointwise crossing remains clearly structurally legible, where clean detections are only marginally above the boundary, where stressed early or low-margin crossings become degraded, where descriptor-space ambiguity rises, and where detection fails under this bounded toy setup. In particular, it makes visible that detectability is not monotone in raw residual size alone.".to_string(),
+        description: "Controlled synthetic failure map over noise and predictor mismatch. The map is intended to make explicit where pointwise crossing remains clearly structurally legible, where clean detections are only marginally above the boundary, where stressed early or low-margin crossings become degraded, where descriptor-space ambiguity rises, and where detection fails under this bounded toy setup. The sweep is boundary-focused rather than exhaustive, so it need not populate every semantic-status class. In particular, it makes visible that detectability is not monotone in raw residual size alone.".to_string(),
+        sweep_focus: failure_map_sweep_focus(),
+        includes_all_status_classes: false,
+        interpretive_note: failure_map_interpretive_note(),
+        pressure_test_comparison_note: failure_map_pressure_test_comparison_note(),
         settings: settings.clone(),
         points,
     })
@@ -431,6 +455,10 @@ pub fn summarize_failure_map(result: &FailureMapResult) -> FailureMapSummary {
 
     FailureMapSummary {
         description: result.description.clone(),
+        sweep_focus: result.sweep_focus.clone(),
+        includes_all_status_classes: result.includes_all_status_classes,
+        interpretive_note: result.interpretive_note.clone(),
+        pressure_test_comparison_note: result.pressure_test_comparison_note.clone(),
         settings: result.settings.clone(),
         scenarios,
         points,
