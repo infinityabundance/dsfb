@@ -858,11 +858,13 @@ fn plot_failure_map_status(path: &Path, failure_map: &FailureMapSummary) -> Resu
             .find(|item| item.scenario_name == scenario.scenario_name);
         let title = if let Some(aggregate) = aggregate {
             format!(
-                "{}: clear {} / ambiguous {} / failed {}",
+                "{}: detected {} / degraded {} / ambiguous {} / degr+amb {} / fail {}",
                 scenario.scenario_name,
-                aggregate.clear_detected_count,
-                aggregate.ambiguous_detected_count,
-                aggregate.undetected_count
+                aggregate.detected_count,
+                aggregate.degraded_count,
+                aggregate.ambiguous_count,
+                aggregate.degraded_ambiguous_count,
+                aggregate.not_detected_count
             )
         } else {
             scenario.scenario_name.clone()
@@ -911,13 +913,13 @@ fn plot_failure_map_status(path: &Path, failure_map: &FailureMapSummary) -> Resu
                 .iter()
                 .position(|noise| (*noise - point.noise_std).abs() < 1.0e-12)
                 .unwrap_or(0);
-            let color = failure_map_status_color(&point.degradation_label);
+            let color = failure_map_status_color(point.status_label.as_str());
             chart.draw_series(std::iter::once(Rectangle::new(
                 [(x as f64, y as f64), (x as f64 + 1.0, y as f64 + 1.0)],
                 color.filled(),
             )))?;
             chart.draw_series(std::iter::once(Text::new(
-                failure_map_status_abbrev(&point.degradation_label),
+                failure_map_status_abbrev(point.status_label.as_str()),
                 (x as f64 + 0.5, y as f64 + 0.5),
                 ("sans-serif", 18).into_font().color(&WHITE),
             )))?;
@@ -941,19 +943,21 @@ fn pressure_case_style(case_name: &str) -> (&RGBColor, String) {
 
 fn failure_map_status_color(label: &str) -> RGBColor {
     match label {
-        "clear_detected" => RGBColor(58, 122, 77),
-        "ambiguous_detected" => RGBColor(209, 146, 58),
-        "no_admissible_match" => RGBColor(120, 120, 120),
+        "detected" => RGBColor(58, 122, 77),
+        "degraded" => RGBColor(209, 146, 58),
+        "ambiguous" => RGBColor(80, 123, 196),
+        "degraded_ambiguous" => RGBColor(142, 94, 168),
         _ => RGBColor(176, 62, 62),
     }
 }
 
 fn failure_map_status_abbrev(label: &str) -> &'static str {
     match label {
-        "clear_detected" => "C",
-        "ambiguous_detected" => "A",
-        "no_admissible_match" => "N",
-        _ => "F",
+        "detected" => "D",
+        "degraded" => "G",
+        "ambiguous" => "A",
+        "degraded_ambiguous" => "DA",
+        _ => "N",
     }
 }
 
@@ -1140,9 +1144,21 @@ fn render_markdown(summary: &RunSummary) -> String {
         lines.push(String::new());
         lines.push("## Detectability".to_string());
         lines.push(
-            "Detectability is evaluated pointwise in time using the same-time comparison `||r(t)|| > E(t)`. The envelope used here is baseline-derived for this run configuration only. Global peaks of the signal and envelope are reported separately for context; they need not occur at the same time and do not by themselves determine detection."
+            "Detectability is evaluated pointwise in time using the same-time comparison `||r(t)|| > E(t)`. The envelope used here is baseline-derived for this run configuration only. Global peaks of the signal and envelope are reported separately for context; they need not occur at the same time and do not by themselves determine detection. Under stressed regimes, very early low-margin crossings are surfaced separately so composite stress is not conflated with clean structural separation."
                 .to_string(),
         );
+        lines.push(format!(
+            "- crossing regime label: `{}`",
+            detectability.crossing_regime_label.as_str()
+        ));
+        lines.push(format!(
+            "- interpretive class: `{}`",
+            detectability.interpretation_class.as_str()
+        ));
+        lines.push(format!(
+            "- interpretive note: {}",
+            detectability.interpretation_note
+        ));
         if let Some(step) = detectability.first_crossing_step {
             lines.push(format!("- first envelope crossing step: {step}"));
             lines.push(format!(
@@ -1165,11 +1181,26 @@ fn render_markdown(summary: &RunSummary) -> String {
                 "- normalized crossing margin at first crossing: {:.6}",
                 detectability.normalized_crossing_margin.unwrap_or(0.0)
             ));
+            lines.push(format!(
+                "- post-crossing persistence duration: {:.6}",
+                detectability
+                    .post_crossing_persistence_duration
+                    .unwrap_or(0.0)
+            ));
+            lines.push(format!(
+                "- post-crossing fraction in follow-up window: {:.6}",
+                detectability.post_crossing_fraction.unwrap_or(0.0)
+            ));
+            lines.push(format!(
+                "- peak margin after first crossing in follow-up window: {:.6}",
+                detectability.peak_margin_after_crossing.unwrap_or(0.0)
+            ));
         } else {
             lines.push("- first envelope crossing: not observed".to_string());
             lines.push("- signal / envelope values at first crossing: not applicable".to_string());
             lines.push("- crossing margin: not applicable".to_string());
             lines.push("- normalized crossing margin: not applicable".to_string());
+            lines.push("- post-crossing persistence metrics: not applicable".to_string());
         }
         if let Some(step) = detectability.consecutive_crossing_step {
             lines.push(format!("- first sustained crossing step: {step}"));
@@ -1196,47 +1227,40 @@ fn render_markdown(summary: &RunSummary) -> String {
         lines.push("## Controlled Pressure Test".to_string());
         lines.push(pressure_test.description.clone());
         lines.push(String::new());
-        lines.push("| case | class | detected | first crossing time | crossing margin | normalized crossing margin | delta norm 2 | max normalized residual | covariance offdiag energy | heuristic top match | ambiguity |".to_string());
-        lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |".to_string());
+        lines.push("| case | class | detectability interpretation | first crossing time | normalized crossing margin | post-crossing fraction | max normalized residual | heuristic top match | ambiguity tier |".to_string());
+        lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- |".to_string());
         for case in &pressure_test.cases {
             let first_crossing_time = case
                 .first_crossing_time
-                .map(|value| format!("{value:.4}"))
-                .unwrap_or_else(|| "n/a".to_string());
-            let crossing_margin = case
-                .crossing_margin
                 .map(|value| format!("{value:.4}"))
                 .unwrap_or_else(|| "n/a".to_string());
             let normalized_crossing_margin = case
                 .normalized_crossing_margin
                 .map(|value| format!("{value:.4}"))
                 .unwrap_or_else(|| "n/a".to_string());
+            let post_crossing_fraction = case
+                .post_crossing_fraction
+                .map(|value| format!("{value:.4}"))
+                .unwrap_or_else(|| "n/a".to_string());
             let heuristic_top_match = case
                 .heuristic_top_match
                 .clone()
                 .unwrap_or_else(|| "n/a".to_string());
-            let ambiguity = if case.heuristic_ambiguity_flag {
-                "true"
-            } else {
-                "false"
-            };
             lines.push(format!(
-                "| {} | {} | {} | {} | {} | {} | {:.4} | {:.4} | {:.4} | {} | {} |",
+                "| {} | {} | {} | {} | {} | {} | {:.4} | {} | {} |",
                 case.case_name,
                 case.perturbation_class,
-                case.detected,
+                case.detectability_interpretation_class.as_str(),
                 first_crossing_time,
-                crossing_margin,
                 normalized_crossing_margin,
-                case.canonical_metrics.spectral.delta_norm_2,
+                post_crossing_fraction,
                 case.canonical_metrics.residual.max_normalized_residual_norm,
-                case.canonical_metrics.correlation.covariance_offdiag_energy,
                 heuristic_top_match,
-                ambiguity
+                case.heuristic_ambiguity_tier.as_str()
             ));
         }
         lines.push(String::new());
-        lines.push("Each pressure-test case uses its own baseline-derived envelope under the same additive-noise and predictor-mismatch settings. These comparisons are controlled synthetic stress tests of the deterministic pipeline, not a claim of universal robustness.".to_string());
+        lines.push("Each pressure-test case uses its own baseline-derived envelope under the same additive-noise and predictor-mismatch settings. These comparisons are controlled synthetic stress tests of the deterministic pipeline, not a claim of universal robustness. They are included specifically to show that detectability is not monotone in raw residual size alone.".to_string());
     }
     if let Some(heuristics) = &summary.heuristics {
         lines.push(String::new());
@@ -1255,8 +1279,11 @@ fn render_markdown(summary: &RunSummary) -> String {
             format_heuristic_weights(summary)
         ));
         lines.push(format!(
-            "- Ambiguity tolerance: {:.6}",
-            heuristics.bank.ambiguity_tolerance
+            "- Ambiguity thresholds: ambiguity tolerance = {:.6}, near-tie band = {:.6}, near-tie relative gap = {:.6}, near-tie distance ratio = {:.6}",
+            heuristics.bank.ambiguity_tolerance,
+            heuristics.bank.near_tie_band,
+            heuristics.bank.near_tie_relative_gap_threshold,
+            heuristics.bank.near_tie_distance_ratio_threshold
         ));
         lines.push(format!(
             "- Admissibility note: {}",
@@ -1271,7 +1298,7 @@ fn render_markdown(summary: &RunSummary) -> String {
                 .to_string(),
         );
         lines.push(String::new());
-        lines.push("| observed case | top match | runner-up | top distance | runner-up distance | ambiguity | note |".to_string());
+        lines.push("| observed case | top match | runner-up | top distance | runner-up distance | ambiguity tier | note |".to_string());
         lines.push("| --- | --- | --- | --- | --- | --- | --- |".to_string());
         for ranking in &heuristics.rankings {
             lines.push(format!(
@@ -1293,7 +1320,7 @@ fn render_markdown(summary: &RunSummary) -> String {
                     .runner_up_distance
                     .map(|value| format!("{value:.4}"))
                     .unwrap_or_else(|| "n/a".to_string()),
-                ranking.ambiguity_flag,
+                ranking.ambiguity_tier.as_str(),
                 ranking
                     .ambiguity_note
                     .clone()
@@ -1306,21 +1333,26 @@ fn render_markdown(summary: &RunSummary) -> String {
         lines.push("## Failure Map".to_string());
         lines.push(failure_map.description.clone());
         lines.push(
-            "This failure map is a controlled synthetic stress grid over noise and predictor mismatch. It is intended to show where detection remains clear, where descriptor-space ambiguity appears, and where the method no longer detects in this toy setup. It is not a universal operating boundary."
+            "This failure map is a controlled synthetic stress grid over noise and predictor mismatch. It is intended to show where detection remains structurally legible, where stress-confounded or early low-margin crossings degrade interpretation, where descriptor-space ambiguity appears, and where the method no longer detects in this toy setup. It is not a universal operating boundary."
+                .to_string(),
+        );
+        lines.push(
+            "The grid is also meant to make visible that increased raw residual size does not by itself guarantee clean detectability; envelope construction, stress regime, and retrieval ambiguity all matter."
                 .to_string(),
         );
         lines.push(String::new());
-        lines.push("| scenario | class | clear detected | ambiguous detected | not detected | no admissible match |".to_string());
-        lines.push("| --- | --- | --- | --- | --- | --- |".to_string());
+        lines.push("| scenario | class | detected | degraded | ambiguous | degraded ambiguous | not detected |".to_string());
+        lines.push("| --- | --- | --- | --- | --- | --- | --- |".to_string());
         for scenario in &failure_map.scenarios {
             lines.push(format!(
-                "| {} | {} | {} | {} | {} | {} |",
+                "| {} | {} | {} | {} | {} | {} | {} |",
                 scenario.scenario_name,
                 scenario.perturbation_class,
-                scenario.clear_detected_count,
-                scenario.ambiguous_detected_count,
-                scenario.undetected_count,
-                scenario.no_admissible_match_count
+                scenario.detected_count,
+                scenario.degraded_count,
+                scenario.ambiguous_count,
+                scenario.degraded_ambiguous_count,
+                scenario.not_detected_count
             ));
         }
     }
@@ -1499,6 +1531,11 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
     if let Some(detectability) = &summary.detectability {
         lines.push("Detectability".to_string());
         lines.push("Detectability is evaluated pointwise in time using the same-time condition ||r(t)|| > E(t). Global peaks are reported separately for context and can occur at different times without contradiction.".to_string());
+        lines.push(format!(
+            "crossing regime = {}, interpretive class = {}",
+            detectability.crossing_regime_label.as_str(),
+            detectability.interpretation_class.as_str()
+        ));
         if let Some(step) = detectability.first_crossing_step {
             lines.push(format!(
                 "first crossing step = {step}, first crossing time = {:.6}",
@@ -1510,6 +1547,14 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
                 detectability.envelope_at_first_crossing.unwrap_or(0.0),
                 detectability.crossing_margin.unwrap_or(0.0),
                 detectability.normalized_crossing_margin.unwrap_or(0.0)
+            ));
+            lines.push(format!(
+                "post-crossing persistence duration = {:.6}, post-crossing fraction = {:.6}, peak margin after crossing = {:.6}",
+                detectability
+                    .post_crossing_persistence_duration
+                    .unwrap_or(0.0),
+                detectability.post_crossing_fraction.unwrap_or(0.0),
+                detectability.peak_margin_after_crossing.unwrap_or(0.0)
             ));
         } else {
             lines.push("no first pointwise crossing was observed in this run".to_string());
@@ -1540,26 +1585,25 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
                 .first_crossing_time
                 .map(|value| format!("{value:.6}"))
                 .unwrap_or_else(|| "n/a".to_string());
-            let margin = case
-                .crossing_margin
-                .map(|value| format!("{value:.6}"))
-                .unwrap_or_else(|| "n/a".to_string());
             let normalized_margin = case
                 .normalized_crossing_margin
                 .map(|value| format!("{value:.6}"))
                 .unwrap_or_else(|| "n/a".to_string());
+            let post_fraction = case
+                .post_crossing_fraction
+                .map(|value| format!("{value:.6}"))
+                .unwrap_or_else(|| "n/a".to_string());
             lines.push(format!(
-                "{} [{}]: detected = {}, first crossing time = {}, crossing margin = {}, normalized crossing margin = {}, delta norm 2 = {:.6}, max normalized residual = {:.6}, top heuristic match = {}, ambiguity = {}",
+                "{} [{}]: interpretive class = {}, first crossing time = {}, normalized crossing margin = {}, post-crossing fraction = {}, max normalized residual = {:.6}, top heuristic match = {}, ambiguity tier = {}",
                 case.case_name,
                 case.perturbation_class,
-                case.detected,
+                case.detectability_interpretation_class.as_str(),
                 first_crossing,
-                margin,
                 normalized_margin,
-                case.canonical_metrics.spectral.delta_norm_2,
+                post_fraction,
                 case.max_normalized_residual,
                 case.heuristic_top_match.clone().unwrap_or_else(|| "n/a".to_string()),
-                case.heuristic_ambiguity_flag
+                case.heuristic_ambiguity_tier.as_str()
             ));
         }
         lines.push(String::new());
@@ -1568,8 +1612,10 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
         lines.push("Heuristic-bank retrieval".to_string());
         lines.push(heuristics.bank.description.clone());
         lines.push(format!(
-            "similarity metric = {}, ambiguity tolerance = {:.6}",
-            heuristics.bank.similarity_metric, heuristics.bank.ambiguity_tolerance
+            "similarity metric = {}, ambiguity tolerance = {:.6}, near-tie band = {:.6}",
+            heuristics.bank.similarity_metric,
+            heuristics.bank.ambiguity_tolerance,
+            heuristics.bank.near_tie_band
         ));
         lines.push(format!(
             "descriptor fields = {}",
@@ -1587,7 +1633,7 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
         );
         for ranking in &heuristics.rankings {
             lines.push(format!(
-                "{}: top match = {}, runner-up = {}, top distance = {}, runner-up distance = {}, ambiguity = {}, note = {}",
+                "{}: top match = {}, runner-up = {}, top distance = {}, runner-up distance = {}, ambiguity tier = {}, note = {}",
                 ranking.observed_case,
                 ranking
                     .top_match
@@ -1605,7 +1651,7 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
                     .runner_up_distance
                     .map(|value| format!("{value:.6}"))
                     .unwrap_or_else(|| "n/a".to_string()),
-                ranking.ambiguity_flag,
+                ranking.ambiguity_tier.as_str(),
                 ranking
                     .ambiguity_note
                     .clone()
@@ -1618,18 +1664,23 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
         lines.push("Failure map".to_string());
         lines.push(failure_map.description.clone());
         lines.push(
-            "The failure map is a controlled synthetic degradation grid over noise and predictor mismatch. It is meant to show where the method remains clear, becomes ambiguous, or stops detecting in this toy setting."
+            "The failure map is a controlled synthetic degradation grid over noise and predictor mismatch. It is meant to show where the method remains structurally legible, where detection becomes degraded or ambiguity-dominated, and where it stops detecting in this toy setting."
+                .to_string(),
+        );
+        lines.push(
+            "It also makes explicit that detectability is not monotone in raw residual size alone: mismatch or combined stress can inflate residuals while still degrading crossing persistence or descriptor-space separation."
                 .to_string(),
         );
         for scenario in &failure_map.scenarios {
             lines.push(format!(
-                "{} [{}]: clear detected = {}, ambiguous detected = {}, not detected = {}, no admissible match = {}",
+                "{} [{}]: detected = {}, degraded = {}, ambiguous = {}, degraded ambiguous = {}, not detected = {}",
                 scenario.scenario_name,
                 scenario.perturbation_class,
-                scenario.clear_detected_count,
-                scenario.ambiguous_detected_count,
-                scenario.undetected_count,
-                scenario.no_admissible_match_count
+                scenario.detected_count,
+                scenario.degraded_count,
+                scenario.ambiguous_count,
+                scenario.degraded_ambiguous_count,
+                scenario.not_detected_count
             ));
         }
         lines.push(String::new());

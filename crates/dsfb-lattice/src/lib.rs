@@ -23,7 +23,9 @@ use crate::canonical::{
     CanonicalCaseMetrics, CanonicalMetricGuide,
 };
 use crate::detectability::{
-    build_envelope, evaluate_signal, DetectabilitySummary, Envelope, EnvelopeProvenance,
+    build_envelope, crossing_regime_label, evaluate_signal, CrossingRegimeLabel,
+    DetectabilityInterpretationClass, DetectabilityInterpretationSettings,
+    DetectabilitySummary, Envelope, EnvelopeProvenance,
 };
 use crate::failure_map::{
     flatten_failure_map_points, run_failure_map, summarize_failure_map, FailureMapResult,
@@ -31,7 +33,7 @@ use crate::failure_map::{
 };
 use crate::heuristics::{
     build_heuristic_bank, case_tags_for_case, flatten_rankings, rank_case_against_bank,
-    HeuristicBankSummary, HeuristicRanking, HeuristicSettings,
+    AmbiguityTier, HeuristicBankSummary, HeuristicRanking, HeuristicSettings,
 };
 use crate::io::{create_timestamped_run_directory, write_csv_rows, write_json_pretty, zip_directory};
 use crate::lattice::Lattice;
@@ -86,6 +88,7 @@ pub struct DemoConfig {
     pub envelope_floor: f64,
     pub consecutive_crossings: usize,
     pub normalization_epsilon: f64,
+    pub detectability_interpretation: DetectabilityInterpretationSettings,
     pub pressure_test: PressureTestSettings,
     pub failure_map: FailureMapSettings,
     pub heuristics: HeuristicSettings,
@@ -106,6 +109,7 @@ impl Default for DemoConfig {
             envelope_floor: 0.003,
             consecutive_crossings: 3,
             normalization_epsilon: 1.0e-6,
+            detectability_interpretation: DetectabilityInterpretationSettings::default(),
             pressure_test: PressureTestSettings::default(),
             failure_map: FailureMapSettings::default(),
             heuristics: HeuristicSettings::default(),
@@ -228,10 +232,18 @@ pub struct PressureTestCaseSummary {
     pub predictor_spring_scale: f64,
     pub rng_seed: u64,
     pub detected: bool,
+    pub crossing_regime_label: CrossingRegimeLabel,
+    pub detectability_interpretation_class: DetectabilityInterpretationClass,
+    pub detectability_interpretation_note: String,
     pub first_crossing_time: Option<f64>,
     pub first_crossing_step: Option<usize>,
+    pub signal_at_first_crossing: Option<f64>,
+    pub envelope_at_first_crossing: Option<f64>,
     pub crossing_margin: Option<f64>,
     pub normalized_crossing_margin: Option<f64>,
+    pub post_crossing_persistence_duration: Option<f64>,
+    pub post_crossing_fraction: Option<f64>,
+    pub peak_margin_after_crossing: Option<f64>,
     pub max_raw_residual: f64,
     pub max_normalized_residual: f64,
     pub residual_energy_ratio: f64,
@@ -239,8 +251,11 @@ pub struct PressureTestCaseSummary {
     pub canonical_metrics: CanonicalCaseMetrics,
     pub heuristic_top_match: Option<String>,
     pub heuristic_top_distance: Option<f64>,
+    pub heuristic_ambiguity_tier: AmbiguityTier,
     pub heuristic_ambiguity_flag: bool,
     pub heuristic_ambiguity_gap: Option<f64>,
+    pub heuristic_relative_gap: Option<f64>,
+    pub heuristic_distance_ratio: Option<f64>,
     pub heuristic_ambiguity_note: Option<String>,
 }
 
@@ -396,12 +411,17 @@ struct PressureTestRow {
     max_abs_eigenvalue_shift: f64,
     mean_abs_eigenvalue_shift: f64,
     detected: bool,
+    crossing_regime_label: CrossingRegimeLabel,
+    detectability_interpretation_class: DetectabilityInterpretationClass,
     first_crossing_step: Option<usize>,
     first_crossing_time: Option<f64>,
     signal_at_first_crossing: Option<f64>,
     envelope_at_first_crossing: Option<f64>,
     crossing_margin: Option<f64>,
     normalized_crossing_margin: Option<f64>,
+    post_crossing_persistence_duration: Option<f64>,
+    post_crossing_fraction: Option<f64>,
+    peak_margin_after_crossing: Option<f64>,
     max_raw_residual: f64,
     max_normalized_residual: f64,
     residual_energy_ratio: f64,
@@ -414,8 +434,11 @@ struct PressureTestRow {
     covariance_rank_estimate: usize,
     heuristic_top_match: Option<String>,
     heuristic_top_distance: Option<f64>,
+    heuristic_ambiguity_tier: AmbiguityTier,
     heuristic_ambiguity_flag: bool,
     heuristic_ambiguity_gap: Option<f64>,
+    heuristic_relative_gap: Option<f64>,
+    heuristic_distance_ratio: Option<f64>,
 }
 
 pub fn default_output_root() -> PathBuf {
@@ -560,6 +583,8 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
             config.consecutive_crossings,
             config.dt,
             config.normalization_epsilon,
+            CrossingRegimeLabel::Clean,
+            &config.detectability_interpretation,
         )
     });
 
@@ -588,6 +613,7 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
                     config.envelope_floor,
                     config.consecutive_crossings,
                     config.normalization_epsilon,
+                    &config.detectability_interpretation,
                     &config.pressure_test,
                 )
             })
@@ -691,6 +717,7 @@ pub fn run_demo(config: DemoConfig) -> Result<RunOutcome> {
                     config.envelope_floor,
                     config.consecutive_crossings,
                     config.normalization_epsilon,
+                    &config.detectability_interpretation,
                     bank,
                     &config.heuristics,
                     &config.failure_map,
@@ -842,6 +869,22 @@ fn validate_config(config: &DemoConfig) -> Result<()> {
     if config.normalization_epsilon <= 0.0 {
         bail!("normalization_epsilon must be positive");
     }
+    if config.detectability_interpretation.persistence_window_steps == 0 {
+        bail!("detectability_interpretation persistence_window_steps must be positive");
+    }
+    if !(0.0..=1.0).contains(&config.detectability_interpretation.early_crossing_fraction_threshold)
+        || !(0.0..=1.0).contains(&config.detectability_interpretation.low_margin_threshold)
+        || !(0.0..=1.0).contains(&config.detectability_interpretation.structural_margin_threshold)
+        || !(0.0..=1.0).contains(
+            &config
+                .detectability_interpretation
+                .structural_post_crossing_fraction_threshold,
+        )
+    {
+        bail!(
+            "detectability_interpretation fraction thresholds must lie in [0, 1]"
+        );
+    }
     if config.pressure_test.observation_noise_std < 0.0 {
         bail!("pressure_test observation_noise_std must be non-negative");
     }
@@ -894,6 +937,16 @@ fn validate_config(config: &DemoConfig) -> Result<()> {
     }
     if config.heuristics.ambiguity_tolerance < 0.0 {
         bail!("heuristics ambiguity_tolerance must be non-negative");
+    }
+    if config.heuristics.near_tie_band < 0.0 {
+        bail!("heuristics near_tie_band must be non-negative");
+    }
+    if !(0.0..=1.0).contains(&config.heuristics.near_tie_relative_gap_threshold)
+        || !(0.0..=1.0).contains(&config.heuristics.near_tie_distance_ratio_threshold)
+    {
+        bail!(
+            "heuristics near_tie_relative_gap_threshold and near_tie_distance_ratio_threshold must lie in [0, 1]"
+        );
     }
     if config.heuristics.low_noise_threshold < 0.0 {
         bail!("heuristics low_noise_threshold must be non-negative");
@@ -1000,6 +1053,7 @@ fn run_pressure_test(
     envelope_floor: f64,
     consecutive_crossings: usize,
     normalization_epsilon: f64,
+    detectability_interpretation: &DetectabilityInterpretationSettings,
     settings: &PressureTestSettings,
 ) -> Result<PressureTestResult> {
     let nominal_dynamical = nominal_lattice.dynamical_matrix()?;
@@ -1174,6 +1228,8 @@ fn run_pressure_test(
             consecutive_crossings,
             simulation.dt,
             normalization_epsilon,
+            crossing_regime_label(additive_noise_std, predictor_spring_scale),
+            detectability_interpretation,
         );
         let covariance = covariance_matrix(&signal_bundle.residuals);
         cases.push(PressureTestCaseResult {
@@ -1316,10 +1372,23 @@ fn summarize_pressure_test(
                     predictor_spring_scale: case.predictor_spring_scale,
                     rng_seed: case.rng_seed,
                     detected: case.detectability.first_crossing_step.is_some(),
+                    crossing_regime_label: case.detectability.crossing_regime_label,
+                    detectability_interpretation_class: case.detectability.interpretation_class,
+                    detectability_interpretation_note: case
+                        .detectability
+                        .interpretation_note
+                        .clone(),
                     first_crossing_time: case.detectability.first_crossing_time,
                     first_crossing_step: case.detectability.first_crossing_step,
+                    signal_at_first_crossing: case.detectability.signal_at_first_crossing,
+                    envelope_at_first_crossing: case.detectability.envelope_at_first_crossing,
                     crossing_margin: case.detectability.crossing_margin,
                     normalized_crossing_margin: case.detectability.normalized_crossing_margin,
+                    post_crossing_persistence_duration: case
+                        .detectability
+                        .post_crossing_persistence_duration,
+                    post_crossing_fraction: case.detectability.post_crossing_fraction,
+                    peak_margin_after_crossing: case.detectability.peak_margin_after_crossing,
                     max_raw_residual: case
                         .signal_bundle
                         .residual_norms
@@ -1337,10 +1406,15 @@ fn summarize_pressure_test(
                     canonical_metrics: canonical,
                     heuristic_top_match: ranking.and_then(|entry| entry.top_match.clone()),
                     heuristic_top_distance: ranking.and_then(|entry| entry.top_distance),
+                    heuristic_ambiguity_tier: ranking
+                        .map(|entry| entry.ambiguity_tier)
+                        .unwrap_or(AmbiguityTier::Unavailable),
                     heuristic_ambiguity_flag: ranking
                         .map(|entry| entry.ambiguity_flag)
                         .unwrap_or(false),
                     heuristic_ambiguity_gap: ranking.and_then(|entry| entry.ambiguity_gap),
+                    heuristic_relative_gap: ranking.and_then(|entry| entry.relative_gap),
+                    heuristic_distance_ratio: ranking.and_then(|entry| entry.distance_ratio),
                     heuristic_ambiguity_note: ranking.and_then(|entry| entry.ambiguity_note.clone()),
                 })
             })
@@ -1366,6 +1440,7 @@ fn write_config_json(
         "canonical_metric_guide": canonical_metric_guide,
         "normalization": normalization,
         "envelope": envelope_provenance,
+        "detectability_interpretation": config.detectability_interpretation,
         "pressure_test": config.pressure_test,
         "failure_map": config.failure_map,
         "heuristics": config.heuristics,
@@ -1601,12 +1676,21 @@ fn write_primary_csvs(
                     max_abs_eigenvalue_shift: canonical.spectral.max_abs_eigenvalue_shift,
                     mean_abs_eigenvalue_shift: canonical.spectral.mean_abs_eigenvalue_shift,
                     detected: canonical.detectability.detected,
+                    crossing_regime_label: canonical.detectability.crossing_regime_label,
+                    detectability_interpretation_class: canonical
+                        .detectability
+                        .interpretation_class,
                     first_crossing_step: canonical.detectability.first_crossing_step,
                     first_crossing_time: canonical.detectability.first_crossing_time,
                     signal_at_first_crossing: canonical.detectability.signal_at_first_crossing,
                     envelope_at_first_crossing: canonical.detectability.envelope_at_first_crossing,
                     crossing_margin: canonical.detectability.crossing_margin,
                     normalized_crossing_margin: canonical.detectability.normalized_crossing_margin,
+                    post_crossing_persistence_duration: canonical
+                        .detectability
+                        .post_crossing_persistence_duration,
+                    post_crossing_fraction: canonical.detectability.post_crossing_fraction,
+                    peak_margin_after_crossing: canonical.detectability.peak_margin_after_crossing,
                     max_raw_residual: canonical.residual.max_raw_residual_norm,
                     max_normalized_residual: canonical.residual.max_normalized_residual_norm,
                     residual_energy_ratio: canonical.residual.residual_energy_ratio,
@@ -1619,10 +1703,15 @@ fn write_primary_csvs(
                     covariance_rank_estimate: canonical.correlation.covariance_rank_estimate,
                     heuristic_top_match: ranking.and_then(|entry| entry.top_match.clone()),
                     heuristic_top_distance: ranking.and_then(|entry| entry.top_distance),
+                    heuristic_ambiguity_tier: ranking
+                        .map(|entry| entry.ambiguity_tier)
+                        .unwrap_or(AmbiguityTier::Unavailable),
                     heuristic_ambiguity_flag: ranking
                         .map(|entry| entry.ambiguity_flag)
                         .unwrap_or(false),
                     heuristic_ambiguity_gap: ranking.and_then(|entry| entry.ambiguity_gap),
+                    heuristic_relative_gap: ranking.and_then(|entry| entry.relative_gap),
+                    heuristic_distance_ratio: ranking.and_then(|entry| entry.distance_ratio),
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -1979,6 +2068,33 @@ fn build_metric_rows(
                 note: "Pointwise crossing margin divided by the envelope value at the first crossing.".to_string(),
             });
         }
+        if let Some(value) = detectability.post_crossing_persistence_duration {
+            rows.push(MetricRow {
+                experiment: "detectability".to_string(),
+                metric: "post_crossing_persistence_duration".to_string(),
+                value,
+                units: "time".to_string(),
+                note: "Duration of the initial consecutive above-envelope segment starting at the first crossing.".to_string(),
+            });
+        }
+        if let Some(value) = detectability.post_crossing_fraction {
+            rows.push(MetricRow {
+                experiment: "detectability".to_string(),
+                metric: "post_crossing_fraction".to_string(),
+                value,
+                units: "fraction".to_string(),
+                note: "Fraction of samples above the envelope in the fixed follow-up window after first crossing.".to_string(),
+            });
+        }
+        if let Some(value) = detectability.peak_margin_after_crossing {
+            rows.push(MetricRow {
+                experiment: "detectability".to_string(),
+                metric: "peak_margin_after_crossing".to_string(),
+                value,
+                units: "residual_norm".to_string(),
+                note: "Maximum signal-minus-envelope margin in the fixed follow-up window after first crossing.".to_string(),
+            });
+        }
     }
 
     if let Some(softening) = softening {
@@ -2100,6 +2216,24 @@ fn build_metric_rows(
                     value,
                     units: "ratio".to_string(),
                     note: "Crossing margin normalized by the envelope value at the first crossing for this pressure-test case.".to_string(),
+                });
+            }
+            if let Some(value) = case.detectability.post_crossing_persistence_duration {
+                rows.push(MetricRow {
+                    experiment: format!("pressure_test/{}", case.case_name),
+                    metric: "post_crossing_persistence_duration".to_string(),
+                    value,
+                    units: "time".to_string(),
+                    note: "Duration of the initial consecutive above-envelope segment after first crossing for this pressure-test case.".to_string(),
+                });
+            }
+            if let Some(value) = case.detectability.post_crossing_fraction {
+                rows.push(MetricRow {
+                    experiment: format!("pressure_test/{}", case.case_name),
+                    metric: "post_crossing_fraction".to_string(),
+                    value,
+                    units: "fraction".to_string(),
+                    note: "Fraction of samples above envelope in the follow-up window after first crossing for this pressure-test case.".to_string(),
                 });
             }
         }
