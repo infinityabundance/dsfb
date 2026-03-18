@@ -86,6 +86,11 @@ pub fn write_reports(
             run_dir.join("figure_09_pressure_test_normalized_residual_comparison.png");
         plot_pressure_test_normalized_residuals(&normalized_path, pressure_test, dt)?;
         figure_paths.push(normalized_path);
+
+        let detectability_summary_path =
+            run_dir.join("figure_10_pressure_test_detectability_summary.png");
+        plot_pressure_test_detectability_summary(&detectability_summary_path, pressure_test)?;
+        figure_paths.push(detectability_summary_path);
     }
 
     let markdown_path = run_dir.join("report.md");
@@ -726,12 +731,116 @@ fn plot_pressure_test_normalized_residuals(
     Ok(())
 }
 
+fn plot_pressure_test_detectability_summary(
+    path: &Path,
+    pressure_test: &PressureTestResult,
+) -> Result<()> {
+    let root = BitMapBackend::new(path, (1280, 840)).into_drawing_area();
+    root.fill(&WHITE)?;
+    let areas = root.split_evenly((2, 1));
+    let case_count = pressure_test.cases.len().max(1) as i32;
+
+    let crossing_time_max = pressure_test
+        .cases
+        .iter()
+        .filter_map(|case| case.detectability.first_crossing_time)
+        .fold(0.0_f64, f64::max)
+        .max(1.0);
+    let normalized_margin_max = pressure_test
+        .cases
+        .iter()
+        .filter_map(|case| case.detectability.normalized_crossing_margin)
+        .fold(0.0_f64, f64::max)
+        .max(0.05);
+
+    let mut top = ChartBuilder::on(&areas[0])
+        .caption(
+            "Pressure Test: First Crossing Time by Case",
+            ("sans-serif", 28),
+        )
+        .margin(20)
+        .x_label_area_size(70)
+        .y_label_area_size(70)
+        .build_cartesian_2d(0_i32..case_count, 0.0_f64..(crossing_time_max * 1.18))?;
+    top.configure_mesh()
+        .x_desc("Stress-test case")
+        .y_desc("First crossing time")
+        .x_labels(case_count as usize)
+        .x_label_formatter(&|value| {
+            pressure_test
+                .cases
+                .get((*value).clamp(0, case_count - 1) as usize)
+                .map(|case| case.case_name.replace('_', " "))
+                .unwrap_or_default()
+        })
+        .draw()?;
+
+    for (index, case) in pressure_test.cases.iter().enumerate() {
+        let bar_top = case.detectability.first_crossing_time.unwrap_or(0.0);
+        let (color, _) = pressure_case_style(&case.case_name);
+        top.draw_series(std::iter::once(Rectangle::new(
+            [(index as i32, 0.0), (index as i32 + 1, bar_top)],
+            color.filled(),
+        )))?;
+        if case.detectability.first_crossing_time.is_none() {
+            top.draw_series(std::iter::once(Text::new(
+                "n/a",
+                (index as i32, crossing_time_max * 0.08),
+                ("sans-serif", 14).into_font().color(color),
+            )))?;
+        }
+    }
+
+    let mut bottom = ChartBuilder::on(&areas[1])
+        .caption(
+            "Pressure Test: Normalized Crossing Margin by Case",
+            ("sans-serif", 28),
+        )
+        .margin(20)
+        .x_label_area_size(70)
+        .y_label_area_size(70)
+        .build_cartesian_2d(0_i32..case_count, 0.0_f64..(normalized_margin_max * 1.22))?;
+    bottom
+        .configure_mesh()
+        .x_desc("Stress-test case")
+        .y_desc("Normalized crossing margin")
+        .x_labels(case_count as usize)
+        .x_label_formatter(&|value| {
+            pressure_test
+                .cases
+                .get((*value).clamp(0, case_count - 1) as usize)
+                .map(|case| case.case_name.replace('_', " "))
+                .unwrap_or_default()
+        })
+        .draw()?;
+
+    for (index, case) in pressure_test.cases.iter().enumerate() {
+        let bar_top = case.detectability.normalized_crossing_margin.unwrap_or(0.0);
+        let (color, _) = pressure_case_style(&case.case_name);
+        bottom.draw_series(std::iter::once(Rectangle::new(
+            [(index as i32, 0.0), (index as i32 + 1, bar_top)],
+            color.filled(),
+        )))?;
+        if case.detectability.normalized_crossing_margin.is_none() {
+            bottom.draw_series(std::iter::once(Text::new(
+                "n/a",
+                (index as i32, normalized_margin_max * 0.12),
+                ("sans-serif", 14).into_font().color(color),
+            )))?;
+        }
+    }
+
+    root.present()?;
+    Ok(())
+}
+
 fn pressure_case_style(case_name: &str) -> (&RGBColor, String) {
     match case_name {
         "clean" => (&BLACK, "clean".to_string()),
         "noise_only" => (&BLUE, "noise only".to_string()),
         "mismatch_only" => (&RED, "mismatch only".to_string()),
         "noise_plus_mismatch" => (&GREEN, "noise + mismatch".to_string()),
+        "ambiguity_case" => (&MAGENTA, "ambiguity case".to_string()),
         _ => (&MAGENTA, case_name.replace('_', " ")),
     }
 }
@@ -780,6 +889,19 @@ fn render_markdown(summary: &RunSummary) -> String {
         "- Note: {}",
         summary.normalization.note
     ));
+    lines.push(String::new());
+    lines.push("## Canonical Evaluation Quantities".to_string());
+    lines.push(summary.canonical_metric_guide.description.clone());
+    lines.push(summary.canonical_metric_guide.comparison_backbone.clone());
+    lines.push(summary.canonical_metric_guide.note.clone());
+    lines.push(format!(
+        "- Metric names: `{}`",
+        summary.canonical_metric_guide.metric_names.join("`, `")
+    ));
+    lines.push(
+        "- These quantities are exported in both `canonical_metrics.csv` and `canonical_metrics.json` so the synthetic benchmark layer remains auditable across runs."
+            .to_string(),
+    );
     lines.push(String::new());
     lines.push("## Envelope Construction".to_string());
     lines.push(
@@ -940,8 +1062,8 @@ fn render_markdown(summary: &RunSummary) -> String {
         lines.push("## Controlled Pressure Test".to_string());
         lines.push(pressure_test.description.clone());
         lines.push(String::new());
-        lines.push("| case | detected | first crossing time | crossing margin | normalized crossing margin | max raw residual | max normalized residual | residual energy ratio |".to_string());
-        lines.push("| --- | --- | --- | --- | --- | --- | --- | --- |".to_string());
+        lines.push("| case | class | detected | first crossing time | crossing margin | normalized crossing margin | delta norm 2 | max normalized residual | covariance offdiag energy | heuristic top match | ambiguity |".to_string());
+        lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |".to_string());
         for case in &pressure_test.cases {
             let first_crossing_time = case
                 .first_crossing_time
@@ -955,20 +1077,75 @@ fn render_markdown(summary: &RunSummary) -> String {
                 .normalized_crossing_margin
                 .map(|value| format!("{value:.4}"))
                 .unwrap_or_else(|| "n/a".to_string());
+            let heuristic_top_match = case
+                .heuristic_top_match
+                .clone()
+                .unwrap_or_else(|| "n/a".to_string());
+            let ambiguity = if case.heuristic_ambiguity_flag {
+                "true"
+            } else {
+                "false"
+            };
             lines.push(format!(
-                "| {} | {} | {} | {} | {} | {:.4} | {:.4} | {:.4} |",
+                "| {} | {} | {} | {} | {} | {} | {:.4} | {:.4} | {:.4} | {} | {} |",
                 case.case_name,
+                case.perturbation_class,
                 case.detected,
                 first_crossing_time,
                 crossing_margin,
                 normalized_crossing_margin,
-                case.max_raw_residual,
-                case.max_normalized_residual,
-                case.residual_energy_ratio
+                case.canonical_metrics.spectral.delta_norm_2,
+                case.canonical_metrics.residual.max_normalized_residual_norm,
+                case.canonical_metrics.correlation.covariance_offdiag_energy,
+                heuristic_top_match,
+                ambiguity
             ));
         }
         lines.push(String::new());
-        lines.push("Each pressure-test case uses its own baseline-derived envelope under the same additive-noise and predictor-mismatch settings. These comparisons are synthetic stress tests of the deterministic pipeline, not a claim of universal robustness.".to_string());
+        lines.push("Each pressure-test case uses its own baseline-derived envelope under the same additive-noise and predictor-mismatch settings. These comparisons are controlled synthetic stress tests of the deterministic pipeline, not a claim of universal robustness.".to_string());
+    }
+    if let Some(heuristics) = &summary.heuristics {
+        lines.push(String::new());
+        lines.push("## Heuristic-Bank Retrieval".to_string());
+        lines.push(heuristics.bank.description.clone());
+        lines.push(format!(
+            "- Similarity metric: `{}`",
+            heuristics.bank.similarity_metric
+        ));
+        lines.push(format!(
+            "- Ambiguity tolerance: {:.6}",
+            heuristics.bank.ambiguity_tolerance
+        ));
+        lines.push(format!(
+            "- Admissibility note: {}",
+            heuristics.bank.admissibility_note
+        ));
+        lines.push(
+            "- The ranking is a constrained retrieval mechanism over compact descriptors. It is not presented as a universal classifier."
+                .to_string(),
+        );
+        lines.push(String::new());
+        lines.push("| observed case | top match | top distance | ambiguity | note |".to_string());
+        lines.push("| --- | --- | --- | --- | --- |".to_string());
+        for ranking in &heuristics.rankings {
+            lines.push(format!(
+                "| {} | {} | {} | {} | {} |",
+                ranking.observed_case,
+                ranking
+                    .top_match
+                    .clone()
+                    .unwrap_or_else(|| "n/a".to_string()),
+                ranking
+                    .top_distance
+                    .map(|value| format!("{value:.4}"))
+                    .unwrap_or_else(|| "n/a".to_string()),
+                ranking.ambiguity_flag,
+                ranking
+                    .ambiguity_note
+                    .clone()
+                    .unwrap_or_else(|| "none".to_string())
+            ));
+        }
     }
     if let Some(softening) = &summary.softening {
         lines.push(String::new());
@@ -1084,6 +1261,15 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
     ));
     lines.push(summary.normalization.note.clone());
     lines.push(String::new());
+    lines.push("Canonical evaluation quantities".to_string());
+    lines.push(summary.canonical_metric_guide.description.clone());
+    lines.push(summary.canonical_metric_guide.comparison_backbone.clone());
+    lines.push(summary.canonical_metric_guide.note.clone());
+    lines.push(format!(
+        "canonical metric names = {}",
+        summary.canonical_metric_guide.metric_names.join(", ")
+    ));
+    lines.push(String::new());
     lines.push("Envelope construction".to_string());
     lines.push("The envelope is baseline-derived, regime-specific, and not universal.".to_string());
     lines.push(format!(
@@ -1182,14 +1368,50 @@ fn build_pdf_overview_lines(summary: &RunSummary) -> Vec<String> {
                 .map(|value| format!("{value:.6}"))
                 .unwrap_or_else(|| "n/a".to_string());
             lines.push(format!(
-                "{}: detected = {}, first crossing time = {}, crossing margin = {}, normalized crossing margin = {}, max raw residual = {:.6}, max normalized residual = {:.6}",
+                "{} [{}]: detected = {}, first crossing time = {}, crossing margin = {}, normalized crossing margin = {}, delta norm 2 = {:.6}, max normalized residual = {:.6}, top heuristic match = {}, ambiguity = {}",
                 case.case_name,
+                case.perturbation_class,
                 case.detected,
                 first_crossing,
                 margin,
                 normalized_margin,
-                case.max_raw_residual,
-                case.max_normalized_residual
+                case.canonical_metrics.spectral.delta_norm_2,
+                case.max_normalized_residual,
+                case.heuristic_top_match.clone().unwrap_or_else(|| "n/a".to_string()),
+                case.heuristic_ambiguity_flag
+            ));
+        }
+        lines.push(String::new());
+    }
+    if let Some(heuristics) = &summary.heuristics {
+        lines.push("Heuristic-bank retrieval".to_string());
+        lines.push(heuristics.bank.description.clone());
+        lines.push(format!(
+            "similarity metric = {}, ambiguity tolerance = {:.6}",
+            heuristics.bank.similarity_metric, heuristics.bank.ambiguity_tolerance
+        ));
+        lines.push(heuristics.bank.admissibility_note.clone());
+        lines.push(
+            "The heuristic layer ranks admissible candidates in descriptor space. It does not force a unique classification and can mark near-tied interpretations as ambiguous."
+                .to_string(),
+        );
+        for ranking in &heuristics.rankings {
+            lines.push(format!(
+                "{}: top match = {}, top distance = {}, ambiguity = {}, note = {}",
+                ranking.observed_case,
+                ranking
+                    .top_match
+                    .clone()
+                    .unwrap_or_else(|| "n/a".to_string()),
+                ranking
+                    .top_distance
+                    .map(|value| format!("{value:.6}"))
+                    .unwrap_or_else(|| "n/a".to_string()),
+                ranking.ambiguity_flag,
+                ranking
+                    .ambiguity_note
+                    .clone()
+                    .unwrap_or_else(|| "none".to_string())
             ));
         }
         lines.push(String::new());
