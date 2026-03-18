@@ -1,7 +1,5 @@
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lattice/dsfb_lattice_colab.ipynb)
 
-
-
 # dsfb-lattice
 
 `dsfb-lattice` is a standalone nested Rust crate under `crates/dsfb-lattice`. It exists to provide a bounded, reproducible, and inspectable empirical demonstrator for selected mathematical ideas from the paper *Deterministic Structural Inference in Solid-State Systems: A DSFB Engine for Crystal Lattices, Phonons, and Structural Forensics*.
@@ -261,6 +259,8 @@ The notebook:
 8. confirms `report.pdf`
 9. confirms the zip archive
 10. ends with a careful findings summary
+
+The notebook defaults to cloning `https://github.com/infinityabundance/dsfb.git`. If you need to run it against a fork, set `DSFB_LATTICE_REPO_URL` before execution or change the `REPO_URL` assignment in the first setup cell.
 
 ## Dependency Notes
 
