@@ -3,6 +3,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use plotters::coord::Shift;
 use plotters::prelude::*;
+use plotters::style::text_anchor::{HPos, Pos, VPos};
 
 use crate::engine::types::{EngineOutputBundle, FigureArtifact, GrammarState, ScenarioOutput};
 use crate::figures::export::figure_paths;
@@ -463,30 +464,88 @@ where
     DB::ErrorType: 'static,
 {
     root.fill(&WHITE_BG)?;
+    root.draw(&Text::new(
+        "Deterministic Structural Semiotics Engine",
+        (800, 110),
+        TextStyle::from(("sans-serif", 36).into_font())
+            .color(&BLACK)
+            .pos(Pos::new(HPos::Center, VPos::Center)),
+    ))?;
+    root.draw(&Text::new(
+        "Fixed layered maps from residual extraction to constrained semantic retrieval",
+        (800, 150),
+        TextStyle::from(("sans-serif", 22).into_font())
+            .color(&SLATE)
+            .pos(Pos::new(HPos::Center, VPos::Center)),
+    ))?;
+
     let boxes = [
-        ((60, 220), (250, 320), "Residual Layer\nr(t) = y - y_hat"),
-        ((300, 220), (490, 320), "Sign Layer\nsigma(t) = (r,d,s)"),
         (
-            (540, 220),
-            (730, 320),
-            "Syntax Layer\ndrift / slew structure",
+            (70, 250),
+            (310, 420),
+            "1",
+            "Residual Layer",
+            "r(t) = y(t) - y_hat(t)",
         ),
-        ((780, 220), (970, 320), "Grammar Layer\n||r(t)|| <= rho(t)"),
-        ((1020, 220), (1210, 320), "Semantics Layer\nheuristics bank"),
+        (
+            (370, 250),
+            (610, 420),
+            "2",
+            "Sign Layer",
+            "sigma(t) = (r(t), d(t), s(t))",
+        ),
+        (
+            (670, 250),
+            (910, 420),
+            "3",
+            "Syntax Layer",
+            "drift / slew structure",
+        ),
+        (
+            (970, 250),
+            (1210, 420),
+            "4",
+            "Grammar Layer",
+            "||r(t)|| <= rho(t)",
+        ),
+        (
+            (1270, 250),
+            (1510, 420),
+            "5",
+            "Semantics Layer",
+            "heuristics bank retrieval",
+        ),
     ];
-    for (index, (start, end, label)) in boxes.iter().enumerate() {
+    for (index, (start, end, ordinal, title, subtitle)) in boxes.iter().enumerate() {
         let color = [BLUE, TEAL, GREEN, GOLD, RED][index];
         root.draw(&Rectangle::new([*start, *end], color.mix(0.18).filled()))?;
         root.draw(&Rectangle::new([*start, *end], color.stroke_width(3)))?;
+        let center_x = (start.0 + end.0) / 2;
         root.draw(&Text::new(
-            *label,
-            (start.0 + 18, start.1 + 54),
-            ("sans-serif", 24).into_font().color(&BLACK),
+            *ordinal,
+            (center_x, start.1 + 28),
+            TextStyle::from(("sans-serif", 22).into_font())
+                .color(&color)
+                .pos(Pos::new(HPos::Center, VPos::Center)),
+        ))?;
+        root.draw(&Text::new(
+            *title,
+            (center_x, start.1 + 78),
+            TextStyle::from(("sans-serif", 28).into_font())
+                .color(&BLACK)
+                .pos(Pos::new(HPos::Center, VPos::Center)),
+        ))?;
+        root.draw(&Text::new(
+            *subtitle,
+            (center_x, start.1 + 128),
+            TextStyle::from(("sans-serif", 20).into_font())
+                .color(&SLATE)
+                .pos(Pos::new(HPos::Center, VPos::Center)),
         ))?;
         if index + 1 < boxes.len() {
-            let arrow_y = 270;
-            let arrow_x0 = end.0 + 6;
-            let arrow_x1 = boxes[index + 1].0 .0 - 8;
+            let arrow_y = (start.1 + end.1) / 2;
+            let arrow_x0 = end.0 + 18;
+            let arrow_x1 = boxes[index + 1].0 .0 - 18;
             root.draw(&PathElement::new(
                 vec![(arrow_x0, arrow_y), (arrow_x1, arrow_y)],
                 BLACK.stroke_width(3),
@@ -502,9 +561,18 @@ where
         }
     }
     root.draw(&Text::new(
-        "Each layer is deterministic and auditable. Identical inputs yield identical intermediate objects and interpretations.",
-        (90, 420),
-        ("sans-serif", 24).into_font().color(&SLATE),
+        "Each layer is deterministic and auditable.",
+        (800, 560),
+        TextStyle::from(("sans-serif", 28).into_font())
+            .color(&SLATE)
+            .pos(Pos::new(HPos::Center, VPos::Center)),
+    ))?;
+    root.draw(&Text::new(
+        "Identical inputs yield identical intermediate objects, grammar decisions, and semantic outputs.",
+        (800, 605),
+        TextStyle::from(("sans-serif", 24).into_font())
+            .color(&SLATE)
+            .pos(Pos::new(HPos::Center, VPos::Center)),
     ))?;
     root.present()?;
     Ok(())
@@ -963,7 +1031,7 @@ fn render_09(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 fn render_10(figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_10_deterministic_pipeline_flow";
     let caption = "Deterministic layered engine flow showing residual extraction, sign construction, syntax, grammar, and semantic retrieval as auditable maps.";
-    let size = (1280, 720);
+    let size = (1600, 900);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_pipeline_flow(BitMapBackend::new(&png_path, size).into_drawing_area())?;
     figure_pipeline_flow(SVGBackend::new(&svg_path, size).into_drawing_area())?;
