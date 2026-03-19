@@ -78,6 +78,10 @@ Don’t believe a sensor all at once.
 > **de Beer, R.** (2026). 
 > *Deterministic Spectral Residual Inference for Swarm Interaction Networks: A DSFB Framework for Structural Phase Stability* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.19073826]
+
+> **de Beer, R.** (2026). 
+> *Deterministic Structural Inference in Solid-State Systems: A DSFB Engine for Crystal Lattices, Phonons, and Structural Forensics - Operator-Theoretic Detectability and Scaling Laws* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19102789]
 ---
 
 `DSFB Simulation Notebook:`
