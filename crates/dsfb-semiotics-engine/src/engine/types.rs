@@ -128,9 +128,22 @@ pub struct SignSample {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum SignProjectionMethod {
+    AggregateNormSignedRadialDrift,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SignProjectionMetadata {
+    pub method: SignProjectionMethod,
+    pub axis_labels: [String; 3],
+    pub note: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SignTrajectory {
     pub scenario_id: String,
     pub channel_names: Vec<String>,
+    pub projection_metadata: SignProjectionMetadata,
     pub samples: Vec<SignSample>,
 }
 
@@ -139,10 +152,18 @@ pub struct SyntaxCharacterization {
     pub scenario_id: String,
     pub outward_drift_fraction: f64,
     pub inward_drift_fraction: f64,
+    pub sign_consistency: f64,
+    pub directional_persistence: f64,
+    pub channel_coherence: f64,
+    pub aggregate_monotonicity: f64,
     pub monotone_drift_fraction: f64,
     pub curvature_energy: f64,
+    pub mean_radial_drift: f64,
+    pub min_margin: f64,
+    pub mean_margin_delta: f64,
     pub max_slew_norm: f64,
     pub slew_spike_count: usize,
+    pub boundary_grazing_episode_count: usize,
     pub repeated_grazing_count: usize,
     pub trajectory_label: String,
 }
@@ -167,11 +188,55 @@ pub struct DetectabilityResult {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct HeuristicCandidate {
+pub struct HeuristicScopeConditions {
+    pub min_outward_drift_fraction: Option<f64>,
+    pub max_outward_drift_fraction: Option<f64>,
+    pub min_inward_drift_fraction: Option<f64>,
+    pub max_curvature_energy: Option<f64>,
+    pub min_curvature_energy: Option<f64>,
+    pub min_directional_persistence: Option<f64>,
+    pub min_sign_consistency: Option<f64>,
+    pub min_channel_coherence: Option<f64>,
+    pub min_aggregate_monotonicity: Option<f64>,
+    pub min_slew_spike_count: Option<usize>,
+    pub min_boundary_grazing_episodes: Option<usize>,
+    pub require_group_breach: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum AdmissibilityRequirement {
+    Any,
+    BoundaryInteraction,
+    ViolationRequired,
+    NoViolation,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HeuristicProvenance {
+    pub source: String,
+    pub note: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HeuristicBankEntry {
     pub heuristic_id: String,
-    pub label: String,
+    pub motif_label: String,
+    pub scope_conditions: HeuristicScopeConditions,
+    pub admissibility_requirements: AdmissibilityRequirement,
+    pub regime_tags: Vec<String>,
+    pub provenance: HeuristicProvenance,
+    pub applicability_note: String,
+    pub retrieval_priority: u32,
+    pub compatible_with: Vec<String>,
+    pub incompatible_with: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HeuristicCandidate {
+    pub entry: HeuristicBankEntry,
     pub score: f64,
     pub rationale: String,
+    pub matched_regimes: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -188,6 +253,8 @@ pub struct SemanticMatchResult {
     pub motif_summary: String,
     pub candidates: Vec<HeuristicCandidate>,
     pub selected_labels: Vec<String>,
+    pub compatibility_note: String,
+    pub conflict_notes: Vec<String>,
     pub note: String,
 }
 
@@ -257,6 +324,15 @@ pub struct ReproducibilityCheck {
     pub first_hash: String,
     pub second_hash: String,
     pub identical: bool,
+    pub materialized_components: Vec<String>,
+    pub note: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ReproducibilitySummary {
+    pub scenario_count: usize,
+    pub identical_count: usize,
+    pub all_identical: bool,
     pub note: String,
 }
 
@@ -298,6 +374,8 @@ pub struct EngineOutputBundle {
     pub scenario_outputs: Vec<ScenarioOutput>,
     pub figure_artifacts: Vec<FigureArtifact>,
     pub reproducibility_check: ReproducibilityCheck,
+    pub reproducibility_checks: Vec<ReproducibilityCheck>,
+    pub reproducibility_summary: ReproducibilitySummary,
     pub report_manifest: Option<ReportManifest>,
     pub tabular_inventory: BTreeMap<String, Vec<String>>,
 }

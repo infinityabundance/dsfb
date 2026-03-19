@@ -60,12 +60,15 @@ as an explicit `SignTrajectory` with per-sample projections used in the sign-spa
 Syntax is represented through drift and slew structure, including:
 
 - outward and inward drift fractions
-- monotone drift fraction
+- sign consistency and directional persistence
+- channel coherence across multi-channel drift vectors
+- aggregate monotonicity of residual-norm evolution
 - curvature energy
 - localized slew spikes
-- trajectory labels such as `monotone-drift-dominated` or `curvature-or-event-dominated`
+- boundary grazing episode counts
+- trajectory labels such as `persistent-outward-drift`, `curvature-rich-or-event-like`, or `near-boundary-recurrent`
 
-These are deterministic summary descriptors, not a complete formal language implementation.
+Outward and inward motion are computed from residual-envelope margin evolution and residual-aligned radial drift, not from the sign of a single channel. These are deterministic summary descriptors, not a complete formal language implementation.
 
 ### Grammar
 
@@ -89,20 +92,44 @@ using explicit synthetic cases where the relevant quantities are known by constr
 
 ### Deterministic Interpretability
 
-The crate performs a deterministic reproducibility check by rerunning a scenario with identical configuration and hashing the residual, drift, and slew outputs. The resulting check is exported in CSV and JSON.
+The crate performs a deterministic reproducibility check for every executed scenario by rerunning the same layered pipeline and hashing the full materialized output, including residuals, drift, slew, sign objects, grammar states, detectability results, and semantic retrieval outputs. The resulting checks and run summary are exported in CSV and JSON.
 
 ### Semantics
 
-The semantics layer is a conservative heuristics bank, not a classifier. It supports:
+The semantics layer is a conservative typed heuristic bank, not a classifier. Each entry carries:
+
+- `heuristic_id`
+- `motif_label`
+- scope conditions over syntax metrics
+- admissibility requirements
+- regime tags
+- provenance and applicability notes
+- retrieval priority
+- compatibility / incompatibility metadata
+
+Retrieval is constrained rather than purely threshold-labeled. The bank supports illustrative motifs such as:
 
 - monotone drift -> gradual degradation candidate
 - localized slew spike -> discrete event candidate
+- curvature-rich transition candidate
 - repeated envelope grazing -> near-boundary operation candidate
 - coordinated aggregate rise -> correlated degradation or common-mode disturbance candidate
-- explicit ambiguity
+- inward-compatible containment candidate
+- explicit compatible shortlists
+- explicit ambiguity when matched heuristics conflict
 - explicit `Unknown`
 
 These are constrained heuristic retrieval outcomes only. They do not imply unique latent cause.
+
+### CSV Ingestion Path
+
+In addition to the bundled synthetic scenarios, the crate supports a deterministic CSV ingestion mode for externally supplied observed and predicted trajectories. The ingestion path:
+
+- parses observed and predicted CSV files with explicit validation
+- preserves channel names from headers or an optional override
+- applies a user-configured admissibility envelope
+- feeds the exact same residual -> sign -> syntax -> grammar -> semantics pipeline
+- does not add any field-validation claim beyond the supplied trajectories and configured envelope
 
 ## Scenario Program
 
@@ -142,7 +169,7 @@ The code is organized into explicit layers:
 - `src/report/`
   Markdown and PDF artifact report generation.
 - `src/io/`
-  Timestamped output layout, CSV, JSON, and zip export.
+  Timestamped output layout, deterministic CSV ingestion, CSV/JSON export, and zip export.
 - `tests/`
   Real tests for residual math, detectability, determinism, semantics, and output layout.
 
@@ -166,6 +193,17 @@ Run one scenario:
 
 ```bash
 cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- --scenario outward_exit_case_a
+```
+
+Run CSV ingestion mode:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
+  --observed-csv /path/to/observed.csv \
+  --predicted-csv /path/to/predicted.csv \
+  --input-id csv_case \
+  --envelope-mode fixed \
+  --envelope-base 1.0
 ```
 
 Override the output root:
@@ -215,7 +253,7 @@ The crate generates twelve required figures automatically:
 
 1. residual vs prediction / observation overview
 2. drift and slew decomposition
-3. sign-space trajectory projection
+3. sign-space trajectory projection using the deterministic aggregate projection `[||r||, signed radial drift, ||s||]`
 4. syntax comparison
 5. envelope exit under sustained outward drift
 6. envelope invariance under inward-compatible drift
@@ -248,6 +286,7 @@ The notebook does not reimplement the semiotic engine logic in Python.
 ## Limitations and Non-Claims
 
 - All scenarios are synthetic deterministic constructions.
+- CSV ingestion mode runs the same deterministic engine on supplied trajectories but does not, by itself, validate those inputs or their predictive model.
 - The crate demonstrates theorem-aligned behavior under configured assumptions; it does not prove those assumptions hold in real systems.
 - Envelope exit is treated as detectable departure from the configured admissibility grammar, not unique diagnosis.
 - Heuristic semantic matches are constrained motif retrieval outputs only and may remain ambiguous or unknown.

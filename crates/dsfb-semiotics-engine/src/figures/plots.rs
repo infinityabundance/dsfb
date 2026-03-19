@@ -109,27 +109,42 @@ where
     root.fill(&WHITE_BG)?;
     let areas = root.split_evenly((3, 1));
     let times = times(scenario);
-    let residual = series_channel(&scenario.residual.samples, 0);
-    let drift = series_channel(&scenario.drift.samples, 0);
-    let slew = series_channel(&scenario.slew.samples, 0);
+    let residual = scenario
+        .residual
+        .samples
+        .iter()
+        .map(|sample| sample.norm)
+        .collect::<Vec<_>>();
+    let drift = scenario
+        .sign
+        .samples
+        .iter()
+        .map(|sample| sample.projection[1])
+        .collect::<Vec<_>>();
+    let slew = scenario
+        .slew
+        .samples
+        .iter()
+        .map(|sample| sample.norm)
+        .collect::<Vec<_>>();
 
     draw_single_series(
         &areas[0],
-        "Residual Channel 1",
+        "Residual Norm",
         &times,
         &residual,
-        "r1(t)",
+        "||r(t)||",
         &BLUE,
     )?;
     draw_single_series(
         &areas[1],
-        "Drift Channel 1",
+        "Signed Radial Drift",
         &times,
         &drift,
-        "d1(t)",
+        "dot(r,d)/||r||",
         &GREEN,
     )?;
-    draw_single_series(&areas[2], "Slew Channel 1", &times, &slew, "s1(t)", &RED)?;
+    draw_single_series(&areas[2], "Slew Norm", &times, &slew, "||s(t)||", &RED)?;
     root.present()?;
     Ok(())
 }
@@ -161,8 +176,14 @@ where
         .build_cartesian_2d(x_min..x_max, y_min..y_max)?;
     chart
         .configure_mesh()
-        .x_desc("projection coordinate 1: residual channel 1")
-        .y_desc("projection coordinate 2: drift channel 1")
+        .x_desc(format!(
+            "projection coordinate 1: {}",
+            scenario.sign.projection_metadata.axis_labels[0]
+        ))
+        .y_desc(format!(
+            "projection coordinate 2: {}",
+            scenario.sign.projection_metadata.axis_labels[1]
+        ))
         .draw()?;
     chart.draw_series(LineSeries::new(points.iter().copied(), &TEAL))?;
     chart.draw_series(points.iter().enumerate().step_by(12).map(|(index, point)| {
@@ -183,6 +204,11 @@ where
             ("sans-serif", 18).into_font().color(&RED),
         )))?;
     }
+    chart.draw_series(std::iter::once(Text::new(
+        scenario.sign.projection_metadata.note.clone(),
+        (x_min + (x_max - x_min) * 0.03, y_max - (y_max - y_min) * 0.08),
+        ("sans-serif", 14).into_font().color(&SLATE),
+    )))?;
     root.present()?;
     Ok(())
 }
@@ -197,8 +223,18 @@ where
 {
     root.fill(&WHITE_BG)?;
     let times = times(monotone);
-    let monotone_series = series_channel(&monotone.residual.samples, 0);
-    let curvature_series = series_channel(&curvature.residual.samples, 0);
+    let monotone_series = monotone
+        .residual
+        .samples
+        .iter()
+        .map(|sample| sample.norm)
+        .collect::<Vec<_>>();
+    let curvature_series = curvature
+        .residual
+        .samples
+        .iter()
+        .map(|sample| sample.norm)
+        .collect::<Vec<_>>();
     let (x_min, x_max) = bounds(&times);
     let (y_min, y_max) = combined_bounds(&[monotone_series.clone(), curvature_series.clone()]);
     let mut chart = ChartBuilder::on(&root)
@@ -210,7 +246,7 @@ where
     chart
         .configure_mesh()
         .x_desc("time")
-        .y_desc("residual channel 1")
+        .y_desc("residual norm")
         .draw()?;
     chart
         .draw_series(LineSeries::new(
@@ -419,6 +455,25 @@ where
             .find(|scenario| &scenario.record.id == id)
     })
     .collect::<Vec<_>>();
+    let cases = if cases.is_empty() {
+        bundle
+            .scenario_outputs
+            .iter()
+            .filter(|scenario| scenario.detectability.predicted_upper_bound.is_some())
+            .collect::<Vec<_>>()
+    } else {
+        cases
+    };
+    let y_max = cases
+        .iter()
+        .flat_map(|scenario| {
+            [
+                scenario.detectability.predicted_upper_bound.unwrap_or(0.0),
+                scenario.detectability.observed_crossing_time.unwrap_or(0.0),
+            ]
+        })
+        .fold(0.0, f64::max)
+        .max(1.0);
 
     let mut chart = ChartBuilder::on(&root)
         .caption(
@@ -428,7 +483,7 @@ where
         .margin(24)
         .x_label_area_size(60)
         .y_label_area_size(64)
-        .build_cartesian_2d(0.0_f64..cases.len() as f64, 0.0_f64..100.0_f64)?;
+        .build_cartesian_2d(0.0_f64..cases.len().max(1) as f64, 0.0_f64..(y_max * 1.15))?;
     chart
         .configure_mesh()
         .x_desc("scenario index")
@@ -586,10 +641,24 @@ where
     DB::ErrorType: 'static,
 {
     root.fill(&WHITE_BG)?;
-    let coordinated = scenario
-        .coordinated
-        .as_ref()
-        .context("missing coordinated data")?;
+    let Some(coordinated) = scenario.coordinated.as_ref() else {
+        root.draw(&Text::new(
+            "Coordinated / grouped structure not configured for this run",
+            (640, 220),
+            TextStyle::from(("sans-serif", 30).into_font())
+                .color(&BLACK)
+                .pos(Pos::new(HPos::Center, VPos::Center)),
+        ))?;
+        root.draw(&Text::new(
+            "Figure 11 is populated with local-vs-aggregate envelopes only when a grouped residual scenario is present.",
+            (640, 290),
+            TextStyle::from(("sans-serif", 20).into_font())
+                .color(&SLATE)
+                .pos(Pos::new(HPos::Center, VPos::Center)),
+        ))?;
+        root.present()?;
+        return Ok(());
+    };
     let areas = root.split_evenly((2, 1));
     let times = times(scenario);
 
@@ -657,14 +726,19 @@ where
 {
     root.fill(&WHITE_BG)?;
     let areas = root.split_evenly((3, 1));
-    let gradual = scenario(bundle, "gradual_degradation")?;
-    let abrupt = scenario(bundle, "abrupt_event")?;
-    let nominal = scenario(bundle, "nominal_stable")?;
+    let representatives = representative_scenarios(
+        bundle,
+        &["gradual_degradation", "abrupt_event", "nominal_stable"],
+        3,
+    );
+    let first = representatives.first().copied().context("missing representative scenario")?;
+    let second = representatives.get(1).copied().unwrap_or(first);
+    let third = representatives.get(2).copied().unwrap_or(second);
 
     let scores = vec![
         (
-            "gradual",
-            gradual
+            first.record.id.as_str(),
+            first
                 .semantics
                 .candidates
                 .first()
@@ -673,8 +747,8 @@ where
             BLUE,
         ),
         (
-            "abrupt",
-            abrupt
+            second.record.id.as_str(),
+            second
                 .semantics
                 .candidates
                 .first()
@@ -683,8 +757,8 @@ where
             RED,
         ),
         (
-            "nominal",
-            nominal
+            third.record.id.as_str(),
+            third
                 .semantics
                 .candidates
                 .first()
@@ -696,16 +770,16 @@ where
     draw_score_bars(&areas[0], "Observed Motif Score", &scores)?;
 
     let grammar_counts = vec![
-        ("gradual", boundary_or_violation_count(gradual) as f64, GOLD),
-        ("abrupt", boundary_or_violation_count(abrupt) as f64, GOLD),
-        ("nominal", boundary_or_violation_count(nominal) as f64, GOLD),
+        (first.record.id.as_str(), boundary_or_violation_count(first) as f64, GOLD),
+        (second.record.id.as_str(), boundary_or_violation_count(second) as f64, GOLD),
+        (third.record.id.as_str(), boundary_or_violation_count(third) as f64, GOLD),
     ];
     draw_score_bars(&areas[1], "Admissibility Filter Count", &grammar_counts)?;
 
     let disposition_values = vec![
-        ("gradual", disposition_value(&gradual.semantics), BLUE),
-        ("abrupt", disposition_value(&abrupt.semantics), RED),
-        ("nominal", disposition_value(&nominal.semantics), SLATE),
+        (first.record.id.as_str(), disposition_value(&first.semantics), BLUE),
+        (second.record.id.as_str(), disposition_value(&second.semantics), RED),
+        (third.record.id.as_str(), disposition_value(&third.semantics), SLATE),
     ];
     draw_score_bars(&areas[2], "Retrieval Outcome Score", &disposition_values)?;
     root.present()?;
@@ -848,7 +922,15 @@ where
         .margin(18)
         .x_label_area_size(44)
         .y_label_area_size(56)
-        .build_cartesian_2d(0.0_f64..values.len() as f64, 0.0_f64..12.0_f64)?;
+        .build_cartesian_2d(
+            0.0_f64..values.len().max(1) as f64,
+            0.0_f64..(values
+                .iter()
+                .map(|(_, value, _)| *value)
+                .fold(0.0, f64::max)
+                * 1.15)
+                .max(1.0),
+        )?;
     chart
         .configure_mesh()
         .x_desc("representative scenario")
@@ -871,7 +953,7 @@ where
 }
 
 fn render_01(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
-    let scenario = scenario(bundle, "gradual_degradation")?;
+    let scenario = scenario_or_first(bundle, "gradual_degradation")?;
     let figure_id = "figure_01_residual_prediction_observation_overview";
     let caption = "Residual, observation, and prediction overview for the gradual degradation case. Synthetic deterministic demonstration only.";
     let size = (1280, 840);
@@ -888,9 +970,9 @@ fn render_01(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 }
 
 fn render_02(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
-    let scenario = scenario(bundle, "abrupt_event")?;
+    let scenario = scenario_or_first(bundle, "abrupt_event")?;
     let figure_id = "figure_02_drift_and_slew_decomposition";
-    let caption = "Residual, drift, and slew decomposition for the abrupt-event case, showing a localized high-slew motif. Synthetic deterministic demonstration only.";
+    let caption = "Residual norm, signed radial drift, and slew norm decomposition for a representative case. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
     let size = (1280, 960);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_drift_slew(
@@ -905,9 +987,9 @@ fn render_02(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 }
 
 fn render_03(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
-    let scenario = scenario(bundle, "curvature_onset")?;
+    let scenario = scenario_or_first(bundle, "curvature_onset")?;
     let figure_id = "figure_03_sign_space_projection";
-    let caption = "Projected sign-space trajectory for the curvature-onset case using coordinates derived from the sign tuple. Synthetic deterministic demonstration only.";
+    let caption = "Projected sign-space trajectory using the deterministic aggregate projection [||r||, signed radial drift, ||s||]. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
     let size = (1280, 720);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_sign_space(
@@ -922,8 +1004,8 @@ fn render_03(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 }
 
 fn render_04(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
-    let monotone = scenario(bundle, "gradual_degradation")?;
-    let curvature = scenario(bundle, "curvature_onset")?;
+    let (monotone, curvature) =
+        scenario_pair_or_first(bundle, "gradual_degradation", "curvature_onset")?;
     let figure_id = "figure_04_syntax_comparison";
     let caption = "Syntax comparison between monotone drift and curvature-dominated trajectories. Synthetic deterministic demonstration only.";
     let size = (1280, 720);
@@ -942,7 +1024,7 @@ fn render_04(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 }
 
 fn render_05(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
-    let scenario = scenario(bundle, "outward_exit_case_a")?;
+    let scenario = scenario_or_first(bundle, "outward_exit_case_a")?;
     let figure_id = "figure_05_envelope_exit_under_sustained_outward_drift";
     let caption = "Residual norm and admissibility envelope for the sustained outward-drift exit case. Synthetic theorem-aligned demonstration only.";
     let size = (1280, 720);
@@ -959,7 +1041,7 @@ fn render_05(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 }
 
 fn render_06(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
-    let scenario = scenario(bundle, "inward_invariance")?;
+    let scenario = scenario_or_first(bundle, "inward_invariance")?;
     let figure_id = "figure_06_envelope_invariance_under_inward_drift";
     let caption = "Residual norm and admissibility envelope for the inward-compatible invariance case. Synthetic theorem-aligned demonstration only.";
     let size = (1280, 720);
@@ -976,8 +1058,8 @@ fn render_06(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 }
 
 fn render_07(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
-    let exit_case = scenario(bundle, "outward_exit_case_a")?;
-    let invariance_case = scenario(bundle, "inward_invariance")?;
+    let (exit_case, invariance_case) =
+        scenario_pair_or_first(bundle, "outward_exit_case_a", "inward_invariance")?;
     let figure_id = "figure_07_exit_invariance_pair_common_envelope";
     let caption = "Exit-invariance pair under a common visualization envelope, contrasting outward drift with inward-compatible containment. Synthetic theorem-aligned demonstration only.";
     let size = (1280, 720);
@@ -996,8 +1078,11 @@ fn render_07(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 }
 
 fn render_08(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
-    let admissible = scenario(bundle, "magnitude_matched_admissible")?;
-    let detectable = scenario(bundle, "magnitude_matched_detectable")?;
+    let (admissible, detectable) = scenario_pair_or_first(
+        bundle,
+        "magnitude_matched_admissible",
+        "magnitude_matched_detectable",
+    )?;
     let figure_id = "figure_08_residual_trajectory_separation";
     let caption = "Residual trajectory separation between magnitude-matched admissible and detectable cases. Synthetic theorem-aligned demonstration only.";
     let size = (1280, 720);
@@ -1039,7 +1124,7 @@ fn render_10(figures_dir: &Path) -> Result<FigureArtifact> {
 }
 
 fn render_11(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
-    let scenario = scenario(bundle, "grouped_correlated")?;
+    let scenario = scenario_or_first(bundle, "grouped_correlated")?;
     let figure_id = "figure_11_coordinated_group_semiotics";
     let caption = "Local versus aggregate envelopes for the grouped correlated case. Synthetic deterministic demonstration only.";
     let size = (1280, 840);
@@ -1068,12 +1153,62 @@ fn render_12(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
     Ok(artifact(figure_id, caption, png_path, svg_path))
 }
 
-fn scenario<'a>(bundle: &'a EngineOutputBundle, id: &str) -> Result<&'a ScenarioOutput> {
+fn scenario_or_first<'a>(bundle: &'a EngineOutputBundle, id: &str) -> Result<&'a ScenarioOutput> {
     bundle
         .scenario_outputs
         .iter()
         .find(|scenario| scenario.record.id == id)
-        .with_context(|| format!("missing scenario `{id}` for figure rendering"))
+        .or_else(|| bundle.scenario_outputs.first())
+        .context("missing scenario for figure rendering")
+}
+
+fn scenario_pair_or_first<'a>(
+    bundle: &'a EngineOutputBundle,
+    first_id: &str,
+    second_id: &str,
+) -> Result<(&'a ScenarioOutput, &'a ScenarioOutput)> {
+    let first = scenario_or_first(bundle, first_id)?;
+    let second = bundle
+        .scenario_outputs
+        .iter()
+        .find(|scenario| scenario.record.id == second_id)
+        .or_else(|| {
+            bundle
+                .scenario_outputs
+                .iter()
+                .find(|scenario| scenario.record.id != first.record.id)
+        })
+        .unwrap_or(first);
+    Ok((first, second))
+}
+
+fn representative_scenarios<'a>(
+    bundle: &'a EngineOutputBundle,
+    preferred_ids: &[&str],
+    count: usize,
+) -> Vec<&'a ScenarioOutput> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut selected = Vec::new();
+    for id in preferred_ids {
+        if let Some(scenario) = bundle
+            .scenario_outputs
+            .iter()
+            .find(|scenario| scenario.record.id == *id)
+        {
+            if seen.insert(scenario.record.id.clone()) {
+                selected.push(scenario);
+            }
+        }
+    }
+    for scenario in &bundle.scenario_outputs {
+        if selected.len() >= count {
+            break;
+        }
+        if seen.insert(scenario.record.id.clone()) {
+            selected.push(scenario);
+        }
+    }
+    selected
 }
 
 fn times(scenario: &ScenarioOutput) -> Vec<f64> {
@@ -1152,9 +1287,9 @@ fn boundary_or_violation_count(scenario: &ScenarioOutput) -> usize {
 
 fn disposition_value(result: &crate::engine::types::SemanticMatchResult) -> f64 {
     match result.disposition {
-        crate::engine::types::SemanticDisposition::Match => 3.0,
-        crate::engine::types::SemanticDisposition::Ambiguous => 2.0,
-        crate::engine::types::SemanticDisposition::Unknown => 1.0,
+        crate::engine::types::SemanticDisposition::Match => 1.0,
+        crate::engine::types::SemanticDisposition::Ambiguous => 0.6,
+        crate::engine::types::SemanticDisposition::Unknown => 0.2,
     }
 }
 
