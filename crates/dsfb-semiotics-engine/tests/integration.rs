@@ -1,5 +1,6 @@
 use std::fs;
 
+use clap::Parser;
 use dsfb_semiotics_engine::cli::args::{CsvInputConfig, ScenarioSelection};
 use dsfb_semiotics_engine::engine::grammar_layer::{
     evaluate_detectability, evaluate_grammar_layer,
@@ -79,6 +80,10 @@ fn sign_projection_uses_aggregate_multi_channel_features() {
     let sign = construct_signs(&residual, &drift, &slew);
 
     assert_eq!(sign.projection_metadata.axis_labels[0], "||r(t)||");
+    assert_eq!(
+        sign.projection_metadata.axis_labels[1],
+        "signed aggregate drift"
+    );
     assert!((sign.samples[1].projection[0] - 5.0).abs() < 1.0e-9);
     assert!((sign.samples[1].projection[1] - 5.0).abs() < 1.0e-9);
     assert_ne!(sign.samples[1].projection[0], sign.samples[1].residual[0]);
@@ -92,10 +97,17 @@ fn multi_channel_syntax_characterization_is_not_channel_zero_biased() {
             sign_sample(0, 0.0, vec![0.10, 0.10], vec![-0.02, 0.05], vec![0.0, 0.0]),
             sign_sample(1, 1.0, vec![0.05, 0.20], vec![-0.02, 0.06], vec![0.0, 0.01]),
             sign_sample(2, 2.0, vec![0.00, 0.30], vec![-0.01, 0.07], vec![0.0, 0.01]),
-            sign_sample(3, 3.0, vec![-0.05, 0.40], vec![-0.01, 0.08], vec![0.0, 0.01]),
+            sign_sample(
+                3,
+                3.0,
+                vec![-0.05, 0.40],
+                vec![-0.01, 0.08],
+                vec![0.0, 0.01],
+            ),
         ],
     );
-    let grammar = grammar_with_margins("multi", &[0.50, 0.38, 0.24, 0.10], GrammarState::Admissible);
+    let grammar =
+        grammar_with_margins("multi", &[0.50, 0.38, 0.24, 0.10], GrammarState::Admissible);
 
     let syntax = characterize_syntax(&sign, &grammar);
 
@@ -161,6 +173,7 @@ fn boundary_grazing_episode_count_tracks_distinct_entries() {
 
     let syntax = characterize_syntax(&sign, &grammar);
     assert_eq!(syntax.boundary_grazing_episode_count, 3);
+    assert_eq!(syntax.boundary_recovery_count, 2);
     assert_eq!(syntax.repeated_grazing_count, 2);
 }
 
@@ -173,7 +186,8 @@ fn compatible_semantic_multi_match_returns_ranked_shortlist() {
         .with_coherence(0.72)
         .with_monotonicity(0.82)
         .with_curvature(1.0e-10)
-        .with_boundary_episodes(3);
+        .with_boundary_episodes(3)
+        .with_boundary_recoveries(1);
     let grammar = vec![
         grammar_status("compatible", 0, 0.0, GrammarState::Boundary, 0.02),
         grammar_status("compatible", 1, 1.0, GrammarState::Admissible, 0.10),
@@ -181,8 +195,15 @@ fn compatible_semantic_multi_match_returns_ranked_shortlist() {
     ];
 
     let result = retrieve_semantics("compatible", &syntax, &grammar, None);
-    assert!(matches!(result.disposition, SemanticDisposition::Match));
+    assert!(matches!(
+        result.disposition,
+        SemanticDisposition::CompatibleSet
+    ));
     assert!(result.selected_labels.len() >= 2);
+    assert_eq!(
+        result.selected_labels.len(),
+        result.selected_heuristic_ids.len()
+    );
     assert!(result.compatibility_note.contains("compatible"));
 }
 
@@ -195,7 +216,8 @@ fn incompatible_semantic_multi_match_is_explicitly_ambiguous() {
         .with_coherence(0.65)
         .with_monotonicity(0.55)
         .with_curvature(0.010)
-        .with_boundary_episodes(3);
+        .with_boundary_episodes(3)
+        .with_boundary_recoveries(1);
     let mut syntax = syntax.0;
     syntax.inward_drift_fraction = 0.72;
     let grammar = vec![
@@ -207,6 +229,29 @@ fn incompatible_semantic_multi_match_is_explicitly_ambiguous() {
     let result = retrieve_semantics("ambiguous", &syntax, &grammar, None);
     assert!(matches!(result.disposition, SemanticDisposition::Ambiguous));
     assert!(!result.conflict_notes.is_empty());
+}
+
+#[test]
+fn monotonicity_is_not_equivalent_to_positive_drift_sign() {
+    let sign = sign_trajectory(
+        "monotone_inward",
+        vec![
+            sign_sample(0, 0.0, vec![0.9, 0.3], vec![-0.3, -0.1], vec![0.0, 0.0]),
+            sign_sample(1, 1.0, vec![0.6, 0.2], vec![-0.3, -0.1], vec![0.0, 0.0]),
+            sign_sample(2, 2.0, vec![0.3, 0.1], vec![-0.3, -0.1], vec![0.0, 0.0]),
+            sign_sample(3, 3.0, vec![0.0, 0.0], vec![-0.2, -0.1], vec![0.0, 0.0]),
+        ],
+    );
+    let grammar = grammar_with_margins(
+        "monotone_inward",
+        &[0.10, 0.22, 0.35, 0.48],
+        GrammarState::Admissible,
+    );
+
+    let syntax = characterize_syntax(&sign, &grammar);
+    assert!(syntax.aggregate_monotonicity > 0.95);
+    assert!(syntax.mean_radial_drift < 0.0);
+    assert!(syntax.inward_drift_fraction > syntax.outward_drift_fraction);
 }
 
 #[test]
@@ -231,6 +276,24 @@ fn curvature_case_does_not_collapse_into_monotone_drift_semantics() {
 }
 
 #[test]
+fn abrupt_event_scenario_produces_meaningful_slew_spikes() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 180,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("abrupt_event".to_string()),
+    });
+
+    let bundle = engine.run_single("abrupt_event").unwrap();
+    let scenario = &bundle.scenario_outputs[0];
+    assert!(scenario.syntax.slew_spike_count >= 1);
+    assert!(scenario.syntax.slew_spike_strength > 0.0);
+    assert!(scenario.syntax.curvature_onset_score > 0.0);
+}
+
+#[test]
 fn grouped_correlated_scenario_produces_coordinated_semantics() {
     let temp = TempDir::new().unwrap();
     let engine = StructuralSemioticsEngine::new(EngineConfig {
@@ -244,6 +307,7 @@ fn grouped_correlated_scenario_produces_coordinated_semantics() {
     let bundle = engine.run_single("grouped_correlated").unwrap();
     let scenario = &bundle.scenario_outputs[0];
     assert!(scenario.coordinated.is_some());
+    assert!(scenario.syntax.channel_coherence > 0.55);
     assert!(scenario
         .semantics
         .selected_labels
@@ -358,11 +422,7 @@ fn csv_ingest_mode_runs_through_same_pipeline() {
     let temp = TempDir::new().unwrap();
     let observed_csv = temp.path().join("observed.csv");
     let predicted_csv = temp.path().join("predicted.csv");
-    fs::write(
-        &observed_csv,
-        "time,x,y\n0,1.0,2.0\n1,1.4,2.4\n2,1.9,2.9\n",
-    )
-    .unwrap();
+    fs::write(&observed_csv, "time,x,y\n0,1.0,2.0\n1,1.4,2.4\n2,1.9,2.9\n").unwrap();
     fs::write(
         &predicted_csv,
         "time,x,y\n0,0.9,1.9\n1,1.0,2.0\n2,1.1,2.1\n",
@@ -398,13 +458,44 @@ fn csv_ingest_mode_runs_through_same_pipeline() {
 }
 
 #[test]
+fn csv_cli_mode_exposes_external_data_surface() {
+    let args = dsfb_semiotics_engine::cli::args::CliArgs::try_parse_from([
+        "dsfb-semiotics-engine",
+        "--input-mode",
+        "csv",
+        "--observed-csv",
+        "observed.csv",
+        "--predicted-csv",
+        "predicted.csv",
+        "--scenario-id",
+        "csv_case",
+        "--channel-names",
+        "x,y",
+    ])
+    .unwrap();
+
+    let selection = args.selection();
+    match selection {
+        ScenarioSelection::Csv(config) => {
+            assert_eq!(config.scenario_id, "csv_case");
+            assert_eq!(config.channel_names.unwrap(), vec!["x", "y"]);
+        }
+        other => panic!("expected CSV selection, got {other:?}"),
+    }
+}
+
+#[test]
 fn semantics_layer_can_return_unknown() {
     let syntax = syntax_template("unknown");
     let result = retrieve_semantics("unknown", &syntax, &[], None);
     assert!(matches!(result.disposition, SemanticDisposition::Unknown));
 }
 
-fn trajectory(scenario_id: &str, channels: &[&str], samples: &[(f64, &[f64])]) -> ObservedTrajectory {
+fn trajectory(
+    scenario_id: &str,
+    channels: &[&str],
+    samples: &[(f64, &[f64])],
+) -> ObservedTrajectory {
     ObservedTrajectory {
         scenario_id: scenario_id.to_string(),
         channel_names: channels.iter().map(|name| (*name).to_string()).collect(),
@@ -456,7 +547,11 @@ fn sign_sample(
     drift: Vec<f64>,
     slew: Vec<f64>,
 ) -> SignSample {
-    let residual_norm = residual.iter().map(|value| value * value).sum::<f64>().sqrt();
+    let residual_norm = residual
+        .iter()
+        .map(|value| value * value)
+        .sum::<f64>()
+        .sqrt();
     let drift_norm = drift.iter().map(|value| value * value).sum::<f64>().sqrt();
     let slew_norm = slew.iter().map(|value| value * value).sum::<f64>().sqrt();
     SignSample {
@@ -560,6 +655,11 @@ impl SyntaxTemplate {
         self.0.repeated_grazing_count = value.saturating_sub(1);
         self
     }
+
+    fn with_boundary_recoveries(mut self, value: usize) -> Self {
+        self.0.boundary_recovery_count = value;
+        self
+    }
 }
 
 impl std::ops::Deref for SyntaxTemplate {
@@ -581,12 +681,15 @@ fn syntax_template(scenario_id: &str) -> SyntaxTemplate {
         aggregate_monotonicity: 0.2,
         monotone_drift_fraction: 0.2,
         curvature_energy: 0.01,
+        curvature_onset_score: 0.1,
         mean_radial_drift: 0.0,
         min_margin: 0.1,
         mean_margin_delta: 0.0,
         max_slew_norm: 0.05,
         slew_spike_count: 0,
+        slew_spike_strength: 0.0,
         boundary_grazing_episode_count: 0,
+        boundary_recovery_count: 0,
         repeated_grazing_count: 0,
         trajectory_label: "mixed-structured".to_string(),
     })

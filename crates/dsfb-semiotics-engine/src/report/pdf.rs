@@ -142,7 +142,11 @@ impl PdfWriter {
             let max_width_mm = LANDSCAPE_W_MM - 28.0;
             let max_height_mm = 150.0;
             let scale = (max_width_mm / natural_width_mm).min(max_height_mm / natural_height_mm);
-            let scale = if scale.is_finite() && scale > 0.0 { scale as f32 } else { 1.0 };
+            let scale = if scale.is_finite() && scale > 0.0 {
+                scale as f32
+            } else {
+                1.0
+            };
             let rendered_width_mm = natural_width_mm * scale as f64;
             let image_x = (LANDSCAPE_W_MM - rendered_width_mm) / 2.0;
             let image_y = 26.0;
@@ -185,7 +189,12 @@ impl PdfWriter {
             String::new(),
             format!("Figure paths: {}", manifest.figure_paths.len()),
         ];
-        lines.extend(manifest.figure_paths.iter().map(|path| format!("- {}", path)));
+        lines.extend(
+            manifest
+                .figure_paths
+                .iter()
+                .map(|path| format!("- {}", path)),
+        );
         lines.push(String::new());
         lines.push(format!("CSV paths: {}", manifest.csv_paths.len()));
         lines.extend(manifest.csv_paths.iter().map(|path| format!("- {}", path)));

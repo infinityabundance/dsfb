@@ -158,12 +158,15 @@ pub struct SyntaxCharacterization {
     pub aggregate_monotonicity: f64,
     pub monotone_drift_fraction: f64,
     pub curvature_energy: f64,
+    pub curvature_onset_score: f64,
     pub mean_radial_drift: f64,
     pub min_margin: f64,
     pub mean_margin_delta: f64,
     pub max_slew_norm: f64,
     pub slew_spike_count: usize,
+    pub slew_spike_strength: f64,
     pub boundary_grazing_episode_count: usize,
+    pub boundary_recovery_count: usize,
     pub repeated_grazing_count: usize,
     pub trajectory_label: String,
 }
@@ -194,12 +197,16 @@ pub struct HeuristicScopeConditions {
     pub min_inward_drift_fraction: Option<f64>,
     pub max_curvature_energy: Option<f64>,
     pub min_curvature_energy: Option<f64>,
+    pub max_curvature_onset_score: Option<f64>,
+    pub min_curvature_onset_score: Option<f64>,
     pub min_directional_persistence: Option<f64>,
     pub min_sign_consistency: Option<f64>,
     pub min_channel_coherence: Option<f64>,
     pub min_aggregate_monotonicity: Option<f64>,
     pub min_slew_spike_count: Option<usize>,
+    pub min_slew_spike_strength: Option<f64>,
     pub min_boundary_grazing_episodes: Option<usize>,
+    pub min_boundary_recovery_count: Option<usize>,
     pub require_group_breach: bool,
 }
 
@@ -221,6 +228,7 @@ pub struct HeuristicProvenance {
 pub struct HeuristicBankEntry {
     pub heuristic_id: String,
     pub motif_label: String,
+    pub short_label: String,
     pub scope_conditions: HeuristicScopeConditions,
     pub admissibility_requirements: AdmissibilityRequirement,
     pub regime_tags: Vec<String>,
@@ -242,6 +250,7 @@ pub struct HeuristicCandidate {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SemanticDisposition {
     Match,
+    CompatibleSet,
     Ambiguous,
     Unknown,
 }
@@ -253,6 +262,7 @@ pub struct SemanticMatchResult {
     pub motif_summary: String,
     pub candidates: Vec<HeuristicCandidate>,
     pub selected_labels: Vec<String>,
+    pub selected_heuristic_ids: Vec<String>,
     pub compatibility_note: String,
     pub conflict_notes: Vec<String>,
     pub note: String,

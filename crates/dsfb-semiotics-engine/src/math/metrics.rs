@@ -96,6 +96,10 @@ pub fn radial_drift(residual: &[f64], drift: &[f64]) -> f64 {
     }
 }
 
+pub fn signed_aggregate_drift(residual: &[f64], drift: &[f64]) -> f64 {
+    radial_drift(residual, drift)
+}
+
 pub fn sign_with_deadband(value: f64, deadband: f64) -> i8 {
     if value > deadband {
         1
@@ -176,11 +180,7 @@ pub fn monotone_alignment_fraction(values: &[f64], deadband: f64) -> f64 {
     if active.is_empty() {
         0.0
     } else {
-        active
-            .iter()
-            .filter(|sign| **sign == trend_sign)
-            .count() as f64
-            / active.len() as f64
+        active.iter().filter(|sign| **sign == trend_sign).count() as f64 / active.len() as f64
     }
 }
 
@@ -233,6 +233,14 @@ pub fn channel_sign_coherence(values: &[f64], deadband: f64) -> f64 {
     }
 }
 
+pub fn positive_fraction(values: &[f64], deadband: f64) -> f64 {
+    if values.is_empty() {
+        0.0
+    } else {
+        values.iter().filter(|value| **value > deadband).count() as f64 / values.len() as f64
+    }
+}
+
 pub fn standard_deviation(values: &[f64]) -> f64 {
     if values.len() < 2 {
         return 0.0;
@@ -263,10 +271,47 @@ pub fn episode_count(flags: &[bool]) -> usize {
     count
 }
 
+pub fn recovery_count(flags: &[bool]) -> usize {
+    let mut count = 0usize;
+    let mut active = false;
+    for flag in flags {
+        if *flag {
+            active = true;
+        } else if active {
+            count += 1;
+            active = false;
+        }
+    }
+    count
+}
+
+pub fn positive_excess_strength(values: &[f64], threshold: f64) -> f64 {
+    let normalizer = threshold.abs().max(1.0e-12);
+    values
+        .iter()
+        .map(|value| ((*value - threshold).max(0.0)) / normalizer)
+        .sum::<f64>()
+}
+
+pub fn curvature_onset_score(values: &[f64]) -> f64 {
+    if values.len() < 4 {
+        return 0.0;
+    }
+
+    let baseline_len = (values.len() / 4).max(2);
+    let tail_len = baseline_len;
+    let baseline = mean(&values[..baseline_len]);
+    let terminal = mean(&values[values.len() - tail_len..]);
+    let peak = values.iter().copied().fold(0.0, f64::max);
+    let onset_gain = normalized_positive_rise(peak, baseline);
+    let sustained_gain = normalized_positive_rise(terminal, baseline);
+    (0.6 * onset_gain + 0.4 * sustained_gain).clamp(0.0, 1.0)
+}
+
 pub fn project_sign(residual: &[f64], drift: &[f64], slew: &[f64]) -> [f64; 3] {
     [
         euclidean_norm(residual),
-        radial_drift(residual, drift),
+        signed_aggregate_drift(residual, drift),
         euclidean_norm(slew),
     ]
 }
@@ -276,10 +321,10 @@ pub fn sign_projection_metadata() -> SignProjectionMetadata {
         method: SignProjectionMethod::AggregateNormSignedRadialDrift,
         axis_labels: [
             "||r(t)||".to_string(),
-            "signed radial drift".to_string(),
+            "signed aggregate drift".to_string(),
             "||s(t)||".to_string(),
         ],
-        note: "Deterministic aggregate projection using residual norm, residual-aligned signed drift, and slew norm. This is not a latent-state embedding.".to_string(),
+        note: "Deterministic aggregate projection using residual norm, residual-aligned signed aggregate drift, and slew norm. This is not a latent-state embedding.".to_string(),
     }
 }
 
@@ -302,4 +347,10 @@ fn safe_difference(upper: f64, lower: f64, delta_t: f64) -> f64 {
 fn fnv1a_extend(hash: u64, byte: u8) -> u64 {
     let hash = hash ^ byte as u64;
     hash.wrapping_mul(FNV1A_PRIME)
+}
+
+fn normalized_positive_rise(upper: f64, lower: f64) -> f64 {
+    let rise = (upper - lower).max(0.0);
+    let normalizer = upper.abs() + lower.abs() + 1.0e-12;
+    (rise / normalizer).clamp(0.0, 1.0)
 }

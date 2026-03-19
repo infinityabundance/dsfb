@@ -11,7 +11,12 @@ pub fn load_csv_trajectories(
         &config.scenario_id,
         config.channel_names.as_deref(),
     )
-    .with_context(|| format!("failed to parse observed CSV {}", config.observed_csv.display()))?;
+    .with_context(|| {
+        format!(
+            "failed to parse observed CSV {}",
+            config.observed_csv.display()
+        )
+    })?;
     let predicted = read_vector_csv(
         &config.predicted_csv,
         &config.scenario_id,
