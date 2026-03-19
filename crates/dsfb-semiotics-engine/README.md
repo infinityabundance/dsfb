@@ -64,8 +64,9 @@ Syntax is represented through drift and slew structure, including:
 - channel coherence across multi-channel drift vectors
 - aggregate monotonicity of residual-norm evolution
 - curvature energy
-- localized slew spikes
-- boundary grazing episode counts
+- curvature onset score
+- localized slew spikes and spike strength
+- boundary grazing episode and recovery counts
 - trajectory labels such as `persistent-outward-drift`, `curvature-rich-or-event-like`, or `near-boundary-recurrent`
 
 Outward and inward motion are computed from residual-envelope margin evolution and residual-aligned radial drift, not from the sign of a single channel. These are deterministic summary descriptors, not a complete formal language implementation.
@@ -115,7 +116,7 @@ Retrieval is constrained rather than purely threshold-labeled. The bank supports
 - repeated envelope grazing -> near-boundary operation candidate
 - coordinated aggregate rise -> correlated degradation or common-mode disturbance candidate
 - inward-compatible containment candidate
-- explicit compatible shortlists
+- explicit compatible sets when every matched pair is bank-compatible
 - explicit ambiguity when matched heuristics conflict
 - explicit `Unknown`
 
@@ -201,7 +202,8 @@ Run CSV ingestion mode:
 cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
   --observed-csv /path/to/observed.csv \
   --predicted-csv /path/to/predicted.csv \
-  --input-id csv_case \
+  --input-mode csv \
+  --scenario-id csv_case \
   --envelope-mode fixed \
   --envelope-base 1.0
 ```
@@ -254,7 +256,7 @@ The crate generates twelve required figures automatically:
 
 1. residual vs prediction / observation overview
 2. drift and slew decomposition
-3. sign-space trajectory projection using the deterministic aggregate projection `[||r||, signed radial drift, ||s||]`
+3. projected sign trajectory using the deterministic aggregate projection `[||r||, signed aggregate drift, ||s||]`
 4. syntax comparison
 5. envelope exit under sustained outward drift
 6. envelope invariance under inward-compatible drift

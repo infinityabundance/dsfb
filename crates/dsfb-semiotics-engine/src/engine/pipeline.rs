@@ -268,7 +268,12 @@ impl StructuralSemioticsEngine {
     }
 
     fn prepare_synthetic(&self, definition: &ScenarioDefinition) -> PreparedScenario {
-        let synthesis = synthesize(definition, self.config.steps, self.config.dt, self.config.seed);
+        let synthesis = synthesize(
+            definition,
+            self.config.steps,
+            self.config.dt,
+            self.config.seed,
+        );
         PreparedScenario {
             record: synthesis.record,
             observed: synthesis.observed,
@@ -309,7 +314,8 @@ impl StructuralSemioticsEngine {
     }
 
     fn build_partial_output(&self, prepared: &PreparedScenario) -> Result<PartialScenarioOutput> {
-        let residual = extract_residuals(&prepared.observed, &prepared.predicted, &prepared.record.id);
+        let residual =
+            extract_residuals(&prepared.observed, &prepared.predicted, &prepared.record.id);
         let drift = compute_drift_trajectory(&residual, self.config.dt, &prepared.record.id);
         let slew = compute_slew_trajectory(&residual, self.config.dt, &prepared.record.id);
         let sign = construct_signs(&residual, &drift, &slew);
@@ -377,7 +383,10 @@ impl StructuralSemioticsEngine {
     }
 }
 
-fn compare_outputs(first: &ScenarioOutput, second: &ScenarioOutput) -> Result<ReproducibilityCheck> {
+fn compare_outputs(
+    first: &ScenarioOutput,
+    second: &ScenarioOutput,
+) -> Result<ReproducibilityCheck> {
     let first_hash = hash_serializable_hex(format!("{}-first", first.record.id), first)?;
     let second_hash = hash_serializable_hex(format!("{}-second", second.record.id), second)?;
     Ok(ReproducibilityCheck {
@@ -461,7 +470,10 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         .iter()
         .map(|scenario| scenario.record.clone())
         .collect::<Vec<_>>();
-    write_rows(layout.csv_dir.join("scenario_catalog.csv").as_path(), scenario_catalog.clone())?;
+    write_rows(
+        layout.csv_dir.join("scenario_catalog.csv").as_path(),
+        scenario_catalog.clone(),
+    )?;
     write_rows(
         layout.csv_dir.join("detectability_bounds.csv").as_path(),
         bundle
@@ -493,7 +505,10 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         .iter()
         .flat_map(|scenario| scenario.grammar.clone())
         .collect::<Vec<_>>();
-    write_rows(layout.csv_dir.join("grammar_events.csv").as_path(), grammar_rows)?;
+    write_rows(
+        layout.csv_dir.join("grammar_events.csv").as_path(),
+        grammar_rows,
+    )?;
 
     write_rows(
         layout.csv_dir.join("pipeline_summary.csv").as_path(),
@@ -514,7 +529,9 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
                 .samples
                 .iter()
                 .zip(&scenario.predicted.samples)
-                .map(|(observed, predicted)| time_series_row(&scenario.record.id, observed, predicted)),
+                .map(|(observed, predicted)| {
+                    time_series_row(&scenario.record.id, observed, predicted)
+                }),
         )?;
         write_rows(
             layout
@@ -522,7 +539,13 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
                 .join(format!("{}_residual.csv", scenario.record.id))
                 .as_path(),
             scenario.residual.samples.iter().map(|sample| {
-                vector_norm_row(&scenario.record.id, sample.step, sample.time, &sample.values, sample.norm)
+                vector_norm_row(
+                    &scenario.record.id,
+                    sample.step,
+                    sample.time,
+                    &sample.values,
+                    sample.norm,
+                )
             }),
         )?;
         write_rows(
@@ -531,7 +554,13 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
                 .join(format!("{}_drift.csv", scenario.record.id))
                 .as_path(),
             scenario.drift.samples.iter().map(|sample| {
-                vector_norm_row(&scenario.record.id, sample.step, sample.time, &sample.values, sample.norm)
+                vector_norm_row(
+                    &scenario.record.id,
+                    sample.step,
+                    sample.time,
+                    &sample.values,
+                    sample.norm,
+                )
             }),
         )?;
         write_rows(
@@ -540,7 +569,13 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
                 .join(format!("{}_slew.csv", scenario.record.id))
                 .as_path(),
             scenario.slew.samples.iter().map(|sample| {
-                vector_norm_row(&scenario.record.id, sample.step, sample.time, &sample.values, sample.norm)
+                vector_norm_row(
+                    &scenario.record.id,
+                    sample.step,
+                    sample.time,
+                    &sample.values,
+                    sample.norm,
+                )
             }),
         )?;
         write_rows(
@@ -579,7 +614,10 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         }
     }
 
-    write_pretty(layout.json_dir.join("run_metadata.json").as_path(), &bundle.run_metadata)?;
+    write_pretty(
+        layout.json_dir.join("run_metadata.json").as_path(),
+        &bundle.run_metadata,
+    )?;
     write_pretty(
         layout.json_dir.join("scenario_catalog.json").as_path(),
         &scenario_catalog,
@@ -589,11 +627,17 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         &bundle.reproducibility_check,
     )?;
     write_pretty(
-        layout.json_dir.join("reproducibility_checks.json").as_path(),
+        layout
+            .json_dir
+            .join("reproducibility_checks.json")
+            .as_path(),
         &bundle.reproducibility_checks,
     )?;
     write_pretty(
-        layout.json_dir.join("reproducibility_summary.json").as_path(),
+        layout
+            .json_dir
+            .join("reproducibility_summary.json")
+            .as_path(),
         &bundle.reproducibility_summary,
     )?;
     write_pretty(
@@ -783,6 +827,7 @@ struct SemanticMatchCsvRow {
     disposition: String,
     motif_summary: String,
     selected_labels: String,
+    selected_heuristic_ids: String,
     candidate_labels: String,
     compatibility_note: String,
     conflict_notes: String,
@@ -870,6 +915,7 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
         disposition: format!("{:?}", result.disposition),
         motif_summary: result.motif_summary.clone(),
         selected_labels: result.selected_labels.join(" | "),
+        selected_heuristic_ids: result.selected_heuristic_ids.join(" | "),
         candidate_labels: result
             .candidates
             .iter()

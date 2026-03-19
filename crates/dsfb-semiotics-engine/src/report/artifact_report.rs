@@ -28,8 +28,8 @@ pub fn build_markdown_report(
     lines.push("- Drift: `d(t) = dr/dt` via deterministic finite differences.".to_string());
     lines.push("- Slew: `s(t) = d^2r/dt^2` via deterministic second differences.".to_string());
     lines.push("- Sign tuple: `sigma(t) = (r(t), d(t), s(t))`.".to_string());
-    lines.push("- Sign projection used in Figure 03: deterministic aggregate coordinates `[||r(t)||, dot(r(t), d(t))/||r(t)||, ||s(t)||]` when `||r(t)|| > 0`, with zero radial drift at exact zero residual norm.".to_string());
-    lines.push("- Syntax metrics include outward and inward drift fractions from margin evolution, directional persistence, sign consistency, channel coherence, aggregate monotonicity, curvature energy, slew spike count, and boundary grazing episode count.".to_string());
+    lines.push("- Sign projection used in Figure 03: deterministic aggregate coordinates `[||r(t)||, dot(r(t), d(t))/||r(t)||, ||s(t)||]` when `||r(t)|| > 0`, reported as residual norm, signed aggregate drift, and slew norm.".to_string());
+    lines.push("- Syntax metrics include outward and inward drift fractions from residual-norm and margin evolution, directional persistence, sign consistency, channel coherence, aggregate monotonicity, curvature energy, curvature onset score, slew spike count and strength, boundary grazing episodes, and boundary recovery count.".to_string());
     lines.push(
         "- Grammar: admissibility checked pointwise against `||r(t)|| <= rho(t)`.".to_string(),
     );
@@ -50,10 +50,7 @@ pub fn build_markdown_report(
         "- All identical: `{}`",
         bundle.reproducibility_summary.all_identical
     ));
-    lines.push(format!(
-        "- Note: {}",
-        bundle.reproducibility_summary.note
-    ));
+    lines.push(format!("- Note: {}", bundle.reproducibility_summary.note));
     lines.push(String::new());
     for check in &bundle.reproducibility_checks {
         lines.push(format!(
@@ -78,7 +75,7 @@ pub fn build_markdown_report(
     lines.push("- Synthetic scenarios in this run are deterministic constructions intended to illustrate theorem-aligned behavior and auditable pipeline structure. CSV-ingested runs reuse the same pipeline without adding external validation claims.".to_string());
     lines.push("- CSV ingestion mode, when used, applies the same deterministic layers to user-supplied trajectories but does not add validation claims beyond the supplied inputs and configured envelope.".to_string());
     lines.push("- Envelope exits demonstrate detectable departure from the configured admissibility grammar, not unique identification of latent physical cause.".to_string());
-    lines.push("- Heuristic semantic matches are constrained typed-bank retrieval outcomes only; they are allowed to remain compatible shortlists, ambiguous, or unknown.".to_string());
+    lines.push("- Heuristic semantic matches are constrained typed-bank retrieval outcomes only; they are allowed to remain explicit compatible sets, ambiguous, or unknown.".to_string());
     lines.push("- No certification claim is made. The artifact is aligned with deterministic and auditable engineering evaluation logic only.".to_string());
     lines.push(String::new());
     lines.push("## Manifest Summary".to_string());
@@ -116,13 +113,17 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
         format!("- Violations observed: {}", violation_count),
         format!("- First exit time: {}", first_exit),
         format!(
-            "- Syntax metrics: outward={:.3}, inward={:.3}, monotonicity={:.3}, persistence={:.3}, curvature={:.3}, grazing_episodes={}",
+            "- Syntax metrics: outward={:.3}, inward={:.3}, monotonicity={:.3}, persistence={:.3}, curvature={:.3}, curvature_onset={:.3}, slew_spikes={}, spike_strength={:.3}, grazing_episodes={}, boundary_recoveries={}",
             scenario.syntax.outward_drift_fraction,
             scenario.syntax.inward_drift_fraction,
             scenario.syntax.aggregate_monotonicity,
             scenario.syntax.directional_persistence,
             scenario.syntax.curvature_energy,
-            scenario.syntax.boundary_grazing_episode_count
+            scenario.syntax.curvature_onset_score,
+            scenario.syntax.slew_spike_count,
+            scenario.syntax.slew_spike_strength,
+            scenario.syntax.boundary_grazing_episode_count,
+            scenario.syntax.boundary_recovery_count,
         ),
         format!(
             "- Semantic disposition: `{:?}`",

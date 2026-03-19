@@ -45,6 +45,12 @@ impl From<EnvelopeModeArg> for EnvelopeMode {
     }
 }
 
+#[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
+pub enum InputModeArg {
+    Synthetic,
+    Csv,
+}
+
 #[derive(Clone, Debug, Parser)]
 #[command(
     author,
@@ -64,6 +70,13 @@ pub struct CliArgs {
 
     #[arg(
         long,
+        value_enum,
+        help = "Optional input mode selector. Use `csv` to require external CSV ingestion flags, or `synthetic` to reject them explicitly."
+    )]
+    pub input_mode: Option<InputModeArg>,
+
+    #[arg(
+        long,
         value_hint = ValueHint::FilePath,
         help = "CSV ingestion mode: observed trajectory CSV with headers including time and channel columns"
     )]
@@ -77,11 +90,12 @@ pub struct CliArgs {
     pub predicted_csv: Option<PathBuf>,
 
     #[arg(
-        long,
+        long = "scenario-id",
+        alias = "input-id",
         default_value = "csv_ingest",
         help = "Scenario identifier used when running the CSV ingestion path"
     )]
-    pub input_id: String,
+    pub scenario_id: String,
 
     #[arg(
         long,
@@ -146,10 +160,18 @@ pub struct CliArgs {
     #[arg(long, default_value_t = 123, help = "Deterministic scenario seed")]
     pub seed: u64,
 
-    #[arg(long, default_value_t = 240, help = "Number of steps per synthetic scenario")]
+    #[arg(
+        long,
+        default_value_t = 240,
+        help = "Number of steps per synthetic scenario"
+    )]
     pub steps: usize,
 
-    #[arg(long, default_value_t = 1.0, help = "Sample interval for synthetic scenarios")]
+    #[arg(
+        long,
+        default_value_t = 1.0,
+        help = "Sample interval for synthetic scenarios"
+    )]
     pub dt: f64,
 }
 
@@ -157,6 +179,8 @@ impl CliArgs {
     pub fn parse_args() -> Self {
         let args = Self::parse();
         let csv_mode = args.observed_csv.is_some() || args.predicted_csv.is_some();
+        let explicit_csv_mode = matches!(args.input_mode, Some(InputModeArg::Csv));
+        let explicit_synthetic_mode = matches!(args.input_mode, Some(InputModeArg::Synthetic));
 
         if args.all && args.scenario.is_some() {
             Self::command()
@@ -190,18 +214,33 @@ impl CliArgs {
                 )
                 .exit();
         }
+        if explicit_csv_mode && !csv_mode {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "--input-mode csv requires both --observed-csv and --predicted-csv",
+                )
+                .exit();
+        }
+        if explicit_synthetic_mode && csv_mode {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--input-mode synthetic cannot be combined with CSV ingestion flags",
+                )
+                .exit();
+        }
 
         args
     }
 
     pub fn selection(&self) -> ScenarioSelection {
-        if let (Some(observed_csv), Some(predicted_csv)) =
-            (&self.observed_csv, &self.predicted_csv)
+        if let (Some(observed_csv), Some(predicted_csv)) = (&self.observed_csv, &self.predicted_csv)
         {
             ScenarioSelection::Csv(CsvInputConfig {
                 observed_csv: observed_csv.clone(),
                 predicted_csv: predicted_csv.clone(),
-                scenario_id: self.input_id.clone(),
+                scenario_id: self.scenario_id.clone(),
                 channel_names: self.channel_names.as_deref().map(parse_channel_names),
                 envelope_mode: self.envelope_mode.into(),
                 envelope_base: self.envelope_base,

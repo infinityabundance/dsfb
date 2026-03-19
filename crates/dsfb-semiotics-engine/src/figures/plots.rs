@@ -206,7 +206,10 @@ where
     }
     chart.draw_series(std::iter::once(Text::new(
         scenario.sign.projection_metadata.note.clone(),
-        (x_min + (x_max - x_min) * 0.03, y_max - (y_max - y_min) * 0.08),
+        (
+            x_min + (x_max - x_min) * 0.03,
+            y_max - (y_max - y_min) * 0.08,
+        ),
         ("sans-serif", 14).into_font().color(&SLATE),
     )))?;
     root.present()?;
@@ -731,7 +734,10 @@ where
         &["gradual_degradation", "abrupt_event", "nominal_stable"],
         3,
     );
-    let first = representatives.first().copied().context("missing representative scenario")?;
+    let first = representatives
+        .first()
+        .copied()
+        .context("missing representative scenario")?;
     let second = representatives.get(1).copied().unwrap_or(first);
     let third = representatives.get(2).copied().unwrap_or(second);
 
@@ -770,16 +776,40 @@ where
     draw_score_bars(&areas[0], "Observed Motif Score", &scores)?;
 
     let grammar_counts = vec![
-        (first.record.id.as_str(), boundary_or_violation_count(first) as f64, GOLD),
-        (second.record.id.as_str(), boundary_or_violation_count(second) as f64, GOLD),
-        (third.record.id.as_str(), boundary_or_violation_count(third) as f64, GOLD),
+        (
+            first.record.id.as_str(),
+            boundary_or_violation_count(first) as f64,
+            GOLD,
+        ),
+        (
+            second.record.id.as_str(),
+            boundary_or_violation_count(second) as f64,
+            GOLD,
+        ),
+        (
+            third.record.id.as_str(),
+            boundary_or_violation_count(third) as f64,
+            GOLD,
+        ),
     ];
     draw_score_bars(&areas[1], "Admissibility Filter Count", &grammar_counts)?;
 
     let disposition_values = vec![
-        (first.record.id.as_str(), disposition_value(&first.semantics), BLUE),
-        (second.record.id.as_str(), disposition_value(&second.semantics), RED),
-        (third.record.id.as_str(), disposition_value(&third.semantics), SLATE),
+        (
+            first.record.id.as_str(),
+            disposition_value(&first.semantics),
+            BLUE,
+        ),
+        (
+            second.record.id.as_str(),
+            disposition_value(&second.semantics),
+            RED,
+        ),
+        (
+            third.record.id.as_str(),
+            disposition_value(&third.semantics),
+            SLATE,
+        ),
     ];
     draw_score_bars(&areas[2], "Retrieval Outcome Score", &disposition_values)?;
     root.present()?;
@@ -924,12 +954,13 @@ where
         .y_label_area_size(56)
         .build_cartesian_2d(
             0.0_f64..values.len().max(1) as f64,
-            0.0_f64..(values
-                .iter()
-                .map(|(_, value, _)| *value)
-                .fold(0.0, f64::max)
-                * 1.15)
-                .max(1.0),
+            0.0_f64
+                ..(values
+                    .iter()
+                    .map(|(_, value, _)| *value)
+                    .fold(0.0, f64::max)
+                    * 1.15)
+                    .max(1.0),
         )?;
     chart
         .configure_mesh()
@@ -972,7 +1003,7 @@ fn render_01(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 fn render_02(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
     let scenario = scenario_or_first(bundle, "abrupt_event")?;
     let figure_id = "figure_02_drift_and_slew_decomposition";
-    let caption = "Residual norm, signed radial drift, and slew norm decomposition for a representative case. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
+    let caption = "Residual norm, signed aggregate drift, and slew norm decomposition for a representative case. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
     let size = (1280, 960);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_drift_slew(
@@ -989,7 +1020,7 @@ fn render_02(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 fn render_03(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
     let scenario = scenario_or_first(bundle, "curvature_onset")?;
     let figure_id = "figure_03_sign_space_projection";
-    let caption = "Projected sign-space trajectory using the deterministic aggregate projection [||r||, signed radial drift, ||s||]. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
+    let caption = "Projected sign trajectory using the deterministic aggregate coordinates [||r||, signed aggregate drift, ||s||]. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
     let size = (1280, 720);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_sign_space(
@@ -1288,6 +1319,7 @@ fn boundary_or_violation_count(scenario: &ScenarioOutput) -> usize {
 fn disposition_value(result: &crate::engine::types::SemanticMatchResult) -> f64 {
     match result.disposition {
         crate::engine::types::SemanticDisposition::Match => 1.0,
+        crate::engine::types::SemanticDisposition::CompatibleSet => 0.8,
         crate::engine::types::SemanticDisposition::Ambiguous => 0.6,
         crate::engine::types::SemanticDisposition::Unknown => 0.2,
     }
