@@ -134,8 +134,11 @@ pub enum SignProjectionMethod {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SignProjectionMetadata {
+    /// Deterministic projection method used for figure-oriented sign visualization.
     pub method: SignProjectionMethod,
+    /// Human-readable labels for the three projected coordinates.
     pub axis_labels: [String; 3],
+    /// Exact explanation of how the projected coordinates were constructed.
     pub note: String,
 }
 
@@ -150,24 +153,45 @@ pub struct SignTrajectory {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyntaxCharacterization {
     pub scenario_id: String,
+    /// Fraction of sampled times where margin evolution and radial drift indicate outward motion
+    /// relative to the configured admissibility envelope.
     pub outward_drift_fraction: f64,
+    /// Fraction of sampled times where margin evolution and radial drift indicate inward motion
+    /// relative to the configured admissibility envelope.
     pub inward_drift_fraction: f64,
+    /// Dominant nonzero sign share of the radial-drift sequence.
     pub sign_consistency: f64,
+    /// Adjacent-agreement fraction across nonzero radial-drift signs.
     pub directional_persistence: f64,
+    /// Mean within-sample sign alignment across drift channels.
     pub channel_coherence: f64,
+    /// Net residual-norm change divided by total residual-norm variation.
     pub aggregate_monotonicity: f64,
+    /// Fraction of residual-norm increments aligned with the net residual-norm trend.
     pub monotone_drift_fraction: f64,
+    /// Mean squared slew norm across the sampled trajectory.
     pub curvature_energy: f64,
+    /// Deterministic onset score derived from early-to-late slew-norm growth.
     pub curvature_onset_score: f64,
+    /// Mean radial drift `dot(r,d)/||r||`, with zero reported at exact zero residual norm.
     pub mean_radial_drift: f64,
+    /// Smallest residual-envelope margin observed along the trajectory.
     pub min_margin: f64,
+    /// Mean derivative of the residual-envelope margin over sampled times.
     pub mean_margin_delta: f64,
+    /// Maximum slew norm observed across the trajectory.
     pub max_slew_norm: f64,
+    /// Count of slew-norm samples above the deterministic spike threshold.
     pub slew_spike_count: usize,
+    /// Average positive excess of slew norm above the deterministic spike threshold.
     pub slew_spike_strength: f64,
+    /// Number of distinct contiguous boundary episodes.
     pub boundary_grazing_episode_count: usize,
+    /// Number of returns from non-admissible states back to admissible states.
     pub boundary_recovery_count: usize,
+    /// Boundary episode count minus one; used as a compact repeated-grazing indicator.
     pub repeated_grazing_count: usize,
+    /// Compact deterministic summary label derived from the richer syntax metrics.
     pub trajectory_label: String,
 }
 
@@ -297,6 +321,7 @@ pub struct CoordinatedResidualStructure {
 pub struct ScenarioRecord {
     pub id: String,
     pub title: String,
+    pub data_origin: String,
     pub purpose: String,
     pub theorem_alignment: String,
     pub claim_class: String,
@@ -353,6 +378,7 @@ pub struct RunMetadata {
     pub rust_version: Option<String>,
     pub git_commit: Option<String>,
     pub timestamp: String,
+    pub input_mode: String,
     pub seed: u64,
     pub steps: usize,
     pub dt: f64,
@@ -366,6 +392,7 @@ pub struct ReportManifest {
     pub crate_name: String,
     pub crate_version: String,
     pub timestamp: String,
+    pub input_mode: String,
     pub run_dir: String,
     pub report_markdown: String,
     pub report_pdf: String,

@@ -6,10 +6,18 @@ use crate::engine::types::{ObservedTrajectory, PredictedTrajectory, VectorSample
 pub fn load_csv_trajectories(
     config: &CsvInputConfig,
 ) -> Result<(ObservedTrajectory, PredictedTrajectory)> {
+    if config.dt_fallback <= 0.0 {
+        return Err(anyhow!(
+            "CSV ingestion requires a positive dt fallback when explicit time values are not supplied; got {}",
+            config.dt_fallback
+        ));
+    }
     let observed = read_vector_csv(
         &config.observed_csv,
         &config.scenario_id,
         config.channel_names.as_deref(),
+        config.time_column.as_deref(),
+        config.dt_fallback,
     )
     .with_context(|| {
         format!(
@@ -21,6 +29,8 @@ pub fn load_csv_trajectories(
         &config.predicted_csv,
         &config.scenario_id,
         config.channel_names.as_deref(),
+        config.time_column.as_deref(),
+        config.dt_fallback,
     )
     .with_context(|| {
         format!(
@@ -79,6 +89,8 @@ fn read_vector_csv(
     path: &std::path::Path,
     scenario_id: &str,
     override_channel_names: Option<&[String]>,
+    time_column_name: Option<&str>,
+    dt_fallback: f64,
 ) -> Result<ObservedTrajectory> {
     let mut reader = csv::Reader::from_path(path)
         .with_context(|| format!("failed to open {}", path.display()))?;
@@ -89,12 +101,26 @@ fn read_vector_csv(
         .map(|header| header.trim().to_string())
         .collect::<Vec<_>>();
 
-    let time_index = headers.iter().position(|header| header == "time");
+    let time_index = match time_column_name {
+        Some(name) => Some(
+            headers
+                .iter()
+                .position(|header| header == name)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "CSV {} does not contain the requested time column `{}`",
+                        path.display(),
+                        name
+                    )
+                })?,
+        ),
+        None => headers.iter().position(|header| header == "time"),
+    };
     let step_index = headers.iter().position(|header| header == "step");
     let data_indices = headers
         .iter()
         .enumerate()
-        .filter(|(_, header)| *header != "time" && *header != "step")
+        .filter(|(index, header)| Some(*index) != time_index && *header != "step")
         .map(|(index, _)| index)
         .collect::<Vec<_>>();
 
@@ -116,6 +142,14 @@ fn read_vector_csv(
         }
         names.to_vec()
     } else {
+        for index in &data_indices {
+            if headers[*index].is_empty() {
+                return Err(anyhow!(
+                    "CSV {} contains an empty channel header; supply explicit headers or use --channel-names",
+                    path.display()
+                ));
+            }
+        }
         data_indices
             .iter()
             .map(|index| headers[*index].clone())
@@ -131,8 +165,8 @@ fn read_vector_csv(
             None => row_index,
         };
         let time = match time_index {
-            Some(index) => parse_f64(record.get(index), "time", row_index, path)?,
-            None => row_index as f64,
+            Some(index) => parse_f64(record.get(index), &headers[index], row_index, path)?,
+            None => row_index as f64 * dt_fallback,
         };
         let values = data_indices
             .iter()
@@ -144,6 +178,7 @@ fn read_vector_csv(
     if samples.is_empty() {
         return Err(anyhow!("CSV {} contained no data rows", path.display()));
     }
+    validate_sample_order(path, &samples, step_index.is_some(), time_index.is_some())?;
 
     Ok(ObservedTrajectory {
         scenario_id: scenario_id.to_string(),
@@ -218,4 +253,33 @@ pub fn observed_to_predicted(trajectory: ObservedTrajectory) -> PredictedTraject
         channel_names: trajectory.channel_names,
         samples: trajectory.samples,
     }
+}
+
+fn validate_sample_order(
+    path: &std::path::Path,
+    samples: &[VectorSample],
+    explicit_step_column: bool,
+    explicit_time_column: bool,
+) -> Result<()> {
+    for window in samples.windows(2) {
+        let left = &window[0];
+        let right = &window[1];
+        if explicit_step_column && right.step <= left.step {
+            return Err(anyhow!(
+                "CSV {} must have strictly increasing step values; found {} then {}",
+                path.display(),
+                left.step,
+                right.step
+            ));
+        }
+        if explicit_time_column && right.time <= left.time {
+            return Err(anyhow!(
+                "CSV {} must have strictly increasing time values; found {} then {}",
+                path.display(),
+                left.time,
+                right.time
+            ));
+        }
+    }
+    Ok(())
 }

@@ -6,7 +6,7 @@
 
 *DSFB Structural Semiotics Engine for General Systems: A Deterministic Endoduction Framework for Residual-Based Meaning Extraction*
 
-The crate is intentionally conservative. It does not claim field validation, universal diagnosis, certification, or complete inverse recovery. It implements a reproducible computational companion that turns the paper’s layered objects into explicit Rust types, deterministic scenario generators, tabular artifacts, figures, a PDF report, and a zipped bundle that can be rerun from scratch locally or in Colab.
+The crate is intentionally conservative. It does not claim field validation, universal diagnosis, certification, or complete inverse recovery. It implements a reproducible computational companion that turns the paper’s layered objects into explicit Rust types, deterministic scenario generators, deterministic CSV ingestion, tabular artifacts, figures, a PDF report, and a zipped bundle that can be rerun from scratch locally or in Colab.
 
 ## Why This Crate Exists
 
@@ -53,7 +53,14 @@ The sign layer constructs
 \sigma(t) = (r(t), d(t), s(t))
 \]
 
-as an explicit `SignTrajectory` with per-sample projections used in the sign-space figure export.
+as an explicit `SignTrajectory` with per-sample projected coordinates used in the figure export.
+For figure-oriented visualization, the crate exports the deterministic projected sign coordinates
+
+\[
+\left[\|r(t)\|,\ \frac{r(t)\cdot d(t)}{\|r(t)\|},\ \|s(t)\|\right]
+\]
+
+with zero signed radial drift reported at exact zero residual norm. This projection is an auditable visualization device, not a latent-state embedding.
 
 ### Syntax
 
@@ -67,7 +74,7 @@ Syntax is represented through drift and slew structure, including:
 - curvature onset score
 - localized slew spikes and spike strength
 - boundary grazing episode and recovery counts
-- trajectory labels such as `persistent-outward-drift`, `curvature-rich-or-event-like`, or `near-boundary-recurrent`
+- trajectory labels such as `persistent-outward-drift`, `discrete-event-like`, `curvature-rich-transition`, `inward-compatible-containment`, or `near-boundary-recurrent`
 
 Outward and inward motion are computed from residual-envelope margin evolution and residual-aligned radial drift, not from the sign of a single channel. These are deterministic summary descriptors, not a complete formal language implementation.
 
@@ -93,7 +100,7 @@ using explicit synthetic cases where the relevant quantities are known by constr
 
 ### Deterministic Interpretability
 
-The crate performs a deterministic reproducibility check for every executed scenario by rerunning the same layered pipeline and hashing the full materialized output, including residuals, drift, slew, sign objects, grammar states, detectability results, and semantic retrieval outputs. The resulting checks and run summary are exported in CSV and JSON.
+The crate performs a deterministic reproducibility check for every executed scenario by rerunning the same layered pipeline and hashing the full materialized output, including residuals, drift, slew, sign objects, grammar states, detectability results, and semantic retrieval outputs. The resulting checks and run summary are exported in CSV and JSON, and the run metadata records whether the execution was synthetic or CSV-driven.
 
 ### Semantics
 
@@ -128,6 +135,8 @@ In addition to the bundled synthetic scenarios, the crate supports a determinist
 
 - parses observed and predicted CSV files with explicit validation
 - preserves channel names from headers or an optional override
+- accepts an optional explicit `--time-column`
+- falls back to deterministic sample times from row order and `--dt` when no explicit time column is supplied
 - applies a user-configured admissibility envelope
 - feeds the exact same residual -> sign -> syntax -> grammar -> semantics pipeline
 - does not add any field-validation claim beyond the supplied trajectories and configured envelope
@@ -200,12 +209,14 @@ Run CSV ingestion mode:
 
 ```bash
 cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
+  --input-mode csv \
   --observed-csv /path/to/observed.csv \
   --predicted-csv /path/to/predicted.csv \
-  --input-mode csv \
   --scenario-id csv_case \
+  --time-column timestamp \
   --envelope-mode fixed \
-  --envelope-base 1.0
+  --envelope-base 1.0 \
+  --dt 0.5
 ```
 
 Override the output root:
@@ -257,7 +268,7 @@ The crate generates twelve required figures automatically:
 
 1. residual vs prediction / observation overview
 2. drift and slew decomposition
-3. projected sign trajectory using the deterministic aggregate projection `[||r||, signed aggregate drift, ||s||]`
+3. projected sign trajectory using the deterministic coordinates `[||r||, dot(r,d)/||r||, ||s||]`
 4. syntax comparison
 5. envelope exit under sustained outward drift
 6. envelope invariance under inward-compatible drift

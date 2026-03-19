@@ -169,7 +169,7 @@ where
     let (y_min, y_max) = bounds(&y_values);
 
     let mut chart = ChartBuilder::on(&root)
-        .caption("Projected Sign-Space Trajectory", ("sans-serif", 30))
+        .caption("Projected Sign Trajectory", ("sans-serif", 30))
         .margin(24)
         .x_label_area_size(50)
         .y_label_area_size(60)
@@ -1003,7 +1003,7 @@ fn render_01(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 fn render_02(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
     let scenario = scenario_or_first(bundle, "abrupt_event")?;
     let figure_id = "figure_02_drift_and_slew_decomposition";
-    let caption = "Residual norm, signed aggregate drift, and slew norm decomposition for a representative case. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
+    let caption = "Residual norm, signed radial drift, and slew norm decomposition for a representative case. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
     let size = (1280, 960);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_drift_slew(
@@ -1020,7 +1020,7 @@ fn render_02(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 fn render_03(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
     let scenario = scenario_or_first(bundle, "curvature_onset")?;
     let figure_id = "figure_03_sign_space_projection";
-    let caption = "Projected sign trajectory using the deterministic aggregate coordinates [||r||, signed aggregate drift, ||s||]. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
+    let caption = "Projected sign trajectory using the deterministic coordinates [||r||, dot(r,d)/||r||, ||s||]. Synthetic deterministic demonstration only when the bundled scenario suite is used.";
     let size = (1280, 720);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_sign_space(
