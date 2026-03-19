@@ -18,6 +18,7 @@ fn main() -> Result<()> {
     let engine = StructuralSemioticsEngine::new(config);
     let bundle = match selection {
         ScenarioSelection::Single(id) => engine.run_single(&id)?,
+        ScenarioSelection::Csv(input) => engine.run_csv(&input)?,
         ScenarioSelection::All => engine.run_all()?,
     };
     let exported = export_artifacts(&bundle)?;

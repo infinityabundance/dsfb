@@ -28,10 +28,39 @@ pub fn build_markdown_report(
     lines.push("- Drift: `d(t) = dr/dt` via deterministic finite differences.".to_string());
     lines.push("- Slew: `s(t) = d^2r/dt^2` via deterministic second differences.".to_string());
     lines.push("- Sign tuple: `sigma(t) = (r(t), d(t), s(t))`.".to_string());
+    lines.push("- Sign projection used in Figure 03: deterministic aggregate coordinates `[||r(t)||, dot(r(t), d(t))/||r(t)||, ||s(t)||]` when `||r(t)|| > 0`, with zero radial drift at exact zero residual norm.".to_string());
+    lines.push("- Syntax metrics include outward and inward drift fractions from margin evolution, directional persistence, sign consistency, channel coherence, aggregate monotonicity, curvature energy, slew spike count, and boundary grazing episode count.".to_string());
     lines.push(
         "- Grammar: admissibility checked pointwise against `||r(t)|| <= rho(t)`.".to_string(),
     );
+    lines.push("- Semantics: constrained retrieval over a typed heuristic bank with scope conditions, admissibility requirements, regime tags, provenance notes, and compatibility rules.".to_string());
     lines.push("- Detectability bound: `t* - t0 <= Delta0 / (alpha - kappa)` when configured assumptions hold.".to_string());
+    lines.push(String::new());
+    lines.push("## Reproducibility Summary".to_string());
+    lines.push(String::new());
+    lines.push(format!(
+        "- Scenario count checked: {}",
+        bundle.reproducibility_summary.scenario_count
+    ));
+    lines.push(format!(
+        "- Identical materializations: {}",
+        bundle.reproducibility_summary.identical_count
+    ));
+    lines.push(format!(
+        "- All identical: `{}`",
+        bundle.reproducibility_summary.all_identical
+    ));
+    lines.push(format!(
+        "- Note: {}",
+        bundle.reproducibility_summary.note
+    ));
+    lines.push(String::new());
+    for check in &bundle.reproducibility_checks {
+        lines.push(format!(
+            "- `{}`: identical=`{}`, hash1=`{}`, hash2=`{}`",
+            check.scenario_id, check.identical, check.first_hash, check.second_hash
+        ));
+    }
     lines.push(String::new());
     lines.push("## Scenario Summary".to_string());
     lines.push(String::new());
@@ -46,9 +75,10 @@ pub fn build_markdown_report(
     lines.push(String::new());
     lines.push("## Limitations and Non-Claims".to_string());
     lines.push(String::new());
-    lines.push("- All demonstrations in this run are synthetic, deterministic constructions intended to illustrate theorem-aligned behavior and auditable pipeline structure.".to_string());
+    lines.push("- Synthetic scenarios in this run are deterministic constructions intended to illustrate theorem-aligned behavior and auditable pipeline structure. CSV-ingested runs reuse the same pipeline without adding external validation claims.".to_string());
+    lines.push("- CSV ingestion mode, when used, applies the same deterministic layers to user-supplied trajectories but does not add validation claims beyond the supplied inputs and configured envelope.".to_string());
     lines.push("- Envelope exits demonstrate detectable departure from the configured admissibility grammar, not unique identification of latent physical cause.".to_string());
-    lines.push("- Heuristic semantic matches are constrained motif retrieval outcomes only; they are allowed to remain ambiguous or unknown.".to_string());
+    lines.push("- Heuristic semantic matches are constrained typed-bank retrieval outcomes only; they are allowed to remain compatible shortlists, ambiguous, or unknown.".to_string());
     lines.push("- No certification claim is made. The artifact is aligned with deterministic and auditable engineering evaluation logic only.".to_string());
     lines.push(String::new());
     lines.push("## Manifest Summary".to_string());
@@ -85,8 +115,21 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
         format!("- Violations observed: {}", violation_count),
         format!("- First exit time: {}", first_exit),
         format!(
+            "- Syntax metrics: outward={:.3}, inward={:.3}, monotonicity={:.3}, persistence={:.3}, curvature={:.3}, grazing_episodes={}",
+            scenario.syntax.outward_drift_fraction,
+            scenario.syntax.inward_drift_fraction,
+            scenario.syntax.aggregate_monotonicity,
+            scenario.syntax.directional_persistence,
+            scenario.syntax.curvature_energy,
+            scenario.syntax.boundary_grazing_episode_count
+        ),
+        format!(
             "- Semantic disposition: `{:?}`",
             scenario.semantics.disposition
+        ),
+        format!(
+            "- Semantic compatibility note: {}",
+            scenario.semantics.compatibility_note
         ),
         format!("- Limitation note: {}", scenario.record.limitations),
         String::new(),

@@ -1,7 +1,7 @@
 use crate::engine::types::{
     DriftTrajectory, ResidualTrajectory, SignSample, SignTrajectory, SlewTrajectory,
 };
-use crate::math::metrics::project_sign;
+use crate::math::metrics::{project_sign, sign_projection_metadata};
 
 pub fn construct_signs(
     residual: &ResidualTrajectory,
@@ -36,6 +36,7 @@ pub fn construct_signs(
     SignTrajectory {
         scenario_id: residual.scenario_id.clone(),
         channel_names: residual.channel_names.clone(),
+        projection_metadata: sign_projection_metadata(),
         samples,
     }
 }

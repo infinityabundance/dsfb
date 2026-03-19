@@ -1,31 +1,34 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 
-use crate::cli::args::ScenarioSelection;
+use crate::cli::args::{CsvInputConfig, ScenarioSelection};
 use crate::engine::grammar_layer::{evaluate_detectability, evaluate_grammar_layer};
 use crate::engine::residual_layer::extract_residuals;
 use crate::engine::semantics_layer::retrieve_semantics;
 use crate::engine::sign_layer::construct_signs;
 use crate::engine::syntax_layer::characterize_syntax;
 use crate::engine::types::{
-    CoordinatedResidualStructure, EngineOutputBundle, FigureArtifact, GroupResidualPoint,
-    ReproducibilityCheck, ResidualTrajectory, RunMetadata, ScenarioOutput, SemanticMatchResult,
+    CoordinatedResidualStructure, DetectabilityBoundInputs, EngineOutputBundle, FigureArtifact,
+    GroupDefinition, GroupResidualPoint, ObservedTrajectory, PredictedTrajectory,
+    ReproducibilityCheck, ReproducibilitySummary, ResidualTrajectory, RunMetadata, ScenarioOutput,
+    ScenarioRecord,
 };
 use crate::figures::plots::render_all_figures;
 use crate::io::csv::write_rows;
+use crate::io::input::load_csv_trajectories;
 use crate::io::json::write_pretty;
 use crate::io::output::{create_output_layout, OutputLayout};
 use crate::io::zip::zip_directory;
 use crate::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
-use crate::math::envelope::build_envelope;
-use crate::math::metrics::{fnv1a_hex, max_abs, pairwise_abs_mean};
+use crate::math::envelope::{build_envelope, EnvelopeSpec};
+use crate::math::metrics::{hash_serializable_hex, max_abs, pairwise_abs_mean};
 use crate::report::artifact_report::build_markdown_report;
 use crate::report::pdf::write_text_pdf;
-use crate::sim::generators::{synthesize, ScenarioSynthesis};
+use crate::sim::generators::synthesize;
 use crate::sim::scenarios::{all_scenarios, ScenarioDefinition};
 
 #[derive(Clone, Debug)]
@@ -50,6 +53,32 @@ pub struct ExportedArtifacts {
     pub report_pdf: PathBuf,
     pub zip_path: PathBuf,
     pub figure_paths: Vec<PathBuf>,
+}
+
+#[derive(Clone, Debug)]
+struct PreparedScenario {
+    record: ScenarioRecord,
+    observed: ObservedTrajectory,
+    predicted: PredictedTrajectory,
+    envelope_spec: EnvelopeSpec,
+    detectability_inputs: Option<DetectabilityBoundInputs>,
+    groups: Vec<GroupDefinition>,
+    aggregate_envelope_spec: Option<EnvelopeSpec>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct PartialScenarioOutput {
+    record: ScenarioRecord,
+    observed: ObservedTrajectory,
+    predicted: PredictedTrajectory,
+    residual: ResidualTrajectory,
+    drift: crate::engine::types::DriftTrajectory,
+    slew: crate::engine::types::SlewTrajectory,
+    sign: crate::engine::types::SignTrajectory,
+    envelope: crate::engine::types::AdmissibilityEnvelope,
+    grammar: Vec<crate::engine::types::GrammarStatus>,
+    syntax: crate::engine::types::SyntaxCharacterization,
+    coordinated: Option<CoordinatedResidualStructure>,
 }
 
 pub fn run_all_demos(config: EngineConfig) -> Result<EngineOutputBundle> {
@@ -101,8 +130,8 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
             .map(|scenario| scenario.record.id.clone())
             .collect(),
         notes: vec![
-            "Synthetic theorem-aligned demonstrations only.".to_string(),
-            "Deterministic heuristic retrieval is conservative and auditable.".to_string(),
+            "Synthetic and CSV-driven runs share the same deterministic engine layers.".to_string(),
+            "Semantic outputs are constrained heuristic retrieval results, not unique-cause claims.".to_string(),
         ],
     };
 
@@ -145,19 +174,31 @@ impl StructuralSemioticsEngine {
     }
 
     pub fn run_all(&self) -> Result<EngineOutputBundle> {
-        self.execute(&all_scenarios())
+        let definitions = all_scenarios();
+        let prepared = definitions
+            .iter()
+            .map(|definition| self.prepare_synthetic(definition))
+            .collect::<Vec<_>>();
+        self.execute_prepared(&prepared)
     }
 
     pub fn run_single(&self, scenario_id: &str) -> Result<EngineOutputBundle> {
-        let all = all_scenarios();
-        let selected = all
+        let definition = all_scenarios()
             .into_iter()
             .find(|scenario| scenario.record.id == scenario_id)
             .ok_or_else(|| anyhow!("unknown scenario `{scenario_id}`"))?;
-        self.execute(&[selected])
+        self.execute_prepared(&[self.prepare_synthetic(&definition)])
     }
 
-    fn execute(&self, definitions: &[ScenarioDefinition]) -> Result<EngineOutputBundle> {
+    pub fn run_csv(&self, input: &CsvInputConfig) -> Result<EngineOutputBundle> {
+        self.execute_prepared(&[self.prepare_csv(input)?])
+    }
+
+    fn execute_prepared(&self, prepared: &[PreparedScenario]) -> Result<EngineOutputBundle> {
+        if prepared.is_empty() {
+            return Err(anyhow!("no scenarios selected"));
+        }
+
         let output_root = self
             .config
             .output_root
@@ -165,52 +206,44 @@ impl StructuralSemioticsEngine {
             .unwrap_or_else(default_output_root);
         let layout = create_output_layout(&output_root)?;
 
-        let synthesized = definitions
+        let first_partial = prepared
             .iter()
-            .map(|definition| {
-                synthesize(
-                    definition,
-                    self.config.steps,
-                    self.config.dt,
-                    self.config.seed,
-                )
-            })
-            .collect::<Vec<_>>();
-
-        let base_outputs = definitions
-            .iter()
-            .zip(&synthesized)
-            .map(|(definition, synthesized)| self.build_partial_output(definition, synthesized))
+            .map(|scenario| self.build_partial_output(scenario))
             .collect::<Result<Vec<_>>>()?;
-
-        let residual_lookup = base_outputs
+        let first_lookup = first_partial
             .iter()
-            .map(|output| (output.record.id.clone(), output.residual.clone()))
+            .map(|scenario| (scenario.record.id.clone(), scenario.residual.clone()))
             .collect::<BTreeMap<_, _>>();
-
-        let scenario_outputs = base_outputs
-            .into_iter()
-            .map(|mut output| {
-                let reference = reference_for(&output.record.id)
-                    .and_then(|reference_id| residual_lookup.get(reference_id));
-                output.detectability = evaluate_detectability(
-                    &output.residual,
-                    &output.grammar,
-                    bound_inputs_for(definitions, &output.record.id),
-                    reference,
-                );
-                output.semantics = retrieve_semantics(
-                    &output.record.id,
-                    &output.syntax,
-                    &output.grammar,
-                    output.coordinated.as_ref(),
-                );
-                output
-            })
+        let scenario_outputs = prepared
+            .iter()
+            .zip(first_partial)
+            .map(|(scenario, partial)| self.finalize_output(scenario, partial, &first_lookup))
             .collect::<Vec<_>>();
 
-        let reproducibility_check =
-            self.compute_reproducibility(definitions.first().context("no scenarios selected")?)?;
+        let second_partial = prepared
+            .iter()
+            .map(|scenario| self.build_partial_output(scenario))
+            .collect::<Result<Vec<_>>>()?;
+        let second_lookup = second_partial
+            .iter()
+            .map(|scenario| (scenario.record.id.clone(), scenario.residual.clone()))
+            .collect::<BTreeMap<_, _>>();
+        let scenario_outputs_second = prepared
+            .iter()
+            .zip(second_partial)
+            .map(|(scenario, partial)| self.finalize_output(scenario, partial, &second_lookup))
+            .collect::<Vec<_>>();
+
+        let reproducibility_checks = scenario_outputs
+            .iter()
+            .zip(&scenario_outputs_second)
+            .map(|(first, second)| compare_outputs(first, second))
+            .collect::<Result<Vec<_>>>()?;
+        let reproducibility_summary = summarize_reproducibility(&reproducibility_checks);
+        let reproducibility_check = reproducibility_checks
+            .first()
+            .cloned()
+            .context("missing reproducibility result")?;
 
         Ok(EngineOutputBundle {
             run_metadata: run_metadata(
@@ -223,33 +256,73 @@ impl StructuralSemioticsEngine {
             scenario_outputs,
             figure_artifacts: Vec::<FigureArtifact>::new(),
             reproducibility_check,
+            reproducibility_checks,
+            reproducibility_summary,
             report_manifest: None,
             tabular_inventory: BTreeMap::new(),
         })
     }
 
-    fn build_partial_output(
-        &self,
-        definition: &ScenarioDefinition,
-        synthesized: &ScenarioSynthesis,
-    ) -> Result<ScenarioOutput> {
-        let residual = extract_residuals(
-            &synthesized.observed,
-            &synthesized.predicted,
-            &definition.record.id,
-        );
-        let drift = compute_drift_trajectory(&residual, self.config.dt, &definition.record.id);
-        let slew = compute_slew_trajectory(&residual, self.config.dt, &definition.record.id);
+    fn prepare_synthetic(&self, definition: &ScenarioDefinition) -> PreparedScenario {
+        let synthesis = synthesize(definition, self.config.steps, self.config.dt, self.config.seed);
+        PreparedScenario {
+            record: synthesis.record,
+            observed: synthesis.observed,
+            predicted: synthesis.predicted,
+            envelope_spec: definition.envelope_spec.clone(),
+            detectability_inputs: definition.detectability_inputs.clone(),
+            groups: definition.groups.clone(),
+            aggregate_envelope_spec: definition.aggregate_envelope_spec.clone(),
+        }
+    }
+
+    fn prepare_csv(&self, input: &CsvInputConfig) -> Result<PreparedScenario> {
+        let (observed, predicted) = load_csv_trajectories(input)?;
+        Ok(PreparedScenario {
+            record: ScenarioRecord {
+                id: input.scenario_id.clone(),
+                title: format!("CSV Ingested Scenario ({})", input.scenario_id),
+                purpose: "Run externally supplied observed and predicted trajectories through the same deterministic structural semiotics pipeline used for the synthetic demonstrations.".to_string(),
+                theorem_alignment: "This path preserves the layered residual/sign/syntax/grammar/semantics structure, but it does not attach theorem-aligned synthetic guarantees unless the input design justifies them separately.".to_string(),
+                claim_class: "external-data ingestion".to_string(),
+                limitations: "Interpretation depends on the supplied predicted trajectory, the configured admissibility envelope, and the sampling represented in the CSV files.".to_string(),
+            },
+            observed,
+            predicted,
+            envelope_spec: EnvelopeSpec {
+                name: input.envelope_name.clone(),
+                mode: input.envelope_mode,
+                base_radius: input.envelope_base,
+                slope: input.envelope_slope,
+                switch_step: input.envelope_switch_step,
+                secondary_slope: input.envelope_secondary_slope,
+                secondary_base: input.envelope_secondary_base,
+            },
+            detectability_inputs: None,
+            groups: Vec::new(),
+            aggregate_envelope_spec: None,
+        })
+    }
+
+    fn build_partial_output(&self, prepared: &PreparedScenario) -> Result<PartialScenarioOutput> {
+        let residual = extract_residuals(&prepared.observed, &prepared.predicted, &prepared.record.id);
+        let drift = compute_drift_trajectory(&residual, self.config.dt, &prepared.record.id);
+        let slew = compute_slew_trajectory(&residual, self.config.dt, &prepared.record.id);
         let sign = construct_signs(&residual, &drift, &slew);
-        let envelope = build_envelope(&residual, &definition.envelope_spec, &definition.record.id);
+        let envelope = build_envelope(&residual, &prepared.envelope_spec, &prepared.record.id);
         let grammar = evaluate_grammar_layer(&residual, &envelope);
         let syntax = characterize_syntax(&sign, &grammar);
-        let coordinated = build_coordinated(definition, &residual)?;
+        let coordinated = build_coordinated(
+            &prepared.record.id,
+            &prepared.groups,
+            prepared.aggregate_envelope_spec.as_ref(),
+            &residual,
+        )?;
 
-        Ok(ScenarioOutput {
-            record: synthesized.record.clone(),
-            observed: synthesized.observed.clone(),
-            predicted: synthesized.predicted.clone(),
+        Ok(PartialScenarioOutput {
+            record: prepared.record.clone(),
+            observed: prepared.observed.clone(),
+            predicted: prepared.predicted.clone(),
             residual,
             drift,
             slew,
@@ -257,82 +330,98 @@ impl StructuralSemioticsEngine {
             envelope,
             grammar,
             syntax,
-            detectability: crate::engine::types::DetectabilityResult {
-                scenario_id: definition.record.id.clone(),
-                observed_crossing_step: None,
-                observed_crossing_time: None,
-                predicted_upper_bound: None,
-                bound_satisfied: None,
-                separation_at_exit: None,
-                note: "Pending reference attachment.".to_string(),
-            },
-            semantics: SemanticMatchResult {
-                scenario_id: definition.record.id.clone(),
-                disposition: crate::engine::types::SemanticDisposition::Unknown,
-                motif_summary: "Pending semantic retrieval.".to_string(),
-                candidates: Vec::new(),
-                selected_labels: Vec::new(),
-                note: "Pending semantic retrieval.".to_string(),
-            },
             coordinated,
         })
     }
 
-    fn compute_reproducibility(
+    fn finalize_output(
         &self,
-        definition: &ScenarioDefinition,
-    ) -> Result<ReproducibilityCheck> {
-        let first = self.materialize_hash(definition)?;
-        let second = self.materialize_hash(definition)?;
-        Ok(ReproducibilityCheck {
-            scenario_id: definition.record.id.clone(),
-            first_hash: first.clone(),
-            second_hash: second.clone(),
-            identical: first == second,
-            note: "The same deterministic scenario was synthesized twice with identical configuration and hashed over residual, drift, and slew trajectories.".to_string(),
-        })
-    }
+        prepared: &PreparedScenario,
+        partial: PartialScenarioOutput,
+        residual_lookup: &BTreeMap<String, ResidualTrajectory>,
+    ) -> ScenarioOutput {
+        let reference = reference_for(&partial.record.id)
+            .and_then(|reference_id| residual_lookup.get(reference_id));
+        let detectability = evaluate_detectability(
+            &partial.residual,
+            &partial.grammar,
+            prepared.detectability_inputs.clone(),
+            reference,
+        );
+        let semantics = retrieve_semantics(
+            &partial.record.id,
+            &partial.syntax,
+            &partial.grammar,
+            partial.coordinated.as_ref(),
+        );
 
-    fn materialize_hash(&self, definition: &ScenarioDefinition) -> Result<String> {
-        let synthesized = synthesize(
-            definition,
-            self.config.steps,
-            self.config.dt,
-            self.config.seed,
-        );
-        let residual = extract_residuals(
-            &synthesized.observed,
-            &synthesized.predicted,
-            &definition.record.id,
-        );
-        let drift = compute_drift_trajectory(&residual, self.config.dt, &definition.record.id);
-        let slew = compute_slew_trajectory(&residual, self.config.dt, &definition.record.id);
-        Ok(fnv1a_hex(
-            &definition.record.id,
-            &[
-                residual.samples.iter().map(|sample| sample.norm).collect(),
-                drift.samples.iter().map(|sample| sample.norm).collect(),
-                slew.samples.iter().map(|sample| sample.norm).collect(),
-            ],
-        )
-        .fnv1a_64_hex)
+        ScenarioOutput {
+            record: partial.record,
+            observed: partial.observed,
+            predicted: partial.predicted,
+            residual: partial.residual,
+            drift: partial.drift,
+            slew: partial.slew,
+            sign: partial.sign,
+            envelope: partial.envelope,
+            grammar: partial.grammar,
+            syntax: partial.syntax,
+            detectability,
+            semantics,
+            coordinated: partial.coordinated,
+        }
+    }
+}
+
+fn compare_outputs(first: &ScenarioOutput, second: &ScenarioOutput) -> Result<ReproducibilityCheck> {
+    let first_hash = hash_serializable_hex(format!("{}-first", first.record.id), first)?;
+    let second_hash = hash_serializable_hex(format!("{}-second", second.record.id), second)?;
+    Ok(ReproducibilityCheck {
+        scenario_id: first.record.id.clone(),
+        first_hash: first_hash.fnv1a_64_hex.clone(),
+        second_hash: second_hash.fnv1a_64_hex.clone(),
+        identical: first_hash.fnv1a_64_hex == second_hash.fnv1a_64_hex,
+        materialized_components: vec![
+            "observed".to_string(),
+            "predicted".to_string(),
+            "residual".to_string(),
+            "drift".to_string(),
+            "slew".to_string(),
+            "sign".to_string(),
+            "envelope".to_string(),
+            "grammar".to_string(),
+            "syntax".to_string(),
+            "detectability".to_string(),
+            "semantics".to_string(),
+            "coordinated".to_string(),
+        ],
+        note: "Scenario output was materialized twice under identical deterministic configuration and hashed over full layered outputs, including grammar and semantics.".to_string(),
+    })
+}
+
+fn summarize_reproducibility(checks: &[ReproducibilityCheck]) -> ReproducibilitySummary {
+    let identical_count = checks.iter().filter(|check| check.identical).count();
+    ReproducibilitySummary {
+        scenario_count: checks.len(),
+        identical_count,
+        all_identical: identical_count == checks.len(),
+        note: "Per-scenario reproducibility is evaluated over full materialized outputs rather than reduced norm summaries.".to_string(),
     }
 }
 
 fn build_coordinated(
-    definition: &ScenarioDefinition,
+    scenario_id: &str,
+    groups: &[GroupDefinition],
+    aggregate_spec: Option<&EnvelopeSpec>,
     residual: &ResidualTrajectory,
 ) -> Result<Option<CoordinatedResidualStructure>> {
-    if definition.groups.is_empty() {
+    if groups.is_empty() {
         return Ok(None);
     }
-    let aggregate_spec = definition
-        .aggregate_envelope_spec
-        .as_ref()
-        .context("grouped scenario missing aggregate envelope")?;
+    let aggregate_spec = aggregate_spec.context("grouped scenario missing aggregate envelope")?;
 
     let mut points = Vec::new();
-    for group in &definition.groups {
+    for group in groups {
         for sample in &residual.samples {
             let member_values = group
                 .member_indices
@@ -343,7 +432,7 @@ fn build_coordinated(
             let local_max_abs = max_abs(&member_values);
             let (aggregate_radius, _, _) = aggregate_spec.radius_at(sample.step, sample.time);
             points.push(GroupResidualPoint {
-                scenario_id: residual.scenario_id.clone(),
+                scenario_id: scenario_id.to_string(),
                 group_id: group.group_id.clone(),
                 step: sample.step,
                 time: sample.time,
@@ -356,8 +445,8 @@ fn build_coordinated(
     }
 
     Ok(Some(CoordinatedResidualStructure {
-        scenario_id: residual.scenario_id.clone(),
-        groups: definition.groups.clone(),
+        scenario_id: scenario_id.to_string(),
+        groups: groups.to_vec(),
         points,
     }))
 }
@@ -368,10 +457,7 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         .iter()
         .map(|scenario| scenario.record.clone())
         .collect::<Vec<_>>();
-    write_rows(
-        layout.csv_dir.join("scenario_catalog.csv").as_path(),
-        scenario_catalog.clone(),
-    )?;
+    write_rows(layout.csv_dir.join("scenario_catalog.csv").as_path(), scenario_catalog.clone())?;
     write_rows(
         layout.csv_dir.join("detectability_bounds.csv").as_path(),
         bundle
@@ -388,7 +474,14 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
     )?;
     write_rows(
         layout.csv_dir.join("reproducibility_check.csv").as_path(),
-        std::iter::once(bundle.reproducibility_check.clone()),
+        bundle
+            .reproducibility_checks
+            .iter()
+            .map(reproducibility_csv_row),
+    )?;
+    write_rows(
+        layout.csv_dir.join("reproducibility_summary.csv").as_path(),
+        std::iter::once(bundle.reproducibility_summary.clone()),
     )?;
 
     let grammar_rows = bundle
@@ -396,19 +489,14 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         .iter()
         .flat_map(|scenario| scenario.grammar.clone())
         .collect::<Vec<_>>();
-    write_rows(
-        layout.csv_dir.join("grammar_events.csv").as_path(),
-        grammar_rows,
-    )?;
+    write_rows(layout.csv_dir.join("grammar_events.csv").as_path(), grammar_rows)?;
 
-    let pipeline_rows = bundle
-        .scenario_outputs
-        .iter()
-        .map(|scenario| scenario.syntax.clone())
-        .collect::<Vec<_>>();
     write_rows(
         layout.csv_dir.join("pipeline_summary.csv").as_path(),
-        pipeline_rows,
+        bundle
+            .scenario_outputs
+            .iter()
+            .map(|scenario| scenario.syntax.clone()),
     )?;
 
     for scenario in &bundle.scenario_outputs {
@@ -422,9 +510,7 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
                 .samples
                 .iter()
                 .zip(&scenario.predicted.samples)
-                .map(|(observed, predicted)| {
-                    time_series_row(&scenario.record.id, observed, predicted)
-                }),
+                .map(|(observed, predicted)| time_series_row(&scenario.record.id, observed, predicted)),
         )?;
         write_rows(
             layout
@@ -432,13 +518,7 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
                 .join(format!("{}_residual.csv", scenario.record.id))
                 .as_path(),
             scenario.residual.samples.iter().map(|sample| {
-                vector_norm_row(
-                    &scenario.record.id,
-                    sample.step,
-                    sample.time,
-                    &sample.values,
-                    sample.norm,
-                )
+                vector_norm_row(&scenario.record.id, sample.step, sample.time, &sample.values, sample.norm)
             }),
         )?;
         write_rows(
@@ -447,13 +527,7 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
                 .join(format!("{}_drift.csv", scenario.record.id))
                 .as_path(),
             scenario.drift.samples.iter().map(|sample| {
-                vector_norm_row(
-                    &scenario.record.id,
-                    sample.step,
-                    sample.time,
-                    &sample.values,
-                    sample.norm,
-                )
+                vector_norm_row(&scenario.record.id, sample.step, sample.time, &sample.values, sample.norm)
             }),
         )?;
         write_rows(
@@ -462,13 +536,7 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
                 .join(format!("{}_slew.csv", scenario.record.id))
                 .as_path(),
             scenario.slew.samples.iter().map(|sample| {
-                vector_norm_row(
-                    &scenario.record.id,
-                    sample.step,
-                    sample.time,
-                    &sample.values,
-                    sample.norm,
-                )
+                vector_norm_row(&scenario.record.id, sample.step, sample.time, &sample.values, sample.norm)
             }),
         )?;
         write_rows(
@@ -507,10 +575,7 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         }
     }
 
-    write_pretty(
-        layout.json_dir.join("run_metadata.json").as_path(),
-        &bundle.run_metadata,
-    )?;
+    write_pretty(layout.json_dir.join("run_metadata.json").as_path(), &bundle.run_metadata)?;
     write_pretty(
         layout.json_dir.join("scenario_catalog.json").as_path(),
         &scenario_catalog,
@@ -518,6 +583,14 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
     write_pretty(
         layout.json_dir.join("reproducibility_check.json").as_path(),
         &bundle.reproducibility_check,
+    )?;
+    write_pretty(
+        layout.json_dir.join("reproducibility_checks.json").as_path(),
+        &bundle.reproducibility_checks,
+    )?;
+    write_pretty(
+        layout.json_dir.join("reproducibility_summary.json").as_path(),
+        &bundle.reproducibility_summary,
     )?;
     write_pretty(
         layout.json_dir.join("scenario_outputs.json").as_path(),
@@ -541,16 +614,6 @@ fn run_metadata(timestamp: &str, seed: u64, steps: usize, dt: f64) -> RunMetadat
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),
     }
-}
-
-fn bound_inputs_for(
-    definitions: &[ScenarioDefinition],
-    scenario_id: &str,
-) -> Option<crate::engine::types::DetectabilityBoundInputs> {
-    definitions
-        .iter()
-        .find(|definition| definition.record.id == scenario_id)
-        .and_then(|definition| definition.detectability_inputs.clone())
 }
 
 fn reference_for(scenario_id: &str) -> Option<&'static str> {
@@ -582,7 +645,7 @@ fn command_stdout(program: &str, args: &[&str]) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-fn collect_relative_files(dir: &PathBuf) -> Result<Vec<String>> {
+fn collect_relative_files(dir: &Path) -> Result<Vec<String>> {
     let mut files = std::fs::read_dir(dir)
         .with_context(|| format!("failed to read {}", dir.display()))?
         .filter_map(|entry| entry.ok())
@@ -652,6 +715,18 @@ struct SemanticMatchCsvRow {
     motif_summary: String,
     selected_labels: String,
     candidate_labels: String,
+    compatibility_note: String,
+    conflict_notes: String,
+    note: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ReproducibilityCsvRow {
+    scenario_id: String,
+    first_hash: String,
+    second_hash: String,
+    identical: bool,
+    materialized_components: String,
     note: String,
 }
 
@@ -729,10 +804,25 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
         candidate_labels: result
             .candidates
             .iter()
-            .map(|candidate| format!("{}:{:.3}", candidate.label, candidate.score))
+            .map(|candidate| format!("{}:{:.3}", candidate.entry.motif_label, candidate.score))
             .collect::<Vec<_>>()
             .join(" | "),
+        compatibility_note: result.compatibility_note.clone(),
+        conflict_notes: result.conflict_notes.join(" | "),
         note: result.note.clone(),
+    }
+}
+
+fn reproducibility_csv_row(
+    check: &crate::engine::types::ReproducibilityCheck,
+) -> ReproducibilityCsvRow {
+    ReproducibilityCsvRow {
+        scenario_id: check.scenario_id.clone(),
+        first_hash: check.first_hash.clone(),
+        second_hash: check.second_hash.clone(),
+        identical: check.identical,
+        materialized_components: check.materialized_components.join(" | "),
+        note: check.note.clone(),
     }
 }
 
