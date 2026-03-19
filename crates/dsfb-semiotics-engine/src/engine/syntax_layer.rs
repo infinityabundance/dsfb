@@ -129,14 +129,13 @@ pub fn characterize_syntax(
     } else if inward_drift_fraction > 0.6 && min_margin > 0.0 && mean_radial_drift <= 0.0 {
         "inward-compatible-containment".to_string()
     } else if slew_spike_count > 0
-        && slew_spike_strength > 0.15
-        && curvature_onset_score > 0.28
-        && aggregate_monotonicity < 0.88
+        && (slew_spike_strength > 0.02 || max_slew_norm > 0.01)
+        && curvature_onset_score > 0.4
     {
         "discrete-event-like".to_string()
-    } else if (curvature_energy > 0.025 || max_slew_norm > 0.2 || curvature_onset_score > 0.28)
-        && (slew_spike_count > 0 || curvature_onset_score > 0.35)
-        && aggregate_monotonicity < 0.90
+    } else if curvature_onset_score > 0.45
+        || (curvature_energy > 0.02 && max_slew_norm > 0.01)
+        || (slew_spike_count > 0 && slew_spike_strength > 0.015 && max_slew_norm > 0.005)
     {
         "curvature-rich-transition".to_string()
     } else if boundary_grazing_episode_count >= 3 && violation_count == 0 {

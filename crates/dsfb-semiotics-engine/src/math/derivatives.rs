@@ -1,11 +1,11 @@
 use crate::engine::types::{
     DriftSample, DriftTrajectory, ResidualTrajectory, SlewSample, SlewTrajectory,
 };
-use crate::math::metrics::euclidean_norm;
+use crate::math::metrics::{euclidean_norm, scalar_derivative};
 
 pub fn compute_drift_trajectory(
     residual: &ResidualTrajectory,
-    dt: f64,
+    _dt: f64,
     scenario_id: &str,
 ) -> DriftTrajectory {
     let count = residual.samples.len();
@@ -14,28 +14,27 @@ pub fn compute_drift_trajectory(
         .first()
         .map(|sample| sample.values.len())
         .unwrap_or_default();
+    let times = residual
+        .samples
+        .iter()
+        .map(|sample| sample.time)
+        .collect::<Vec<_>>();
+    let channel_derivatives = (0..dims)
+        .map(|dimension| {
+            let values = residual
+                .samples
+                .iter()
+                .map(|sample| sample.values[dimension])
+                .collect::<Vec<_>>();
+            scalar_derivative(&values, &times)
+        })
+        .collect::<Vec<_>>();
 
     let mut samples = Vec::with_capacity(count);
     for index in 0..count {
-        let values = match count {
-            0 => Vec::new(),
-            1 => vec![0.0; dims],
-            _ if index == 0 => difference(
-                &residual.samples[index + 1].values,
-                &residual.samples[index].values,
-                dt,
-            ),
-            _ if index + 1 == count => difference(
-                &residual.samples[index].values,
-                &residual.samples[index - 1].values,
-                dt,
-            ),
-            _ => difference(
-                &residual.samples[index + 1].values,
-                &residual.samples[index - 1].values,
-                2.0 * dt,
-            ),
-        };
+        let values = (0..dims)
+            .map(|dimension| channel_derivatives[dimension][index])
+            .collect::<Vec<_>>();
         samples.push(DriftSample {
             step: residual.samples[index].step,
             time: residual.samples[index].time,
@@ -53,7 +52,7 @@ pub fn compute_drift_trajectory(
 
 pub fn compute_slew_trajectory(
     residual: &ResidualTrajectory,
-    dt: f64,
+    _dt: f64,
     scenario_id: &str,
 ) -> SlewTrajectory {
     let count = residual.samples.len();
@@ -62,32 +61,35 @@ pub fn compute_slew_trajectory(
         .first()
         .map(|sample| sample.values.len())
         .unwrap_or_default();
-
+    let times = residual
+        .samples
+        .iter()
+        .map(|sample| sample.time)
+        .collect::<Vec<_>>();
     let mut samples = Vec::with_capacity(count);
     for index in 0..count {
         let values = if count < 3 {
             vec![0.0; dims]
-        } else if index == 0 {
-            second_difference(
-                &residual.samples[2].values,
-                &residual.samples[1].values,
-                &residual.samples[0].values,
-                dt,
-            )
-        } else if index + 1 == count {
-            second_difference(
-                &residual.samples[count - 1].values,
-                &residual.samples[count - 2].values,
-                &residual.samples[count - 3].values,
-                dt,
-            )
         } else {
-            second_difference(
-                &residual.samples[index + 1].values,
-                &residual.samples[index].values,
-                &residual.samples[index - 1].values,
-                dt,
-            )
+            let (left, center, right) = if index == 0 {
+                (0, 1, 2)
+            } else if index + 1 == count {
+                (count - 3, count - 2, count - 1)
+            } else {
+                (index - 1, index, index + 1)
+            };
+            (0..dims)
+                .map(|dimension| {
+                    second_derivative_nonuniform(
+                        residual.samples[left].values[dimension],
+                        times[left],
+                        residual.samples[center].values[dimension],
+                        times[center],
+                        residual.samples[right].values[dimension],
+                        times[right],
+                    )
+                })
+                .collect::<Vec<_>>()
         };
         samples.push(SlewSample {
             step: residual.samples[index].step,
@@ -104,18 +106,20 @@ pub fn compute_slew_trajectory(
     }
 }
 
-fn difference(upper: &[f64], lower: &[f64], scale: f64) -> Vec<f64> {
-    upper
-        .iter()
-        .zip(lower)
-        .map(|(u, l)| (u - l) / scale)
-        .collect()
-}
-
-fn second_difference(next: &[f64], current: &[f64], previous: &[f64], dt: f64) -> Vec<f64> {
-    next.iter()
-        .zip(current)
-        .zip(previous)
-        .map(|((n, c), p)| (n - 2.0 * c + p) / (dt * dt))
-        .collect()
+fn second_derivative_nonuniform(
+    left_value: f64,
+    left_time: f64,
+    center_value: f64,
+    center_time: f64,
+    right_value: f64,
+    right_time: f64,
+) -> f64 {
+    let left_term = (left_time - center_time) * (left_time - right_time);
+    let center_term = (center_time - left_time) * (center_time - right_time);
+    let right_term = (right_time - left_time) * (right_time - center_time);
+    if left_term.abs() <= 1.0e-12 || center_term.abs() <= 1.0e-12 || right_term.abs() <= 1.0e-12 {
+        0.0
+    } else {
+        2.0 * (left_value / left_term + center_value / center_term + right_value / right_term)
+    }
 }

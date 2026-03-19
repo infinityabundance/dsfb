@@ -28,6 +28,7 @@ fn main() -> Result<()> {
     println!("report_pdf={}", exported.report_pdf.display());
     println!("zip_archive={}", exported.zip_path.display());
     println!("scenario_count={}", bundle.scenario_outputs.len());
+    println!("input_mode={}", bundle.run_metadata.input_mode);
 
     if args.output_dir.is_some() {
         println!("output_root_override=true");

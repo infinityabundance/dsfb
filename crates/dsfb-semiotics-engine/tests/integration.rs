@@ -16,6 +16,7 @@ use dsfb_semiotics_engine::engine::types::{
     EnvelopeMode, GrammarState, GrammarStatus, ObservedTrajectory, PredictedTrajectory,
     SemanticDisposition, SignSample, SignTrajectory, SyntaxCharacterization, VectorSample,
 };
+use dsfb_semiotics_engine::io::input::load_csv_trajectories;
 use dsfb_semiotics_engine::io::output::create_output_layout;
 use dsfb_semiotics_engine::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 use dsfb_semiotics_engine::math::envelope::build_envelope;
@@ -82,7 +83,7 @@ fn sign_projection_uses_aggregate_multi_channel_features() {
     assert_eq!(sign.projection_metadata.axis_labels[0], "||r(t)||");
     assert_eq!(
         sign.projection_metadata.axis_labels[1],
-        "signed aggregate drift"
+        "signed radial drift"
     );
     assert!((sign.samples[1].projection[0] - 5.0).abs() < 1.0e-9);
     assert!((sign.samples[1].projection[1] - 5.0).abs() < 1.0e-9);
@@ -291,6 +292,7 @@ fn abrupt_event_scenario_produces_meaningful_slew_spikes() {
     assert!(scenario.syntax.slew_spike_count >= 1);
     assert!(scenario.syntax.slew_spike_strength > 0.0);
     assert!(scenario.syntax.curvature_onset_score > 0.0);
+    assert!(scenario.syntax.trajectory_label.contains("event"));
 }
 
 #[test]
@@ -313,6 +315,45 @@ fn grouped_correlated_scenario_produces_coordinated_semantics() {
         .selected_labels
         .iter()
         .any(|label| label.contains("correlated degradation")));
+}
+
+#[test]
+fn curvature_and_boundary_cases_keep_distinct_syntax_labels() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 180,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("curvature_onset".to_string()),
+    });
+
+    let curvature = engine.run_single("curvature_onset").unwrap();
+    assert!(curvature.scenario_outputs[0]
+        .syntax
+        .trajectory_label
+        .contains("curvature"));
+
+    let boundary = characterize_syntax(
+        &sign_trajectory(
+            "boundary",
+            vec![
+                sign_sample(0, 0.0, vec![0.1], vec![0.0], vec![0.0]),
+                sign_sample(1, 1.0, vec![0.1], vec![0.0], vec![0.0]),
+                sign_sample(2, 2.0, vec![0.1], vec![0.0], vec![0.0]),
+                sign_sample(3, 3.0, vec![0.1], vec![0.0], vec![0.0]),
+                sign_sample(4, 4.0, vec![0.1], vec![0.0], vec![0.0]),
+            ],
+        ),
+        &vec![
+            grammar_status("boundary", 0, 0.0, GrammarState::Boundary, 0.02),
+            grammar_status("boundary", 1, 1.0, GrammarState::Admissible, 0.10),
+            grammar_status("boundary", 2, 2.0, GrammarState::Boundary, 0.02),
+            grammar_status("boundary", 3, 3.0, GrammarState::Admissible, 0.10),
+            grammar_status("boundary", 4, 4.0, GrammarState::Boundary, 0.02),
+        ],
+    );
+    assert_eq!(boundary.trajectory_label, "near-boundary-recurrent");
 }
 
 #[test]
@@ -490,6 +531,8 @@ fn csv_ingest_mode_runs_through_same_pipeline() {
         predicted_csv,
         scenario_id: "csv_case".to_string(),
         channel_names: None,
+        time_column: None,
+        dt_fallback: 1.0,
         envelope_mode: EnvelopeMode::Fixed,
         envelope_base: 1.0,
         envelope_slope: 0.0,
@@ -509,8 +552,169 @@ fn csv_ingest_mode_runs_through_same_pipeline() {
     let bundle = engine.run_csv(&input).unwrap();
     let scenario = &bundle.scenario_outputs[0];
     assert_eq!(scenario.record.id, "csv_case");
+    assert_eq!(scenario.record.data_origin, "external-csv");
     assert_eq!(scenario.observed.channel_names, vec!["x", "y"]);
     assert_eq!(scenario.residual.samples.len(), 3);
+}
+
+#[test]
+fn csv_loader_uses_named_time_column_when_requested() {
+    let temp = TempDir::new().unwrap();
+    let observed_csv = temp.path().join("observed.csv");
+    let predicted_csv = temp.path().join("predicted.csv");
+    fs::write(&observed_csv, "stamp,x\n10.0,1.0\n10.5,1.4\n11.0,1.9\n").unwrap();
+    fs::write(&predicted_csv, "stamp,x\n10.0,0.9\n10.5,1.0\n11.0,1.1\n").unwrap();
+
+    let input = CsvInputConfig {
+        observed_csv,
+        predicted_csv,
+        scenario_id: "csv_time_column".to_string(),
+        channel_names: None,
+        time_column: Some("stamp".to_string()),
+        dt_fallback: 0.25,
+        envelope_mode: EnvelopeMode::Fixed,
+        envelope_base: 1.0,
+        envelope_slope: 0.0,
+        envelope_switch_step: None,
+        envelope_secondary_slope: None,
+        envelope_secondary_base: None,
+        envelope_name: "csv_env".to_string(),
+    };
+
+    let (observed, _) = load_csv_trajectories(&input).unwrap();
+    assert_eq!(observed.samples[0].time, 10.0);
+    assert_eq!(observed.samples[1].time, 10.5);
+    assert_eq!(observed.samples[2].time, 11.0);
+}
+
+#[test]
+fn csv_loader_uses_dt_fallback_when_time_column_is_absent() {
+    let temp = TempDir::new().unwrap();
+    let observed_csv = temp.path().join("observed.csv");
+    let predicted_csv = temp.path().join("predicted.csv");
+    fs::write(&observed_csv, "x\n1.0\n1.4\n1.9\n").unwrap();
+    fs::write(&predicted_csv, "x\n0.9\n1.0\n1.1\n").unwrap();
+
+    let input = CsvInputConfig {
+        observed_csv,
+        predicted_csv,
+        scenario_id: "csv_dt_fallback".to_string(),
+        channel_names: None,
+        time_column: None,
+        dt_fallback: 0.5,
+        envelope_mode: EnvelopeMode::Fixed,
+        envelope_base: 1.0,
+        envelope_slope: 0.0,
+        envelope_switch_step: None,
+        envelope_secondary_slope: None,
+        envelope_secondary_base: None,
+        envelope_name: "csv_env".to_string(),
+    };
+
+    let (observed, _) = load_csv_trajectories(&input).unwrap();
+    assert_eq!(observed.samples[0].time, 0.0);
+    assert_eq!(observed.samples[1].time, 0.5);
+    assert_eq!(observed.samples[2].time, 1.0);
+}
+
+#[test]
+fn csv_loader_rejects_mismatched_rows() {
+    let temp = TempDir::new().unwrap();
+    let observed_csv = temp.path().join("observed.csv");
+    let predicted_csv = temp.path().join("predicted.csv");
+    fs::write(&observed_csv, "time,x\n0,1.0\n1,1.4\n2,1.9\n").unwrap();
+    fs::write(&predicted_csv, "time,x\n0,0.9\n1,1.0\n").unwrap();
+
+    let input = CsvInputConfig {
+        observed_csv,
+        predicted_csv,
+        scenario_id: "csv_mismatch".to_string(),
+        channel_names: None,
+        time_column: None,
+        dt_fallback: 1.0,
+        envelope_mode: EnvelopeMode::Fixed,
+        envelope_base: 1.0,
+        envelope_slope: 0.0,
+        envelope_switch_step: None,
+        envelope_secondary_slope: None,
+        envelope_secondary_base: None,
+        envelope_name: "csv_env".to_string(),
+    };
+
+    let error = load_csv_trajectories(&input).unwrap_err();
+    assert!(error.to_string().contains("row counts differ"));
+}
+
+#[test]
+fn csv_loader_rejects_blank_channel_headers() {
+    let temp = TempDir::new().unwrap();
+    let observed_csv = temp.path().join("observed.csv");
+    let predicted_csv = temp.path().join("predicted.csv");
+    fs::write(&observed_csv, "time,,y\n0,1.0,2.0\n1,1.4,2.4\n").unwrap();
+    fs::write(&predicted_csv, "time,,y\n0,0.9,1.9\n1,1.0,2.0\n").unwrap();
+
+    let input = CsvInputConfig {
+        observed_csv,
+        predicted_csv,
+        scenario_id: "csv_bad_header".to_string(),
+        channel_names: None,
+        time_column: None,
+        dt_fallback: 1.0,
+        envelope_mode: EnvelopeMode::Fixed,
+        envelope_base: 1.0,
+        envelope_slope: 0.0,
+        envelope_switch_step: None,
+        envelope_secondary_slope: None,
+        envelope_secondary_base: None,
+        envelope_name: "csv_env".to_string(),
+    };
+
+    let error = load_csv_trajectories(&input).unwrap_err();
+    assert!(format!("{error:#}").contains("empty channel header"));
+}
+
+#[test]
+fn csv_reproducibility_is_checked_and_identical() {
+    let temp = TempDir::new().unwrap();
+    let observed_csv = temp.path().join("observed.csv");
+    let predicted_csv = temp.path().join("predicted.csv");
+    fs::write(
+        &observed_csv,
+        "timestamp,x,y\n0.0,1.0,2.0\n0.5,1.4,2.4\n1.0,1.9,2.9\n",
+    )
+    .unwrap();
+    fs::write(
+        &predicted_csv,
+        "timestamp,x,y\n0.0,0.9,1.9\n0.5,1.0,2.0\n1.0,1.1,2.1\n",
+    )
+    .unwrap();
+
+    let input = CsvInputConfig {
+        observed_csv,
+        predicted_csv,
+        scenario_id: "csv_repro".to_string(),
+        channel_names: None,
+        time_column: Some("timestamp".to_string()),
+        dt_fallback: 1.0,
+        envelope_mode: EnvelopeMode::Fixed,
+        envelope_base: 1.0,
+        envelope_slope: 0.0,
+        envelope_switch_step: None,
+        envelope_secondary_slope: None,
+        envelope_secondary_base: None,
+        envelope_name: "csv_env".to_string(),
+    };
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 80,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Csv(input.clone()),
+    });
+
+    let bundle = engine.run_csv(&input).unwrap();
+    assert_eq!(bundle.run_metadata.input_mode, "csv");
+    assert!(bundle.reproducibility_summary.all_identical);
 }
 
 #[test]
@@ -525,6 +729,8 @@ fn csv_cli_mode_exposes_external_data_surface() {
         "predicted.csv",
         "--scenario-id",
         "csv_case",
+        "--time-column",
+        "timestamp",
         "--channel-names",
         "x,y",
     ])
@@ -535,9 +741,49 @@ fn csv_cli_mode_exposes_external_data_surface() {
         ScenarioSelection::Csv(config) => {
             assert_eq!(config.scenario_id, "csv_case");
             assert_eq!(config.channel_names.unwrap(), vec!["x", "y"]);
+            assert_eq!(config.time_column.as_deref(), Some("timestamp"));
         }
         other => panic!("expected CSV selection, got {other:?}"),
     }
+}
+
+#[test]
+fn exported_report_mentions_projection_and_run_mode_for_csv_runs() {
+    let temp = TempDir::new().unwrap();
+    let observed_csv = temp.path().join("observed.csv");
+    let predicted_csv = temp.path().join("predicted.csv");
+    fs::write(&observed_csv, "x\n1.0\n1.4\n1.9\n").unwrap();
+    fs::write(&predicted_csv, "x\n0.9\n1.0\n1.1\n").unwrap();
+
+    let input = CsvInputConfig {
+        observed_csv,
+        predicted_csv,
+        scenario_id: "csv_report".to_string(),
+        channel_names: None,
+        time_column: None,
+        dt_fallback: 0.5,
+        envelope_mode: EnvelopeMode::Fixed,
+        envelope_base: 1.0,
+        envelope_slope: 0.0,
+        envelope_switch_step: None,
+        envelope_secondary_slope: None,
+        envelope_secondary_base: None,
+        envelope_name: "csv_env".to_string(),
+    };
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 80,
+        dt: 0.5,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Csv(input.clone()),
+    });
+
+    let bundle = engine.run_csv(&input).unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let report = fs::read_to_string(exported.report_markdown).unwrap();
+    assert!(report.contains("Input mode: `csv`"));
+    assert!(report.contains("signed radial drift"));
+    assert!(report.contains("Data origin: external-csv"));
 }
 
 #[test]

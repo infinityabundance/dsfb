@@ -96,8 +96,12 @@ pub fn radial_drift(residual: &[f64], drift: &[f64]) -> f64 {
     }
 }
 
-pub fn signed_aggregate_drift(residual: &[f64], drift: &[f64]) -> f64 {
+pub fn signed_radial_drift(residual: &[f64], drift: &[f64]) -> f64 {
     radial_drift(residual, drift)
+}
+
+pub fn signed_aggregate_drift(residual: &[f64], drift: &[f64]) -> f64 {
+    signed_radial_drift(residual, drift)
 }
 
 pub fn sign_with_deadband(value: f64, deadband: f64) -> i8 {
@@ -311,7 +315,7 @@ pub fn curvature_onset_score(values: &[f64]) -> f64 {
 pub fn project_sign(residual: &[f64], drift: &[f64], slew: &[f64]) -> [f64; 3] {
     [
         euclidean_norm(residual),
-        signed_aggregate_drift(residual, drift),
+        signed_radial_drift(residual, drift),
         euclidean_norm(slew),
     ]
 }
@@ -321,10 +325,10 @@ pub fn sign_projection_metadata() -> SignProjectionMetadata {
         method: SignProjectionMethod::AggregateNormSignedRadialDrift,
         axis_labels: [
             "||r(t)||".to_string(),
-            "signed aggregate drift".to_string(),
+            "signed radial drift".to_string(),
             "||s(t)||".to_string(),
         ],
-        note: "Deterministic aggregate projection using residual norm, residual-aligned signed aggregate drift, and slew norm. This is not a latent-state embedding.".to_string(),
+        note: "Deterministic aggregate projection using residual norm, signed radial drift `dot(r(t), d(t))/||r(t)||` with zero reported at exact zero residual norm, and slew norm. This is not a latent-state embedding.".to_string(),
     }
 }
 

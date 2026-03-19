@@ -468,6 +468,7 @@ fn record(
     ScenarioRecord {
         id: id.to_string(),
         title: title.to_string(),
+        data_origin: "synthetic".to_string(),
         purpose: purpose.to_string(),
         theorem_alignment: theorem_alignment.to_string(),
         claim_class: claim_class.as_str().to_string(),

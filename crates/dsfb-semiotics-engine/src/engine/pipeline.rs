@@ -115,6 +115,7 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
         crate_name: bundle.run_metadata.crate_name.clone(),
         crate_version: bundle.run_metadata.crate_version.clone(),
         timestamp: bundle.run_metadata.timestamp.clone(),
+        input_mode: bundle.run_metadata.input_mode.clone(),
         run_dir: layout.run_dir.display().to_string(),
         report_markdown: report_markdown_path.display().to_string(),
         report_pdf: report_pdf_path.display().to_string(),
@@ -253,6 +254,7 @@ impl StructuralSemioticsEngine {
         Ok(EngineOutputBundle {
             run_metadata: run_metadata(
                 &layout.timestamp,
+                input_mode_label(&self.config.scenario_selection),
                 self.config.seed,
                 self.config.steps,
                 self.config.dt,
@@ -291,11 +293,12 @@ impl StructuralSemioticsEngine {
         Ok(PreparedScenario {
             record: ScenarioRecord {
                 id: input.scenario_id.clone(),
-                title: format!("CSV Ingested Scenario ({})", input.scenario_id),
-                purpose: "Run externally supplied observed and predicted trajectories through the same deterministic structural semiotics pipeline used for the synthetic demonstrations.".to_string(),
+                title: format!("External CSV Scenario ({})", input.scenario_id),
+                data_origin: "external-csv".to_string(),
+                purpose: "Run externally supplied observed and predicted trajectories through the same deterministic structural semiotics pipeline used for the synthetic demonstrations, without adding hidden preprocessing.".to_string(),
                 theorem_alignment: "This path preserves the layered residual/sign/syntax/grammar/semantics structure, but it does not attach theorem-aligned synthetic guarantees unless the input design justifies them separately.".to_string(),
-                claim_class: "external-data ingestion".to_string(),
-                limitations: "Interpretation depends on the supplied predicted trajectory, the configured admissibility envelope, and the sampling represented in the CSV files.".to_string(),
+                claim_class: "external-csv ingestion".to_string(),
+                limitations: "Interpretation depends on the supplied predicted trajectory, the configured admissibility envelope, and the sampled times parsed from the CSV files or synthesized deterministically from --dt when no explicit time column is supplied.".to_string(),
             },
             observed,
             predicted,
@@ -649,19 +652,33 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
     Ok(())
 }
 
-fn run_metadata(timestamp: &str, seed: u64, steps: usize, dt: f64) -> RunMetadata {
+fn run_metadata(
+    timestamp: &str,
+    input_mode: &str,
+    seed: u64,
+    steps: usize,
+    dt: f64,
+) -> RunMetadata {
     RunMetadata {
         crate_name: "dsfb-semiotics-engine".to_string(),
         crate_version: env!("CARGO_PKG_VERSION").to_string(),
         rust_version: command_stdout("rustc", &["--version"]),
         git_commit: command_stdout("git", &["rev-parse", "HEAD"]),
         timestamp: timestamp.to_string(),
+        input_mode: input_mode.to_string(),
         seed,
         steps,
         dt,
         cli_args: std::env::args().collect(),
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),
+    }
+}
+
+fn input_mode_label(selection: &ScenarioSelection) -> &'static str {
+    match selection {
+        ScenarioSelection::Csv(_) => "csv",
+        ScenarioSelection::All | ScenarioSelection::Single(_) => "synthetic",
     }
 }
 
@@ -830,6 +847,8 @@ struct SemanticMatchCsvRow {
     selected_labels: String,
     selected_heuristic_ids: String,
     candidate_labels: String,
+    candidate_regimes: String,
+    candidate_rationales: String,
     compatibility_note: String,
     conflict_notes: String,
     note: String,
@@ -923,6 +942,28 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
             .map(|candidate| format!("{}:{:.3}", candidate.entry.motif_label, candidate.score))
             .collect::<Vec<_>>()
             .join(" | "),
+        candidate_regimes: result
+            .candidates
+            .iter()
+            .map(|candidate| {
+                format!(
+                    "{}:{}",
+                    candidate.entry.heuristic_id,
+                    if candidate.matched_regimes.is_empty() {
+                        "none".to_string()
+                    } else {
+                        candidate.matched_regimes.join("|")
+                    }
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" | "),
+        candidate_rationales: result
+            .candidates
+            .iter()
+            .map(|candidate| format!("{}:{}", candidate.entry.heuristic_id, candidate.rationale))
+            .collect::<Vec<_>>()
+            .join(" || "),
         compatibility_note: result.compatibility_note.clone(),
         conflict_notes: result.conflict_notes.join(" | "),
         note: result.note.clone(),

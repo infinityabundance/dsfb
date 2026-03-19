@@ -54,28 +54,48 @@ pub fn retrieve_semantics(
         .chain(&compatibility.unresolved)
         .cloned()
         .collect::<Vec<_>>();
+    let observation_limited = observation_support_is_limited(syntax, &evidence);
     let (disposition, compatibility_note, note) = if candidates.is_empty() {
-        (
-            SemanticDisposition::Unknown,
-            "No heuristic bank entry satisfied the constrained admissibility, scope, and regime checks.".to_string(),
-            "Constrained retrieval intentionally permits unknown outcomes when the observed syntax does not support a conservative motif candidate.".to_string(),
-        )
+        if observation_limited {
+            (
+                SemanticDisposition::Unknown,
+                "No heuristic bank entry matched, and the sampled trajectory provided only limited structural evidence for conservative semantic retrieval.".to_string(),
+                "Unknown is returned here because the observation shows weak admissibility interaction and limited radial or curvature structure. The bank is not forced to label low-evidence cases.".to_string(),
+            )
+        } else {
+            (
+                SemanticDisposition::Unknown,
+                "No heuristic bank entry satisfied the constrained admissibility, scope, and regime checks.".to_string(),
+                "Unknown is returned conservatively because the current typed bank does not cover the observed admissibility-qualified syntax under the configured evidence and regime constraints.".to_string(),
+            )
+        }
     } else if candidates.len() == 1 {
         (
             SemanticDisposition::Match,
-            "Single heuristic bank entry satisfied the constrained retrieval rules.".to_string(),
+            format!(
+                "Single heuristic bank entry (`{}`) satisfied the constrained retrieval rules.",
+                selected_heuristic_ids[0]
+            ),
             "The returned motif remains an illustrative compatibility statement only. It is not a unique-cause diagnosis.".to_string(),
         )
     } else if compatibility.conflicts.is_empty() && compatibility.unresolved.is_empty() {
         (
             SemanticDisposition::CompatibleSet,
-            "Multiple heuristic entries matched and were pairwise compatible under the typed bank, so a ranked compatible set is returned instead of a unique label.".to_string(),
+            format!(
+                "CompatibleSet returned because `{}` matched and every pair is explicitly marked compatible in the typed bank.",
+                selected_heuristic_ids.join("`, `")
+            ),
             "The engine reports an explicitly compatible motif set only when every matched pair is marked compatible. The result remains non-exclusive and causally conservative.".to_string(),
         )
     } else {
         (
             SemanticDisposition::Ambiguous,
-            "Multiple heuristic entries matched, but pairwise compatibility was not fully established under the typed bank rules.".to_string(),
+            format!(
+                "Ambiguous returned because {} matched entries produced {} explicit conflicts and {} unresolved compatibility pairings.",
+                candidates.len(),
+                compatibility.conflicts.len(),
+                compatibility.unresolved.len()
+            ),
             "Ambiguity is explicit rather than silently resolved. The engine does not force a unique semantic label when matched heuristics conflict or when compatibility is not explicitly established.".to_string(),
         )
     };
@@ -588,8 +608,18 @@ fn rationale(
     } else {
         "no aggregate group breach"
     };
+    let matched_regimes = available_regimes(evidence, coordinated)
+        .into_iter()
+        .filter(|regime| entry.regime_tags.is_empty() || entry.regime_tags.contains(regime))
+        .collect::<Vec<_>>();
     format!(
-        "{}. outward={:.3}, inward={:.3}, persistence={:.3}, monotonicity={:.3}, curvature={:.3}, curvature_onset={:.3}, slew_spikes={}, spike_strength={:.3}, boundary_episodes={}, boundary_recoveries={}, violations={}, {}",
+        "Applicable because admissibility=`{}`, matched_regimes=`{}`, and scope conditions were satisfied. {}. outward={:.3}, inward={:.3}, persistence={:.3}, residual_norm_monotonicity={:.3}, curvature_energy={:.3}, curvature_onset={:.3}, slew_spikes={}, spike_strength={:.3}, boundary_episodes={}, boundary_recoveries={}, violations={}, {}",
+        admissibility_label(&entry.admissibility_requirements),
+        if matched_regimes.is_empty() {
+            "none".to_string()
+        } else {
+            matched_regimes.join("|")
+        },
         entry.applicability_note,
         syntax.outward_drift_fraction,
         syntax.inward_drift_fraction,
@@ -604,6 +634,32 @@ fn rationale(
         evidence.violation_count,
         group_breach,
     )
+}
+
+fn observation_support_is_limited(
+    syntax: &SyntaxCharacterization,
+    evidence: &GrammarEvidence,
+) -> bool {
+    syntax
+        .outward_drift_fraction
+        .max(syntax.inward_drift_fraction)
+        < 0.35
+        && syntax.directional_persistence < 0.35
+        && syntax.sign_consistency < 0.35
+        && syntax.curvature_onset_score < 0.15
+        && syntax.slew_spike_count == 0
+        && syntax.boundary_grazing_episode_count == 0
+        && evidence.boundary_count == 0
+        && evidence.violation_count == 0
+}
+
+fn admissibility_label(requirement: &AdmissibilityRequirement) -> &'static str {
+    match requirement {
+        AdmissibilityRequirement::Any => "any",
+        AdmissibilityRequirement::BoundaryInteraction => "boundary-interaction",
+        AdmissibilityRequirement::ViolationRequired => "violation-required",
+        AdmissibilityRequirement::NoViolation => "no-violation",
+    }
 }
 
 fn compatibility_assessment(candidates: &[HeuristicCandidate]) -> CompatibilityAssessment {

@@ -17,6 +17,8 @@ pub struct CsvInputConfig {
     pub predicted_csv: PathBuf,
     pub scenario_id: String,
     pub channel_names: Option<Vec<String>>,
+    pub time_column: Option<String>,
+    pub dt_fallback: f64,
     pub envelope_mode: EnvelopeMode,
     pub envelope_base: f64,
     pub envelope_slope: f64,
@@ -91,6 +93,7 @@ pub struct CliArgs {
 
     #[arg(
         long = "scenario-id",
+        alias = "run-id",
         alias = "input-id",
         default_value = "csv_ingest",
         help = "Scenario identifier used when running the CSV ingestion path"
@@ -102,6 +105,12 @@ pub struct CliArgs {
         help = "Optional comma-separated channel names to override CSV headers"
     )]
     pub channel_names: Option<String>,
+
+    #[arg(
+        long,
+        help = "Optional time column name for CSV ingestion. If omitted, the loader uses a `time` column when present and otherwise synthesizes sample times from row order and --dt."
+    )]
+    pub time_column: Option<String>,
 
     #[arg(
         long,
@@ -170,7 +179,7 @@ pub struct CliArgs {
     #[arg(
         long,
         default_value_t = 1.0,
-        help = "Sample interval for synthetic scenarios"
+        help = "Sample interval for synthetic scenarios and CSV fallback timing when no explicit time column is supplied"
     )]
     pub dt: f64,
 }
@@ -230,6 +239,14 @@ impl CliArgs {
                 )
                 .exit();
         }
+        if args.time_column.is_some() && !csv_mode {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "--time-column is only valid together with --observed-csv and --predicted-csv",
+                )
+                .exit();
+        }
 
         args
     }
@@ -242,6 +259,8 @@ impl CliArgs {
                 predicted_csv: predicted_csv.clone(),
                 scenario_id: self.scenario_id.clone(),
                 channel_names: self.channel_names.as_deref().map(parse_channel_names),
+                time_column: self.time_column.clone(),
+                dt_fallback: self.dt,
                 envelope_mode: self.envelope_mode.into(),
                 envelope_base: self.envelope_base,
                 envelope_slope: self.envelope_slope,
