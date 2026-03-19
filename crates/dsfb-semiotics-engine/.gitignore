@@ -1,0 +1,5 @@
+/output-dsfb-semiotics-engine/*
+!/output-dsfb-semiotics-engine/.gitkeep
+/target/
+/.ipynb_checkpoints/
+__pycache__/
