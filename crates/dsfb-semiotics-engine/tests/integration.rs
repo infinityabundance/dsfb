@@ -344,6 +344,8 @@ fn artifact_bundle_contains_manifest_report_zip_and_reproducibility_schema() {
         serde_json::from_str(&fs::read_to_string(&exported.manifest_path).unwrap()).unwrap();
     assert!(manifest.get("figure_paths").is_some());
     assert!(manifest.get("json_paths").is_some());
+    let pdf_bytes = fs::read(&exported.report_pdf).unwrap();
+    assert!(pdf_bytes.len() > 1_000_000);
 
     let reproducibility_summary = exported.run_dir.join("json/reproducibility_summary.json");
     let reproducibility_checks = exported.run_dir.join("json/reproducibility_checks.json");

@@ -27,7 +27,7 @@ use crate::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory
 use crate::math::envelope::{build_envelope, EnvelopeSpec};
 use crate::math::metrics::{hash_serializable_hex, max_abs, pairwise_abs_mean};
 use crate::report::artifact_report::build_markdown_report;
-use crate::report::pdf::write_text_pdf;
+use crate::report::pdf::{write_artifact_pdf, PdfTextArtifact};
 use crate::sim::generators::synthesize;
 use crate::sim::scenarios::{all_scenarios, ScenarioDefinition};
 
@@ -138,16 +138,20 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
     let markdown = build_markdown_report(bundle, &figure_artifacts, &report_manifest);
     std::fs::write(&report_markdown_path, &markdown)
         .with_context(|| format!("failed to write {}", report_markdown_path.display()))?;
-    write_text_pdf(
+    write_pretty(&manifest_path, &report_manifest)?;
+    let text_artifacts =
+        collect_pdf_text_artifacts(&layout, &report_manifest, &markdown, &manifest_path)?;
+    write_artifact_pdf(
         &report_pdf_path,
         "dsfb-semiotics-engine report",
         &markdown
             .lines()
             .map(|line| line.to_string())
             .collect::<Vec<_>>(),
+        &figure_artifacts,
+        &report_manifest,
+        &text_artifacts,
     )?;
-
-    write_pretty(&manifest_path, &report_manifest)?;
     zip_directory(&layout.run_dir, &zip_path)?;
 
     Ok(ExportedArtifacts {
@@ -654,6 +658,71 @@ fn collect_relative_files(dir: &Path) -> Result<Vec<String>> {
         .collect::<Vec<_>>();
     files.sort();
     Ok(files)
+}
+
+fn collect_pdf_text_artifacts(
+    layout: &OutputLayout,
+    manifest: &crate::engine::types::ReportManifest,
+    markdown: &str,
+    manifest_path: &Path,
+) -> Result<Vec<PdfTextArtifact>> {
+    let mut artifacts = Vec::new();
+    artifacts.push(PdfTextArtifact {
+        title: "Report Markdown Source".to_string(),
+        artifact_path: manifest.report_markdown.clone(),
+        artifact_kind: "markdown".to_string(),
+        content: markdown.to_string(),
+    });
+    artifacts.push(PdfTextArtifact {
+        title: "Run Manifest".to_string(),
+        artifact_path: manifest_path.display().to_string(),
+        artifact_kind: "json".to_string(),
+        content: serde_json::to_string_pretty(manifest)?,
+    });
+
+    for path in &manifest.csv_paths {
+        artifacts.push(PdfTextArtifact {
+            title: format!("CSV Artifact: {}", file_name(path)),
+            artifact_path: path.clone(),
+            artifact_kind: "csv".to_string(),
+            content: std::fs::read_to_string(path)
+                .with_context(|| format!("failed to read {path}"))?,
+        });
+    }
+    for path in &manifest.json_paths {
+        artifacts.push(PdfTextArtifact {
+            title: format!("JSON Artifact: {}", file_name(path)),
+            artifact_path: path.clone(),
+            artifact_kind: "json".to_string(),
+            content: std::fs::read_to_string(path)
+                .with_context(|| format!("failed to read {path}"))?,
+        });
+    }
+
+    artifacts.push(PdfTextArtifact {
+        title: "Archive Output Summary".to_string(),
+        artifact_path: manifest.zip_archive.clone(),
+        artifact_kind: "archive-summary".to_string(),
+        content: format!(
+            "Zip archive path: {}\nRun directory: {}\nFigures directory: {}\nCSV directory: {}\nJSON directory: {}\nReport directory: {}\n\nThe PDF report embeds the generated figure PNG artifacts and appends the text-based artifacts directly. The zip archive remains the machine-oriented bundle for direct file extraction.",
+            manifest.zip_archive,
+            manifest.run_dir,
+            layout.figures_dir.display(),
+            layout.csv_dir.display(),
+            layout.json_dir.display(),
+            layout.report_dir.display(),
+        ),
+    });
+
+    Ok(artifacts)
+}
+
+fn file_name(path: &str) -> String {
+    Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
+        .to_string()
 }
 
 #[derive(Clone, Debug, Serialize)]
