@@ -6,6 +6,12 @@
 
 The crate is intentionally modest. It does not attempt ab initio crystal simulation, material calibration, or universal defect identification. Instead, it implements a fixed-end harmonic 1D lattice, applies controlled perturbations, compares nominal and perturbed spectra, simulates deterministic observations, computes raw and normalized residual / drift / slew statistics, builds explicit baseline-derived residual envelopes, runs a bounded synthetic stress-test suite with additive noise and predictor mismatch, locks a canonical evaluation layer for run-to-run comparison, executes a small heuristic-bank retrieval pass with explicit descriptor weights, generates a controlled failure/degradation map, and writes timestamped artifacts suitable for paper support and notebook replay.
 
+## Citation
+
+If you use `dsfb-lattice` as a research companion artifact, cite the associated paper record:
+
+de Beer, R. (2026). *Deterministic Structural Inference in Solid-State Systems: A DSFB Engine for Crystal Lattices, Phonons, and Structural Forensics - Operator-Theoretic Detectability and Scaling Laws* (v1.0). Zenodo. https://doi.org/10.5281/zenodo.19102789
+
 ## Why This Crate Exists
 
 The repository request was to create an isolated research prototype inside `crates/dsfb-lattice` without touching the root workspace or any production crate. This crate therefore:
@@ -173,7 +179,7 @@ cargo run --release --manifest-path crates/dsfb-lattice/Cargo.toml -- \
   --pressure-test-ambiguity-strain-strength 0.14 \
   --failure-map-enabled true \
   --heuristics-enabled true \
-  --heuristics-ambiguity-tolerance 0.18
+  --heuristics-ambiguity-tolerance 0.20
 ```
 
 You can also override the output root explicitly:
