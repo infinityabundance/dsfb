@@ -67,16 +67,17 @@ with zero signed radial drift reported at exact zero residual norm. This project
 Syntax is represented through drift and slew structure, including:
 
 - outward and inward drift fractions
-- sign consistency and directional persistence
-- channel coherence across multi-channel drift vectors
-- aggregate monotonicity of residual-norm evolution
-- curvature energy
-- curvature onset score
+- radial-sign dominance and radial-sign persistence
+- drift-channel sign alignment across multi-channel drift vectors
+- residual-norm path monotonicity and residual-norm trend alignment
+- mean squared slew norm
+- late slew-growth score
 - localized slew spikes and spike strength
 - boundary grazing episode and recovery counts
-- trajectory labels such as `persistent-outward-drift`, `discrete-event-like`, `curvature-rich-transition`, `inward-compatible-containment`, or `near-boundary-recurrent`
+- grouped aggregate breach fraction when coordinated structure is configured
+- trajectory labels such as `persistent-outward-drift`, `coordinated-outward-rise`, `discrete-event-like`, `curvature-rich-transition`, `inward-compatible-containment`, or `near-boundary-recurrent`
 
-Outward and inward motion are computed from residual-envelope margin evolution and residual-aligned radial drift, not from the sign of a single channel. These are deterministic summary descriptors, not a complete formal language implementation.
+Outward and inward motion are computed from residual-envelope margin evolution and residual-aligned radial drift, not from the sign of a single channel. The monotonicity-style metrics are deterministic path summaries over residual norms rather than complete claims about every channel. The curvature-style metrics are deterministic summaries over slew norms rather than claims about differential geometry in full generality.
 
 ### Grammar
 
@@ -115,7 +116,7 @@ The semantics layer is a conservative typed heuristic bank, not a classifier. Ea
 - retrieval priority
 - compatibility / incompatibility metadata
 
-Retrieval is constrained rather than purely threshold-labeled. The bank supports illustrative motifs such as:
+Retrieval is constrained rather than purely threshold-labeled. Each candidate now exports explicit admissibility, regime, and scope-pass explanations in addition to the combined rationale text. The bank supports illustrative motifs such as:
 
 - monotone drift -> gradual degradation candidate
 - localized slew spike -> discrete event candidate
@@ -125,7 +126,7 @@ Retrieval is constrained rather than purely threshold-labeled. The bank supports
 - inward-compatible containment candidate
 - explicit compatible sets when every matched pair is bank-compatible
 - explicit ambiguity when matched heuristics conflict
-- explicit `Unknown`
+- explicit `Unknown`, including whether the current outcome reflects low evidence or bank noncoverage
 
 These are constrained heuristic retrieval outcomes only. They do not imply unique latent cause.
 
@@ -276,7 +277,7 @@ The crate generates twelve required figures automatically:
 8. residual trajectory separation
 9. detectability bound comparison
 10. deterministic pipeline flow
-11. coordinated group semiotics
+11. coordinated group semiotics with local versus aggregate envelope behavior
 12. semantic retrieval / heuristics-bank summary
 
 ## Colab Notebook
