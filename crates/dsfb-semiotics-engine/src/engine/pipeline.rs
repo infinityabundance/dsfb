@@ -21,7 +21,7 @@ use crate::figures::plots::render_all_figures;
 use crate::io::csv::write_rows;
 use crate::io::input::load_csv_trajectories;
 use crate::io::json::write_pretty;
-use crate::io::output::{create_output_layout, OutputLayout};
+use crate::io::output::{create_output_layout, prepare_clean_export_layout, OutputLayout};
 use crate::io::zip::zip_directory;
 use crate::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 use crate::math::envelope::{build_envelope, EnvelopeSpec};
@@ -98,6 +98,7 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
         json_dir: bundle.run_dir.join("json"),
         report_dir: bundle.run_dir.join("report"),
     };
+    prepare_clean_export_layout(&layout)?;
 
     let figure_artifacts = render_all_figures(bundle, &layout.figures_dir)?;
     write_tabular_artifacts(bundle, &layout)?;

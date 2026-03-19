@@ -249,6 +249,7 @@ Each run emits:
 
 The zip archive contains the generated run directory contents for convenient download.
 The PDF report embeds the generated figure PNG artifacts and appends a deterministic artifact appendix covering the exported markdown, manifest, CSV, and JSON text artifacts.
+Artifact export treats the timestamped run directory as owned scratch space: expected artifact subdirectories are cleaned before rewriting, and unexpected root-level files cause the export to fail rather than silently mixing stale results into a purportedly fresh run.
 
 ## Figure Suite
 
