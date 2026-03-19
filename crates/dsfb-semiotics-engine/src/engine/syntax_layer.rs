@@ -1,14 +1,25 @@
-use crate::engine::types::{GrammarState, GrammarStatus, SignTrajectory, SyntaxCharacterization};
+use crate::engine::types::{
+    CoordinatedResidualStructure, GrammarState, GrammarStatus, SignTrajectory,
+    SyntaxCharacterization,
+};
 use crate::math::metrics::{
-    channel_sign_coherence, curvature_onset_score, dominant_sign_fraction, episode_count, mean,
-    monotone_alignment_fraction, monotonicity_score, persistence_fraction,
-    positive_excess_strength, radial_drift, recovery_count, scalar_derivative, sign_with_deadband,
-    standard_deviation,
+    adjacent_sign_agreement_fraction, dominant_nonzero_sign_fraction, episode_count,
+    late_slew_growth_score, mean, positive_excess_strength, radial_drift, recovery_count,
+    residual_norm_path_monotonicity, scalar_derivative, sign_with_deadband, standard_deviation,
+    trend_aligned_increment_fraction, within_sample_sign_alignment,
 };
 
 pub fn characterize_syntax(
     sign: &SignTrajectory,
     grammar: &[GrammarStatus],
+) -> SyntaxCharacterization {
+    characterize_syntax_with_coordination(sign, grammar, None)
+}
+
+pub fn characterize_syntax_with_coordination(
+    sign: &SignTrajectory,
+    grammar: &[GrammarStatus],
+    coordinated: Option<&CoordinatedResidualStructure>,
 ) -> SyntaxCharacterization {
     let times = sign
         .samples
@@ -33,7 +44,7 @@ pub fn characterize_syntax(
     let channel_coherences = sign
         .samples
         .iter()
-        .map(|sample| channel_sign_coherence(&sample.drift, 1.0e-6))
+        .map(|sample| within_sample_sign_alignment(&sample.drift, 1.0e-6))
         .collect::<Vec<_>>();
     let slew_norms = sign
         .samples
@@ -80,6 +91,7 @@ pub fn characterize_syntax(
     let boundary_grazing_episode_count = episode_count(&boundary_flags);
     let boundary_recovery_count = recovery_count(&non_admissible_flags);
     let repeated_grazing_count = boundary_grazing_episode_count.saturating_sub(1);
+    let coordinated_group_breach_fraction = coordinated_group_breach_fraction(coordinated);
     let violation_count = grammar
         .iter()
         .filter(|status| matches!(status.state, GrammarState::Violation))
@@ -96,17 +108,17 @@ pub fn characterize_syntax(
     } else {
         inward_count as f64 / sample_count as f64
     };
-    let sign_consistency = dominant_sign_fraction(&radial_signs);
-    let directional_persistence = persistence_fraction(&radial_signs);
-    let channel_coherence = mean(&channel_coherences);
-    let aggregate_monotonicity = monotonicity_score(&residual_norms);
-    let monotone_drift_fraction = monotone_alignment_fraction(&residual_norms, 1.0e-6);
-    let curvature_energy = if slew_norms.is_empty() {
+    let radial_sign_dominance = dominant_nonzero_sign_fraction(&radial_signs);
+    let radial_sign_persistence = adjacent_sign_agreement_fraction(&radial_signs);
+    let drift_channel_sign_alignment = mean(&channel_coherences);
+    let residual_norm_path_monotonicity = residual_norm_path_monotonicity(&residual_norms);
+    let residual_norm_trend_alignment = trend_aligned_increment_fraction(&residual_norms, 1.0e-6);
+    let mean_squared_slew_norm = if slew_norms.is_empty() {
         0.0
     } else {
         slew_norms.iter().map(|value| value * value).sum::<f64>() / slew_norms.len() as f64
     };
-    let curvature_onset_score = curvature_onset_score(&slew_norms);
+    let late_slew_growth_score = late_slew_growth_score(&slew_norms);
     let max_slew_norm = slew_norms.iter().copied().fold(0.0, f64::max);
     let slew_spike_count = slew_norms
         .iter()
@@ -119,22 +131,28 @@ pub fn characterize_syntax(
     };
     let mean_radial_drift = mean(&radial_drifts);
 
-    let trajectory_label = if outward_drift_fraction > 0.68
-        && aggregate_monotonicity > 0.74
-        && directional_persistence > 0.7
-        && curvature_energy < 0.02
-        && curvature_onset_score < 0.35
+    let trajectory_label = if coordinated_group_breach_fraction > 0.08
+        && outward_drift_fraction > 0.45
+        && drift_channel_sign_alignment > 0.55
+        && radial_sign_persistence > 0.45
+    {
+        "coordinated-outward-rise".to_string()
+    } else if outward_drift_fraction > 0.68
+        && residual_norm_path_monotonicity > 0.74
+        && radial_sign_persistence > 0.7
+        && mean_squared_slew_norm < 0.02
+        && late_slew_growth_score < 0.35
     {
         "persistent-outward-drift".to_string()
     } else if inward_drift_fraction > 0.6 && min_margin > 0.0 && mean_radial_drift <= 0.0 {
         "inward-compatible-containment".to_string()
     } else if slew_spike_count > 0
         && (slew_spike_strength > 0.02 || max_slew_norm > 0.01)
-        && curvature_onset_score > 0.4
+        && late_slew_growth_score > 0.4
     {
         "discrete-event-like".to_string()
-    } else if curvature_onset_score > 0.45
-        || (curvature_energy > 0.02 && max_slew_norm > 0.01)
+    } else if late_slew_growth_score > 0.45
+        || (mean_squared_slew_norm > 0.02 && max_slew_norm > 0.01)
         || (slew_spike_count > 0 && slew_spike_strength > 0.015 && max_slew_norm > 0.005)
     {
         "curvature-rich-transition".to_string()
@@ -148,13 +166,20 @@ pub fn characterize_syntax(
         scenario_id: sign.scenario_id.clone(),
         outward_drift_fraction,
         inward_drift_fraction,
-        sign_consistency,
-        directional_persistence,
-        channel_coherence,
-        aggregate_monotonicity,
-        monotone_drift_fraction,
-        curvature_energy,
-        curvature_onset_score,
+        sign_consistency: radial_sign_dominance,
+        directional_persistence: radial_sign_persistence,
+        channel_coherence: drift_channel_sign_alignment,
+        aggregate_monotonicity: residual_norm_path_monotonicity,
+        monotone_drift_fraction: residual_norm_trend_alignment,
+        curvature_energy: mean_squared_slew_norm,
+        curvature_onset_score: late_slew_growth_score,
+        radial_sign_dominance,
+        radial_sign_persistence,
+        drift_channel_sign_alignment,
+        residual_norm_path_monotonicity,
+        residual_norm_trend_alignment,
+        mean_squared_slew_norm,
+        late_slew_growth_score,
         mean_radial_drift,
         min_margin,
         mean_margin_delta,
@@ -164,6 +189,21 @@ pub fn characterize_syntax(
         boundary_grazing_episode_count,
         boundary_recovery_count,
         repeated_grazing_count,
+        coordinated_group_breach_fraction,
         trajectory_label,
+    }
+}
+
+fn coordinated_group_breach_fraction(coordinated: Option<&CoordinatedResidualStructure>) -> f64 {
+    match coordinated {
+        Some(structure) if !structure.points.is_empty() => {
+            structure
+                .points
+                .iter()
+                .filter(|point| point.aggregate_margin < 0.0)
+                .count() as f64
+                / structure.points.len() as f64
+        }
+        _ => 0.0,
     }
 }

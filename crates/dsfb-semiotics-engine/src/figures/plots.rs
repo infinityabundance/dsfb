@@ -1157,7 +1157,7 @@ fn render_10(figures_dir: &Path) -> Result<FigureArtifact> {
 fn render_11(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
     let scenario = scenario_or_first(bundle, "grouped_correlated")?;
     let figure_id = "figure_11_coordinated_group_semiotics";
-    let caption = "Local versus aggregate envelopes for the grouped correlated case. Synthetic deterministic demonstration only.";
+    let caption = "Local versus aggregate envelopes for the grouped correlated case, supporting the grouped aggregate breach fraction used in the coordinated syntax and semantic summaries. Synthetic deterministic demonstration only.";
     let size = (1280, 840);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_coordinated_group(
@@ -1173,7 +1173,7 @@ fn render_11(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 
 fn render_12(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_12_semantic_retrieval_heuristics_bank";
-    let caption = "Constrained semantic retrieval summary across representative motifs, including matched, ambiguous, and unknown outcomes. Synthetic deterministic demonstration only.";
+    let caption = "Constrained semantic retrieval summary across representative motifs, including Match, CompatibleSet, Ambiguous, and Unknown outcomes with typed-bank explanations. Synthetic deterministic demonstration only.";
     let size = (1280, 860);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_semantic_retrieval(

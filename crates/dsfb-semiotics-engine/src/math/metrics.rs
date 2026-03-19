@@ -144,7 +144,10 @@ pub fn scalar_derivative(values: &[f64], times: &[f64]) -> Vec<f64> {
         .collect()
 }
 
-pub fn monotonicity_score(values: &[f64]) -> f64 {
+/// Returns the ratio of net residual-norm change to total residual-norm path variation.
+/// A value near 1 means most variation supports a single net direction; it is not a claim
+/// about monotonicity in every channel.
+pub fn residual_norm_path_monotonicity(values: &[f64]) -> f64 {
     if values.len() < 2 {
         return 0.0;
     }
@@ -161,7 +164,13 @@ pub fn monotonicity_score(values: &[f64]) -> f64 {
     }
 }
 
-pub fn monotone_alignment_fraction(values: &[f64], deadband: f64) -> f64 {
+pub fn monotonicity_score(values: &[f64]) -> f64 {
+    residual_norm_path_monotonicity(values)
+}
+
+/// Returns the fraction of nonzero residual-norm increments that align with the net
+/// residual-norm trend sign over the sampled window.
+pub fn trend_aligned_increment_fraction(values: &[f64], deadband: f64) -> f64 {
     if values.len() < 2 {
         return 0.0;
     }
@@ -188,7 +197,12 @@ pub fn monotone_alignment_fraction(values: &[f64], deadband: f64) -> f64 {
     }
 }
 
-pub fn dominant_sign_fraction(signs: &[i8]) -> f64 {
+pub fn monotone_alignment_fraction(values: &[f64], deadband: f64) -> f64 {
+    trend_aligned_increment_fraction(values, deadband)
+}
+
+/// Returns the dominant share of nonzero radial-drift signs.
+pub fn dominant_nonzero_sign_fraction(signs: &[i8]) -> f64 {
     let mut positive = 0usize;
     let mut negative = 0usize;
     for sign in signs {
@@ -206,7 +220,12 @@ pub fn dominant_sign_fraction(signs: &[i8]) -> f64 {
     }
 }
 
-pub fn persistence_fraction(signs: &[i8]) -> f64 {
+pub fn dominant_sign_fraction(signs: &[i8]) -> f64 {
+    dominant_nonzero_sign_fraction(signs)
+}
+
+/// Returns adjacent agreement across the active nonzero sign sequence.
+pub fn adjacent_sign_agreement_fraction(signs: &[i8]) -> f64 {
     let active = signs
         .iter()
         .copied()
@@ -223,7 +242,13 @@ pub fn persistence_fraction(signs: &[i8]) -> f64 {
     same_direction as f64 / (active.len() - 1) as f64
 }
 
-pub fn channel_sign_coherence(values: &[f64], deadband: f64) -> f64 {
+pub fn persistence_fraction(signs: &[i8]) -> f64 {
+    adjacent_sign_agreement_fraction(signs)
+}
+
+/// Returns within-sample sign alignment across active drift channels.
+/// A value near 1 indicates most active drift channels share the same sign.
+pub fn within_sample_sign_alignment(values: &[f64], deadband: f64) -> f64 {
     let signs = values
         .iter()
         .map(|value| sign_with_deadband(*value, deadband))
@@ -235,6 +260,10 @@ pub fn channel_sign_coherence(values: &[f64], deadband: f64) -> f64 {
         (signs.iter().map(|sign| *sign as f64).sum::<f64>().abs() / signs.len() as f64)
             .clamp(0.0, 1.0)
     }
+}
+
+pub fn channel_sign_coherence(values: &[f64], deadband: f64) -> f64 {
+    within_sample_sign_alignment(values, deadband)
 }
 
 pub fn positive_fraction(values: &[f64], deadband: f64) -> f64 {
@@ -297,7 +326,9 @@ pub fn positive_excess_strength(values: &[f64], threshold: f64) -> f64 {
         .sum::<f64>()
 }
 
-pub fn curvature_onset_score(values: &[f64]) -> f64 {
+/// Returns a deterministic early-to-late slew-growth score derived from the slew-norm
+/// baseline, peak, and tail averages.
+pub fn late_slew_growth_score(values: &[f64]) -> f64 {
     if values.len() < 4 {
         return 0.0;
     }
@@ -310,6 +341,10 @@ pub fn curvature_onset_score(values: &[f64]) -> f64 {
     let onset_gain = normalized_positive_rise(peak, baseline);
     let sustained_gain = normalized_positive_rise(terminal, baseline);
     (0.6 * onset_gain + 0.4 * sustained_gain).clamp(0.0, 1.0)
+}
+
+pub fn curvature_onset_score(values: &[f64]) -> f64 {
+    late_slew_growth_score(values)
 }
 
 pub fn project_sign(residual: &[f64], drift: &[f64], slew: &[f64]) -> [f64; 3] {
@@ -337,6 +372,25 @@ pub fn pairwise_abs_mean(values: &[f64]) -> f64 {
         0.0
     } else {
         values.iter().map(|value| value.abs()).sum::<f64>() / values.len() as f64
+    }
+}
+
+/// Formats scalar metrics with enough precision to keep small nonzero values visible in
+/// reports and summary strings without making moderate-size values noisy.
+pub fn format_metric(value: f64) -> String {
+    let magnitude = value.abs();
+    if magnitude <= 1.0e-12 {
+        "0".to_string()
+    } else if magnitude >= 100.0 {
+        format!("{value:.3}")
+    } else if magnitude >= 1.0 {
+        format!("{value:.4}")
+    } else if magnitude >= 1.0e-2 {
+        format!("{value:.5}")
+    } else if magnitude >= 1.0e-4 {
+        format!("{value:.7}")
+    } else {
+        format!("{value:.3e}")
     }
 }
 

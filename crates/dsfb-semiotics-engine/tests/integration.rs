@@ -20,7 +20,7 @@ use dsfb_semiotics_engine::io::input::load_csv_trajectories;
 use dsfb_semiotics_engine::io::output::create_output_layout;
 use dsfb_semiotics_engine::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 use dsfb_semiotics_engine::math::envelope::build_envelope;
-use dsfb_semiotics_engine::math::metrics::sign_projection_metadata;
+use dsfb_semiotics_engine::math::metrics::{format_metric, sign_projection_metadata};
 use dsfb_semiotics_engine::sim::generators::synthesize;
 use dsfb_semiotics_engine::sim::scenarios::all_scenarios;
 use tempfile::TempDir;
@@ -114,8 +114,16 @@ fn multi_channel_syntax_characterization_is_not_channel_zero_biased() {
 
     assert!(syntax.outward_drift_fraction > 0.70);
     assert!(syntax.inward_drift_fraction < 0.20);
-    assert!(syntax.aggregate_monotonicity > 0.90);
-    assert!(syntax.channel_coherence < 0.30);
+    assert!(syntax.residual_norm_path_monotonicity > 0.90);
+    assert!(syntax.drift_channel_sign_alignment < 0.30);
+    assert_eq!(
+        syntax.aggregate_monotonicity,
+        syntax.residual_norm_path_monotonicity
+    );
+    assert_eq!(
+        syntax.channel_coherence,
+        syntax.drift_channel_sign_alignment
+    );
 }
 
 #[test]
@@ -250,9 +258,47 @@ fn monotonicity_is_not_equivalent_to_positive_drift_sign() {
     );
 
     let syntax = characterize_syntax(&sign, &grammar);
-    assert!(syntax.aggregate_monotonicity > 0.95);
+    assert!(syntax.residual_norm_path_monotonicity > 0.95);
     assert!(syntax.mean_radial_drift < 0.0);
     assert!(syntax.inward_drift_fraction > syntax.outward_drift_fraction);
+}
+
+#[test]
+fn persistent_outward_and_inward_containment_receive_distinct_syntax_labels() {
+    let outward_sign = sign_trajectory(
+        "persistent_outward",
+        vec![
+            sign_sample(0, 0.0, vec![0.10], vec![0.04], vec![0.0]),
+            sign_sample(1, 1.0, vec![0.14], vec![0.04], vec![0.0]),
+            sign_sample(2, 2.0, vec![0.18], vec![0.04], vec![0.0]),
+            sign_sample(3, 3.0, vec![0.22], vec![0.04], vec![0.0]),
+        ],
+    );
+    let inward_sign = sign_trajectory(
+        "inward_contained",
+        vec![
+            sign_sample(0, 0.0, vec![0.28], vec![-0.05], vec![0.0]),
+            sign_sample(1, 1.0, vec![0.22], vec![-0.05], vec![0.0]),
+            sign_sample(2, 2.0, vec![0.16], vec![-0.05], vec![0.0]),
+            sign_sample(3, 3.0, vec![0.10], vec![-0.05], vec![0.0]),
+        ],
+    );
+    let outward_grammar = grammar_with_margins(
+        "persistent_outward",
+        &[0.30, 0.24, 0.18, 0.12],
+        GrammarState::Admissible,
+    );
+    let inward_grammar = grammar_with_margins(
+        "inward_contained",
+        &[0.08, 0.16, 0.24, 0.32],
+        GrammarState::Admissible,
+    );
+
+    let outward = characterize_syntax(&outward_sign, &outward_grammar);
+    let inward = characterize_syntax(&inward_sign, &inward_grammar);
+
+    assert_eq!(outward.trajectory_label, "persistent-outward-drift");
+    assert_eq!(inward.trajectory_label, "inward-compatible-containment");
 }
 
 #[test]
@@ -273,7 +319,7 @@ fn curvature_case_does_not_collapse_into_monotone_drift_semantics() {
         .selected_labels
         .iter()
         .any(|label| label == "gradual degradation candidate"));
-    assert!(scenario.syntax.curvature_energy > 0.0);
+    assert!(scenario.syntax.mean_squared_slew_norm > 0.0);
 }
 
 #[test]
@@ -309,7 +355,9 @@ fn grouped_correlated_scenario_produces_coordinated_semantics() {
     let bundle = engine.run_single("grouped_correlated").unwrap();
     let scenario = &bundle.scenario_outputs[0];
     assert!(scenario.coordinated.is_some());
-    assert!(scenario.syntax.channel_coherence > 0.55);
+    assert!(scenario.syntax.drift_channel_sign_alignment > 0.55);
+    assert!(scenario.syntax.coordinated_group_breach_fraction > 0.0);
+    assert!(scenario.syntax.trajectory_label.contains("coordinated"));
     assert!(scenario
         .semantics
         .selected_labels
@@ -674,6 +722,34 @@ fn csv_loader_rejects_blank_channel_headers() {
 }
 
 #[test]
+fn csv_loader_rejects_missing_requested_time_column() {
+    let temp = TempDir::new().unwrap();
+    let observed_csv = temp.path().join("observed.csv");
+    let predicted_csv = temp.path().join("predicted.csv");
+    fs::write(&observed_csv, "stamp,x\n0.0,1.0\n1.0,1.4\n").unwrap();
+    fs::write(&predicted_csv, "stamp,x\n0.0,0.9\n1.0,1.0\n").unwrap();
+
+    let input = CsvInputConfig {
+        observed_csv,
+        predicted_csv,
+        scenario_id: "csv_missing_time".to_string(),
+        channel_names: None,
+        time_column: Some("time".to_string()),
+        dt_fallback: 1.0,
+        envelope_mode: EnvelopeMode::Fixed,
+        envelope_base: 1.0,
+        envelope_slope: 0.0,
+        envelope_switch_step: None,
+        envelope_secondary_slope: None,
+        envelope_secondary_base: None,
+        envelope_name: "csv_env".to_string(),
+    };
+
+    let error = load_csv_trajectories(&input).unwrap_err();
+    assert!(format!("{error:#}").contains("requested time column"));
+}
+
+#[test]
 fn csv_reproducibility_is_checked_and_identical() {
     let temp = TempDir::new().unwrap();
     let observed_csv = temp.path().join("observed.csv");
@@ -787,10 +863,72 @@ fn exported_report_mentions_projection_and_run_mode_for_csv_runs() {
 }
 
 #[test]
+fn report_keeps_small_nonzero_metric_values_visible() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 180,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("curvature_onset".to_string()),
+    });
+
+    let bundle = engine.run_single("curvature_onset").unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let report = fs::read_to_string(exported.report_markdown).unwrap();
+    assert!(report.contains("mean_squared_slew_norm="));
+    assert!(report.contains("e-"));
+}
+
+#[test]
 fn semantics_layer_can_return_unknown() {
     let syntax = syntax_template("unknown");
     let result = retrieve_semantics("unknown", &syntax, &[], None);
     assert!(matches!(result.disposition, SemanticDisposition::Unknown));
+    assert_eq!(result.unknown_reason_class.as_deref(), Some("low-evidence"));
+}
+
+#[test]
+fn semantics_layer_can_return_single_match() {
+    let mut syntax = syntax_template("match")
+        .with_outward(0.72)
+        .with_persistence(0.80)
+        .0;
+    syntax.radial_sign_dominance = 0.78;
+    syntax.sign_consistency = 0.78;
+    syntax.drift_channel_sign_alignment = 0.70;
+    syntax.channel_coherence = 0.70;
+    syntax.residual_norm_path_monotonicity = 0.83;
+    syntax.aggregate_monotonicity = 0.83;
+    syntax.residual_norm_trend_alignment = 0.85;
+    syntax.monotone_drift_fraction = 0.85;
+    syntax.mean_squared_slew_norm = 1.0e-10;
+    syntax.curvature_energy = 1.0e-10;
+    syntax.late_slew_growth_score = 0.10;
+    syntax.curvature_onset_score = 0.10;
+    let grammar = vec![grammar_status(
+        "match",
+        0,
+        0.0,
+        GrammarState::Admissible,
+        0.2,
+    )];
+    let result = retrieve_semantics("match", &syntax, &grammar, None);
+    assert!(matches!(result.disposition, SemanticDisposition::Match));
+    assert_eq!(
+        result.selected_heuristic_ids,
+        vec!["H-PERSISTENT-OUTWARD-DRIFT"]
+    );
+    assert!(result
+        .resolution_basis
+        .contains("Single qualified heuristic"));
+}
+
+#[test]
+fn format_metric_keeps_small_nonzero_values_visible() {
+    assert_eq!(format_metric(0.0), "0");
+    assert_eq!(format_metric(1.0e-8), "1.000e-8");
+    assert_eq!(format_metric(0.123456), "0.12346");
 }
 
 fn trajectory(
@@ -928,27 +1066,33 @@ impl SyntaxTemplate {
 
     fn with_persistence(mut self, value: f64) -> Self {
         self.0.directional_persistence = value;
+        self.0.radial_sign_persistence = value;
         self
     }
 
     fn with_sign_consistency(mut self, value: f64) -> Self {
         self.0.sign_consistency = value;
+        self.0.radial_sign_dominance = value;
         self
     }
 
     fn with_coherence(mut self, value: f64) -> Self {
         self.0.channel_coherence = value;
+        self.0.drift_channel_sign_alignment = value;
         self
     }
 
     fn with_monotonicity(mut self, value: f64) -> Self {
         self.0.aggregate_monotonicity = value;
         self.0.monotone_drift_fraction = value;
+        self.0.residual_norm_path_monotonicity = value;
+        self.0.residual_norm_trend_alignment = value;
         self
     }
 
     fn with_curvature(mut self, value: f64) -> Self {
         self.0.curvature_energy = value;
+        self.0.mean_squared_slew_norm = value;
         self
     }
 
@@ -984,6 +1128,13 @@ fn syntax_template(scenario_id: &str) -> SyntaxTemplate {
         monotone_drift_fraction: 0.2,
         curvature_energy: 0.01,
         curvature_onset_score: 0.1,
+        radial_sign_dominance: 0.2,
+        radial_sign_persistence: 0.2,
+        drift_channel_sign_alignment: 0.2,
+        residual_norm_path_monotonicity: 0.2,
+        residual_norm_trend_alignment: 0.2,
+        mean_squared_slew_norm: 0.01,
+        late_slew_growth_score: 0.1,
         mean_radial_drift: 0.0,
         min_margin: 0.1,
         mean_margin_delta: 0.0,
@@ -993,6 +1144,7 @@ fn syntax_template(scenario_id: &str) -> SyntaxTemplate {
         boundary_grazing_episode_count: 0,
         boundary_recovery_count: 0,
         repeated_grazing_count: 0,
+        coordinated_group_breach_fraction: 0.0,
         trajectory_label: "mixed-structured".to_string(),
     })
 }

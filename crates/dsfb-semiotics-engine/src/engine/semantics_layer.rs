@@ -5,6 +5,7 @@ use crate::engine::types::{
     HeuristicBankEntry, HeuristicCandidate, HeuristicProvenance, HeuristicScopeConditions,
     SemanticDisposition, SemanticMatchResult, SyntaxCharacterization,
 };
+use crate::math::metrics::format_metric;
 
 #[derive(Clone, Debug)]
 struct GrammarEvidence {
@@ -55,41 +56,52 @@ pub fn retrieve_semantics(
         .cloned()
         .collect::<Vec<_>>();
     let observation_limited = observation_support_is_limited(syntax, &evidence);
-    let (disposition, compatibility_note, note) = if candidates.is_empty() {
-        if observation_limited {
-            (
+    let (disposition, resolution_basis, unknown_reason_class, compatibility_note, note) =
+        if candidates.is_empty() {
+            if observation_limited {
+                (
                 SemanticDisposition::Unknown,
+                "Unknown returned because the sampled trajectory provided only limited structural evidence for conservative retrieval.".to_string(),
+                Some("low-evidence".to_string()),
                 "No heuristic bank entry matched, and the sampled trajectory provided only limited structural evidence for conservative semantic retrieval.".to_string(),
                 "Unknown is returned here because the observation shows weak admissibility interaction and limited radial or curvature structure. The bank is not forced to label low-evidence cases.".to_string(),
             )
-        } else {
-            (
+            } else {
+                (
                 SemanticDisposition::Unknown,
+                "Unknown returned because no typed heuristic bank entry covered the observed admissibility-qualified syntax under the available regime and grouped-evidence checks.".to_string(),
+                Some("bank-noncoverage".to_string()),
                 "No heuristic bank entry satisfied the constrained admissibility, scope, and regime checks.".to_string(),
                 "Unknown is returned conservatively because the current typed bank does not cover the observed admissibility-qualified syntax under the configured evidence and regime constraints.".to_string(),
             )
-        }
-    } else if candidates.len() == 1 {
-        (
+            }
+        } else if candidates.len() == 1 {
+            (
             SemanticDisposition::Match,
+            "Single qualified heuristic remained after admissibility, regime, and scope filtering.".to_string(),
+            None,
             format!(
                 "Single heuristic bank entry (`{}`) satisfied the constrained retrieval rules.",
                 selected_heuristic_ids[0]
             ),
             "The returned motif remains an illustrative compatibility statement only. It is not a unique-cause diagnosis.".to_string(),
         )
-    } else if compatibility.conflicts.is_empty() && compatibility.unresolved.is_empty() {
-        (
+        } else if compatibility.conflicts.is_empty() && compatibility.unresolved.is_empty() {
+            (
             SemanticDisposition::CompatibleSet,
+            "Multiple heuristics remained, and every matched pair is explicitly marked compatible in the typed bank.".to_string(),
+            None,
             format!(
                 "CompatibleSet returned because `{}` matched and every pair is explicitly marked compatible in the typed bank.",
                 selected_heuristic_ids.join("`, `")
             ),
             "The engine reports an explicitly compatible motif set only when every matched pair is marked compatible. The result remains non-exclusive and causally conservative.".to_string(),
         )
-    } else {
-        (
+        } else {
+            (
             SemanticDisposition::Ambiguous,
+            "Multiple heuristics remained, but the bank recorded either explicit conflicts or unresolved compatibility pairings, so the engine did not collapse them into one label.".to_string(),
+            None,
             format!(
                 "Ambiguous returned because {} matched entries produced {} explicit conflicts and {} unresolved compatibility pairings.",
                 candidates.len(),
@@ -98,21 +110,22 @@ pub fn retrieve_semantics(
             ),
             "Ambiguity is explicit rather than silently resolved. The engine does not force a unique semantic label when matched heuristics conflict or when compatibility is not explicitly established.".to_string(),
         )
-    };
+        };
 
     SemanticMatchResult {
         scenario_id: scenario_id.to_string(),
         disposition,
         motif_summary: format!(
-            "syntax={}, outward={:.3}, inward={:.3}, monotonicity={:.3}, curvature_energy={:.3}, curvature_onset={:.3}, slew_spikes={}, spike_strength={:.3}, boundary_episodes={}, boundary_recoveries={}, violations={}, regimes={}",
+            "syntax={}, outward={}, inward={}, residual_norm_path_monotonicity={}, mean_squared_slew_norm={}, late_slew_growth_score={}, slew_spikes={}, spike_strength={}, coordinated_group_breach_fraction={}, boundary_episodes={}, boundary_recoveries={}, violations={}, regimes={}",
             syntax.trajectory_label,
-            syntax.outward_drift_fraction,
-            syntax.inward_drift_fraction,
-            syntax.aggregate_monotonicity,
-            syntax.curvature_energy,
-            syntax.curvature_onset_score,
+            format_metric(syntax.outward_drift_fraction),
+            format_metric(syntax.inward_drift_fraction),
+            format_metric(syntax.residual_norm_path_monotonicity),
+            format_metric(syntax.mean_squared_slew_norm),
+            format_metric(syntax.late_slew_growth_score),
             syntax.slew_spike_count,
-            syntax.slew_spike_strength,
+            format_metric(syntax.slew_spike_strength),
+            format_metric(syntax.coordinated_group_breach_fraction),
             syntax.boundary_grazing_episode_count,
             syntax.boundary_recovery_count,
             evidence.violation_count,
@@ -125,6 +138,8 @@ pub fn retrieve_semantics(
         candidates,
         selected_labels,
         selected_heuristic_ids,
+        resolution_basis,
+        unknown_reason_class,
         compatibility_note,
         conflict_notes,
         note,
@@ -433,6 +448,9 @@ fn evaluate_entry(
     Some(HeuristicCandidate {
         entry: entry.clone(),
         score: score_candidate(entry, syntax, evidence, coordinated),
+        admissibility_explanation: admissibility_explanation(entry, evidence),
+        regime_explanation: regime_explanation(entry, evidence, coordinated),
+        scope_explanation: scope_explanation(entry, syntax, coordinated),
         rationale: rationale(entry, syntax, evidence, coordinated),
         matched_regimes,
     })
@@ -480,38 +498,41 @@ fn scope_satisfied(
     ) {
         return false;
     }
-    if !max_ok(syntax.curvature_energy, scope.max_curvature_energy) {
+    if !max_ok(syntax.mean_squared_slew_norm, scope.max_curvature_energy) {
         return false;
     }
-    if !min_ok(syntax.curvature_energy, scope.min_curvature_energy) {
+    if !min_ok(syntax.mean_squared_slew_norm, scope.min_curvature_energy) {
         return false;
     }
     if !max_ok(
-        syntax.curvature_onset_score,
+        syntax.late_slew_growth_score,
         scope.max_curvature_onset_score,
     ) {
         return false;
     }
     if !min_ok(
-        syntax.curvature_onset_score,
+        syntax.late_slew_growth_score,
         scope.min_curvature_onset_score,
     ) {
         return false;
     }
     if !min_ok(
-        syntax.directional_persistence,
+        syntax.radial_sign_persistence,
         scope.min_directional_persistence,
     ) {
         return false;
     }
-    if !min_ok(syntax.sign_consistency, scope.min_sign_consistency) {
-        return false;
-    }
-    if !min_ok(syntax.channel_coherence, scope.min_channel_coherence) {
+    if !min_ok(syntax.radial_sign_dominance, scope.min_sign_consistency) {
         return false;
     }
     if !min_ok(
-        syntax.aggregate_monotonicity,
+        syntax.drift_channel_sign_alignment,
+        scope.min_channel_coherence,
+    ) {
+        return false;
+    }
+    if !min_ok(
+        syntax.residual_norm_path_monotonicity,
         scope.min_aggregate_monotonicity,
     ) {
         return false;
@@ -550,47 +571,49 @@ fn score_candidate(
     let score = match entry.heuristic_id.as_str() {
         "H-PERSISTENT-OUTWARD-DRIFT" => {
             0.28 * syntax.outward_drift_fraction
-                + 0.24 * syntax.directional_persistence
-                + 0.24 * syntax.aggregate_monotonicity
-                + 0.12 * syntax.sign_consistency
-                + 0.06 * (1.0 / (1.0 + 20.0 * syntax.curvature_energy))
-                + 0.06 * (1.0 - syntax.curvature_onset_score)
+                + 0.24 * syntax.radial_sign_persistence
+                + 0.24 * syntax.residual_norm_path_monotonicity
+                + 0.12 * syntax.radial_sign_dominance
+                + 0.06 * (1.0 / (1.0 + 20.0 * syntax.mean_squared_slew_norm))
+                + 0.06 * (1.0 - syntax.late_slew_growth_score)
         }
         "H-DISCRETE-EVENT" => {
             0.28 * (syntax.max_slew_norm / (syntax.max_slew_norm + 0.15))
                 + 0.22 * (syntax.slew_spike_count.min(3) as f64 / 3.0)
-                + 0.22 * (syntax.curvature_energy / (syntax.curvature_energy + 0.03))
-                + 0.18 * (syntax.curvature_onset_score / (syntax.curvature_onset_score + 0.2))
+                + 0.22 * (syntax.mean_squared_slew_norm / (syntax.mean_squared_slew_norm + 0.03))
+                + 0.18 * (syntax.late_slew_growth_score / (syntax.late_slew_growth_score + 0.2))
                 + 0.10 * (syntax.slew_spike_strength / (syntax.slew_spike_strength + 0.2))
         }
         "H-CURVATURE-RICH-TRANSITION" => {
-            0.30 * (syntax.curvature_energy / (syntax.curvature_energy + 0.03))
-                + 0.25 * syntax.curvature_onset_score
+            0.30 * (syntax.mean_squared_slew_norm / (syntax.mean_squared_slew_norm + 0.03))
+                + 0.25 * syntax.late_slew_growth_score
                 + 0.15 * (syntax.slew_spike_count.min(3) as f64 / 3.0)
                 + 0.10 * (syntax.slew_spike_strength / (syntax.slew_spike_strength + 0.2))
-                + 0.10 * syntax.channel_coherence
-                + 0.10 * (1.0 - syntax.aggregate_monotonicity)
+                + 0.10 * syntax.drift_channel_sign_alignment
+                + 0.10 * (1.0 - syntax.residual_norm_path_monotonicity)
         }
         "H-BOUNDARY-GRAZING" => {
             0.35 * (syntax.boundary_grazing_episode_count.min(4) as f64 / 4.0)
                 + 0.20 * (syntax.boundary_recovery_count.min(4) as f64 / 4.0)
                 + 0.20 * (1.0 / (1.0 + syntax.min_margin.abs() * 15.0))
                 + 0.15 * (1.0 - syntax.outward_drift_fraction.clamp(0.0, 1.0))
-                + 0.10 * (1.0 / (1.0 + 20.0 * syntax.curvature_energy))
+                + 0.10 * (1.0 / (1.0 + 20.0 * syntax.mean_squared_slew_norm))
         }
         "H-COORDINATED-RISE" => {
-            0.38 * group_breach_ratio
+            0.38 * syntax
+                .coordinated_group_breach_fraction
+                .max(group_breach_ratio)
                 + 0.22 * syntax.outward_drift_fraction
-                + 0.18 * syntax.channel_coherence
-                + 0.22 * syntax.directional_persistence
+                + 0.18 * syntax.drift_channel_sign_alignment
+                + 0.22 * syntax.radial_sign_persistence
         }
         "H-INWARD-CONTAINMENT" => {
             0.35 * syntax.inward_drift_fraction
-                + 0.20 * syntax.directional_persistence
-                + 0.20 * syntax.sign_consistency
+                + 0.20 * syntax.radial_sign_persistence
+                + 0.20 * syntax.radial_sign_dominance
                 + 0.15 * (syntax.min_margin / (syntax.min_margin + 0.1)).clamp(0.0, 1.0)
                 + 0.05 * (1.0 - syntax.outward_drift_fraction.clamp(0.0, 1.0))
-                + 0.05 * (1.0 - syntax.curvature_onset_score)
+                + 0.05 * (1.0 - syntax.late_slew_growth_score)
         }
         _ => 0.0,
     };
@@ -603,36 +626,12 @@ fn rationale(
     evidence: &GrammarEvidence,
     coordinated: Option<&CoordinatedResidualStructure>,
 ) -> String {
-    let group_breach = if has_group_breach(coordinated) {
-        "group aggregate breach present"
-    } else {
-        "no aggregate group breach"
-    };
-    let matched_regimes = available_regimes(evidence, coordinated)
-        .into_iter()
-        .filter(|regime| entry.regime_tags.is_empty() || entry.regime_tags.contains(regime))
-        .collect::<Vec<_>>();
     format!(
-        "Applicable because admissibility=`{}`, matched_regimes=`{}`, and scope conditions were satisfied. {}. outward={:.3}, inward={:.3}, persistence={:.3}, residual_norm_monotonicity={:.3}, curvature_energy={:.3}, curvature_onset={:.3}, slew_spikes={}, spike_strength={:.3}, boundary_episodes={}, boundary_recoveries={}, violations={}, {}",
-        admissibility_label(&entry.admissibility_requirements),
-        if matched_regimes.is_empty() {
-            "none".to_string()
-        } else {
-            matched_regimes.join("|")
-        },
+        "{} {} {} {}",
+        admissibility_explanation(entry, evidence),
+        regime_explanation(entry, evidence, coordinated),
+        scope_explanation(entry, syntax, coordinated),
         entry.applicability_note,
-        syntax.outward_drift_fraction,
-        syntax.inward_drift_fraction,
-        syntax.directional_persistence,
-        syntax.aggregate_monotonicity,
-        syntax.curvature_energy,
-        syntax.curvature_onset_score,
-        syntax.slew_spike_count,
-        syntax.slew_spike_strength,
-        syntax.boundary_grazing_episode_count,
-        syntax.boundary_recovery_count,
-        evidence.violation_count,
-        group_breach,
     )
 }
 
@@ -644,21 +643,191 @@ fn observation_support_is_limited(
         .outward_drift_fraction
         .max(syntax.inward_drift_fraction)
         < 0.35
-        && syntax.directional_persistence < 0.35
-        && syntax.sign_consistency < 0.35
-        && syntax.curvature_onset_score < 0.15
+        && syntax.radial_sign_persistence < 0.35
+        && syntax.radial_sign_dominance < 0.35
+        && syntax.late_slew_growth_score < 0.15
         && syntax.slew_spike_count == 0
         && syntax.boundary_grazing_episode_count == 0
         && evidence.boundary_count == 0
         && evidence.violation_count == 0
 }
 
-fn admissibility_label(requirement: &AdmissibilityRequirement) -> &'static str {
-    match requirement {
-        AdmissibilityRequirement::Any => "any",
-        AdmissibilityRequirement::BoundaryInteraction => "boundary-interaction",
-        AdmissibilityRequirement::ViolationRequired => "violation-required",
-        AdmissibilityRequirement::NoViolation => "no-violation",
+fn admissibility_explanation(entry: &HeuristicBankEntry, evidence: &GrammarEvidence) -> String {
+    match entry.admissibility_requirements {
+        AdmissibilityRequirement::Any => {
+            "Admissibility check passed because this bank entry accepts any grammar state mix."
+                .to_string()
+        }
+        AdmissibilityRequirement::BoundaryInteraction => format!(
+            "Admissibility check passed because boundary interactions were observed {} time(s).",
+            evidence.boundary_count
+        ),
+        AdmissibilityRequirement::ViolationRequired => format!(
+            "Admissibility check passed because violation states were observed {} time(s).",
+            evidence.violation_count
+        ),
+        AdmissibilityRequirement::NoViolation => {
+            "Admissibility check passed because no violation states were observed.".to_string()
+        }
+    }
+}
+
+fn regime_explanation(
+    entry: &HeuristicBankEntry,
+    evidence: &GrammarEvidence,
+    coordinated: Option<&CoordinatedResidualStructure>,
+) -> String {
+    let available = available_regimes(evidence, coordinated);
+    if entry.regime_tags.is_empty() {
+        "Regime check passed because this bank entry does not require specific regime tags."
+            .to_string()
+    } else {
+        let matched = available
+            .iter()
+            .filter(|regime| entry.regime_tags.contains(*regime))
+            .cloned()
+            .collect::<Vec<_>>();
+        format!(
+            "Regime check passed because available regimes `{}` satisfied required tags `{}` via `{}`.",
+            if available.is_empty() {
+                "none".to_string()
+            } else {
+                available.join("|")
+            },
+            entry.regime_tags.join("|"),
+            if matched.is_empty() {
+                "none".to_string()
+            } else {
+                matched.join("|")
+            }
+        )
+    }
+}
+
+fn scope_explanation(
+    entry: &HeuristicBankEntry,
+    syntax: &SyntaxCharacterization,
+    coordinated: Option<&CoordinatedResidualStructure>,
+) -> String {
+    let scope = &entry.scope_conditions;
+    let mut notes = Vec::new();
+    if let Some(minimum) = scope.min_outward_drift_fraction {
+        notes.push(format!(
+            "outward_drift_fraction={} >= {}",
+            format_metric(syntax.outward_drift_fraction),
+            format_metric(minimum)
+        ));
+    }
+    if let Some(maximum) = scope.max_outward_drift_fraction {
+        notes.push(format!(
+            "outward_drift_fraction={} <= {}",
+            format_metric(syntax.outward_drift_fraction),
+            format_metric(maximum)
+        ));
+    }
+    if let Some(minimum) = scope.min_inward_drift_fraction {
+        notes.push(format!(
+            "inward_drift_fraction={} >= {}",
+            format_metric(syntax.inward_drift_fraction),
+            format_metric(minimum)
+        ));
+    }
+    if let Some(maximum) = scope.max_curvature_energy {
+        notes.push(format!(
+            "mean_squared_slew_norm={} <= {}",
+            format_metric(syntax.mean_squared_slew_norm),
+            format_metric(maximum)
+        ));
+    }
+    if let Some(minimum) = scope.min_curvature_energy {
+        notes.push(format!(
+            "mean_squared_slew_norm={} >= {}",
+            format_metric(syntax.mean_squared_slew_norm),
+            format_metric(minimum)
+        ));
+    }
+    if let Some(maximum) = scope.max_curvature_onset_score {
+        notes.push(format!(
+            "late_slew_growth_score={} <= {}",
+            format_metric(syntax.late_slew_growth_score),
+            format_metric(maximum)
+        ));
+    }
+    if let Some(minimum) = scope.min_curvature_onset_score {
+        notes.push(format!(
+            "late_slew_growth_score={} >= {}",
+            format_metric(syntax.late_slew_growth_score),
+            format_metric(minimum)
+        ));
+    }
+    if let Some(minimum) = scope.min_directional_persistence {
+        notes.push(format!(
+            "radial_sign_persistence={} >= {}",
+            format_metric(syntax.radial_sign_persistence),
+            format_metric(minimum)
+        ));
+    }
+    if let Some(minimum) = scope.min_sign_consistency {
+        notes.push(format!(
+            "radial_sign_dominance={} >= {}",
+            format_metric(syntax.radial_sign_dominance),
+            format_metric(minimum)
+        ));
+    }
+    if let Some(minimum) = scope.min_channel_coherence {
+        notes.push(format!(
+            "drift_channel_sign_alignment={} >= {}",
+            format_metric(syntax.drift_channel_sign_alignment),
+            format_metric(minimum)
+        ));
+    }
+    if let Some(minimum) = scope.min_aggregate_monotonicity {
+        notes.push(format!(
+            "residual_norm_path_monotonicity={} >= {}",
+            format_metric(syntax.residual_norm_path_monotonicity),
+            format_metric(minimum)
+        ));
+    }
+    if let Some(minimum) = scope.min_slew_spike_count {
+        notes.push(format!(
+            "slew_spike_count={} >= {}",
+            syntax.slew_spike_count, minimum
+        ));
+    }
+    if let Some(minimum) = scope.min_slew_spike_strength {
+        notes.push(format!(
+            "slew_spike_strength={} >= {}",
+            format_metric(syntax.slew_spike_strength),
+            format_metric(minimum)
+        ));
+    }
+    if let Some(minimum) = scope.min_boundary_grazing_episodes {
+        notes.push(format!(
+            "boundary_grazing_episode_count={} >= {}",
+            syntax.boundary_grazing_episode_count, minimum
+        ));
+    }
+    if let Some(minimum) = scope.min_boundary_recovery_count {
+        notes.push(format!(
+            "boundary_recovery_count={} >= {}",
+            syntax.boundary_recovery_count, minimum
+        ));
+    }
+    if scope.require_group_breach {
+        notes.push(format!(
+            "coordinated_group_breach_fraction={} > 0",
+            format_metric(
+                syntax
+                    .coordinated_group_breach_fraction
+                    .max(coordinated_group_breach_ratio(coordinated))
+            )
+        ));
+    }
+    if notes.is_empty() {
+        "Scope check passed because this bank entry does not impose additional numeric constraints."
+            .to_string()
+    } else {
+        format!("Scope check passed because {}.", notes.join(", "))
     }
 }
 

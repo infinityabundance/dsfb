@@ -1,6 +1,7 @@
 use crate::engine::types::{
     EngineOutputBundle, FigureArtifact, GrammarState, ReportManifest, ScenarioOutput,
 };
+use crate::math::metrics::format_metric;
 
 pub fn build_markdown_report(
     bundle: &EngineOutputBundle,
@@ -30,7 +31,7 @@ pub fn build_markdown_report(
     lines.push("- Slew: `s(t) = d^2r/dt^2` via deterministic second differences.".to_string());
     lines.push("- Sign tuple: `sigma(t) = (r(t), d(t), s(t))`.".to_string());
     lines.push("- Sign projection used in Figure 03: deterministic projected sign coordinates `[||r(t)||, dot(r(t), d(t))/||r(t)||, ||s(t)||]`, reported as residual norm, signed radial drift, and slew norm, with zero radial drift reported at exact zero residual norm.".to_string());
-    lines.push("- Syntax metrics include outward and inward drift fractions from residual-norm and margin evolution, radial-drift sign consistency, radial-drift directional persistence, cross-channel drift coherence, residual-norm monotonicity, curvature energy, curvature onset score, slew spike count and strength, boundary grazing episodes, and boundary recovery count.".to_string());
+    lines.push("- Syntax metrics include outward and inward drift fractions from residual-norm and margin evolution, radial-sign dominance, radial-sign persistence, drift-channel sign alignment, residual-norm path monotonicity, residual-norm trend alignment, mean squared slew norm, late slew-growth score, slew spike count and strength, boundary grazing episodes, boundary recovery count, and grouped aggregate breach fraction when coordinated structure is configured.".to_string());
     lines.push(
         "- Grammar: admissibility checked pointwise against `||r(t)|| <= rho(t)`.".to_string(),
     );
@@ -101,7 +102,7 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
     let first_exit = scenario
         .detectability
         .observed_crossing_time
-        .map(|value| format!("{value:.3}"))
+        .map(format_metric)
         .unwrap_or_else(|| "none in sampled horizon".to_string());
 
     vec![
@@ -115,19 +116,21 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
         format!("- Violations observed: {}", violation_count),
         format!("- First exit time: {}", first_exit),
         format!(
-            "- Syntax metrics: outward={:.3}, inward={:.3}, residual_norm_monotonicity={:.3}, radial_direction_persistence={:.3}, radial_sign_consistency={:.3}, channel_coherence={:.3}, curvature_energy={:.3}, curvature_onset={:.3}, slew_spikes={}, spike_strength={:.3}, grazing_episodes={}, boundary_recoveries={}",
-            scenario.syntax.outward_drift_fraction,
-            scenario.syntax.inward_drift_fraction,
-            scenario.syntax.aggregate_monotonicity,
-            scenario.syntax.directional_persistence,
-            scenario.syntax.sign_consistency,
-            scenario.syntax.channel_coherence,
-            scenario.syntax.curvature_energy,
-            scenario.syntax.curvature_onset_score,
+            "- Syntax metrics: outward={}, inward={}, residual_norm_path_monotonicity={}, residual_norm_trend_alignment={}, radial_sign_persistence={}, radial_sign_dominance={}, drift_channel_sign_alignment={}, mean_squared_slew_norm={}, late_slew_growth_score={}, slew_spikes={}, spike_strength={}, grazing_episodes={}, boundary_recoveries={}, coordinated_group_breach_fraction={}",
+            format_metric(scenario.syntax.outward_drift_fraction),
+            format_metric(scenario.syntax.inward_drift_fraction),
+            format_metric(scenario.syntax.residual_norm_path_monotonicity),
+            format_metric(scenario.syntax.residual_norm_trend_alignment),
+            format_metric(scenario.syntax.radial_sign_persistence),
+            format_metric(scenario.syntax.radial_sign_dominance),
+            format_metric(scenario.syntax.drift_channel_sign_alignment),
+            format_metric(scenario.syntax.mean_squared_slew_norm),
+            format_metric(scenario.syntax.late_slew_growth_score),
             scenario.syntax.slew_spike_count,
-            scenario.syntax.slew_spike_strength,
+            format_metric(scenario.syntax.slew_spike_strength),
             scenario.syntax.boundary_grazing_episode_count,
             scenario.syntax.boundary_recovery_count,
+            format_metric(scenario.syntax.coordinated_group_breach_fraction),
         ),
         format!(
             "- Syntax label: `{}`",
@@ -146,6 +149,18 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
             }
         ),
         format!(
+            "- Semantic resolution basis: {}",
+            scenario.semantics.resolution_basis
+        ),
+        format!(
+            "- Semantic unknown reason class: {}",
+            scenario
+                .semantics
+                .unknown_reason_class
+                .clone()
+                .unwrap_or_else(|| "n/a".to_string())
+        ),
+        format!(
             "- Semantic compatibility note: {}",
             scenario.semantics.compatibility_note
         ),
@@ -161,15 +176,18 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
             .iter()
             .map(|candidate| {
                 format!(
-                    "- Candidate `{}` (`{}`): score={:.3}, regimes={}, rationale={}",
+                    "- Candidate `{}` (`{}`): score={}, regimes={}, regime_check={}, admissibility={}, scope={}, rationale={}",
                     candidate.entry.heuristic_id,
                     candidate.entry.motif_label,
-                    candidate.score,
+                    format_metric(candidate.score),
                     if candidate.matched_regimes.is_empty() {
                         "none".to_string()
                     } else {
                         candidate.matched_regimes.join("|")
                     },
+                    candidate.regime_explanation,
+                    candidate.admissibility_explanation,
+                    candidate.scope_explanation,
                     candidate.rationale
                 )
             }),

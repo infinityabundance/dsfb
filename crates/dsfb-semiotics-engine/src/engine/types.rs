@@ -160,19 +160,43 @@ pub struct SyntaxCharacterization {
     /// relative to the configured admissibility envelope.
     pub inward_drift_fraction: f64,
     /// Dominant nonzero sign share of the radial-drift sequence.
+    /// Compatibility alias retained for existing artifacts; equals `radial_sign_dominance`.
     pub sign_consistency: f64,
     /// Adjacent-agreement fraction across nonzero radial-drift signs.
+    /// Compatibility alias retained for existing artifacts; equals `radial_sign_persistence`.
     pub directional_persistence: f64,
     /// Mean within-sample sign alignment across drift channels.
+    /// Compatibility alias retained for existing artifacts; equals
+    /// `drift_channel_sign_alignment`.
     pub channel_coherence: f64,
     /// Net residual-norm change divided by total residual-norm variation.
+    /// Compatibility alias retained for existing artifacts; equals
+    /// `residual_norm_path_monotonicity`.
     pub aggregate_monotonicity: f64,
     /// Fraction of residual-norm increments aligned with the net residual-norm trend.
+    /// Compatibility alias retained for existing artifacts; equals
+    /// `residual_norm_trend_alignment`.
     pub monotone_drift_fraction: f64,
     /// Mean squared slew norm across the sampled trajectory.
+    /// Compatibility alias retained for existing artifacts; equals `mean_squared_slew_norm`.
     pub curvature_energy: f64,
     /// Deterministic onset score derived from early-to-late slew-norm growth.
+    /// Compatibility alias retained for existing artifacts; equals `late_slew_growth_score`.
     pub curvature_onset_score: f64,
+    /// Dominant nonzero sign share of the radial-drift sequence.
+    pub radial_sign_dominance: f64,
+    /// Adjacent agreement fraction across the active nonzero radial-drift sign sequence.
+    pub radial_sign_persistence: f64,
+    /// Mean within-sample sign alignment across active drift channels.
+    pub drift_channel_sign_alignment: f64,
+    /// Net residual-norm change divided by total residual-norm path variation.
+    pub residual_norm_path_monotonicity: f64,
+    /// Fraction of nonzero residual-norm increments aligned with the net residual-norm trend.
+    pub residual_norm_trend_alignment: f64,
+    /// Mean squared slew norm across the sampled trajectory.
+    pub mean_squared_slew_norm: f64,
+    /// Deterministic score derived from early-to-late slew-norm growth.
+    pub late_slew_growth_score: f64,
     /// Mean radial drift `dot(r,d)/||r||`, with zero reported at exact zero residual norm.
     pub mean_radial_drift: f64,
     /// Smallest residual-envelope margin observed along the trajectory.
@@ -191,6 +215,9 @@ pub struct SyntaxCharacterization {
     pub boundary_recovery_count: usize,
     /// Boundary episode count minus one; used as a compact repeated-grazing indicator.
     pub repeated_grazing_count: usize,
+    /// Fraction of grouped aggregate residual points with negative aggregate margin.
+    /// Reported as zero when no grouped structure is configured.
+    pub coordinated_group_breach_fraction: f64,
     /// Compact deterministic summary label derived from the richer syntax metrics.
     pub trajectory_label: String,
 }
@@ -267,6 +294,9 @@ pub struct HeuristicBankEntry {
 pub struct HeuristicCandidate {
     pub entry: HeuristicBankEntry,
     pub score: f64,
+    pub admissibility_explanation: String,
+    pub regime_explanation: String,
+    pub scope_explanation: String,
     pub rationale: String,
     pub matched_regimes: Vec<String>,
 }
@@ -287,6 +317,8 @@ pub struct SemanticMatchResult {
     pub candidates: Vec<HeuristicCandidate>,
     pub selected_labels: Vec<String>,
     pub selected_heuristic_ids: Vec<String>,
+    pub resolution_basis: String,
+    pub unknown_reason_class: Option<String>,
     pub compatibility_note: String,
     pub conflict_notes: Vec<String>,
     pub note: String,

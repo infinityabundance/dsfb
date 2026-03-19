@@ -10,7 +10,7 @@ use crate::engine::grammar_layer::{evaluate_detectability, evaluate_grammar_laye
 use crate::engine::residual_layer::extract_residuals;
 use crate::engine::semantics_layer::retrieve_semantics;
 use crate::engine::sign_layer::construct_signs;
-use crate::engine::syntax_layer::characterize_syntax;
+use crate::engine::syntax_layer::characterize_syntax_with_coordination;
 use crate::engine::types::{
     CoordinatedResidualStructure, DetectabilityBoundInputs, EngineOutputBundle, FigureArtifact,
     GroupDefinition, GroupResidualPoint, ObservedTrajectory, PredictedTrajectory,
@@ -25,7 +25,7 @@ use crate::io::output::{create_output_layout, prepare_clean_export_layout, Outpu
 use crate::io::zip::zip_directory;
 use crate::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 use crate::math::envelope::{build_envelope, EnvelopeSpec};
-use crate::math::metrics::{hash_serializable_hex, max_abs, pairwise_abs_mean};
+use crate::math::metrics::{format_metric, hash_serializable_hex, max_abs, pairwise_abs_mean};
 use crate::report::artifact_report::build_markdown_report;
 use crate::report::pdf::{write_artifact_pdf, PdfTextArtifact};
 use crate::sim::generators::synthesize;
@@ -324,14 +324,14 @@ impl StructuralSemioticsEngine {
         let slew = compute_slew_trajectory(&residual, self.config.dt, &prepared.record.id);
         let sign = construct_signs(&residual, &drift, &slew);
         let envelope = build_envelope(&residual, &prepared.envelope_spec, &prepared.record.id);
-        let grammar = evaluate_grammar_layer(&residual, &envelope);
-        let syntax = characterize_syntax(&sign, &grammar);
         let coordinated = build_coordinated(
             &prepared.record.id,
             &prepared.groups,
             prepared.aggregate_envelope_spec.as_ref(),
             &residual,
         )?;
+        let grammar = evaluate_grammar_layer(&residual, &envelope);
+        let syntax = characterize_syntax_with_coordination(&sign, &grammar, coordinated.as_ref());
 
         Ok(PartialScenarioOutput {
             record: prepared.record.clone(),
@@ -846,8 +846,13 @@ struct SemanticMatchCsvRow {
     motif_summary: String,
     selected_labels: String,
     selected_heuristic_ids: String,
+    resolution_basis: String,
+    unknown_reason_class: String,
     candidate_labels: String,
     candidate_regimes: String,
+    candidate_regime_explanations: String,
+    candidate_admissibility: String,
+    candidate_scope: String,
     candidate_rationales: String,
     compatibility_note: String,
     conflict_notes: String,
@@ -936,10 +941,18 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
         motif_summary: result.motif_summary.clone(),
         selected_labels: result.selected_labels.join(" | "),
         selected_heuristic_ids: result.selected_heuristic_ids.join(" | "),
+        resolution_basis: result.resolution_basis.clone(),
+        unknown_reason_class: result.unknown_reason_class.clone().unwrap_or_default(),
         candidate_labels: result
             .candidates
             .iter()
-            .map(|candidate| format!("{}:{:.3}", candidate.entry.motif_label, candidate.score))
+            .map(|candidate| {
+                format!(
+                    "{}:{}",
+                    candidate.entry.motif_label,
+                    format_metric(candidate.score)
+                )
+            })
             .collect::<Vec<_>>()
             .join(" | "),
         candidate_regimes: result
@@ -958,6 +971,39 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
             })
             .collect::<Vec<_>>()
             .join(" | "),
+        candidate_regime_explanations: result
+            .candidates
+            .iter()
+            .map(|candidate| {
+                format!(
+                    "{}:{}",
+                    candidate.entry.heuristic_id, candidate.regime_explanation
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" || "),
+        candidate_admissibility: result
+            .candidates
+            .iter()
+            .map(|candidate| {
+                format!(
+                    "{}:{}",
+                    candidate.entry.heuristic_id, candidate.admissibility_explanation
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" || "),
+        candidate_scope: result
+            .candidates
+            .iter()
+            .map(|candidate| {
+                format!(
+                    "{}:{}",
+                    candidate.entry.heuristic_id, candidate.scope_explanation
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" || "),
         candidate_rationales: result
             .candidates
             .iter()
