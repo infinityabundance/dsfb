@@ -418,6 +418,62 @@ fn artifact_bundle_contains_manifest_report_zip_and_reproducibility_schema() {
 }
 
 #[test]
+fn export_artifacts_removes_stale_known_files_before_rewriting() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 80,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("gradual_degradation".to_string()),
+    });
+
+    let bundle = engine.run_single("gradual_degradation").unwrap();
+    let first = export_artifacts(&bundle).unwrap();
+    let stale_figure = first.run_dir.join("figures/stale_figure.tmp");
+    let stale_csv = first.run_dir.join("csv/stale_table.csv");
+    let stale_json = first.run_dir.join("json/stale_payload.json");
+    let stale_report = first.run_dir.join("report/stale_note.md");
+    let stale_zip = first.run_dir.join("stale_bundle.zip");
+    fs::write(&stale_figure, "stale").unwrap();
+    fs::write(&stale_csv, "stale").unwrap();
+    fs::write(&stale_json, "stale").unwrap();
+    fs::write(&stale_report, "stale").unwrap();
+    fs::write(&stale_zip, "stale").unwrap();
+
+    let second = export_artifacts(&bundle).unwrap();
+    assert_eq!(first.run_dir, second.run_dir);
+    assert!(!stale_figure.exists());
+    assert!(!stale_csv.exists());
+    assert!(!stale_json.exists());
+    assert!(!stale_report.exists());
+    assert!(!stale_zip.exists());
+    assert!(second.manifest_path.exists());
+    assert!(second.report_pdf.exists());
+    assert!(second.zip_path.exists());
+}
+
+#[test]
+fn export_artifacts_refuses_unexpected_root_entries() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 80,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("gradual_degradation".to_string()),
+    });
+
+    let bundle = engine.run_single("gradual_degradation").unwrap();
+    let first = export_artifacts(&bundle).unwrap();
+    let foreign_file = first.run_dir.join("foreign.txt");
+    fs::write(&foreign_file, "unexpected").unwrap();
+
+    let error = export_artifacts(&bundle).unwrap_err();
+    assert!(error.to_string().contains("unexpected file"));
+}
+
+#[test]
 fn csv_ingest_mode_runs_through_same_pipeline() {
     let temp = TempDir::new().unwrap();
     let observed_csv = temp.path().join("observed.csv");
