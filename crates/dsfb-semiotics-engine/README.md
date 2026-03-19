@@ -246,6 +246,7 @@ Each run emits:
 - `dsfb-semiotics-engine-<timestamp>.zip`
 
 The zip archive contains the generated run directory contents for convenient download.
+The PDF report embeds the generated figure PNG artifacts and appends a deterministic artifact appendix covering the exported markdown, manifest, CSV, and JSON text artifacts.
 
 ## Figure Suite
 

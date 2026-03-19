@@ -89,6 +89,7 @@ pub fn build_markdown_report(
     lines.push(format!("- JSON files: {}", manifest.json_paths.len()));
     lines.push(format!("- PDF report: `{}`", manifest.report_pdf));
     lines.push(format!("- Zip archive: `{}`", manifest.zip_archive));
+    lines.push("- PDF companion content: rendered markdown report, embedded figure artifacts, full artifact inventory, and appended text-based CSV/JSON/manifest/report sources.".to_string());
     lines.push(String::new());
     lines.join("\n")
 }
