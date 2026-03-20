@@ -13,6 +13,7 @@ fn test_colab_notebook_contains_download_section_logic() {
     let notebook = notebook_text();
     assert!(notebook.contains("render_artifact_download_section"));
     assert!(notebook.contains("## Artifact Downloads"));
+    assert!(notebook.contains("from IPython.display import HTML, Markdown, display"));
 }
 
 #[test]
