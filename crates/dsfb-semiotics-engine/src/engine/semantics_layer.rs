@@ -178,6 +178,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_outward_drift_fraction: Some(0.60),
                 max_outward_drift_fraction: None,
                 min_inward_drift_fraction: None,
+                max_inward_drift_fraction: Some(0.30),
                 max_curvature_energy: Some(3.0e-9),
                 min_curvature_energy: None,
                 max_curvature_onset_score: Some(0.25),
@@ -186,13 +187,18 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_sign_consistency: Some(0.60),
                 min_channel_coherence: Some(0.55),
                 min_aggregate_monotonicity: Some(0.72),
+                max_aggregate_monotonicity: None,
                 min_slew_spike_count: None,
+                max_slew_spike_count: Some(1),
                 min_slew_spike_strength: None,
+                max_slew_spike_strength: Some(0.01),
                 min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                max_coordinated_group_breach_fraction: Some(0.05),
                 require_group_breach: false,
             },
-            admissibility_requirements: AdmissibilityRequirement::Any,
+            admissibility_requirements: AdmissibilityRequirement::NoViolation,
             regime_tags: vec![
                 "fixed".to_string(),
                 "widening".to_string(),
@@ -209,9 +215,65 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 "H-COORDINATED-RISE".to_string(),
             ],
             incompatible_with: vec![
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
                 "H-DISCRETE-EVENT".to_string(),
                 "H-CURVATURE-RICH-TRANSITION".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
+                "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
+        },
+        HeuristicBankEntry {
+            heuristic_id: "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+            motif_label: "persistent admissibility departure candidate".to_string(),
+            short_label: "persistent_departure".to_string(),
+            scope_conditions: HeuristicScopeConditions {
+                min_outward_drift_fraction: Some(0.75),
+                max_outward_drift_fraction: None,
+                min_inward_drift_fraction: None,
+                max_inward_drift_fraction: Some(0.20),
+                max_curvature_energy: Some(1.0e-6),
+                min_curvature_energy: None,
+                max_curvature_onset_score: Some(0.25),
+                min_curvature_onset_score: None,
+                min_directional_persistence: Some(0.70),
+                min_sign_consistency: Some(0.70),
+                min_channel_coherence: Some(0.50),
+                min_aggregate_monotonicity: Some(0.80),
+                max_aggregate_monotonicity: None,
+                min_slew_spike_count: None,
+                max_slew_spike_count: Some(1),
+                min_slew_spike_strength: None,
+                max_slew_spike_strength: Some(0.01),
+                min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
+                min_boundary_recovery_count: None,
+                max_coordinated_group_breach_fraction: Some(0.05),
+                require_group_breach: false,
+            },
+            admissibility_requirements: AdmissibilityRequirement::ViolationRequired,
+            regime_tags: vec![
+                "fixed".to_string(),
+                "widening".to_string(),
+                "regime_shifted".to_string(),
+            ],
+            provenance: HeuristicProvenance {
+                source: "typed heuristic bank".to_string(),
+                note: "Illustrative mapping from sustained outward residual migration with actual admissibility breach to a conservative departure motif.".to_string(),
+            },
+            applicability_note: "Use only when sustained outward structure remains dominant after a configured envelope breach. This does not identify the underlying mechanism uniquely.".to_string(),
+            retrieval_priority: 89,
+            compatible_with: Vec::new(),
+            incompatible_with: vec![
+                "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
+                "H-DISCRETE-EVENT".to_string(),
+                "H-CURVATURE-RICH-TRANSITION".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-COORDINATED-RISE".to_string(),
+                "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
             ],
         },
         HeuristicBankEntry {
@@ -222,6 +284,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_outward_drift_fraction: None,
                 max_outward_drift_fraction: None,
                 min_inward_drift_fraction: None,
+                max_inward_drift_fraction: None,
                 max_curvature_energy: None,
                 min_curvature_energy: Some(2.0e-6),
                 max_curvature_onset_score: None,
@@ -230,10 +293,15 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_sign_consistency: None,
                 min_channel_coherence: None,
                 min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: None,
                 min_slew_spike_count: Some(1),
+                max_slew_spike_count: None,
                 min_slew_spike_strength: Some(0.05),
+                max_slew_spike_strength: None,
                 min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                max_coordinated_group_breach_fraction: None,
                 require_group_breach: false,
             },
             admissibility_requirements: AdmissibilityRequirement::Any,
@@ -251,7 +319,11 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
             compatible_with: vec!["H-CURVATURE-RICH-TRANSITION".to_string()],
             incompatible_with: vec![
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
+                "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
             ],
         },
         HeuristicBankEntry {
@@ -262,6 +334,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_outward_drift_fraction: None,
                 max_outward_drift_fraction: None,
                 min_inward_drift_fraction: None,
+                max_inward_drift_fraction: None,
                 max_curvature_energy: None,
                 min_curvature_energy: Some(4.0e-9),
                 max_curvature_onset_score: None,
@@ -270,10 +343,15 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_sign_consistency: None,
                 min_channel_coherence: Some(0.30),
                 min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: None,
                 min_slew_spike_count: Some(1),
+                max_slew_spike_count: None,
                 min_slew_spike_strength: Some(0.01),
+                max_slew_spike_strength: None,
                 min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                max_coordinated_group_breach_fraction: None,
                 require_group_breach: false,
             },
             admissibility_requirements: AdmissibilityRequirement::Any,
@@ -291,7 +369,62 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
             compatible_with: vec!["H-DISCRETE-EVENT".to_string()],
             incompatible_with: vec![
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
+                "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
+        },
+        HeuristicBankEntry {
+            heuristic_id: "H-CURVATURE-LED-DEPARTURE".to_string(),
+            motif_label: "curvature-led admissibility departure candidate".to_string(),
+            short_label: "curvature_departure".to_string(),
+            scope_conditions: HeuristicScopeConditions {
+                min_outward_drift_fraction: Some(0.65),
+                max_outward_drift_fraction: None,
+                min_inward_drift_fraction: None,
+                max_inward_drift_fraction: Some(0.25),
+                max_curvature_energy: None,
+                min_curvature_energy: Some(4.0e-9),
+                max_curvature_onset_score: None,
+                min_curvature_onset_score: Some(0.40),
+                min_directional_persistence: Some(0.60),
+                min_sign_consistency: Some(0.60),
+                min_channel_coherence: Some(0.50),
+                min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: None,
+                min_slew_spike_count: None,
+                max_slew_spike_count: Some(1),
+                min_slew_spike_strength: None,
+                max_slew_spike_strength: Some(0.01),
+                min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
+                min_boundary_recovery_count: None,
+                max_coordinated_group_breach_fraction: Some(0.05),
+                require_group_breach: false,
+            },
+            admissibility_requirements: AdmissibilityRequirement::ViolationRequired,
+            regime_tags: vec![
+                "fixed".to_string(),
+                "widening".to_string(),
+                "regime_shifted".to_string(),
+            ],
+            provenance: HeuristicProvenance {
+                source: "typed heuristic bank".to_string(),
+                note: "Illustrative mapping from slew-growth-dominated admissibility departure to a conservative transition-led departure motif.".to_string(),
+            },
+            applicability_note: "Use when admissibility departure is present and curvature growth is materially more salient than discrete-event spike structure. This remains a motif statement only.".to_string(),
+            retrieval_priority: 82,
+            compatible_with: Vec::new(),
+            incompatible_with: vec![
+                "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-DISCRETE-EVENT".to_string(),
+                "H-CURVATURE-RICH-TRANSITION".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
             ],
         },
         HeuristicBankEntry {
@@ -302,6 +435,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_outward_drift_fraction: None,
                 max_outward_drift_fraction: Some(0.70),
                 min_inward_drift_fraction: None,
+                max_inward_drift_fraction: None,
                 max_curvature_energy: Some(0.050),
                 min_curvature_energy: None,
                 max_curvature_onset_score: Some(0.45),
@@ -310,10 +444,15 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_sign_consistency: None,
                 min_channel_coherence: None,
                 min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: None,
                 min_slew_spike_count: None,
+                max_slew_spike_count: None,
                 min_slew_spike_strength: None,
+                max_slew_spike_strength: None,
                 min_boundary_grazing_episodes: Some(2),
+                max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: Some(1),
+                max_coordinated_group_breach_fraction: Some(0.05),
                 require_group_breach: false,
             },
             admissibility_requirements: AdmissibilityRequirement::NoViolation,
@@ -334,7 +473,11 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
                 "H-COORDINATED-RISE".to_string(),
             ],
-            incompatible_with: vec!["H-INWARD-CONTAINMENT".to_string()],
+            incompatible_with: vec![
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
         },
         HeuristicBankEntry {
             heuristic_id: "H-COORDINATED-RISE".to_string(),
@@ -344,6 +487,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_outward_drift_fraction: Some(0.45),
                 max_outward_drift_fraction: None,
                 min_inward_drift_fraction: None,
+                max_inward_drift_fraction: None,
                 max_curvature_energy: None,
                 min_curvature_energy: None,
                 max_curvature_onset_score: Some(0.40),
@@ -352,10 +496,15 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_sign_consistency: Some(0.45),
                 min_channel_coherence: Some(0.55),
                 min_aggregate_monotonicity: Some(0.45),
+                max_aggregate_monotonicity: None,
                 min_slew_spike_count: None,
+                max_slew_spike_count: None,
                 min_slew_spike_strength: None,
+                max_slew_spike_strength: None,
                 min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                max_coordinated_group_breach_fraction: None,
                 require_group_breach: true,
             },
             admissibility_requirements: AdmissibilityRequirement::Any,
@@ -370,7 +519,11 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
                 "H-BOUNDARY-GRAZING".to_string(),
             ],
-            incompatible_with: vec!["H-INWARD-CONTAINMENT".to_string()],
+            incompatible_with: vec![
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
         },
         HeuristicBankEntry {
             heuristic_id: "H-INWARD-CONTAINMENT".to_string(),
@@ -380,6 +533,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_outward_drift_fraction: None,
                 max_outward_drift_fraction: Some(0.35),
                 min_inward_drift_fraction: Some(0.55),
+                max_inward_drift_fraction: None,
                 max_curvature_energy: Some(0.020),
                 min_curvature_energy: None,
                 max_curvature_onset_score: Some(0.25),
@@ -388,10 +542,15 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_sign_consistency: Some(0.55),
                 min_channel_coherence: Some(0.45),
                 min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: None,
                 min_slew_spike_count: None,
+                max_slew_spike_count: None,
                 min_slew_spike_strength: None,
+                max_slew_spike_strength: None,
                 min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                max_coordinated_group_breach_fraction: Some(0.05),
                 require_group_breach: false,
             },
             admissibility_requirements: AdmissibilityRequirement::NoViolation,
@@ -411,8 +570,117 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
                 "H-DISCRETE-EVENT".to_string(),
                 "H-CURVATURE-RICH-TRANSITION".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
                 "H-BOUNDARY-GRAZING".to_string(),
                 "H-COORDINATED-RISE".to_string(),
+                "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
+        },
+        HeuristicBankEntry {
+            heuristic_id: "H-BOUNDED-OSCILLATORY".to_string(),
+            motif_label: "bounded oscillatory operation candidate".to_string(),
+            short_label: "bounded_oscillatory".to_string(),
+            scope_conditions: HeuristicScopeConditions {
+                min_outward_drift_fraction: None,
+                max_outward_drift_fraction: Some(0.60),
+                min_inward_drift_fraction: Some(0.35),
+                max_inward_drift_fraction: Some(0.60),
+                max_curvature_energy: Some(1.0e-3),
+                min_curvature_energy: Some(1.0e-6),
+                max_curvature_onset_score: Some(0.20),
+                min_curvature_onset_score: None,
+                min_directional_persistence: Some(0.75),
+                min_sign_consistency: Some(0.50),
+                min_channel_coherence: Some(0.45),
+                min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: Some(0.12),
+                min_slew_spike_count: Some(2),
+                max_slew_spike_count: None,
+                min_slew_spike_strength: None,
+                max_slew_spike_strength: Some(0.01),
+                min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: Some(0),
+                min_boundary_recovery_count: None,
+                max_coordinated_group_breach_fraction: Some(0.0),
+                require_group_breach: false,
+            },
+            admissibility_requirements: AdmissibilityRequirement::NoViolation,
+            regime_tags: vec![
+                "fixed".to_string(),
+                "tightening".to_string(),
+                "widening".to_string(),
+                "regime_nominal".to_string(),
+            ],
+            provenance: HeuristicProvenance {
+                source: "typed heuristic bank".to_string(),
+                note: "Illustrative mapping from balanced outward/inward evolution with modest bounded slew activity to a conservative oscillatory motif.".to_string(),
+            },
+            applicability_note: "This motif stays envelope-relative and descriptive. It indicates bounded oscillatory structure under the configured model, not a unique source of periodicity.".to_string(),
+            retrieval_priority: 66,
+            compatible_with: Vec::new(),
+            incompatible_with: vec![
+                "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-DISCRETE-EVENT".to_string(),
+                "H-CURVATURE-RICH-TRANSITION".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
+        },
+        HeuristicBankEntry {
+            heuristic_id: "H-BASELINE-COMPATIBLE".to_string(),
+            motif_label: "weakly structured baseline-compatible observation candidate".to_string(),
+            short_label: "baseline_compatible".to_string(),
+            scope_conditions: HeuristicScopeConditions {
+                min_outward_drift_fraction: None,
+                max_outward_drift_fraction: Some(0.53),
+                min_inward_drift_fraction: Some(0.40),
+                max_inward_drift_fraction: Some(0.60),
+                max_curvature_energy: Some(1.0e-5),
+                min_curvature_energy: None,
+                max_curvature_onset_score: Some(0.20),
+                min_curvature_onset_score: None,
+                min_directional_persistence: None,
+                min_sign_consistency: None,
+                min_channel_coherence: None,
+                min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: Some(0.08),
+                min_slew_spike_count: None,
+                max_slew_spike_count: Some(1),
+                min_slew_spike_strength: None,
+                max_slew_spike_strength: Some(1.0e-3),
+                min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: Some(0),
+                min_boundary_recovery_count: None,
+                max_coordinated_group_breach_fraction: Some(0.0),
+                require_group_breach: false,
+            },
+            admissibility_requirements: AdmissibilityRequirement::NoViolation,
+            regime_tags: vec![
+                "fixed".to_string(),
+                "tightening".to_string(),
+                "widening".to_string(),
+                "regime_nominal".to_string(),
+            ],
+            provenance: HeuristicProvenance {
+                source: "typed heuristic bank".to_string(),
+                note: "Illustrative mapping from low-structure, admissible residual evolution to a conservative baseline-compatible observation motif.".to_string(),
+            },
+            applicability_note: "Use only as a low-commitment statement relative to the configured prediction and envelope. It is not a validated health or nominality classifier.".to_string(),
+            retrieval_priority: 60,
+            compatible_with: Vec::new(),
+            incompatible_with: vec![
+                "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-DISCRETE-EVENT".to_string(),
+                "H-CURVATURE-RICH-TRANSITION".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
+                "H-BOUNDARY-GRAZING".to_string(),
+                "H-COORDINATED-RISE".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-BOUNDED-OSCILLATORY".to_string(),
             ],
         },
     ]
@@ -498,6 +766,12 @@ fn scope_satisfied(
     ) {
         return false;
     }
+    if !max_ok(
+        syntax.inward_drift_fraction,
+        scope.max_inward_drift_fraction,
+    ) {
+        return false;
+    }
     if !max_ok(syntax.mean_squared_slew_norm, scope.max_curvature_energy) {
         return false;
     }
@@ -537,10 +811,22 @@ fn scope_satisfied(
     ) {
         return false;
     }
+    if !max_ok(
+        syntax.residual_norm_path_monotonicity,
+        scope.max_aggregate_monotonicity,
+    ) {
+        return false;
+    }
     if !min_usize_ok(syntax.slew_spike_count, scope.min_slew_spike_count) {
         return false;
     }
+    if !max_usize_ok(syntax.slew_spike_count, scope.max_slew_spike_count) {
+        return false;
+    }
     if !min_ok(syntax.slew_spike_strength, scope.min_slew_spike_strength) {
+        return false;
+    }
+    if !max_ok(syntax.slew_spike_strength, scope.max_slew_spike_strength) {
         return false;
     }
     if !min_usize_ok(
@@ -549,9 +835,23 @@ fn scope_satisfied(
     ) {
         return false;
     }
+    if !max_usize_ok(
+        syntax.boundary_grazing_episode_count,
+        scope.max_boundary_grazing_episodes,
+    ) {
+        return false;
+    }
     if !min_usize_ok(
         syntax.boundary_recovery_count,
         scope.min_boundary_recovery_count,
+    ) {
+        return false;
+    }
+    if !max_ok(
+        syntax
+            .coordinated_group_breach_fraction
+            .max(coordinated_group_breach_ratio(coordinated)),
+        scope.max_coordinated_group_breach_fraction,
     ) {
         return false;
     }
@@ -577,6 +877,16 @@ fn score_candidate(
                 + 0.06 * (1.0 / (1.0 + 20.0 * syntax.mean_squared_slew_norm))
                 + 0.06 * (1.0 - syntax.late_slew_growth_score)
         }
+        "H-PERSISTENT-ADMISSIBILITY-DEPARTURE" => {
+            let breach_severity =
+                (-syntax.min_margin).max(0.0) / (((-syntax.min_margin).max(0.0)) + 0.1);
+            0.28 * syntax.outward_drift_fraction
+                + 0.24 * syntax.radial_sign_persistence
+                + 0.22 * syntax.residual_norm_path_monotonicity
+                + 0.12 * syntax.radial_sign_dominance
+                + 0.08 * breach_severity
+                + 0.06 * (1.0 / (1.0 + 20.0 * syntax.mean_squared_slew_norm))
+        }
         "H-DISCRETE-EVENT" => {
             0.28 * (syntax.max_slew_norm / (syntax.max_slew_norm + 0.15))
                 + 0.22 * (syntax.slew_spike_count.min(3) as f64 / 3.0)
@@ -591,6 +901,16 @@ fn score_candidate(
                 + 0.10 * (syntax.slew_spike_strength / (syntax.slew_spike_strength + 0.2))
                 + 0.10 * syntax.drift_channel_sign_alignment
                 + 0.10 * (1.0 - syntax.residual_norm_path_monotonicity)
+        }
+        "H-CURVATURE-LED-DEPARTURE" => {
+            let breach_severity =
+                (-syntax.min_margin).max(0.0) / (((-syntax.min_margin).max(0.0)) + 0.1);
+            0.28 * (syntax.mean_squared_slew_norm / (syntax.mean_squared_slew_norm + 0.01))
+                + 0.26 * syntax.late_slew_growth_score
+                + 0.16 * syntax.outward_drift_fraction
+                + 0.12 * syntax.drift_channel_sign_alignment
+                + 0.10 * syntax.radial_sign_persistence
+                + 0.08 * breach_severity
         }
         "H-BOUNDARY-GRAZING" => {
             0.35 * (syntax.boundary_grazing_episode_count.min(4) as f64 / 4.0)
@@ -614,6 +934,26 @@ fn score_candidate(
                 + 0.15 * (syntax.min_margin / (syntax.min_margin + 0.1)).clamp(0.0, 1.0)
                 + 0.05 * (1.0 - syntax.outward_drift_fraction.clamp(0.0, 1.0))
                 + 0.05 * (1.0 - syntax.late_slew_growth_score)
+        }
+        "H-BOUNDED-OSCILLATORY" => {
+            let balance =
+                1.0 - (syntax.outward_drift_fraction - syntax.inward_drift_fraction).abs();
+            0.24 * (1.0 - syntax.residual_norm_path_monotonicity)
+                + 0.22 * balance.clamp(0.0, 1.0)
+                + 0.18 * syntax.radial_sign_persistence
+                + 0.14 * (syntax.mean_squared_slew_norm / (syntax.mean_squared_slew_norm + 0.005))
+                + 0.12 * (syntax.slew_spike_count.min(6) as f64 / 6.0)
+                + 0.10 * syntax.drift_channel_sign_alignment
+        }
+        "H-BASELINE-COMPATIBLE" => {
+            let balance =
+                1.0 - (syntax.outward_drift_fraction - syntax.inward_drift_fraction).abs();
+            0.28 * balance.clamp(0.0, 1.0)
+                + 0.24 * (1.0 - syntax.residual_norm_path_monotonicity)
+                + 0.18 * (1.0 / (1.0 + 50.0 * syntax.mean_squared_slew_norm))
+                + 0.12 * (1.0 - syntax.late_slew_growth_score)
+                + 0.10 * (syntax.min_margin / (syntax.min_margin + 0.1)).clamp(0.0, 1.0)
+                + 0.08 * (1.0 / (1.0 + 20.0 * syntax.slew_spike_strength))
         }
         _ => 0.0,
     };
@@ -732,6 +1072,13 @@ fn scope_explanation(
             format_metric(minimum)
         ));
     }
+    if let Some(maximum) = scope.max_inward_drift_fraction {
+        notes.push(format!(
+            "inward_drift_fraction={} <= {}",
+            format_metric(syntax.inward_drift_fraction),
+            format_metric(maximum)
+        ));
+    }
     if let Some(maximum) = scope.max_curvature_energy {
         notes.push(format!(
             "mean_squared_slew_norm={} <= {}",
@@ -788,10 +1135,23 @@ fn scope_explanation(
             format_metric(minimum)
         ));
     }
+    if let Some(maximum) = scope.max_aggregate_monotonicity {
+        notes.push(format!(
+            "residual_norm_path_monotonicity={} <= {}",
+            format_metric(syntax.residual_norm_path_monotonicity),
+            format_metric(maximum)
+        ));
+    }
     if let Some(minimum) = scope.min_slew_spike_count {
         notes.push(format!(
             "slew_spike_count={} >= {}",
             syntax.slew_spike_count, minimum
+        ));
+    }
+    if let Some(maximum) = scope.max_slew_spike_count {
+        notes.push(format!(
+            "slew_spike_count={} <= {}",
+            syntax.slew_spike_count, maximum
         ));
     }
     if let Some(minimum) = scope.min_slew_spike_strength {
@@ -801,16 +1161,40 @@ fn scope_explanation(
             format_metric(minimum)
         ));
     }
+    if let Some(maximum) = scope.max_slew_spike_strength {
+        notes.push(format!(
+            "slew_spike_strength={} <= {}",
+            format_metric(syntax.slew_spike_strength),
+            format_metric(maximum)
+        ));
+    }
     if let Some(minimum) = scope.min_boundary_grazing_episodes {
         notes.push(format!(
             "boundary_grazing_episode_count={} >= {}",
             syntax.boundary_grazing_episode_count, minimum
         ));
     }
+    if let Some(maximum) = scope.max_boundary_grazing_episodes {
+        notes.push(format!(
+            "boundary_grazing_episode_count={} <= {}",
+            syntax.boundary_grazing_episode_count, maximum
+        ));
+    }
     if let Some(minimum) = scope.min_boundary_recovery_count {
         notes.push(format!(
             "boundary_recovery_count={} >= {}",
             syntax.boundary_recovery_count, minimum
+        ));
+    }
+    if let Some(maximum) = scope.max_coordinated_group_breach_fraction {
+        notes.push(format!(
+            "coordinated_group_breach_fraction={} <= {}",
+            format_metric(
+                syntax
+                    .coordinated_group_breach_fraction
+                    .max(coordinated_group_breach_ratio(coordinated))
+            ),
+            format_metric(maximum)
         ));
     }
     if scope.require_group_breach {
@@ -824,10 +1208,16 @@ fn scope_explanation(
         ));
     }
     if notes.is_empty() {
-        "Scope check passed because this bank entry does not impose additional numeric constraints."
-            .to_string()
+        format!(
+            "Scope check passed for syntax label `{}` because this bank entry does not impose additional numeric constraints.",
+            syntax.trajectory_label
+        )
     } else {
-        format!("Scope check passed because {}.", notes.join(", "))
+        format!(
+            "Scope check passed for syntax label `{}` because {}.",
+            syntax.trajectory_label,
+            notes.join(", ")
+        )
     }
 }
 
@@ -911,4 +1301,8 @@ fn max_ok(value: f64, maximum: Option<f64>) -> bool {
 
 fn min_usize_ok(value: usize, minimum: Option<usize>) -> bool {
     minimum.map(|minimum| value >= minimum).unwrap_or(true)
+}
+
+fn max_usize_ok(value: usize, maximum: Option<usize>) -> bool {
+    maximum.map(|maximum| value <= maximum).unwrap_or(true)
 }

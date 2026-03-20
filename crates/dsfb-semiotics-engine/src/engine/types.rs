@@ -246,6 +246,7 @@ pub struct HeuristicScopeConditions {
     pub min_outward_drift_fraction: Option<f64>,
     pub max_outward_drift_fraction: Option<f64>,
     pub min_inward_drift_fraction: Option<f64>,
+    pub max_inward_drift_fraction: Option<f64>,
     pub max_curvature_energy: Option<f64>,
     pub min_curvature_energy: Option<f64>,
     pub max_curvature_onset_score: Option<f64>,
@@ -254,10 +255,15 @@ pub struct HeuristicScopeConditions {
     pub min_sign_consistency: Option<f64>,
     pub min_channel_coherence: Option<f64>,
     pub min_aggregate_monotonicity: Option<f64>,
+    pub max_aggregate_monotonicity: Option<f64>,
     pub min_slew_spike_count: Option<usize>,
+    pub max_slew_spike_count: Option<usize>,
     pub min_slew_spike_strength: Option<f64>,
+    pub max_slew_spike_strength: Option<f64>,
     pub min_boundary_grazing_episodes: Option<usize>,
+    pub max_boundary_grazing_episodes: Option<usize>,
     pub min_boundary_recovery_count: Option<usize>,
+    pub max_coordinated_group_breach_fraction: Option<f64>,
     pub require_group_breach: bool,
 }
 
