@@ -1,0 +1,34 @@
+{
+  "input_mode": "synthetic",
+  "evaluation_dispositions": {
+    "CompatibleSet": 2,
+    "Match": 12
+  },
+  "scenarios": [
+    {
+      "scenario_id": "nominal_stable",
+      "syntax_label": "weakly-structured-baseline-like",
+      "semantic_disposition": "Match",
+      "selected_heuristic_ids": [
+        "H-BASELINE-COMPATIBLE"
+      ]
+    },
+    {
+      "scenario_id": "abrupt_event",
+      "syntax_label": "discrete-event-like",
+      "semantic_disposition": "CompatibleSet",
+      "selected_heuristic_ids": [
+        "H-DISCRETE-EVENT",
+        "H-CURVATURE-RICH-TRANSITION"
+      ]
+    },
+    {
+      "scenario_id": "outward_exit_case_a",
+      "syntax_label": "persistent-outward-drift",
+      "semantic_disposition": "Match",
+      "selected_heuristic_ids": [
+        "H-PERSISTENT-ADMISSIBILITY-DEPARTURE"
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 
 pub mod cli;
 pub mod engine;
+pub mod evaluation;
 pub mod figures;
 pub mod io;
 pub mod math;
@@ -16,6 +17,10 @@ pub use engine::config::{
 };
 pub use engine::pipeline::{
     export_artifacts, run_all_demos, run_scenario, EngineConfig, StructuralSemioticsEngine,
+};
+pub use engine::settings::{
+    EngineSettings, EvaluationSettings, ReportingSettings, SemanticRetrievalSettings,
+    SyntaxThresholds,
 };
 pub use engine::types::{
     AdmissibilityEnvelope, CoordinatedResidualStructure, DetectabilityResult, EngineOutputBundle,

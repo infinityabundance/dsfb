@@ -1,6 +1,6 @@
 use dsfb_semiotics_engine::math::metrics::{
-    hash_serializable_hex, project_sign, residual_norm_path_monotonicity,
-    trend_aligned_increment_fraction,
+    euclidean_norm, hash_serializable_hex, project_sign, residual_norm_path_monotonicity,
+    scalar_derivative, sign_with_deadband, trend_aligned_increment_fraction,
 };
 
 #[test]
@@ -25,4 +25,29 @@ fn hash_serialization_is_stable_for_identical_values() {
     let second = hash_serializable_hex("second", &value).unwrap();
 
     assert_eq!(first.fnv1a_64_hex, second.fnv1a_64_hex);
+}
+
+#[test]
+fn sign_deadband_is_symmetric_around_zero() {
+    assert_eq!(sign_with_deadband(1.0e-7, 1.0e-6), 0);
+    assert_eq!(sign_with_deadband(-1.0e-7, 1.0e-6), 0);
+    assert_eq!(sign_with_deadband(1.0e-3, 1.0e-6), 1);
+    assert_eq!(sign_with_deadband(-1.0e-3, 1.0e-6), -1);
+}
+
+#[test]
+fn euclidean_norm_is_nonnegative() {
+    assert!(euclidean_norm(&[0.0, -3.0, 4.0]) >= 0.0);
+}
+
+#[test]
+fn scalar_derivative_is_zero_for_constant_path() {
+    let derivative = scalar_derivative(&[2.0, 2.0, 2.0, 2.0], &[0.0, 1.0, 2.0, 3.0]);
+    assert!(derivative.iter().all(|value| value.abs() <= 1.0e-12));
+}
+
+#[test]
+fn monotonicity_score_stays_within_unit_interval() {
+    let score = residual_norm_path_monotonicity(&[0.0, 1.0, 0.5, 1.5, 1.0]);
+    assert!((0.0..=1.0).contains(&score));
 }

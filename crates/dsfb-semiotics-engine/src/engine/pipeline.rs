@@ -6,20 +6,25 @@ use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 
 use crate::cli::args::{CsvInputConfig, ScenarioSelection};
+use crate::engine::bank::{HeuristicBankRegistry, HeuristicBankValidationReport};
 use crate::engine::config::{
     CommonRunConfig, CsvRunConfig, SyntheticRunConfig, SyntheticSelection,
 };
 use crate::engine::grammar_layer::{evaluate_detectability, evaluate_grammar_layer};
 use crate::engine::residual_layer::extract_residuals;
-use crate::engine::semantics_layer::retrieve_semantics;
+use crate::engine::semantics_layer::retrieve_semantics_with_registry;
+use crate::engine::settings::EngineSettings;
 use crate::engine::sign_layer::construct_signs;
-use crate::engine::syntax_layer::characterize_syntax_with_coordination;
+use crate::engine::syntax_layer::characterize_syntax_with_coordination_configured;
 use crate::engine::types::{
     CoordinatedResidualStructure, DetectabilityBoundInputs, EngineOutputBundle, FigureArtifact,
     GroupDefinition, GroupResidualPoint, ObservedTrajectory, PredictedTrajectory,
     ReproducibilityCheck, ReproducibilitySummary, ResidualTrajectory, RunMetadata, ScenarioOutput,
     ScenarioRecord,
 };
+use crate::evaluation::evaluate_bundle;
+use crate::evaluation::sweeps::{generate_sweep_members, SweepConfig, SweepMemberDefinition};
+use crate::evaluation::types::ArtifactCompletenessCheck;
 use crate::figures::plots::render_all_figures;
 use crate::io::csv::write_rows;
 use crate::io::input::load_csv_trajectories;
@@ -64,6 +69,18 @@ impl EngineConfig {
         CsvRunConfig::new(common, input).into()
     }
 
+    /// Builds a configuration for a deterministic synthetic sweep.
+    #[must_use]
+    pub fn sweep(common: CommonRunConfig, sweep: SweepConfig) -> Self {
+        Self {
+            seed: common.seed,
+            steps: common.steps,
+            dt: common.dt,
+            output_root: common.output_root,
+            scenario_selection: ScenarioSelection::Sweep(sweep),
+        }
+    }
+
     /// Validates the deterministic run request before execution.
     pub fn validate(&self) -> Result<()> {
         match &self.scenario_selection {
@@ -80,6 +97,7 @@ impl EngineConfig {
             ScenarioSelection::Csv(input) => {
                 CsvRunConfig::new(self.common(), input.clone()).validate()
             }
+            ScenarioSelection::Sweep(_) => self.common().validate(),
         }
     }
 
@@ -97,6 +115,9 @@ impl EngineConfig {
 #[derive(Clone, Debug)]
 pub struct StructuralSemioticsEngine {
     config: EngineConfig,
+    settings: EngineSettings,
+    bank_registry: HeuristicBankRegistry,
+    bank_validation: HeuristicBankValidationReport,
 }
 
 #[derive(Clone, Debug)]
@@ -168,49 +189,84 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
         bundle.run_metadata.timestamp
     ));
 
-    let report_manifest = crate::engine::types::ReportManifest {
-        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
-        crate_name: bundle.run_metadata.crate_name.clone(),
-        crate_version: bundle.run_metadata.crate_version.clone(),
-        timestamp: bundle.run_metadata.timestamp.clone(),
-        input_mode: bundle.run_metadata.input_mode.clone(),
-        run_dir: layout.run_dir.display().to_string(),
-        report_markdown: report_markdown_path.display().to_string(),
-        report_pdf: report_pdf_path.display().to_string(),
-        zip_archive: zip_path.display().to_string(),
-        figure_paths: figure_artifacts
-            .iter()
-            .flat_map(|figure| [figure.png_path.clone(), figure.svg_path.clone()])
-            .collect(),
-        csv_paths: collect_relative_files(&layout.csv_dir)?,
-        json_paths: collect_relative_files(&layout.json_dir)?,
-        scenario_ids: bundle
-            .scenario_outputs
-            .iter()
-            .map(|scenario| scenario.record.id.clone())
-            .collect(),
-        notes: vec![
-            "Synthetic and CSV-driven runs share the same deterministic engine layers.".to_string(),
-            "Semantic outputs are constrained heuristic retrieval results, not unique-cause claims.".to_string(),
-        ],
-    };
-
-    let markdown = build_markdown_report(bundle, &figure_artifacts, &report_manifest);
-    std::fs::write(&report_markdown_path, &markdown)
+    let initial_manifest = build_report_manifest(
+        bundle,
+        &figure_artifacts,
+        &layout,
+        &report_markdown_path,
+        &report_pdf_path,
+        &zip_path,
+        None,
+    )?;
+    let initial_markdown =
+        build_markdown_report(bundle, &figure_artifacts, &initial_manifest, None);
+    std::fs::write(&report_markdown_path, &initial_markdown)
         .with_context(|| format!("failed to write {}", report_markdown_path.display()))?;
-    write_pretty(&manifest_path, &report_manifest)?;
-    let text_artifacts =
-        collect_pdf_text_artifacts(&layout, &report_manifest, &markdown, &manifest_path)?;
+    write_pretty(&manifest_path, &initial_manifest)?;
+    let text_artifacts = collect_pdf_text_artifacts(
+        &layout,
+        &initial_manifest,
+        &initial_markdown,
+        &manifest_path,
+    )?;
     write_artifact_pdf(
         &report_pdf_path,
         "dsfb-semiotics-engine report",
-        &markdown
+        &initial_markdown
+            .lines()
+            .map(|line| line.to_string())
+            .collect::<Vec<_>>(),
+        &figure_artifacts,
+        &initial_manifest,
+        &text_artifacts,
+    )?;
+    zip_directory(&layout.run_dir, &zip_path)?;
+    let completeness = build_artifact_completeness(
+        &layout,
+        &figure_artifacts,
+        &report_markdown_path,
+        &report_pdf_path,
+        &zip_path,
+        &manifest_path,
+    )?;
+    write_rows(
+        layout.csv_dir.join("artifact_completeness.csv").as_path(),
+        std::iter::once(completeness.clone()),
+    )?;
+    write_pretty(
+        layout.json_dir.join("artifact_completeness.json").as_path(),
+        &completeness,
+    )?;
+    let report_manifest = build_report_manifest(
+        bundle,
+        &figure_artifacts,
+        &layout,
+        &report_markdown_path,
+        &report_pdf_path,
+        &zip_path,
+        Some(&completeness),
+    )?;
+    let final_markdown = build_markdown_report(
+        bundle,
+        &figure_artifacts,
+        &report_manifest,
+        Some(&completeness),
+    );
+    std::fs::write(&report_markdown_path, &final_markdown)
+        .with_context(|| format!("failed to write {}", report_markdown_path.display()))?;
+    write_pretty(&manifest_path, &report_manifest)?;
+    let final_text_artifacts =
+        collect_pdf_text_artifacts(&layout, &report_manifest, &final_markdown, &manifest_path)?;
+    write_artifact_pdf(
+        &report_pdf_path,
+        "dsfb-semiotics-engine report",
+        &final_markdown
             .lines()
             .map(|line| line.to_string())
             .collect::<Vec<_>>(),
         &figure_artifacts,
         &report_manifest,
-        &text_artifacts,
+        &final_text_artifacts,
     )?;
     zip_directory(&layout.run_dir, &zip_path)?;
 
@@ -234,7 +290,20 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
 
 impl StructuralSemioticsEngine {
     pub fn new(config: EngineConfig) -> Self {
-        Self { config }
+        Self::with_settings(config, EngineSettings::default())
+            .expect("built-in heuristic bank registry should remain valid")
+    }
+
+    /// Creates an engine with explicit deterministic settings.
+    pub fn with_settings(config: EngineConfig, settings: EngineSettings) -> Result<Self> {
+        let bank_registry = HeuristicBankRegistry::builtin();
+        let bank_validation = bank_registry.validate()?;
+        Ok(Self {
+            config,
+            settings,
+            bank_registry,
+            bank_validation,
+        })
     }
 
     /// Runs whatever scenario selection was encoded in the engine configuration.
@@ -243,6 +312,7 @@ impl StructuralSemioticsEngine {
             ScenarioSelection::All => self.run_all(),
             ScenarioSelection::Single(scenario_id) => self.run_single(scenario_id),
             ScenarioSelection::Csv(input) => self.run_csv(input),
+            ScenarioSelection::Sweep(config) => self.run_sweep(config),
         }
     }
 
@@ -265,6 +335,18 @@ impl StructuralSemioticsEngine {
 
     pub fn run_csv(&self, input: &CsvInputConfig) -> Result<EngineOutputBundle> {
         self.execute_prepared(&[self.prepare_csv(input)?])
+    }
+
+    pub fn run_sweep(&self, config: &SweepConfig) -> Result<EngineOutputBundle> {
+        let prepared = generate_sweep_members(
+            &config.normalized(&self.settings.evaluation),
+            self.config.steps,
+            self.config.dt,
+        )?
+        .into_iter()
+        .map(|member| self.prepare_sweep_member(member))
+        .collect::<Vec<_>>();
+        self.execute_prepared(&prepared)
     }
 
     fn execute_prepared(&self, prepared: &[PreparedScenario]) -> Result<EngineOutputBundle> {
@@ -318,17 +400,59 @@ impl StructuralSemioticsEngine {
             .first()
             .cloned()
             .context("missing reproducibility result")?;
+        let run_metadata = run_metadata(
+            &layout.timestamp,
+            input_mode_label(&self.config.scenario_selection),
+            self.config.seed,
+            self.config.steps,
+            self.config.dt,
+            &self.settings,
+        );
+        let provisional_bundle = EngineOutputBundle {
+            run_metadata: run_metadata.clone(),
+            run_dir: layout.run_dir.clone(),
+            scenario_outputs: scenario_outputs.clone(),
+            evaluation: crate::evaluation::types::RunEvaluationBundle {
+                summary: crate::evaluation::types::RunEvaluationSummary {
+                    schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+                    evaluation_version: "evaluation/v1".to_string(),
+                    input_mode: input_mode_label(&self.config.scenario_selection).to_string(),
+                    scenario_count: 0,
+                    semantic_disposition_counts: BTreeMap::new(),
+                    syntax_label_counts: BTreeMap::new(),
+                    boundary_interaction_count: 0,
+                    violation_count: 0,
+                    comparator_trigger_counts: BTreeMap::new(),
+                    reproducible_scenario_count: 0,
+                    all_reproducible: false,
+                    note: String::new(),
+                },
+                scenario_evaluations: Vec::new(),
+                baseline_results: Vec::new(),
+                bank_validation: self.bank_validation.clone(),
+                artifact_completeness: None,
+                sweep_results: Vec::new(),
+                sweep_summary: None,
+            },
+            figure_artifacts: Vec::<FigureArtifact>::new(),
+            reproducibility_check: reproducibility_check.clone(),
+            reproducibility_checks: reproducibility_checks.clone(),
+            reproducibility_summary: reproducibility_summary.clone(),
+            report_manifest: None,
+            tabular_inventory: BTreeMap::new(),
+        };
+        let evaluation = evaluate_bundle(
+            &provisional_bundle,
+            &self.settings.evaluation,
+            &self.bank_validation,
+            None,
+        );
 
         Ok(EngineOutputBundle {
-            run_metadata: run_metadata(
-                &layout.timestamp,
-                input_mode_label(&self.config.scenario_selection),
-                self.config.seed,
-                self.config.steps,
-                self.config.dt,
-            ),
+            run_metadata,
             run_dir: layout.run_dir,
             scenario_outputs,
+            evaluation,
             figure_artifacts: Vec::<FigureArtifact>::new(),
             reproducibility_check,
             reproducibility_checks,
@@ -336,6 +460,18 @@ impl StructuralSemioticsEngine {
             report_manifest: None,
             tabular_inventory: BTreeMap::new(),
         })
+    }
+
+    fn prepare_sweep_member(&self, member: SweepMemberDefinition) -> PreparedScenario {
+        PreparedScenario {
+            record: member.record,
+            observed: member.observed,
+            predicted: member.predicted,
+            envelope_spec: member.envelope_spec,
+            detectability_inputs: member.detectability_inputs,
+            groups: member.groups,
+            aggregate_envelope_spec: member.aggregate_envelope_spec,
+        }
     }
 
     fn prepare_synthetic(&self, definition: &ScenarioDefinition) -> PreparedScenario {
@@ -368,6 +504,11 @@ impl StructuralSemioticsEngine {
                 theorem_alignment: "This path preserves the layered residual/sign/syntax/grammar/semantics structure, but it does not attach theorem-aligned synthetic guarantees unless the input design justifies them separately.".to_string(),
                 claim_class: "external-csv ingestion".to_string(),
                 limitations: "Interpretation depends on the supplied predicted trajectory, the configured admissibility envelope, and the sampled times parsed from the CSV files or synthesized deterministically from --dt when no explicit time column is supplied.".to_string(),
+                sweep_family: None,
+                sweep_parameter_name: None,
+                sweep_parameter_value: None,
+                sweep_secondary_parameter_name: None,
+                sweep_secondary_parameter_value: None,
             },
             observed,
             predicted,
@@ -393,7 +534,12 @@ impl StructuralSemioticsEngine {
             &residual,
         )?;
         let grammar = evaluate_grammar_layer(&residual, &envelope);
-        let syntax = characterize_syntax_with_coordination(&sign, &grammar, coordinated.as_ref());
+        let syntax = characterize_syntax_with_coordination_configured(
+            &sign,
+            &grammar,
+            coordinated.as_ref(),
+            &self.settings.syntax,
+        );
 
         Ok(PartialScenarioOutput {
             record: prepared.record.clone(),
@@ -424,11 +570,13 @@ impl StructuralSemioticsEngine {
             prepared.detectability_inputs.clone(),
             reference,
         );
-        let semantics = retrieve_semantics(
+        let semantics = retrieve_semantics_with_registry(
             &partial.record.id,
             &partial.syntax,
             &partial.grammar,
             partial.coordinated.as_ref(),
+            &self.bank_registry,
+            &self.settings.semantics,
         );
 
         ScenarioOutput {
@@ -565,6 +713,45 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         layout.csv_dir.join("reproducibility_summary.csv").as_path(),
         std::iter::once(bundle.reproducibility_summary.clone()),
     )?;
+    write_rows(
+        layout.csv_dir.join("evaluation_summary.csv").as_path(),
+        std::iter::once(evaluation_summary_csv_row(&bundle.evaluation.summary)),
+    )?;
+    write_rows(
+        layout.csv_dir.join("scenario_evaluations.csv").as_path(),
+        bundle
+            .evaluation
+            .scenario_evaluations
+            .iter()
+            .map(scenario_evaluation_csv_row),
+    )?;
+    write_rows(
+        layout.csv_dir.join("baseline_comparators.csv").as_path(),
+        bundle.evaluation.baseline_results.clone(),
+    )?;
+    write_rows(
+        layout
+            .csv_dir
+            .join("heuristic_bank_validation.csv")
+            .as_path(),
+        std::iter::once(bank_validation_csv_row(&bundle.evaluation.bank_validation)),
+    )?;
+    if !bundle.evaluation.sweep_results.is_empty() {
+        write_rows(
+            layout.csv_dir.join("sweep_results.csv").as_path(),
+            bundle
+                .evaluation
+                .sweep_results
+                .iter()
+                .map(sweep_point_csv_row),
+        )?;
+    }
+    if let Some(summary) = &bundle.evaluation.sweep_summary {
+        write_rows(
+            layout.csv_dir.join("sweep_summary.csv").as_path(),
+            std::iter::once(sweep_summary_csv_row(summary)),
+        )?;
+    }
 
     let grammar_rows = bundle
         .scenario_outputs
@@ -707,6 +894,37 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         &bundle.reproducibility_summary,
     )?;
     write_pretty(
+        layout.json_dir.join("evaluation_summary.json").as_path(),
+        &bundle.evaluation.summary,
+    )?;
+    write_pretty(
+        layout.json_dir.join("scenario_evaluations.json").as_path(),
+        &bundle.evaluation.scenario_evaluations,
+    )?;
+    write_pretty(
+        layout.json_dir.join("baseline_comparators.json").as_path(),
+        &bundle.evaluation.baseline_results,
+    )?;
+    write_pretty(
+        layout
+            .json_dir
+            .join("heuristic_bank_validation.json")
+            .as_path(),
+        &bundle.evaluation.bank_validation,
+    )?;
+    if !bundle.evaluation.sweep_results.is_empty() {
+        write_pretty(
+            layout.json_dir.join("sweep_results.json").as_path(),
+            &bundle.evaluation.sweep_results,
+        )?;
+    }
+    if let Some(summary) = &bundle.evaluation.sweep_summary {
+        write_pretty(
+            layout.json_dir.join("sweep_summary.json").as_path(),
+            summary,
+        )?;
+    }
+    write_pretty(
         layout.json_dir.join("scenario_outputs.json").as_path(),
         &bundle.scenario_outputs,
     )?;
@@ -720,6 +938,7 @@ fn run_metadata(
     seed: u64,
     steps: usize,
     dt: f64,
+    settings: &EngineSettings,
 ) -> RunMetadata {
     RunMetadata {
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
@@ -732,6 +951,7 @@ fn run_metadata(
         seed,
         steps,
         dt,
+        engine_settings: settings.clone(),
         cli_args: std::env::args().collect(),
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),
@@ -741,6 +961,7 @@ fn run_metadata(
 fn input_mode_label(selection: &ScenarioSelection) -> &'static str {
     match selection {
         ScenarioSelection::Csv(_) => "csv",
+        ScenarioSelection::Sweep(_) => "synthetic-sweep",
         ScenarioSelection::All | ScenarioSelection::Single(_) => "synthetic",
     }
 }
@@ -783,6 +1004,87 @@ fn collect_relative_files(dir: &Path) -> Result<Vec<String>> {
         .collect::<Vec<_>>();
     files.sort();
     Ok(files)
+}
+
+fn build_report_manifest(
+    bundle: &EngineOutputBundle,
+    figure_artifacts: &[FigureArtifact],
+    layout: &OutputLayout,
+    report_markdown_path: &Path,
+    report_pdf_path: &Path,
+    zip_path: &Path,
+    completeness: Option<&ArtifactCompletenessCheck>,
+) -> Result<crate::engine::types::ReportManifest> {
+    let mut notes = vec![
+        "Synthetic and CSV-driven runs share the same deterministic engine layers.".to_string(),
+        "Semantic outputs are constrained heuristic retrieval results, not unique-cause claims.".to_string(),
+        "Evaluation outputs summarize the deterministic engine with internal deterministic comparators only.".to_string(),
+    ];
+    if let Some(completeness) = completeness {
+        notes.push(format!(
+            "Artifact completeness: complete=`{}` with {} figures, {} CSV files, and {} JSON files.",
+            completeness.complete,
+            completeness.figure_count,
+            completeness.csv_count,
+            completeness.json_count
+        ));
+    }
+    Ok(crate::engine::types::ReportManifest {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        crate_name: bundle.run_metadata.crate_name.clone(),
+        crate_version: bundle.run_metadata.crate_version.clone(),
+        timestamp: bundle.run_metadata.timestamp.clone(),
+        input_mode: bundle.run_metadata.input_mode.clone(),
+        run_dir: layout.run_dir.display().to_string(),
+        report_markdown: report_markdown_path.display().to_string(),
+        report_pdf: report_pdf_path.display().to_string(),
+        zip_archive: zip_path.display().to_string(),
+        figure_paths: figure_artifacts
+            .iter()
+            .flat_map(|figure| [figure.png_path.clone(), figure.svg_path.clone()])
+            .collect(),
+        csv_paths: collect_relative_files(&layout.csv_dir)?,
+        json_paths: collect_relative_files(&layout.json_dir)?,
+        scenario_ids: bundle
+            .scenario_outputs
+            .iter()
+            .map(|scenario| scenario.record.id.clone())
+            .collect(),
+        notes,
+    })
+}
+
+fn build_artifact_completeness(
+    layout: &OutputLayout,
+    figure_artifacts: &[FigureArtifact],
+    report_markdown_path: &Path,
+    report_pdf_path: &Path,
+    zip_path: &Path,
+    manifest_path: &Path,
+) -> Result<ArtifactCompletenessCheck> {
+    let csv_count = collect_relative_files(&layout.csv_dir)?.len() + 1;
+    let json_count = collect_relative_files(&layout.json_dir)?.len() + 1;
+    let report_markdown_present = report_markdown_path.is_file();
+    let report_pdf_present = report_pdf_path.is_file();
+    let zip_present = zip_path.is_file();
+    let manifest_present = manifest_path.is_file();
+    let complete = report_markdown_present
+        && report_pdf_present
+        && zip_present
+        && manifest_present
+        && !figure_artifacts.is_empty();
+    Ok(ArtifactCompletenessCheck {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        figure_count: figure_artifacts.len() * 2,
+        csv_count,
+        json_count,
+        report_markdown_present,
+        report_pdf_present,
+        zip_present,
+        manifest_present,
+        complete,
+        note: "Artifact completeness is evaluated after the deterministic export pipeline has emitted figures, tables, report files, manifest, and zip archive.".to_string(),
+    })
 }
 
 fn collect_pdf_text_artifacts(
@@ -917,6 +1219,7 @@ struct SemanticMatchCsvRow {
     candidate_regime_explanations: String,
     candidate_admissibility: String,
     candidate_scope: String,
+    candidate_metric_highlights: String,
     candidate_applicability_notes: String,
     candidate_provenance_notes: String,
     candidate_rationales: String,
@@ -933,6 +1236,82 @@ struct ReproducibilityCsvRow {
     second_hash: String,
     identical: bool,
     materialized_components: String,
+    note: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct EvaluationSummaryCsvRow {
+    schema_version: String,
+    evaluation_version: String,
+    input_mode: String,
+    scenario_count: usize,
+    semantic_disposition_counts: String,
+    syntax_label_counts: String,
+    boundary_interaction_count: usize,
+    violation_count: usize,
+    comparator_trigger_counts: String,
+    reproducible_scenario_count: usize,
+    all_reproducible: bool,
+    note: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ScenarioEvaluationCsvRow {
+    schema_version: String,
+    scenario_id: String,
+    input_mode: String,
+    syntax_label: String,
+    semantic_disposition: String,
+    selected_heuristic_ids: String,
+    boundary_sample_count: usize,
+    violation_sample_count: usize,
+    first_boundary_time: Option<f64>,
+    first_violation_time: Option<f64>,
+    reproducible: bool,
+    triggered_baseline_count: usize,
+    unknown_reason_class: String,
+    note: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct BankValidationCsvRow {
+    schema_version: String,
+    bank_version: String,
+    entry_count: usize,
+    valid: bool,
+    duplicate_ids: String,
+    missing_compatibility_links: String,
+    missing_incompatibility_links: String,
+    unknown_link_targets: String,
+    provenance_gaps: String,
+    scope_sanity_notes: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SweepPointCsvRow {
+    schema_version: String,
+    sweep_family: String,
+    scenario_id: String,
+    parameter_name: String,
+    parameter_value: f64,
+    secondary_parameter_name: String,
+    secondary_parameter_value: Option<f64>,
+    syntax_label: String,
+    semantic_disposition: String,
+    selected_heuristic_ids: String,
+    note: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SweepSummaryCsvRow {
+    schema_version: String,
+    sweep_family: String,
+    member_count: usize,
+    unique_syntax_labels: String,
+    unique_semantic_dispositions: String,
+    unknown_count: usize,
+    ambiguous_count: usize,
+    disposition_flip_count: usize,
     note: String,
 }
 
@@ -1072,6 +1451,18 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
             })
             .collect::<Vec<_>>()
             .join(" || "),
+        candidate_metric_highlights: result
+            .candidates
+            .iter()
+            .map(|candidate| {
+                format!(
+                    "{}:{}",
+                    candidate.entry.heuristic_id,
+                    candidate.metric_highlights.join("; ")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" || "),
         candidate_applicability_notes: result
             .candidates
             .iter()
@@ -1118,6 +1509,102 @@ fn reproducibility_csv_row(
         materialized_components: check.materialized_components.join(" | "),
         note: check.note.clone(),
     }
+}
+
+fn evaluation_summary_csv_row(
+    summary: &crate::evaluation::types::RunEvaluationSummary,
+) -> EvaluationSummaryCsvRow {
+    EvaluationSummaryCsvRow {
+        schema_version: summary.schema_version.clone(),
+        evaluation_version: summary.evaluation_version.clone(),
+        input_mode: summary.input_mode.clone(),
+        scenario_count: summary.scenario_count,
+        semantic_disposition_counts: join_count_map(&summary.semantic_disposition_counts),
+        syntax_label_counts: join_count_map(&summary.syntax_label_counts),
+        boundary_interaction_count: summary.boundary_interaction_count,
+        violation_count: summary.violation_count,
+        comparator_trigger_counts: join_count_map(&summary.comparator_trigger_counts),
+        reproducible_scenario_count: summary.reproducible_scenario_count,
+        all_reproducible: summary.all_reproducible,
+        note: summary.note.clone(),
+    }
+}
+
+fn scenario_evaluation_csv_row(
+    summary: &crate::evaluation::types::ScenarioEvaluationSummary,
+) -> ScenarioEvaluationCsvRow {
+    ScenarioEvaluationCsvRow {
+        schema_version: summary.schema_version.clone(),
+        scenario_id: summary.scenario_id.clone(),
+        input_mode: summary.input_mode.clone(),
+        syntax_label: summary.syntax_label.clone(),
+        semantic_disposition: summary.semantic_disposition.clone(),
+        selected_heuristic_ids: summary.selected_heuristic_ids.join(" | "),
+        boundary_sample_count: summary.boundary_sample_count,
+        violation_sample_count: summary.violation_sample_count,
+        first_boundary_time: summary.first_boundary_time,
+        first_violation_time: summary.first_violation_time,
+        reproducible: summary.reproducible,
+        triggered_baseline_count: summary.triggered_baseline_count,
+        unknown_reason_class: summary.unknown_reason_class.clone().unwrap_or_default(),
+        note: summary.note.clone(),
+    }
+}
+
+fn bank_validation_csv_row(
+    report: &crate::engine::bank::HeuristicBankValidationReport,
+) -> BankValidationCsvRow {
+    BankValidationCsvRow {
+        schema_version: report.schema_version.clone(),
+        bank_version: report.bank_version.clone(),
+        entry_count: report.entry_count,
+        valid: report.valid,
+        duplicate_ids: report.duplicate_ids.join(" | "),
+        missing_compatibility_links: report.missing_compatibility_links.join(" | "),
+        missing_incompatibility_links: report.missing_incompatibility_links.join(" | "),
+        unknown_link_targets: report.unknown_link_targets.join(" | "),
+        provenance_gaps: report.provenance_gaps.join(" | "),
+        scope_sanity_notes: report.scope_sanity_notes.join(" | "),
+    }
+}
+
+fn sweep_point_csv_row(point: &crate::evaluation::types::SweepPointResult) -> SweepPointCsvRow {
+    SweepPointCsvRow {
+        schema_version: point.schema_version.clone(),
+        sweep_family: point.sweep_family.clone(),
+        scenario_id: point.scenario_id.clone(),
+        parameter_name: point.parameter_name.clone(),
+        parameter_value: point.parameter_value,
+        secondary_parameter_name: point.secondary_parameter_name.clone().unwrap_or_default(),
+        secondary_parameter_value: point.secondary_parameter_value,
+        syntax_label: point.syntax_label.clone(),
+        semantic_disposition: point.semantic_disposition.clone(),
+        selected_heuristic_ids: point.selected_heuristic_ids.join(" | "),
+        note: point.note.clone(),
+    }
+}
+
+fn sweep_summary_csv_row(
+    summary: &crate::evaluation::types::SweepRunSummary,
+) -> SweepSummaryCsvRow {
+    SweepSummaryCsvRow {
+        schema_version: summary.schema_version.clone(),
+        sweep_family: summary.sweep_family.clone(),
+        member_count: summary.member_count,
+        unique_syntax_labels: summary.unique_syntax_labels.join(" | "),
+        unique_semantic_dispositions: summary.unique_semantic_dispositions.join(" | "),
+        unknown_count: summary.unknown_count,
+        ambiguous_count: summary.ambiguous_count,
+        disposition_flip_count: summary.disposition_flip_count,
+        note: summary.note.clone(),
+    }
+}
+
+fn join_count_map(map: &BTreeMap<String, usize>) -> String {
+    map.iter()
+        .map(|(key, value)| format!("{key}={value}"))
+        .collect::<Vec<_>>()
+        .join(" | ")
 }
 
 fn value_at(values: &[f64], index: usize) -> Option<f64> {

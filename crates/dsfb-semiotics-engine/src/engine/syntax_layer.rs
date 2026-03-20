@@ -1,3 +1,4 @@
+use crate::engine::settings::SyntaxThresholds;
 use crate::engine::types::{
     CoordinatedResidualStructure, GrammarState, GrammarStatus, SignTrajectory,
     SyntaxCharacterization,
@@ -21,6 +22,20 @@ pub fn characterize_syntax_with_coordination(
     grammar: &[GrammarStatus],
     coordinated: Option<&CoordinatedResidualStructure>,
 ) -> SyntaxCharacterization {
+    characterize_syntax_with_coordination_configured(
+        sign,
+        grammar,
+        coordinated,
+        &SyntaxThresholds::default(),
+    )
+}
+
+pub fn characterize_syntax_with_coordination_configured(
+    sign: &SignTrajectory,
+    grammar: &[GrammarStatus],
+    coordinated: Option<&CoordinatedResidualStructure>,
+    thresholds: &SyntaxThresholds,
+) -> SyntaxCharacterization {
     let times = sign
         .samples
         .iter()
@@ -39,12 +54,12 @@ pub fn characterize_syntax_with_coordination(
         .collect::<Vec<_>>();
     let radial_signs = radial_drifts
         .iter()
-        .map(|value| sign_with_deadband(*value, 1.0e-6))
+        .map(|value| sign_with_deadband(*value, thresholds.sign_deadband))
         .collect::<Vec<_>>();
     let channel_coherences = sign
         .samples
         .iter()
-        .map(|sample| within_sample_sign_alignment(&sample.drift, 1.0e-6))
+        .map(|sample| within_sample_sign_alignment(&sample.drift, thresholds.sign_deadband))
         .collect::<Vec<_>>();
     let slew_norms = sign
         .samples
@@ -63,9 +78,11 @@ pub fn characterize_syntax_with_coordination(
         .zip(&residual_norm_rates)
         .zip(&radial_drifts)
         .filter(|((margin_rate, residual_rate), radial)| {
-            **margin_rate < -1.0e-6
-                || (**residual_rate > 1.0e-6 && **radial > 1.0e-6)
-                || (margin_rate.abs() <= 1.0e-6 && **radial > 1.0e-6)
+            **margin_rate < -thresholds.margin_deadband
+                || (**residual_rate > thresholds.sign_deadband
+                    && **radial > thresholds.sign_deadband)
+                || (margin_rate.abs() <= thresholds.margin_deadband
+                    && **radial > thresholds.sign_deadband)
         })
         .count();
     let inward_count = margin_rates
@@ -73,13 +90,17 @@ pub fn characterize_syntax_with_coordination(
         .zip(&residual_norm_rates)
         .zip(&radial_drifts)
         .filter(|((margin_rate, residual_rate), radial)| {
-            **margin_rate > 1.0e-6
-                || (**residual_rate < -1.0e-6 && **radial < -1.0e-6)
-                || (margin_rate.abs() <= 1.0e-6 && **radial < -1.0e-6)
+            **margin_rate > thresholds.margin_deadband
+                || (**residual_rate < -thresholds.sign_deadband
+                    && **radial < -thresholds.sign_deadband)
+                || (margin_rate.abs() <= thresholds.margin_deadband
+                    && **radial < -thresholds.sign_deadband)
         })
         .count();
     let slew_mean = mean(&slew_norms);
-    let slew_threshold = (slew_mean + 1.5 * standard_deviation(&slew_norms)).max(1.0e-4);
+    let slew_threshold = (slew_mean
+        + thresholds.slew_spike_sigma_factor * standard_deviation(&slew_norms))
+    .max(thresholds.slew_spike_floor);
     let boundary_flags = grammar
         .iter()
         .map(|status| matches!(status.state, GrammarState::Boundary))
@@ -112,7 +133,8 @@ pub fn characterize_syntax_with_coordination(
     let radial_sign_persistence = adjacent_sign_agreement_fraction(&radial_signs);
     let drift_channel_sign_alignment = mean(&channel_coherences);
     let residual_norm_path_monotonicity = residual_norm_path_monotonicity(&residual_norms);
-    let residual_norm_trend_alignment = trend_aligned_increment_fraction(&residual_norms, 1.0e-6);
+    let residual_norm_trend_alignment =
+        trend_aligned_increment_fraction(&residual_norms, thresholds.sign_deadband);
     let mean_squared_slew_norm = if slew_norms.is_empty() {
         0.0
     } else {
@@ -139,40 +161,71 @@ pub fn characterize_syntax_with_coordination(
     let baseline_like_structure = coordinated_group_breach_fraction == 0.0
         && violation_count == 0
         && boundary_grazing_episode_count == 0
-        && outward_inward_imbalance < 0.08
-        && residual_norm_path_monotonicity < 0.08
-        && mean_squared_slew_norm < 1.0e-5
-        && max_slew_norm < 0.002
-        && late_slew_growth_score < 0.20
-        && slew_spike_strength < 1.0e-3;
+        && outward_inward_imbalance < thresholds.baseline_like_max_outward_inward_imbalance
+        && residual_norm_path_monotonicity < thresholds.baseline_like_max_path_monotonicity
+        && mean_squared_slew_norm < thresholds.baseline_like_max_mean_squared_slew
+        && max_slew_norm < thresholds.baseline_like_max_slew_norm
+        && late_slew_growth_score < thresholds.baseline_like_max_late_slew_growth
+        && slew_spike_strength < thresholds.baseline_like_max_spike_strength;
 
-    let trajectory_label = if coordinated_group_breach_fraction > 0.08
-        && outward_drift_fraction > 0.45
-        && drift_channel_sign_alignment > 0.55
-        && radial_sign_persistence > 0.45
+    let violation_fraction = if grammar.is_empty() {
+        0.0
+    } else {
+        violation_count as f64 / grammar.len() as f64
+    };
+    let balance = 1.0 - (outward_drift_fraction - inward_drift_fraction).abs();
+    let oscillatory_structure = violation_fraction <= thresholds.oscillatory_max_violation_fraction
+        && boundary_grazing_episode_count == 0
+        && residual_norm_path_monotonicity <= thresholds.oscillatory_max_path_monotonicity
+        && radial_sign_persistence >= thresholds.oscillatory_min_sign_persistence
+        && balance >= 0.65
+        && mean_squared_slew_norm >= thresholds.noisy_min_mean_squared_slew;
+    let structured_noisy_admissible = violation_count == 0
+        && boundary_grazing_episode_count <= 1
+        && slew_spike_count >= thresholds.noisy_min_slew_spike_count
+        && mean_squared_slew_norm >= thresholds.noisy_min_mean_squared_slew
+        && residual_norm_path_monotonicity < thresholds.persistent_outward_min_path_monotonicity
+        && balance >= 0.45;
+
+    let trajectory_label = if coordinated_group_breach_fraction
+        > thresholds.coordinated_rise_min_group_breach_fraction
+        && outward_drift_fraction > thresholds.coordinated_rise_min_outward_fraction
+        && drift_channel_sign_alignment > thresholds.coordinated_rise_min_channel_alignment
+        && radial_sign_persistence > thresholds.coordinated_rise_min_radial_persistence
     {
         "coordinated-outward-rise".to_string()
-    } else if outward_drift_fraction > 0.68
-        && residual_norm_path_monotonicity > 0.74
-        && radial_sign_persistence > 0.7
-        && mean_squared_slew_norm < 0.02
-        && late_slew_growth_score < 0.35
+    } else if outward_drift_fraction > thresholds.persistent_outward_min_fraction
+        && residual_norm_path_monotonicity > thresholds.persistent_outward_min_path_monotonicity
+        && radial_sign_persistence > thresholds.persistent_outward_min_radial_persistence
+        && mean_squared_slew_norm < thresholds.persistent_outward_max_mean_squared_slew
+        && late_slew_growth_score < thresholds.persistent_outward_max_late_slew_growth
     {
         "persistent-outward-drift".to_string()
-    } else if inward_drift_fraction > 0.6 && min_margin > 0.0 && mean_radial_drift <= 0.0 {
+    } else if inward_drift_fraction > thresholds.inward_containment_min_fraction
+        && min_margin > 0.0
+        && mean_radial_drift <= 0.0
+    {
         "inward-compatible-containment".to_string()
     } else if slew_spike_count > 0
-        && (slew_spike_strength > 0.02 || max_slew_norm > 0.01)
-        && late_slew_growth_score > 0.4
+        && (slew_spike_strength > thresholds.discrete_event_min_spike_strength
+            || max_slew_norm > thresholds.discrete_event_min_max_slew_norm)
+        && late_slew_growth_score > thresholds.discrete_event_min_late_slew_growth
     {
         "discrete-event-like".to_string()
-    } else if late_slew_growth_score > 0.45
-        || (mean_squared_slew_norm > 0.02 && max_slew_norm > 0.01)
+    } else if late_slew_growth_score > thresholds.curvature_transition_min_late_slew_growth
+        || (mean_squared_slew_norm > thresholds.curvature_transition_min_mean_squared_slew
+            && max_slew_norm > thresholds.curvature_transition_min_max_slew_norm)
         || (slew_spike_count > 0 && slew_spike_strength > 0.015 && max_slew_norm > 0.005)
     {
         "curvature-rich-transition".to_string()
-    } else if boundary_grazing_episode_count >= 3 && violation_count == 0 {
+    } else if boundary_grazing_episode_count >= thresholds.near_boundary_min_episode_count
+        && violation_count == 0
+    {
         "near-boundary-recurrent".to_string()
+    } else if oscillatory_structure {
+        "bounded-oscillatory-structured".to_string()
+    } else if structured_noisy_admissible {
+        "structured-noisy-admissible".to_string()
     } else if baseline_like_structure {
         "weakly-structured-baseline-like".to_string()
     } else {

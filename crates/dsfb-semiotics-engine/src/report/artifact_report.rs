@@ -1,12 +1,14 @@
 use crate::engine::types::{
     EngineOutputBundle, FigureArtifact, GrammarState, ReportManifest, ScenarioOutput,
 };
+use crate::evaluation::types::ArtifactCompletenessCheck;
 use crate::math::metrics::format_metric;
 
 pub fn build_markdown_report(
     bundle: &EngineOutputBundle,
     figures: &[FigureArtifact],
     manifest: &ReportManifest,
+    completeness: Option<&ArtifactCompletenessCheck>,
 ) -> String {
     let mut lines = Vec::new();
     lines.push("# DSFB Structural Semiotics Engine Artifact Report".to_string());
@@ -21,6 +23,10 @@ pub fn build_markdown_report(
         bundle.run_metadata.schema_version
     ));
     lines.push(format!("Input mode: `{}`", bundle.run_metadata.input_mode));
+    lines.push(format!(
+        "Bank version: `{}`",
+        bundle.evaluation.bank_validation.bank_version
+    ));
     if let Some(git_commit) = &bundle.run_metadata.git_commit {
         lines.push(format!("Git commit: `{git_commit}`"));
     }
@@ -41,6 +47,7 @@ pub fn build_markdown_report(
     );
     lines.push("- Semantics: constrained retrieval over a typed heuristic bank with scope conditions, admissibility requirements, regime tags, provenance notes, and compatibility rules. Compatible sets carry explicit pairwise compatibility notes, while `Unknown` carries an explicit low-evidence or bank-noncoverage detail string.".to_string());
     lines.push("- Detectability bound: `t* - t0 <= Delta0 / (alpha - kappa)` when configured assumptions hold.".to_string());
+    lines.push("- Evaluation: post-run deterministic summaries and simple internal deterministic comparators (residual threshold, moving-average trend, slew spike, and envelope interaction) are reported separately from the core engine outputs.".to_string());
     lines.push(String::new());
     lines.push("## Reproducibility Summary".to_string());
     lines.push(String::new());
@@ -62,6 +69,53 @@ pub fn build_markdown_report(
         lines.push(format!(
             "- `{}`: identical=`{}`, hash1=`{}`, hash2=`{}`",
             check.scenario_id, check.identical, check.first_hash, check.second_hash
+        ));
+    }
+    lines.push(String::new());
+    lines.push("## Evaluation Summary".to_string());
+    lines.push(String::new());
+    lines.push(format!(
+        "- Scenario count: {}",
+        bundle.evaluation.summary.scenario_count
+    ));
+    lines.push(format!(
+        "- Boundary-interaction scenarios: {}",
+        bundle.evaluation.summary.boundary_interaction_count
+    ));
+    lines.push(format!(
+        "- Violation scenarios: {}",
+        bundle.evaluation.summary.violation_count
+    ));
+    lines.push(format!(
+        "- Comparator trigger counts: {}",
+        bundle
+            .evaluation
+            .summary
+            .comparator_trigger_counts
+            .iter()
+            .map(|(comparator, count)| format!("{comparator}={count}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
+    lines.push(format!(
+        "- Semantic disposition counts: {}",
+        bundle
+            .evaluation
+            .summary
+            .semantic_disposition_counts
+            .iter()
+            .map(|(disposition, count)| format!("{disposition}={count}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
+    if let Some(sweep_summary) = &bundle.evaluation.sweep_summary {
+        lines.push(format!(
+            "- Sweep family `{}`: members={}, unknowns={}, ambiguous={}, disposition_flips={}",
+            sweep_summary.sweep_family,
+            sweep_summary.member_count,
+            sweep_summary.unknown_count,
+            sweep_summary.ambiguous_count,
+            sweep_summary.disposition_flip_count
         ));
     }
     lines.push(String::new());
@@ -93,6 +147,16 @@ pub fn build_markdown_report(
     lines.push(format!("- JSON files: {}", manifest.json_paths.len()));
     lines.push(format!("- PDF report: `{}`", manifest.report_pdf));
     lines.push(format!("- Zip archive: `{}`", manifest.zip_archive));
+    if let Some(completeness) = completeness {
+        lines.push(format!(
+            "- Artifact completeness: complete=`{}`, markdown=`{}`, pdf=`{}`, zip=`{}`, manifest=`{}`",
+            completeness.complete,
+            completeness.report_markdown_present,
+            completeness.report_pdf_present,
+            completeness.zip_present,
+            completeness.manifest_present
+        ));
+    }
     lines.push("- PDF companion content: rendered markdown report, embedded figure artifacts, full artifact inventory, and appended text-based CSV/JSON/manifest/report sources.".to_string());
     lines.push(String::new());
     lines.join("\n")
@@ -198,7 +262,7 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
             .iter()
             .map(|candidate| {
                 format!(
-                    "- Candidate `{}` (`{}`): score={}, regimes={}, regime_check={}, admissibility={}, scope={}, applicability={}, provenance={}, rationale={}",
+                    "- Candidate `{}` (`{}`): score={}, regimes={}, regime_check={}, admissibility={}, scope={}, metric_highlights={}, applicability={}, provenance={}, rationale={}",
                     candidate.entry.heuristic_id,
                     candidate.entry.motif_label,
                     format_metric(candidate.score),
@@ -210,6 +274,7 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
                     candidate.regime_explanation,
                     candidate.admissibility_explanation,
                     candidate.scope_explanation,
+                    candidate.metric_highlights.join(" | "),
                     candidate.entry.applicability_note,
                     candidate.entry.provenance.note,
                     candidate.rationale

@@ -3,6 +3,9 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::engine::settings::EngineSettings;
+use crate::evaluation::types::RunEvaluationBundle;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VectorSample {
     pub step: usize,
@@ -303,6 +306,8 @@ pub struct HeuristicBankEntry {
 pub struct HeuristicCandidate {
     pub entry: HeuristicBankEntry,
     pub score: f64,
+    /// Short list of the most relevant exported syntax metrics for this candidate.
+    pub metric_highlights: Vec<String>,
     /// Explanation of how the grammar-state requirement for this candidate was satisfied.
     pub admissibility_explanation: String,
     /// Explanation of which regime tags were available and why the candidate was allowed.
@@ -377,6 +382,11 @@ pub struct ScenarioRecord {
     pub theorem_alignment: String,
     pub claim_class: String,
     pub limitations: String,
+    pub sweep_family: Option<String>,
+    pub sweep_parameter_name: Option<String>,
+    pub sweep_parameter_value: Option<f64>,
+    pub sweep_secondary_parameter_name: Option<String>,
+    pub sweep_secondary_parameter_value: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -435,6 +445,8 @@ pub struct RunMetadata {
     pub seed: u64,
     pub steps: usize,
     pub dt: f64,
+    /// Deterministic engine settings captured with the run for future audit and replay.
+    pub engine_settings: EngineSettings,
     pub cli_args: Vec<String>,
     pub os: String,
     pub arch: String,
@@ -464,6 +476,8 @@ pub struct EngineOutputBundle {
     pub run_metadata: RunMetadata,
     pub run_dir: PathBuf,
     pub scenario_outputs: Vec<ScenarioOutput>,
+    /// Evaluation summaries are kept separate from the engine-layer outputs.
+    pub evaluation: RunEvaluationBundle,
     pub figure_artifacts: Vec<FigureArtifact>,
     pub reproducibility_check: ReproducibilityCheck,
     pub reproducibility_checks: Vec<ReproducibilityCheck>,
