@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use clap::{CommandFactory, Parser, ValueEnum, ValueHint};
 
+use crate::engine::config::{BankRunConfig, BankSourceConfig};
 use crate::engine::types::EnvelopeMode;
 use crate::evaluation::sweeps::{SweepConfig, SweepFamily};
 use crate::math::envelope::EnvelopeSpec;
@@ -115,6 +116,12 @@ pub enum InputModeArg {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
+pub enum BankSourceArg {
+    Builtin,
+    External,
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum SweepFamilyArg {
     GradualDriftSlope,
     CurvatureOnsetTiming,
@@ -162,6 +169,27 @@ pub struct CliArgs {
         help = "Optional input mode selector. Use `csv` to require external CSV ingestion flags, or `synthetic` to reject them explicitly."
     )]
     pub input_mode: Option<InputModeArg>,
+
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = BankSourceArg::Builtin,
+        help = "Heuristic-bank source selection. Use `external` together with --bank-path to load a validated bank artifact instead of the compiled builtin bank."
+    )]
+    pub bank_source: BankSourceArg,
+
+    #[arg(
+        long,
+        value_hint = ValueHint::FilePath,
+        help = "Path to an external heuristic-bank JSON artifact. Only valid together with --bank-source external."
+    )]
+    pub bank_path: Option<PathBuf>,
+
+    #[arg(
+        long,
+        help = "Require symmetric compatibility and incompatibility graph links during heuristic-bank validation."
+    )]
+    pub strict_bank_validation: bool,
 
     #[arg(
         long,
@@ -389,6 +417,22 @@ impl CliArgs {
                 )
                 .exit();
         }
+        if args.bank_source == BankSourceArg::External && args.bank_path.is_none() {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "--bank-source external requires --bank-path",
+                )
+                .exit();
+        }
+        if args.bank_source == BankSourceArg::Builtin && args.bank_path.is_some() {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--bank-path is only valid together with --bank-source external",
+                )
+                .exit();
+        }
 
         args
     }
@@ -422,6 +466,22 @@ impl CliArgs {
             ScenarioSelection::Single(scenario.clone())
         } else {
             ScenarioSelection::All
+        }
+    }
+
+    /// Converts the validated CLI bank flags into a typed deterministic bank-loading policy.
+    #[must_use]
+    pub fn bank_config(&self) -> BankRunConfig {
+        match self.bank_source {
+            BankSourceArg::Builtin => BankRunConfig::builtin(),
+            BankSourceArg::External => BankRunConfig {
+                source: BankSourceConfig::External(
+                    self.bank_path
+                        .clone()
+                        .expect("validated external bank path"),
+                ),
+                strict_validation: self.strict_bank_validation,
+            },
         }
     }
 }

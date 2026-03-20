@@ -98,12 +98,18 @@ fn canonical_csv_exports_remain_stable() {
             .join("csv/figure_12_semantic_retrieval_source.csv"),
     )
     .unwrap();
+    let bank_validation =
+        fs::read_to_string(exported.run_dir.join("csv/heuristic_bank_validation.csv")).unwrap();
 
     assert_snapshot(
         "nominal_evaluation_summary.csv",
         evaluation_summary.trim_end(),
     );
     assert_snapshot("nominal_semantic_matches.csv", semantic_matches.trim_end());
+    assert_snapshot(
+        "nominal_heuristic_bank_validation.csv",
+        bank_validation.trim_end(),
+    );
     assert_snapshot(
         "nominal_figure_12_semantic_retrieval_source.csv",
         semantic_retrieval_source.trim_end(),

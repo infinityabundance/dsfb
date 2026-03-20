@@ -6,9 +6,11 @@ use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 
 use crate::cli::args::{CsvInputConfig, ScenarioSelection};
-use crate::engine::bank::{HeuristicBankRegistry, HeuristicBankValidationReport};
+use crate::engine::bank::{
+    HeuristicBankRegistry, HeuristicBankValidationReport, LoadedBankDescriptor,
+};
 use crate::engine::config::{
-    CommonRunConfig, CsvRunConfig, SyntheticRunConfig, SyntheticSelection,
+    BankSourceConfig, CommonRunConfig, CsvRunConfig, SyntheticRunConfig, SyntheticSelection,
 };
 use crate::engine::grammar_layer::{evaluate_detectability, evaluate_grammar_layer};
 use crate::engine::residual_layer::extract_residuals;
@@ -52,6 +54,7 @@ pub struct EngineConfig {
     pub steps: usize,
     pub dt: f64,
     pub output_root: Option<PathBuf>,
+    pub bank: crate::engine::config::BankRunConfig,
     pub scenario_selection: ScenarioSelection,
 }
 
@@ -82,6 +85,7 @@ impl EngineConfig {
             steps: common.steps,
             dt: common.dt,
             output_root: common.output_root,
+            bank: common.bank,
             scenario_selection: ScenarioSelection::Sweep(sweep),
         }
     }
@@ -112,6 +116,7 @@ impl EngineConfig {
             steps: self.steps,
             dt: self.dt,
             output_root: self.output_root.clone(),
+            bank: self.bank.clone(),
         }
     }
 }
@@ -122,6 +127,7 @@ pub struct StructuralSemioticsEngine {
     config: EngineConfig,
     settings: EngineSettings,
     bank_registry: HeuristicBankRegistry,
+    loaded_bank: LoadedBankDescriptor,
     bank_validation: HeuristicBankValidationReport,
 }
 
@@ -309,17 +315,25 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
 impl StructuralSemioticsEngine {
     pub fn new(config: EngineConfig) -> Self {
         Self::with_settings(config, EngineSettings::default())
-            .expect("built-in heuristic bank registry should remain valid")
+            .expect("deterministic engine configuration and heuristic bank should validate")
     }
 
     /// Creates an engine with explicit deterministic settings.
     pub fn with_settings(config: EngineConfig, settings: EngineSettings) -> Result<Self> {
-        let bank_registry = HeuristicBankRegistry::builtin();
-        let bank_validation = bank_registry.validate()?;
+        config.validate()?;
+        let (bank_registry, loaded_bank, bank_validation) = match &config.bank.source {
+            BankSourceConfig::Builtin => {
+                HeuristicBankRegistry::load_builtin(config.bank.strict_validation)?
+            }
+            BankSourceConfig::External(path) => {
+                HeuristicBankRegistry::load_external_json(path, config.bank.strict_validation)?
+            }
+        };
         Ok(Self {
             config,
             settings,
             bank_registry,
+            loaded_bank,
             bank_validation,
         })
     }
@@ -425,6 +439,7 @@ impl StructuralSemioticsEngine {
             self.config.steps,
             self.config.dt,
             &self.settings,
+            &self.loaded_bank,
         );
         let provisional_bundle = EngineOutputBundle {
             run_metadata: run_metadata.clone(),
@@ -898,6 +913,13 @@ fn write_tabular_artifacts(
         &bundle.run_metadata,
     )?;
     write_pretty(
+        layout
+            .json_dir
+            .join("loaded_heuristic_bank_descriptor.json")
+            .as_path(),
+        &bundle.run_metadata.bank,
+    )?;
+    write_pretty(
         layout.json_dir.join("scenario_catalog.json").as_path(),
         &scenario_catalog,
     )?;
@@ -1203,6 +1225,7 @@ fn run_metadata(
     steps: usize,
     dt: f64,
     settings: &EngineSettings,
+    bank: &LoadedBankDescriptor,
 ) -> RunMetadata {
     RunMetadata {
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
@@ -1216,6 +1239,7 @@ fn run_metadata(
         steps,
         dt,
         engine_settings: settings.clone(),
+        bank: bank.clone(),
         cli_args: std::env::args().collect(),
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),
@@ -1283,6 +1307,12 @@ fn build_report_manifest(
         "Synthetic and CSV-driven runs share the same deterministic engine layers.".to_string(),
         "Semantic outputs are constrained heuristic retrieval results, not unique-cause claims.".to_string(),
         "Evaluation outputs summarize the deterministic engine with internal deterministic comparators only.".to_string(),
+        format!(
+            "Heuristic bank source=`{}`, version=`{}`, hash=`{}`.",
+            bundle.run_metadata.bank.source_kind.as_label(),
+            bundle.run_metadata.bank.bank_version,
+            bundle.run_metadata.bank.content_hash
+        ),
     ];
     if let Some(completeness) = completeness {
         notes.push(format!(
@@ -1299,6 +1329,7 @@ fn build_report_manifest(
         crate_version: bundle.run_metadata.crate_version.clone(),
         timestamp: bundle.run_metadata.timestamp.clone(),
         input_mode: bundle.run_metadata.input_mode.clone(),
+        bank: bundle.run_metadata.bank.clone(),
         run_dir: layout.run_dir.display().to_string(),
         report_markdown: report_markdown_path.display().to_string(),
         report_pdf: report_pdf_path.display().to_string(),
@@ -1564,15 +1595,24 @@ struct ScenarioEvaluationCsvRow {
 #[derive(Clone, Debug, Serialize)]
 struct BankValidationCsvRow {
     schema_version: String,
+    bank_schema_version: String,
     bank_version: String,
+    bank_source_kind: String,
+    bank_source_path: String,
+    bank_content_hash: String,
+    strict_validation: bool,
     entry_count: usize,
     valid: bool,
     duplicate_ids: String,
+    self_link_notes: String,
+    compatibility_conflicts: String,
     missing_compatibility_links: String,
     missing_incompatibility_links: String,
+    strict_validation_errors: String,
     unknown_link_targets: String,
     provenance_gaps: String,
     scope_sanity_notes: String,
+    note: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1900,15 +1940,24 @@ fn bank_validation_csv_row(
 ) -> BankValidationCsvRow {
     BankValidationCsvRow {
         schema_version: report.schema_version.clone(),
+        bank_schema_version: report.bank_schema_version.clone(),
         bank_version: report.bank_version.clone(),
+        bank_source_kind: report.bank_source_kind.as_label().to_string(),
+        bank_source_path: report.bank_source_path.clone().unwrap_or_default(),
+        bank_content_hash: report.bank_content_hash.clone(),
+        strict_validation: report.strict_validation,
         entry_count: report.entry_count,
         valid: report.valid,
         duplicate_ids: report.duplicate_ids.join(" | "),
+        self_link_notes: report.self_link_notes.join(" | "),
+        compatibility_conflicts: report.compatibility_conflicts.join(" | "),
         missing_compatibility_links: report.missing_compatibility_links.join(" | "),
         missing_incompatibility_links: report.missing_incompatibility_links.join(" | "),
+        strict_validation_errors: report.strict_validation_errors.join(" | "),
         unknown_link_targets: report.unknown_link_targets.join(" | "),
         provenance_gaps: report.provenance_gaps.join(" | "),
         scope_sanity_notes: report.scope_sanity_notes.join(" | "),
+        note: report.note.clone(),
     }
 }
 

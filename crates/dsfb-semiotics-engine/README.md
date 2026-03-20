@@ -116,7 +116,7 @@ The semantics layer is a conservative typed heuristic bank, not a classifier. Ea
 - retrieval priority
 - compatibility / incompatibility metadata
 
-Retrieval is constrained rather than purely threshold-labeled. Each candidate now exports explicit admissibility, regime, and scope-pass explanations in addition to the combined rationale text. The bank supports illustrative motifs such as:
+Retrieval is constrained rather than purely threshold-labeled. Each candidate now exports explicit admissibility, regime, and scope-pass explanations in addition to the combined rationale text. The bank may come from the compiled builtin registry or from a validated external JSON artifact. In either case the run metadata records the bank schema version, bank version, source kind, optional source path, content hash, and strict-validation mode. The bank supports illustrative motifs such as:
 
 - monotone drift -> gradual degradation candidate
 - sustained outward drift with actual envelope breach -> persistent admissibility departure candidate
@@ -217,6 +217,7 @@ let artifacts = export_artifacts(&bundle)?;
 ```
 
 For CSV-driven runs, use `EngineConfig::csv(...)` with a validated `CsvInputConfig`. The exported run metadata and manifest both carry the additive schema marker `dsfb-semiotics-engine/v1`.
+To select an external bank artifact instead of the builtin fallback, set `CommonRunConfig { bank: BankRunConfig::external(path, strict), ..Default::default() }` before constructing the `EngineConfig`.
 
 ## Evaluation Harness
 
@@ -248,13 +249,26 @@ These are internal deterministic comparators for inspection. They are not field 
 
 The semantics bank is maintained through a governed registry rather than an ad hoc list.
 
+The runtime supports two deterministic bank sources:
+
+- builtin bank: compiled into the crate for offline reference runs and tests
+- external bank: loaded from a typed JSON artifact under the schema marker `dsfb-semiotics-engine-bank/v1`
+
+External-bank loading does not bypass typing or validation. The artifact is parsed into the same typed registry used by the builtin bank, then validated before the engine runs. The crate records whether the active bank came from the builtin registry or an external artifact, together with the bank version and content hash.
+
 Each run exports a validation report covering:
 
 - bank version
+- bank schema version
+- bank source kind and optional source path
+- bank content hash
 - duplicate heuristic ID detection
 - unknown compatibility-link targets
+- self-link detection
+- compatibility / incompatibility overlap detection
 - missing provenance text
 - scope-condition sanity notes
+- optional strict-mode symmetry failures for compatibility and incompatibility links
 
 Compatibility gaps are exported explicitly as review notes. They do not silently disappear into retrieval behavior.
 
@@ -280,6 +294,8 @@ A small CSV-driven example is included for deterministic end-to-end review:
 - walkthrough: [`docs/examples/illustrative_csv_example.md`](docs/examples/illustrative_csv_example.md)
 
 These files are public and version-controlled in the crate so the CSV path can be rerun without network access. They are illustrative CSV inputs only, not field-validation data.
+
+A minimal external-bank walkthrough is also included at [`docs/examples/external_bank_example.md`](docs/examples/external_bank_example.md).
 
 ## Running Locally
 
@@ -313,6 +329,16 @@ cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
   --envelope-mode fixed \
   --envelope-base 1.0 \
   --dt 0.5
+```
+
+Run with an external bank artifact instead of the builtin fallback:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
+  --scenario nominal_stable \
+  --bank-source external \
+  --bank-path crates/dsfb-semiotics-engine/tests/fixtures/external_bank_minimal.json \
+  --strict-bank-validation
 ```
 
 Run a deterministic sweep:
@@ -351,6 +377,10 @@ just qa
 This executes formatting, clippy, tests, and docs for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
 Because this work is restricted to the crate directory, a crate-local GitHub Actions template is provided at `ci/github-actions-crate-quality-gate.yml` rather than installing a live repo-root workflow automatically.
 
+The crate currently ships one additive Cargo feature flag:
+
+- `external-bank` (enabled by default): enables external heuristic-bank JSON loading alongside the builtin fallback
+
 Refresh snapshot fixtures intentionally with:
 
 ```bash
@@ -383,6 +413,7 @@ The zip archive contains the generated run directory contents for convenient dow
 The PDF report embeds the generated figure PNG artifacts and appends a deterministic artifact appendix covering the exported markdown, manifest, CSV, and JSON text artifacts.
 Artifact export treats the timestamped run directory as owned scratch space: expected artifact subdirectories are cleaned before rewriting, and unexpected root-level files cause the export to fail rather than silently mixing stale results into a purportedly fresh run.
 Both `run_metadata.json` and `manifest.json` carry the additive schema marker `dsfb-semiotics-engine/v1` so downstream review tooling can check the exported contract explicitly.
+Heuristic-bank artifacts use the separate schema marker `dsfb-semiotics-engine-bank/v1`, and the resolved bank descriptor is exported at `json/loaded_heuristic_bank_descriptor.json`.
 
 Additional evaluation artifacts include:
 
@@ -402,6 +433,7 @@ Additional evaluation artifacts include:
 - `json/baseline_comparators.json`
 - `json/semantic_matches.json`
 - `json/heuristic_bank_validation.json`
+- `json/loaded_heuristic_bank_descriptor.json`
 - `json/artifact_completeness.json`
 - `json/figure_09_detectability_source.json`
 - `json/figure_12_semantic_retrieval_source.json`
@@ -413,6 +445,7 @@ Additional evaluation artifacts include:
 - `csv/figure_14_sweep_stability_source.csv` and `json/figure_14_sweep_stability_source.json` for sweep runs
 
 A schema overview is provided in [`docs/schema.md`](docs/schema.md).
+Bank-artifact notes are summarized in [`docs/schema.md`](docs/schema.md), and future embedded-core extraction notes are recorded in [`docs/embedded_core_roadmap.md`](docs/embedded_core_roadmap.md).
 
 ## Figure Suite
 
@@ -464,7 +497,9 @@ The notebook does not reimplement the semiotic engine logic in Python.
 - The crate demonstrates theorem-aligned behavior under configured assumptions; it does not prove those assumptions hold in real systems.
 - Envelope exit is treated as detectable departure from the configured admissibility grammar, not unique diagnosis.
 - Heuristic semantic matches are constrained motif retrieval outputs only and may remain ambiguous or unknown.
+- Builtin-bank and external-bank runs may differ when the bank artifact version or content differs.
 - Internal comparator and sweep outputs are empirical aids for deterministic inspection only; they are not external benchmarks.
+- The crate is not `no_std` today and is not packaged for direct embedded deployment.
 - No claim is made that this crate replaces probabilistic monitoring, validates all domains, or achieves certification.
 
 ## Why This Is Useful in Deterministic Engineering Diagnostics

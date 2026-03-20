@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "schema_version": "dsfb-semiotics-engine-bank/v1",
+    "bank_version": "external-fixture-bank/v1",
+    "note": "Minimal external heuristic bank fixture used for deterministic loading, validation, and smoke-test coverage."
+  },
+  "entries": [
+    {
+      "heuristic_id": "H-BASELINE-COMPATIBLE",
+      "motif_label": "weakly structured baseline-compatible observation candidate",
+      "short_label": "baseline_compatible",
+      "scope_conditions": {
+        "min_outward_drift_fraction": null,
+        "max_outward_drift_fraction": 0.53,
+        "min_inward_drift_fraction": 0.4,
+        "max_inward_drift_fraction": 0.6,
+        "max_curvature_energy": 1e-5,
+        "min_curvature_energy": null,
+        "max_curvature_onset_score": 0.2,
+        "min_curvature_onset_score": null,
+        "min_directional_persistence": null,
+        "min_sign_consistency": null,
+        "min_channel_coherence": null,
+        "min_aggregate_monotonicity": null,
+        "max_aggregate_monotonicity": 0.08,
+        "min_slew_spike_count": null,
+        "max_slew_spike_count": 1,
+        "min_slew_spike_strength": null,
+        "max_slew_spike_strength": 0.001,
+        "min_boundary_grazing_episodes": null,
+        "max_boundary_grazing_episodes": 0,
+        "min_boundary_recovery_count": null,
+        "min_coordinated_group_breach_fraction": null,
+        "max_coordinated_group_breach_fraction": 0.0,
+        "require_group_breach": false
+      },
+      "admissibility_requirements": "NoViolation",
+      "regime_tags": [
+        "fixed",
+        "tightening",
+        "widening",
+        "regime_nominal"
+      ],
+      "provenance": {
+        "source": "external fixture bank",
+        "note": "Illustrative external-bank copy of the conservative baseline-compatible motif."
+      },
+      "applicability_note": "Use only as a low-commitment statement relative to the configured prediction and envelope. It is not a validated health or nominality classifier.",
+      "retrieval_priority": 60,
+      "compatible_with": [],
+      "incompatible_with": []
+    }
+  ]
+}

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use crate::engine::bank::LoadedBankDescriptor;
 use crate::engine::settings::EngineSettings;
 use crate::evaluation::types::RunEvaluationBundle;
 
@@ -486,6 +487,8 @@ pub struct RunMetadata {
     pub dt: f64,
     /// Deterministic engine settings captured with the run for future audit and replay.
     pub engine_settings: EngineSettings,
+    /// Resolved heuristic-bank provenance for this run, including source and content hash.
+    pub bank: LoadedBankDescriptor,
     pub cli_args: Vec<String>,
     pub os: String,
     pub arch: String,
@@ -499,6 +502,7 @@ pub struct ReportManifest {
     pub crate_version: String,
     pub timestamp: String,
     pub input_mode: String,
+    pub bank: LoadedBankDescriptor,
     pub run_dir: String,
     pub report_markdown: String,
     pub report_pdf: String,

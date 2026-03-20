@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use dsfb_semiotics_engine::cli::args::CsvInputConfig;
-use dsfb_semiotics_engine::engine::config::CommonRunConfig;
+use dsfb_semiotics_engine::engine::config::{BankRunConfig, CommonRunConfig};
 use dsfb_semiotics_engine::engine::pipeline::{
     export_artifacts, EngineConfig, StructuralSemioticsEngine,
 };
@@ -34,6 +34,10 @@ fn csv_input_fixture() -> CsvInputConfig {
         envelope_secondary_base: None,
         envelope_name: "fixture_envelope".to_string(),
     }
+}
+
+fn external_bank_fixture() -> PathBuf {
+    fixture_path("external_bank_minimal.json")
 }
 
 #[test]
@@ -78,6 +82,35 @@ fn typed_csv_config_runs_fixture_and_exports_schema_metadata() {
     assert!(manifest.contains(ARTIFACT_SCHEMA_VERSION));
     assert!(report.contains("Artifact schema"));
     assert!(report.contains("Input mode: `csv`"));
+}
+
+#[test]
+fn typed_external_bank_config_runs_and_records_bank_provenance() {
+    let temp = tempdir().unwrap();
+    let common = CommonRunConfig {
+        output_root: Some(temp.path().join("artifacts")),
+        bank: BankRunConfig::external(external_bank_fixture(), true),
+        ..Default::default()
+    };
+    let config = EngineConfig::synthetic_single(common, "nominal_stable");
+    config.validate().unwrap();
+
+    let engine = StructuralSemioticsEngine::new(config);
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let manifest = std::fs::read_to_string(&exported.manifest_path).unwrap();
+
+    assert_eq!(bundle.run_metadata.bank.source_kind.as_label(), "external");
+    assert_eq!(
+        bundle.run_metadata.bank.bank_version,
+        "external-fixture-bank/v1"
+    );
+    assert!(bundle.evaluation.bank_validation.valid);
+    assert!(exported
+        .run_dir
+        .join("json/loaded_heuristic_bank_descriptor.json")
+        .is_file());
+    assert!(manifest.contains("external-fixture-bank/v1"));
 }
 
 #[test]
