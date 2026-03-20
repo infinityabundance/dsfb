@@ -7,6 +7,8 @@ The external bank is an input artifact for deterministic constrained retrieval. 
 not a model, not a classifier, and not a latent-cause oracle. Different valid bank
 versions may produce different semantic outputs because the bank is part of the
 configured retrieval surface.
+After parse, external banks are normalized deterministically before validation so
+ordering differences in entries or link lists do not create hidden runtime variation.
 
 ## Top-Level Shape
 
@@ -123,11 +125,14 @@ At startup the crate validates external banks for:
 - references to unknown heuristic IDs
 - overlap between `compatible_with` and `incompatible_with`
 - provenance completeness
+- regime-tag sanity
+- retrieval-priority sanity
 - scope-condition sanity checks
 - optional strict reverse-link symmetry checks
 
 Strict mode is enabled with `--strict-bank-validation`. In strict mode, missing reverse
-compatibility or incompatibility links fail the run.
+compatibility or incompatibility links fail the run. The runtime exports
+`validation_mode` as either `strict` or `permissive`.
 
 ## Exported Runtime Metadata
 

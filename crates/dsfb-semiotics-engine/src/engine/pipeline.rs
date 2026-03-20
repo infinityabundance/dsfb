@@ -444,10 +444,7 @@ impl StructuralSemioticsEngine {
             .context("missing reproducibility result")?;
         let run_metadata = run_metadata(
             &layout.timestamp,
-            input_mode_label(&self.config.scenario_selection),
-            self.config.seed,
-            self.config.steps,
-            self.config.dt,
+            &self.config,
             &self.settings,
             &self.loaded_bank,
         );
@@ -1243,31 +1240,106 @@ fn panel_title(table: &FigureSourceTable, panel_id: &str) -> String {
 
 fn run_metadata(
     timestamp: &str,
-    input_mode: &str,
-    seed: u64,
-    steps: usize,
-    dt: f64,
+    config: &EngineConfig,
     settings: &EngineSettings,
     bank: &LoadedBankDescriptor,
 ) -> RunMetadata {
+    let input_mode = input_mode_label(&config.scenario_selection);
+    let run_configuration_hash = run_configuration_hash(config, settings, bank);
     RunMetadata {
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
         engine_version: env!("CARGO_PKG_VERSION").to_string(),
         bank_version: bank.bank_version.clone(),
+        run_configuration_hash,
         crate_name: "dsfb-semiotics-engine".to_string(),
         crate_version: env!("CARGO_PKG_VERSION").to_string(),
         rust_version: command_stdout("rustc", &["--version"]),
         git_commit: command_stdout("git", &["rev-parse", "HEAD"]),
         timestamp: timestamp.to_string(),
         input_mode: input_mode.to_string(),
-        seed,
-        steps,
-        dt,
+        seed: config.seed,
+        steps: config.steps,
+        dt: config.dt,
         engine_settings: settings.clone(),
         bank: bank.clone(),
         cli_args: std::env::args().collect(),
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),
+    }
+}
+
+#[derive(Serialize)]
+struct RunConfigurationIdentity<'a> {
+    input_mode: &'a str,
+    selection_identity: String,
+    seed: u64,
+    steps: usize,
+    dt: f64,
+    engine_settings: &'a EngineSettings,
+    bank_source_kind: &'a str,
+    bank_source_path: &'a Option<String>,
+    bank_version: &'a str,
+    validation_mode: &'a str,
+}
+
+fn run_configuration_hash(
+    config: &EngineConfig,
+    settings: &EngineSettings,
+    bank: &LoadedBankDescriptor,
+) -> String {
+    let identity = RunConfigurationIdentity {
+        input_mode: input_mode_label(&config.scenario_selection),
+        selection_identity: selection_identity(&config.scenario_selection),
+        seed: config.seed,
+        steps: config.steps,
+        dt: config.dt,
+        engine_settings: settings,
+        bank_source_kind: bank.source_kind.as_label(),
+        bank_source_path: &bank.source_path,
+        bank_version: &bank.bank_version,
+        validation_mode: &bank.validation_mode,
+    };
+    hash_serializable_hex("run_configuration", &identity)
+        .map(|digest| digest.fnv1a_64_hex)
+        .unwrap_or_else(|_| "hash-unavailable".to_string())
+}
+
+fn selection_identity(selection: &ScenarioSelection) -> String {
+    match selection {
+        ScenarioSelection::All => "synthetic:all".to_string(),
+        ScenarioSelection::Single(id) => format!("synthetic:single:{id}"),
+        ScenarioSelection::Sweep(config) => {
+            format!(
+                "synthetic:sweep:{}:{}",
+                config.family.as_str(),
+                config.points
+            )
+        }
+        ScenarioSelection::Csv(config) => {
+            let channel_identity = config
+                .channel_names
+                .as_ref()
+                .map(|names| names.join("|"))
+                .unwrap_or_else(|| "<headers>".to_string());
+            let envelope_mode = format!("{:?}", config.envelope_mode);
+            let envelope_base = format_metric(config.envelope_base);
+            let envelope_slope = format_metric(config.envelope_slope);
+            format!(
+                "csv:{}:{}:{}:{}:{}:{}:{}:{}:{}:{:?}:{:?}:{:?}",
+                config.scenario_id,
+                config.observed_csv.display(),
+                config.predicted_csv.display(),
+                config.time_column.as_deref().unwrap_or("<none>"),
+                channel_identity,
+                config.envelope_name,
+                envelope_mode,
+                envelope_base,
+                envelope_slope,
+                config.envelope_switch_step,
+                config.envelope_secondary_slope,
+                config.envelope_secondary_base
+            )
+        }
     }
 }
 
@@ -1352,6 +1424,7 @@ fn build_report_manifest(
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
         engine_version: bundle.run_metadata.crate_version.clone(),
         bank_version: bundle.run_metadata.bank.bank_version.clone(),
+        run_configuration_hash: bundle.run_metadata.run_configuration_hash.clone(),
         crate_name: bundle.run_metadata.crate_name.clone(),
         crate_version: bundle.run_metadata.crate_version.clone(),
         timestamp: bundle.run_metadata.timestamp.clone(),
@@ -1639,6 +1712,7 @@ struct BankValidationCsvRow {
     bank_source_path: String,
     bank_content_hash: String,
     strict_validation: bool,
+    validation_mode: String,
     entry_count: usize,
     valid: bool,
     duplicate_ids: String,
@@ -1649,6 +1723,8 @@ struct BankValidationCsvRow {
     strict_validation_errors: String,
     unknown_link_targets: String,
     provenance_gaps: String,
+    regime_tag_notes: String,
+    retrieval_priority_notes: String,
     scope_sanity_notes: String,
     note: String,
 }
@@ -1999,6 +2075,7 @@ fn bank_validation_csv_row(
         bank_source_path: report.bank_source_path.clone().unwrap_or_default(),
         bank_content_hash: report.bank_content_hash.clone(),
         strict_validation: report.strict_validation,
+        validation_mode: report.validation_mode.clone(),
         entry_count: report.entry_count,
         valid: report.valid,
         duplicate_ids: report.duplicate_ids.join(" | "),
@@ -2009,6 +2086,8 @@ fn bank_validation_csv_row(
         strict_validation_errors: report.strict_validation_errors.join(" | "),
         unknown_link_targets: report.unknown_link_targets.join(" | "),
         provenance_gaps: report.provenance_gaps.join(" | "),
+        regime_tag_notes: report.regime_tag_notes.join(" | "),
+        retrieval_priority_notes: report.retrieval_priority_notes.join(" | "),
         scope_sanity_notes: report.scope_sanity_notes.join(" | "),
         note: report.note.clone(),
     }

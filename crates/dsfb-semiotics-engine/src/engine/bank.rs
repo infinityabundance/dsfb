@@ -37,6 +37,7 @@ pub struct LoadedBankDescriptor {
     pub source_path: Option<String>,
     pub content_hash: String,
     pub strict_validation: bool,
+    pub validation_mode: String,
     pub note: String,
 }
 
@@ -59,6 +60,7 @@ pub struct HeuristicBankValidationReport {
     pub bank_source_path: Option<String>,
     pub bank_content_hash: String,
     pub strict_validation: bool,
+    pub validation_mode: String,
     pub entry_count: usize,
     pub duplicate_ids: Vec<String>,
     pub self_link_notes: Vec<String>,
@@ -68,6 +70,8 @@ pub struct HeuristicBankValidationReport {
     pub strict_validation_errors: Vec<String>,
     pub unknown_link_targets: Vec<String>,
     pub provenance_gaps: Vec<String>,
+    pub regime_tag_notes: Vec<String>,
+    pub retrieval_priority_notes: Vec<String>,
     pub scope_sanity_notes: Vec<String>,
     pub valid: bool,
     pub note: String,
@@ -119,6 +123,7 @@ impl HeuristicBankRegistry {
         })?;
         let registry: Self = serde_json::from_str(&source)
             .with_context(|| format!("failed to parse heuristic bank JSON {}", path.display()))?;
+        let registry = registry.normalized();
         registry.ensure_supported_schema()?;
         let descriptor =
             registry.loaded_descriptor(BankSourceKind::External, Some(path), strict_validation);
@@ -202,6 +207,8 @@ impl HeuristicBankRegistry {
         let mut missing_compatibility_links = Vec::new();
         let mut missing_incompatibility_links = Vec::new();
         let mut provenance_gaps = Vec::new();
+        let mut regime_tag_notes = Vec::new();
+        let mut retrieval_priority_notes = Vec::new();
         let mut scope_sanity_notes = Vec::new();
 
         for entry in &self.entries {
@@ -217,6 +224,26 @@ impl HeuristicBankRegistry {
                     "{} is missing an applicability note.",
                     entry.heuristic_id
                 ));
+            }
+            if entry.retrieval_priority == 0 {
+                retrieval_priority_notes.push(format!(
+                    "{} uses retrieval_priority=0; priorities should be positive and explicit.",
+                    entry.heuristic_id
+                ));
+            }
+            let mut seen_regime_tags = BTreeSet::new();
+            for tag in &entry.regime_tags {
+                if tag.trim().is_empty() {
+                    regime_tag_notes.push(format!(
+                        "{} contains an empty regime tag.",
+                        entry.heuristic_id
+                    ));
+                } else if !seen_regime_tags.insert(tag.clone()) {
+                    regime_tag_notes.push(format!(
+                        "{} repeats regime tag `{}`.",
+                        entry.heuristic_id, tag
+                    ));
+                }
             }
 
             if entry.compatible_with.contains(&entry.heuristic_id) {
@@ -357,6 +384,8 @@ impl HeuristicBankRegistry {
             && compatibility_conflicts.is_empty()
             && unknown_link_targets.is_empty()
             && provenance_gaps.is_empty()
+            && regime_tag_notes.is_empty()
+            && retrieval_priority_notes.is_empty()
             && scope_sanity_notes.is_empty()
             && strict_validation_errors.is_empty();
 
@@ -381,6 +410,7 @@ impl HeuristicBankRegistry {
             bank_source_path: descriptor.source_path.clone(),
             bank_content_hash: descriptor.content_hash.clone(),
             strict_validation: descriptor.strict_validation,
+            validation_mode: descriptor.validation_mode.clone(),
             entry_count: self.entries.len(),
             duplicate_ids: duplicates,
             self_link_notes,
@@ -390,10 +420,26 @@ impl HeuristicBankRegistry {
             strict_validation_errors,
             unknown_link_targets,
             provenance_gaps,
+            regime_tag_notes,
+            retrieval_priority_notes,
             scope_sanity_notes,
             valid,
             note,
         }
+    }
+
+    fn normalized(mut self) -> Self {
+        self.entries.sort_by(|left, right| {
+            left.heuristic_id
+                .cmp(&right.heuristic_id)
+                .then_with(|| left.retrieval_priority.cmp(&right.retrieval_priority))
+        });
+        for entry in &mut self.entries {
+            entry.compatible_with.sort();
+            entry.incompatible_with.sort();
+            entry.regime_tags.sort();
+        }
+        self
     }
 
     fn ensure_supported_schema(&self) -> Result<()> {
@@ -424,6 +470,11 @@ impl HeuristicBankRegistry {
             source_path: source_path.map(|path| path.display().to_string()),
             content_hash,
             strict_validation,
+            validation_mode: if strict_validation {
+                "strict".to_string()
+            } else {
+                "permissive".to_string()
+            },
             note: match source_kind {
                 BankSourceKind::Builtin => "Compiled builtin heuristic bank used for deterministic offline reference runs.".to_string(),
                 BankSourceKind::External => "External heuristic bank artifact loaded and validated at startup before deterministic retrieval.".to_string(),

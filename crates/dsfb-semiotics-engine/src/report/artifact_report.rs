@@ -23,6 +23,10 @@ pub fn build_markdown_report(
         "Artifact schema: `{}`",
         bundle.run_metadata.schema_version
     ));
+    lines.push(format!(
+        "Run configuration hash: `{}`",
+        bundle.run_metadata.run_configuration_hash
+    ));
     lines.push(format!("Input mode: `{}`", bundle.run_metadata.input_mode));
     lines.push(format!(
         "Bank version: `{}`",
@@ -46,6 +50,10 @@ pub fn build_markdown_report(
     lines.push(format!(
         "Strict bank validation: `{}`",
         bundle.run_metadata.bank.strict_validation
+    ));
+    lines.push(format!(
+        "Bank validation mode: `{}`",
+        bundle.run_metadata.bank.validation_mode
     ));
     if let Some(git_commit) = &bundle.run_metadata.git_commit {
         lines.push(format!("Git commit: `{git_commit}`"));
@@ -116,6 +124,30 @@ pub fn build_markdown_report(
             .map(|(comparator, count)| format!("{comparator}={count}"))
             .collect::<Vec<_>>()
             .join(", ")
+    ));
+    lines.push(format!(
+        "- Bank validation mode: `{}`",
+        bundle.evaluation.bank_validation.validation_mode
+    ));
+    lines.push(format!(
+        "- Bank validation strict symmetry errors: {}",
+        bundle
+            .evaluation
+            .bank_validation
+            .strict_validation_errors
+            .len()
+    ));
+    lines.push(format!(
+        "- Bank validation regime-tag notes: {}",
+        bundle.evaluation.bank_validation.regime_tag_notes.len()
+    ));
+    lines.push(format!(
+        "- Bank validation priority notes: {}",
+        bundle
+            .evaluation
+            .bank_validation
+            .retrieval_priority_notes
+            .len()
     ));
     lines.push(format!(
         "- Semantic disposition counts: {}",
@@ -194,6 +226,10 @@ pub fn build_markdown_report(
     lines.push(String::new());
     lines.push(format!("- Run directory: `{}`", manifest.run_dir));
     lines.push(format!("- Manifest schema: `{}`", manifest.schema_version));
+    lines.push(format!(
+        "- Manifest run configuration hash: `{}`",
+        manifest.run_configuration_hash
+    ));
     lines.push(format!(
         "- Manifest bank source: `{}`",
         manifest.bank.source_kind.as_label()

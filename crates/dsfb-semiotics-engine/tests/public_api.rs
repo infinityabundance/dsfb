@@ -57,6 +57,7 @@ fn typed_synthetic_config_runs_selected_scenario() {
     assert_eq!(bundle.scenario_outputs[0].record.id, "nominal_stable");
     assert_eq!(bundle.run_metadata.schema_version, ARTIFACT_SCHEMA_VERSION);
     assert_eq!(bundle.run_metadata.input_mode, "synthetic");
+    assert!(!bundle.run_metadata.run_configuration_hash.is_empty());
 }
 
 #[test]
@@ -79,6 +80,7 @@ fn typed_csv_config_runs_fixture_and_exports_schema_metadata() {
     assert_eq!(bundle.scenario_outputs.len(), 1);
     assert_eq!(bundle.scenario_outputs[0].record.id, input.scenario_id);
     assert_eq!(bundle.run_metadata.input_mode, "csv");
+    assert!(!bundle.run_metadata.run_configuration_hash.is_empty());
     assert!(manifest.contains(ARTIFACT_SCHEMA_VERSION));
     assert!(report.contains("Artifact schema"));
     assert!(report.contains("Input mode: `csv`"));
@@ -105,6 +107,7 @@ fn typed_external_bank_config_runs_and_records_bank_provenance() {
         bundle.run_metadata.bank.bank_version,
         "external-fixture-bank/v1"
     );
+    assert_eq!(bundle.run_metadata.bank.validation_mode, "strict");
     assert!(bundle.evaluation.bank_validation.valid);
     assert!(exported
         .run_dir
