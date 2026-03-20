@@ -132,7 +132,8 @@ At startup the crate validates external banks for:
 
 Strict mode is enabled with `--strict-bank-validation`. In strict mode, missing reverse
 compatibility or incompatibility links fail the run. The runtime exports
-`validation_mode` as either `strict` or `permissive`.
+`validation_mode` as either `strict` or `permissive`, plus additive `violations` and `warnings`
+arrays so permissive-mode runs do not hide graph-governance findings.
 
 ## Exported Runtime Metadata
 
@@ -150,7 +151,9 @@ Those fields appear in:
 - `json/run_metadata.json`
 - `json/loaded_heuristic_bank_descriptor.json`
 - `json/heuristic_bank_validation.json`
+- `json/bank_validation_report.json`
 - `csv/heuristic_bank_validation.csv`
+- `csv/bank_validation_report.csv`
 - `manifest.json`
 
 ## Limitations

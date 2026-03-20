@@ -381,8 +381,9 @@ cd crates/dsfb-semiotics-engine
 just qa
 ```
 
-This executes formatting, clippy, tests, and docs for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
-Because this work is restricted to the crate directory, a crate-local GitHub Actions template is provided at `ci/github-actions-crate-quality-gate.yml` rather than installing a live repo-root workflow automatically.
+This executes formatting, clippy, tests, docs, snapshots, and fixed-seed property tests for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
+Because this work is restricted to the crate directory, crate-local GitHub Actions workflow templates are provided at `.github/workflows/crate-quality-gate.yml` and `ci/github-actions-crate-quality-gate.yml` rather than installing a live repo-root workflow automatically.
+The fixed-seed property-test surface can also be run directly with `cargo test --test proptest_invariants`.
 
 The crate currently ships one additive Cargo feature flag:
 
@@ -429,23 +430,29 @@ Additional evaluation artifacts include:
 - `csv/evaluation_summary.csv`
 - `csv/scenario_evaluations.csv`
 - `csv/baseline_comparators.csv`
+- `csv/comparator_results.csv`
 - `csv/heuristic_bank_validation.csv`
+- `csv/bank_validation_report.csv`
 - `csv/artifact_completeness.csv`
 - `csv/figure_09_detectability_source.csv`
 - `csv/figure_12_semantic_retrieval_source.csv`
 - `csv/figure_13_internal_baseline_comparators_source.csv`
 - `csv/figure_integrity_checks.csv`
+- `csv/figure_integrity_report.csv`
 - `json/evaluation_summary.json`
 - `json/scenario_evaluations.json`
 - `json/baseline_comparators.json`
+- `json/comparator_results.json`
 - `json/semantic_matches.json`
 - `json/heuristic_bank_validation.json`
+- `json/bank_validation_report.json`
 - `json/loaded_heuristic_bank_descriptor.json`
 - `json/artifact_completeness.json`
 - `json/figure_09_detectability_source.json`
 - `json/figure_12_semantic_retrieval_source.json`
 - `json/figure_13_internal_baseline_comparators_source.json`
 - `json/figure_integrity_checks.json`
+- `json/figure_integrity_report.json`
 - `csv/sweep_results.csv` and `json/sweep_results.json` for sweep runs
 - `csv/sweep_summary.csv` and `json/sweep_summary.json` for sweep runs
 - `csv/figure_14_sweep_stability_summary_source.csv` and `json/figure_14_sweep_stability_summary_source.json` for sweep runs
@@ -476,7 +483,7 @@ The crate generates the original twelve paper-aligned figures plus additive eval
 13. internal deterministic baseline comparator summary
 14. sweep stability summary when sweep mode is executed
 
-Every publication-style figure is now paired with a machine-readable figure-source table whose rows carry the exact panel ids, series labels, plotted coordinates, and additive figure metadata used by the renderer. The artifact pipeline also emits figure-integrity records that check panel counts, emitted PNG/SVG presence, integer-like behavior for count-labeled panels, and source-table consistency.
+Every publication-style figure is now paired with a machine-readable figure-source table whose rows carry the exact panel ids, series labels, plotted coordinates, generation timestamp, and additive figure metadata used by the renderer. The artifact pipeline also emits figure-integrity records that check panel counts, expected-versus-observed panel identities, emitted PNG/SVG presence, integer-like behavior for count-labeled panels, and source-table consistency.
 
 ## Colab Notebook
 

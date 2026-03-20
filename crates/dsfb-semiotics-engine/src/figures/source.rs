@@ -39,8 +39,12 @@ pub struct FigureSourceTable {
     pub bank_version: String,
     pub figure_id: String,
     pub plot_title: String,
+    pub generation_timestamp: String,
     pub expected_panel_count: usize,
+    pub expected_panel_ids: Vec<String>,
     pub count_like_panel_ids: Vec<String>,
+    pub panel_ids: Vec<String>,
+    pub series_ids: Vec<String>,
     pub rows: Vec<FigureSourceRow>,
 }
 
@@ -135,6 +139,9 @@ pub fn prepare_publication_figure_source_tables(
     ];
     if !bundle.evaluation.sweep_results.is_empty() {
         tables.push(prepare_figure_14(bundle));
+    }
+    for table in &mut tables {
+        finalize_source_table(table, &bundle.run_metadata.timestamp);
     }
     Ok(tables)
 }
@@ -287,10 +294,11 @@ pub fn sweep_summary_source_rows(bundle: &EngineOutputBundle) -> Vec<SweepSummar
 fn prepare_figure_01(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, "gradual_degradation")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_01_residual_prediction_observation_overview",
         "Residual, Observation, and Prediction Overview",
-        2,
+        &["observation_prediction", "residual_norm"],
         &[],
     );
     push_vector_series(
@@ -348,10 +356,11 @@ fn prepare_figure_01(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 fn prepare_figure_02(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, "abrupt_event")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_02_drift_and_slew_decomposition",
         "Drift and Slew Decomposition",
-        3,
+        &["residual_norm", "signed_radial_drift", "slew_norm"],
         &[],
     );
     push_scalar_series(
@@ -417,10 +426,11 @@ fn prepare_figure_02(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 fn prepare_figure_03(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, "curvature_onset")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_03_sign_space_projection",
         "Projected Sign Trajectory",
-        1,
+        &["projection_plane"],
         &[],
     );
     let x_label = format!(
@@ -529,10 +539,11 @@ fn prepare_figure_04(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let (monotone, curvature) =
         source_scenario_pair_or_first(bundle, "gradual_degradation", "curvature_onset")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_04_syntax_comparison",
         "Syntax Comparison",
-        1,
+        &["syntax_comparison"],
         &[],
     );
     push_scalar_series(
@@ -598,10 +609,11 @@ fn prepare_figure_07(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let (exit_case, invariance_case) =
         source_scenario_pair_or_first(bundle, "outward_exit_case_a", "inward_invariance")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_07_exit_invariance_pair_common_envelope",
         "Exit-Invariance Pair on Shared Envelope",
-        1,
+        &["exit_invariance_pair"],
         &[],
     );
     push_scalar_series(
@@ -671,10 +683,11 @@ fn prepare_figure_08(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
         "magnitude_matched_detectable",
     )?;
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_08_residual_trajectory_separation",
         "Residual Trajectory Separation",
-        1,
+        &["residual_separation"],
         &[],
     );
     push_scalar_series(
@@ -739,10 +752,11 @@ fn prepare_figure_08(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 
 fn prepare_figure_09(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_09_detectability_bound_comparison",
         "Predicted vs Observed Detectability Times",
-        1,
+        &["detectability_bound"],
         &[],
     );
     let rows = detectability_source_rows(bundle);
@@ -811,10 +825,11 @@ fn prepare_figure_09(bundle: &EngineOutputBundle) -> FigureSourceTable {
 
 fn prepare_figure_10(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_10_deterministic_pipeline_flow",
         "Deterministic Structural Semiotics Engine",
-        1,
+        &["pipeline_flow"],
         &[],
     );
     for (index, (x0, y0, x1, y1, color_key, ordinal, title, subtitle)) in [
@@ -973,10 +988,15 @@ fn prepare_figure_10(bundle: &EngineOutputBundle) -> FigureSourceTable {
 fn prepare_figure_11(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, "grouped_correlated")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_11_coordinated_group_semiotics",
         "Coordinated Group Semiotics",
-        if scenario.coordinated.is_some() { 2 } else { 1 },
+        if scenario.coordinated.is_some() {
+            &["local_channels", "aggregate_group"]
+        } else {
+            &["coordination_notice"]
+        },
         &[],
     );
     if let Some(coordinated) = scenario.coordinated.as_ref() {
@@ -1094,10 +1114,15 @@ fn prepare_figure_11(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 
 fn prepare_figure_12(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_12_semantic_retrieval_heuristics_bank",
         "Representative Constrained Retrieval Summary",
-        3,
+        &[
+            "leading_candidate_score",
+            "admissibility_filter_count",
+            "retrieval_disposition_code",
+        ],
         &["admissibility_filter_count"],
     );
     for (index, row) in semantic_retrieval_source_rows(bundle)
@@ -1162,10 +1187,11 @@ fn prepare_figure_12(bundle: &EngineOutputBundle) -> FigureSourceTable {
 
 fn prepare_figure_13(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_13_internal_baseline_comparators",
         "Internal Deterministic Comparator Trigger Counts",
-        1,
+        &["comparator_trigger_counts"],
         &["comparator_trigger_counts"],
     );
     for (index, row) in baseline_comparator_source_rows(bundle)
@@ -1195,10 +1221,11 @@ fn prepare_figure_13(bundle: &EngineOutputBundle) -> FigureSourceTable {
 
 fn prepare_figure_14(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_14_sweep_stability_summary",
         "Sweep Semantic Stability",
-        1,
+        &["sweep_semantic_stability"],
         &[],
     );
     for row in sweep_summary_source_rows(bundle) {
@@ -1257,10 +1284,11 @@ fn prepare_norm_vs_envelope_table(
 ) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, scenario_id)?;
     let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         figure_id,
         plot_title,
-        1,
+        &["norm_vs_envelope"],
         &[],
     );
     push_scalar_series(
@@ -1333,10 +1361,11 @@ fn prepare_norm_vs_envelope_table(
 }
 
 fn new_source_table(
+    generation_timestamp: &str,
     bank_version: &str,
     figure_id: &str,
     plot_title: &str,
-    expected_panel_count: usize,
+    expected_panel_ids: &[&str],
     count_like_panel_ids: &[&str],
 ) -> FigureSourceTable {
     FigureSourceTable {
@@ -1345,13 +1374,36 @@ fn new_source_table(
         bank_version: bank_version.to_string(),
         figure_id: figure_id.to_string(),
         plot_title: plot_title.to_string(),
-        expected_panel_count,
+        generation_timestamp: generation_timestamp.to_string(),
+        expected_panel_count: expected_panel_ids.len(),
+        expected_panel_ids: expected_panel_ids
+            .iter()
+            .map(|panel_id| (*panel_id).to_string())
+            .collect(),
         count_like_panel_ids: count_like_panel_ids
             .iter()
             .map(|panel_id| (*panel_id).to_string())
             .collect(),
+        panel_ids: Vec::new(),
+        series_ids: Vec::new(),
         rows: Vec::new(),
     }
+}
+
+fn finalize_source_table(table: &mut FigureSourceTable, generation_timestamp: &str) {
+    table.generation_timestamp = generation_timestamp.to_string();
+    table.panel_ids = ordered_unique(table.rows.iter().map(|row| row.panel_id.clone()));
+    table.series_ids = ordered_unique(table.rows.iter().map(|row| row.series_id.clone()));
+}
+
+fn ordered_unique(values: impl IntoIterator<Item = String>) -> Vec<String> {
+    let mut ordered = Vec::new();
+    for value in values {
+        if !ordered.contains(&value) {
+            ordered.push(value);
+        }
+    }
+    ordered
 }
 
 #[expect(

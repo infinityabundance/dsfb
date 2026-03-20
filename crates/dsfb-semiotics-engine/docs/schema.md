@@ -45,10 +45,14 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
   Scenario-level evaluation summaries.
 - `baseline_comparators.json`
   Internal deterministic comparator results.
+- `comparator_results.json`
+  Additive alias export for comparator results with `comparator_name`, `alarm`, `first_alarm_time`, and `config_reference` fields for downstream audit tools.
 - `semantic_matches.json`
   Standalone semantic retrieval results, including explicit stage-wise heuristic filtering counts.
 - `heuristic_bank_validation.json`
   Heuristic-bank governance and validation summary for the builtin or external bank selected for the run.
+- `bank_validation_report.json`
+  Additive alias export for the same governed bank-validation surface.
 - `artifact_completeness.json`
   Export completeness check recorded after artifact generation.
 - `<figure-id>_source.json`
@@ -61,6 +65,8 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
   Legacy additive internal deterministic comparator summary rows retained for compatibility.
 - `figure_integrity_checks.json`
   Integrity records linking summary figures back to their exported source rows.
+- `figure_integrity_report.json`
+  Additive alias export for figure-integrity checks with explicit expected/observed panel lists and failure messages.
 - `sweep_results.json`
   Present only for synthetic sweep runs.
 - `sweep_summary.json`
@@ -79,13 +85,16 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
 - `evaluation_summary.csv`
 - `scenario_evaluations.csv`
 - `baseline_comparators.csv`
+- `comparator_results.csv`
 - `heuristic_bank_validation.csv`
+- `bank_validation_report.csv`
 - `artifact_completeness.csv`
 - `<figure-id>_source.csv`
 - `figure_09_detectability_source.csv`
 - `figure_12_semantic_retrieval_source.csv`
 - `figure_13_internal_baseline_comparators_source.csv`
 - `figure_integrity_checks.csv`
+- `figure_integrity_report.csv`
 
 For synthetic sweep runs the crate also emits:
 
@@ -98,10 +107,10 @@ Scenario-specific CSV files are also emitted for time series, residual, drift, s
 
 - Every publication-style figure is paired with a machine-readable source table.
 - `figure_12_semantic_retrieval_source.*` exports explicit typed-bank counts including post-admissibility, post-regime, pre-scope, post-scope, rejected-stage counts, and final selected count.
-- Generic `<figure-id>_source.*` tables export panel ids, panel titles, series ids, series labels, plot coordinates, figure metadata, and additive notes for the rendered plot.
+- Generic `<figure-id>_source.*` tables export panel ids, panel titles, series ids, series labels, plot coordinates, generation timestamp, expected panel ids, rendered panel ids, figure metadata, and additive notes for the rendered plot.
 - Figure-source tables and evaluation summaries carry additive schema, engine-version, and bank-version fields so the plotted values can be tied back to the exact deterministic runtime surface.
 - `run_metadata.json` and `manifest.json` also export a deterministic `run_configuration_hash` so the settings surface can be referenced compactly in downstream audit tooling.
-- `figure_integrity_checks.*` records panel counts, source row counts, emitted image presence, count-like-panel integer checks, source-file locations, and simple consistency checks for the exported figure inputs.
+- `figure_integrity_checks.*` and `figure_integrity_report.*` record panel counts, expected/observed panel identities, source-table presence, source row counts, emitted image presence, count-like-panel integer checks, source-file locations, and explicit failure messages for the exported figure inputs.
 - The semantic retrieval figure's middle panel now plots admissibility-qualified heuristic counts directly, not grammar boundary counts or other proxies.
 
 ## Interpretation Notes

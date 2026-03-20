@@ -33,8 +33,14 @@ pub struct SyntaxThresholds {
     pub oscillatory_max_path_monotonicity: f64,
     pub oscillatory_min_sign_persistence: f64,
     pub oscillatory_max_violation_fraction: f64,
+    pub oscillatory_min_outward_inward_balance: f64,
+    pub oscillatory_min_max_slew_norm: f64,
+    pub oscillatory_max_slew_spike_strength: f64,
     pub noisy_min_slew_spike_count: usize,
     pub noisy_min_mean_squared_slew: f64,
+    pub noisy_min_outward_inward_balance: f64,
+    pub curvature_transition_spike_strength_floor: f64,
+    pub curvature_transition_spike_norm_floor: f64,
 }
 
 /// Deterministic semantic retrieval thresholds that are not encoded inside individual bank
@@ -120,8 +126,14 @@ impl Default for SyntaxThresholds {
             oscillatory_max_path_monotonicity: 0.40,
             oscillatory_min_sign_persistence: 0.40,
             oscillatory_max_violation_fraction: 0.0,
+            oscillatory_min_outward_inward_balance: 0.65,
+            oscillatory_min_max_slew_norm: 0.005,
+            oscillatory_max_slew_spike_strength: 0.003,
             noisy_min_slew_spike_count: 2,
-            noisy_min_mean_squared_slew: 0.003,
+            noisy_min_mean_squared_slew: 0.002,
+            noisy_min_outward_inward_balance: 0.45,
+            curvature_transition_spike_strength_floor: 0.015,
+            curvature_transition_spike_norm_floor: 0.005,
         }
     }
 }
