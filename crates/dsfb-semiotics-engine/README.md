@@ -88,6 +88,16 @@ Grammar is implemented through admissibility envelopes:
 \]
 
 The crate includes fixed, widening, tightening, regime-switched, and aggregate group envelopes. Grammar status is exported per step as `Admissible`, `Boundary`, or `Violation`.
+Grammar export is not limited to a bare boolean outcome. Each sample also carries a typed grammar reason code and human-readable explanation such as:
+
+- `Admissible`
+- `Boundary`
+- `RecurrentBoundaryGrazing`
+- `SustainedOutwardDrift`
+- `AbruptSlewViolation`
+- `EnvelopeViolation`
+
+These grammar reports describe structural inadmissibility relative to the configured envelope. They do not imply root-cause certainty.
 
 ### Detectability Bound
 
@@ -219,6 +229,17 @@ let artifacts = export_artifacts(&bundle)?;
 For CSV-driven runs, use `EngineConfig::csv(...)` with a validated `CsvInputConfig`. The exported run metadata and manifest both carry the additive schema marker `dsfb-semiotics-engine/v1`.
 To select an external bank artifact instead of the builtin fallback, set `CommonRunConfig { bank: BankRunConfig::external(path, strict), ..Default::default() }` before constructing the `EngineConfig`.
 
+## Bounded Online Engine
+
+In addition to the batch artifact pipeline, the crate now exposes a bounded online engine in [`src/live/`](src/live/) for replay and deployment-oriented integration surfaces.
+
+- online history is retained in a fixed-capacity ring buffer with deterministic overwrite semantics
+- the buffer capacity is explicit in `EngineSettings::online.history_buffer_capacity`
+- run metadata and manifests export the configured online history buffer capacity
+- optional offline accumulation remains separate so report/export workflows can still retain full histories without making the live path unbounded
+
+This separation matters for long-endurance or embedded-style use because the live engine path no longer requires unbounded sign or residual history growth.
+
 ## Evaluation Harness
 
 The crate keeps deterministic engine outputs separate from deterministic evaluation summaries.
@@ -247,6 +268,8 @@ The internal deterministic comparators are intentionally simple:
 
 These are internal deterministic comparators for inspection. They are not field benchmarks and they do not support superiority claims.
 They intentionally collapse structure into scalar triggers; the layered DSFB pipeline preserves syntax, grammar, and constrained semantic distinctions that these comparators do not retain.
+
+The comparison framing is intentionally operator-legible. These internal monitors are analogous in spirit to threshold detectors, innovation-style monitoring, and change detectors, but they remain within-crate deterministic comparisons on shared scenario families rather than external benchmarks.
 
 ## Heuristic Bank Governance
 
@@ -278,6 +301,8 @@ Each run exports a validation report covering:
 - optional strict-mode symmetry failures for compatibility and incompatibility links
 
 Compatibility gaps are exported explicitly as review notes. They do not silently disappear into retrieval behavior. Strict mode is appropriate for reference runs and release-grade artifacts; permissive mode is primarily useful while authoring or reviewing new bank content because it preserves the same validation report while allowing the run to proceed.
+
+The builtin bank is no longer treated as the only operational path. A validated external JSON bank can be swapped at startup without recompiling the engine logic, which allows motif-library updates to remain data-driven and separately versioned from the core engine implementation.
 
 ## Sweep Mode
 
@@ -398,6 +423,27 @@ Property budgets are controlled with `DSFB_PROPTEST_MODE=smoke|research|stress`,
 The crate currently ships one additive Cargo feature flag:
 
 - `external-bank` (enabled by default): enables external heuristic-bank JSON loading alongside the builtin fallback
+- `numeric-f32`: narrows the bounded live-engine ingestion surface to `f32` while the internal deterministic math remains explicitly widened for conservative reproducibility; manifests record the selected numeric mode
+
+Check the crate in `numeric-f32` mode:
+
+```bash
+cargo check --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --features numeric-f32
+```
+
+Run the bounded online failure-injection example:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --example synthetic_failure_injection
+```
+
+Build the legacy-integration FFI crate and header surface:
+
+```bash
+cargo test --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -p dsfb-semiotics-engine-ffi
+```
+
+The checked-in header lives at [`ffi/include/dsfb_semiotics_engine.h`](ffi/include/dsfb_semiotics_engine.h), and a minimal C example lives at [`ffi/examples/minimal_ffi.c`](ffi/examples/minimal_ffi.c).
 
 Refresh snapshot fixtures intentionally with:
 
@@ -431,6 +477,7 @@ The zip archive contains the generated run directory contents for convenient dow
 The PDF report embeds the generated figure PNG artifacts and appends a deterministic artifact appendix covering the exported markdown, manifest, CSV, and JSON text artifacts.
 Artifact export treats the timestamped run directory as owned scratch space: expected artifact subdirectories are cleaned before rewriting, and unexpected root-level files cause the export to fail rather than silently mixing stale results into a purportedly fresh run.
 Both `run_metadata.json` and `manifest.json` carry the additive schema marker `dsfb-semiotics-engine/v1` so downstream review tooling can check the exported contract explicitly. They also export a deterministic `run_configuration_hash` alongside the explicit settings dump and bank provenance.
+Those metadata files also export the bounded online-history buffer capacity and the selected numeric mode.
 Heuristic-bank artifacts use the separate schema marker `dsfb-semiotics-engine-bank/v1`, and the resolved bank descriptor is exported at `json/loaded_heuristic_bank_descriptor.json`.
 
 Additional evaluation artifacts include:
@@ -511,10 +558,34 @@ It:
 - displays summary tables inline
 - displays all figures inline
 - displays resolved artifact paths for debugging
-- renders one-click download links for the PDF report and ZIP bundle when those artifacts exist
+- renders one-click download buttons for the PDF report and ZIP bundle when those artifacts exist
 - shows a clear warning instead of a broken button when an expected artifact is missing
 
 The notebook does not reimplement the semiotic engine logic in Python.
+
+## FFI And Legacy Integration
+
+For legacy control stacks and C or C++ hosts, the crate includes a minimal nested FFI crate at [`ffi/`](ffi/).
+
+- it exposes a small C ABI around the bounded online engine
+- the exported surface supports create, destroy, push-sample, current-status query, and reset
+- grammar state and grammar reason are exposed explicitly through C-friendly enums
+- the header is checked in so downstream users do not need Rust tooling merely to inspect the ABI
+
+This is a minimal integration path for experimentation and interoperability. It is not a certification claim.
+
+## Synthetic Failure Injection Example
+
+[`examples/synthetic_failure_injection.rs`](examples/synthetic_failure_injection.rs) provides a dead-simple deterministic example that starts from a nominal oscillatory signal, injects a linear degradation term, pushes the signal through the bounded online engine, and prints a time-stamped interpretation trace.
+
+The example demonstrates:
+
+- nominal behavior
+- structural change detection
+- grammar escalation
+- semantic retrieval under the current bank
+
+The printed wording is illustrative and depends on the configured heuristic bank, but the example is intended to be operator-readable and easy to rerun locally.
 
 ## Limitations and Non-Claims
 

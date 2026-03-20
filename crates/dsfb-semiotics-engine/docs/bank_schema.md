@@ -34,7 +34,8 @@ ordering differences in entries or link lists do not create hidden runtime varia
       "applicability_note": "Conservative explanation of when this motif is intended to apply.",
       "retrieval_priority": 10,
       "compatible_with": [],
-      "incompatible_with": []
+      "incompatible_with": [],
+      "directional_incompatibility_exceptions": []
     }
   ]
 }
@@ -64,6 +65,12 @@ Each entry must provide:
 - `retrieval_priority`
 - `compatible_with`
 - `incompatible_with`
+
+Optional:
+
+- `directional_incompatibility_exceptions`
+
+That field is only for explicitly documented directional exceptions. The builtin reference bank now keeps its incompatibility graph symmetric by default.
 
 ## Scope Conditions
 
@@ -129,6 +136,7 @@ At startup the crate validates external banks for:
 - retrieval-priority sanity
 - scope-condition sanity checks
 - optional strict reverse-link symmetry checks
+- optional explicitly documented directional-exception handling for incompatibility links
 
 Strict mode is enabled with `--strict-bank-validation`. In strict mode, missing reverse
 compatibility or incompatibility links fail the run. The runtime exports

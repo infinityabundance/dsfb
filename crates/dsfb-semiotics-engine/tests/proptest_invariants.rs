@@ -182,6 +182,7 @@ fn valid_registry_with_links(compatible: bool, incompatible: bool) -> HeuristicB
         retrieval_priority: 1,
         compatible_with: Vec::new(),
         incompatible_with: Vec::new(),
+        directional_incompatibility_exceptions: Vec::new(),
     };
     let mut right = left.clone();
     right.heuristic_id = "H-B".to_string();

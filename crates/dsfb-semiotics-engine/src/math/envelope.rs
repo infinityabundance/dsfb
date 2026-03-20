@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 
 use crate::engine::types::{
-    AdmissibilityEnvelope, EnvelopeMode, EnvelopeSample, GrammarState, GrammarStatus,
-    ResidualTrajectory,
+    AdmissibilityEnvelope, EnvelopeMode, EnvelopeSample, GrammarReasonCode, GrammarState,
+    GrammarStatus, ResidualTrajectory,
 };
 
 /// Typed envelope configuration used by both synthetic and CSV-driven runs.
@@ -139,11 +139,13 @@ pub fn evaluate_grammar(
     residual: &ResidualTrajectory,
     envelope: &AdmissibilityEnvelope,
 ) -> Vec<GrammarStatus> {
+    let mut boundary_streak = 0usize;
     residual
         .samples
         .iter()
         .zip(&envelope.samples)
-        .map(|(sample, env)| {
+        .enumerate()
+        .map(|(index, (sample, env))| {
             let margin = env.radius - sample.norm;
             let state = if margin < 0.0 {
                 GrammarState::Violation
@@ -152,11 +154,67 @@ pub fn evaluate_grammar(
             } else {
                 GrammarState::Admissible
             };
+            boundary_streak = if matches!(state, GrammarState::Boundary) {
+                boundary_streak + 1
+            } else {
+                0
+            };
+            let previous_norm = index
+                .checked_sub(1)
+                .and_then(|previous| residual.samples.get(previous))
+                .map(|previous| previous.norm)
+                .unwrap_or(sample.norm);
+            let norm_delta = sample.norm - previous_norm;
+            let abrupt_threshold = 0.08 * env.radius.max(1.0);
+            let (reason_code, reason_text) = match state {
+                GrammarState::Admissible => (
+                    GrammarReasonCode::Admissible,
+                    "Residual norm remained inside the configured admissibility envelope."
+                        .to_string(),
+                ),
+                GrammarState::Boundary if boundary_streak >= 2 => (
+                    GrammarReasonCode::RecurrentBoundaryGrazing,
+                    "Residual norm remained near the configured envelope boundary across consecutive samples."
+                        .to_string(),
+                ),
+                GrammarState::Boundary => (
+                    GrammarReasonCode::Boundary,
+                    "Residual norm approached the configured admissibility boundary without breaching it."
+                        .to_string(),
+                ),
+                GrammarState::Violation if norm_delta > abrupt_threshold => (
+                    GrammarReasonCode::AbruptSlewViolation,
+                    "Residual norm breached the configured envelope with an abrupt increase relative to the previous sample."
+                        .to_string(),
+                ),
+                GrammarState::Violation if norm_delta > 0.0 => (
+                    GrammarReasonCode::SustainedOutwardDrift,
+                    "Residual norm breached the configured envelope during continued outward growth."
+                        .to_string(),
+                ),
+                GrammarState::Violation => (
+                    GrammarReasonCode::EnvelopeViolation,
+                    "Residual norm remained outside the configured admissibility envelope."
+                        .to_string(),
+                ),
+            };
             GrammarStatus {
                 scenario_id: residual.scenario_id.clone(),
                 step: sample.step,
                 time: sample.time,
                 state,
+                reason_code,
+                rule_category: match state {
+                    GrammarState::Admissible => "admissible",
+                    GrammarState::Boundary => "boundary",
+                    GrammarState::Violation => "violation",
+                }
+                .to_string(),
+                reason_text,
+                supporting_metric_summary: format!(
+                    "margin={}, radius={}, residual_norm={}, norm_delta={}",
+                    margin, env.radius, sample.norm, norm_delta
+                ),
                 margin,
                 radius: env.radius,
                 residual_norm: sample.norm,

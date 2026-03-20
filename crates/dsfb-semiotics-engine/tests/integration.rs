@@ -13,9 +13,9 @@ use dsfb_semiotics_engine::engine::semantics_layer::retrieve_semantics;
 use dsfb_semiotics_engine::engine::sign_layer::construct_signs;
 use dsfb_semiotics_engine::engine::syntax_layer::characterize_syntax;
 use dsfb_semiotics_engine::engine::types::{
-    CoordinatedResidualStructure, EnvelopeMode, GrammarState, GrammarStatus, GroupDefinition,
-    GroupResidualPoint, ObservedTrajectory, PredictedTrajectory, SemanticDisposition, SignSample,
-    SignTrajectory, SyntaxCharacterization, VectorSample,
+    CoordinatedResidualStructure, EnvelopeMode, GrammarReasonCode, GrammarState, GrammarStatus,
+    GroupDefinition, GroupResidualPoint, ObservedTrajectory, PredictedTrajectory,
+    SemanticDisposition, SignSample, SignTrajectory, SyntaxCharacterization, VectorSample,
 };
 use dsfb_semiotics_engine::io::input::load_csv_trajectories;
 use dsfb_semiotics_engine::io::output::create_output_layout;
@@ -1657,6 +1657,13 @@ fn grammar_status(
         step,
         time,
         state,
+        reason_code: grammar_reason_code(state, margin),
+        rule_category: grammar_rule_category(state).to_string(),
+        reason_text: grammar_reason_text(state, margin),
+        supporting_metric_summary: format!(
+            "margin={margin}, radius=1, residual_norm={}",
+            1.0 - margin
+        ),
         margin,
         radius: 1.0,
         residual_norm: 1.0 - margin,
@@ -1677,10 +1684,61 @@ fn grammar_status_with_regime(
         step,
         time,
         state,
+        reason_code: grammar_reason_code(state, margin),
+        rule_category: grammar_rule_category(state).to_string(),
+        reason_text: grammar_reason_text(state, margin),
+        supporting_metric_summary: format!(
+            "margin={margin}, radius=1, residual_norm={}",
+            1.0 - margin
+        ),
         margin,
         radius: 1.0,
         residual_norm: 1.0 - margin,
         regime: regime.to_string(),
+    }
+}
+
+fn grammar_reason_code(state: GrammarState, margin: f64) -> GrammarReasonCode {
+    match state {
+        GrammarState::Admissible => GrammarReasonCode::Admissible,
+        GrammarState::Boundary => GrammarReasonCode::Boundary,
+        GrammarState::Violation if margin < -0.2 => GrammarReasonCode::AbruptSlewViolation,
+        GrammarState::Violation => GrammarReasonCode::EnvelopeViolation,
+    }
+}
+
+fn grammar_rule_category(state: GrammarState) -> &'static str {
+    match state {
+        GrammarState::Admissible => "admissible",
+        GrammarState::Boundary => "boundary",
+        GrammarState::Violation => "violation",
+    }
+}
+
+fn grammar_reason_text(state: GrammarState, margin: f64) -> String {
+    match grammar_reason_code(state, margin) {
+        GrammarReasonCode::Admissible => {
+            "Residual norm remained inside the configured admissibility envelope.".to_string()
+        }
+        GrammarReasonCode::Boundary => {
+            "Residual norm approached the configured admissibility boundary without breaching it."
+                .to_string()
+        }
+        GrammarReasonCode::RecurrentBoundaryGrazing => {
+            "Residual norm remained near the configured envelope boundary across consecutive samples."
+                .to_string()
+        }
+        GrammarReasonCode::SustainedOutwardDrift => {
+            "Residual norm breached the configured envelope during continued outward growth."
+                .to_string()
+        }
+        GrammarReasonCode::AbruptSlewViolation => {
+            "Residual norm breached the configured envelope with an abrupt increase relative to the previous sample."
+                .to_string()
+        }
+        GrammarReasonCode::EnvelopeViolation => {
+            "Residual norm remained outside the configured admissibility envelope.".to_string()
+        }
     }
 }
 

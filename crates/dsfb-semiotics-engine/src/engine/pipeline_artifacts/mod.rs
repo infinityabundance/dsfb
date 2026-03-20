@@ -1,0 +1,184 @@
+//! Deterministic artifact assembly for completed semiotics runs.
+//!
+//! Responsibilities are split explicitly:
+//! - [`tables`] materializes machine-readable CSV/JSON exports.
+//! - [`figures`] writes figure-source tables and integrity reports.
+//! - [`report`] assembles the manifest, completeness record, and PDF text appendices.
+//! - this module keeps only the top-level export orchestration.
+
+mod figures;
+mod integrity;
+mod report;
+mod tables;
+
+use std::path::PathBuf;
+
+use anyhow::{Context, Result};
+
+use crate::engine::types::EngineOutputBundle;
+use crate::figures::plots::render_all_figures;
+use crate::figures::source::prepare_publication_figure_source_tables;
+use crate::io::csv::write_rows;
+use crate::io::json::write_pretty;
+use crate::io::output::{prepare_clean_export_layout, OutputLayout};
+use crate::io::zip::zip_directory;
+use crate::report::artifact_report::build_markdown_report;
+use crate::report::pdf::write_artifact_pdf;
+
+use self::report::{
+    build_artifact_completeness, build_report_manifest, collect_pdf_text_artifacts,
+};
+use self::tables::write_tabular_artifacts;
+
+/// Filesystem artifact inventory written for one completed deterministic run.
+#[derive(Clone, Debug)]
+pub struct ExportedArtifacts {
+    pub run_dir: PathBuf,
+    pub manifest_path: PathBuf,
+    pub report_markdown: PathBuf,
+    pub report_pdf: PathBuf,
+    pub zip_path: PathBuf,
+    pub figure_paths: Vec<PathBuf>,
+}
+
+/// Writes figures, CSV, JSON, markdown, PDF, and zip artifacts for one completed bundle.
+pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts> {
+    let layout = OutputLayout {
+        timestamp: bundle.run_metadata.timestamp.clone(),
+        run_dir: bundle.run_dir.clone(),
+        figures_dir: bundle.run_dir.join("figures"),
+        csv_dir: bundle.run_dir.join("csv"),
+        json_dir: bundle.run_dir.join("json"),
+        report_dir: bundle.run_dir.join("report"),
+    };
+    prepare_clean_export_layout(&layout)?;
+
+    let figure_source_tables = prepare_publication_figure_source_tables(bundle)?;
+    let figure_artifacts = render_all_figures(&figure_source_tables, &layout.figures_dir)?;
+    let tabular_summary = write_tabular_artifacts(
+        bundle,
+        &figure_source_tables,
+        &figure_artifacts,
+        &layout,
+        bundle
+            .run_metadata
+            .engine_settings
+            .plotting
+            .count_like_integer_tolerance,
+    )?;
+
+    let manifest_path = layout.run_dir.join("manifest.json");
+    let report_markdown_path = layout.report_dir.join("dsfb_semiotics_engine_report.md");
+    let report_pdf_path = layout.report_dir.join("dsfb_semiotics_engine_report.pdf");
+    let zip_path = layout.run_dir.join(format!(
+        "dsfb-semiotics-engine-{}.zip",
+        bundle.run_metadata.timestamp
+    ));
+
+    let initial_manifest = build_report_manifest(
+        bundle,
+        &figure_artifacts,
+        &layout,
+        &report_markdown_path,
+        &report_pdf_path,
+        &zip_path,
+        None,
+    )?;
+    let initial_markdown = build_markdown_report(
+        bundle,
+        &figure_artifacts,
+        &initial_manifest,
+        None,
+        Some(&tabular_summary.figure_integrity_checks),
+    );
+    std::fs::write(&report_markdown_path, &initial_markdown)
+        .with_context(|| format!("failed to write {}", report_markdown_path.display()))?;
+    write_pretty(&manifest_path, &initial_manifest)?;
+    let text_artifacts = collect_pdf_text_artifacts(
+        &layout,
+        &initial_manifest,
+        &initial_markdown,
+        &manifest_path,
+    )?;
+    write_artifact_pdf(
+        &report_pdf_path,
+        "dsfb-semiotics-engine report",
+        &initial_markdown
+            .lines()
+            .map(|line| line.to_string())
+            .collect::<Vec<_>>(),
+        &figure_artifacts,
+        &initial_manifest,
+        &text_artifacts,
+    )?;
+    zip_directory(&layout.run_dir, &zip_path)?;
+
+    let completeness = build_artifact_completeness(
+        bundle,
+        &layout,
+        &figure_artifacts,
+        &report_markdown_path,
+        &report_pdf_path,
+        &zip_path,
+        &manifest_path,
+    )?;
+    write_rows(
+        layout.csv_dir.join("artifact_completeness.csv").as_path(),
+        std::iter::once(completeness.clone()),
+    )?;
+    write_pretty(
+        layout.json_dir.join("artifact_completeness.json").as_path(),
+        &completeness,
+    )?;
+
+    let report_manifest = build_report_manifest(
+        bundle,
+        &figure_artifacts,
+        &layout,
+        &report_markdown_path,
+        &report_pdf_path,
+        &zip_path,
+        Some(&completeness),
+    )?;
+    let final_markdown = build_markdown_report(
+        bundle,
+        &figure_artifacts,
+        &report_manifest,
+        Some(&completeness),
+        Some(&tabular_summary.figure_integrity_checks),
+    );
+    std::fs::write(&report_markdown_path, &final_markdown)
+        .with_context(|| format!("failed to write {}", report_markdown_path.display()))?;
+    write_pretty(&manifest_path, &report_manifest)?;
+    let final_text_artifacts =
+        collect_pdf_text_artifacts(&layout, &report_manifest, &final_markdown, &manifest_path)?;
+    write_artifact_pdf(
+        &report_pdf_path,
+        "dsfb-semiotics-engine report",
+        &final_markdown
+            .lines()
+            .map(|line| line.to_string())
+            .collect::<Vec<_>>(),
+        &figure_artifacts,
+        &report_manifest,
+        &final_text_artifacts,
+    )?;
+    zip_directory(&layout.run_dir, &zip_path)?;
+
+    Ok(ExportedArtifacts {
+        run_dir: layout.run_dir,
+        manifest_path,
+        report_markdown: report_markdown_path,
+        report_pdf: report_pdf_path,
+        zip_path,
+        figure_paths: figure_artifacts
+            .iter()
+            .flat_map(|figure| {
+                [
+                    PathBuf::from(&figure.png_path),
+                    PathBuf::from(&figure.svg_path),
+                ]
+            })
+            .collect(),
+    })
+}

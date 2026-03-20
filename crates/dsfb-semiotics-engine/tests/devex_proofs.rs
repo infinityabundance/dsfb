@@ -63,6 +63,12 @@ fn test_example_csv_workflow_exists() {
     assert!(crate_root()
         .join("docs/examples/dashboard_replay.md")
         .is_file());
+    assert!(crate_root()
+        .join("docs/examples/ffi_integration.md")
+        .is_file());
+    assert!(crate_root()
+        .join("docs/examples/synthetic_failure_injection.md")
+        .is_file());
 }
 
 #[test]
@@ -75,8 +81,22 @@ fn test_readme_mentions_dashboard_if_dashboard_added() {
 #[test]
 fn test_readme_mentions_colab_download_buttons() {
     let readme = readme_text();
-    assert!(readme.contains("one-click download links"));
+    assert!(readme.contains("one-click download"));
     assert!(readme.contains("PDF report and ZIP bundle"));
+}
+
+#[test]
+fn test_readme_mentions_bounded_online_history_and_numeric_mode() {
+    let readme = readme_text();
+    assert!(readme.contains("fixed-capacity ring buffer"));
+    assert!(readme.contains("numeric-f32"));
+}
+
+#[test]
+fn test_readme_mentions_ffi_and_failure_injection_example() {
+    let readme = readme_text();
+    assert!(readme.contains("ffi/include/dsfb_semiotics_engine.h"));
+    assert!(readme.contains("synthetic_failure_injection"));
 }
 
 #[test]

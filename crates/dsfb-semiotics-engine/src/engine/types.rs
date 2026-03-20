@@ -106,12 +106,27 @@ pub enum GrammarState {
     Violation,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum GrammarReasonCode {
+    Admissible,
+    Boundary,
+    RecurrentBoundaryGrazing,
+    SustainedOutwardDrift,
+    AbruptSlewViolation,
+    EnvelopeViolation,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GrammarStatus {
     pub scenario_id: String,
     pub step: usize,
     pub time: f64,
     pub state: GrammarState,
+    pub reason_code: GrammarReasonCode,
+    pub rule_category: String,
+    pub reason_text: String,
+    pub supporting_metric_summary: String,
     pub margin: f64,
     pub radius: f64,
     pub residual_norm: f64,
@@ -301,6 +316,8 @@ pub struct HeuristicBankEntry {
     pub retrieval_priority: u32,
     pub compatible_with: Vec<String>,
     pub incompatible_with: Vec<String>,
+    #[serde(default)]
+    pub directional_incompatibility_exceptions: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -492,6 +509,10 @@ pub struct RunMetadata {
     pub engine_settings: EngineSettings,
     /// Resolved heuristic-bank provenance for this run, including source and content hash.
     pub bank: LoadedBankDescriptor,
+    /// Deterministic bounded online-history capacity used by the live/deployment-oriented path.
+    pub online_history_buffer_capacity: usize,
+    /// Numeric mode used by the deployment-oriented bounded-history path.
+    pub numeric_mode: String,
     pub cli_args: Vec<String>,
     pub os: String,
     pub arch: String,
@@ -508,6 +529,8 @@ pub struct ReportManifest {
     pub crate_version: String,
     pub timestamp: String,
     pub input_mode: String,
+    pub online_history_buffer_capacity: usize,
+    pub numeric_mode: String,
     pub bank: LoadedBankDescriptor,
     pub run_dir: String,
     pub report_markdown: String,

@@ -75,6 +75,14 @@ pub struct PlottingSettings {
     pub count_like_integer_tolerance: f64,
 }
 
+/// Deterministic bounded-history settings for the deployment-oriented online engine path.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OnlineEngineSettings {
+    pub history_buffer_capacity: usize,
+    pub offline_history_enabled: bool,
+    pub numeric_mode: String,
+}
+
 /// Deterministic formatting settings for report- and evaluation-facing summaries.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReportingSettings {
@@ -91,6 +99,7 @@ pub struct EngineSettings {
     pub evaluation: EvaluationSettings,
     pub plotting: PlottingSettings,
     pub reporting: ReportingSettings,
+    pub online: OnlineEngineSettings,
 }
 
 impl Default for SyntaxThresholds {
@@ -171,6 +180,20 @@ impl Default for PlottingSettings {
     fn default() -> Self {
         Self {
             count_like_integer_tolerance: 1.0e-9,
+        }
+    }
+}
+
+impl Default for OnlineEngineSettings {
+    fn default() -> Self {
+        Self {
+            history_buffer_capacity: 64,
+            offline_history_enabled: false,
+            numeric_mode: if cfg!(feature = "numeric-f32") {
+                "f32".to_string()
+            } else {
+                "f64".to_string()
+            },
         }
     }
 }

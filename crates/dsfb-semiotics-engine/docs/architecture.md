@@ -30,6 +30,8 @@ observed + predicted
   Deterministic numerical primitives, norms, envelopes, finite differences, and helper metrics.
 - `src/engine`
   Typed layered engine objects, threshold settings, heuristic-bank governance, and orchestration.
+- `src/live`
+  Bounded ring-buffer online engine state used by replay, FFI, and deployment-oriented integration surfaces.
 - `src/evaluation`
   Post-run deterministic summaries, internal comparator baselines, and sweep summarization.
 - `src/io`
@@ -38,6 +40,8 @@ observed + predicted
   Deterministic figure generation with captions aligned to the actual implementation.
 - `src/report`
   Markdown and PDF artifact reporting with explicit limitations and provenance.
+- `ffi`
+  Minimal C ABI wrapper around the bounded live engine for legacy-host experiments.
 - `src/sim`
   Synthetic scenario generation and sweep members.
 
