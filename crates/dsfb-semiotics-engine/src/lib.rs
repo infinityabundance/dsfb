@@ -7,6 +7,7 @@ pub mod engine;
 pub mod evaluation;
 pub mod figures;
 pub mod io;
+pub mod live;
 pub mod math;
 pub mod report;
 pub mod sim;
@@ -27,12 +28,16 @@ pub use engine::pipeline::{
     export_artifacts, run_all_demos, run_scenario, EngineConfig, StructuralSemioticsEngine,
 };
 pub use engine::settings::{
-    EngineSettings, EvaluationSettings, PlottingSettings, ReportingSettings,
+    EngineSettings, EvaluationSettings, OnlineEngineSettings, PlottingSettings, ReportingSettings,
     SemanticRetrievalSettings, SyntaxThresholds,
 };
 pub use engine::types::{
     AdmissibilityEnvelope, CoordinatedResidualStructure, DetectabilityResult, EngineOutputBundle,
-    GrammarStatus, ObservedTrajectory, PredictedTrajectory, ReportManifest, ResidualTrajectory,
-    SemanticMatchResult, SignTrajectory,
+    GrammarReasonCode, GrammarState, GrammarStatus, ObservedTrajectory, PredictedTrajectory,
+    ReportManifest, ResidualTrajectory, SemanticMatchResult, SignTrajectory,
 };
 pub use io::schema::{ARTIFACT_SCHEMA_VERSION, HEURISTIC_BANK_SCHEMA_VERSION};
+pub use live::{
+    numeric_mode_label, LiveEngineStatus, OnlineStructuralEngine, Real, RingBuffer,
+    LIVE_ENGINE_STATUS_SCHEMA_VERSION,
+};

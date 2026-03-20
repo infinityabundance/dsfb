@@ -30,10 +30,12 @@ include = [
 ]
 
 [workspace]
+members = [".", "ffi"]
 
 [features]
 default = ["external-bank"]
 external-bank = []
+numeric-f32 = []
 
 [dependencies]
 anyhow = "1"

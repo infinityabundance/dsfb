@@ -460,6 +460,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "dsfb-semiotics-engine-ffi"
+version = "0.1.0"
+dependencies = [
+ "dsfb-semiotics-engine",
+]
+
+[[package]]
 name = "dwrote"
 version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

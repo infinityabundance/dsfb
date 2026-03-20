@@ -299,7 +299,15 @@ impl HeuristicBankRegistry {
                     continue;
                 }
                 if let Some(target_entry) = entry_map.get(target.as_str()) {
-                    if !target_entry.incompatible_with.contains(&entry.heuristic_id) {
+                    let reverse_missing =
+                        !target_entry.incompatible_with.contains(&entry.heuristic_id);
+                    let directional_exception = entry
+                        .directional_incompatibility_exceptions
+                        .contains(target)
+                        || target_entry
+                            .directional_incompatibility_exceptions
+                            .contains(&entry.heuristic_id);
+                    if reverse_missing && !directional_exception {
                         missing_incompatibility_links.push(format!(
                             "{} lists {} as incompatible, but the reverse link is missing.",
                             entry.heuristic_id, target
@@ -453,6 +461,7 @@ impl HeuristicBankRegistry {
         for entry in &mut self.entries {
             entry.compatible_with.sort();
             entry.incompatible_with.sort();
+            entry.directional_incompatibility_exceptions.sort();
             entry.regime_tags.sort();
         }
         self

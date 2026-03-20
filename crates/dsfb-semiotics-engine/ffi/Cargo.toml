@@ -1,0 +1,12 @@
+[package]
+name = "dsfb-semiotics-engine-ffi"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "C ABI wrapper for the bounded live DSFB semiotics engine"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+dsfb-semiotics-engine = { path = ".." }

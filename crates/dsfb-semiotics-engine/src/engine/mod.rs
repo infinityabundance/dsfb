@@ -6,6 +6,7 @@ pub(crate) mod pipeline_artifacts;
 pub(crate) mod pipeline_core;
 pub(crate) mod pipeline_evaluation;
 pub mod residual_layer;
+pub mod semantics;
 pub mod semantics_layer;
 pub mod settings;
 pub mod sign_layer;

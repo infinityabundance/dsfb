@@ -16,7 +16,7 @@ fn test_pipeline_module_split_exists() {
     assert!(crate_root().join("src/engine/pipeline.rs").is_file());
     assert!(crate_root().join("src/engine/pipeline_core.rs").is_file());
     assert!(crate_root()
-        .join("src/engine/pipeline_artifacts.rs")
+        .join("src/engine/pipeline_artifacts/mod.rs")
         .is_file());
     assert!(crate_root()
         .join("src/engine/pipeline_evaluation.rs")
@@ -30,10 +30,29 @@ fn test_pipeline_core_module_present() {
 }
 
 #[test]
-fn test_pipeline_artifacts_module_present() {
-    let text = fs::read_to_string(crate_root().join("src/engine/pipeline_artifacts.rs")).unwrap();
-    assert!(text.contains("artifact assembly"));
-    assert!(text.contains("figure-source exports"));
+fn test_pipeline_artifacts_directory_present() {
+    assert!(crate_root().join("src/engine/pipeline_artifacts").is_dir());
+}
+
+#[test]
+fn test_pipeline_artifacts_figures_module_present() {
+    let text =
+        fs::read_to_string(crate_root().join("src/engine/pipeline_artifacts/figures.rs")).unwrap();
+    assert!(text.contains("Figure-source export helpers"));
+}
+
+#[test]
+fn test_pipeline_artifacts_tables_module_present() {
+    let text =
+        fs::read_to_string(crate_root().join("src/engine/pipeline_artifacts/tables.rs")).unwrap();
+    assert!(text.contains("tabular export"));
+}
+
+#[test]
+fn test_pipeline_artifacts_report_module_present() {
+    let text =
+        fs::read_to_string(crate_root().join("src/engine/pipeline_artifacts/report.rs")).unwrap();
+    assert!(text.contains("Report-manifest"));
 }
 
 #[test]
@@ -48,6 +67,37 @@ fn test_pipeline_module_responsibilities_documented() {
     let facade = fs::read_to_string(crate_root().join("src/engine/pipeline.rs")).unwrap();
     assert!(facade.contains("artifact assembly"));
     assert!(facade.contains("reproducibility aggregation"));
+}
+
+#[test]
+fn test_semantics_subdirectory_present() {
+    assert!(crate_root().join("src/engine/semantics").is_dir());
+}
+
+#[test]
+fn test_semantics_bank_builtin_module_present() {
+    let text =
+        fs::read_to_string(crate_root().join("src/engine/semantics/bank_builtin.rs")).unwrap();
+    assert!(text.contains("Builtin typed heuristic-bank entries"));
+}
+
+#[test]
+fn test_semantics_retrieval_module_present() {
+    let text = fs::read_to_string(crate_root().join("src/engine/semantics/retrieval.rs")).unwrap();
+    assert!(text.contains("retrieve_semantics_with_registry"));
+}
+
+#[test]
+fn test_semantics_scope_eval_module_present() {
+    let text = fs::read_to_string(crate_root().join("src/engine/semantics/scope_eval.rs")).unwrap();
+    assert!(text.contains("Scope-condition evaluation"));
+}
+
+#[test]
+fn test_semantics_compatibility_module_present() {
+    let text =
+        fs::read_to_string(crate_root().join("src/engine/semantics/compatibility.rs")).unwrap();
+    assert!(text.contains("Compatibility assessment"));
 }
 
 #[test]

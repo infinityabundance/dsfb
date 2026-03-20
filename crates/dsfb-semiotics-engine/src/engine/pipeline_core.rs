@@ -541,6 +541,8 @@ fn run_metadata(
         dt: config.dt,
         engine_settings: settings.clone(),
         bank: bank.clone(),
+        online_history_buffer_capacity: settings.online.history_buffer_capacity,
+        numeric_mode: settings.online.numeric_mode.clone(),
         cli_args: std::env::args().collect(),
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),

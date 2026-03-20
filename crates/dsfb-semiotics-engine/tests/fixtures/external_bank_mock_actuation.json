@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "schema_version": "dsfb-semiotics-engine-bank/v1",
+    "bank_version": "mock-actuation-bank/v1",
+    "note": "Illustrative mock-domain external bank showing that motif libraries can be swapped without recompiling the engine."
+  },
+  "entries": [
+    {
+      "heuristic_id": "H-ACTUATION-DRIFT-COMPATIBLE",
+      "motif_label": "actuation drift-compatible candidate",
+      "short_label": "actuation_drift",
+      "scope_conditions": {
+        "min_outward_drift_fraction": 0.55,
+        "max_outward_drift_fraction": null,
+        "min_inward_drift_fraction": null,
+        "max_inward_drift_fraction": 0.25,
+        "max_curvature_energy": 1e-6,
+        "min_curvature_energy": null,
+        "max_curvature_onset_score": 0.2,
+        "min_curvature_onset_score": null,
+        "min_directional_persistence": 0.6,
+        "min_sign_consistency": 0.6,
+        "min_channel_coherence": 0.4,
+        "min_aggregate_monotonicity": 0.7,
+        "max_aggregate_monotonicity": null,
+        "min_slew_spike_count": null,
+        "max_slew_spike_count": 1,
+        "min_slew_spike_strength": null,
+        "max_slew_spike_strength": 0.01,
+        "min_boundary_grazing_episodes": null,
+        "max_boundary_grazing_episodes": null,
+        "min_boundary_recovery_count": null,
+        "min_coordinated_group_breach_fraction": null,
+        "max_coordinated_group_breach_fraction": 0.05,
+        "require_group_breach": false
+      },
+      "admissibility_requirements": "NoViolation",
+      "regime_tags": [
+        "fixed",
+        "widening"
+      ],
+      "provenance": {
+        "source": "mock actuation external bank",
+        "note": "Illustrative mock-domain drift motif used to demonstrate bank swapping without reflashing engine logic."
+      },
+      "applicability_note": "Use only as a conservative mock-domain drift motif for external-bank demonstrations.",
+      "retrieval_priority": 72,
+      "compatible_with": [],
+      "incompatible_with": []
+    }
+  ]
+}

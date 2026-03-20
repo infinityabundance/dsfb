@@ -28,13 +28,13 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
 ## Core JSON Artifacts
 
 - `run_metadata.json`
-  Run provenance, crate version, Rust version when available, input mode, CLI args, and deterministic engine settings.
+  Run provenance, crate version, Rust version when available, input mode, CLI args, deterministic engine settings, bounded online-history buffer capacity, and selected numeric mode.
 - `loaded_heuristic_bank_descriptor.json`
   Resolved bank provenance for the run, including bank schema version, bank version, source kind, optional source path, content hash, and validation mode.
 - `scenario_catalog.json`
   Scenario metadata for synthetic, CSV-driven, or sweep members.
 - `scenario_outputs.json`
-  Full layered outputs for each executed scenario.
+  Full layered outputs for each executed scenario, including typed grammar reason codes and reason text.
 - `reproducibility_checks.json`
   Per-scenario deterministic materialization hashes over full layered outputs.
 - `reproducibility_summary.json`
@@ -79,6 +79,8 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
 - `scenario_catalog.csv`
 - `semantic_matches.csv`
 - `grammar_events.csv`
+- `grammar_events.csv`
+  Includes grammar state, grammar reason code, reason text, and supporting metric summary per step.
 - `pipeline_summary.csv`
 - `reproducibility_check.csv`
 - `reproducibility_summary.csv`
@@ -110,6 +112,7 @@ Scenario-specific CSV files are also emitted for time series, residual, drift, s
 - Generic `<figure-id>_source.*` tables export panel ids, panel titles, series ids, series labels, plot coordinates, generation timestamp, expected panel ids, rendered panel ids, figure metadata, and additive notes for the rendered plot.
 - Figure-source tables and evaluation summaries carry additive schema, engine-version, and bank-version fields so the plotted values can be tied back to the exact deterministic runtime surface.
 - `run_metadata.json` and `manifest.json` also export a deterministic `run_configuration_hash` so the settings surface can be referenced compactly in downstream audit tooling.
+- `run_metadata.json` and `manifest.json` also export `online_history_buffer_capacity` and `numeric_mode` so bounded live-engine settings remain auditable.
 - `figure_integrity_checks.*` and `figure_integrity_report.*` record panel counts, expected/observed panel identities, source-table presence, source row counts, emitted image presence, count-like-panel integer checks, source-file locations, and explicit failure messages for the exported figure inputs.
 - The semantic retrieval figure's middle panel now plots admissibility-qualified heuristic counts directly, not grammar boundary counts or other proxies.
 

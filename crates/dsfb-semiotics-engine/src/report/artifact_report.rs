@@ -276,6 +276,7 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
         .iter()
         .filter(|status| matches!(status.state, GrammarState::Violation))
         .count();
+    let latest_grammar_status = scenario.grammar.last().or_else(|| scenario.grammar.first());
     let first_exit = scenario
         .detectability
         .observed_crossing_time
@@ -292,6 +293,30 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
         format!("- Claim class: {}", scenario.record.claim_class),
         format!("- Violations observed: {}", violation_count),
         format!("- First exit time: {}", first_exit),
+        format!(
+            "- Grammar state: `{}`",
+            latest_grammar_status
+                .map(|status| format!("{:?}", status.state))
+                .unwrap_or_else(|| "n/a".to_string())
+        ),
+        format!(
+            "- Grammar reason: `{}`",
+            latest_grammar_status
+                .map(|status| format!("{:?}", status.reason_code))
+                .unwrap_or_else(|| "n/a".to_string())
+        ),
+        format!(
+            "- Grammar reason text: {}",
+            latest_grammar_status
+                .map(|status| status.reason_text.clone())
+                .unwrap_or_else(|| "n/a".to_string())
+        ),
+        format!(
+            "- Grammar supporting metrics: {}",
+            latest_grammar_status
+                .map(|status| status.supporting_metric_summary.clone())
+                .unwrap_or_else(|| "n/a".to_string())
+        ),
         format!(
             "- Syntax metrics: outward={}, inward={}, residual_norm_path_monotonicity={}, residual_norm_trend_alignment={}, radial_sign_persistence={}, radial_sign_dominance={}, drift_channel_sign_alignment={}, mean_squared_slew_norm={}, late_slew_growth_score={}, slew_spikes={}, spike_strength={}, grazing_episodes={}, boundary_recoveries={}, coordinated_group_breach_fraction={}",
             format_metric(scenario.syntax.outward_drift_fraction),
