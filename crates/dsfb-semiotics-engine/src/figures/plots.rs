@@ -5,8 +5,12 @@ use plotters::coord::Shift;
 use plotters::prelude::*;
 use plotters::style::text_anchor::{HPos, Pos, VPos};
 
-use crate::engine::types::{EngineOutputBundle, FigureArtifact, GrammarState, ScenarioOutput};
+use crate::engine::types::{EngineOutputBundle, FigureArtifact, ScenarioOutput};
 use crate::figures::export::figure_paths;
+use crate::figures::source::{
+    baseline_comparator_source_rows, detectability_source_rows, semantic_retrieval_source_rows,
+    sweep_summary_source_rows,
+};
 use crate::figures::styles::{BLUE, GOLD, GREEN, RED, SLATE, TEAL, WHITE_BG};
 
 pub fn render_all_figures(
@@ -449,35 +453,13 @@ where
     DB::ErrorType: 'static,
 {
     root.fill(&WHITE_BG)?;
-    let cases = [
-        "outward_exit_case_a",
-        "outward_exit_case_b",
-        "outward_exit_case_c",
-        "magnitude_matched_detectable",
-    ]
-    .iter()
-    .filter_map(|id| {
-        bundle
-            .scenario_outputs
-            .iter()
-            .find(|scenario| &scenario.record.id == id)
-    })
-    .collect::<Vec<_>>();
-    let cases = if cases.is_empty() {
-        bundle
-            .scenario_outputs
-            .iter()
-            .filter(|scenario| scenario.detectability.predicted_upper_bound.is_some())
-            .collect::<Vec<_>>()
-    } else {
-        cases
-    };
-    let y_max = cases
+    let rows = detectability_source_rows(bundle);
+    let y_max = rows
         .iter()
-        .flat_map(|scenario| {
+        .flat_map(|row| {
             [
-                scenario.detectability.predicted_upper_bound.unwrap_or(0.0),
-                scenario.detectability.observed_crossing_time.unwrap_or(0.0),
+                row.predicted_upper_bound.unwrap_or(0.0),
+                row.observed_crossing_time.unwrap_or(0.0),
             ]
         })
         .fold(0.0, f64::max)
@@ -491,29 +473,29 @@ where
         .margin(24)
         .x_label_area_size(60)
         .y_label_area_size(64)
-        .build_cartesian_2d(0.0_f64..cases.len().max(1) as f64, 0.0_f64..(y_max * 1.15))?;
+        .build_cartesian_2d(0.0_f64..rows.len().max(1) as f64, 0.0_f64..(y_max * 1.15))?;
     chart
         .configure_mesh()
         .x_desc("scenario index")
         .y_desc("time to first exit")
         .draw()?;
 
-    for (index, scenario) in cases.iter().enumerate() {
+    for (index, row) in rows.iter().enumerate() {
         let x = index as f64 + 0.25;
-        if let Some(predicted) = scenario.detectability.predicted_upper_bound {
+        if let Some(predicted) = row.predicted_upper_bound {
             chart.draw_series(std::iter::once(Rectangle::new(
                 [(x, 0.0), (x + 0.18, predicted)],
                 BLUE.filled(),
             )))?;
         }
-        if let Some(observed) = scenario.detectability.observed_crossing_time {
+        if let Some(observed) = row.observed_crossing_time {
             chart.draw_series(std::iter::once(Rectangle::new(
                 [(x + 0.22, 0.0), (x + 0.40, observed)],
                 RED.filled(),
             )))?;
         }
         chart.draw_series(std::iter::once(Text::new(
-            scenario.record.id.clone(),
+            row.scenario_id.clone(),
             (index as f64 + 0.02, 4.0),
             ("sans-serif", 14).into_font().color(&BLACK),
         )))?;
@@ -734,89 +716,66 @@ where
 {
     root.fill(&WHITE_BG)?;
     let areas = root.split_evenly((3, 1));
-    let representatives = representative_scenarios(
-        bundle,
-        &["gradual_degradation", "abrupt_event", "nominal_stable"],
-        3,
-    );
-    let first = representatives
-        .first()
-        .copied()
-        .context("missing representative scenario")?;
-    let second = representatives.get(1).copied().unwrap_or(first);
-    let third = representatives.get(2).copied().unwrap_or(second);
+    let rows = semantic_retrieval_source_rows(bundle);
+    if rows.is_empty() {
+        return Err(anyhow::anyhow!(
+            "missing representative scenario for semantic retrieval figure"
+        ));
+    }
+    let colors = [BLUE, RED, SLATE];
 
-    let scores = vec![
-        (
-            first.record.id.as_str(),
-            first
-                .semantics
-                .candidates
-                .first()
-                .map(|c| c.score)
-                .unwrap_or(0.0),
-            BLUE,
-        ),
-        (
-            second.record.id.as_str(),
-            second
-                .semantics
-                .candidates
-                .first()
-                .map(|c| c.score)
-                .unwrap_or(0.0),
-            RED,
-        ),
-        (
-            third.record.id.as_str(),
-            third
-                .semantics
-                .candidates
-                .first()
-                .map(|c| c.score)
-                .unwrap_or(0.0),
-            SLATE,
-        ),
-    ];
-    draw_score_bars(&areas[0], "Observed Motif Score", &scores)?;
+    let scores = rows
+        .iter()
+        .enumerate()
+        .map(|(index, row)| {
+            (
+                row.scenario_id.as_str(),
+                row.leading_candidate_score,
+                colors[index % colors.len()],
+            )
+        })
+        .collect::<Vec<_>>();
+    draw_bar_series(
+        &areas[0],
+        "Leading Candidate Score",
+        "candidate score",
+        &scores,
+    )?;
 
-    let grammar_counts = vec![
-        (
-            first.record.id.as_str(),
-            boundary_or_violation_count(first) as f64,
-            GOLD,
-        ),
-        (
-            second.record.id.as_str(),
-            boundary_or_violation_count(second) as f64,
-            GOLD,
-        ),
-        (
-            third.record.id.as_str(),
-            boundary_or_violation_count(third) as f64,
-            GOLD,
-        ),
-    ];
-    draw_score_bars(&areas[1], "Admissibility Filter Count", &grammar_counts)?;
+    let admissibility_counts = rows
+        .iter()
+        .map(|row| {
+            (
+                row.scenario_id.as_str(),
+                row.heuristic_candidates_post_admissibility as f64,
+                GOLD,
+            )
+        })
+        .collect::<Vec<_>>();
+    draw_bar_series(
+        &areas[1],
+        "Candidates After Admissibility Filter",
+        "heuristic count",
+        &admissibility_counts,
+    )?;
 
-    let disposition_values = vec![
-        (
-            first.record.id.as_str(),
-            disposition_value(&first.semantics),
-            BLUE,
-        ),
-        (
-            second.record.id.as_str(),
-            disposition_value(&second.semantics),
-            RED,
-        ),
-        (
-            third.record.id.as_str(),
-            disposition_value(&third.semantics),
-            SLATE,
-        ),
-    ];
-    draw_score_bars(&areas[2], "Retrieval Outcome Score", &disposition_values)?;
+    let disposition_values = rows
+        .iter()
+        .enumerate()
+        .map(|(index, row)| {
+            (
+                row.scenario_id.as_str(),
+                row.disposition_code as f64,
+                colors[index % colors.len()],
+            )
+        })
+        .collect::<Vec<_>>();
+    draw_bar_series(
+        &areas[2],
+        "Final Retrieval Disposition Code",
+        "disposition code (0..3)",
+        &disposition_values,
+    )?;
     root.present()?;
     Ok(())
 }
@@ -944,9 +903,10 @@ where
     Ok(())
 }
 
-fn draw_score_bars<DB: DrawingBackend>(
+fn draw_bar_series<DB: DrawingBackend>(
     area: &DrawingArea<DB, Shift>,
     title: &str,
+    y_label: &str,
     values: &[(&str, f64, RGBColor)],
 ) -> Result<()>
 where
@@ -970,7 +930,7 @@ where
     chart
         .configure_mesh()
         .x_desc("representative scenario")
-        .y_desc("score")
+        .y_desc(y_label)
         .draw()?;
     for (index, (label, value, color)) in values.iter().enumerate() {
         let x0 = index as f64 + 0.18;
@@ -1178,7 +1138,7 @@ fn render_11(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 
 fn render_12(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_12_semantic_retrieval_heuristics_bank";
-    let caption = "Constrained semantic retrieval summary across representative motifs, including Match, CompatibleSet, Ambiguous, and Unknown outcomes with typed-bank explanations, explicit pairwise compatibility notes, and explicit low-evidence versus bank-noncoverage handling. Synthetic deterministic demonstration only.";
+    let caption = "Representative constrained-retrieval summary rendered from exported source rows. Panel 1 shows the leading candidate score, panel 2 shows the number of typed bank entries remaining after admissibility filtering, and panel 3 shows the final disposition code (Unknown=0, Ambiguous=1, CompatibleSet=2, Match=3). Synthetic deterministic demonstration only.";
     let size = (1280, 860);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_semantic_retrieval(
@@ -1242,35 +1202,6 @@ fn scenario_pair_or_first<'a>(
         })
         .unwrap_or(first);
     Ok((first, second))
-}
-
-fn representative_scenarios<'a>(
-    bundle: &'a EngineOutputBundle,
-    preferred_ids: &[&str],
-    count: usize,
-) -> Vec<&'a ScenarioOutput> {
-    let mut seen = std::collections::BTreeSet::new();
-    let mut selected = Vec::new();
-    for id in preferred_ids {
-        if let Some(scenario) = bundle
-            .scenario_outputs
-            .iter()
-            .find(|scenario| scenario.record.id == *id)
-        {
-            if seen.insert(scenario.record.id.clone()) {
-                selected.push(scenario);
-            }
-        }
-    }
-    for scenario in &bundle.scenario_outputs {
-        if selected.len() >= count {
-            break;
-        }
-        if seen.insert(scenario.record.id.clone()) {
-            selected.push(scenario);
-        }
-    }
-    selected
 }
 
 fn times(scenario: &ScenarioOutput) -> Vec<f64> {
@@ -1339,23 +1270,6 @@ fn combined_bounds(series: &[Vec<f64>]) -> (f64, f64) {
     bounds(&values)
 }
 
-fn boundary_or_violation_count(scenario: &ScenarioOutput) -> usize {
-    scenario
-        .grammar
-        .iter()
-        .filter(|status| !matches!(status.state, GrammarState::Admissible))
-        .count()
-}
-
-fn disposition_value(result: &crate::engine::types::SemanticMatchResult) -> f64 {
-    match result.disposition {
-        crate::engine::types::SemanticDisposition::Match => 1.0,
-        crate::engine::types::SemanticDisposition::CompatibleSet => 0.8,
-        crate::engine::types::SemanticDisposition::Ambiguous => 0.6,
-        crate::engine::types::SemanticDisposition::Unknown => 0.2,
-    }
-}
-
 fn artifact(
     figure_id: &str,
     caption: &str,
@@ -1378,23 +1292,10 @@ where
     DB::ErrorType: 'static,
 {
     root.fill(&WHITE_BG)?;
-    let labels = [
-        ("baseline_residual_threshold", "Residual\nthreshold"),
-        ("baseline_moving_average_trend", "Moving-average\ntrend"),
-        ("baseline_slew_spike", "Slew spike"),
-        ("baseline_envelope_interaction", "Envelope\ninteraction"),
-    ];
-    let counts = labels
+    let rows = baseline_comparator_source_rows(bundle);
+    let counts = rows
         .iter()
-        .map(|(id, _)| {
-            bundle
-                .evaluation
-                .summary
-                .comparator_trigger_counts
-                .get(*id)
-                .copied()
-                .unwrap_or(0)
-        })
+        .map(|row| row.triggered_scenario_count)
         .collect::<Vec<_>>();
     let max_count = counts.iter().copied().max().unwrap_or(0) as i32;
     let mut chart = ChartBuilder::on(&root)
@@ -1405,17 +1306,16 @@ where
         .margin(24)
         .x_label_area_size(80)
         .y_label_area_size(56)
-        .build_cartesian_2d(0..labels.len() as i32, 0..(max_count + 1).max(1))?;
+        .build_cartesian_2d(0..rows.len() as i32, 0..(max_count + 1).max(1))?;
     chart
         .configure_mesh()
         .disable_mesh()
         .x_desc("comparator")
         .y_desc("triggered scenarios")
-        .x_labels(labels.len())
-        .x_label_formatter(&|index| {
-            labels
-                .get((*index).clamp(0, labels.len() as i32 - 1) as usize)
-                .map(|(_, label)| (*label).to_string())
+        .x_labels(rows.len())
+        .x_label_formatter(&|index: &i32| {
+            rows.get((*index).clamp(0, rows.len() as i32 - 1) as usize)
+                .map(|row| row.comparator_label.replace(' ', "\n"))
                 .unwrap_or_default()
         })
         .draw()?;
@@ -1436,14 +1336,14 @@ where
     DB::ErrorType: 'static,
 {
     root.fill(&WHITE_BG)?;
-    let results = &bundle.evaluation.sweep_results;
-    let x_values = results
+    let rows = sweep_summary_source_rows(bundle);
+    let x_values = rows
         .iter()
-        .map(|result| result.parameter_value)
+        .map(|row| row.parameter_value)
         .collect::<Vec<_>>();
-    let y_values = results
+    let y_values = rows
         .iter()
-        .map(|result| disposition_score(&result.semantic_disposition))
+        .map(|row| row.disposition_code as f64)
         .collect::<Vec<_>>();
     let (x_min, x_max) = bounds(&x_values);
     let mut chart = ChartBuilder::on(&root)
@@ -1455,9 +1355,8 @@ where
     chart
         .configure_mesh()
         .x_desc(
-            results
-                .first()
-                .map(|result| result.parameter_name.clone())
+            rows.first()
+                .map(|row| row.parameter_name.clone())
                 .unwrap_or_else(|| "parameter".to_string()),
         )
         .y_desc("semantic disposition")
@@ -1492,13 +1391,4 @@ where
     }
     root.present()?;
     Ok(())
-}
-
-fn disposition_score(label: &str) -> f64 {
-    match label {
-        "Match" => 3.0,
-        "CompatibleSet" => 2.0,
-        "Ambiguous" => 1.0,
-        _ => 0.0,
-    }
 }

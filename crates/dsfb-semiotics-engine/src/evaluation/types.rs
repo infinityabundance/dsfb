@@ -27,6 +27,15 @@ pub struct ScenarioEvaluationSummary {
     pub syntax_label: String,
     pub semantic_disposition: String,
     pub selected_heuristic_ids: Vec<String>,
+    pub heuristic_bank_entry_count: usize,
+    pub heuristic_candidates_post_admissibility: usize,
+    pub heuristic_candidates_post_regime: usize,
+    pub heuristic_candidates_pre_scope: usize,
+    pub heuristic_candidates_post_scope: usize,
+    pub heuristics_rejected_by_admissibility: usize,
+    pub heuristics_rejected_by_regime: usize,
+    pub heuristics_rejected_by_scope: usize,
+    pub heuristics_selected_final: usize,
     pub boundary_sample_count: usize,
     pub violation_sample_count: usize,
     pub first_boundary_time: Option<f64>,
@@ -66,6 +75,23 @@ pub struct ArtifactCompletenessCheck {
     pub zip_present: bool,
     pub manifest_present: bool,
     pub complete: bool,
+    pub note: String,
+}
+
+/// Integrity check for a derived summary figure and its machine-readable source table.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FigureIntegrityCheck {
+    pub schema_version: String,
+    pub figure_id: String,
+    pub expected_panel_count: usize,
+    pub observed_panel_count: usize,
+    pub panel_labels: Vec<String>,
+    pub series_lengths: Vec<usize>,
+    pub nonempty_series: bool,
+    pub nonzero_values_present: bool,
+    pub consistent_with_source: bool,
+    pub source_csv: String,
+    pub source_json: String,
     pub note: String,
 }
 

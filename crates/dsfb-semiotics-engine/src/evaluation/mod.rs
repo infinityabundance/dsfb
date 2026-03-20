@@ -88,6 +88,42 @@ pub fn evaluate_bundle(
                 syntax_label: scenario.syntax.trajectory_label.clone(),
                 semantic_disposition: format!("{:?}", scenario.semantics.disposition),
                 selected_heuristic_ids: scenario.semantics.selected_heuristic_ids.clone(),
+                heuristic_bank_entry_count: scenario
+                    .semantics
+                    .retrieval_audit
+                    .heuristic_bank_entry_count,
+                heuristic_candidates_post_admissibility: scenario
+                    .semantics
+                    .retrieval_audit
+                    .heuristic_candidates_post_admissibility,
+                heuristic_candidates_post_regime: scenario
+                    .semantics
+                    .retrieval_audit
+                    .heuristic_candidates_post_regime,
+                heuristic_candidates_pre_scope: scenario
+                    .semantics
+                    .retrieval_audit
+                    .heuristic_candidates_pre_scope,
+                heuristic_candidates_post_scope: scenario
+                    .semantics
+                    .retrieval_audit
+                    .heuristic_candidates_post_scope,
+                heuristics_rejected_by_admissibility: scenario
+                    .semantics
+                    .retrieval_audit
+                    .heuristics_rejected_by_admissibility,
+                heuristics_rejected_by_regime: scenario
+                    .semantics
+                    .retrieval_audit
+                    .heuristics_rejected_by_regime,
+                heuristics_rejected_by_scope: scenario
+                    .semantics
+                    .retrieval_audit
+                    .heuristics_rejected_by_scope,
+                heuristics_selected_final: scenario
+                    .semantics
+                    .retrieval_audit
+                    .heuristics_selected_final,
                 boundary_sample_count: boundary_samples,
                 violation_sample_count: violation_samples,
                 first_boundary_time,

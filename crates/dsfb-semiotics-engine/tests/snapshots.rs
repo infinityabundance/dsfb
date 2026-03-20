@@ -92,10 +92,20 @@ fn canonical_csv_exports_remain_stable() {
         fs::read_to_string(exported.run_dir.join("csv/evaluation_summary.csv")).unwrap();
     let semantic_matches =
         fs::read_to_string(exported.run_dir.join("csv/semantic_matches.csv")).unwrap();
+    let semantic_retrieval_source = fs::read_to_string(
+        exported
+            .run_dir
+            .join("csv/figure_12_semantic_retrieval_source.csv"),
+    )
+    .unwrap();
 
     assert_snapshot(
         "nominal_evaluation_summary.csv",
         evaluation_summary.trim_end(),
     );
     assert_snapshot("nominal_semantic_matches.csv", semantic_matches.trim_end());
+    assert_snapshot(
+        "nominal_figure_12_semantic_retrieval_source.csv",
+        semantic_retrieval_source.trim_end(),
+    );
 }

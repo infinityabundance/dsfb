@@ -65,3 +65,6 @@ DSFB_UPDATE_SNAPSHOTS=1 cargo test --manifest-path Cargo.toml --test snapshots
 ```
 
 Then inspect the updated files under `tests/snapshots/` before committing them.
+
+When summary-figure source tables change intentionally, verify the refreshed snapshot still matches
+the rendered figure inputs and the exported `figure_integrity_checks.*` artifacts.

@@ -24,8 +24,12 @@ use crate::engine::types::{
 };
 use crate::evaluation::evaluate_bundle;
 use crate::evaluation::sweeps::{generate_sweep_members, SweepConfig, SweepMemberDefinition};
-use crate::evaluation::types::ArtifactCompletenessCheck;
+use crate::evaluation::types::{ArtifactCompletenessCheck, FigureIntegrityCheck};
 use crate::figures::plots::render_all_figures;
+use crate::figures::source::{
+    baseline_comparator_source_rows, detectability_source_rows, semantic_retrieval_source_rows,
+    sweep_summary_source_rows,
+};
 use crate::io::csv::write_rows;
 use crate::io::input::load_csv_trajectories;
 use crate::io::json::write_pretty;
@@ -130,6 +134,11 @@ pub struct ExportedArtifacts {
     pub figure_paths: Vec<PathBuf>,
 }
 
+#[derive(Clone, Debug, Default)]
+struct TabularArtifactsSummary {
+    figure_integrity_checks: Vec<FigureIntegrityCheck>,
+}
+
 #[derive(Clone, Debug)]
 struct PreparedScenario {
     record: ScenarioRecord,
@@ -179,7 +188,7 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
     prepare_clean_export_layout(&layout)?;
 
     let figure_artifacts = render_all_figures(bundle, &layout.figures_dir)?;
-    write_tabular_artifacts(bundle, &layout)?;
+    let tabular_summary = write_tabular_artifacts(bundle, &layout)?;
 
     let manifest_path = layout.run_dir.join("manifest.json");
     let report_markdown_path = layout.report_dir.join("dsfb_semiotics_engine_report.md");
@@ -198,8 +207,13 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
         &zip_path,
         None,
     )?;
-    let initial_markdown =
-        build_markdown_report(bundle, &figure_artifacts, &initial_manifest, None);
+    let initial_markdown = build_markdown_report(
+        bundle,
+        &figure_artifacts,
+        &initial_manifest,
+        None,
+        Some(&tabular_summary.figure_integrity_checks),
+    );
     std::fs::write(&report_markdown_path, &initial_markdown)
         .with_context(|| format!("failed to write {}", report_markdown_path.display()))?;
     write_pretty(&manifest_path, &initial_manifest)?;
@@ -251,6 +265,7 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
         &figure_artifacts,
         &report_manifest,
         Some(&completeness),
+        Some(&tabular_summary.figure_integrity_checks),
     );
     std::fs::write(&report_markdown_path, &final_markdown)
         .with_context(|| format!("failed to write {}", report_markdown_path.display()))?;
@@ -678,7 +693,10 @@ fn build_coordinated(
     }))
 }
 
-fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -> Result<()> {
+fn write_tabular_artifacts(
+    bundle: &EngineOutputBundle,
+    layout: &OutputLayout,
+) -> Result<TabularArtifactsSummary> {
     let scenario_catalog = bundle
         .scenario_outputs
         .iter()
@@ -752,6 +770,8 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
             std::iter::once(sweep_summary_csv_row(summary)),
         )?;
     }
+
+    let figure_integrity_checks = write_summary_figure_source_tables(bundle, layout)?;
 
     let grammar_rows = bundle
         .scenario_outputs
@@ -906,6 +926,14 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         &bundle.evaluation.baseline_results,
     )?;
     write_pretty(
+        layout.json_dir.join("semantic_matches.json").as_path(),
+        &bundle
+            .scenario_outputs
+            .iter()
+            .map(|scenario| scenario.semantics.clone())
+            .collect::<Vec<_>>(),
+    )?;
+    write_pretty(
         layout
             .json_dir
             .join("heuristic_bank_validation.json")
@@ -929,7 +957,153 @@ fn write_tabular_artifacts(bundle: &EngineOutputBundle, layout: &OutputLayout) -
         &bundle.scenario_outputs,
     )?;
 
-    Ok(())
+    Ok(TabularArtifactsSummary {
+        figure_integrity_checks,
+    })
+}
+
+fn write_summary_figure_source_tables(
+    bundle: &EngineOutputBundle,
+    layout: &OutputLayout,
+) -> Result<Vec<FigureIntegrityCheck>> {
+    let mut checks = Vec::new();
+
+    let detectability_rows = detectability_source_rows(bundle);
+    let detectability_csv = layout.csv_dir.join("figure_09_detectability_source.csv");
+    let detectability_json = layout.json_dir.join("figure_09_detectability_source.json");
+    write_rows(detectability_csv.as_path(), detectability_rows.clone())?;
+    write_pretty(detectability_json.as_path(), &detectability_rows)?;
+    checks.push(FigureIntegrityCheck {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        figure_id: "figure_09_detectability_bound".to_string(),
+        expected_panel_count: 1,
+        observed_panel_count: 1,
+        panel_labels: vec!["Predicted vs Observed Detectability Times".to_string()],
+        series_lengths: vec![detectability_rows.len()],
+        nonempty_series: !detectability_rows.is_empty(),
+        nonzero_values_present: detectability_rows.iter().any(|row| {
+            row.predicted_upper_bound.unwrap_or(0.0) > 0.0
+                || row.observed_crossing_time.unwrap_or(0.0) > 0.0
+        }),
+        consistent_with_source: detectability_rows
+            .iter()
+            .all(|row| row.predicted_upper_bound.is_some() || row.observed_crossing_time.is_some()),
+        source_csv: detectability_csv.display().to_string(),
+        source_json: detectability_json.display().to_string(),
+        note: "Figure 09 is rendered directly from the exported detectability source rows."
+            .to_string(),
+    });
+
+    let semantic_rows = semantic_retrieval_source_rows(bundle);
+    let semantic_csv = layout
+        .csv_dir
+        .join("figure_12_semantic_retrieval_source.csv");
+    let semantic_json = layout
+        .json_dir
+        .join("figure_12_semantic_retrieval_source.json");
+    write_rows(semantic_csv.as_path(), semantic_rows.clone())?;
+    write_pretty(semantic_json.as_path(), &semantic_rows)?;
+    checks.push(FigureIntegrityCheck {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        figure_id: "figure_12_semantic_retrieval_heuristics_bank".to_string(),
+        expected_panel_count: 3,
+        observed_panel_count: 3,
+        panel_labels: vec![
+            "Leading Candidate Score".to_string(),
+            "Candidates After Admissibility Filter".to_string(),
+            "Final Retrieval Disposition Code".to_string(),
+        ],
+        series_lengths: vec![semantic_rows.len(), semantic_rows.len(), semantic_rows.len()],
+        nonempty_series: !semantic_rows.is_empty(),
+        nonzero_values_present: semantic_rows.iter().any(|row| {
+            row.leading_candidate_score > 0.0
+                || row.heuristic_candidates_post_admissibility > 0
+                || row.disposition_code > 0
+        }),
+        consistent_with_source: semantic_rows.iter().all(|row| {
+            row.heuristic_bank_entry_count
+                == row.heuristic_candidates_post_admissibility
+                    + row.heuristics_rejected_by_admissibility
+                && row.heuristic_candidates_post_admissibility
+                    == row.heuristic_candidates_post_regime + row.heuristics_rejected_by_regime
+                && row.heuristic_candidates_post_regime == row.heuristic_candidates_pre_scope
+                && row.heuristic_candidates_pre_scope
+                    == row.heuristic_candidates_post_scope + row.heuristics_rejected_by_scope
+                && row.heuristics_selected_final <= row.heuristic_candidates_post_scope
+        }),
+        source_csv: semantic_csv.display().to_string(),
+        source_json: semantic_json.display().to_string(),
+        note: "Figure 12 panels are rendered from the exported source rows: leading score, admissibility-qualified candidate count, and final disposition code."
+            .to_string(),
+    });
+
+    let baseline_rows = baseline_comparator_source_rows(bundle);
+    let baseline_csv = layout
+        .csv_dir
+        .join("figure_13_internal_baseline_comparators_source.csv");
+    let baseline_json = layout
+        .json_dir
+        .join("figure_13_internal_baseline_comparators_source.json");
+    write_rows(baseline_csv.as_path(), baseline_rows.clone())?;
+    write_pretty(baseline_json.as_path(), &baseline_rows)?;
+    checks.push(FigureIntegrityCheck {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        figure_id: "figure_13_internal_baseline_comparators".to_string(),
+        expected_panel_count: 1,
+        observed_panel_count: 1,
+        panel_labels: vec!["Internal Deterministic Comparator Trigger Counts".to_string()],
+        series_lengths: vec![baseline_rows.len()],
+        nonempty_series: !baseline_rows.is_empty(),
+        nonzero_values_present: baseline_rows
+            .iter()
+            .any(|row| row.triggered_scenario_count > 0),
+        consistent_with_source: baseline_rows
+            .iter()
+            .all(|row| !row.comparator_id.is_empty() && !row.comparator_label.is_empty()),
+        source_csv: baseline_csv.display().to_string(),
+        source_json: baseline_json.display().to_string(),
+        note: "Figure 13 is rendered directly from the exported comparator-trigger source rows."
+            .to_string(),
+    });
+
+    if !bundle.evaluation.sweep_results.is_empty() {
+        let sweep_rows = sweep_summary_source_rows(bundle);
+        let sweep_csv = layout.csv_dir.join("figure_14_sweep_stability_source.csv");
+        let sweep_json = layout
+            .json_dir
+            .join("figure_14_sweep_stability_source.json");
+        write_rows(sweep_csv.as_path(), sweep_rows.clone())?;
+        write_pretty(sweep_json.as_path(), &sweep_rows)?;
+        checks.push(FigureIntegrityCheck {
+            schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            figure_id: "figure_14_sweep_stability_summary".to_string(),
+            expected_panel_count: 1,
+            observed_panel_count: 1,
+            panel_labels: vec!["Sweep Semantic Stability".to_string()],
+            series_lengths: vec![sweep_rows.len()],
+            nonempty_series: !sweep_rows.is_empty(),
+            nonzero_values_present: sweep_rows.iter().any(|row| row.disposition_code > 0),
+            consistent_with_source: sweep_rows.iter().all(|row| !row.parameter_name.is_empty()),
+            source_csv: sweep_csv.display().to_string(),
+            source_json: sweep_json.display().to_string(),
+            note: "Figure 14 is rendered directly from the exported sweep disposition source rows."
+                .to_string(),
+        });
+    }
+
+    write_rows(
+        layout.csv_dir.join("figure_integrity_checks.csv").as_path(),
+        checks.iter().map(figure_integrity_csv_row),
+    )?;
+    write_pretty(
+        layout
+            .json_dir
+            .join("figure_integrity_checks.json")
+            .as_path(),
+        &checks,
+    )?;
+
+    Ok(checks)
 }
 
 fn run_metadata(
@@ -1209,6 +1383,21 @@ struct SemanticMatchCsvRow {
     scenario_id: String,
     disposition: String,
     motif_summary: String,
+    heuristic_bank_entry_count: usize,
+    heuristic_candidates_post_admissibility: usize,
+    heuristic_candidates_post_regime: usize,
+    heuristic_candidates_pre_scope: usize,
+    heuristic_candidates_post_scope: usize,
+    heuristics_rejected_by_admissibility: usize,
+    heuristics_rejected_by_regime: usize,
+    heuristics_rejected_by_scope: usize,
+    heuristics_selected_final: usize,
+    candidate_ids_post_admissibility: String,
+    candidate_ids_post_regime: String,
+    candidate_ids_post_scope: String,
+    rejected_by_admissibility_ids: String,
+    rejected_by_regime_ids: String,
+    rejected_by_scope_ids: String,
     selected_labels: String,
     selected_heuristic_ids: String,
     resolution_basis: String,
@@ -1263,6 +1452,15 @@ struct ScenarioEvaluationCsvRow {
     syntax_label: String,
     semantic_disposition: String,
     selected_heuristic_ids: String,
+    heuristic_bank_entry_count: usize,
+    heuristic_candidates_post_admissibility: usize,
+    heuristic_candidates_post_regime: usize,
+    heuristic_candidates_pre_scope: usize,
+    heuristic_candidates_post_scope: usize,
+    heuristics_rejected_by_admissibility: usize,
+    heuristics_rejected_by_regime: usize,
+    heuristics_rejected_by_scope: usize,
+    heuristics_selected_final: usize,
     boundary_sample_count: usize,
     violation_sample_count: usize,
     first_boundary_time: Option<f64>,
@@ -1312,6 +1510,22 @@ struct SweepSummaryCsvRow {
     unknown_count: usize,
     ambiguous_count: usize,
     disposition_flip_count: usize,
+    note: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct FigureIntegrityCsvRow {
+    schema_version: String,
+    figure_id: String,
+    expected_panel_count: usize,
+    observed_panel_count: usize,
+    panel_labels: String,
+    series_lengths: String,
+    nonempty_series: bool,
+    nonzero_values_present: bool,
+    consistent_with_source: bool,
+    source_csv: String,
+    source_json: String,
     note: String,
 }
 
@@ -1385,6 +1599,31 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
         scenario_id: result.scenario_id.clone(),
         disposition: format!("{:?}", result.disposition),
         motif_summary: result.motif_summary.clone(),
+        heuristic_bank_entry_count: result.retrieval_audit.heuristic_bank_entry_count,
+        heuristic_candidates_post_admissibility: result
+            .retrieval_audit
+            .heuristic_candidates_post_admissibility,
+        heuristic_candidates_post_regime: result.retrieval_audit.heuristic_candidates_post_regime,
+        heuristic_candidates_pre_scope: result.retrieval_audit.heuristic_candidates_pre_scope,
+        heuristic_candidates_post_scope: result.retrieval_audit.heuristic_candidates_post_scope,
+        heuristics_rejected_by_admissibility: result
+            .retrieval_audit
+            .heuristics_rejected_by_admissibility,
+        heuristics_rejected_by_regime: result.retrieval_audit.heuristics_rejected_by_regime,
+        heuristics_rejected_by_scope: result.retrieval_audit.heuristics_rejected_by_scope,
+        heuristics_selected_final: result.retrieval_audit.heuristics_selected_final,
+        candidate_ids_post_admissibility: result
+            .retrieval_audit
+            .candidate_ids_post_admissibility
+            .join(" | "),
+        candidate_ids_post_regime: result.retrieval_audit.candidate_ids_post_regime.join(" | "),
+        candidate_ids_post_scope: result.retrieval_audit.candidate_ids_post_scope.join(" | "),
+        rejected_by_admissibility_ids: result
+            .retrieval_audit
+            .rejected_by_admissibility_ids
+            .join(" | "),
+        rejected_by_regime_ids: result.retrieval_audit.rejected_by_regime_ids.join(" | "),
+        rejected_by_scope_ids: result.retrieval_audit.rejected_by_scope_ids.join(" | "),
         selected_labels: result.selected_labels.join(" | "),
         selected_heuristic_ids: result.selected_heuristic_ids.join(" | "),
         resolution_basis: result.resolution_basis.clone(),
@@ -1540,6 +1779,15 @@ fn scenario_evaluation_csv_row(
         syntax_label: summary.syntax_label.clone(),
         semantic_disposition: summary.semantic_disposition.clone(),
         selected_heuristic_ids: summary.selected_heuristic_ids.join(" | "),
+        heuristic_bank_entry_count: summary.heuristic_bank_entry_count,
+        heuristic_candidates_post_admissibility: summary.heuristic_candidates_post_admissibility,
+        heuristic_candidates_post_regime: summary.heuristic_candidates_post_regime,
+        heuristic_candidates_pre_scope: summary.heuristic_candidates_pre_scope,
+        heuristic_candidates_post_scope: summary.heuristic_candidates_post_scope,
+        heuristics_rejected_by_admissibility: summary.heuristics_rejected_by_admissibility,
+        heuristics_rejected_by_regime: summary.heuristics_rejected_by_regime,
+        heuristics_rejected_by_scope: summary.heuristics_rejected_by_scope,
+        heuristics_selected_final: summary.heuristics_selected_final,
         boundary_sample_count: summary.boundary_sample_count,
         violation_sample_count: summary.violation_sample_count,
         first_boundary_time: summary.first_boundary_time,
@@ -1597,6 +1845,28 @@ fn sweep_summary_csv_row(
         ambiguous_count: summary.ambiguous_count,
         disposition_flip_count: summary.disposition_flip_count,
         note: summary.note.clone(),
+    }
+}
+
+fn figure_integrity_csv_row(check: &FigureIntegrityCheck) -> FigureIntegrityCsvRow {
+    FigureIntegrityCsvRow {
+        schema_version: check.schema_version.clone(),
+        figure_id: check.figure_id.clone(),
+        expected_panel_count: check.expected_panel_count,
+        observed_panel_count: check.observed_panel_count,
+        panel_labels: check.panel_labels.join(" | "),
+        series_lengths: check
+            .series_lengths
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(" | "),
+        nonempty_series: check.nonempty_series,
+        nonzero_values_present: check.nonzero_values_present,
+        consistent_with_source: check.consistent_with_source,
+        source_csv: check.source_csv.clone(),
+        source_json: check.source_json.clone(),
+        note: check.note.clone(),
     }
 }
 

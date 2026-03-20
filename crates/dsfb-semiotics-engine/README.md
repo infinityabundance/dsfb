@@ -231,6 +231,8 @@ The evaluation layer exports:
 - per-scenario reproducibility status
 - heuristic-bank validation results
 - artifact completeness checks
+- figure-source tables for the derived summary figures
+- figure-integrity checks tying rendered summary figures back to exported source rows
 - sweep summaries when sweep mode is used
 
 The internal deterministic comparators are intentionally simple:
@@ -389,13 +391,23 @@ Additional evaluation artifacts include:
 - `csv/baseline_comparators.csv`
 - `csv/heuristic_bank_validation.csv`
 - `csv/artifact_completeness.csv`
+- `csv/figure_09_detectability_source.csv`
+- `csv/figure_12_semantic_retrieval_source.csv`
+- `csv/figure_13_internal_baseline_comparators_source.csv`
+- `csv/figure_integrity_checks.csv`
 - `json/evaluation_summary.json`
 - `json/scenario_evaluations.json`
 - `json/baseline_comparators.json`
+- `json/semantic_matches.json`
 - `json/heuristic_bank_validation.json`
 - `json/artifact_completeness.json`
+- `json/figure_09_detectability_source.json`
+- `json/figure_12_semantic_retrieval_source.json`
+- `json/figure_13_internal_baseline_comparators_source.json`
+- `json/figure_integrity_checks.json`
 - `csv/sweep_results.csv` and `json/sweep_results.json` for sweep runs
 - `csv/sweep_summary.csv` and `json/sweep_summary.json` for sweep runs
+- `csv/figure_14_sweep_stability_source.csv` and `json/figure_14_sweep_stability_source.json` for sweep runs
 
 A schema overview is provided in [`docs/schema.md`](docs/schema.md).
 
@@ -415,8 +427,13 @@ The crate generates the original twelve paper-aligned figures plus additive eval
 10. deterministic pipeline flow
 11. coordinated group semiotics with local versus aggregate envelope behavior
 12. semantic retrieval / heuristics-bank summary
+    panel 1: leading candidate score
+    panel 2: typed-bank entries remaining after admissibility filtering
+    panel 3: final disposition code (`Unknown=0`, `Ambiguous=1`, `CompatibleSet=2`, `Match=3`)
 13. internal deterministic baseline comparator summary
 14. sweep stability summary when sweep mode is executed
+
+For summary figures that plot derived statistics rather than raw time-series paths, the crate also exports machine-readable figure-source tables and figure-integrity records so the rendered values can be checked against CSV and JSON artifacts directly.
 
 ## Colab Notebook
 

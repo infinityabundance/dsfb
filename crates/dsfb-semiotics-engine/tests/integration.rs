@@ -24,6 +24,7 @@ use dsfb_semiotics_engine::math::envelope::build_envelope;
 use dsfb_semiotics_engine::math::metrics::{format_metric, sign_projection_metadata};
 use dsfb_semiotics_engine::sim::generators::synthesize;
 use dsfb_semiotics_engine::sim::scenarios::all_scenarios;
+use serde::Deserialize;
 use tempfile::TempDir;
 
 #[test]
@@ -1072,6 +1073,186 @@ fn report_keeps_small_nonzero_metric_values_visible() {
     let report = fs::read_to_string(exported.report_markdown).unwrap();
     assert!(report.contains("mean_squared_slew_norm="));
     assert!(report.contains("e-"));
+}
+
+#[derive(Debug, Deserialize)]
+struct SemanticRetrievalSourceRow {
+    scenario_id: String,
+    heuristic_bank_entry_count: usize,
+    heuristic_candidates_post_admissibility: usize,
+    heuristic_candidates_post_regime: usize,
+    heuristic_candidates_pre_scope: usize,
+    heuristic_candidates_post_scope: usize,
+    heuristics_rejected_by_admissibility: usize,
+    heuristics_rejected_by_regime: usize,
+    heuristics_rejected_by_scope: usize,
+    heuristics_selected_final: usize,
+    disposition_code: i32,
+}
+
+#[derive(Debug, Deserialize)]
+struct FigureIntegrityCheckRecord {
+    figure_id: String,
+    nonempty_series: bool,
+    nonzero_values_present: bool,
+    consistent_with_source: bool,
+    source_csv: String,
+}
+
+#[test]
+fn semantic_retrieval_audit_counts_are_stage_consistent() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("nominal_stable".to_string()),
+    });
+
+    let bundle = engine.run_single("nominal_stable").unwrap();
+    let audit = &bundle.scenario_outputs[0].semantics.retrieval_audit;
+    assert_eq!(
+        audit.heuristic_bank_entry_count,
+        audit.heuristic_candidates_post_admissibility + audit.heuristics_rejected_by_admissibility
+    );
+    assert_eq!(
+        audit.heuristic_candidates_post_admissibility,
+        audit.heuristic_candidates_post_regime + audit.heuristics_rejected_by_regime
+    );
+    assert_eq!(
+        audit.heuristic_candidates_post_regime,
+        audit.heuristic_candidates_pre_scope
+    );
+    assert_eq!(
+        audit.heuristic_candidates_pre_scope,
+        audit.heuristic_candidates_post_scope + audit.heuristics_rejected_by_scope
+    );
+    assert!(audit.heuristics_selected_final <= audit.heuristic_candidates_post_scope);
+}
+
+#[test]
+fn semantic_retrieval_figure_source_uses_exported_admissibility_counts() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("nominal_stable".to_string()),
+    });
+
+    let bundle = engine.run_single("nominal_stable").unwrap();
+    let scenario = &bundle.scenario_outputs[0];
+    let exported = export_artifacts(&bundle).unwrap();
+    let source_rows = fs::read_to_string(
+        exported
+            .run_dir
+            .join("csv/figure_12_semantic_retrieval_source.csv"),
+    )
+    .unwrap();
+    let semantic_matches =
+        fs::read_to_string(exported.run_dir.join("csv/semantic_matches.csv")).unwrap();
+    let report = fs::read_to_string(exported.report_markdown).unwrap();
+    let integrity_rows =
+        fs::read_to_string(exported.run_dir.join("json/figure_integrity_checks.json")).unwrap();
+
+    assert!(semantic_matches.contains("heuristic_candidates_post_admissibility"));
+    assert!(semantic_matches.contains("heuristics_rejected_by_scope"));
+    assert!(report.contains("## Figure Integrity Checks"));
+    assert!(report.contains("figure_12_semantic_retrieval_heuristics_bank"));
+
+    let mut reader = csv::Reader::from_reader(source_rows.as_bytes());
+    let rows = reader
+        .deserialize::<SemanticRetrievalSourceRow>()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    let nominal = rows
+        .iter()
+        .find(|row| row.scenario_id == "nominal_stable")
+        .unwrap();
+    let non_admissible_grammar_count = scenario
+        .grammar
+        .iter()
+        .filter(|status| !matches!(status.state, GrammarState::Admissible))
+        .count();
+
+    assert_eq!(
+        nominal.heuristic_bank_entry_count,
+        scenario
+            .semantics
+            .retrieval_audit
+            .heuristic_bank_entry_count
+    );
+    assert_eq!(
+        nominal.heuristic_candidates_post_admissibility,
+        scenario
+            .semantics
+            .retrieval_audit
+            .heuristic_candidates_post_admissibility
+    );
+    assert_eq!(
+        nominal.heuristic_candidates_post_regime,
+        scenario
+            .semantics
+            .retrieval_audit
+            .heuristic_candidates_post_regime
+    );
+    assert_eq!(
+        nominal.heuristic_candidates_pre_scope,
+        scenario
+            .semantics
+            .retrieval_audit
+            .heuristic_candidates_pre_scope
+    );
+    assert_eq!(
+        nominal.heuristic_candidates_post_scope,
+        scenario
+            .semantics
+            .retrieval_audit
+            .heuristic_candidates_post_scope
+    );
+    assert_eq!(
+        nominal.heuristics_rejected_by_admissibility,
+        scenario
+            .semantics
+            .retrieval_audit
+            .heuristics_rejected_by_admissibility
+    );
+    assert_eq!(
+        nominal.heuristics_rejected_by_regime,
+        scenario
+            .semantics
+            .retrieval_audit
+            .heuristics_rejected_by_regime
+    );
+    assert_eq!(
+        nominal.heuristics_rejected_by_scope,
+        scenario
+            .semantics
+            .retrieval_audit
+            .heuristics_rejected_by_scope
+    );
+    assert_eq!(
+        nominal.heuristics_selected_final,
+        scenario.semantics.retrieval_audit.heuristics_selected_final
+    );
+    assert_eq!(non_admissible_grammar_count, 0);
+    assert!(nominal.heuristic_candidates_post_admissibility > 0);
+    assert!(nominal.disposition_code >= 0);
+
+    let integrity =
+        serde_json::from_str::<Vec<FigureIntegrityCheckRecord>>(&integrity_rows).unwrap();
+    let figure_12 = integrity
+        .iter()
+        .find(|check| check.figure_id == "figure_12_semantic_retrieval_heuristics_bank")
+        .unwrap();
+    assert!(figure_12.nonempty_series);
+    assert!(figure_12.nonzero_values_present);
+    assert!(figure_12.consistent_with_source);
+    assert!(figure_12
+        .source_csv
+        .ends_with("figure_12_semantic_retrieval_source.csv"));
 }
 
 #[test]

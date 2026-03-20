@@ -117,6 +117,14 @@ fn export_writes_evaluation_and_artifact_completeness_outputs() {
         .is_file());
     assert!(exported
         .run_dir
+        .join("csv/figure_12_semantic_retrieval_source.csv")
+        .is_file());
+    assert!(exported
+        .run_dir
+        .join("json/figure_integrity_checks.json")
+        .is_file());
+    assert!(exported
+        .run_dir
         .join("json/heuristic_bank_validation.json")
         .is_file());
 }
