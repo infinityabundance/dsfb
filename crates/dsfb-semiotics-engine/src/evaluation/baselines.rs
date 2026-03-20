@@ -4,6 +4,7 @@ use crate::evaluation::types::BaselineComparatorResult;
 use crate::io::schema::ARTIFACT_SCHEMA_VERSION;
 use crate::math::metrics::{mean, standard_deviation};
 
+/// Computes simple deterministic comparator outputs for each scenario in a completed engine run.
 pub fn compute_baseline_results(
     bundle: &EngineOutputBundle,
     settings: &EvaluationSettings,

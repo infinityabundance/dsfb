@@ -195,6 +195,8 @@ The code is organized into explicit layers:
 
 The crate is intentionally standalone by using its own empty `[workspace]` section. That keeps it self-contained and avoids changing root workspace behavior.
 
+An architecture note with a compact layer diagram is available in [`docs/architecture.md`](docs/architecture.md).
+
 ## Library API
 
 The crate can be driven as a library through typed deterministic configuration objects rather than only through the CLI.
@@ -267,6 +269,16 @@ The crate supports deterministic calibration-style synthetic sweeps:
 
 Sweep runs use the same core pipeline and export the same artifact bundle shape, with additive sweep summary tables and a sweep figure. These are calibration-style synthetic studies only.
 
+## Illustrative CSV Example
+
+A small CSV-driven example is included for deterministic end-to-end review:
+
+- data: [`examples/data/illustrative_observed.csv`](examples/data/illustrative_observed.csv) and [`examples/data/illustrative_predicted.csv`](examples/data/illustrative_predicted.csv)
+- example binary: [`examples/run_csv_fixture.rs`](examples/run_csv_fixture.rs)
+- walkthrough: [`docs/examples/illustrative_csv_example.md`](docs/examples/illustrative_csv_example.md)
+
+These files are public and version-controlled in the crate so the CSV path can be rerun without network access. They are illustrative CSV inputs only, not field-validation data.
+
 ## Running Locally
 
 Build the crate:
@@ -336,6 +348,13 @@ just qa
 
 This executes formatting, clippy, tests, and docs for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
 Because this work is restricted to the crate directory, a crate-local GitHub Actions template is provided at `ci/github-actions-crate-quality-gate.yml` rather than installing a live repo-root workflow automatically.
+
+Refresh snapshot fixtures intentionally with:
+
+```bash
+cd crates/dsfb-semiotics-engine
+DSFB_UPDATE_SNAPSHOTS=1 cargo test --test snapshots
+```
 
 ## Output Layout
 

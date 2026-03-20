@@ -14,6 +14,8 @@ use crate::evaluation::types::{
 };
 use crate::io::schema::ARTIFACT_SCHEMA_VERSION;
 
+/// Evaluates a completed engine bundle with deterministic post-run summaries and internal
+/// deterministic comparators.
 pub fn evaluate_bundle(
     bundle: &EngineOutputBundle,
     settings: &EvaluationSettings,
@@ -137,6 +139,7 @@ pub fn evaluate_bundle(
     }
 }
 
+/// Adds a post-export artifact completeness record to an already computed evaluation bundle.
 pub fn with_artifact_completeness(
     mut evaluation: RunEvaluationBundle,
     completeness: ArtifactCompletenessCheck,
