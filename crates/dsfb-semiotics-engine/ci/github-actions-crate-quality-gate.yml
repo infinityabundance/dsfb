@@ -40,6 +40,14 @@ jobs:
       - name: Cargo doc
         run: cargo doc --no-deps
 
+      - name: numeric-f32 compile smoke
+        run: cargo check --features numeric-f32
+
+      - name: FFI smoke compile
+        run: |
+          cc -c ffi/examples/minimal_ffi.c -I ffi/include -o /tmp/dsfb_semiotics_engine_ffi.o
+          c++ -c ffi/examples/minimal_ffi.cpp -I ffi/include -o /tmp/dsfb_semiotics_engine_ffi_cpp.o
+
       - name: Synthetic smoke run
         run: cargo run -- --scenario nominal_stable --output-dir ci-smoke-synthetic
 
@@ -47,7 +55,7 @@ jobs:
         run: cargo run -- --input-mode csv --observed-csv tests/fixtures/observed_fixture.csv --predicted-csv tests/fixtures/predicted_fixture.csv --scenario-id fixture_csv --time-column time --output-dir ci-smoke-csv
 
       - name: External-bank smoke run
-        run: cargo run -- --scenario nominal_stable --bank-mode external --bank-path tests/fixtures/external_bank_minimal.json --strict-bank-validation --output-dir ci-smoke-external-bank
+        run: cargo run -- --scenario nominal_stable --bank-mode external --bank-path tests/fixtures/external_bank_minimal.json --output-dir ci-smoke-external-bank
 
       - name: Sweep smoke run
         run: cargo run -- --sweep-family gradual-drift-slope --sweep-points 3 --output-dir ci-smoke-sweep

@@ -270,6 +270,7 @@ These are internal deterministic comparators for inspection. They are not field 
 They intentionally collapse structure into scalar triggers; the layered DSFB pipeline preserves syntax, grammar, and constrained semantic distinctions that these comparators do not retain.
 
 The comparison framing is intentionally operator-legible. These internal monitors are analogous in spirit to threshold detectors, innovation-style monitoring, and change detectors, but they remain within-crate deterministic comparisons on shared scenario families rather than external benchmarks.
+More concretely, the report and docs frame them as conservative within-crate analogies to threshold monitors, EKF innovation monitoring, chi-squared-style gating, and one-sided change detectors. They are presented to help an operator compare alarm behavior and lost structural resolution, not to claim benchmark superiority.
 
 ## Heuristic Bank Governance
 
@@ -300,7 +301,7 @@ Each run exports a validation report covering:
 - scope-condition sanity notes
 - optional strict-mode symmetry failures for compatibility and incompatibility links
 
-Compatibility gaps are exported explicitly as review notes. They do not silently disappear into retrieval behavior. Strict mode is appropriate for reference runs and release-grade artifacts; permissive mode is primarily useful while authoring or reviewing new bank content because it preserves the same validation report while allowing the run to proceed.
+Strict governance is now the default posture for both builtin and external banks. Compatibility gaps are exported explicitly and, under the default strict mode, missing reverse links, unknown references, contradictions, duplicate IDs, and incomplete required metadata fail the run. Permissive mode is explicit opt-in through `--bank-validation-mode permissive` and is intended for authoring or review only; permissive runs are exported as not governance-clean in the manifest and report. The compatibility alias `--strict-bank-validation` is still accepted for users carrying older scripts.
 
 The builtin bank is no longer treated as the only operational path. A validated external JSON bank can be swapped at startup without recompiling the engine logic, which allows motif-library updates to remain data-driven and separately versioned from the core engine implementation.
 
@@ -369,9 +370,10 @@ Run with an external bank artifact instead of the builtin fallback:
 cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
   --scenario nominal_stable \
   --bank-mode external \
-  --bank-path crates/dsfb-semiotics-engine/tests/fixtures/external_bank_minimal.json \
-  --strict-bank-validation
+  --bank-path crates/dsfb-semiotics-engine/tests/fixtures/external_bank_minimal.json
 ```
+
+Strict governance is the default. To opt into a review-only permissive run, add `--bank-validation-mode permissive`.
 
 Run a deterministic sweep:
 
@@ -418,6 +420,7 @@ just qa
 This executes formatting, clippy, tests, docs, snapshots, fixed-seed property tests, and dashboard replay smoke coverage for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
 Because this work is restricted to the crate directory, crate-local GitHub Actions workflow templates are provided at `.github/workflows/crate-quality-gate.yml` and `ci/github-actions-crate-quality-gate.yml` rather than installing a live repo-root workflow automatically.
 The fixed-seed property-test surface can also be run directly with `cargo test --test proptest_invariants`.
+The crate-local workflow mirrors also include a `numeric-f32` compile check and a small FFI smoke compile for the checked-in C example.
 Property budgets are controlled with `DSFB_PROPTEST_MODE=smoke|research|stress`, where the default research-grade budget is 256 cases and the high-risk dashboard/near-threshold properties use 512 cases.
 
 The crate currently ships one additive Cargo feature flag:
@@ -443,7 +446,7 @@ Build the legacy-integration FFI crate and header surface:
 cargo test --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -p dsfb-semiotics-engine-ffi
 ```
 
-The checked-in header lives at [`ffi/include/dsfb_semiotics_engine.h`](ffi/include/dsfb_semiotics_engine.h), and a minimal C example lives at [`ffi/examples/minimal_ffi.c`](ffi/examples/minimal_ffi.c).
+The checked-in header lives at [`ffi/include/dsfb_semiotics_engine.h`](ffi/include/dsfb_semiotics_engine.h), with minimal examples at [`ffi/examples/minimal_ffi.c`](ffi/examples/minimal_ffi.c) and [`ffi/examples/minimal_ffi.cpp`](ffi/examples/minimal_ffi.cpp).
 
 Refresh snapshot fixtures intentionally with:
 

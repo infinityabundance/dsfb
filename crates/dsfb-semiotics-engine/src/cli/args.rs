@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use clap::{CommandFactory, Parser, ValueEnum, ValueHint};
 
-use crate::engine::config::{BankRunConfig, BankSourceConfig};
+use crate::engine::config::{BankRunConfig, BankValidationMode};
 use crate::engine::types::EnvelopeMode;
 use crate::evaluation::sweeps::{SweepConfig, SweepFamily};
 use crate::math::envelope::EnvelopeSpec;
@@ -122,6 +122,21 @@ pub enum BankSourceArg {
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
+pub enum BankValidationModeArg {
+    Strict,
+    Permissive,
+}
+
+impl From<BankValidationModeArg> for BankValidationMode {
+    fn from(value: BankValidationModeArg) -> Self {
+        match value {
+            BankValidationModeArg::Strict => BankValidationMode::Strict,
+            BankValidationModeArg::Permissive => BankValidationMode::Permissive,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
 pub enum SweepFamilyArg {
     GradualDriftSlope,
     CurvatureOnsetTiming,
@@ -186,11 +201,16 @@ pub struct CliArgs {
     )]
     pub bank_path: Option<PathBuf>,
 
+    #[arg(long, help = "Compatibility alias for --bank-validation-mode strict.")]
+    pub strict_bank_validation: bool,
+
     #[arg(
         long,
-        help = "Require symmetric compatibility and incompatibility graph links during heuristic-bank validation."
+        value_enum,
+        default_value_t = BankValidationModeArg::Strict,
+        help = "Heuristic-bank governance mode. Strict is the default posture; permissive is explicit opt-in for authoring/review runs."
     )]
-    pub strict_bank_validation: bool,
+    pub bank_validation_mode: BankValidationModeArg,
 
     #[arg(
         long,
@@ -468,6 +488,16 @@ impl CliArgs {
                 )
                 .exit();
         }
+        if args.strict_bank_validation
+            && matches!(args.bank_validation_mode, BankValidationModeArg::Permissive)
+        {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--strict-bank-validation cannot be combined with --bank-validation-mode permissive",
+                )
+                .exit();
+        }
         if args.dashboard_scenario.is_some() && !args.dashboard_replay {
             Self::command()
                 .error(
@@ -523,16 +553,19 @@ impl CliArgs {
     /// Converts the validated CLI bank flags into a typed deterministic bank-loading policy.
     #[must_use]
     pub fn bank_config(&self) -> BankRunConfig {
+        let validation_mode = if self.strict_bank_validation {
+            BankValidationMode::Strict
+        } else {
+            self.bank_validation_mode.into()
+        };
         match self.bank_source {
-            BankSourceArg::Builtin => BankRunConfig::builtin(),
-            BankSourceArg::External => BankRunConfig {
-                source: BankSourceConfig::External(
-                    self.bank_path
-                        .clone()
-                        .expect("validated external bank path"),
-                ),
-                strict_validation: self.strict_bank_validation,
-            },
+            BankSourceArg::Builtin => BankRunConfig::builtin_with_mode(validation_mode),
+            BankSourceArg::External => BankRunConfig::external_with_mode(
+                self.bank_path
+                    .clone()
+                    .expect("validated external bank path"),
+                validation_mode,
+            ),
         }
     }
 

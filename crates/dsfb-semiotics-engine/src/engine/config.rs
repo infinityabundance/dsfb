@@ -19,11 +19,35 @@ pub enum BankSourceConfig {
     External(PathBuf),
 }
 
+/// Typed heuristic-bank governance mode for deterministic runs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BankValidationMode {
+    Strict,
+    Permissive,
+}
+
+impl BankValidationMode {
+    /// Returns whether the bank must satisfy full strict governance checks.
+    #[must_use]
+    pub const fn is_strict(self) -> bool {
+        matches!(self, Self::Strict)
+    }
+
+    /// Returns the machine-readable validation-mode label.
+    #[must_use]
+    pub const fn as_label(self) -> &'static str {
+        match self {
+            Self::Strict => "strict",
+            Self::Permissive => "permissive",
+        }
+    }
+}
+
 /// Deterministic heuristic-bank loading policy shared by synthetic and CSV-driven runs.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BankRunConfig {
     pub source: BankSourceConfig,
-    pub strict_validation: bool,
+    pub validation_mode: BankValidationMode,
 }
 
 /// Common engine settings shared by synthetic and CSV-driven runs.
@@ -90,7 +114,7 @@ impl Default for BankRunConfig {
     fn default() -> Self {
         Self {
             source: BankSourceConfig::Builtin,
-            strict_validation: false,
+            validation_mode: BankValidationMode::Strict,
         }
     }
 }
@@ -102,13 +126,41 @@ impl BankRunConfig {
         Self::default()
     }
 
+    /// Returns a deterministic built-in bank selection with an explicit governance mode.
+    #[must_use]
+    pub fn builtin_with_mode(validation_mode: BankValidationMode) -> Self {
+        Self {
+            source: BankSourceConfig::Builtin,
+            validation_mode,
+        }
+    }
+
     /// Returns a deterministic external-bank selection.
     #[must_use]
     pub fn external(path: PathBuf, strict_validation: bool) -> Self {
         Self {
             source: BankSourceConfig::External(path),
-            strict_validation,
+            validation_mode: if strict_validation {
+                BankValidationMode::Strict
+            } else {
+                BankValidationMode::Permissive
+            },
         }
+    }
+
+    /// Returns a deterministic external-bank selection with an explicit governance mode.
+    #[must_use]
+    pub fn external_with_mode(path: PathBuf, validation_mode: BankValidationMode) -> Self {
+        Self {
+            source: BankSourceConfig::External(path),
+            validation_mode,
+        }
+    }
+
+    /// Returns whether this run uses strict bank validation.
+    #[must_use]
+    pub const fn is_strict(&self) -> bool {
+        self.validation_mode.is_strict()
     }
 
     /// Validates the bank-loading request without touching the filesystem.

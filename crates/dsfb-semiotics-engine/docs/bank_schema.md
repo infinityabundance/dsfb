@@ -135,13 +135,16 @@ At startup the crate validates external banks for:
 - regime-tag sanity
 - retrieval-priority sanity
 - scope-condition sanity checks
-- optional strict reverse-link symmetry checks
+- strict reverse-link symmetry checks by default
 - optional explicitly documented directional-exception handling for incompatibility links
 
-Strict mode is enabled with `--strict-bank-validation`. In strict mode, missing reverse
-compatibility or incompatibility links fail the run. The runtime exports
-`validation_mode` as either `strict` or `permissive`, plus additive `violations` and `warnings`
-arrays so permissive-mode runs do not hide graph-governance findings.
+Strict mode is the default runtime posture. The compatibility alias `--strict-bank-validation`
+still exists, but the primary CLI is `--bank-validation-mode strict|permissive`.
+Under strict mode, missing reverse compatibility or incompatibility links fail the run unless an
+explicit directional exception is declared. The runtime exports `validation_mode` as either
+`strict` or `permissive`, plus additive `violations` and `warnings` arrays so permissive-mode
+runs do not hide graph-governance findings. Permissive runs are explicitly marked as not
+governance-clean in the report surface.
 
 ## Exported Runtime Metadata
 

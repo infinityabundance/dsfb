@@ -122,6 +122,14 @@ fn builtin_bank_registry_validates_cleanly() {
     assert!(report.valid);
     assert!(report.duplicate_ids.is_empty());
     assert!(report.unknown_link_targets.is_empty());
+    assert!(report.strict_validation);
+    assert!(report.warnings.is_empty());
+}
+
+#[test]
+fn strict_bank_validation_is_default_for_typed_configs() {
+    let common = CommonRunConfig::default();
+    assert!(common.bank.is_strict());
 }
 
 #[test]
@@ -362,6 +370,28 @@ fn permissive_external_bank_run_exports_graph_violations_clearly() {
 }
 
 #[test]
+fn permissive_report_marks_run_as_not_governance_clean() {
+    let temp = tempdir().unwrap();
+    let bank_path = temp.path().join("asymmetric_bank.json");
+    std::fs::write(&bank_path, asymmetric_bank_json()).unwrap();
+
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            bank: BankRunConfig::external(bank_path, false),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let report = std::fs::read_to_string(exported.report_markdown).unwrap();
+
+    assert!(report.contains("not governance-clean"));
+    assert!(report.contains("permissive opt-in"));
+}
+
+#[test]
 fn evaluation_summary_and_baselines_cover_every_scenario() {
     let temp = tempdir().unwrap();
     let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_all(CommonRunConfig {
@@ -392,6 +422,25 @@ fn evaluation_summary_and_baselines_cover_every_scenario() {
     assert!(comparator_ids.contains("baseline_innovation_chi_squared_style"));
     assert!(bundle.evaluation.summary.all_reproducible);
     assert!(bundle.evaluation.bank_validation.valid);
+}
+
+#[test]
+fn exported_report_mentions_operator_legible_comparator_framing() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let report = std::fs::read_to_string(exported.report_markdown).unwrap();
+
+    assert!(report.contains("Comparator framing"));
+    assert!(report.contains("EKF innovation monitoring"));
+    assert!(report.contains("chi-squared-style gating"));
 }
 
 #[test]

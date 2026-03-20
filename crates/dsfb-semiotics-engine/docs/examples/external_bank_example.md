@@ -12,8 +12,17 @@ From the repository root:
 cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
   --scenario nominal_stable \
   --bank-mode external \
+  --bank-path crates/dsfb-semiotics-engine/tests/fixtures/external_bank_minimal.json
+```
+
+Strict validation is the default. If you need a review-only authoring run, use:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
+  --scenario nominal_stable \
+  --bank-mode external \
   --bank-path crates/dsfb-semiotics-engine/tests/fixtures/external_bank_minimal.json \
-  --strict-bank-validation
+  --bank-validation-mode permissive
 ```
 
 ## What To Inspect

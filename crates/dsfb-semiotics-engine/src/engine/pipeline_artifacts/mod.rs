@@ -4,8 +4,10 @@
 //! - [`tables`] materializes machine-readable CSV/JSON exports.
 //! - [`figures`] writes figure-source tables and integrity reports.
 //! - [`report`] assembles the manifest, completeness record, and PDF text appendices.
+//! - [`bundle`] materializes markdown, PDF, and zip bundle files.
 //! - this module keeps only the top-level export orchestration.
 
+mod bundle;
 mod figures;
 mod integrity;
 mod report;
@@ -13,7 +15,7 @@ mod tables;
 
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 use crate::engine::types::EngineOutputBundle;
 use crate::figures::plots::render_all_figures;
@@ -21,13 +23,9 @@ use crate::figures::source::prepare_publication_figure_source_tables;
 use crate::io::csv::write_rows;
 use crate::io::json::write_pretty;
 use crate::io::output::{prepare_clean_export_layout, OutputLayout};
-use crate::io::zip::zip_directory;
-use crate::report::artifact_report::build_markdown_report;
-use crate::report::pdf::write_artifact_pdf;
 
-use self::report::{
-    build_artifact_completeness, build_report_manifest, collect_pdf_text_artifacts,
-};
+use self::bundle::{write_report_bundle, write_zip_bundle, ReportBundlePaths};
+use self::report::{build_artifact_completeness, build_report_manifest};
 use self::tables::write_tabular_artifacts;
 
 /// Filesystem artifact inventory written for one completed deterministic run.
@@ -84,34 +82,21 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
         &zip_path,
         None,
     )?;
-    let initial_markdown = build_markdown_report(
+    write_pretty(&manifest_path, &initial_manifest)?;
+    write_report_bundle(
         bundle,
         &figure_artifacts,
+        &layout,
         &initial_manifest,
         None,
         Some(&tabular_summary.figure_integrity_checks),
-    );
-    std::fs::write(&report_markdown_path, &initial_markdown)
-        .with_context(|| format!("failed to write {}", report_markdown_path.display()))?;
-    write_pretty(&manifest_path, &initial_manifest)?;
-    let text_artifacts = collect_pdf_text_artifacts(
-        &layout,
-        &initial_manifest,
-        &initial_markdown,
-        &manifest_path,
+        ReportBundlePaths {
+            report_markdown_path: &report_markdown_path,
+            report_pdf_path: &report_pdf_path,
+            manifest_path: &manifest_path,
+        },
     )?;
-    write_artifact_pdf(
-        &report_pdf_path,
-        "dsfb-semiotics-engine report",
-        &initial_markdown
-            .lines()
-            .map(|line| line.to_string())
-            .collect::<Vec<_>>(),
-        &figure_artifacts,
-        &initial_manifest,
-        &text_artifacts,
-    )?;
-    zip_directory(&layout.run_dir, &zip_path)?;
+    write_zip_bundle(&layout.run_dir, &zip_path)?;
 
     let completeness = build_artifact_completeness(
         bundle,
@@ -140,30 +125,21 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
         &zip_path,
         Some(&completeness),
     )?;
-    let final_markdown = build_markdown_report(
+    write_pretty(&manifest_path, &report_manifest)?;
+    write_report_bundle(
         bundle,
         &figure_artifacts,
+        &layout,
         &report_manifest,
         Some(&completeness),
         Some(&tabular_summary.figure_integrity_checks),
-    );
-    std::fs::write(&report_markdown_path, &final_markdown)
-        .with_context(|| format!("failed to write {}", report_markdown_path.display()))?;
-    write_pretty(&manifest_path, &report_manifest)?;
-    let final_text_artifacts =
-        collect_pdf_text_artifacts(&layout, &report_manifest, &final_markdown, &manifest_path)?;
-    write_artifact_pdf(
-        &report_pdf_path,
-        "dsfb-semiotics-engine report",
-        &final_markdown
-            .lines()
-            .map(|line| line.to_string())
-            .collect::<Vec<_>>(),
-        &figure_artifacts,
-        &report_manifest,
-        &final_text_artifacts,
+        ReportBundlePaths {
+            report_markdown_path: &report_markdown_path,
+            report_pdf_path: &report_pdf_path,
+            manifest_path: &manifest_path,
+        },
     )?;
-    zip_directory(&layout.run_dir, &zip_path)?;
+    write_zip_bundle(&layout.run_dir, &zip_path)?;
 
     Ok(ExportedArtifacts {
         run_dir: layout.run_dir,

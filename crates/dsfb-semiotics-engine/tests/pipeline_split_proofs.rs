@@ -56,6 +56,20 @@ fn test_pipeline_artifacts_report_module_present() {
 }
 
 #[test]
+fn test_pipeline_artifacts_bundle_module_present() {
+    let text =
+        fs::read_to_string(crate_root().join("src/engine/pipeline_artifacts/bundle.rs")).unwrap();
+    assert!(text.contains("Bundle packaging helpers"));
+}
+
+#[test]
+fn test_pipeline_artifacts_integrity_module_present() {
+    let text = fs::read_to_string(crate_root().join("src/engine/pipeline_artifacts/integrity.rs"))
+        .unwrap();
+    assert!(text.contains("integrity"));
+}
+
+#[test]
 fn test_pipeline_evaluation_module_present() {
     let text = fs::read_to_string(crate_root().join("src/engine/pipeline_evaluation.rs")).unwrap();
     assert!(text.contains("reproducibility aggregation"));
@@ -82,6 +96,20 @@ fn test_semantics_bank_builtin_module_present() {
 }
 
 #[test]
+fn test_semantics_bank_loader_module_present() {
+    let text =
+        fs::read_to_string(crate_root().join("src/engine/semantics/bank_loader.rs")).unwrap();
+    assert!(text.contains("Typed heuristic-bank loading"));
+}
+
+#[test]
+fn test_semantics_bank_validation_module_present() {
+    let text =
+        fs::read_to_string(crate_root().join("src/engine/semantics/bank_validation.rs")).unwrap();
+    assert!(text.contains("Governed heuristic-bank validation"));
+}
+
+#[test]
 fn test_semantics_retrieval_module_present() {
     let text = fs::read_to_string(crate_root().join("src/engine/semantics/retrieval.rs")).unwrap();
     assert!(text.contains("retrieve_semantics_with_registry"));
@@ -98,6 +126,13 @@ fn test_semantics_compatibility_module_present() {
     let text =
         fs::read_to_string(crate_root().join("src/engine/semantics/compatibility.rs")).unwrap();
     assert!(text.contains("Compatibility assessment"));
+}
+
+#[test]
+fn test_semantics_explanations_module_present() {
+    let text =
+        fs::read_to_string(crate_root().join("src/engine/semantics/explanations.rs")).unwrap();
+    assert!(text.contains("Semantic explanation assembly"));
 }
 
 #[test]
