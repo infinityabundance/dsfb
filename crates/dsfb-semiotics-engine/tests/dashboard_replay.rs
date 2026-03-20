@@ -76,6 +76,7 @@ fn test_dashboard_handles_csv_replay_fixture_without_panic() {
         bank_source: dsfb_semiotics_engine::cli::args::BankSourceArg::Builtin,
         bank_path: None,
         strict_bank_validation: false,
+        bank_validation_mode: dsfb_semiotics_engine::cli::args::BankValidationModeArg::Strict,
         sweep_family: None,
         sweep_points: 0,
         observed_csv: Some(crate_root.join("tests/fixtures/observed_fixture.csv")),

@@ -22,6 +22,8 @@ fn test_readme_mentions_external_bank_mode() {
 fn test_readme_mentions_strict_bank_validation() {
     let readme = readme_text();
     assert!(readme.contains("--strict-bank-validation"));
+    assert!(readme.contains("--bank-validation-mode permissive"));
+    assert!(readme.contains("Strict governance is now the default posture"));
 }
 
 #[test]
@@ -38,6 +40,7 @@ fn test_help_mentions_bank_flags() {
     assert!(help.contains("--bank-mode"));
     assert!(help.contains("--bank-path"));
     assert!(help.contains("--strict-bank-validation"));
+    assert!(help.contains("--bank-validation-mode"));
 }
 
 #[test]
@@ -86,6 +89,13 @@ fn test_readme_mentions_colab_download_buttons() {
 }
 
 #[test]
+fn test_readme_mentions_notebook_download_buttons() {
+    let readme = readme_text();
+    assert!(readme.contains("one-click download"));
+    assert!(readme.contains("PDF report and ZIP bundle"));
+}
+
+#[test]
 fn test_readme_mentions_bounded_online_history_and_numeric_mode() {
     let readme = readme_text();
     assert!(readme.contains("fixed-capacity ring buffer"));
@@ -93,10 +103,35 @@ fn test_readme_mentions_bounded_online_history_and_numeric_mode() {
 }
 
 #[test]
+fn test_readme_mentions_f32_mode_if_added() {
+    let readme = readme_text();
+    assert!(readme.contains("numeric-f32"));
+}
+
+#[test]
+fn test_readme_mentions_ring_buffer_or_bounded_memory_if_added() {
+    let readme = readme_text();
+    assert!(readme.contains("fixed-capacity ring buffer"));
+}
+
+#[test]
 fn test_readme_mentions_ffi_and_failure_injection_example() {
     let readme = readme_text();
     assert!(readme.contains("ffi/include/dsfb_semiotics_engine.h"));
     assert!(readme.contains("synthetic_failure_injection"));
+}
+
+#[test]
+fn test_readme_mentions_ffi_if_added() {
+    let readme = readme_text();
+    assert!(readme.contains("ffi/include/dsfb_semiotics_engine.h"));
+}
+
+#[test]
+fn test_readme_mentions_operator_legible_comparator_context() {
+    let readme = readme_text();
+    assert!(readme.contains("EKF innovation monitoring"));
+    assert!(readme.contains("chi-squared-style gating"));
 }
 
 #[test]
@@ -163,4 +198,15 @@ fn test_ci_workflow_mentions_dashboard_smoke_if_dashboard_added() {
         fs::read_to_string(crate_root().join(".github/workflows/crate-quality-gate.yml")).unwrap();
     assert!(workflow.contains("Dashboard replay smoke run"));
     assert!(workflow.contains("--dashboard-replay"));
+}
+
+#[test]
+fn test_ci_workflow_mentions_numeric_f32_and_ffi_smoke() {
+    let workflow =
+        fs::read_to_string(crate_root().join(".github/workflows/crate-quality-gate.yml")).unwrap();
+    assert!(workflow.contains("numeric-f32 compile smoke"));
+    assert!(workflow.contains("cargo check --features numeric-f32"));
+    assert!(workflow.contains("FFI smoke compile"));
+    assert!(workflow.contains("ffi/examples/minimal_ffi.c"));
+    assert!(workflow.contains("ffi/examples/minimal_ffi.cpp"));
 }

@@ -21,8 +21,8 @@ pub use engine::bank::{
     BankSourceKind, HeuristicBankRegistry, HeuristicBankValidationReport, LoadedBankDescriptor,
 };
 pub use engine::config::{
-    BankRunConfig, BankSourceConfig, CommonRunConfig, CsvRunConfig, SyntheticRunConfig,
-    SyntheticSelection, DEFAULT_DT, DEFAULT_SEED, DEFAULT_STEPS,
+    BankRunConfig, BankSourceConfig, BankValidationMode, CommonRunConfig, CsvRunConfig,
+    SyntheticRunConfig, SyntheticSelection, DEFAULT_DT, DEFAULT_SEED, DEFAULT_STEPS,
 };
 pub use engine::pipeline::{
     export_artifacts, run_all_demos, run_scenario, EngineConfig, StructuralSemioticsEngine,

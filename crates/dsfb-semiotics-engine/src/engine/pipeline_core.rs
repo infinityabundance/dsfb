@@ -169,10 +169,10 @@ impl StructuralSemioticsEngine {
         config.validate()?;
         let (bank_registry, loaded_bank, bank_validation) = match &config.bank.source {
             BankSourceConfig::Builtin => {
-                HeuristicBankRegistry::load_builtin(config.bank.strict_validation)?
+                HeuristicBankRegistry::load_builtin(config.bank.is_strict())?
             }
             BankSourceConfig::External(path) => {
-                HeuristicBankRegistry::load_external_json(path, config.bank.strict_validation)?
+                HeuristicBankRegistry::load_external_json(path, config.bank.is_strict())?
             }
         };
         Ok(Self {

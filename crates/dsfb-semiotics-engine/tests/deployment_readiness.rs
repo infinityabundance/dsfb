@@ -193,6 +193,12 @@ fn test_ffi_symbols_exported() {
 }
 
 #[test]
+fn test_ffi_examples_present() {
+    assert!(crate_root().join("ffi/examples/minimal_ffi.c").is_file());
+    assert!(crate_root().join("ffi/examples/minimal_ffi.cpp").is_file());
+}
+
+#[test]
 fn test_synthetic_failure_injection_example_exists() {
     assert!(crate_root()
         .join("examples/synthetic_failure_injection.rs")

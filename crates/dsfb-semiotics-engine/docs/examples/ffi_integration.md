@@ -12,9 +12,10 @@ The checked-in header is:
 
 - `ffi/include/dsfb_semiotics_engine.h`
 
-The minimal C example is:
+The minimal examples are:
 
 - `ffi/examples/minimal_ffi.c`
+- `ffi/examples/minimal_ffi.cpp`
 
 ## What The ABI Exposes
 

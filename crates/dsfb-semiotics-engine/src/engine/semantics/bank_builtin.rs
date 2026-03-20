@@ -335,6 +335,7 @@ pub(crate) fn builtin_heuristic_bank_entries() -> Vec<HeuristicBankEntry> {
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
                 "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
+                "H-INWARD-RECOVERY".to_string(),
                 "H-BOUNDED-OSCILLATORY".to_string(),
                 "H-STRUCTURED-NOISY-TRAJECTORY".to_string(),
                 "H-BASELINE-COMPATIBLE".to_string(),
@@ -392,6 +393,7 @@ pub(crate) fn builtin_heuristic_bank_entries() -> Vec<HeuristicBankEntry> {
             incompatible_with: vec![
                 "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
+                "H-INWARD-RECOVERY".to_string(),
                 "H-BASELINE-COMPATIBLE".to_string(),
             ],
             directional_incompatibility_exceptions: Vec::new(),
@@ -443,6 +445,7 @@ pub(crate) fn builtin_heuristic_bank_entries() -> Vec<HeuristicBankEntry> {
             incompatible_with: vec![
                 "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
+                "H-INWARD-RECOVERY".to_string(),
                 "H-BASELINE-COMPATIBLE".to_string(),
             ],
             directional_incompatibility_exceptions: Vec::new(),
@@ -492,6 +495,7 @@ pub(crate) fn builtin_heuristic_bank_entries() -> Vec<HeuristicBankEntry> {
             incompatible_with: vec![
                 "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
+                "H-INWARD-RECOVERY".to_string(),
                 "H-BASELINE-COMPATIBLE".to_string(),
             ],
             directional_incompatibility_exceptions: Vec::new(),
@@ -647,6 +651,8 @@ pub(crate) fn builtin_heuristic_bank_entries() -> Vec<HeuristicBankEntry> {
                 "H-DISCRETE-EVENT".to_string(),
                 "H-CURVATURE-RICH-TRANSITION".to_string(),
                 "H-CURVATURE-LED-DEPARTURE".to_string(),
+                "H-BOUNDARY-GRAZING".to_string(),
+                "H-RECURRENT-BOUNDARY-RECURRENCE".to_string(),
                 "H-COORDINATED-RISE".to_string(),
                 "H-MIXED-REGIME-TRANSITION".to_string(),
                 "H-STRUCTURED-NOISY-TRAJECTORY".to_string(),
@@ -760,6 +766,7 @@ pub(crate) fn builtin_heuristic_bank_entries() -> Vec<HeuristicBankEntry> {
                 "H-CURVATURE-LED-DEPARTURE".to_string(),
                 "H-MIXED-REGIME-TRANSITION".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
+                "H-INWARD-RECOVERY".to_string(),
                 "H-BOUNDED-OSCILLATORY".to_string(),
                 "H-BASELINE-COMPATIBLE".to_string(),
             ],

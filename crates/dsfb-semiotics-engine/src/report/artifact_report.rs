@@ -55,6 +55,12 @@ pub fn build_markdown_report(
         "Bank validation mode: `{}`",
         bundle.run_metadata.bank.validation_mode
     ));
+    if !bundle.run_metadata.bank.strict_validation {
+        lines.push(
+            "Governance posture: `permissive opt-in`; this run is not governance-clean and every exported bank warning must be reviewed before using the bank as an audit-grade reference."
+                .to_string(),
+        );
+    }
     if let Some(git_commit) = &bundle.run_metadata.git_commit {
         lines.push(format!("Git commit: `{git_commit}`"));
     }
@@ -76,6 +82,7 @@ pub fn build_markdown_report(
     lines.push("- Semantics: constrained retrieval over a typed heuristic bank with scope conditions, admissibility requirements, regime tags, provenance notes, and compatibility rules. The bank may be builtin or external, but the loaded bank version, source, content hash, and validation result are exported explicitly for audit. Compatible sets carry explicit pairwise compatibility notes, while `Unknown` carries an explicit low-evidence or bank-noncoverage detail string.".to_string());
     lines.push("- Detectability bound: `t* - t0 <= Delta0 / (alpha - kappa)` when configured assumptions hold.".to_string());
     lines.push("- Evaluation: post-run deterministic summaries and simple internal deterministic comparators (residual threshold, moving-average trend, slew spike, envelope interaction, one-sided CUSUM, and a fixed innovation-style squared residual statistic) are reported separately from the core engine outputs.".to_string());
+    lines.push("- Comparator framing: these internal deterministic comparators are operator-legible analogies to threshold monitors, EKF innovation monitoring, chi-squared-style gating, and one-sided change detectors on the same controlled scenario families. They are not field benchmarks and do not support superiority claims by themselves.".to_string());
     lines.push(String::new());
     lines.push("## Reproducibility Summary".to_string());
     lines.push(String::new());
@@ -145,6 +152,12 @@ pub fn build_markdown_report(
         "- Bank validation warnings: {}",
         bundle.evaluation.bank_validation.warnings.len()
     ));
+    if !bundle.evaluation.bank_validation.strict_validation {
+        lines.push(
+            "- Governance note: permissive validation was explicitly selected; the bank may still carry reverse-link or symmetry warnings and this run should not be treated as governance-clean."
+                .to_string(),
+        );
+    }
     lines.push(format!(
         "- Bank validation regime-tag notes: {}",
         bundle.evaluation.bank_validation.regime_tag_notes.len()
