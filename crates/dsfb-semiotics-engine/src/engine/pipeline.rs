@@ -848,6 +848,7 @@ struct SemanticMatchCsvRow {
     selected_heuristic_ids: String,
     resolution_basis: String,
     unknown_reason_class: String,
+    unknown_reason_detail: String,
     candidate_labels: String,
     candidate_regimes: String,
     candidate_regime_explanations: String,
@@ -857,6 +858,7 @@ struct SemanticMatchCsvRow {
     candidate_provenance_notes: String,
     candidate_rationales: String,
     compatibility_note: String,
+    compatibility_reasons: String,
     conflict_notes: String,
     note: String,
 }
@@ -945,6 +947,7 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
         selected_heuristic_ids: result.selected_heuristic_ids.join(" | "),
         resolution_basis: result.resolution_basis.clone(),
         unknown_reason_class: result.unknown_reason_class.clone().unwrap_or_default(),
+        unknown_reason_detail: result.unknown_reason_detail.clone().unwrap_or_default(),
         candidate_labels: result
             .candidates
             .iter()
@@ -1035,6 +1038,7 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
             .collect::<Vec<_>>()
             .join(" || "),
         compatibility_note: result.compatibility_note.clone(),
+        compatibility_reasons: result.compatibility_reasons.join(" | "),
         conflict_notes: result.conflict_notes.join(" | "),
         note: result.note.clone(),
     }

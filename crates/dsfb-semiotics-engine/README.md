@@ -77,7 +77,7 @@ Syntax is represented through drift and slew structure, including:
 - grouped aggregate breach fraction when coordinated structure is configured
 - trajectory labels such as `persistent-outward-drift`, `coordinated-outward-rise`, `discrete-event-like`, `curvature-rich-transition`, `inward-compatible-containment`, `near-boundary-recurrent`, `weakly-structured-baseline-like`, or a conservative `mixed-structured` fallback when the exported metrics do not justify a narrower rule-based summary
 
-Outward and inward motion are computed from residual-envelope margin evolution and residual-aligned radial drift, not from the sign of a single channel. The monotonicity-style metrics are deterministic path summaries over residual norms rather than complete claims about every channel. The curvature-style metrics are deterministic summaries over slew norms rather than claims about differential geometry in full generality.
+Outward and inward motion are computed from residual-envelope margin evolution and residual-aligned radial drift, not from the sign of a single channel. The monotonicity-style metrics are deterministic path summaries over residual norms rather than complete claims about every channel. The curvature-style metrics are deterministic summaries over slew norms rather than claims about differential geometry in full generality. When the syntax label remains `mixed-structured`, that is a conservative syntax-level non-commitment rather than anomaly language by itself.
 
 ### Grammar
 
@@ -123,16 +123,21 @@ Retrieval is constrained rather than purely threshold-labeled. Each candidate no
 - localized slew spike -> discrete event candidate
 - curvature-rich transition candidate
 - curvature-led admissibility departure candidate
+- mixed-regime transition candidate when explicit regime-shift tags and curvature-led departure structure coexist
 - repeated envelope grazing -> near-boundary operation candidate
+- recurrent boundary operation candidate when repeated recoverable boundary returns are present
 - coordinated aggregate rise -> correlated degradation or common-mode disturbance candidate
+- coordinated admissibility departure candidate for stronger grouped breach cases
 - inward-compatible containment candidate
+- inward recovery-compatible candidate for repeated returns to admissibility under inward-compatible motion
 - balanced bounded oscillation -> bounded oscillatory operation candidate
+- structured noisy trajectory candidate for admissible but visibly agitated residual evolution
 - low-structure admissible evolution -> weakly structured baseline-compatible observation candidate
 - explicit compatible sets when every matched pair is bank-compatible
 - explicit ambiguity when matched heuristics conflict
-- explicit `Unknown`, including whether the current outcome reflects low evidence or bank noncoverage
+- explicit `Unknown`, including whether the current outcome reflects low evidence or bank noncoverage, with an exported detail string explaining which case occurred
 
-These are constrained heuristic retrieval outcomes only. They do not imply unique latent cause. In particular, the baseline-compatible path is a low-commitment description relative to the configured prediction and envelope, not a validated health classifier.
+These are constrained heuristic retrieval outcomes only. They do not imply unique latent cause. In particular, the baseline-compatible path is a low-commitment description relative to the configured prediction and envelope, not a validated health classifier, and compatible sets remain jointly reportable motifs rather than collapsed diagnoses.
 
 ### CSV Ingestion Path
 

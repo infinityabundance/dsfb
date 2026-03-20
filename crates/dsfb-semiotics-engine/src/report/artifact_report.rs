@@ -35,7 +35,7 @@ pub fn build_markdown_report(
     lines.push(
         "- Grammar: admissibility checked pointwise against `||r(t)|| <= rho(t)`.".to_string(),
     );
-    lines.push("- Semantics: constrained retrieval over a typed heuristic bank with scope conditions, admissibility requirements, regime tags, provenance notes, and compatibility rules.".to_string());
+    lines.push("- Semantics: constrained retrieval over a typed heuristic bank with scope conditions, admissibility requirements, regime tags, provenance notes, and compatibility rules. Compatible sets carry explicit pairwise compatibility notes, while `Unknown` carries an explicit low-evidence or bank-noncoverage detail string.".to_string());
     lines.push("- Detectability bound: `t* - t0 <= Delta0 / (alpha - kappa)` when configured assumptions hold.".to_string());
     lines.push(String::new());
     lines.push("## Reproducibility Summary".to_string());
@@ -162,8 +162,24 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
                 .unwrap_or_else(|| "n/a".to_string())
         ),
         format!(
+            "- Semantic unknown reason detail: {}",
+            scenario
+                .semantics
+                .unknown_reason_detail
+                .clone()
+                .unwrap_or_else(|| "n/a".to_string())
+        ),
+        format!(
             "- Semantic compatibility note: {}",
             scenario.semantics.compatibility_note
+        ),
+        format!(
+            "- Semantic compatibility reasons: {}",
+            if scenario.semantics.compatibility_reasons.is_empty() {
+                "none".to_string()
+            } else {
+                scenario.semantics.compatibility_reasons.join(" | ")
+            }
         ),
         format!("- Semantic note: {}", scenario.semantics.note),
         format!("- Limitation note: {}", scenario.record.limitations),
@@ -205,7 +221,7 @@ fn syntax_note(scenario: &ScenarioOutput) -> String {
             "This syntax label is a low-commitment baseline-compatible summary relative to the configured prediction and envelope only. It is not a health or certification label.".to_string()
         }
         "mixed-structured" => {
-            "This syntax label is conservative non-commitment: the exported deterministic metrics did not support a narrower syntax summary under the current rule set.".to_string()
+            "This syntax label is conservative non-commitment at the syntax layer: the exported deterministic metrics did not support a narrower syntax summary under the current rule set. A separate semantic match may still be returned when admissibility, regime, and typed-bank constraints justify one.".to_string()
         }
         "coordinated-outward-rise" => {
             "Coordination is surfaced at the syntax layer because grouped residual structure and aggregate breach evidence were explicitly configured and observed.".to_string()
