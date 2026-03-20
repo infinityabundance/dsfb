@@ -142,17 +142,21 @@ pub fn build_markdown_report(
         lines.push(String::new());
         for check in figure_integrity_checks {
             lines.push(format!(
-                "- `{}`: panels={}/{}, nonempty_series=`{}`, nonzero_values_present=`{}`, consistent_with_source=`{}`",
+                "- `{}`: panels={}/{}, rows=`{}`, nonempty_series=`{}`, nonzero_values_present=`{}`, count_like_panels_integerlike=`{}`, png_present=`{}`, svg_present=`{}`, consistent_with_source=`{}`",
                 check.figure_id,
                 check.observed_panel_count,
                 check.expected_panel_count,
+                check.source_row_count,
                 check.nonempty_series,
                 check.nonzero_values_present,
+                check.count_like_panels_integerlike,
+                check.png_present,
+                check.svg_present,
                 check.consistent_with_source
             ));
             lines.push(format!(
-                "  source_csv=`{}`, source_json=`{}`",
-                check.source_csv, check.source_json
+                "  source_csv=`{}`, source_json=`{}`, png=`{}`, svg=`{}`",
+                check.source_csv, check.source_json, check.png_path, check.svg_path
             ));
         }
     }

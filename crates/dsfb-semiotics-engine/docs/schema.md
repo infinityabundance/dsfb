@@ -43,12 +43,14 @@ This marker appears in:
   Built-in heuristic bank governance and validation summary.
 - `artifact_completeness.json`
   Export completeness check recorded after artifact generation.
+- `<figure-id>_source.json`
+  One machine-readable source table per rendered publication-style figure. Each table contains figure metadata plus row-wise panel/series/value records for the exact plotted content.
 - `figure_09_detectability_source.json`
-  Source rows for the detectability summary figure.
+  Legacy additive detectability summary rows retained for compatibility.
 - `figure_12_semantic_retrieval_source.json`
-  Source rows for the semantic retrieval summary figure.
+  Legacy additive semantic retrieval summary rows retained for compatibility.
 - `figure_13_internal_baseline_comparators_source.json`
-  Source rows for the internal deterministic comparator summary figure.
+  Legacy additive internal deterministic comparator summary rows retained for compatibility.
 - `figure_integrity_checks.json`
   Integrity records linking summary figures back to their exported source rows.
 - `sweep_results.json`
@@ -71,6 +73,7 @@ This marker appears in:
 - `baseline_comparators.csv`
 - `heuristic_bank_validation.csv`
 - `artifact_completeness.csv`
+- `<figure-id>_source.csv`
 - `figure_09_detectability_source.csv`
 - `figure_12_semantic_retrieval_source.csv`
 - `figure_13_internal_baseline_comparators_source.csv`
@@ -78,15 +81,17 @@ This marker appears in:
 
 For synthetic sweep runs the crate also emits:
 
+- `figure_14_sweep_stability_summary_source.csv`
 - `figure_14_sweep_stability_source.csv`
 
 Scenario-specific CSV files are also emitted for time series, residual, drift, slew, sign, envelope, grammar, and coordinated group structure when present.
 
 ## Figure-Source Discipline
 
-- Derived summary figures are paired with machine-readable source tables.
+- Every publication-style figure is paired with a machine-readable source table.
 - `figure_12_semantic_retrieval_source.*` exports explicit typed-bank counts including post-admissibility, post-regime, pre-scope, post-scope, rejected-stage counts, and final selected count.
-- `figure_integrity_checks.*` records panel counts, source-file locations, and simple consistency checks for the exported summary-figure inputs.
+- Generic `<figure-id>_source.*` tables export panel ids, panel titles, series ids, series labels, plot coordinates, figure metadata, and additive notes for the rendered plot.
+- `figure_integrity_checks.*` records panel counts, source row counts, emitted image presence, count-like-panel integer checks, source-file locations, and simple consistency checks for the exported figure inputs.
 - The semantic retrieval figure's middle panel now plots admissibility-qualified heuristic counts directly, not grammar boundary counts or other proxies.
 
 ## Interpretation Notes

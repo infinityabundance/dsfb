@@ -35,10 +35,15 @@ jobs:
         run: cargo doc --no-deps
 
       - name: Synthetic smoke run
-        run: cargo run -- --scenario nominal_stable
+        run: cargo run -- --scenario nominal_stable --output-dir ci-smoke-synthetic
 
       - name: CSV smoke run
-        run: cargo run -- --input-mode csv --observed-csv tests/fixtures/observed_fixture.csv --predicted-csv tests/fixtures/predicted_fixture.csv --scenario-id fixture_csv --time-column time
+        run: cargo run -- --input-mode csv --observed-csv tests/fixtures/observed_fixture.csv --predicted-csv tests/fixtures/predicted_fixture.csv --scenario-id fixture_csv --time-column time --output-dir ci-smoke-csv
 
       - name: Sweep smoke run
-        run: cargo run -- --sweep-family gradual-drift-slope --sweep-points 3
+        run: cargo run -- --sweep-family gradual-drift-slope --sweep-points 3 --output-dir ci-smoke-sweep
+
+      - name: Figure integrity smoke check
+        run: |
+          test -f "$(find ci-smoke-synthetic -name figure_integrity_checks.json | head -1)"
+          test -f "$(find ci-smoke-synthetic -name 'figure_12_semantic_retrieval_heuristics_bank_source.csv' | head -1)"

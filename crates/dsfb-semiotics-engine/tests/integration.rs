@@ -1252,7 +1252,7 @@ fn semantic_retrieval_figure_source_uses_exported_admissibility_counts() {
     assert!(figure_12.consistent_with_source);
     assert!(figure_12
         .source_csv
-        .ends_with("figure_12_semantic_retrieval_source.csv"));
+        .ends_with("figure_12_semantic_retrieval_heuristics_bank_source.csv"));
 }
 
 #[test]

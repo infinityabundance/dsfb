@@ -87,11 +87,17 @@ pub struct FigureIntegrityCheck {
     pub observed_panel_count: usize,
     pub panel_labels: Vec<String>,
     pub series_lengths: Vec<usize>,
+    pub source_row_count: usize,
     pub nonempty_series: bool,
     pub nonzero_values_present: bool,
+    pub count_like_panels_integerlike: bool,
     pub consistent_with_source: bool,
     pub source_csv: String,
     pub source_json: String,
+    pub png_path: String,
+    pub svg_path: String,
+    pub png_present: bool,
+    pub svg_present: bool,
     pub note: String,
 }
 

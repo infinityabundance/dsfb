@@ -27,8 +27,9 @@ use crate::evaluation::sweeps::{generate_sweep_members, SweepConfig, SweepMember
 use crate::evaluation::types::{ArtifactCompletenessCheck, FigureIntegrityCheck};
 use crate::figures::plots::render_all_figures;
 use crate::figures::source::{
-    baseline_comparator_source_rows, detectability_source_rows, semantic_retrieval_source_rows,
-    sweep_summary_source_rows,
+    baseline_comparator_source_rows, detectability_source_rows,
+    prepare_publication_figure_source_tables, semantic_retrieval_source_rows,
+    sweep_summary_source_rows, FigureSourceTable,
 };
 use crate::io::csv::write_rows;
 use crate::io::input::load_csv_trajectories;
@@ -187,8 +188,10 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
     };
     prepare_clean_export_layout(&layout)?;
 
-    let figure_artifacts = render_all_figures(bundle, &layout.figures_dir)?;
-    let tabular_summary = write_tabular_artifacts(bundle, &layout)?;
+    let figure_source_tables = prepare_publication_figure_source_tables(bundle)?;
+    let figure_artifacts = render_all_figures(&figure_source_tables, &layout.figures_dir)?;
+    let tabular_summary =
+        write_tabular_artifacts(bundle, &figure_source_tables, &figure_artifacts, &layout)?;
 
     let manifest_path = layout.run_dir.join("manifest.json");
     let report_markdown_path = layout.report_dir.join("dsfb_semiotics_engine_report.md");
@@ -695,6 +698,8 @@ fn build_coordinated(
 
 fn write_tabular_artifacts(
     bundle: &EngineOutputBundle,
+    figure_source_tables: &[FigureSourceTable],
+    figure_artifacts: &[FigureArtifact],
     layout: &OutputLayout,
 ) -> Result<TabularArtifactsSummary> {
     let scenario_catalog = bundle
@@ -771,7 +776,8 @@ fn write_tabular_artifacts(
         )?;
     }
 
-    let figure_integrity_checks = write_summary_figure_source_tables(bundle, layout)?;
+    let figure_integrity_checks =
+        write_summary_figure_source_tables(bundle, figure_source_tables, figure_artifacts, layout)?;
 
     let grammar_rows = bundle
         .scenario_outputs
@@ -964,132 +970,100 @@ fn write_tabular_artifacts(
 
 fn write_summary_figure_source_tables(
     bundle: &EngineOutputBundle,
+    figure_source_tables: &[FigureSourceTable],
+    figure_artifacts: &[FigureArtifact],
     layout: &OutputLayout,
 ) -> Result<Vec<FigureIntegrityCheck>> {
     let mut checks = Vec::new();
+    let figure_lookup = figure_artifacts
+        .iter()
+        .map(|artifact| (artifact.figure_id.clone(), artifact))
+        .collect::<BTreeMap<_, _>>();
 
-    let detectability_rows = detectability_source_rows(bundle);
-    let detectability_csv = layout.csv_dir.join("figure_09_detectability_source.csv");
-    let detectability_json = layout.json_dir.join("figure_09_detectability_source.json");
-    write_rows(detectability_csv.as_path(), detectability_rows.clone())?;
-    write_pretty(detectability_json.as_path(), &detectability_rows)?;
-    checks.push(FigureIntegrityCheck {
-        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
-        figure_id: "figure_09_detectability_bound".to_string(),
-        expected_panel_count: 1,
-        observed_panel_count: 1,
-        panel_labels: vec!["Predicted vs Observed Detectability Times".to_string()],
-        series_lengths: vec![detectability_rows.len()],
-        nonempty_series: !detectability_rows.is_empty(),
-        nonzero_values_present: detectability_rows.iter().any(|row| {
-            row.predicted_upper_bound.unwrap_or(0.0) > 0.0
-                || row.observed_crossing_time.unwrap_or(0.0) > 0.0
-        }),
-        consistent_with_source: detectability_rows
-            .iter()
-            .all(|row| row.predicted_upper_bound.is_some() || row.observed_crossing_time.is_some()),
-        source_csv: detectability_csv.display().to_string(),
-        source_json: detectability_json.display().to_string(),
-        note: "Figure 09 is rendered directly from the exported detectability source rows."
-            .to_string(),
-    });
-
-    let semantic_rows = semantic_retrieval_source_rows(bundle);
-    let semantic_csv = layout
-        .csv_dir
-        .join("figure_12_semantic_retrieval_source.csv");
-    let semantic_json = layout
-        .json_dir
-        .join("figure_12_semantic_retrieval_source.json");
-    write_rows(semantic_csv.as_path(), semantic_rows.clone())?;
-    write_pretty(semantic_json.as_path(), &semantic_rows)?;
-    checks.push(FigureIntegrityCheck {
-        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
-        figure_id: "figure_12_semantic_retrieval_heuristics_bank".to_string(),
-        expected_panel_count: 3,
-        observed_panel_count: 3,
-        panel_labels: vec![
-            "Leading Candidate Score".to_string(),
-            "Candidates After Admissibility Filter".to_string(),
-            "Final Retrieval Disposition Code".to_string(),
-        ],
-        series_lengths: vec![semantic_rows.len(), semantic_rows.len(), semantic_rows.len()],
-        nonempty_series: !semantic_rows.is_empty(),
-        nonzero_values_present: semantic_rows.iter().any(|row| {
-            row.leading_candidate_score > 0.0
-                || row.heuristic_candidates_post_admissibility > 0
-                || row.disposition_code > 0
-        }),
-        consistent_with_source: semantic_rows.iter().all(|row| {
-            row.heuristic_bank_entry_count
-                == row.heuristic_candidates_post_admissibility
-                    + row.heuristics_rejected_by_admissibility
-                && row.heuristic_candidates_post_admissibility
-                    == row.heuristic_candidates_post_regime + row.heuristics_rejected_by_regime
-                && row.heuristic_candidates_post_regime == row.heuristic_candidates_pre_scope
-                && row.heuristic_candidates_pre_scope
-                    == row.heuristic_candidates_post_scope + row.heuristics_rejected_by_scope
-                && row.heuristics_selected_final <= row.heuristic_candidates_post_scope
-        }),
-        source_csv: semantic_csv.display().to_string(),
-        source_json: semantic_json.display().to_string(),
-        note: "Figure 12 panels are rendered from the exported source rows: leading score, admissibility-qualified candidate count, and final disposition code."
-            .to_string(),
-    });
-
-    let baseline_rows = baseline_comparator_source_rows(bundle);
-    let baseline_csv = layout
-        .csv_dir
-        .join("figure_13_internal_baseline_comparators_source.csv");
-    let baseline_json = layout
-        .json_dir
-        .join("figure_13_internal_baseline_comparators_source.json");
-    write_rows(baseline_csv.as_path(), baseline_rows.clone())?;
-    write_pretty(baseline_json.as_path(), &baseline_rows)?;
-    checks.push(FigureIntegrityCheck {
-        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
-        figure_id: "figure_13_internal_baseline_comparators".to_string(),
-        expected_panel_count: 1,
-        observed_panel_count: 1,
-        panel_labels: vec!["Internal Deterministic Comparator Trigger Counts".to_string()],
-        series_lengths: vec![baseline_rows.len()],
-        nonempty_series: !baseline_rows.is_empty(),
-        nonzero_values_present: baseline_rows
-            .iter()
-            .any(|row| row.triggered_scenario_count > 0),
-        consistent_with_source: baseline_rows
-            .iter()
-            .all(|row| !row.comparator_id.is_empty() && !row.comparator_label.is_empty()),
-        source_csv: baseline_csv.display().to_string(),
-        source_json: baseline_json.display().to_string(),
-        note: "Figure 13 is rendered directly from the exported comparator-trigger source rows."
-            .to_string(),
-    });
-
-    if !bundle.evaluation.sweep_results.is_empty() {
-        let sweep_rows = sweep_summary_source_rows(bundle);
-        let sweep_csv = layout.csv_dir.join("figure_14_sweep_stability_source.csv");
-        let sweep_json = layout
+    for table in figure_source_tables {
+        let source_csv = layout
+            .csv_dir
+            .join(format!("{}_source.csv", table.figure_id))
+            .display()
+            .to_string();
+        let source_json = layout
             .json_dir
-            .join("figure_14_sweep_stability_source.json");
-        write_rows(sweep_csv.as_path(), sweep_rows.clone())?;
-        write_pretty(sweep_json.as_path(), &sweep_rows)?;
+            .join(format!("{}_source.json", table.figure_id))
+            .display()
+            .to_string();
+        write_rows(Path::new(&source_csv), table.rows.clone())?;
+        write_pretty(Path::new(&source_json), table)?;
+
+        let panel_order = ordered_panel_ids(table);
+        let panel_labels = panel_order
+            .iter()
+            .map(|panel_id| panel_title(table, panel_id))
+            .collect::<Vec<_>>();
+        let series_lengths = panel_order
+            .iter()
+            .map(|panel_id| {
+                table
+                    .rows
+                    .iter()
+                    .filter(|row| row.panel_id == *panel_id)
+                    .count()
+            })
+            .collect::<Vec<_>>();
+        let source_row_count = table.rows.len();
+        let nonempty_series =
+            !table.rows.is_empty() && series_lengths.iter().all(|length| *length > 0);
+        let nonzero_values_present = table.rows.iter().any(|row| {
+            row.y_value.abs() > 1.0e-12
+                || row
+                    .secondary_y_value
+                    .map(|value| value.abs() > 1.0e-12)
+                    .unwrap_or(false)
+        });
+        let count_like_panels_integerlike = table.count_like_panel_ids.iter().all(|panel_id| {
+            table
+                .rows
+                .iter()
+                .filter(|row| row.panel_id == *panel_id)
+                .all(|row| (row.y_value - row.y_value.round()).abs() <= 1.0e-9)
+        });
+        let artifact = figure_lookup.get(&table.figure_id);
+        let png_path = artifact
+            .map(|artifact| artifact.png_path.clone())
+            .unwrap_or_default();
+        let svg_path = artifact
+            .map(|artifact| artifact.svg_path.clone())
+            .unwrap_or_default();
+        let png_present = !png_path.is_empty() && Path::new(&png_path).is_file();
+        let svg_present = !svg_path.is_empty() && Path::new(&svg_path).is_file();
+        let observed_panel_count = panel_order.len();
         checks.push(FigureIntegrityCheck {
             schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
-            figure_id: "figure_14_sweep_stability_summary".to_string(),
-            expected_panel_count: 1,
-            observed_panel_count: 1,
-            panel_labels: vec!["Sweep Semantic Stability".to_string()],
-            series_lengths: vec![sweep_rows.len()],
-            nonempty_series: !sweep_rows.is_empty(),
-            nonzero_values_present: sweep_rows.iter().any(|row| row.disposition_code > 0),
-            consistent_with_source: sweep_rows.iter().all(|row| !row.parameter_name.is_empty()),
-            source_csv: sweep_csv.display().to_string(),
-            source_json: sweep_json.display().to_string(),
-            note: "Figure 14 is rendered directly from the exported sweep disposition source rows."
+            figure_id: table.figure_id.clone(),
+            expected_panel_count: table.expected_panel_count,
+            observed_panel_count,
+            panel_labels,
+            series_lengths,
+            source_row_count,
+            nonempty_series,
+            nonzero_values_present,
+            count_like_panels_integerlike,
+            consistent_with_source: observed_panel_count == table.expected_panel_count
+                && nonempty_series
+                && count_like_panels_integerlike
+                && png_present
+                && svg_present,
+            source_csv,
+            source_json,
+            png_path,
+            svg_path,
+            png_present,
+            svg_present,
+            note: "Figure rendered from the exported figure-source table; integrity check covers panel count, source rows, count-like panels, and emitted PNG/SVG presence."
                 .to_string(),
         });
     }
+
+    write_legacy_summary_figure_sources(bundle, layout)?;
 
     write_rows(
         layout.csv_dir.join("figure_integrity_checks.csv").as_path(),
@@ -1104,6 +1078,122 @@ fn write_summary_figure_source_tables(
     )?;
 
     Ok(checks)
+}
+
+fn write_legacy_summary_figure_sources(
+    bundle: &EngineOutputBundle,
+    layout: &OutputLayout,
+) -> Result<()> {
+    let detectability_rows = detectability_source_rows(bundle);
+    write_rows(
+        layout
+            .csv_dir
+            .join("figure_09_detectability_source.csv")
+            .as_path(),
+        detectability_rows.clone(),
+    )?;
+    write_pretty(
+        layout
+            .json_dir
+            .join("figure_09_detectability_source.json")
+            .as_path(),
+        &detectability_rows,
+    )?;
+
+    let semantic_rows = semantic_retrieval_source_rows(bundle);
+    write_rows(
+        layout
+            .csv_dir
+            .join("figure_12_semantic_retrieval_source.csv")
+            .as_path(),
+        semantic_rows.clone(),
+    )?;
+    write_pretty(
+        layout
+            .json_dir
+            .join("figure_12_semantic_retrieval_source.json")
+            .as_path(),
+        &semantic_rows,
+    )?;
+
+    let baseline_rows = baseline_comparator_source_rows(bundle);
+    write_rows(
+        layout
+            .csv_dir
+            .join("figure_13_internal_baseline_comparators_source.csv")
+            .as_path(),
+        baseline_rows.clone(),
+    )?;
+    write_pretty(
+        layout
+            .json_dir
+            .join("figure_13_internal_baseline_comparators_source.json")
+            .as_path(),
+        &baseline_rows,
+    )?;
+
+    if !bundle.evaluation.sweep_results.is_empty() {
+        let sweep_rows = sweep_summary_source_rows(bundle);
+        #[derive(Serialize)]
+        struct SweepLegacySourceCsvRow {
+            schema_version: String,
+            figure_id: String,
+            sweep_family: String,
+            scenario_id: String,
+            parameter_name: String,
+            parameter_value: f64,
+            semantic_disposition: String,
+            disposition_code: i32,
+            selected_heuristic_ids: String,
+            note: String,
+        }
+        write_rows(
+            layout
+                .csv_dir
+                .join("figure_14_sweep_stability_source.csv")
+                .as_path(),
+            sweep_rows.iter().map(|row| SweepLegacySourceCsvRow {
+                schema_version: row.schema_version.clone(),
+                figure_id: row.figure_id.clone(),
+                sweep_family: row.sweep_family.clone(),
+                scenario_id: row.scenario_id.clone(),
+                parameter_name: row.parameter_name.clone(),
+                parameter_value: row.parameter_value,
+                semantic_disposition: row.semantic_disposition.clone(),
+                disposition_code: row.disposition_code,
+                selected_heuristic_ids: row.selected_heuristic_ids.join(" | "),
+                note: row.note.clone(),
+            }),
+        )?;
+        write_pretty(
+            layout
+                .json_dir
+                .join("figure_14_sweep_stability_source.json")
+                .as_path(),
+            &sweep_rows,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn ordered_panel_ids(table: &FigureSourceTable) -> Vec<String> {
+    let mut panel_ids = Vec::new();
+    for row in &table.rows {
+        if !panel_ids.iter().any(|panel_id| panel_id == &row.panel_id) {
+            panel_ids.push(row.panel_id.clone());
+        }
+    }
+    panel_ids
+}
+
+fn panel_title(table: &FigureSourceTable, panel_id: &str) -> String {
+    table
+        .rows
+        .iter()
+        .find(|row| row.panel_id == panel_id)
+        .map(|row| row.panel_title.clone())
+        .unwrap_or_else(|| panel_id.to_string())
 }
 
 fn run_metadata(
@@ -1521,11 +1611,17 @@ struct FigureIntegrityCsvRow {
     observed_panel_count: usize,
     panel_labels: String,
     series_lengths: String,
+    source_row_count: usize,
     nonempty_series: bool,
     nonzero_values_present: bool,
+    count_like_panels_integerlike: bool,
     consistent_with_source: bool,
     source_csv: String,
     source_json: String,
+    png_path: String,
+    svg_path: String,
+    png_present: bool,
+    svg_present: bool,
     note: String,
 }
 
@@ -1861,11 +1957,17 @@ fn figure_integrity_csv_row(check: &FigureIntegrityCheck) -> FigureIntegrityCsvR
             .map(std::string::ToString::to_string)
             .collect::<Vec<_>>()
             .join(" | "),
+        source_row_count: check.source_row_count,
         nonempty_series: check.nonempty_series,
         nonzero_values_present: check.nonzero_values_present,
+        count_like_panels_integerlike: check.count_like_panels_integerlike,
         consistent_with_source: check.consistent_with_source,
         source_csv: check.source_csv.clone(),
         source_json: check.source_json.clone(),
+        png_path: check.png_path.clone(),
+        svg_path: check.svg_path.clone(),
+        png_present: check.png_present,
+        svg_present: check.svg_present,
         note: check.note.clone(),
     }
 }

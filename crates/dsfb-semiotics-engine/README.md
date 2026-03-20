@@ -231,8 +231,8 @@ The evaluation layer exports:
 - per-scenario reproducibility status
 - heuristic-bank validation results
 - artifact completeness checks
-- figure-source tables for the derived summary figures
-- figure-integrity checks tying rendered summary figures back to exported source rows
+- figure-source tables for every publication-style figure
+- figure-integrity checks tying rendered figures back to exported source rows and emitted image files
 - sweep summaries when sweep mode is used
 
 The internal deterministic comparators are intentionally simple:
@@ -386,6 +386,8 @@ Both `run_metadata.json` and `manifest.json` carry the additive schema marker `d
 
 Additional evaluation artifacts include:
 
+- `csv/figure_01_residual_prediction_observation_overview_source.csv` through `csv/figure_13_internal_baseline_comparators_source.csv`
+- matching `json/<figure-id>_source.json` files for each rendered publication-style figure
 - `csv/evaluation_summary.csv`
 - `csv/scenario_evaluations.csv`
 - `csv/baseline_comparators.csv`
@@ -407,6 +409,7 @@ Additional evaluation artifacts include:
 - `json/figure_integrity_checks.json`
 - `csv/sweep_results.csv` and `json/sweep_results.json` for sweep runs
 - `csv/sweep_summary.csv` and `json/sweep_summary.json` for sweep runs
+- `csv/figure_14_sweep_stability_summary_source.csv` and `json/figure_14_sweep_stability_summary_source.json` for sweep runs
 - `csv/figure_14_sweep_stability_source.csv` and `json/figure_14_sweep_stability_source.json` for sweep runs
 
 A schema overview is provided in [`docs/schema.md`](docs/schema.md).
@@ -433,7 +436,7 @@ The crate generates the original twelve paper-aligned figures plus additive eval
 13. internal deterministic baseline comparator summary
 14. sweep stability summary when sweep mode is executed
 
-For summary figures that plot derived statistics rather than raw time-series paths, the crate also exports machine-readable figure-source tables and figure-integrity records so the rendered values can be checked against CSV and JSON artifacts directly.
+Every publication-style figure is now paired with a machine-readable figure-source table whose rows carry the exact panel ids, series labels, plotted coordinates, and additive figure metadata used by the renderer. The artifact pipeline also emits figure-integrity records that check panel counts, emitted PNG/SVG presence, integer-like behavior for count-labeled panels, and source-table consistency.
 
 ## Colab Notebook
 

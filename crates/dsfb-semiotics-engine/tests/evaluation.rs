@@ -4,7 +4,16 @@ use dsfb_semiotics_engine::engine::pipeline::{
     export_artifacts, EngineConfig, StructuralSemioticsEngine,
 };
 use dsfb_semiotics_engine::evaluation::sweeps::{SweepConfig, SweepFamily};
+use serde::Deserialize;
 use tempfile::tempdir;
+
+#[derive(Debug, Deserialize)]
+struct FigureIntegrityRecord {
+    figure_id: String,
+    png_present: bool,
+    svg_present: bool,
+    count_like_panels_integerlike: bool,
+}
 
 #[test]
 fn builtin_bank_registry_validates_cleanly() {
@@ -121,10 +130,53 @@ fn export_writes_evaluation_and_artifact_completeness_outputs() {
         .is_file());
     assert!(exported
         .run_dir
+        .join("csv/figure_01_residual_prediction_observation_overview_source.csv")
+        .is_file());
+    assert!(exported
+        .run_dir
+        .join("json/figure_10_deterministic_pipeline_flow_source.json")
+        .is_file());
+    assert!(exported
+        .run_dir
         .join("json/figure_integrity_checks.json")
         .is_file());
     assert!(exported
         .run_dir
         .join("json/heuristic_bank_validation.json")
+        .is_file());
+}
+
+#[test]
+fn figure_integrity_covers_all_rendered_publication_figures() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let integrity =
+        std::fs::read_to_string(exported.run_dir.join("json/figure_integrity_checks.json"))
+            .unwrap();
+    let rows: Vec<FigureIntegrityRecord> = serde_json::from_str(&integrity).unwrap();
+
+    assert_eq!(rows.len(), 13);
+    assert!(rows.iter().all(|row| row.png_present && row.svg_present));
+    assert!(
+        rows.iter()
+            .find(|row| row.figure_id == "figure_12_semantic_retrieval_heuristics_bank")
+            .unwrap()
+            .count_like_panels_integerlike
+    );
+    assert!(exported
+        .run_dir
+        .join("csv/figure_09_detectability_bound_comparison_source.csv")
+        .is_file());
+    assert!(exported
+        .run_dir
+        .join("csv/figure_10_deterministic_pipeline_flow_source.csv")
         .is_file());
 }
