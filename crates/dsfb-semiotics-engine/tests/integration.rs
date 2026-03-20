@@ -366,6 +366,129 @@ fn grouped_correlated_scenario_produces_coordinated_semantics() {
 }
 
 #[test]
+fn nominal_stable_scenario_is_labeled_as_baseline_like_without_health_claim() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("nominal_stable".to_string()),
+    });
+
+    let bundle = engine.run_single("nominal_stable").unwrap();
+    let scenario = &bundle.scenario_outputs[0];
+    assert_eq!(
+        scenario.syntax.trajectory_label,
+        "weakly-structured-baseline-like"
+    );
+    assert!(matches!(
+        scenario.semantics.disposition,
+        SemanticDisposition::Match
+    ));
+    assert_eq!(
+        scenario.semantics.selected_heuristic_ids,
+        vec!["H-BASELINE-COMPATIBLE"]
+    );
+    assert!(scenario
+        .semantics
+        .note
+        .contains("illustrative compatibility statement"));
+}
+
+#[test]
+fn oscillatory_bounded_scenario_receives_oscillatory_semantics() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("oscillatory_bounded".to_string()),
+    });
+
+    let bundle = engine.run_single("oscillatory_bounded").unwrap();
+    let scenario = &bundle.scenario_outputs[0];
+    assert!(matches!(
+        scenario.semantics.disposition,
+        SemanticDisposition::Match
+    ));
+    assert_eq!(
+        scenario.semantics.selected_heuristic_ids,
+        vec!["H-BOUNDED-OSCILLATORY"]
+    );
+}
+
+#[test]
+fn outward_exit_case_receives_violation_aware_departure_semantics() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("outward_exit_case_a".to_string()),
+    });
+
+    let bundle = engine.run_single("outward_exit_case_a").unwrap();
+    let scenario = &bundle.scenario_outputs[0];
+    assert!(matches!(
+        scenario.semantics.disposition,
+        SemanticDisposition::Match
+    ));
+    assert_eq!(
+        scenario.semantics.selected_heuristic_ids,
+        vec!["H-PERSISTENT-ADMISSIBILITY-DEPARTURE"]
+    );
+}
+
+#[test]
+fn curvature_onset_scenario_receives_curvature_departure_semantics() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("curvature_onset".to_string()),
+    });
+
+    let bundle = engine.run_single("curvature_onset").unwrap();
+    let scenario = &bundle.scenario_outputs[0];
+    assert!(matches!(
+        scenario.semantics.disposition,
+        SemanticDisposition::Match
+    ));
+    assert_eq!(
+        scenario.semantics.selected_heuristic_ids,
+        vec!["H-CURVATURE-LED-DEPARTURE"]
+    );
+}
+
+#[test]
+fn noisy_structured_case_can_remain_conservatively_unknown() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("noisy_structured".to_string()),
+    });
+
+    let bundle = engine.run_single("noisy_structured").unwrap();
+    let scenario = &bundle.scenario_outputs[0];
+    assert!(matches!(
+        scenario.semantics.disposition,
+        SemanticDisposition::Unknown
+    ));
+    assert_eq!(
+        scenario.semantics.unknown_reason_class.as_deref(),
+        Some("bank-noncoverage")
+    );
+}
+
+#[test]
 fn curvature_and_boundary_cases_keep_distinct_syntax_labels() {
     let temp = TempDir::new().unwrap();
     let engine = StructuralSemioticsEngine::new(EngineConfig {
@@ -860,6 +983,31 @@ fn exported_report_mentions_projection_and_run_mode_for_csv_runs() {
     assert!(report.contains("Input mode: `csv`"));
     assert!(report.contains("signed radial drift"));
     assert!(report.contains("Data origin: external-csv"));
+}
+
+#[test]
+fn exported_report_and_csv_include_semantic_applicability_and_provenance() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("nominal_stable".to_string()),
+    });
+
+    let bundle = engine.run_single("nominal_stable").unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let report = fs::read_to_string(exported.report_markdown).unwrap();
+    let semantic_csv =
+        fs::read_to_string(exported.run_dir.join("csv/semantic_matches.csv")).unwrap();
+    assert!(report.contains(
+        "Syntax note: This syntax label is a low-commitment baseline-compatible summary"
+    ));
+    assert!(report.contains("applicability="));
+    assert!(report.contains("provenance="));
+    assert!(semantic_csv.contains("candidate_applicability_notes"));
+    assert!(semantic_csv.contains("candidate_provenance_notes"));
 }
 
 #[test]

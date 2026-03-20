@@ -130,6 +130,21 @@ pub fn characterize_syntax_with_coordination(
         positive_excess_strength(&slew_norms, slew_threshold) / slew_norms.len() as f64
     };
     let mean_radial_drift = mean(&radial_drifts);
+    let outward_inward_imbalance = (outward_drift_fraction - inward_drift_fraction).abs();
+
+    // This low-structure branch is intentionally conservative. It surfaces trajectories whose
+    // sampled residual evolution remains admissible, nearly balanced between outward and inward
+    // motion, and only weakly structured under the current deterministic summaries. It is not a
+    // health classifier.
+    let baseline_like_structure = coordinated_group_breach_fraction == 0.0
+        && violation_count == 0
+        && boundary_grazing_episode_count == 0
+        && outward_inward_imbalance < 0.08
+        && residual_norm_path_monotonicity < 0.08
+        && mean_squared_slew_norm < 1.0e-5
+        && max_slew_norm < 0.002
+        && late_slew_growth_score < 0.20
+        && slew_spike_strength < 1.0e-3;
 
     let trajectory_label = if coordinated_group_breach_fraction > 0.08
         && outward_drift_fraction > 0.45
@@ -158,6 +173,8 @@ pub fn characterize_syntax_with_coordination(
         "curvature-rich-transition".to_string()
     } else if boundary_grazing_episode_count >= 3 && violation_count == 0 {
         "near-boundary-recurrent".to_string()
+    } else if baseline_like_structure {
+        "weakly-structured-baseline-like".to_string()
     } else {
         "mixed-structured".to_string()
     };

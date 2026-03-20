@@ -853,6 +853,8 @@ struct SemanticMatchCsvRow {
     candidate_regime_explanations: String,
     candidate_admissibility: String,
     candidate_scope: String,
+    candidate_applicability_notes: String,
+    candidate_provenance_notes: String,
     candidate_rationales: String,
     compatibility_note: String,
     conflict_notes: String,
@@ -1000,6 +1002,28 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
                 format!(
                     "{}:{}",
                     candidate.entry.heuristic_id, candidate.scope_explanation
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" || "),
+        candidate_applicability_notes: result
+            .candidates
+            .iter()
+            .map(|candidate| {
+                format!(
+                    "{}:{}",
+                    candidate.entry.heuristic_id, candidate.entry.applicability_note
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" || "),
+        candidate_provenance_notes: result
+            .candidates
+            .iter()
+            .map(|candidate| {
+                format!(
+                    "{}:{}",
+                    candidate.entry.heuristic_id, candidate.entry.provenance.note
                 )
             })
             .collect::<Vec<_>>()

@@ -75,7 +75,7 @@ Syntax is represented through drift and slew structure, including:
 - localized slew spikes and spike strength
 - boundary grazing episode and recovery counts
 - grouped aggregate breach fraction when coordinated structure is configured
-- trajectory labels such as `persistent-outward-drift`, `coordinated-outward-rise`, `discrete-event-like`, `curvature-rich-transition`, `inward-compatible-containment`, or `near-boundary-recurrent`
+- trajectory labels such as `persistent-outward-drift`, `coordinated-outward-rise`, `discrete-event-like`, `curvature-rich-transition`, `inward-compatible-containment`, `near-boundary-recurrent`, `weakly-structured-baseline-like`, or a conservative `mixed-structured` fallback when the exported metrics do not justify a narrower rule-based summary
 
 Outward and inward motion are computed from residual-envelope margin evolution and residual-aligned radial drift, not from the sign of a single channel. The monotonicity-style metrics are deterministic path summaries over residual norms rather than complete claims about every channel. The curvature-style metrics are deterministic summaries over slew norms rather than claims about differential geometry in full generality.
 
@@ -119,16 +119,20 @@ The semantics layer is a conservative typed heuristic bank, not a classifier. Ea
 Retrieval is constrained rather than purely threshold-labeled. Each candidate now exports explicit admissibility, regime, and scope-pass explanations in addition to the combined rationale text. The bank supports illustrative motifs such as:
 
 - monotone drift -> gradual degradation candidate
+- sustained outward drift with actual envelope breach -> persistent admissibility departure candidate
 - localized slew spike -> discrete event candidate
 - curvature-rich transition candidate
+- curvature-led admissibility departure candidate
 - repeated envelope grazing -> near-boundary operation candidate
 - coordinated aggregate rise -> correlated degradation or common-mode disturbance candidate
 - inward-compatible containment candidate
+- balanced bounded oscillation -> bounded oscillatory operation candidate
+- low-structure admissible evolution -> weakly structured baseline-compatible observation candidate
 - explicit compatible sets when every matched pair is bank-compatible
 - explicit ambiguity when matched heuristics conflict
 - explicit `Unknown`, including whether the current outcome reflects low evidence or bank noncoverage
 
-These are constrained heuristic retrieval outcomes only. They do not imply unique latent cause.
+These are constrained heuristic retrieval outcomes only. They do not imply unique latent cause. In particular, the baseline-compatible path is a low-commitment description relative to the configured prediction and envelope, not a validated health classifier.
 
 ### CSV Ingestion Path
 

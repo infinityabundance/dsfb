@@ -31,7 +31,7 @@ pub fn build_markdown_report(
     lines.push("- Slew: `s(t) = d^2r/dt^2` via deterministic second differences.".to_string());
     lines.push("- Sign tuple: `sigma(t) = (r(t), d(t), s(t))`.".to_string());
     lines.push("- Sign projection used in Figure 03: deterministic projected sign coordinates `[||r(t)||, dot(r(t), d(t))/||r(t)||, ||s(t)||]`, reported as residual norm, signed radial drift, and slew norm, with zero radial drift reported at exact zero residual norm.".to_string());
-    lines.push("- Syntax metrics include outward and inward drift fractions from residual-norm and margin evolution, radial-sign dominance, radial-sign persistence, drift-channel sign alignment, residual-norm path monotonicity, residual-norm trend alignment, mean squared slew norm, late slew-growth score, slew spike count and strength, boundary grazing episodes, boundary recovery count, and grouped aggregate breach fraction when coordinated structure is configured.".to_string());
+    lines.push("- Syntax metrics include outward and inward drift fractions from residual-norm and margin evolution, radial-sign dominance, radial-sign persistence, drift-channel sign alignment, residual-norm path monotonicity, residual-norm trend alignment, mean squared slew norm, late slew-growth score, slew spike count and strength, boundary grazing episodes, boundary recovery count, and grouped aggregate breach fraction when coordinated structure is configured. Labels such as `weakly-structured-baseline-like` and `mixed-structured` remain conservative summaries rather than health judgments.".to_string());
     lines.push(
         "- Grammar: admissibility checked pointwise against `||r(t)|| <= rho(t)`.".to_string(),
     );
@@ -136,6 +136,7 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
             "- Syntax label: `{}`",
             scenario.syntax.trajectory_label
         ),
+        format!("- Syntax note: {}", syntax_note(&scenario)),
         format!(
             "- Semantic disposition: `{:?}`",
             scenario.semantics.disposition
@@ -176,7 +177,7 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
             .iter()
             .map(|candidate| {
                 format!(
-                    "- Candidate `{}` (`{}`): score={}, regimes={}, regime_check={}, admissibility={}, scope={}, rationale={}",
+                    "- Candidate `{}` (`{}`): score={}, regimes={}, regime_check={}, admissibility={}, scope={}, applicability={}, provenance={}, rationale={}",
                     candidate.entry.heuristic_id,
                     candidate.entry.motif_label,
                     format_metric(candidate.score),
@@ -188,10 +189,27 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
                     candidate.regime_explanation,
                     candidate.admissibility_explanation,
                     candidate.scope_explanation,
+                    candidate.entry.applicability_note,
+                    candidate.entry.provenance.note,
                     candidate.rationale
                 )
             }),
     )
     .chain(std::iter::once(String::new()))
     .collect()
+}
+
+fn syntax_note(scenario: &ScenarioOutput) -> String {
+    match scenario.syntax.trajectory_label.as_str() {
+        "weakly-structured-baseline-like" => {
+            "This syntax label is a low-commitment baseline-compatible summary relative to the configured prediction and envelope only. It is not a health or certification label.".to_string()
+        }
+        "mixed-structured" => {
+            "This syntax label is conservative non-commitment: the exported deterministic metrics did not support a narrower syntax summary under the current rule set.".to_string()
+        }
+        "coordinated-outward-rise" => {
+            "Coordination is surfaced at the syntax layer because grouped residual structure and aggregate breach evidence were explicitly configured and observed.".to_string()
+        }
+        _ => "This syntax label is a deterministic summary of the exported syntax metrics, not an inferred latent mechanism.".to_string(),
+    }
 }
