@@ -318,6 +318,8 @@ pub fn recovery_count(flags: &[bool]) -> usize {
     count
 }
 
+/// Returns the sum of positive normalized excess above a deterministic threshold.
+/// This is used as a compact spike-strength summary rather than a claim about impulse energy.
 pub fn positive_excess_strength(values: &[f64], threshold: f64) -> f64 {
     let normalizer = threshold.abs().max(1.0e-12);
     values

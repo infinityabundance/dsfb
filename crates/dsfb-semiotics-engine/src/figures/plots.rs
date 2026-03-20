@@ -1173,7 +1173,7 @@ fn render_11(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
 
 fn render_12(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_12_semantic_retrieval_heuristics_bank";
-    let caption = "Constrained semantic retrieval summary across representative motifs, including Match, CompatibleSet, Ambiguous, and Unknown outcomes with typed-bank explanations. Synthetic deterministic demonstration only.";
+    let caption = "Constrained semantic retrieval summary across representative motifs, including Match, CompatibleSet, Ambiguous, and Unknown outcomes with typed-bank explanations, explicit pairwise compatibility notes, and explicit low-evidence versus bank-noncoverage handling. Synthetic deterministic demonstration only.";
     let size = (1280, 860);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_semantic_retrieval(

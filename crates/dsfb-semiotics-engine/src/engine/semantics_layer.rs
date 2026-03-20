@@ -16,6 +16,7 @@ struct GrammarEvidence {
 
 #[derive(Clone, Debug, Default)]
 struct CompatibilityAssessment {
+    compatible_pairs: Vec<String>,
     conflicts: Vec<String>,
     unresolved: Vec<String>,
 }
@@ -56,51 +57,96 @@ pub fn retrieve_semantics(
         .cloned()
         .collect::<Vec<_>>();
     let observation_limited = observation_support_is_limited(syntax, &evidence);
-    let (disposition, resolution_basis, unknown_reason_class, compatibility_note, note) =
-        if candidates.is_empty() {
-            if observation_limited {
-                (
+    let (
+        disposition,
+        resolution_basis,
+        unknown_reason_class,
+        unknown_reason_detail,
+        compatibility_note,
+        compatibility_reasons,
+        note,
+    ) = if candidates.is_empty() {
+        if observation_limited {
+            (
                 SemanticDisposition::Unknown,
                 "Unknown returned because the sampled trajectory provided only limited structural evidence for conservative retrieval.".to_string(),
                 Some("low-evidence".to_string()),
+                Some(format!(
+                    "Low-evidence Unknown was retained because outward={}, inward={}, residual_norm_path_monotonicity={}, mean_squared_slew_norm={}, late_slew_growth_score={}, boundary_episodes={}, violations={}. These exported values stayed below the current bank's conservative evidence thresholds.",
+                    format_metric(syntax.outward_drift_fraction),
+                    format_metric(syntax.inward_drift_fraction),
+                    format_metric(syntax.residual_norm_path_monotonicity),
+                    format_metric(syntax.mean_squared_slew_norm),
+                    format_metric(syntax.late_slew_growth_score),
+                    syntax.boundary_grazing_episode_count,
+                    evidence.violation_count
+                )),
                 "No heuristic bank entry matched, and the sampled trajectory provided only limited structural evidence for conservative semantic retrieval.".to_string(),
+                Vec::new(),
                 "Unknown is returned here because the observation shows weak admissibility interaction and limited radial or curvature structure. The bank is not forced to label low-evidence cases.".to_string(),
             )
-            } else {
-                (
+        } else {
+            (
                 SemanticDisposition::Unknown,
                 "Unknown returned because no typed heuristic bank entry covered the observed admissibility-qualified syntax under the available regime and grouped-evidence checks.".to_string(),
                 Some("bank-noncoverage".to_string()),
+                Some(format!(
+                    "Bank-noncoverage Unknown was retained because syntax label `{}` with regimes `{}` and motif summary `{}` did not satisfy any current typed bank entry after admissibility, scope, and regime filtering.",
+                    syntax.trajectory_label,
+                    if evidence.regimes.is_empty() {
+                        "none".to_string()
+                    } else {
+                        evidence.regimes.join("|")
+                    },
+                    format!(
+                        "outward={}, inward={}, residual_norm_path_monotonicity={}, mean_squared_slew_norm={}, late_slew_growth_score={}, slew_spikes={}, spike_strength={}, boundary_episodes={}, coordinated_group_breach_fraction={}",
+                        format_metric(syntax.outward_drift_fraction),
+                        format_metric(syntax.inward_drift_fraction),
+                        format_metric(syntax.residual_norm_path_monotonicity),
+                        format_metric(syntax.mean_squared_slew_norm),
+                        format_metric(syntax.late_slew_growth_score),
+                        syntax.slew_spike_count,
+                        format_metric(syntax.slew_spike_strength),
+                        syntax.boundary_grazing_episode_count,
+                        format_metric(syntax.coordinated_group_breach_fraction),
+                    )
+                )),
                 "No heuristic bank entry satisfied the constrained admissibility, scope, and regime checks.".to_string(),
+                Vec::new(),
                 "Unknown is returned conservatively because the current typed bank does not cover the observed admissibility-qualified syntax under the configured evidence and regime constraints.".to_string(),
             )
-            }
-        } else if candidates.len() == 1 {
-            (
+        }
+    } else if candidates.len() == 1 {
+        (
             SemanticDisposition::Match,
             "Single qualified heuristic remained after admissibility, regime, and scope filtering.".to_string(),
+            None,
             None,
             format!(
                 "Single heuristic bank entry (`{}`) satisfied the constrained retrieval rules.",
                 selected_heuristic_ids[0]
             ),
+            Vec::new(),
             "The returned motif remains an illustrative compatibility statement only. It is not a unique-cause diagnosis.".to_string(),
         )
-        } else if compatibility.conflicts.is_empty() && compatibility.unresolved.is_empty() {
-            (
+    } else if compatibility.conflicts.is_empty() && compatibility.unresolved.is_empty() {
+        (
             SemanticDisposition::CompatibleSet,
             "Multiple heuristics remained, and every matched pair is explicitly marked compatible in the typed bank.".to_string(),
+            None,
             None,
             format!(
                 "CompatibleSet returned because `{}` matched and every pair is explicitly marked compatible in the typed bank.",
                 selected_heuristic_ids.join("`, `")
             ),
+            compatibility.compatible_pairs.clone(),
             "The engine reports an explicitly compatible motif set only when every matched pair is marked compatible. The result remains non-exclusive and causally conservative.".to_string(),
         )
-        } else {
-            (
+    } else {
+        (
             SemanticDisposition::Ambiguous,
             "Multiple heuristics remained, but the bank recorded either explicit conflicts or unresolved compatibility pairings, so the engine did not collapse them into one label.".to_string(),
+            None,
             None,
             format!(
                 "Ambiguous returned because {} matched entries produced {} explicit conflicts and {} unresolved compatibility pairings.",
@@ -108,9 +154,10 @@ pub fn retrieve_semantics(
                 compatibility.conflicts.len(),
                 compatibility.unresolved.len()
             ),
+            Vec::new(),
             "Ambiguity is explicit rather than silently resolved. The engine does not force a unique semantic label when matched heuristics conflict or when compatibility is not explicitly established.".to_string(),
         )
-        };
+    };
 
     SemanticMatchResult {
         scenario_id: scenario_id.to_string(),
@@ -140,7 +187,9 @@ pub fn retrieve_semantics(
         selected_heuristic_ids,
         resolution_basis,
         unknown_reason_class,
+        unknown_reason_detail,
         compatibility_note,
+        compatibility_reasons,
         conflict_notes,
         note,
     }
@@ -195,6 +244,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: None,
                 max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: Some(0.05),
                 require_group_breach: false,
             },
@@ -249,6 +299,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: None,
                 max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: Some(0.05),
                 require_group_breach: false,
             },
@@ -301,6 +352,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: None,
                 max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: None,
                 require_group_breach: false,
             },
@@ -351,6 +403,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: None,
                 max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: None,
                 require_group_breach: false,
             },
@@ -366,7 +419,10 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
             },
             applicability_note: "Use when slew-rich structure is material. This remains a motif statement, not a validated mechanism classifier.".to_string(),
             retrieval_priority: 80,
-            compatible_with: vec!["H-DISCRETE-EVENT".to_string()],
+            compatible_with: vec![
+                "H-DISCRETE-EVENT".to_string(),
+                "H-MIXED-REGIME-TRANSITION".to_string(),
+            ],
             incompatible_with: vec![
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
                 "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
@@ -401,6 +457,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: None,
                 max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: Some(0.05),
                 require_group_breach: false,
             },
@@ -416,7 +473,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
             },
             applicability_note: "Use when admissibility departure is present and curvature growth is materially more salient than discrete-event spike structure. This remains a motif statement only.".to_string(),
             retrieval_priority: 82,
-            compatible_with: Vec::new(),
+            compatible_with: vec!["H-MIXED-REGIME-TRANSITION".to_string()],
             incompatible_with: vec![
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
                 "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
@@ -424,6 +481,56 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 "H-CURVATURE-RICH-TRANSITION".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
                 "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
+        },
+        HeuristicBankEntry {
+            heuristic_id: "H-MIXED-REGIME-TRANSITION".to_string(),
+            motif_label: "mixed-regime transition candidate".to_string(),
+            short_label: "mixed_regime_transition".to_string(),
+            scope_conditions: HeuristicScopeConditions {
+                min_outward_drift_fraction: Some(0.70),
+                max_outward_drift_fraction: None,
+                min_inward_drift_fraction: None,
+                max_inward_drift_fraction: Some(0.20),
+                max_curvature_energy: None,
+                min_curvature_energy: Some(1.0e-7),
+                max_curvature_onset_score: None,
+                min_curvature_onset_score: Some(0.45),
+                min_directional_persistence: Some(0.70),
+                min_sign_consistency: Some(0.70),
+                min_channel_coherence: Some(0.50),
+                min_aggregate_monotonicity: Some(0.70),
+                max_aggregate_monotonicity: None,
+                min_slew_spike_count: Some(1),
+                max_slew_spike_count: None,
+                min_slew_spike_strength: Some(0.02),
+                max_slew_spike_strength: None,
+                min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
+                min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
+                max_coordinated_group_breach_fraction: Some(0.05),
+                require_group_breach: false,
+            },
+            admissibility_requirements: AdmissibilityRequirement::ViolationRequired,
+            regime_tags: vec!["regime_shifted".to_string()],
+            provenance: HeuristicProvenance {
+                source: "typed heuristic bank".to_string(),
+                note: "Illustrative mapping from explicit regime-tag changes plus curvature-rich departure structure to a conservative mixed-regime transition motif.".to_string(),
+            },
+            applicability_note: "Use when the grammar record itself shows a regime shift and the departure remains curvature-led under breach. This is a contextual motif, not a unique causal recovery of the underlying transition.".to_string(),
+            retrieval_priority: 81,
+            compatible_with: vec![
+                "H-CURVATURE-RICH-TRANSITION".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
+            ],
+            incompatible_with: vec![
+                "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-STRUCTURED-NOISY-TRAJECTORY".to_string(),
                 "H-BASELINE-COMPATIBLE".to_string(),
             ],
         },
@@ -452,6 +559,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: Some(2),
                 max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: Some(1),
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: Some(0.05),
                 require_group_breach: false,
             },
@@ -472,7 +580,58 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
             compatible_with: vec![
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
                 "H-COORDINATED-RISE".to_string(),
+                "H-RECURRENT-BOUNDARY-RECURRENCE".to_string(),
             ],
+            incompatible_with: vec![
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
+        },
+        HeuristicBankEntry {
+            heuristic_id: "H-RECURRENT-BOUNDARY-RECURRENCE".to_string(),
+            motif_label: "recurrent boundary operation candidate".to_string(),
+            short_label: "recurrent_boundary".to_string(),
+            scope_conditions: HeuristicScopeConditions {
+                min_outward_drift_fraction: None,
+                max_outward_drift_fraction: Some(0.75),
+                min_inward_drift_fraction: None,
+                max_inward_drift_fraction: None,
+                max_curvature_energy: Some(0.020),
+                min_curvature_energy: None,
+                max_curvature_onset_score: Some(0.35),
+                min_curvature_onset_score: None,
+                min_directional_persistence: None,
+                min_sign_consistency: None,
+                min_channel_coherence: None,
+                min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: None,
+                min_slew_spike_count: None,
+                max_slew_spike_count: Some(1),
+                min_slew_spike_strength: None,
+                max_slew_spike_strength: Some(0.02),
+                min_boundary_grazing_episodes: Some(3),
+                max_boundary_grazing_episodes: None,
+                min_boundary_recovery_count: Some(2),
+                min_coordinated_group_breach_fraction: None,
+                max_coordinated_group_breach_fraction: Some(0.05),
+                require_group_breach: false,
+            },
+            admissibility_requirements: AdmissibilityRequirement::NoViolation,
+            regime_tags: vec![
+                "fixed".to_string(),
+                "widening".to_string(),
+                "tightening".to_string(),
+                "regime_nominal".to_string(),
+                "regime_shifted".to_string(),
+            ],
+            provenance: HeuristicProvenance {
+                source: "typed heuristic bank".to_string(),
+                note: "Illustrative mapping from repeated admissibility-boundary returns without decisive breach to a conservative recurrent-boundary motif.".to_string(),
+            },
+            applicability_note: "Use when boundary interaction is recurrent and recoverable under the configured envelope. This remains an operating-pattern motif only.".to_string(),
+            retrieval_priority: 71,
+            compatible_with: vec!["H-BOUNDARY-GRAZING".to_string()],
             incompatible_with: vec![
                 "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
                 "H-INWARD-CONTAINMENT".to_string(),
@@ -504,6 +663,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: None,
                 max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: None,
                 require_group_breach: true,
             },
@@ -518,9 +678,53 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
             compatible_with: vec![
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
                 "H-BOUNDARY-GRAZING".to_string(),
+                "H-COORDINATED-DEPARTURE".to_string(),
             ],
             incompatible_with: vec![
                 "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
+        },
+        HeuristicBankEntry {
+            heuristic_id: "H-COORDINATED-DEPARTURE".to_string(),
+            motif_label: "coordinated admissibility departure candidate".to_string(),
+            short_label: "coordinated_departure".to_string(),
+            scope_conditions: HeuristicScopeConditions {
+                min_outward_drift_fraction: Some(0.55),
+                max_outward_drift_fraction: None,
+                min_inward_drift_fraction: None,
+                max_inward_drift_fraction: Some(0.25),
+                max_curvature_energy: None,
+                min_curvature_energy: None,
+                max_curvature_onset_score: Some(0.35),
+                min_curvature_onset_score: None,
+                min_directional_persistence: Some(0.55),
+                min_sign_consistency: Some(0.55),
+                min_channel_coherence: Some(0.60),
+                min_aggregate_monotonicity: Some(0.55),
+                max_aggregate_monotonicity: None,
+                min_slew_spike_count: None,
+                max_slew_spike_count: None,
+                min_slew_spike_strength: None,
+                max_slew_spike_strength: None,
+                min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
+                min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: Some(0.30),
+                max_coordinated_group_breach_fraction: None,
+                require_group_breach: true,
+            },
+            admissibility_requirements: AdmissibilityRequirement::ViolationRequired,
+            regime_tags: vec!["aggregate".to_string()],
+            provenance: HeuristicProvenance {
+                source: "typed heuristic bank".to_string(),
+                note: "Illustrative mapping from coordinated grouped breach with actual admissibility departure to a conservative common-mode departure motif.".to_string(),
+            },
+            applicability_note: "Use only when grouped residual structure is configured and the aggregate envelope is materially breached. It remains a common-mode compatibility statement, not a unique cause claim.".to_string(),
+            retrieval_priority: 87,
+            compatible_with: vec!["H-COORDINATED-RISE".to_string()],
+            incompatible_with: vec![
                 "H-INWARD-CONTAINMENT".to_string(),
                 "H-BASELINE-COMPATIBLE".to_string(),
             ],
@@ -550,6 +754,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: None,
                 max_boundary_grazing_episodes: None,
                 min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: Some(0.05),
                 require_group_breach: false,
             },
@@ -565,7 +770,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
             },
             applicability_note: "This motif is admissibility-relative and does not assert underlying recovery physics.".to_string(),
             retrieval_priority: 75,
-            compatible_with: Vec::new(),
+            compatible_with: vec!["H-INWARD-RECOVERY".to_string()],
             incompatible_with: vec![
                 "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
                 "H-DISCRETE-EVENT".to_string(),
@@ -574,6 +779,58 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 "H-BOUNDARY-GRAZING".to_string(),
                 "H-COORDINATED-RISE".to_string(),
                 "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
+        },
+        HeuristicBankEntry {
+            heuristic_id: "H-INWARD-RECOVERY".to_string(),
+            motif_label: "inward recovery-compatible candidate".to_string(),
+            short_label: "inward_recovery".to_string(),
+            scope_conditions: HeuristicScopeConditions {
+                min_outward_drift_fraction: None,
+                max_outward_drift_fraction: Some(0.30),
+                min_inward_drift_fraction: Some(0.75),
+                max_inward_drift_fraction: None,
+                max_curvature_energy: Some(0.010),
+                min_curvature_energy: None,
+                max_curvature_onset_score: Some(0.30),
+                min_curvature_onset_score: None,
+                min_directional_persistence: Some(0.70),
+                min_sign_consistency: Some(0.65),
+                min_channel_coherence: Some(0.45),
+                min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: None,
+                min_slew_spike_count: None,
+                max_slew_spike_count: None,
+                min_slew_spike_strength: None,
+                max_slew_spike_strength: None,
+                min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: None,
+                min_boundary_recovery_count: Some(2),
+                min_coordinated_group_breach_fraction: None,
+                max_coordinated_group_breach_fraction: Some(0.05),
+                require_group_breach: false,
+            },
+            admissibility_requirements: AdmissibilityRequirement::NoViolation,
+            regime_tags: vec![
+                "tightening".to_string(),
+                "regime_nominal".to_string(),
+                "fixed".to_string(),
+            ],
+            provenance: HeuristicProvenance {
+                source: "typed heuristic bank".to_string(),
+                note: "Illustrative mapping from repeated returns to admissibility under inward-compatible evolution to a conservative recovery-compatible motif.".to_string(),
+            },
+            applicability_note: "Use when inward-compatible motion is accompanied by repeated returns to admissibility under the configured envelope. This remains envelope-relative and non-causal.".to_string(),
+            retrieval_priority: 74,
+            compatible_with: vec!["H-INWARD-CONTAINMENT".to_string()],
+            incompatible_with: vec![
+                "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-DISCRETE-EVENT".to_string(),
+                "H-CURVATURE-RICH-TRANSITION".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
+                "H-COORDINATED-RISE".to_string(),
                 "H-BASELINE-COMPATIBLE".to_string(),
             ],
         },
@@ -602,6 +859,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: None,
                 max_boundary_grazing_episodes: Some(0),
                 min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: Some(0.0),
                 require_group_breach: false,
             },
@@ -630,6 +888,60 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
             ],
         },
         HeuristicBankEntry {
+            heuristic_id: "H-STRUCTURED-NOISY-TRAJECTORY".to_string(),
+            motif_label: "structured noisy trajectory candidate".to_string(),
+            short_label: "structured_noisy".to_string(),
+            scope_conditions: HeuristicScopeConditions {
+                min_outward_drift_fraction: None,
+                max_outward_drift_fraction: Some(0.65),
+                min_inward_drift_fraction: Some(0.35),
+                max_inward_drift_fraction: Some(0.60),
+                max_curvature_energy: Some(0.010),
+                min_curvature_energy: Some(5.0e-4),
+                max_curvature_onset_score: Some(0.35),
+                min_curvature_onset_score: Some(0.15),
+                min_directional_persistence: Some(0.45),
+                min_sign_consistency: Some(0.50),
+                min_channel_coherence: Some(0.45),
+                min_aggregate_monotonicity: None,
+                max_aggregate_monotonicity: Some(0.25),
+                min_slew_spike_count: Some(8),
+                max_slew_spike_count: None,
+                min_slew_spike_strength: None,
+                max_slew_spike_strength: Some(0.02),
+                min_boundary_grazing_episodes: None,
+                max_boundary_grazing_episodes: Some(0),
+                min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
+                max_coordinated_group_breach_fraction: Some(0.0),
+                require_group_breach: false,
+            },
+            admissibility_requirements: AdmissibilityRequirement::NoViolation,
+            regime_tags: vec![
+                "fixed".to_string(),
+                "widening".to_string(),
+                "tightening".to_string(),
+            ],
+            provenance: HeuristicProvenance {
+                source: "typed heuristic bank".to_string(),
+                note: "Illustrative mapping from bounded but visibly structured residual agitation to a conservative structured-noise motif.".to_string(),
+            },
+            applicability_note: "Use when many modest slew excursions remain admissible and weakly directional under the configured model. This motif describes observed structure only; it does not identify a disturbance source uniquely.".to_string(),
+            retrieval_priority: 67,
+            compatible_with: Vec::new(),
+            incompatible_with: vec![
+                "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
+                "H-PERSISTENT-ADMISSIBILITY-DEPARTURE".to_string(),
+                "H-DISCRETE-EVENT".to_string(),
+                "H-CURVATURE-RICH-TRANSITION".to_string(),
+                "H-CURVATURE-LED-DEPARTURE".to_string(),
+                "H-MIXED-REGIME-TRANSITION".to_string(),
+                "H-INWARD-CONTAINMENT".to_string(),
+                "H-BOUNDED-OSCILLATORY".to_string(),
+                "H-BASELINE-COMPATIBLE".to_string(),
+            ],
+        },
+        HeuristicBankEntry {
             heuristic_id: "H-BASELINE-COMPATIBLE".to_string(),
             motif_label: "weakly structured baseline-compatible observation candidate".to_string(),
             short_label: "baseline_compatible".to_string(),
@@ -654,6 +966,7 @@ fn heuristic_bank() -> Vec<HeuristicBankEntry> {
                 min_boundary_grazing_episodes: None,
                 max_boundary_grazing_episodes: Some(0),
                 min_boundary_recovery_count: None,
+                min_coordinated_group_breach_fraction: None,
                 max_coordinated_group_breach_fraction: Some(0.0),
                 require_group_breach: false,
             },
@@ -847,6 +1160,14 @@ fn scope_satisfied(
     ) {
         return false;
     }
+    if !min_ok(
+        syntax
+            .coordinated_group_breach_fraction
+            .max(coordinated_group_breach_ratio(coordinated)),
+        scope.min_coordinated_group_breach_fraction,
+    ) {
+        return false;
+    }
     if !max_ok(
         syntax
             .coordinated_group_breach_fraction
@@ -912,12 +1233,31 @@ fn score_candidate(
                 + 0.10 * syntax.radial_sign_persistence
                 + 0.08 * breach_severity
         }
+        "H-MIXED-REGIME-TRANSITION" => {
+            let regime_evidence = 1.0;
+            0.24 * syntax.late_slew_growth_score
+                + 0.20 * (syntax.mean_squared_slew_norm / (syntax.mean_squared_slew_norm + 0.01))
+                + 0.16 * syntax.outward_drift_fraction
+                + 0.14 * syntax.radial_sign_persistence
+                + 0.10 * syntax.radial_sign_dominance
+                + 0.08 * syntax.drift_channel_sign_alignment
+                + 0.08 * (syntax.slew_spike_strength / (syntax.slew_spike_strength + 0.2))
+                + 0.08 * regime_evidence
+        }
         "H-BOUNDARY-GRAZING" => {
             0.35 * (syntax.boundary_grazing_episode_count.min(4) as f64 / 4.0)
                 + 0.20 * (syntax.boundary_recovery_count.min(4) as f64 / 4.0)
                 + 0.20 * (1.0 / (1.0 + syntax.min_margin.abs() * 15.0))
                 + 0.15 * (1.0 - syntax.outward_drift_fraction.clamp(0.0, 1.0))
                 + 0.10 * (1.0 / (1.0 + 20.0 * syntax.mean_squared_slew_norm))
+        }
+        "H-RECURRENT-BOUNDARY-RECURRENCE" => {
+            0.32 * (syntax.boundary_grazing_episode_count.min(5) as f64 / 5.0)
+                + 0.24 * (syntax.boundary_recovery_count.min(5) as f64 / 5.0)
+                + 0.14 * (1.0 / (1.0 + syntax.min_margin.abs() * 12.0))
+                + 0.12 * (1.0 - syntax.late_slew_growth_score)
+                + 0.10 * (1.0 / (1.0 + 15.0 * syntax.mean_squared_slew_norm))
+                + 0.08 * (1.0 - syntax.outward_drift_fraction.clamp(0.0, 1.0))
         }
         "H-COORDINATED-RISE" => {
             0.38 * syntax
@@ -927,6 +1267,16 @@ fn score_candidate(
                 + 0.18 * syntax.drift_channel_sign_alignment
                 + 0.22 * syntax.radial_sign_persistence
         }
+        "H-COORDINATED-DEPARTURE" => {
+            let breach_ratio = syntax
+                .coordinated_group_breach_fraction
+                .max(group_breach_ratio);
+            0.34 * breach_ratio
+                + 0.22 * syntax.outward_drift_fraction
+                + 0.16 * syntax.radial_sign_persistence
+                + 0.14 * syntax.radial_sign_dominance
+                + 0.14 * syntax.drift_channel_sign_alignment
+        }
         "H-INWARD-CONTAINMENT" => {
             0.35 * syntax.inward_drift_fraction
                 + 0.20 * syntax.radial_sign_persistence
@@ -934,6 +1284,14 @@ fn score_candidate(
                 + 0.15 * (syntax.min_margin / (syntax.min_margin + 0.1)).clamp(0.0, 1.0)
                 + 0.05 * (1.0 - syntax.outward_drift_fraction.clamp(0.0, 1.0))
                 + 0.05 * (1.0 - syntax.late_slew_growth_score)
+        }
+        "H-INWARD-RECOVERY" => {
+            0.30 * syntax.inward_drift_fraction
+                + 0.22 * syntax.radial_sign_persistence
+                + 0.18 * syntax.radial_sign_dominance
+                + 0.14 * (syntax.boundary_recovery_count.min(4) as f64 / 4.0)
+                + 0.10 * (syntax.min_margin / (syntax.min_margin + 0.1)).clamp(0.0, 1.0)
+                + 0.06 * (1.0 - syntax.late_slew_growth_score)
         }
         "H-BOUNDED-OSCILLATORY" => {
             let balance =
@@ -944,6 +1302,17 @@ fn score_candidate(
                 + 0.14 * (syntax.mean_squared_slew_norm / (syntax.mean_squared_slew_norm + 0.005))
                 + 0.12 * (syntax.slew_spike_count.min(6) as f64 / 6.0)
                 + 0.10 * syntax.drift_channel_sign_alignment
+        }
+        "H-STRUCTURED-NOISY-TRAJECTORY" => {
+            let balance =
+                1.0 - (syntax.outward_drift_fraction - syntax.inward_drift_fraction).abs();
+            0.22 * (syntax.mean_squared_slew_norm / (syntax.mean_squared_slew_norm + 0.01))
+                + 0.18 * (syntax.slew_spike_count.min(20) as f64 / 20.0)
+                + 0.16 * balance.clamp(0.0, 1.0)
+                + 0.14 * syntax.radial_sign_persistence
+                + 0.12 * syntax.radial_sign_dominance
+                + 0.10 * syntax.drift_channel_sign_alignment
+                + 0.08 * syntax.late_slew_growth_score
         }
         "H-BASELINE-COMPATIBLE" => {
             let balance =
@@ -1186,6 +1555,17 @@ fn scope_explanation(
             syntax.boundary_recovery_count, minimum
         ));
     }
+    if let Some(minimum) = scope.min_coordinated_group_breach_fraction {
+        notes.push(format!(
+            "coordinated_group_breach_fraction={} >= {}",
+            format_metric(
+                syntax
+                    .coordinated_group_breach_fraction
+                    .max(coordinated_group_breach_ratio(coordinated))
+            ),
+            format_metric(minimum)
+        ));
+    }
     if let Some(maximum) = scope.max_coordinated_group_breach_fraction {
         notes.push(format!(
             "coordinated_group_breach_fraction={} <= {}",
@@ -1222,6 +1602,7 @@ fn scope_explanation(
 }
 
 fn compatibility_assessment(candidates: &[HeuristicCandidate]) -> CompatibilityAssessment {
+    let mut compatible_pairs = Vec::new();
     let mut conflicts = Vec::new();
     let mut unresolved = Vec::new();
     for i in 0..candidates.len() {
@@ -1235,6 +1616,13 @@ fn compatibility_assessment(candidates: &[HeuristicCandidate]) -> CompatibilityA
                     "{} conflicts with {} under the bank compatibility rules.",
                     left.motif_label, right.motif_label
                 ));
+            } else if left.compatible_with.contains(&right.heuristic_id)
+                && right.compatible_with.contains(&left.heuristic_id)
+            {
+                compatible_pairs.push(format!(
+                    "{} and {} are reported together because the typed bank explicitly marks the pair as jointly compatible under the current admissibility-qualified evidence.",
+                    left.motif_label, right.motif_label
+                ));
             } else if !left.compatible_with.contains(&right.heuristic_id)
                 || !right.compatible_with.contains(&left.heuristic_id)
             {
@@ -1246,6 +1634,7 @@ fn compatibility_assessment(candidates: &[HeuristicCandidate]) -> CompatibilityA
         }
     }
     CompatibilityAssessment {
+        compatible_pairs,
         conflicts,
         unresolved,
     }

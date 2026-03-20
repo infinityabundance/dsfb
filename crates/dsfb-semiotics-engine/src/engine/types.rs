@@ -263,6 +263,9 @@ pub struct HeuristicScopeConditions {
     pub min_boundary_grazing_episodes: Option<usize>,
     pub max_boundary_grazing_episodes: Option<usize>,
     pub min_boundary_recovery_count: Option<usize>,
+    /// Optional minimum grouped aggregate breach fraction required when grouped structure exists.
+    pub min_coordinated_group_breach_fraction: Option<f64>,
+    /// Optional maximum grouped aggregate breach fraction allowed for this motif.
     pub max_coordinated_group_breach_fraction: Option<f64>,
     pub require_group_breach: bool,
 }
@@ -300,9 +303,13 @@ pub struct HeuristicBankEntry {
 pub struct HeuristicCandidate {
     pub entry: HeuristicBankEntry,
     pub score: f64,
+    /// Explanation of how the grammar-state requirement for this candidate was satisfied.
     pub admissibility_explanation: String,
+    /// Explanation of which regime tags were available and why the candidate was allowed.
     pub regime_explanation: String,
+    /// Explanation of which syntax metrics satisfied the candidate's scope conditions.
     pub scope_explanation: String,
+    /// Combined explanation used in reports and CSV exports.
     pub rationale: String,
     pub matched_regimes: Vec<String>,
 }
@@ -324,8 +331,14 @@ pub struct SemanticMatchResult {
     pub selected_labels: Vec<String>,
     pub selected_heuristic_ids: Vec<String>,
     pub resolution_basis: String,
+    /// Coarse reason for an `Unknown` result, when one is returned.
     pub unknown_reason_class: Option<String>,
+    /// More detailed explanation for `Unknown`, kept separate so reports can distinguish weak
+    /// evidence from bank noncoverage explicitly.
+    pub unknown_reason_detail: Option<String>,
     pub compatibility_note: String,
+    /// Explicit pairwise compatibility notes when a `CompatibleSet` is returned.
+    pub compatibility_reasons: Vec<String>,
     pub conflict_notes: Vec<String>,
     pub note: String,
 }

@@ -13,8 +13,9 @@ use dsfb_semiotics_engine::engine::semantics_layer::retrieve_semantics;
 use dsfb_semiotics_engine::engine::sign_layer::construct_signs;
 use dsfb_semiotics_engine::engine::syntax_layer::characterize_syntax;
 use dsfb_semiotics_engine::engine::types::{
-    EnvelopeMode, GrammarState, GrammarStatus, ObservedTrajectory, PredictedTrajectory,
-    SemanticDisposition, SignSample, SignTrajectory, SyntaxCharacterization, VectorSample,
+    CoordinatedResidualStructure, EnvelopeMode, GrammarState, GrammarStatus, GroupDefinition,
+    GroupResidualPoint, ObservedTrajectory, PredictedTrajectory, SemanticDisposition, SignSample,
+    SignTrajectory, SyntaxCharacterization, VectorSample,
 };
 use dsfb_semiotics_engine::io::input::load_csv_trajectories;
 use dsfb_semiotics_engine::io::output::create_output_layout;
@@ -214,6 +215,7 @@ fn compatible_semantic_multi_match_returns_ranked_shortlist() {
         result.selected_heuristic_ids.len()
     );
     assert!(result.compatibility_note.contains("compatible"));
+    assert!(!result.compatibility_reasons.is_empty());
 }
 
 #[test]
@@ -420,6 +422,29 @@ fn oscillatory_bounded_scenario_receives_oscillatory_semantics() {
 }
 
 #[test]
+fn noisy_structured_scenario_receives_structured_noisy_semantics() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("noisy_structured".to_string()),
+    });
+
+    let bundle = engine.run_single("noisy_structured").unwrap();
+    let scenario = &bundle.scenario_outputs[0];
+    assert!(matches!(
+        scenario.semantics.disposition,
+        SemanticDisposition::Match
+    ));
+    assert_eq!(
+        scenario.semantics.selected_heuristic_ids,
+        vec!["H-STRUCTURED-NOISY-TRAJECTORY"]
+    );
+}
+
+#[test]
 fn outward_exit_case_receives_violation_aware_departure_semantics() {
     let temp = TempDir::new().unwrap();
     let engine = StructuralSemioticsEngine::new(EngineConfig {
@@ -466,26 +491,27 @@ fn curvature_onset_scenario_receives_curvature_departure_semantics() {
 }
 
 #[test]
-fn noisy_structured_case_can_remain_conservatively_unknown() {
+fn regime_switch_scenario_surfaces_mixed_regime_transition_compatibly() {
     let temp = TempDir::new().unwrap();
     let engine = StructuralSemioticsEngine::new(EngineConfig {
         seed: 123,
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
-        scenario_selection: ScenarioSelection::Single("noisy_structured".to_string()),
+        scenario_selection: ScenarioSelection::Single("regime_switch".to_string()),
     });
 
-    let bundle = engine.run_single("noisy_structured").unwrap();
+    let bundle = engine.run_single("regime_switch").unwrap();
     let scenario = &bundle.scenario_outputs[0];
     assert!(matches!(
         scenario.semantics.disposition,
-        SemanticDisposition::Unknown
+        SemanticDisposition::CompatibleSet
     ));
-    assert_eq!(
-        scenario.semantics.unknown_reason_class.as_deref(),
-        Some("bank-noncoverage")
-    );
+    assert!(scenario
+        .semantics
+        .selected_heuristic_ids
+        .contains(&"H-MIXED-REGIME-TRANSITION".to_string()));
+    assert!(!scenario.semantics.compatibility_reasons.is_empty());
 }
 
 #[test]
@@ -1008,6 +1034,26 @@ fn exported_report_and_csv_include_semantic_applicability_and_provenance() {
     assert!(report.contains("provenance="));
     assert!(semantic_csv.contains("candidate_applicability_notes"));
     assert!(semantic_csv.contains("candidate_provenance_notes"));
+    assert!(semantic_csv.contains("unknown_reason_detail"));
+    assert!(semantic_csv.contains("compatibility_reasons"));
+}
+
+#[test]
+fn report_explains_mixed_structured_noncommitment_when_semantics_still_match() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 240,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        scenario_selection: ScenarioSelection::Single("oscillatory_bounded".to_string()),
+    });
+
+    let bundle = engine.run_single("oscillatory_bounded").unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let report = fs::read_to_string(exported.report_markdown).unwrap();
+    assert!(report.contains("This syntax label is conservative non-commitment at the syntax layer"));
+    assert!(report.contains("bounded oscillatory operation candidate"));
 }
 
 #[test]
@@ -1034,6 +1080,198 @@ fn semantics_layer_can_return_unknown() {
     let result = retrieve_semantics("unknown", &syntax, &[], None);
     assert!(matches!(result.disposition, SemanticDisposition::Unknown));
     assert_eq!(result.unknown_reason_class.as_deref(), Some("low-evidence"));
+    assert!(result
+        .unknown_reason_detail
+        .as_deref()
+        .unwrap_or_default()
+        .contains("Low-evidence Unknown"));
+}
+
+#[test]
+fn semantics_layer_can_return_bank_noncoverage_unknown() {
+    let mut syntax = syntax_template("bank_noncoverage")
+        .with_outward(0.62)
+        .with_persistence(0.52)
+        .with_sign_consistency(0.51)
+        .with_coherence(0.42)
+        .with_monotonicity(0.18)
+        .with_curvature(2.0e-4)
+        .0;
+    syntax.inward_drift_fraction = 0.48;
+    syntax.mean_squared_slew_norm = 2.0e-4;
+    syntax.curvature_energy = 2.0e-4;
+    syntax.late_slew_growth_score = 0.22;
+    syntax.curvature_onset_score = 0.22;
+    syntax.slew_spike_count = 3;
+    syntax.slew_spike_strength = 0.002;
+    syntax.max_slew_norm = 0.03;
+    let grammar = vec![grammar_status(
+        "bank_noncoverage",
+        0,
+        0.0,
+        GrammarState::Admissible,
+        0.2,
+    )];
+    let result = retrieve_semantics("bank_noncoverage", &syntax, &grammar, None);
+    assert!(matches!(result.disposition, SemanticDisposition::Unknown));
+    assert_eq!(
+        result.unknown_reason_class.as_deref(),
+        Some("bank-noncoverage")
+    );
+    assert!(result
+        .unknown_reason_detail
+        .as_deref()
+        .unwrap_or_default()
+        .contains("Bank-noncoverage Unknown"));
+}
+
+#[test]
+fn recurrent_boundary_variant_can_form_compatible_set() {
+    let mut syntax = syntax_template("recurrent_boundary")
+        .with_outward(0.45)
+        .with_persistence(0.60)
+        .with_sign_consistency(0.58)
+        .with_coherence(0.55)
+        .with_monotonicity(0.28)
+        .with_curvature(0.001)
+        .with_boundary_episodes(4)
+        .with_boundary_recoveries(3)
+        .0;
+    syntax.late_slew_growth_score = 0.20;
+    syntax.curvature_onset_score = 0.20;
+    syntax.slew_spike_count = 1;
+    syntax.slew_spike_strength = 0.005;
+    let grammar = vec![
+        grammar_status("recurrent_boundary", 0, 0.0, GrammarState::Boundary, 0.02),
+        grammar_status("recurrent_boundary", 1, 1.0, GrammarState::Admissible, 0.10),
+        grammar_status("recurrent_boundary", 2, 2.0, GrammarState::Boundary, 0.02),
+        grammar_status("recurrent_boundary", 3, 3.0, GrammarState::Admissible, 0.10),
+        grammar_status("recurrent_boundary", 4, 4.0, GrammarState::Boundary, 0.02),
+        grammar_status("recurrent_boundary", 5, 5.0, GrammarState::Admissible, 0.10),
+    ];
+
+    let result = retrieve_semantics("recurrent_boundary", &syntax, &grammar, None);
+    assert!(matches!(
+        result.disposition,
+        SemanticDisposition::CompatibleSet
+    ));
+    assert!(result
+        .selected_heuristic_ids
+        .contains(&"H-RECURRENT-BOUNDARY-RECURRENCE".to_string()));
+}
+
+#[test]
+fn inward_recovery_variant_can_form_compatible_set() {
+    let mut syntax = syntax_template("inward_recovery")
+        .with_outward(0.18)
+        .with_persistence(0.86)
+        .with_sign_consistency(0.82)
+        .with_coherence(0.60)
+        .with_monotonicity(0.92)
+        .with_curvature(1.0e-8)
+        .with_boundary_recoveries(2)
+        .0;
+    syntax.inward_drift_fraction = 0.90;
+    syntax.late_slew_growth_score = 0.12;
+    syntax.curvature_onset_score = 0.12;
+    let grammar = vec![
+        grammar_status_with_regime(
+            "inward_recovery",
+            0,
+            0.0,
+            GrammarState::Boundary,
+            0.02,
+            "tightening",
+        ),
+        grammar_status_with_regime(
+            "inward_recovery",
+            1,
+            1.0,
+            GrammarState::Admissible,
+            0.10,
+            "tightening",
+        ),
+        grammar_status_with_regime(
+            "inward_recovery",
+            2,
+            2.0,
+            GrammarState::Boundary,
+            0.02,
+            "tightening",
+        ),
+        grammar_status_with_regime(
+            "inward_recovery",
+            3,
+            3.0,
+            GrammarState::Admissible,
+            0.10,
+            "tightening",
+        ),
+    ];
+
+    let result = retrieve_semantics("inward_recovery", &syntax, &grammar, None);
+    assert!(matches!(
+        result.disposition,
+        SemanticDisposition::CompatibleSet
+    ));
+    assert!(result
+        .selected_heuristic_ids
+        .contains(&"H-INWARD-RECOVERY".to_string()));
+}
+
+#[test]
+fn coordinated_departure_variant_can_form_compatible_set() {
+    let mut syntax = syntax_template("coordinated_departure")
+        .with_outward(0.82)
+        .with_persistence(0.82)
+        .with_sign_consistency(0.80)
+        .with_coherence(0.78)
+        .with_monotonicity(0.88)
+        .with_curvature(5.0e-7)
+        .0;
+    syntax.coordinated_group_breach_fraction = 0.45;
+    syntax.late_slew_growth_score = 0.18;
+    syntax.curvature_onset_score = 0.18;
+    let grammar = vec![
+        grammar_status(
+            "coordinated_departure",
+            0,
+            0.0,
+            GrammarState::Violation,
+            -0.10,
+        ),
+        grammar_status(
+            "coordinated_departure",
+            1,
+            1.0,
+            GrammarState::Violation,
+            -0.12,
+        ),
+        grammar_status(
+            "coordinated_departure",
+            2,
+            2.0,
+            GrammarState::Boundary,
+            0.01,
+        ),
+    ];
+
+    let result = retrieve_semantics(
+        "coordinated_departure",
+        &syntax,
+        &grammar,
+        Some(&coordinated_structure_with_breach(
+            "coordinated_departure",
+            0.45,
+        )),
+    );
+    assert!(matches!(
+        result.disposition,
+        SemanticDisposition::CompatibleSet
+    ));
+    assert!(result
+        .selected_heuristic_ids
+        .contains(&"H-COORDINATED-DEPARTURE".to_string()));
 }
 
 #[test]
@@ -1200,6 +1438,61 @@ fn grammar_status(
         radius: 1.0,
         residual_norm: 1.0 - margin,
         regime: "fixed".to_string(),
+    }
+}
+
+fn grammar_status_with_regime(
+    scenario_id: &str,
+    step: usize,
+    time: f64,
+    state: GrammarState,
+    margin: f64,
+    regime: &str,
+) -> GrammarStatus {
+    GrammarStatus {
+        scenario_id: scenario_id.to_string(),
+        step,
+        time,
+        state,
+        margin,
+        radius: 1.0,
+        residual_norm: 1.0 - margin,
+        regime: regime.to_string(),
+    }
+}
+
+fn coordinated_structure_with_breach(
+    scenario_id: &str,
+    aggregate_breach_fraction: f64,
+) -> CoordinatedResidualStructure {
+    CoordinatedResidualStructure {
+        scenario_id: scenario_id.to_string(),
+        groups: vec![GroupDefinition {
+            group_id: "g1".to_string(),
+            member_indices: vec![0, 1],
+        }],
+        points: vec![
+            GroupResidualPoint {
+                scenario_id: scenario_id.to_string(),
+                group_id: "g1".to_string(),
+                step: 0,
+                time: 0.0,
+                aggregate_abs_mean: 0.5,
+                local_max_abs: 0.6,
+                aggregate_radius: 0.4,
+                aggregate_margin: -aggregate_breach_fraction,
+            },
+            GroupResidualPoint {
+                scenario_id: scenario_id.to_string(),
+                group_id: "g1".to_string(),
+                step: 1,
+                time: 1.0,
+                aggregate_abs_mean: 0.55,
+                local_max_abs: 0.62,
+                aggregate_radius: 0.4,
+                aggregate_margin: -aggregate_breach_fraction,
+            },
+        ],
     }
 }
 
