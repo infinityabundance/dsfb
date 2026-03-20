@@ -52,6 +52,7 @@ pub struct HeuristicBankMetadata {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HeuristicBankValidationReport {
     pub schema_version: String,
+    pub engine_version: String,
     pub bank_schema_version: String,
     pub bank_version: String,
     pub bank_source_kind: BankSourceKind,
@@ -373,6 +374,7 @@ impl HeuristicBankRegistry {
 
         HeuristicBankValidationReport {
             schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: env!("CARGO_PKG_VERSION").to_string(),
             bank_schema_version: self.metadata.schema_version.clone(),
             bank_version: self.metadata.bank_version.clone(),
             bank_source_kind: descriptor.source_kind.clone(),

@@ -9,6 +9,7 @@ use crate::io::schema::ARTIFACT_SCHEMA_VERSION;
 pub struct FigureSourceRow {
     pub schema_version: String,
     pub engine_version: String,
+    pub bank_version: String,
     pub figure_id: String,
     pub plot_title: String,
     pub panel_id: String,
@@ -35,6 +36,7 @@ pub struct FigureSourceRow {
 pub struct FigureSourceTable {
     pub schema_version: String,
     pub engine_version: String,
+    pub bank_version: String,
     pub figure_id: String,
     pub plot_title: String,
     pub expected_panel_count: usize,
@@ -46,6 +48,8 @@ pub struct FigureSourceTable {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DetectabilityFigureSourceRow {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub figure_id: String,
     pub scenario_id: String,
     pub predicted_upper_bound: Option<f64>,
@@ -58,6 +62,8 @@ pub struct DetectabilityFigureSourceRow {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SemanticRetrievalFigureSourceRow {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub figure_id: String,
     pub representative_rank: usize,
     pub selection_reason: String,
@@ -81,6 +87,8 @@ pub struct SemanticRetrievalFigureSourceRow {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BaselineComparatorFigureSourceRow {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub figure_id: String,
     pub comparator_id: String,
     pub comparator_label: String,
@@ -92,6 +100,8 @@ pub struct BaselineComparatorFigureSourceRow {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SweepSummaryFigureSourceRow {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub figure_id: String,
     pub sweep_family: String,
     pub scenario_id: String,
@@ -118,7 +128,7 @@ pub fn prepare_publication_figure_source_tables(
         prepare_figure_07(bundle)?,
         prepare_figure_08(bundle)?,
         prepare_figure_09(bundle),
-        prepare_figure_10(),
+        prepare_figure_10(bundle),
         prepare_figure_11(bundle)?,
         prepare_figure_12(bundle),
         prepare_figure_13(bundle),
@@ -135,6 +145,8 @@ pub fn detectability_source_rows(bundle: &EngineOutputBundle) -> Vec<Detectabili
         .into_iter()
         .map(|scenario| DetectabilityFigureSourceRow {
             schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: bundle.run_metadata.crate_version.clone(),
+            bank_version: bundle.run_metadata.bank.bank_version.clone(),
             figure_id: "figure_09_detectability_bound".to_string(),
             scenario_id: scenario.record.id.clone(),
             predicted_upper_bound: scenario.detectability.predicted_upper_bound,
@@ -156,6 +168,8 @@ pub fn semantic_retrieval_source_rows(
         .enumerate()
         .map(|(index, (selection_reason, scenario))| SemanticRetrievalFigureSourceRow {
             schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: bundle.run_metadata.crate_version.clone(),
+            bank_version: bundle.run_metadata.bank.bank_version.clone(),
             figure_id: "figure_12_semantic_retrieval_heuristics_bank".to_string(),
             representative_rank: index + 1,
             selection_reason,
@@ -217,12 +231,19 @@ pub fn baseline_comparator_source_rows(
     [
         ("baseline_residual_threshold", "Residual threshold"),
         ("baseline_moving_average_trend", "Moving-average trend"),
+        ("baseline_cusum", "CUSUM"),
         ("baseline_slew_spike", "Slew spike"),
         ("baseline_envelope_interaction", "Envelope interaction"),
+        (
+            "baseline_innovation_chi_squared_style",
+            "Innovation-style squared residual",
+        ),
     ]
     .into_iter()
     .map(|(id, label)| BaselineComparatorFigureSourceRow {
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        engine_version: bundle.run_metadata.crate_version.clone(),
+        bank_version: bundle.run_metadata.bank.bank_version.clone(),
         figure_id: "figure_13_internal_baseline_comparators".to_string(),
         comparator_id: id.to_string(),
         comparator_label: label.to_string(),
@@ -247,6 +268,8 @@ pub fn sweep_summary_source_rows(bundle: &EngineOutputBundle) -> Vec<SweepSummar
         .iter()
         .map(|result| SweepSummaryFigureSourceRow {
             schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: bundle.run_metadata.crate_version.clone(),
+            bank_version: bundle.run_metadata.bank.bank_version.clone(),
             figure_id: "figure_14_sweep_stability_summary".to_string(),
             sweep_family: result.sweep_family.clone(),
             scenario_id: result.scenario_id.clone(),
@@ -264,6 +287,7 @@ pub fn sweep_summary_source_rows(bundle: &EngineOutputBundle) -> Vec<SweepSummar
 fn prepare_figure_01(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, "gradual_degradation")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_01_residual_prediction_observation_overview",
         "Residual, Observation, and Prediction Overview",
         2,
@@ -324,6 +348,7 @@ fn prepare_figure_01(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 fn prepare_figure_02(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, "abrupt_event")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_02_drift_and_slew_decomposition",
         "Drift and Slew Decomposition",
         3,
@@ -392,6 +417,7 @@ fn prepare_figure_02(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 fn prepare_figure_03(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, "curvature_onset")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_03_sign_space_projection",
         "Projected Sign Trajectory",
         1,
@@ -502,7 +528,13 @@ fn prepare_figure_03(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 fn prepare_figure_04(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let (monotone, curvature) =
         source_scenario_pair_or_first(bundle, "gradual_degradation", "curvature_onset")?;
-    let mut table = new_source_table("figure_04_syntax_comparison", "Syntax Comparison", 1, &[]);
+    let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
+        "figure_04_syntax_comparison",
+        "Syntax Comparison",
+        1,
+        &[],
+    );
     push_scalar_series(
         &mut table,
         "syntax_comparison",
@@ -566,6 +598,7 @@ fn prepare_figure_07(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let (exit_case, invariance_case) =
         source_scenario_pair_or_first(bundle, "outward_exit_case_a", "inward_invariance")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_07_exit_invariance_pair_common_envelope",
         "Exit-Invariance Pair on Shared Envelope",
         1,
@@ -638,6 +671,7 @@ fn prepare_figure_08(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
         "magnitude_matched_detectable",
     )?;
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_08_residual_trajectory_separation",
         "Residual Trajectory Separation",
         1,
@@ -705,6 +739,7 @@ fn prepare_figure_08(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 
 fn prepare_figure_09(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_09_detectability_bound_comparison",
         "Predicted vs Observed Detectability Times",
         1,
@@ -774,8 +809,9 @@ fn prepare_figure_09(bundle: &EngineOutputBundle) -> FigureSourceTable {
     table
 }
 
-fn prepare_figure_10() -> FigureSourceTable {
+fn prepare_figure_10(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_10_deterministic_pipeline_flow",
         "Deterministic Structural Semiotics Engine",
         1,
@@ -937,6 +973,7 @@ fn prepare_figure_10() -> FigureSourceTable {
 fn prepare_figure_11(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, "grouped_correlated")?;
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_11_coordinated_group_semiotics",
         "Coordinated Group Semiotics",
         if scenario.coordinated.is_some() { 2 } else { 1 },
@@ -1057,6 +1094,7 @@ fn prepare_figure_11(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 
 fn prepare_figure_12(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_12_semantic_retrieval_heuristics_bank",
         "Representative Constrained Retrieval Summary",
         3,
@@ -1124,6 +1162,7 @@ fn prepare_figure_12(bundle: &EngineOutputBundle) -> FigureSourceTable {
 
 fn prepare_figure_13(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_13_internal_baseline_comparators",
         "Internal Deterministic Comparator Trigger Counts",
         1,
@@ -1156,6 +1195,7 @@ fn prepare_figure_13(bundle: &EngineOutputBundle) -> FigureSourceTable {
 
 fn prepare_figure_14(bundle: &EngineOutputBundle) -> FigureSourceTable {
     let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
         "figure_14_sweep_stability_summary",
         "Sweep Semantic Stability",
         1,
@@ -1216,7 +1256,13 @@ fn prepare_norm_vs_envelope_table(
     plot_title: &str,
 ) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, scenario_id)?;
-    let mut table = new_source_table(figure_id, plot_title, 1, &[]);
+    let mut table = new_source_table(
+        &bundle.run_metadata.bank.bank_version,
+        figure_id,
+        plot_title,
+        1,
+        &[],
+    );
     push_scalar_series(
         &mut table,
         "norm_vs_envelope",
@@ -1287,6 +1333,7 @@ fn prepare_norm_vs_envelope_table(
 }
 
 fn new_source_table(
+    bank_version: &str,
     figure_id: &str,
     plot_title: &str,
     expected_panel_count: usize,
@@ -1295,6 +1342,7 @@ fn new_source_table(
     FigureSourceTable {
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
         engine_version: env!("CARGO_PKG_VERSION").to_string(),
+        bank_version: bank_version.to_string(),
         figure_id: figure_id.to_string(),
         plot_title: plot_title.to_string(),
         expected_panel_count,
@@ -1329,6 +1377,7 @@ fn push_vector_series(
         table.rows.push(FigureSourceRow {
             schema_version: table.schema_version.clone(),
             engine_version: table.engine_version.clone(),
+            bank_version: table.bank_version.clone(),
             figure_id: table.figure_id.clone(),
             plot_title: table.plot_title.clone(),
             panel_id: panel_id.to_string(),
@@ -1378,6 +1427,7 @@ fn push_scalar_series(
         table.rows.push(FigureSourceRow {
             schema_version: table.schema_version.clone(),
             engine_version: table.engine_version.clone(),
+            bank_version: table.bank_version.clone(),
             figure_id: table.figure_id.clone(),
             plot_title: table.plot_title.clone(),
             panel_id: panel_id.to_string(),
@@ -1459,6 +1509,7 @@ fn push_bar_row(
     table.rows.push(FigureSourceRow {
         schema_version: table.schema_version.clone(),
         engine_version: table.engine_version.clone(),
+        bank_version: table.bank_version.clone(),
         figure_id: table.figure_id.clone(),
         plot_title: table.plot_title.clone(),
         panel_id: panel_id.to_string(),
@@ -1506,6 +1557,7 @@ fn push_annotation_point(
     table.rows.push(FigureSourceRow {
         schema_version: table.schema_version.clone(),
         engine_version: table.engine_version.clone(),
+        bank_version: table.bank_version.clone(),
         figure_id: table.figure_id.clone(),
         plot_title: table.plot_title.clone(),
         panel_id: panel_id.to_string(),
@@ -1552,6 +1604,7 @@ fn push_segment_row(
     table.rows.push(FigureSourceRow {
         schema_version: table.schema_version.clone(),
         engine_version: table.engine_version.clone(),
+        bank_version: table.bank_version.clone(),
         figure_id: table.figure_id.clone(),
         plot_title: table.plot_title.clone(),
         panel_id: panel_id.to_string(),
@@ -1599,6 +1652,7 @@ fn push_box_row(
     table.rows.push(FigureSourceRow {
         schema_version: table.schema_version.clone(),
         engine_version: table.engine_version.clone(),
+        bank_version: table.bank_version.clone(),
         figure_id: table.figure_id.clone(),
         plot_title: table.plot_title.clone(),
         panel_id: panel_id.to_string(),

@@ -990,6 +990,26 @@ fn csv_cli_mode_exposes_external_data_surface() {
 }
 
 #[test]
+fn bank_mode_alias_exposes_external_bank_surface() {
+    let args = dsfb_semiotics_engine::cli::args::CliArgs::try_parse_from([
+        "dsfb-semiotics-engine",
+        "--bank-mode",
+        "external",
+        "--bank-path",
+        "heuristics.json",
+    ])
+    .unwrap();
+
+    let bank = args.bank_config();
+    match bank.source {
+        dsfb_semiotics_engine::engine::config::BankSourceConfig::External(path) => {
+            assert_eq!(path, std::path::PathBuf::from("heuristics.json"));
+        }
+        other => panic!("expected external bank source, got {other:?}"),
+    }
+}
+
+#[test]
 fn exported_report_mentions_projection_and_run_mode_for_csv_runs() {
     let temp = TempDir::new().unwrap();
     let observed_csv = temp.path().join("observed.csv");

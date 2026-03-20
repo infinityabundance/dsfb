@@ -8,6 +8,8 @@ use crate::engine::bank::HeuristicBankValidationReport;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BaselineComparatorResult {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub scenario_id: String,
     pub comparator_id: String,
     pub comparator_label: String,
@@ -22,6 +24,8 @@ pub struct BaselineComparatorResult {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ScenarioEvaluationSummary {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub scenario_id: String,
     pub input_mode: String,
     pub syntax_label: String,
@@ -50,6 +54,8 @@ pub struct ScenarioEvaluationSummary {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RunEvaluationSummary {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub evaluation_version: String,
     pub input_mode: String,
     pub scenario_count: usize,
@@ -67,6 +73,8 @@ pub struct RunEvaluationSummary {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ArtifactCompletenessCheck {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub figure_count: usize,
     pub csv_count: usize,
     pub json_count: usize,
@@ -82,6 +90,8 @@ pub struct ArtifactCompletenessCheck {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FigureIntegrityCheck {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub figure_id: String,
     pub expected_panel_count: usize,
     pub observed_panel_count: usize,
@@ -105,6 +115,8 @@ pub struct FigureIntegrityCheck {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SweepPointResult {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub sweep_family: String,
     pub scenario_id: String,
     pub parameter_name: String,
@@ -121,6 +133,8 @@ pub struct SweepPointResult {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SweepRunSummary {
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub sweep_family: String,
     pub member_count: usize,
     pub unique_syntax_labels: Vec<String>,

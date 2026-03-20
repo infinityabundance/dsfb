@@ -255,8 +255,20 @@ fn evaluation_summary_and_baselines_cover_every_scenario() {
     );
     assert_eq!(
         bundle.evaluation.baseline_results.len(),
-        bundle.scenario_outputs.len() * 4
+        bundle.scenario_outputs.len() * 6
     );
+    let comparator_ids = bundle
+        .evaluation
+        .baseline_results
+        .iter()
+        .map(|result| result.comparator_id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(comparator_ids.contains("baseline_residual_threshold"));
+    assert!(comparator_ids.contains("baseline_moving_average_trend"));
+    assert!(comparator_ids.contains("baseline_slew_spike"));
+    assert!(comparator_ids.contains("baseline_envelope_interaction"));
+    assert!(comparator_ids.contains("baseline_cusum"));
+    assert!(comparator_ids.contains("baseline_innovation_chi_squared_style"));
     assert!(bundle.evaluation.summary.all_reproducible);
     assert!(bundle.evaluation.bank_validation.valid);
 }

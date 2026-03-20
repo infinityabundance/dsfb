@@ -54,9 +54,19 @@ pub struct EvaluationSettings {
     pub residual_threshold_scale: f64,
     pub moving_average_window: usize,
     pub moving_average_trend_deadband: f64,
+    pub cusum_drift_allowance: f64,
+    pub cusum_alarm_threshold: f64,
     pub slew_spike_sigma_factor: f64,
     pub slew_spike_floor: f64,
+    pub innovation_detector_scale: f64,
+    pub innovation_alarm_threshold: f64,
     pub default_sweep_points: usize,
+}
+
+/// Deterministic plotting settings used by artifact integrity checks and exported figure metadata.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PlottingSettings {
+    pub count_like_integer_tolerance: f64,
 }
 
 /// Deterministic formatting settings for report- and evaluation-facing summaries.
@@ -73,6 +83,7 @@ pub struct EngineSettings {
     pub syntax: SyntaxThresholds,
     pub semantics: SemanticRetrievalSettings,
     pub evaluation: EvaluationSettings,
+    pub plotting: PlottingSettings,
     pub reporting: ReportingSettings,
 }
 
@@ -133,9 +144,21 @@ impl Default for EvaluationSettings {
             residual_threshold_scale: 1.0,
             moving_average_window: 7,
             moving_average_trend_deadband: 1.0e-4,
+            cusum_drift_allowance: 5.0e-4,
+            cusum_alarm_threshold: 0.05,
             slew_spike_sigma_factor: 1.5,
             slew_spike_floor: 1.0e-4,
+            innovation_detector_scale: 1.0,
+            innovation_alarm_threshold: 1.0,
             default_sweep_points: 5,
+        }
+    }
+}
+
+impl Default for PlottingSettings {
+    fn default() -> Self {
+        Self {
+            count_like_integer_tolerance: 1.0e-9,
         }
     }
 }

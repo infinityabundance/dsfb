@@ -196,8 +196,17 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
 
     let figure_source_tables = prepare_publication_figure_source_tables(bundle)?;
     let figure_artifacts = render_all_figures(&figure_source_tables, &layout.figures_dir)?;
-    let tabular_summary =
-        write_tabular_artifacts(bundle, &figure_source_tables, &figure_artifacts, &layout)?;
+    let tabular_summary = write_tabular_artifacts(
+        bundle,
+        &figure_source_tables,
+        &figure_artifacts,
+        &layout,
+        bundle
+            .run_metadata
+            .engine_settings
+            .plotting
+            .count_like_integer_tolerance,
+    )?;
 
     let manifest_path = layout.run_dir.join("manifest.json");
     let report_markdown_path = layout.report_dir.join("dsfb_semiotics_engine_report.md");
@@ -245,6 +254,7 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
     )?;
     zip_directory(&layout.run_dir, &zip_path)?;
     let completeness = build_artifact_completeness(
+        bundle,
         &layout,
         &figure_artifacts,
         &report_markdown_path,
@@ -448,6 +458,8 @@ impl StructuralSemioticsEngine {
             evaluation: crate::evaluation::types::RunEvaluationBundle {
                 summary: crate::evaluation::types::RunEvaluationSummary {
                     schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+                    engine_version: run_metadata.crate_version.clone(),
+                    bank_version: run_metadata.bank.bank_version.clone(),
                     evaluation_version: "evaluation/v1".to_string(),
                     input_mode: input_mode_label(&self.config.scenario_selection).to_string(),
                     scenario_count: 0,
@@ -716,6 +728,7 @@ fn write_tabular_artifacts(
     figure_source_tables: &[FigureSourceTable],
     figure_artifacts: &[FigureArtifact],
     layout: &OutputLayout,
+    count_like_integer_tolerance: f64,
 ) -> Result<TabularArtifactsSummary> {
     let scenario_catalog = bundle
         .scenario_outputs
@@ -745,7 +758,7 @@ fn write_tabular_artifacts(
         bundle
             .reproducibility_checks
             .iter()
-            .map(reproducibility_csv_row),
+            .map(|check| reproducibility_csv_row(bundle, check)),
     )?;
     write_rows(
         layout.csv_dir.join("reproducibility_summary.csv").as_path(),
@@ -791,8 +804,13 @@ fn write_tabular_artifacts(
         )?;
     }
 
-    let figure_integrity_checks =
-        write_summary_figure_source_tables(bundle, figure_source_tables, figure_artifacts, layout)?;
+    let figure_integrity_checks = write_summary_figure_source_tables(
+        bundle,
+        figure_source_tables,
+        figure_artifacts,
+        layout,
+        count_like_integer_tolerance,
+    )?;
 
     let grammar_rows = bundle
         .scenario_outputs
@@ -995,6 +1013,7 @@ fn write_summary_figure_source_tables(
     figure_source_tables: &[FigureSourceTable],
     figure_artifacts: &[FigureArtifact],
     layout: &OutputLayout,
+    count_like_integer_tolerance: f64,
 ) -> Result<Vec<FigureIntegrityCheck>> {
     let mut checks = Vec::new();
     let figure_lookup = figure_artifacts
@@ -1046,7 +1065,9 @@ fn write_summary_figure_source_tables(
                 .rows
                 .iter()
                 .filter(|row| row.panel_id == *panel_id)
-                .all(|row| (row.y_value - row.y_value.round()).abs() <= 1.0e-9)
+                .all(|row| {
+                    (row.y_value - row.y_value.round()).abs() <= count_like_integer_tolerance
+                })
         });
         let artifact = figure_lookup.get(&table.figure_id);
         let png_path = artifact
@@ -1060,6 +1081,8 @@ fn write_summary_figure_source_tables(
         let observed_panel_count = panel_order.len();
         checks.push(FigureIntegrityCheck {
             schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: bundle.run_metadata.crate_version.clone(),
+            bank_version: bundle.run_metadata.bank.bank_version.clone(),
             figure_id: table.figure_id.clone(),
             expected_panel_count: table.expected_panel_count,
             observed_panel_count,
@@ -1229,6 +1252,8 @@ fn run_metadata(
 ) -> RunMetadata {
     RunMetadata {
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        engine_version: env!("CARGO_PKG_VERSION").to_string(),
+        bank_version: bank.bank_version.clone(),
         crate_name: "dsfb-semiotics-engine".to_string(),
         crate_version: env!("CARGO_PKG_VERSION").to_string(),
         rust_version: command_stdout("rustc", &["--version"]),
@@ -1325,6 +1350,8 @@ fn build_report_manifest(
     }
     Ok(crate::engine::types::ReportManifest {
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        engine_version: bundle.run_metadata.crate_version.clone(),
+        bank_version: bundle.run_metadata.bank.bank_version.clone(),
         crate_name: bundle.run_metadata.crate_name.clone(),
         crate_version: bundle.run_metadata.crate_version.clone(),
         timestamp: bundle.run_metadata.timestamp.clone(),
@@ -1350,6 +1377,7 @@ fn build_report_manifest(
 }
 
 fn build_artifact_completeness(
+    bundle: &EngineOutputBundle,
     layout: &OutputLayout,
     figure_artifacts: &[FigureArtifact],
     report_markdown_path: &Path,
@@ -1370,6 +1398,8 @@ fn build_artifact_completeness(
         && !figure_artifacts.is_empty();
     Ok(ArtifactCompletenessCheck {
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        engine_version: bundle.run_metadata.crate_version.clone(),
+        bank_version: bundle.run_metadata.bank.bank_version.clone(),
         figure_count: figure_artifacts.len() * 2,
         csv_count,
         json_count,
@@ -1541,6 +1571,9 @@ struct SemanticMatchCsvRow {
 
 #[derive(Clone, Debug, Serialize)]
 struct ReproducibilityCsvRow {
+    schema_version: String,
+    engine_version: String,
+    bank_version: String,
     scenario_id: String,
     first_hash: String,
     second_hash: String,
@@ -1552,6 +1585,8 @@ struct ReproducibilityCsvRow {
 #[derive(Clone, Debug, Serialize)]
 struct EvaluationSummaryCsvRow {
     schema_version: String,
+    engine_version: String,
+    bank_version: String,
     evaluation_version: String,
     input_mode: String,
     scenario_count: usize,
@@ -1568,6 +1603,8 @@ struct EvaluationSummaryCsvRow {
 #[derive(Clone, Debug, Serialize)]
 struct ScenarioEvaluationCsvRow {
     schema_version: String,
+    engine_version: String,
+    bank_version: String,
     scenario_id: String,
     input_mode: String,
     syntax_label: String,
@@ -1595,6 +1632,7 @@ struct ScenarioEvaluationCsvRow {
 #[derive(Clone, Debug, Serialize)]
 struct BankValidationCsvRow {
     schema_version: String,
+    engine_version: String,
     bank_schema_version: String,
     bank_version: String,
     bank_source_kind: String,
@@ -1618,6 +1656,8 @@ struct BankValidationCsvRow {
 #[derive(Clone, Debug, Serialize)]
 struct SweepPointCsvRow {
     schema_version: String,
+    engine_version: String,
+    bank_version: String,
     sweep_family: String,
     scenario_id: String,
     parameter_name: String,
@@ -1633,6 +1673,8 @@ struct SweepPointCsvRow {
 #[derive(Clone, Debug, Serialize)]
 struct SweepSummaryCsvRow {
     schema_version: String,
+    engine_version: String,
+    bank_version: String,
     sweep_family: String,
     member_count: usize,
     unique_syntax_labels: String,
@@ -1646,6 +1688,8 @@ struct SweepSummaryCsvRow {
 #[derive(Clone, Debug, Serialize)]
 struct FigureIntegrityCsvRow {
     schema_version: String,
+    engine_version: String,
+    bank_version: String,
     figure_id: String,
     expected_panel_count: usize,
     observed_panel_count: usize,
@@ -1874,9 +1918,13 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
 }
 
 fn reproducibility_csv_row(
+    bundle: &EngineOutputBundle,
     check: &crate::engine::types::ReproducibilityCheck,
 ) -> ReproducibilityCsvRow {
     ReproducibilityCsvRow {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        engine_version: bundle.run_metadata.crate_version.clone(),
+        bank_version: bundle.run_metadata.bank.bank_version.clone(),
         scenario_id: check.scenario_id.clone(),
         first_hash: check.first_hash.clone(),
         second_hash: check.second_hash.clone(),
@@ -1891,6 +1939,8 @@ fn evaluation_summary_csv_row(
 ) -> EvaluationSummaryCsvRow {
     EvaluationSummaryCsvRow {
         schema_version: summary.schema_version.clone(),
+        engine_version: summary.engine_version.clone(),
+        bank_version: summary.bank_version.clone(),
         evaluation_version: summary.evaluation_version.clone(),
         input_mode: summary.input_mode.clone(),
         scenario_count: summary.scenario_count,
@@ -1910,6 +1960,8 @@ fn scenario_evaluation_csv_row(
 ) -> ScenarioEvaluationCsvRow {
     ScenarioEvaluationCsvRow {
         schema_version: summary.schema_version.clone(),
+        engine_version: summary.engine_version.clone(),
+        bank_version: summary.bank_version.clone(),
         scenario_id: summary.scenario_id.clone(),
         input_mode: summary.input_mode.clone(),
         syntax_label: summary.syntax_label.clone(),
@@ -1940,6 +1992,7 @@ fn bank_validation_csv_row(
 ) -> BankValidationCsvRow {
     BankValidationCsvRow {
         schema_version: report.schema_version.clone(),
+        engine_version: report.engine_version.clone(),
         bank_schema_version: report.bank_schema_version.clone(),
         bank_version: report.bank_version.clone(),
         bank_source_kind: report.bank_source_kind.as_label().to_string(),
@@ -1964,6 +2017,8 @@ fn bank_validation_csv_row(
 fn sweep_point_csv_row(point: &crate::evaluation::types::SweepPointResult) -> SweepPointCsvRow {
     SweepPointCsvRow {
         schema_version: point.schema_version.clone(),
+        engine_version: point.engine_version.clone(),
+        bank_version: point.bank_version.clone(),
         sweep_family: point.sweep_family.clone(),
         scenario_id: point.scenario_id.clone(),
         parameter_name: point.parameter_name.clone(),
@@ -1982,6 +2037,8 @@ fn sweep_summary_csv_row(
 ) -> SweepSummaryCsvRow {
     SweepSummaryCsvRow {
         schema_version: summary.schema_version.clone(),
+        engine_version: summary.engine_version.clone(),
+        bank_version: summary.bank_version.clone(),
         sweep_family: summary.sweep_family.clone(),
         member_count: summary.member_count,
         unique_syntax_labels: summary.unique_syntax_labels.join(" | "),
@@ -1996,6 +2053,8 @@ fn sweep_summary_csv_row(
 fn figure_integrity_csv_row(check: &FigureIntegrityCheck) -> FigureIntegrityCsvRow {
     FigureIntegrityCsvRow {
         schema_version: check.schema_version.clone(),
+        engine_version: check.engine_version.clone(),
+        bank_version: check.bank_version.clone(),
         figure_id: check.figure_id.clone(),
         expected_panel_count: check.expected_panel_count,
         observed_panel_count: check.observed_panel_count,
