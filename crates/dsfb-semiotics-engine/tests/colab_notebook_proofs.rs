@@ -14,7 +14,8 @@ fn test_colab_notebook_contains_download_section_logic() {
     assert!(notebook.contains("render_artifact_download_section"));
     assert!(notebook.contains("## Artifact Downloads"));
     assert!(notebook.contains("from IPython.display import HTML, Markdown, display"));
-    assert!(notebook.contains("google.colab.files.download"));
+    assert!(notebook.contains("import ipywidgets as widgets"));
+    assert!(notebook.contains("files.download(str(artifact_path))"));
 }
 
 #[test]
@@ -24,7 +25,7 @@ fn test_colab_notebook_references_pdf_and_zip_outputs() {
     assert!(notebook.contains("zip_archive"));
     assert!(notebook.contains("PDF report"));
     assert!(notebook.contains("ZIP bundle"));
-    assert!(notebook.contains("<button type='button'"));
+    assert!(notebook.contains("widgets.Button("));
 }
 
 #[test]
