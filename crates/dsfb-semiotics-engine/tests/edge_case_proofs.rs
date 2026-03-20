@@ -88,6 +88,14 @@ fn test_zero_norm_residual_projection_safe() {
 }
 
 #[test]
+fn test_near_zero_norm_residual_projection_safe() {
+    let projection = project_sign(&[1.0e-12, -1.0e-12], &[0.1, -0.1], &[1.0e-6, 2.0e-6]);
+    assert!(projection.iter().all(|value| value.is_finite()));
+    assert!(projection[0] >= 0.0);
+    assert!(projection[2] >= 0.0);
+}
+
+#[test]
 fn test_boundary_only_trajectory() {
     let residual = residual(&[(0.0, &[0.98]), (1.0, &[0.98]), (2.0, &[0.98])]);
     let envelope = build_envelope(

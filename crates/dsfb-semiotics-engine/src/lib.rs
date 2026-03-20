@@ -2,6 +2,7 @@
 //! Deterministic structural-semiotics engine for residual-based meaning extraction.
 
 pub mod cli;
+pub mod dashboard;
 pub mod engine;
 pub mod evaluation;
 pub mod figures;
@@ -11,6 +12,10 @@ pub mod report;
 pub mod sim;
 
 pub use cli::args::{CliArgs, ScenarioSelection};
+pub use dashboard::{
+    DashboardReplay, DashboardReplayConfig, DashboardReplayEvent, DashboardReplayStream,
+    DASHBOARD_EVENT_SCHEMA_VERSION,
+};
 pub use engine::bank::{
     BankSourceKind, HeuristicBankRegistry, HeuristicBankValidationReport, LoadedBankDescriptor,
 };

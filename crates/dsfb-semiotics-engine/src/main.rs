@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use dsfb_semiotics_engine::cli::args::{CliArgs, ScenarioSelection};
+use dsfb_semiotics_engine::dashboard::DashboardReplay;
 use dsfb_semiotics_engine::engine::config::CommonRunConfig;
 use dsfb_semiotics_engine::engine::pipeline::{
     export_artifacts, EngineConfig, StructuralSemioticsEngine,
@@ -42,6 +43,11 @@ fn main() -> Result<()> {
 
     if args.output_dir.is_some() {
         println!("output_root_override=true");
+    }
+
+    if args.dashboard_replay {
+        let replay = DashboardReplay::from_bundle(&bundle, args.dashboard_config())?;
+        replay.print_replay()?;
     }
 
     Ok(())

@@ -52,6 +52,9 @@ jobs:
       - name: Sweep smoke run
         run: cargo run -- --sweep-family gradual-drift-slope --sweep-points 3 --output-dir ci-smoke-sweep
 
+      - name: Dashboard replay smoke run
+        run: cargo run -- --scenario nominal_stable --dashboard-replay --dashboard-max-frames 1 --output-dir ci-smoke-dashboard
+
       - name: Figure integrity smoke check
         run: |
           test -f "$(find ci-smoke-synthetic -name figure_integrity_report.json | head -1)"

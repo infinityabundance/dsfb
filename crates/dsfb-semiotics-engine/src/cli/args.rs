@@ -311,6 +311,40 @@ pub struct CliArgs {
         help = "Sample interval for synthetic scenarios and CSV fallback timing when no explicit time column is supplied"
     )]
     pub dt: f64,
+
+    #[arg(
+        long,
+        help = "Render a deterministic ratatui replay dashboard from the completed engine/evaluation outputs"
+    )]
+    pub dashboard_replay: bool,
+
+    #[arg(
+        long,
+        default_value_t = 120,
+        help = "Replay dashboard width in terminal cells"
+    )]
+    pub dashboard_width: u16,
+
+    #[arg(
+        long,
+        default_value_t = 38,
+        help = "Replay dashboard height in terminal cells"
+    )]
+    pub dashboard_height: u16,
+
+    #[arg(
+        long,
+        default_value_t = 0,
+        help = "Optional maximum replay frames to render per selected scenario. Zero replays all available frames."
+    )]
+    pub dashboard_max_frames: usize,
+
+    #[arg(
+        long,
+        value_name = "SCENARIO_ID",
+        help = "Optional scenario filter for replay-dashboard rendering when the run produced multiple scenarios"
+    )]
+    pub dashboard_scenario: Option<String>,
 }
 
 impl CliArgs {
@@ -434,6 +468,22 @@ impl CliArgs {
                 )
                 .exit();
         }
+        if args.dashboard_scenario.is_some() && !args.dashboard_replay {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "--dashboard-scenario requires --dashboard-replay",
+                )
+                .exit();
+        }
+        if args.dashboard_width < 80 || args.dashboard_height < 24 {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ValueValidation,
+                    "--dashboard-width must be at least 80 and --dashboard-height must be at least 24",
+                )
+                .exit();
+        }
 
         args
     }
@@ -483,6 +533,21 @@ impl CliArgs {
                 ),
                 strict_validation: self.strict_bank_validation,
             },
+        }
+    }
+
+    /// Converts validated CLI dashboard flags into a typed replay configuration.
+    #[must_use]
+    pub fn dashboard_config(&self) -> crate::dashboard::DashboardReplayConfig {
+        crate::dashboard::DashboardReplayConfig {
+            width: self.dashboard_width,
+            height: self.dashboard_height,
+            max_frames: if self.dashboard_max_frames == 0 {
+                None
+            } else {
+                Some(self.dashboard_max_frames)
+            },
+            scenario_filter: self.dashboard_scenario.clone(),
         }
     }
 }
