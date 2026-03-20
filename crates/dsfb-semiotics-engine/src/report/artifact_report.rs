@@ -16,6 +16,10 @@ pub fn build_markdown_report(
         "Crate: `{}` v`{}`",
         bundle.run_metadata.crate_name, bundle.run_metadata.crate_version
     ));
+    lines.push(format!(
+        "Artifact schema: `{}`",
+        bundle.run_metadata.schema_version
+    ));
     lines.push(format!("Input mode: `{}`", bundle.run_metadata.input_mode));
     if let Some(git_commit) = &bundle.run_metadata.git_commit {
         lines.push(format!("Git commit: `{git_commit}`"));
@@ -83,6 +87,7 @@ pub fn build_markdown_report(
     lines.push("## Manifest Summary".to_string());
     lines.push(String::new());
     lines.push(format!("- Run directory: `{}`", manifest.run_dir));
+    lines.push(format!("- Manifest schema: `{}`", manifest.schema_version));
     lines.push(format!("- Figure files: {}", manifest.figure_paths.len()));
     lines.push(format!("- CSV files: {}", manifest.csv_paths.len()));
     lines.push(format!("- JSON files: {}", manifest.json_paths.len()));
@@ -136,7 +141,7 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
             "- Syntax label: `{}`",
             scenario.syntax.trajectory_label
         ),
-        format!("- Syntax note: {}", syntax_note(&scenario)),
+        format!("- Syntax note: {}", syntax_note(scenario)),
         format!(
             "- Semantic disposition: `{:?}`",
             scenario.semantics.disposition

@@ -1,0 +1,23 @@
+set shell := ["bash", "-lc"]
+
+default: qa
+
+fmt:
+    cargo fmt --manifest-path Cargo.toml
+
+fmt-check:
+    cargo fmt --check --manifest-path Cargo.toml
+
+clippy:
+    cargo clippy --manifest-path Cargo.toml --all-targets --all-features -- -D warnings
+
+test:
+    cargo test --manifest-path Cargo.toml
+
+doc:
+    cargo doc --manifest-path Cargo.toml --no-deps
+
+smoke:
+    cargo run --manifest-path Cargo.toml -- --all --output-dir /tmp/dsfb-semiotics-engine-smoke
+
+qa: fmt-check clippy test doc

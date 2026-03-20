@@ -1,8 +1,11 @@
+use anyhow::{anyhow, Result};
+
 use crate::engine::types::{
     AdmissibilityEnvelope, EnvelopeMode, EnvelopeSample, GrammarState, GrammarStatus,
     ResidualTrajectory,
 };
 
+/// Typed envelope configuration used by both synthetic and CSV-driven runs.
 #[derive(Clone, Debug)]
 pub struct EnvelopeSpec {
     pub name: String,
@@ -15,6 +18,52 @@ pub struct EnvelopeSpec {
 }
 
 impl EnvelopeSpec {
+    /// Validates that the envelope parameters are explicit and numerically well-formed.
+    pub fn validate(&self) -> Result<()> {
+        if self.name.trim().is_empty() {
+            return Err(anyhow!("envelope specification requires a non-empty name"));
+        }
+        if !self.base_radius.is_finite() || self.base_radius <= 0.0 {
+            return Err(anyhow!(
+                "envelope base radius must be positive and finite; got {}",
+                self.base_radius
+            ));
+        }
+        if !self.slope.is_finite() {
+            return Err(anyhow!("envelope slope must be finite; got {}", self.slope));
+        }
+        match self.mode {
+            EnvelopeMode::RegimeSwitched => {
+                let secondary_slope = self.secondary_slope.ok_or_else(|| {
+                    anyhow!("regime-switched envelopes require an explicit secondary slope")
+                })?;
+                let secondary_base = self.secondary_base.ok_or_else(|| {
+                    anyhow!("regime-switched envelopes require an explicit secondary base radius")
+                })?;
+                self.switch_step.ok_or_else(|| {
+                    anyhow!("regime-switched envelopes require an explicit switch step")
+                })?;
+                if !secondary_slope.is_finite() {
+                    return Err(anyhow!(
+                        "regime-switched secondary slope must be finite; got {}",
+                        secondary_slope
+                    ));
+                }
+                if !secondary_base.is_finite() || secondary_base <= 0.0 {
+                    return Err(anyhow!(
+                        "regime-switched secondary base must be positive and finite; got {}",
+                        secondary_base
+                    ));
+                }
+            }
+            EnvelopeMode::Fixed
+            | EnvelopeMode::Widening
+            | EnvelopeMode::Tightening
+            | EnvelopeMode::Aggregate => {}
+        }
+        Ok(())
+    }
+
     pub fn radius_at(&self, step: usize, time: f64) -> (f64, f64, String) {
         match self.mode {
             EnvelopeMode::Fixed => (self.base_radius, 0.0, "fixed".to_string()),

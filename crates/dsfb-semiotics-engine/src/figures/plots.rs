@@ -13,20 +13,20 @@ pub fn render_all_figures(
     bundle: &EngineOutputBundle,
     figures_dir: &Path,
 ) -> Result<Vec<FigureArtifact>> {
-    let mut figures = Vec::new();
-    figures.push(render_01(bundle, figures_dir)?);
-    figures.push(render_02(bundle, figures_dir)?);
-    figures.push(render_03(bundle, figures_dir)?);
-    figures.push(render_04(bundle, figures_dir)?);
-    figures.push(render_05(bundle, figures_dir)?);
-    figures.push(render_06(bundle, figures_dir)?);
-    figures.push(render_07(bundle, figures_dir)?);
-    figures.push(render_08(bundle, figures_dir)?);
-    figures.push(render_09(bundle, figures_dir)?);
-    figures.push(render_10(figures_dir)?);
-    figures.push(render_11(bundle, figures_dir)?);
-    figures.push(render_12(bundle, figures_dir)?);
-    Ok(figures)
+    Ok(vec![
+        render_01(bundle, figures_dir)?,
+        render_02(bundle, figures_dir)?,
+        render_03(bundle, figures_dir)?,
+        render_04(bundle, figures_dir)?,
+        render_05(bundle, figures_dir)?,
+        render_06(bundle, figures_dir)?,
+        render_07(bundle, figures_dir)?,
+        render_08(bundle, figures_dir)?,
+        render_09(bundle, figures_dir)?,
+        render_10(figures_dir)?,
+        render_11(bundle, figures_dir)?,
+        render_12(bundle, figures_dir)?,
+    ])
 }
 
 fn figure_observation_overview<DB: DrawingBackend>(

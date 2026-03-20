@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
+use anyhow::{anyhow, Result};
 use clap::{CommandFactory, Parser, ValueEnum, ValueHint};
 
 use crate::engine::types::EnvelopeMode;
+use crate::math::envelope::EnvelopeSpec;
 
+/// User-facing run selection resolved from CLI arguments.
 #[derive(Clone, Debug)]
 pub enum ScenarioSelection {
     All,
@@ -11,6 +14,7 @@ pub enum ScenarioSelection {
     Csv(CsvInputConfig),
 }
 
+/// Validated CSV ingestion settings used by the library and CLI.
 #[derive(Clone, Debug)]
 pub struct CsvInputConfig {
     pub observed_csv: PathBuf,
@@ -26,6 +30,61 @@ pub struct CsvInputConfig {
     pub envelope_secondary_slope: Option<f64>,
     pub envelope_secondary_base: Option<f64>,
     pub envelope_name: String,
+}
+
+impl CsvInputConfig {
+    /// Validates the CSV ingestion request and returns a typed envelope spec for downstream use.
+    pub fn envelope_spec(&self) -> Result<EnvelopeSpec> {
+        self.validate()?;
+        let spec = EnvelopeSpec {
+            name: self.envelope_name.clone(),
+            mode: self.envelope_mode,
+            base_radius: self.envelope_base,
+            slope: self.envelope_slope,
+            switch_step: self.envelope_switch_step,
+            secondary_slope: self.envelope_secondary_slope,
+            secondary_base: self.envelope_secondary_base,
+        };
+        spec.validate()?;
+        Ok(spec)
+    }
+
+    /// Validates the CSV ingestion request without touching the filesystem.
+    pub fn validate(&self) -> Result<()> {
+        if self.scenario_id.trim().is_empty() {
+            return Err(anyhow!(
+                "CSV ingestion requires a non-empty scenario identifier"
+            ));
+        }
+        if !self.dt_fallback.is_finite() || self.dt_fallback <= 0.0 {
+            return Err(anyhow!(
+                "CSV ingestion requires a positive finite dt fallback; got {}",
+                self.dt_fallback
+            ));
+        }
+        if let Some(channel_names) = &self.channel_names {
+            if channel_names.is_empty() {
+                return Err(anyhow!(
+                    "CSV channel-name override must not be empty when supplied"
+                ));
+            }
+            if channel_names.iter().any(|name| name.trim().is_empty()) {
+                return Err(anyhow!(
+                    "CSV channel-name override must not contain empty names"
+                ));
+            }
+        }
+        if matches!(self.envelope_mode, EnvelopeMode::RegimeSwitched)
+            && (self.envelope_switch_step.is_none()
+                || self.envelope_secondary_slope.is_none()
+                || self.envelope_secondary_base.is_none())
+        {
+            return Err(anyhow!(
+                "CSV regime-switched envelopes require --envelope-switch-step, --envelope-secondary-slope, and --envelope-secondary-base"
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -185,6 +244,7 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
+    /// Parses and cross-validates the CLI surface before any engine work begins.
     pub fn parse_args() -> Self {
         let args = Self::parse();
         let csv_mode = args.observed_csv.is_some() || args.predicted_csv.is_some();
@@ -251,6 +311,7 @@ impl CliArgs {
         args
     }
 
+    /// Converts validated CLI arguments into the typed scenario selection consumed by the engine.
     pub fn selection(&self) -> ScenarioSelection {
         if let (Some(observed_csv), Some(predicted_csv)) = (&self.observed_csv, &self.predicted_csv)
         {
