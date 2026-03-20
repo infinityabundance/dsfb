@@ -1,7 +1,7 @@
 use crate::engine::types::{
     EngineOutputBundle, FigureArtifact, GrammarState, ReportManifest, ScenarioOutput,
 };
-use crate::evaluation::types::ArtifactCompletenessCheck;
+use crate::evaluation::types::{ArtifactCompletenessCheck, FigureIntegrityCheck};
 use crate::math::metrics::format_metric;
 
 pub fn build_markdown_report(
@@ -9,6 +9,7 @@ pub fn build_markdown_report(
     figures: &[FigureArtifact],
     manifest: &ReportManifest,
     completeness: Option<&ArtifactCompletenessCheck>,
+    figure_integrity_checks: Option<&[FigureIntegrityCheck]>,
 ) -> String {
     let mut lines = Vec::new();
     lines.push("# DSFB Structural Semiotics Engine Artifact Report".to_string());
@@ -118,6 +119,12 @@ pub fn build_markdown_report(
             sweep_summary.disposition_flip_count
         ));
     }
+    if let Some(figure_integrity_checks) = figure_integrity_checks {
+        lines.push(format!(
+            "- Figure integrity checks exported: {}",
+            figure_integrity_checks.len()
+        ));
+    }
     lines.push(String::new());
     lines.push("## Scenario Summary".to_string());
     lines.push(String::new());
@@ -128,6 +135,26 @@ pub fn build_markdown_report(
     lines.push(String::new());
     for figure in figures {
         lines.push(format!("- `{}`: {}", figure.figure_id, figure.caption));
+    }
+    if let Some(figure_integrity_checks) = figure_integrity_checks {
+        lines.push(String::new());
+        lines.push("## Figure Integrity Checks".to_string());
+        lines.push(String::new());
+        for check in figure_integrity_checks {
+            lines.push(format!(
+                "- `{}`: panels={}/{}, nonempty_series=`{}`, nonzero_values_present=`{}`, consistent_with_source=`{}`",
+                check.figure_id,
+                check.observed_panel_count,
+                check.expected_panel_count,
+                check.nonempty_series,
+                check.nonzero_values_present,
+                check.consistent_with_source
+            ));
+            lines.push(format!(
+                "  source_csv=`{}`, source_json=`{}`",
+                check.source_csv, check.source_json
+            ));
+        }
     }
     lines.push(String::new());
     lines.push("## Limitations and Non-Claims".to_string());
@@ -209,6 +236,36 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
         format!(
             "- Semantic disposition: `{:?}`",
             scenario.semantics.disposition
+        ),
+        format!(
+            "- Semantic retrieval audit: bank_entries={}, post_admissibility={}, post_regime={}, pre_scope={}, post_scope={}, rejected_by_admissibility={}, rejected_by_regime={}, rejected_by_scope={}, selected_final={}",
+            scenario.semantics.retrieval_audit.heuristic_bank_entry_count,
+            scenario
+                .semantics
+                .retrieval_audit
+                .heuristic_candidates_post_admissibility,
+            scenario
+                .semantics
+                .retrieval_audit
+                .heuristic_candidates_post_regime,
+            scenario.semantics.retrieval_audit.heuristic_candidates_pre_scope,
+            scenario
+                .semantics
+                .retrieval_audit
+                .heuristic_candidates_post_scope,
+            scenario
+                .semantics
+                .retrieval_audit
+                .heuristics_rejected_by_admissibility,
+            scenario
+                .semantics
+                .retrieval_audit
+                .heuristics_rejected_by_regime,
+            scenario
+                .semantics
+                .retrieval_audit
+                .heuristics_rejected_by_scope,
+            scenario.semantics.retrieval_audit.heuristics_selected_final
         ),
         format!(
             "- Selected heuristics: `{}`",

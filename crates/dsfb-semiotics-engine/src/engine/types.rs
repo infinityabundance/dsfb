@@ -320,6 +320,43 @@ pub struct HeuristicCandidate {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SemanticRetrievalAudit {
+    /// Total typed bank entries considered before semantic filtering.
+    pub heuristic_bank_entry_count: usize,
+    /// Number of entries remaining after admissibility filtering.
+    pub heuristic_candidates_post_admissibility: usize,
+    /// Number of entries remaining after regime filtering.
+    pub heuristic_candidates_post_regime: usize,
+    /// Compatibility alias retained for outward export clarity; equals
+    /// `heuristic_candidates_post_regime`.
+    pub heuristic_candidates_pre_scope: usize,
+    /// Number of entries remaining after scope filtering.
+    pub heuristic_candidates_post_scope: usize,
+    /// Number of entries rejected by admissibility requirements.
+    pub heuristics_rejected_by_admissibility: usize,
+    /// Number of entries rejected by regime requirements after admissibility passed.
+    pub heuristics_rejected_by_regime: usize,
+    /// Number of entries rejected by scope conditions after admissibility and regime passed.
+    pub heuristics_rejected_by_scope: usize,
+    /// Final number of selected heuristics carried in the semantic result.
+    pub heuristics_selected_final: usize,
+    /// Explicit IDs that passed admissibility filtering.
+    pub candidate_ids_post_admissibility: Vec<String>,
+    /// Explicit IDs that passed regime filtering.
+    pub candidate_ids_post_regime: Vec<String>,
+    /// Explicit IDs that passed scope filtering.
+    pub candidate_ids_post_scope: Vec<String>,
+    /// Explicit IDs rejected at the admissibility stage.
+    pub rejected_by_admissibility_ids: Vec<String>,
+    /// Explicit IDs rejected at the regime stage.
+    pub rejected_by_regime_ids: Vec<String>,
+    /// Explicit IDs rejected at the scope stage.
+    pub rejected_by_scope_ids: Vec<String>,
+    /// Brief explanation of the filter-order semantics.
+    pub note: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SemanticDisposition {
     Match,
     CompatibleSet,
@@ -332,6 +369,8 @@ pub struct SemanticMatchResult {
     pub scenario_id: String,
     pub disposition: SemanticDisposition,
     pub motif_summary: String,
+    /// Explicit deterministic retrieval counts and stage-wise filter membership.
+    pub retrieval_audit: SemanticRetrievalAudit,
     pub candidates: Vec<HeuristicCandidate>,
     pub selected_labels: Vec<String>,
     pub selected_heuristic_ids: Vec<String>,

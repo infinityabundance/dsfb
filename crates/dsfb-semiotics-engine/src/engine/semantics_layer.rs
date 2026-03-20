@@ -5,7 +5,7 @@ use crate::engine::settings::SemanticRetrievalSettings;
 use crate::engine::types::{
     AdmissibilityRequirement, CoordinatedResidualStructure, GrammarState, GrammarStatus,
     HeuristicBankEntry, HeuristicCandidate, HeuristicProvenance, HeuristicScopeConditions,
-    SemanticDisposition, SemanticMatchResult, SyntaxCharacterization,
+    SemanticDisposition, SemanticMatchResult, SemanticRetrievalAudit, SyntaxCharacterization,
 };
 use crate::math::metrics::format_metric;
 
@@ -48,11 +48,52 @@ pub fn retrieve_semantics_with_registry(
     settings: &SemanticRetrievalSettings,
 ) -> SemanticMatchResult {
     let evidence = grammar_evidence(grammar);
-    let mut candidates = registry
-        .entries
+    let mut admissible_entries = Vec::new();
+    let mut rejected_by_admissibility_ids = Vec::new();
+    for entry in &registry.entries {
+        if admissibility_satisfied(entry, &evidence) {
+            admissible_entries.push(entry);
+        } else {
+            rejected_by_admissibility_ids.push(entry.heuristic_id.clone());
+        }
+    }
+
+    let mut regime_entries = Vec::new();
+    let mut rejected_by_regime_ids = Vec::new();
+    let candidate_ids_post_admissibility = admissible_entries
         .iter()
-        .cloned()
-        .filter_map(|entry| evaluate_entry(&entry, syntax, &evidence, coordinated))
+        .map(|entry| entry.heuristic_id.clone())
+        .collect::<Vec<_>>();
+    for entry in &admissible_entries {
+        if regime_satisfied(entry, &evidence, coordinated) {
+            regime_entries.push(*entry);
+        } else {
+            rejected_by_regime_ids.push(entry.heuristic_id.clone());
+        }
+    }
+
+    let mut scope_entries = Vec::new();
+    let mut rejected_by_scope_ids = Vec::new();
+    let candidate_ids_post_regime = regime_entries
+        .iter()
+        .map(|entry| entry.heuristic_id.clone())
+        .collect::<Vec<_>>();
+    for entry in regime_entries {
+        if scope_satisfied(entry, syntax, coordinated, settings.comparison_epsilon) {
+            scope_entries.push(entry);
+        } else {
+            rejected_by_scope_ids.push(entry.heuristic_id.clone());
+        }
+    }
+
+    let candidate_ids_post_scope = scope_entries
+        .iter()
+        .map(|entry| entry.heuristic_id.clone())
+        .collect::<Vec<_>>();
+
+    let mut candidates = scope_entries
+        .iter()
+        .map(|entry| build_candidate(entry, syntax, &evidence, coordinated))
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| {
         right
@@ -71,6 +112,24 @@ pub fn retrieve_semantics_with_registry(
         .iter()
         .map(|candidate| candidate.entry.heuristic_id.clone())
         .collect::<Vec<_>>();
+    let retrieval_audit = SemanticRetrievalAudit {
+        heuristic_bank_entry_count: registry.entries.len(),
+        heuristic_candidates_post_admissibility: candidate_ids_post_admissibility.len(),
+        heuristic_candidates_post_regime: candidate_ids_post_regime.len(),
+        heuristic_candidates_pre_scope: candidate_ids_post_regime.len(),
+        heuristic_candidates_post_scope: candidate_ids_post_scope.len(),
+        heuristics_rejected_by_admissibility: rejected_by_admissibility_ids.len(),
+        heuristics_rejected_by_regime: rejected_by_regime_ids.len(),
+        heuristics_rejected_by_scope: rejected_by_scope_ids.len(),
+        heuristics_selected_final: selected_heuristic_ids.len(),
+        candidate_ids_post_admissibility,
+        candidate_ids_post_regime,
+        candidate_ids_post_scope,
+        rejected_by_admissibility_ids,
+        rejected_by_regime_ids,
+        rejected_by_scope_ids,
+        note: "Counts reflect typed bank entries after admissibility, regime, and scope filtering in that order. `heuristic_candidates_pre_scope` is an outward-facing alias for the post-regime count.".to_string(),
+    };
     let compatibility = compatibility_assessment(&candidates);
     let conflict_notes = compatibility
         .conflicts
@@ -206,6 +265,7 @@ pub fn retrieve_semantics_with_registry(
                 evidence.regimes.join("|")
             }
         ),
+        retrieval_audit,
         candidates,
         selected_labels,
         selected_heuristic_ids,
@@ -1023,22 +1083,12 @@ pub(crate) fn builtin_heuristic_bank_entries() -> Vec<HeuristicBankEntry> {
     ]
 }
 
-fn evaluate_entry(
+fn build_candidate(
     entry: &HeuristicBankEntry,
     syntax: &SyntaxCharacterization,
     evidence: &GrammarEvidence,
     coordinated: Option<&CoordinatedResidualStructure>,
-) -> Option<HeuristicCandidate> {
-    if !admissibility_satisfied(entry, evidence) {
-        return None;
-    }
-    if !regime_satisfied(entry, evidence, coordinated) {
-        return None;
-    }
-    if !scope_satisfied(entry, syntax, coordinated) {
-        return None;
-    }
-
+) -> HeuristicCandidate {
     let available_regimes = available_regimes(evidence, coordinated);
     let matched_regimes = if entry.regime_tags.is_empty() {
         available_regimes.clone()
@@ -1050,7 +1100,7 @@ fn evaluate_entry(
             .collect::<Vec<_>>()
     };
 
-    Some(HeuristicCandidate {
+    HeuristicCandidate {
         entry: entry.clone(),
         score: score_candidate(entry, syntax, evidence, coordinated),
         metric_highlights: metric_highlights(entry, syntax, coordinated),
@@ -1059,7 +1109,7 @@ fn evaluate_entry(
         scope_explanation: scope_explanation(entry, syntax, coordinated),
         rationale: rationale(entry, syntax, evidence, coordinated),
         matched_regimes,
-    })
+    }
 }
 
 fn admissibility_satisfied(entry: &HeuristicBankEntry, evidence: &GrammarEvidence) -> bool {
@@ -1084,74 +1134,97 @@ fn scope_satisfied(
     entry: &HeuristicBankEntry,
     syntax: &SyntaxCharacterization,
     coordinated: Option<&CoordinatedResidualStructure>,
+    epsilon: f64,
 ) -> bool {
     let scope = &entry.scope_conditions;
     if !min_ok(
         syntax.outward_drift_fraction,
         scope.min_outward_drift_fraction,
+        epsilon,
     ) {
         return false;
     }
     if !max_ok(
         syntax.outward_drift_fraction,
         scope.max_outward_drift_fraction,
+        epsilon,
     ) {
         return false;
     }
     if !min_ok(
         syntax.inward_drift_fraction,
         scope.min_inward_drift_fraction,
+        epsilon,
     ) {
         return false;
     }
     if !max_ok(
         syntax.inward_drift_fraction,
         scope.max_inward_drift_fraction,
+        epsilon,
     ) {
         return false;
     }
-    if !max_ok(syntax.mean_squared_slew_norm, scope.max_curvature_energy) {
+    if !max_ok(
+        syntax.mean_squared_slew_norm,
+        scope.max_curvature_energy,
+        epsilon,
+    ) {
         return false;
     }
-    if !min_ok(syntax.mean_squared_slew_norm, scope.min_curvature_energy) {
+    if !min_ok(
+        syntax.mean_squared_slew_norm,
+        scope.min_curvature_energy,
+        epsilon,
+    ) {
         return false;
     }
     if !max_ok(
         syntax.late_slew_growth_score,
         scope.max_curvature_onset_score,
+        epsilon,
     ) {
         return false;
     }
     if !min_ok(
         syntax.late_slew_growth_score,
         scope.min_curvature_onset_score,
+        epsilon,
     ) {
         return false;
     }
     if !min_ok(
         syntax.radial_sign_persistence,
         scope.min_directional_persistence,
+        epsilon,
     ) {
         return false;
     }
-    if !min_ok(syntax.radial_sign_dominance, scope.min_sign_consistency) {
+    if !min_ok(
+        syntax.radial_sign_dominance,
+        scope.min_sign_consistency,
+        epsilon,
+    ) {
         return false;
     }
     if !min_ok(
         syntax.drift_channel_sign_alignment,
         scope.min_channel_coherence,
+        epsilon,
     ) {
         return false;
     }
     if !min_ok(
         syntax.residual_norm_path_monotonicity,
         scope.min_aggregate_monotonicity,
+        epsilon,
     ) {
         return false;
     }
     if !max_ok(
         syntax.residual_norm_path_monotonicity,
         scope.max_aggregate_monotonicity,
+        epsilon,
     ) {
         return false;
     }
@@ -1161,10 +1234,18 @@ fn scope_satisfied(
     if !max_usize_ok(syntax.slew_spike_count, scope.max_slew_spike_count) {
         return false;
     }
-    if !min_ok(syntax.slew_spike_strength, scope.min_slew_spike_strength) {
+    if !min_ok(
+        syntax.slew_spike_strength,
+        scope.min_slew_spike_strength,
+        epsilon,
+    ) {
         return false;
     }
-    if !max_ok(syntax.slew_spike_strength, scope.max_slew_spike_strength) {
+    if !max_ok(
+        syntax.slew_spike_strength,
+        scope.max_slew_spike_strength,
+        epsilon,
+    ) {
         return false;
     }
     if !min_usize_ok(
@@ -1190,6 +1271,7 @@ fn scope_satisfied(
             .coordinated_group_breach_fraction
             .max(coordinated_group_breach_ratio(coordinated)),
         scope.min_coordinated_group_breach_fraction,
+        epsilon,
     ) {
         return false;
     }
@@ -1198,6 +1280,7 @@ fn scope_satisfied(
             .coordinated_group_breach_fraction
             .max(coordinated_group_breach_ratio(coordinated)),
         scope.max_coordinated_group_breach_fraction,
+        epsilon,
     ) {
         return false;
     }
@@ -1808,15 +1891,15 @@ fn coordinated_group_breach_ratio(coordinated: Option<&CoordinatedResidualStruct
     }
 }
 
-fn min_ok(value: f64, minimum: Option<f64>) -> bool {
+fn min_ok(value: f64, minimum: Option<f64>, epsilon: f64) -> bool {
     minimum
-        .map(|minimum| value + SemanticRetrievalSettings::default().comparison_epsilon >= minimum)
+        .map(|minimum| value + epsilon >= minimum)
         .unwrap_or(true)
 }
 
-fn max_ok(value: f64, maximum: Option<f64>) -> bool {
+fn max_ok(value: f64, maximum: Option<f64>, epsilon: f64) -> bool {
     maximum
-        .map(|maximum| value <= maximum + SemanticRetrievalSettings::default().comparison_epsilon)
+        .map(|maximum| value <= maximum + epsilon)
         .unwrap_or(true)
 }
 

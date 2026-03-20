@@ -37,13 +37,25 @@ This marker appears in:
   Scenario-level evaluation summaries.
 - `baseline_comparators.json`
   Internal deterministic comparator results.
+- `semantic_matches.json`
+  Standalone semantic retrieval results, including explicit stage-wise heuristic filtering counts.
 - `heuristic_bank_validation.json`
   Built-in heuristic bank governance and validation summary.
 - `artifact_completeness.json`
   Export completeness check recorded after artifact generation.
+- `figure_09_detectability_source.json`
+  Source rows for the detectability summary figure.
+- `figure_12_semantic_retrieval_source.json`
+  Source rows for the semantic retrieval summary figure.
+- `figure_13_internal_baseline_comparators_source.json`
+  Source rows for the internal deterministic comparator summary figure.
+- `figure_integrity_checks.json`
+  Integrity records linking summary figures back to their exported source rows.
 - `sweep_results.json`
   Present only for synthetic sweep runs.
 - `sweep_summary.json`
+  Present only for synthetic sweep runs.
+- `figure_14_sweep_stability_source.json`
   Present only for synthetic sweep runs.
 
 ## Core CSV Artifacts
@@ -59,8 +71,23 @@ This marker appears in:
 - `baseline_comparators.csv`
 - `heuristic_bank_validation.csv`
 - `artifact_completeness.csv`
+- `figure_09_detectability_source.csv`
+- `figure_12_semantic_retrieval_source.csv`
+- `figure_13_internal_baseline_comparators_source.csv`
+- `figure_integrity_checks.csv`
+
+For synthetic sweep runs the crate also emits:
+
+- `figure_14_sweep_stability_source.csv`
 
 Scenario-specific CSV files are also emitted for time series, residual, drift, slew, sign, envelope, grammar, and coordinated group structure when present.
+
+## Figure-Source Discipline
+
+- Derived summary figures are paired with machine-readable source tables.
+- `figure_12_semantic_retrieval_source.*` exports explicit typed-bank counts including post-admissibility, post-regime, pre-scope, post-scope, rejected-stage counts, and final selected count.
+- `figure_integrity_checks.*` records panel counts, source-file locations, and simple consistency checks for the exported summary-figure inputs.
+- The semantic retrieval figure's middle panel now plots admissibility-qualified heuristic counts directly, not grammar boundary counts or other proxies.
 
 ## Interpretation Notes
 
