@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use clap::{CommandFactory, Parser, ValueEnum, ValueHint};
 
 use crate::engine::types::EnvelopeMode;
+use crate::evaluation::sweeps::{SweepConfig, SweepFamily};
 use crate::math::envelope::EnvelopeSpec;
 
 /// User-facing run selection resolved from CLI arguments.
@@ -12,6 +13,7 @@ pub enum ScenarioSelection {
     All,
     Single(String),
     Csv(CsvInputConfig),
+    Sweep(SweepConfig),
 }
 
 /// Validated CSV ingestion settings used by the library and CLI.
@@ -112,6 +114,31 @@ pub enum InputModeArg {
     Csv,
 }
 
+#[derive(Clone, Copy, Debug, ValueEnum, PartialEq, Eq)]
+pub enum SweepFamilyArg {
+    GradualDriftSlope,
+    CurvatureOnsetTiming,
+    SpikeMagnitudeDuration,
+    OscillationAmplitudeFrequency,
+    CoordinatedRiseStrength,
+    EnvelopeTightness,
+}
+
+impl From<SweepFamilyArg> for SweepFamily {
+    fn from(value: SweepFamilyArg) -> Self {
+        match value {
+            SweepFamilyArg::GradualDriftSlope => SweepFamily::GradualDriftSlope,
+            SweepFamilyArg::CurvatureOnsetTiming => SweepFamily::CurvatureOnsetTiming,
+            SweepFamilyArg::SpikeMagnitudeDuration => SweepFamily::SpikeMagnitudeDuration,
+            SweepFamilyArg::OscillationAmplitudeFrequency => {
+                SweepFamily::OscillationAmplitudeFrequency
+            }
+            SweepFamilyArg::CoordinatedRiseStrength => SweepFamily::CoordinatedRiseStrength,
+            SweepFamilyArg::EnvelopeTightness => SweepFamily::EnvelopeTightness,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Parser)]
 #[command(
     author,
@@ -135,6 +162,20 @@ pub struct CliArgs {
         help = "Optional input mode selector. Use `csv` to require external CSV ingestion flags, or `synthetic` to reject them explicitly."
     )]
     pub input_mode: Option<InputModeArg>,
+
+    #[arg(
+        long,
+        value_enum,
+        help = "Run a deterministic synthetic parameter sweep instead of the default scenario catalog"
+    )]
+    pub sweep_family: Option<SweepFamilyArg>,
+
+    #[arg(
+        long,
+        default_value_t = 0,
+        help = "Optional sweep point count override. Zero uses the deterministic engine default."
+    )]
+    pub sweep_points: usize,
 
     #[arg(
         long,
@@ -250,6 +291,7 @@ impl CliArgs {
         let csv_mode = args.observed_csv.is_some() || args.predicted_csv.is_some();
         let explicit_csv_mode = matches!(args.input_mode, Some(InputModeArg::Csv));
         let explicit_synthetic_mode = matches!(args.input_mode, Some(InputModeArg::Synthetic));
+        let sweep_mode = args.sweep_family.is_some();
 
         if args.all && args.scenario.is_some() {
             Self::command()
@@ -272,6 +314,30 @@ impl CliArgs {
                 .error(
                     clap::error::ErrorKind::ArgumentConflict,
                     "--scenario and CSV ingestion flags are mutually exclusive",
+                )
+                .exit();
+        }
+        if sweep_mode && args.all {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--sweep-family and --all are mutually exclusive",
+                )
+                .exit();
+        }
+        if sweep_mode && args.scenario.is_some() {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--sweep-family and --scenario are mutually exclusive",
+                )
+                .exit();
+        }
+        if sweep_mode && csv_mode {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--sweep-family cannot be combined with CSV ingestion flags",
                 )
                 .exit();
         }
@@ -307,13 +373,35 @@ impl CliArgs {
                 )
                 .exit();
         }
+        if args.sweep_points > 0 && !sweep_mode {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "--sweep-points requires --sweep-family",
+                )
+                .exit();
+        }
+        if sweep_mode && explicit_csv_mode {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--input-mode csv cannot be combined with --sweep-family",
+                )
+                .exit();
+        }
 
         args
     }
 
     /// Converts validated CLI arguments into the typed scenario selection consumed by the engine.
     pub fn selection(&self) -> ScenarioSelection {
-        if let (Some(observed_csv), Some(predicted_csv)) = (&self.observed_csv, &self.predicted_csv)
+        if let Some(family) = self.sweep_family {
+            ScenarioSelection::Sweep(SweepConfig {
+                family: family.into(),
+                points: self.sweep_points,
+            })
+        } else if let (Some(observed_csv), Some(predicted_csv)) =
+            (&self.observed_csv, &self.predicted_csv)
         {
             ScenarioSelection::Csv(CsvInputConfig {
                 observed_csv: observed_csv.clone(),

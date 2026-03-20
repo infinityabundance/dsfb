@@ -216,6 +216,57 @@ let artifacts = export_artifacts(&bundle)?;
 
 For CSV-driven runs, use `EngineConfig::csv(...)` with a validated `CsvInputConfig`. The exported run metadata and manifest both carry the additive schema marker `dsfb-semiotics-engine/v1`.
 
+## Evaluation Harness
+
+The crate keeps deterministic engine outputs separate from deterministic evaluation summaries.
+
+The evaluation layer exports:
+
+- run-level semantic disposition counts
+- run-level syntax label counts
+- run-level comparator trigger counts
+- scenario-level summaries
+- per-scenario reproducibility status
+- heuristic-bank validation results
+- artifact completeness checks
+- sweep summaries when sweep mode is used
+
+The internal deterministic comparators are intentionally simple:
+
+- residual threshold crossing only
+- moving-average residual norm trend only
+- slew spike detector only
+- envelope interaction only
+
+These are internal deterministic comparators for inspection. They are not field benchmarks and they do not support superiority claims.
+
+## Heuristic Bank Governance
+
+The semantics bank is maintained through a governed registry rather than an ad hoc list.
+
+Each run exports a validation report covering:
+
+- bank version
+- duplicate heuristic ID detection
+- unknown compatibility-link targets
+- missing provenance text
+- scope-condition sanity notes
+
+Compatibility gaps are exported explicitly as review notes. They do not silently disappear into retrieval behavior.
+
+## Sweep Mode
+
+The crate supports deterministic calibration-style synthetic sweeps:
+
+- `gradual-drift-slope`
+- `curvature-onset-timing`
+- `spike-magnitude-duration`
+- `oscillation-amplitude-frequency`
+- `coordinated-rise-strength`
+- `envelope-tightness`
+
+Sweep runs use the same core pipeline and export the same artifact bundle shape, with additive sweep summary tables and a sweep figure. These are calibration-style synthetic studies only.
+
 ## Running Locally
 
 Build the crate:
@@ -250,6 +301,14 @@ cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
   --dt 0.5
 ```
 
+Run a deterministic sweep:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
+  --sweep-family oscillation-amplitude-frequency \
+  --sweep-points 6
+```
+
 Override the output root:
 
 ```bash
@@ -276,6 +335,7 @@ just qa
 ```
 
 This executes formatting, clippy, tests, and docs for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
+Because this work is restricted to the crate directory, a crate-local GitHub Actions template is provided at `ci/github-actions-crate-quality-gate.yml` rather than installing a live repo-root workflow automatically.
 
 ## Output Layout
 
@@ -303,9 +363,26 @@ The PDF report embeds the generated figure PNG artifacts and appends a determini
 Artifact export treats the timestamped run directory as owned scratch space: expected artifact subdirectories are cleaned before rewriting, and unexpected root-level files cause the export to fail rather than silently mixing stale results into a purportedly fresh run.
 Both `run_metadata.json` and `manifest.json` carry the additive schema marker `dsfb-semiotics-engine/v1` so downstream review tooling can check the exported contract explicitly.
 
+Additional evaluation artifacts include:
+
+- `csv/evaluation_summary.csv`
+- `csv/scenario_evaluations.csv`
+- `csv/baseline_comparators.csv`
+- `csv/heuristic_bank_validation.csv`
+- `csv/artifact_completeness.csv`
+- `json/evaluation_summary.json`
+- `json/scenario_evaluations.json`
+- `json/baseline_comparators.json`
+- `json/heuristic_bank_validation.json`
+- `json/artifact_completeness.json`
+- `csv/sweep_results.csv` and `json/sweep_results.json` for sweep runs
+- `csv/sweep_summary.csv` and `json/sweep_summary.json` for sweep runs
+
+A schema overview is provided in [`docs/schema.md`](docs/schema.md).
+
 ## Figure Suite
 
-The crate generates twelve required figures automatically:
+The crate generates the original twelve paper-aligned figures plus additive evaluation figures:
 
 1. residual vs prediction / observation overview
 2. drift and slew decomposition
@@ -319,6 +396,8 @@ The crate generates twelve required figures automatically:
 10. deterministic pipeline flow
 11. coordinated group semiotics with local versus aggregate envelope behavior
 12. semantic retrieval / heuristics-bank summary
+13. internal deterministic baseline comparator summary
+14. sweep stability summary when sweep mode is executed
 
 ## Colab Notebook
 
@@ -346,6 +425,7 @@ The notebook does not reimplement the semiotic engine logic in Python.
 - The crate demonstrates theorem-aligned behavior under configured assumptions; it does not prove those assumptions hold in real systems.
 - Envelope exit is treated as detectable departure from the configured admissibility grammar, not unique diagnosis.
 - Heuristic semantic matches are constrained motif retrieval outputs only and may remain ambiguous or unknown.
+- Internal comparator and sweep outputs are empirical aids for deterministic inspection only; they are not external benchmarks.
 - No claim is made that this crate replaces probabilistic monitoring, validates all domains, or achieves certification.
 
 ## Why This Is Useful in Deterministic Engineering Diagnostics

@@ -12,6 +12,8 @@ homepage = "https://github.com/infinityabundance/dsfb"
 keywords = ["dsfb", "semiotics", "diagnostics", "reproducibility", "research"]
 categories = ["science", "simulation", "command-line-utilities"]
 include = [
+    "ci/**",
+    "docs/**",
     "src/**",
     "examples/**",
     "tests/**",

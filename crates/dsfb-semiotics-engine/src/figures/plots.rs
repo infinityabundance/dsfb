@@ -13,7 +13,7 @@ pub fn render_all_figures(
     bundle: &EngineOutputBundle,
     figures_dir: &Path,
 ) -> Result<Vec<FigureArtifact>> {
-    Ok(vec![
+    let mut figures = vec![
         render_01(bundle, figures_dir)?,
         render_02(bundle, figures_dir)?,
         render_03(bundle, figures_dir)?,
@@ -26,7 +26,12 @@ pub fn render_all_figures(
         render_10(figures_dir)?,
         render_11(bundle, figures_dir)?,
         render_12(bundle, figures_dir)?,
-    ])
+        render_13(bundle, figures_dir)?,
+    ];
+    if !bundle.evaluation.sweep_results.is_empty() {
+        figures.push(render_14(bundle, figures_dir)?);
+    }
+    Ok(figures)
 }
 
 fn figure_observation_overview<DB: DrawingBackend>(
@@ -1184,6 +1189,32 @@ fn render_12(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureAr
     Ok(artifact(figure_id, caption, png_path, svg_path))
 }
 
+fn render_13(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
+    let figure_id = "figure_13_internal_baseline_comparators";
+    let caption = "Internal deterministic comparator trigger counts across the executed scenarios. These are simple baseline heuristics for within-crate comparison only, not field benchmarks.";
+    let size = (1280, 720);
+    let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
+    figure_baseline_comparators(
+        BitMapBackend::new(&png_path, size).into_drawing_area(),
+        bundle,
+    )?;
+    figure_baseline_comparators(SVGBackend::new(&svg_path, size).into_drawing_area(), bundle)?;
+    Ok(artifact(figure_id, caption, png_path, svg_path))
+}
+
+fn render_14(bundle: &EngineOutputBundle, figures_dir: &Path) -> Result<FigureArtifact> {
+    let figure_id = "figure_14_sweep_stability_summary";
+    let caption = "Deterministic sweep summary showing how semantic dispositions vary over the configured synthetic sweep parameter. This is an internal calibration-style plot only.";
+    let size = (1280, 760);
+    let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
+    figure_sweep_summary(
+        BitMapBackend::new(&png_path, size).into_drawing_area(),
+        bundle,
+    )?;
+    figure_sweep_summary(SVGBackend::new(&svg_path, size).into_drawing_area(), bundle)?;
+    Ok(artifact(figure_id, caption, png_path, svg_path))
+}
+
 fn scenario_or_first<'a>(bundle: &'a EngineOutputBundle, id: &str) -> Result<&'a ScenarioOutput> {
     bundle
         .scenario_outputs
@@ -1336,5 +1367,138 @@ fn artifact(
         caption: caption.to_string(),
         png_path: png_path.display().to_string(),
         svg_path: svg_path.display().to_string(),
+    }
+}
+
+fn figure_baseline_comparators<DB: DrawingBackend>(
+    root: DrawingArea<DB, Shift>,
+    bundle: &EngineOutputBundle,
+) -> Result<()>
+where
+    DB::ErrorType: 'static,
+{
+    root.fill(&WHITE_BG)?;
+    let labels = [
+        ("baseline_residual_threshold", "Residual\nthreshold"),
+        ("baseline_moving_average_trend", "Moving-average\ntrend"),
+        ("baseline_slew_spike", "Slew spike"),
+        ("baseline_envelope_interaction", "Envelope\ninteraction"),
+    ];
+    let counts = labels
+        .iter()
+        .map(|(id, _)| {
+            bundle
+                .evaluation
+                .summary
+                .comparator_trigger_counts
+                .get(*id)
+                .copied()
+                .unwrap_or(0)
+        })
+        .collect::<Vec<_>>();
+    let max_count = counts.iter().copied().max().unwrap_or(0) as i32;
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            "Internal Deterministic Comparator Trigger Counts",
+            ("sans-serif", 30),
+        )
+        .margin(24)
+        .x_label_area_size(80)
+        .y_label_area_size(56)
+        .build_cartesian_2d(0..labels.len() as i32, 0..(max_count + 1).max(1))?;
+    chart
+        .configure_mesh()
+        .disable_mesh()
+        .x_desc("comparator")
+        .y_desc("triggered scenarios")
+        .x_labels(labels.len())
+        .x_label_formatter(&|index| {
+            labels
+                .get((*index).clamp(0, labels.len() as i32 - 1) as usize)
+                .map(|(_, label)| (*label).to_string())
+                .unwrap_or_default()
+        })
+        .draw()?;
+    chart.draw_series(counts.iter().enumerate().map(|(index, count)| {
+        let left = index as i32;
+        let right = left + 1;
+        Rectangle::new([(left, 0), (right, *count as i32)], BLUE.mix(0.65).filled())
+    }))?;
+    root.present()?;
+    Ok(())
+}
+
+fn figure_sweep_summary<DB: DrawingBackend>(
+    root: DrawingArea<DB, Shift>,
+    bundle: &EngineOutputBundle,
+) -> Result<()>
+where
+    DB::ErrorType: 'static,
+{
+    root.fill(&WHITE_BG)?;
+    let results = &bundle.evaluation.sweep_results;
+    let x_values = results
+        .iter()
+        .map(|result| result.parameter_value)
+        .collect::<Vec<_>>();
+    let y_values = results
+        .iter()
+        .map(|result| disposition_score(&result.semantic_disposition))
+        .collect::<Vec<_>>();
+    let (x_min, x_max) = bounds(&x_values);
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Sweep Semantic Stability", ("sans-serif", 30))
+        .margin(24)
+        .x_label_area_size(56)
+        .y_label_area_size(70)
+        .build_cartesian_2d(x_min..x_max, -0.25..3.25)?;
+    chart
+        .configure_mesh()
+        .x_desc(
+            results
+                .first()
+                .map(|result| result.parameter_name.clone())
+                .unwrap_or_else(|| "parameter".to_string()),
+        )
+        .y_desc("semantic disposition")
+        .y_labels(4)
+        .y_label_formatter(&|value: &f64| match value.round() as i32 {
+            0 => "Unknown".to_string(),
+            1 => "Ambiguous".to_string(),
+            2 => "CompatibleSet".to_string(),
+            _ => "Match".to_string(),
+        })
+        .draw()?;
+    chart.draw_series(LineSeries::new(
+        x_values.iter().copied().zip(y_values.iter().copied()),
+        &TEAL,
+    ))?;
+    chart.draw_series(
+        x_values
+            .iter()
+            .copied()
+            .zip(y_values.iter().copied())
+            .map(|point| Circle::new(point, 4, GOLD.filled())),
+    )?;
+    if let Some(summary) = &bundle.evaluation.sweep_summary {
+        chart.draw_series(std::iter::once(Text::new(
+            format!(
+                "family={} | members={} | flips={}",
+                summary.sweep_family, summary.member_count, summary.disposition_flip_count
+            ),
+            (x_min + (x_max - x_min) * 0.03, 3.0),
+            ("sans-serif", 16).into_font().color(&SLATE),
+        )))?;
+    }
+    root.present()?;
+    Ok(())
+}
+
+fn disposition_score(label: &str) -> f64 {
+    match label {
+        "Match" => 3.0,
+        "CompatibleSet" => 2.0,
+        "Ambiguous" => 1.0,
+        _ => 0.0,
     }
 }

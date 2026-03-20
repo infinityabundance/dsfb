@@ -473,6 +473,11 @@ fn record(
         theorem_alignment: theorem_alignment.to_string(),
         claim_class: claim_class.as_str().to_string(),
         limitations: limitations.to_string(),
+        sweep_family: None,
+        sweep_parameter_name: None,
+        sweep_parameter_value: None,
+        sweep_secondary_parameter_name: None,
+        sweep_secondary_parameter_value: None,
     }
 }
 

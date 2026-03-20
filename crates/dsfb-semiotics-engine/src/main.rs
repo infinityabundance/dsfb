@@ -18,6 +18,7 @@ fn main() -> Result<()> {
         ScenarioSelection::All => EngineConfig::synthetic_all(common),
         ScenarioSelection::Single(id) => EngineConfig::synthetic_single(common, id),
         ScenarioSelection::Csv(input) => EngineConfig::csv(common, input),
+        ScenarioSelection::Sweep(sweep) => EngineConfig::sweep(common, sweep),
     };
 
     let engine = StructuralSemioticsEngine::new(config);

@@ -1,5 +1,7 @@
 use std::collections::BTreeSet;
 
+use crate::engine::bank::HeuristicBankRegistry;
+use crate::engine::settings::SemanticRetrievalSettings;
 use crate::engine::types::{
     AdmissibilityRequirement, CoordinatedResidualStructure, GrammarState, GrammarStatus,
     HeuristicBankEntry, HeuristicCandidate, HeuristicProvenance, HeuristicScopeConditions,
@@ -27,9 +29,29 @@ pub fn retrieve_semantics(
     grammar: &[GrammarStatus],
     coordinated: Option<&CoordinatedResidualStructure>,
 ) -> SemanticMatchResult {
+    retrieve_semantics_with_registry(
+        scenario_id,
+        syntax,
+        grammar,
+        coordinated,
+        &HeuristicBankRegistry::builtin(),
+        &SemanticRetrievalSettings::default(),
+    )
+}
+
+pub fn retrieve_semantics_with_registry(
+    scenario_id: &str,
+    syntax: &SyntaxCharacterization,
+    grammar: &[GrammarStatus],
+    coordinated: Option<&CoordinatedResidualStructure>,
+    registry: &HeuristicBankRegistry,
+    settings: &SemanticRetrievalSettings,
+) -> SemanticMatchResult {
     let evidence = grammar_evidence(grammar);
-    let mut candidates = heuristic_bank()
-        .into_iter()
+    let mut candidates = registry
+        .entries
+        .iter()
+        .cloned()
         .filter_map(|entry| evaluate_entry(&entry, syntax, &evidence, coordinated))
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| {
@@ -56,7 +78,7 @@ pub fn retrieve_semantics(
         .chain(&compatibility.unresolved)
         .cloned()
         .collect::<Vec<_>>();
-    let observation_limited = observation_support_is_limited(syntax, &evidence);
+    let observation_limited = observation_support_is_limited(syntax, &evidence, settings);
     let (
         disposition,
         resolution_basis,
@@ -219,7 +241,7 @@ fn grammar_evidence(grammar: &[GrammarStatus]) -> GrammarEvidence {
     }
 }
 
-fn heuristic_bank() -> Vec<HeuristicBankEntry> {
+pub(crate) fn builtin_heuristic_bank_entries() -> Vec<HeuristicBankEntry> {
     vec![
         HeuristicBankEntry {
             heuristic_id: "H-PERSISTENT-OUTWARD-DRIFT".to_string(),
@@ -1031,6 +1053,7 @@ fn evaluate_entry(
     Some(HeuristicCandidate {
         entry: entry.clone(),
         score: score_candidate(entry, syntax, evidence, coordinated),
+        metric_highlights: metric_highlights(entry, syntax, coordinated),
         admissibility_explanation: admissibility_explanation(entry, evidence),
         regime_explanation: regime_explanation(entry, evidence, coordinated),
         scope_explanation: scope_explanation(entry, syntax, coordinated),
@@ -1346,17 +1369,124 @@ fn rationale(
     )
 }
 
+fn metric_highlights(
+    entry: &HeuristicBankEntry,
+    syntax: &SyntaxCharacterization,
+    coordinated: Option<&CoordinatedResidualStructure>,
+) -> Vec<String> {
+    let coordinated_breach = syntax
+        .coordinated_group_breach_fraction
+        .max(coordinated_group_breach_ratio(coordinated));
+    match entry.heuristic_id.as_str() {
+        "H-PERSISTENT-OUTWARD-DRIFT" | "H-PERSISTENT-ADMISSIBILITY-DEPARTURE" => vec![
+            format!(
+                "outward_drift_fraction={}",
+                format_metric(syntax.outward_drift_fraction)
+            ),
+            format!(
+                "residual_norm_path_monotonicity={}",
+                format_metric(syntax.residual_norm_path_monotonicity)
+            ),
+            format!(
+                "radial_sign_persistence={}",
+                format_metric(syntax.radial_sign_persistence)
+            ),
+        ],
+        "H-DISCRETE-EVENT" | "H-DISCRETE-EVENT-CURVATURE-HYBRID" => vec![
+            format!("slew_spike_count={}", syntax.slew_spike_count),
+            format!(
+                "slew_spike_strength={}",
+                format_metric(syntax.slew_spike_strength)
+            ),
+            format!("max_slew_norm={}", format_metric(syntax.max_slew_norm)),
+        ],
+        "H-CURVATURE-RICH-TRANSITION" | "H-CURVATURE-LED-DEPARTURE" => vec![
+            format!(
+                "mean_squared_slew_norm={}",
+                format_metric(syntax.mean_squared_slew_norm)
+            ),
+            format!(
+                "late_slew_growth_score={}",
+                format_metric(syntax.late_slew_growth_score)
+            ),
+            format!("max_slew_norm={}", format_metric(syntax.max_slew_norm)),
+        ],
+        "H-BOUNDED-OSCILLATORY" | "H-NEAR-BOUNDARY-OSCILLATORY" => vec![
+            format!(
+                "residual_norm_path_monotonicity={}",
+                format_metric(syntax.residual_norm_path_monotonicity)
+            ),
+            format!(
+                "inward_drift_fraction={}",
+                format_metric(syntax.inward_drift_fraction)
+            ),
+            format!(
+                "boundary_grazing_episode_count={}",
+                syntax.boundary_grazing_episode_count
+            ),
+        ],
+        "H-STRUCTURED-NOISY-TRAJECTORY" => vec![
+            format!(
+                "mean_squared_slew_norm={}",
+                format_metric(syntax.mean_squared_slew_norm)
+            ),
+            format!("slew_spike_count={}", syntax.slew_spike_count),
+            format!(
+                "drift_channel_sign_alignment={}",
+                format_metric(syntax.drift_channel_sign_alignment)
+            ),
+        ],
+        "H-COORDINATED-RISE" | "H-COORDINATED-DEPARTURE" => vec![
+            format!(
+                "coordinated_group_breach_fraction={}",
+                format_metric(coordinated_breach)
+            ),
+            format!(
+                "outward_drift_fraction={}",
+                format_metric(syntax.outward_drift_fraction)
+            ),
+            format!(
+                "drift_channel_sign_alignment={}",
+                format_metric(syntax.drift_channel_sign_alignment)
+            ),
+        ],
+        "H-INWARD-CONTAINMENT" | "H-INWARD-RECOVERY" => vec![
+            format!(
+                "inward_drift_fraction={}",
+                format_metric(syntax.inward_drift_fraction)
+            ),
+            format!("min_margin={}", format_metric(syntax.min_margin)),
+            format!("boundary_recovery_count={}", syntax.boundary_recovery_count),
+        ],
+        _ => vec![
+            format!(
+                "outward_drift_fraction={}",
+                format_metric(syntax.outward_drift_fraction)
+            ),
+            format!(
+                "mean_squared_slew_norm={}",
+                format_metric(syntax.mean_squared_slew_norm)
+            ),
+            format!(
+                "coordinated_group_breach_fraction={}",
+                format_metric(coordinated_breach)
+            ),
+        ],
+    }
+}
+
 fn observation_support_is_limited(
     syntax: &SyntaxCharacterization,
     evidence: &GrammarEvidence,
+    settings: &SemanticRetrievalSettings,
 ) -> bool {
     syntax
         .outward_drift_fraction
         .max(syntax.inward_drift_fraction)
-        < 0.35
-        && syntax.radial_sign_persistence < 0.35
-        && syntax.radial_sign_dominance < 0.35
-        && syntax.late_slew_growth_score < 0.15
+        < settings.observation_limited_max_directional_fraction
+        && syntax.radial_sign_persistence < settings.observation_limited_max_radial_persistence
+        && syntax.radial_sign_dominance < settings.observation_limited_max_radial_dominance
+        && syntax.late_slew_growth_score < settings.observation_limited_max_late_slew_growth
         && syntax.slew_spike_count == 0
         && syntax.boundary_grazing_episode_count == 0
         && evidence.boundary_count == 0
@@ -1680,13 +1810,13 @@ fn coordinated_group_breach_ratio(coordinated: Option<&CoordinatedResidualStruct
 
 fn min_ok(value: f64, minimum: Option<f64>) -> bool {
     minimum
-        .map(|minimum| value + 1.0e-9 >= minimum)
+        .map(|minimum| value + SemanticRetrievalSettings::default().comparison_epsilon >= minimum)
         .unwrap_or(true)
 }
 
 fn max_ok(value: f64, maximum: Option<f64>) -> bool {
     maximum
-        .map(|maximum| value <= maximum + 1.0e-9)
+        .map(|maximum| value <= maximum + SemanticRetrievalSettings::default().comparison_epsilon)
         .unwrap_or(true)
 }
 
