@@ -74,9 +74,7 @@ pub fn hash_serializable_hex<T: Serialize>(
     value: &T,
 ) -> anyhow::Result<HashDigest> {
     let bytes = serde_json::to_vec(value)?;
-    let hash = bytes
-        .into_iter()
-        .fold(FNV1A_OFFSET_BASIS, |hash, byte| fnv1a_extend(hash, byte));
+    let hash = bytes.into_iter().fold(FNV1A_OFFSET_BASIS, fnv1a_extend);
     Ok(HashDigest {
         label: label.into(),
         fnv1a_64_hex: format!("{hash:016x}"),

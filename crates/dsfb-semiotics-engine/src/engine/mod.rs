@@ -1,3 +1,4 @@
+pub mod config;
 pub mod grammar_layer;
 pub mod pipeline;
 pub mod residual_layer;

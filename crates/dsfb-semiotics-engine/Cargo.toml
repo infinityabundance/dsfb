@@ -13,10 +13,14 @@ keywords = ["dsfb", "semiotics", "diagnostics", "reproducibility", "research"]
 categories = ["science", "simulation", "command-line-utilities"]
 include = [
     "src/**",
+    "examples/**",
     "tests/**",
+    "tests/fixtures/**",
     "Cargo.toml",
     "Cargo.lock",
     "README.md",
+    "CONTRIBUTING.md",
+    "justfile",
     "dsfb_semiotics_engine_colab.ipynb",
     ".gitignore",
     "output-dsfb-semiotics-engine/.gitkeep",

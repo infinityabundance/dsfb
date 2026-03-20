@@ -181,7 +181,7 @@ The code is organized into explicit layers:
 - `src/math/`
   Residual construction, finite differences, envelopes, detectability helpers, and deterministic metrics.
 - `src/engine/`
-  Residual, sign, syntax, grammar, semantics, and orchestration pipeline layers.
+  Residual, sign, syntax, grammar, semantics, typed run-config, and orchestration pipeline layers.
 - `src/sim/`
   Deterministic synthetic scenario generators.
 - `src/figures/`
@@ -189,11 +189,32 @@ The code is organized into explicit layers:
 - `src/report/`
   Markdown and PDF artifact report generation.
 - `src/io/`
-  Timestamped output layout, deterministic CSV ingestion, CSV/JSON export, and zip export.
+  Timestamped output layout, deterministic CSV ingestion, schema metadata, CSV/JSON export, and zip export.
 - `tests/`
   Real tests for residual math, detectability, determinism, semantics, and output layout.
 
 The crate is intentionally standalone by using its own empty `[workspace]` section. That keeps it self-contained and avoids changing root workspace behavior.
+
+## Library API
+
+The crate can be driven as a library through typed deterministic configuration objects rather than only through the CLI.
+
+```rust
+use dsfb_semiotics_engine::engine::config::CommonRunConfig;
+use dsfb_semiotics_engine::engine::pipeline::{
+    export_artifacts, EngineConfig, StructuralSemioticsEngine,
+};
+
+let config = EngineConfig::synthetic_single(
+    CommonRunConfig::default(),
+    "nominal_stable",
+);
+let engine = StructuralSemioticsEngine::new(config);
+let bundle = engine.run_selected()?;
+let artifacts = export_artifacts(&bundle)?;
+```
+
+For CSV-driven runs, use `EngineConfig::csv(...)` with a validated `CsvInputConfig`. The exported run metadata and manifest both carry the additive schema marker `dsfb-semiotics-engine/v1`.
 
 ## Running Locally
 
@@ -247,6 +268,15 @@ Run tests:
 cargo test --manifest-path crates/dsfb-semiotics-engine/Cargo.toml
 ```
 
+Run the full crate-local quality gate:
+
+```bash
+cd crates/dsfb-semiotics-engine
+just qa
+```
+
+This executes formatting, clippy, tests, and docs for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
+
 ## Output Layout
 
 By default the crate writes to:
@@ -271,6 +301,7 @@ Each run emits:
 The zip archive contains the generated run directory contents for convenient download.
 The PDF report embeds the generated figure PNG artifacts and appends a deterministic artifact appendix covering the exported markdown, manifest, CSV, and JSON text artifacts.
 Artifact export treats the timestamped run directory as owned scratch space: expected artifact subdirectories are cleaned before rewriting, and unexpected root-level files cause the export to fail rather than silently mixing stale results into a purportedly fresh run.
+Both `run_metadata.json` and `manifest.json` carry the additive schema marker `dsfb-semiotics-engine/v1` so downstream review tooling can check the exported contract explicitly.
 
 ## Figure Suite
 

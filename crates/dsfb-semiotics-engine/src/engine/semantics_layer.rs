@@ -86,6 +86,23 @@ pub fn retrieve_semantics(
                 "Unknown is returned here because the observation shows weak admissibility interaction and limited radial or curvature structure. The bank is not forced to label low-evidence cases.".to_string(),
             )
         } else {
+            let regime_summary = if evidence.regimes.is_empty() {
+                "none".to_string()
+            } else {
+                evidence.regimes.join("|")
+            };
+            let metric_summary = format!(
+                "outward={}, inward={}, residual_norm_path_monotonicity={}, mean_squared_slew_norm={}, late_slew_growth_score={}, slew_spikes={}, spike_strength={}, boundary_episodes={}, coordinated_group_breach_fraction={}",
+                format_metric(syntax.outward_drift_fraction),
+                format_metric(syntax.inward_drift_fraction),
+                format_metric(syntax.residual_norm_path_monotonicity),
+                format_metric(syntax.mean_squared_slew_norm),
+                format_metric(syntax.late_slew_growth_score),
+                syntax.slew_spike_count,
+                format_metric(syntax.slew_spike_strength),
+                syntax.boundary_grazing_episode_count,
+                format_metric(syntax.coordinated_group_breach_fraction),
+            );
             (
                 SemanticDisposition::Unknown,
                 "Unknown returned because no typed heuristic bank entry covered the observed admissibility-qualified syntax under the available regime and grouped-evidence checks.".to_string(),
@@ -93,23 +110,8 @@ pub fn retrieve_semantics(
                 Some(format!(
                     "Bank-noncoverage Unknown was retained because syntax label `{}` with regimes `{}` and motif summary `{}` did not satisfy any current typed bank entry after admissibility, scope, and regime filtering.",
                     syntax.trajectory_label,
-                    if evidence.regimes.is_empty() {
-                        "none".to_string()
-                    } else {
-                        evidence.regimes.join("|")
-                    },
-                    format!(
-                        "outward={}, inward={}, residual_norm_path_monotonicity={}, mean_squared_slew_norm={}, late_slew_growth_score={}, slew_spikes={}, spike_strength={}, boundary_episodes={}, coordinated_group_breach_fraction={}",
-                        format_metric(syntax.outward_drift_fraction),
-                        format_metric(syntax.inward_drift_fraction),
-                        format_metric(syntax.residual_norm_path_monotonicity),
-                        format_metric(syntax.mean_squared_slew_norm),
-                        format_metric(syntax.late_slew_growth_score),
-                        syntax.slew_spike_count,
-                        format_metric(syntax.slew_spike_strength),
-                        syntax.boundary_grazing_episode_count,
-                        format_metric(syntax.coordinated_group_breach_fraction),
-                    )
+                    regime_summary,
+                    metric_summary
                 )),
                 "No heuristic bank entry satisfied the constrained admissibility, scope, and regime checks.".to_string(),
                 Vec::new(),

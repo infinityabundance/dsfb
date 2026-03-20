@@ -6,6 +6,9 @@ use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 
 use crate::cli::args::{CsvInputConfig, ScenarioSelection};
+use crate::engine::config::{
+    CommonRunConfig, CsvRunConfig, SyntheticRunConfig, SyntheticSelection,
+};
 use crate::engine::grammar_layer::{evaluate_detectability, evaluate_grammar_layer};
 use crate::engine::residual_layer::extract_residuals;
 use crate::engine::semantics_layer::retrieve_semantics;
@@ -22,6 +25,7 @@ use crate::io::csv::write_rows;
 use crate::io::input::load_csv_trajectories;
 use crate::io::json::write_pretty;
 use crate::io::output::{create_output_layout, prepare_clean_export_layout, OutputLayout};
+use crate::io::schema::ARTIFACT_SCHEMA_VERSION;
 use crate::io::zip::zip_directory;
 use crate::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 use crate::math::envelope::{build_envelope, EnvelopeSpec};
@@ -31,6 +35,7 @@ use crate::report::pdf::{write_artifact_pdf, PdfTextArtifact};
 use crate::sim::generators::synthesize;
 use crate::sim::scenarios::{all_scenarios, ScenarioDefinition};
 
+/// Deterministic runtime configuration shared by synthetic and CSV-driven engine runs.
 #[derive(Clone, Debug)]
 pub struct EngineConfig {
     pub seed: u64,
@@ -40,6 +45,55 @@ pub struct EngineConfig {
     pub scenario_selection: ScenarioSelection,
 }
 
+impl EngineConfig {
+    /// Builds a configuration for all synthetic scenarios.
+    #[must_use]
+    pub fn synthetic_all(common: CommonRunConfig) -> Self {
+        SyntheticRunConfig::all(common).into()
+    }
+
+    /// Builds a configuration for one named synthetic scenario.
+    #[must_use]
+    pub fn synthetic_single(common: CommonRunConfig, scenario_id: impl Into<String>) -> Self {
+        SyntheticRunConfig::single(common, scenario_id).into()
+    }
+
+    /// Builds a configuration for a CSV-driven run.
+    #[must_use]
+    pub fn csv(common: CommonRunConfig, input: CsvInputConfig) -> Self {
+        CsvRunConfig::new(common, input).into()
+    }
+
+    /// Validates the deterministic run request before execution.
+    pub fn validate(&self) -> Result<()> {
+        match &self.scenario_selection {
+            ScenarioSelection::All => SyntheticRunConfig {
+                common: self.common(),
+                selection: SyntheticSelection::All,
+            }
+            .validate(),
+            ScenarioSelection::Single(id) => SyntheticRunConfig {
+                common: self.common(),
+                selection: SyntheticSelection::Single(id.clone()),
+            }
+            .validate(),
+            ScenarioSelection::Csv(input) => {
+                CsvRunConfig::new(self.common(), input.clone()).validate()
+            }
+        }
+    }
+
+    fn common(&self) -> CommonRunConfig {
+        CommonRunConfig {
+            seed: self.seed,
+            steps: self.steps,
+            dt: self.dt,
+            output_root: self.output_root.clone(),
+        }
+    }
+}
+
+/// Library entrypoint for deterministic structural-semiotics runs.
 #[derive(Clone, Debug)]
 pub struct StructuralSemioticsEngine {
     config: EngineConfig,
@@ -81,14 +135,17 @@ struct PartialScenarioOutput {
     coordinated: Option<CoordinatedResidualStructure>,
 }
 
+/// Runs the full synthetic scenario catalog under one deterministic configuration.
 pub fn run_all_demos(config: EngineConfig) -> Result<EngineOutputBundle> {
     StructuralSemioticsEngine::new(config).run_all()
 }
 
+/// Runs one named scenario under the provided deterministic configuration.
 pub fn run_scenario(config: EngineConfig, scenario_id: &str) -> Result<EngineOutputBundle> {
     StructuralSemioticsEngine::new(config).run_single(scenario_id)
 }
 
+/// Writes figures, CSV, JSON, markdown, PDF, and zip artifacts for one completed bundle.
 pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts> {
     let layout = OutputLayout {
         timestamp: bundle.run_metadata.timestamp.clone(),
@@ -112,6 +169,7 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
     ));
 
     let report_manifest = crate::engine::types::ReportManifest {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
         crate_name: bundle.run_metadata.crate_name.clone(),
         crate_version: bundle.run_metadata.crate_version.clone(),
         timestamp: bundle.run_metadata.timestamp.clone(),
@@ -179,6 +237,15 @@ impl StructuralSemioticsEngine {
         Self { config }
     }
 
+    /// Runs whatever scenario selection was encoded in the engine configuration.
+    pub fn run_selected(&self) -> Result<EngineOutputBundle> {
+        match &self.config.scenario_selection {
+            ScenarioSelection::All => self.run_all(),
+            ScenarioSelection::Single(scenario_id) => self.run_single(scenario_id),
+            ScenarioSelection::Csv(input) => self.run_csv(input),
+        }
+    }
+
     pub fn run_all(&self) -> Result<EngineOutputBundle> {
         let definitions = all_scenarios();
         let prepared = definitions
@@ -201,6 +268,7 @@ impl StructuralSemioticsEngine {
     }
 
     fn execute_prepared(&self, prepared: &[PreparedScenario]) -> Result<EngineOutputBundle> {
+        self.config.validate()?;
         if prepared.is_empty() {
             return Err(anyhow!("no scenarios selected"));
         }
@@ -289,6 +357,7 @@ impl StructuralSemioticsEngine {
     }
 
     fn prepare_csv(&self, input: &CsvInputConfig) -> Result<PreparedScenario> {
+        input.validate()?;
         let (observed, predicted) = load_csv_trajectories(input)?;
         Ok(PreparedScenario {
             record: ScenarioRecord {
@@ -302,15 +371,7 @@ impl StructuralSemioticsEngine {
             },
             observed,
             predicted,
-            envelope_spec: EnvelopeSpec {
-                name: input.envelope_name.clone(),
-                mode: input.envelope_mode,
-                base_radius: input.envelope_base,
-                slope: input.envelope_slope,
-                switch_step: input.envelope_switch_step,
-                secondary_slope: input.envelope_secondary_slope,
-                secondary_base: input.envelope_secondary_base,
-            },
+            envelope_spec: input.envelope_spec()?,
             detectability_inputs: None,
             groups: Vec::new(),
             aggregate_envelope_spec: None,
@@ -318,6 +379,7 @@ impl StructuralSemioticsEngine {
     }
 
     fn build_partial_output(&self, prepared: &PreparedScenario) -> Result<PartialScenarioOutput> {
+        prepared.envelope_spec.validate()?;
         let residual =
             extract_residuals(&prepared.observed, &prepared.predicted, &prepared.record.id);
         let drift = compute_drift_trajectory(&residual, self.config.dt, &prepared.record.id);
@@ -660,6 +722,7 @@ fn run_metadata(
     dt: f64,
 ) -> RunMetadata {
     RunMetadata {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
         crate_name: "dsfb-semiotics-engine".to_string(),
         crate_version: env!("CARGO_PKG_VERSION").to_string(),
         rust_version: command_stdout("rustc", &["--version"]),

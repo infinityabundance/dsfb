@@ -542,7 +542,7 @@ fn curvature_and_boundary_cases_keep_distinct_syntax_labels() {
                 sign_sample(4, 4.0, vec![0.1], vec![0.0], vec![0.0]),
             ],
         ),
-        &vec![
+        &[
             grammar_status("boundary", 0, 0.0, GrammarState::Boundary, 0.02),
             grammar_status("boundary", 1, 1.0, GrammarState::Admissible, 0.10),
             grammar_status("boundary", 2, 2.0, GrammarState::Boundary, 0.02),

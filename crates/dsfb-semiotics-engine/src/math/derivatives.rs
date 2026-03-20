@@ -31,13 +31,13 @@ pub fn compute_drift_trajectory(
         .collect::<Vec<_>>();
 
     let mut samples = Vec::with_capacity(count);
-    for index in 0..count {
+    for (index, sample) in residual.samples.iter().enumerate() {
         let values = (0..dims)
             .map(|dimension| channel_derivatives[dimension][index])
             .collect::<Vec<_>>();
         samples.push(DriftSample {
-            step: residual.samples[index].step,
-            time: residual.samples[index].time,
+            step: sample.step,
+            time: sample.time,
             values: values.clone(),
             norm: euclidean_norm(&values),
         });

@@ -424,6 +424,8 @@ pub struct ReproducibilitySummary {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RunMetadata {
+    /// Additive machine-readable schema marker for exported run metadata.
+    pub schema_version: String,
     pub crate_name: String,
     pub crate_version: String,
     pub rust_version: Option<String>,
@@ -440,6 +442,8 @@ pub struct RunMetadata {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReportManifest {
+    /// Additive machine-readable schema marker for exported artifact manifests.
+    pub schema_version: String,
     pub crate_name: String,
     pub crate_version: String,
     pub timestamp: String,
