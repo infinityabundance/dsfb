@@ -73,6 +73,8 @@ pub struct HeuristicBankValidationReport {
     pub regime_tag_notes: Vec<String>,
     pub retrieval_priority_notes: Vec<String>,
     pub scope_sanity_notes: Vec<String>,
+    pub violations: Vec<String>,
+    pub warnings: Vec<String>,
     pub valid: bool,
     pub note: String,
 }
@@ -379,15 +381,27 @@ impl HeuristicBankRegistry {
             Vec::new()
         };
 
-        let valid = duplicates.is_empty()
-            && self_link_notes.is_empty()
-            && compatibility_conflicts.is_empty()
-            && unknown_link_targets.is_empty()
-            && provenance_gaps.is_empty()
-            && regime_tag_notes.is_empty()
-            && retrieval_priority_notes.is_empty()
-            && scope_sanity_notes.is_empty()
-            && strict_validation_errors.is_empty();
+        let mut violations = duplicates.clone();
+        violations.extend(self_link_notes.clone());
+        violations.extend(compatibility_conflicts.clone());
+        violations.extend(unknown_link_targets.clone());
+        violations.extend(provenance_gaps.clone());
+        violations.extend(regime_tag_notes.clone());
+        violations.extend(retrieval_priority_notes.clone());
+        violations.extend(scope_sanity_notes.clone());
+        violations.extend(strict_validation_errors.clone());
+
+        let warnings = if descriptor.strict_validation {
+            Vec::new()
+        } else {
+            missing_compatibility_links
+                .iter()
+                .chain(&missing_incompatibility_links)
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+
+        let valid = violations.is_empty();
 
         let note = if valid {
             format!(
@@ -423,6 +437,8 @@ impl HeuristicBankRegistry {
             regime_tag_notes,
             retrieval_priority_notes,
             scope_sanity_notes,
+            violations,
+            warnings,
             valid,
             note,
         }

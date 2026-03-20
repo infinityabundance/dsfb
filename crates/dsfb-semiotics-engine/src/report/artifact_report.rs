@@ -138,6 +138,14 @@ pub fn build_markdown_report(
             .len()
     ));
     lines.push(format!(
+        "- Bank validation violations: {}",
+        bundle.evaluation.bank_validation.violations.len()
+    ));
+    lines.push(format!(
+        "- Bank validation warnings: {}",
+        bundle.evaluation.bank_validation.warnings.len()
+    ));
+    lines.push(format!(
         "- Bank validation regime-tag notes: {}",
         bundle.evaluation.bank_validation.regime_tag_notes.len()
     ));

@@ -527,3 +527,401 @@ fn external_bank_pipeline_run_records_external_source_in_manifest() {
         .join("json/loaded_heuristic_bank_descriptor.json")
         .is_file());
 }
+
+#[test]
+fn external_bank_missing_required_field_fails() {
+    let temp = tempdir().unwrap();
+    let bank_path = temp.path().join("missing_field_bank.json");
+    std::fs::write(
+        &bank_path,
+        r#"{
+  "metadata": {
+    "schema_version": "dsfb-semiotics-engine-bank/v1",
+    "bank_version": "missing-field-bank/v1",
+    "note": "missing short label"
+  },
+  "entries": [
+    {
+      "heuristic_id": "H-MISSING-LABEL",
+      "motif_label": "missing short label",
+      "scope_conditions": {
+        "min_outward_drift_fraction": null,
+        "max_outward_drift_fraction": 0.2,
+        "min_inward_drift_fraction": null,
+        "max_inward_drift_fraction": null,
+        "max_curvature_energy": null,
+        "min_curvature_energy": null,
+        "max_curvature_onset_score": null,
+        "min_curvature_onset_score": null,
+        "min_directional_persistence": null,
+        "min_sign_consistency": null,
+        "min_channel_coherence": null,
+        "min_aggregate_monotonicity": null,
+        "max_aggregate_monotonicity": null,
+        "min_slew_spike_count": null,
+        "max_slew_spike_count": null,
+        "min_slew_spike_strength": null,
+        "max_slew_spike_strength": null,
+        "min_boundary_grazing_episodes": null,
+        "max_boundary_grazing_episodes": null,
+        "min_boundary_recovery_count": null,
+        "min_coordinated_group_breach_fraction": null,
+        "max_coordinated_group_breach_fraction": null,
+        "require_group_breach": false
+      },
+      "admissibility_requirements": "Any",
+      "regime_tags": [],
+      "provenance": {
+        "source": "fixture",
+        "note": "fixture"
+      },
+      "applicability_note": "fixture",
+      "retrieval_priority": 1,
+      "compatible_with": [],
+      "incompatible_with": []
+    }
+  ]
+}"#,
+    )
+    .unwrap();
+
+    let error = HeuristicBankRegistry::load_external_json(bank_path.as_path(), true).unwrap_err();
+    assert!(error.to_string().contains("parse heuristic bank JSON"));
+}
+
+#[test]
+fn strict_mode_fails_on_duplicate_heuristic_id() {
+    let temp = tempdir().unwrap();
+    let bank_path = temp.path().join("duplicate_bank.json");
+    let mut registry = HeuristicBankRegistry::builtin();
+    let duplicate = registry.entries.first().cloned().unwrap();
+    registry.entries.push(duplicate);
+    std::fs::write(&bank_path, serde_json::to_string_pretty(&registry).unwrap()).unwrap();
+
+    let error = HeuristicBankRegistry::load_external_json(bank_path.as_path(), true).unwrap_err();
+    assert!(error.to_string().contains("failed validation"));
+}
+
+#[test]
+fn strict_mode_fails_on_compatibility_conflict() {
+    let temp = tempdir().unwrap();
+    let bank_path = temp.path().join("conflict_bank.json");
+    std::fs::write(
+        &bank_path,
+        r#"{
+  "metadata": {
+    "schema_version": "dsfb-semiotics-engine-bank/v1",
+    "bank_version": "conflict-bank/v1",
+    "note": "compatibility conflict fixture"
+  },
+  "entries": [
+    {
+      "heuristic_id": "H-A",
+      "motif_label": "a",
+      "short_label": "a",
+      "scope_conditions": {
+        "min_outward_drift_fraction": null,
+        "max_outward_drift_fraction": 0.6,
+        "min_inward_drift_fraction": null,
+        "max_inward_drift_fraction": 0.6,
+        "max_curvature_energy": null,
+        "min_curvature_energy": null,
+        "max_curvature_onset_score": null,
+        "min_curvature_onset_score": null,
+        "min_directional_persistence": null,
+        "min_sign_consistency": null,
+        "min_channel_coherence": null,
+        "min_aggregate_monotonicity": null,
+        "max_aggregate_monotonicity": null,
+        "min_slew_spike_count": null,
+        "max_slew_spike_count": null,
+        "min_slew_spike_strength": null,
+        "max_slew_spike_strength": null,
+        "min_boundary_grazing_episodes": null,
+        "max_boundary_grazing_episodes": null,
+        "min_boundary_recovery_count": null,
+        "min_coordinated_group_breach_fraction": null,
+        "max_coordinated_group_breach_fraction": null,
+        "require_group_breach": false
+      },
+      "admissibility_requirements": "Any",
+      "regime_tags": ["fixed"],
+      "provenance": { "source": "fixture", "note": "fixture" },
+      "applicability_note": "fixture",
+      "retrieval_priority": 1,
+      "compatible_with": ["H-B"],
+      "incompatible_with": ["H-B"]
+    },
+    {
+      "heuristic_id": "H-B",
+      "motif_label": "b",
+      "short_label": "b",
+      "scope_conditions": {
+        "min_outward_drift_fraction": null,
+        "max_outward_drift_fraction": 0.6,
+        "min_inward_drift_fraction": null,
+        "max_inward_drift_fraction": 0.6,
+        "max_curvature_energy": null,
+        "min_curvature_energy": null,
+        "max_curvature_onset_score": null,
+        "min_curvature_onset_score": null,
+        "min_directional_persistence": null,
+        "min_sign_consistency": null,
+        "min_channel_coherence": null,
+        "min_aggregate_monotonicity": null,
+        "max_aggregate_monotonicity": null,
+        "min_slew_spike_count": null,
+        "max_slew_spike_count": null,
+        "min_slew_spike_strength": null,
+        "max_slew_spike_strength": null,
+        "min_boundary_grazing_episodes": null,
+        "max_boundary_grazing_episodes": null,
+        "min_boundary_recovery_count": null,
+        "min_coordinated_group_breach_fraction": null,
+        "max_coordinated_group_breach_fraction": null,
+        "require_group_breach": false
+      },
+      "admissibility_requirements": "Any",
+      "regime_tags": ["fixed"],
+      "provenance": { "source": "fixture", "note": "fixture" },
+      "applicability_note": "fixture",
+      "retrieval_priority": 1,
+      "compatible_with": ["H-A"],
+      "incompatible_with": ["H-A"]
+    }
+  ]
+}"#,
+    )
+    .unwrap();
+
+    let error = HeuristicBankRegistry::load_external_json(bank_path.as_path(), true).unwrap_err();
+    assert!(error.to_string().contains("failed validation"));
+}
+
+#[test]
+fn validation_artifact_contains_all_detected_violations() {
+    let temp = tempdir().unwrap();
+    let bank_path = temp.path().join("asymmetric_bank.json");
+    std::fs::write(&bank_path, asymmetric_bank_json()).unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            bank: BankRunConfig::external(bank_path, false),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let report = serde_json::from_str::<serde_json::Value>(
+        &std::fs::read_to_string(exported.run_dir.join("json/heuristic_bank_validation.json"))
+            .unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(report["strict_validation"], false);
+    assert_eq!(report["validation_mode"], "permissive");
+    assert_eq!(report["bank_source_kind"], "external");
+    assert!(!report["warnings"].as_array().unwrap().is_empty());
+    assert!(report["violations"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn comparator_outputs_have_schema_metadata() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let text =
+        std::fs::read_to_string(exported.run_dir.join("json/comparator_results.json")).unwrap();
+    let rows = serde_json::from_str::<Vec<serde_json::Value>>(&text).unwrap();
+
+    assert!(!rows.is_empty());
+    assert_eq!(
+        rows[0]["schema_version"],
+        bundle.run_metadata.schema_version
+    );
+    assert!(rows[0].get("comparator_name").is_some());
+    assert!(rows[0].get("alarm").is_some());
+    assert!(rows[0].get("first_alarm_time").is_some());
+    assert!(rows[0].get("config_reference").is_some());
+}
+
+#[test]
+fn manifest_contains_schema_engine_bank_versions() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let manifest = serde_json::from_str::<serde_json::Value>(
+        &std::fs::read_to_string(&exported.manifest_path).unwrap(),
+    )
+    .unwrap();
+
+    assert!(manifest.get("schema_version").is_some());
+    assert!(manifest.get("engine_version").is_some());
+    assert!(manifest.get("bank_version").is_some());
+    assert!(manifest.get("run_configuration_hash").is_some());
+}
+
+#[test]
+fn evaluation_summary_contains_schema_version() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let summary = serde_json::from_str::<serde_json::Value>(
+        &std::fs::read_to_string(exported.run_dir.join("json/evaluation_summary.json")).unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        summary["schema_version"],
+        bundle.run_metadata.schema_version
+    );
+}
+
+#[test]
+fn figure_source_tables_have_schema_metadata() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let table = serde_json::from_str::<serde_json::Value>(
+        &std::fs::read_to_string(
+            exported
+                .run_dir
+                .join("json/figure_10_deterministic_pipeline_flow_source.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(table["schema_version"], bundle.run_metadata.schema_version);
+    assert!(table.get("generation_timestamp").is_some());
+    assert!(table.get("expected_panel_ids").is_some());
+    assert!(table.get("panel_ids").is_some());
+    assert!(table.get("series_ids").is_some());
+}
+
+#[test]
+fn bank_validation_artifact_has_schema_metadata() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let report = serde_json::from_str::<serde_json::Value>(
+        &std::fs::read_to_string(exported.run_dir.join("json/bank_validation_report.json"))
+            .unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(report["schema_version"], bundle.run_metadata.schema_version);
+    assert!(report.get("violations").is_some());
+    assert!(report.get("warnings").is_some());
+}
+
+#[test]
+fn figure_integrity_report_has_required_fields() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let text = std::fs::read_to_string(exported.run_dir.join("json/figure_integrity_report.json"))
+        .unwrap();
+    let rows = serde_json::from_str::<Vec<serde_json::Value>>(&text).unwrap();
+
+    assert!(!rows.is_empty());
+    assert!(rows[0].get("figure_id").is_some());
+    assert!(rows[0].get("expected_panels").is_some());
+    assert!(rows[0].get("observed_panels").is_some());
+    assert!(rows[0].get("source_table_present").is_some());
+    assert!(rows[0].get("integrity_passed").is_some());
+    assert!(rows[0].get("failures").is_some());
+}
+
+#[test]
+fn comparator_alias_outputs_present_for_each_scenario() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_all(CommonRunConfig {
+        output_root: Some(temp.path().join("artifacts")),
+        ..Default::default()
+    }));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let rows = serde_json::from_str::<Vec<serde_json::Value>>(
+        &std::fs::read_to_string(exported.run_dir.join("json/comparator_results.json")).unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(rows.len(), bundle.scenario_outputs.len() * 6);
+}
+
+#[test]
+fn sweep_outputs_schema_valid() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::sweep(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        SweepConfig {
+            family: SweepFamily::CurvatureOnsetTiming,
+            points: 4,
+        },
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let rows = serde_json::from_str::<Vec<serde_json::Value>>(
+        &std::fs::read_to_string(exported.run_dir.join("json/sweep_results.json")).unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(rows.len(), 4);
+    assert_eq!(
+        rows[0]["schema_version"],
+        bundle.run_metadata.schema_version
+    );
+    assert!(rows[0].get("sweep_family").is_some());
+    assert!(rows[0].get("parameter_name").is_some());
+    assert!(rows[0].get("parameter_value").is_some());
+    assert!(rows[0].get("syntax_label").is_some());
+    assert!(rows[0].get("semantic_disposition").is_some());
+    assert!(rows[0].get("selected_heuristic_ids").is_some());
+}

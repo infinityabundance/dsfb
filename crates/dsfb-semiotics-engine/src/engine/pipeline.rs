@@ -778,10 +778,22 @@ fn write_tabular_artifacts(
         bundle.evaluation.baseline_results.clone(),
     )?;
     write_rows(
+        layout.csv_dir.join("comparator_results.csv").as_path(),
+        bundle
+            .evaluation
+            .baseline_results
+            .iter()
+            .map(|result| comparator_results_csv_row(bundle, result)),
+    )?;
+    write_rows(
         layout
             .csv_dir
             .join("heuristic_bank_validation.csv")
             .as_path(),
+        std::iter::once(bank_validation_csv_row(&bundle.evaluation.bank_validation)),
+    )?;
+    write_rows(
+        layout.csv_dir.join("bank_validation_report.csv").as_path(),
         std::iter::once(bank_validation_csv_row(&bundle.evaluation.bank_validation)),
     )?;
     if !bundle.evaluation.sweep_results.is_empty() {
@@ -969,6 +981,15 @@ fn write_tabular_artifacts(
         &bundle.evaluation.baseline_results,
     )?;
     write_pretty(
+        layout.json_dir.join("comparator_results.json").as_path(),
+        &bundle
+            .evaluation
+            .baseline_results
+            .iter()
+            .map(|result| comparator_results_csv_row(bundle, result))
+            .collect::<Vec<_>>(),
+    )?;
+    write_pretty(
         layout.json_dir.join("semantic_matches.json").as_path(),
         &bundle
             .scenario_outputs
@@ -980,6 +1001,13 @@ fn write_tabular_artifacts(
         layout
             .json_dir
             .join("heuristic_bank_validation.json")
+            .as_path(),
+        &bundle.evaluation.bank_validation,
+    )?;
+    write_pretty(
+        layout
+            .json_dir
+            .join("bank_validation_report.json")
             .as_path(),
         &bundle.evaluation.bank_validation,
     )?;
@@ -1031,78 +1059,17 @@ fn write_summary_figure_source_tables(
             .to_string();
         write_rows(Path::new(&source_csv), table.rows.clone())?;
         write_pretty(Path::new(&source_json), table)?;
-
-        let panel_order = ordered_panel_ids(table);
-        let panel_labels = panel_order
-            .iter()
-            .map(|panel_id| panel_title(table, panel_id))
-            .collect::<Vec<_>>();
-        let series_lengths = panel_order
-            .iter()
-            .map(|panel_id| {
-                table
-                    .rows
-                    .iter()
-                    .filter(|row| row.panel_id == *panel_id)
-                    .count()
-            })
-            .collect::<Vec<_>>();
-        let source_row_count = table.rows.len();
-        let nonempty_series =
-            !table.rows.is_empty() && series_lengths.iter().all(|length| *length > 0);
-        let nonzero_values_present = table.rows.iter().any(|row| {
-            row.y_value.abs() > 1.0e-12
-                || row
-                    .secondary_y_value
-                    .map(|value| value.abs() > 1.0e-12)
-                    .unwrap_or(false)
-        });
-        let count_like_panels_integerlike = table.count_like_panel_ids.iter().all(|panel_id| {
-            table
-                .rows
-                .iter()
-                .filter(|row| row.panel_id == *panel_id)
-                .all(|row| {
-                    (row.y_value - row.y_value.round()).abs() <= count_like_integer_tolerance
-                })
-        });
         let artifact = figure_lookup.get(&table.figure_id);
-        let png_path = artifact
-            .map(|artifact| artifact.png_path.clone())
-            .unwrap_or_default();
-        let svg_path = artifact
-            .map(|artifact| artifact.svg_path.clone())
-            .unwrap_or_default();
-        let png_present = !png_path.is_empty() && Path::new(&png_path).is_file();
-        let svg_present = !svg_path.is_empty() && Path::new(&svg_path).is_file();
-        let observed_panel_count = panel_order.len();
-        checks.push(FigureIntegrityCheck {
-            schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
-            engine_version: bundle.run_metadata.crate_version.clone(),
-            bank_version: bundle.run_metadata.bank.bank_version.clone(),
-            figure_id: table.figure_id.clone(),
-            expected_panel_count: table.expected_panel_count,
-            observed_panel_count,
-            panel_labels,
-            series_lengths,
-            source_row_count,
-            nonempty_series,
-            nonzero_values_present,
-            count_like_panels_integerlike,
-            consistent_with_source: observed_panel_count == table.expected_panel_count
-                && nonempty_series
-                && count_like_panels_integerlike
-                && png_present
-                && svg_present,
-            source_csv,
-            source_json,
-            png_path,
-            svg_path,
-            png_present,
-            svg_present,
-            note: "Figure rendered from the exported figure-source table; integrity check covers panel count, source rows, count-like panels, and emitted PNG/SVG presence."
-                .to_string(),
-        });
+        checks.push(build_figure_integrity_check(
+            &bundle.run_metadata,
+            table,
+            artifact.copied(),
+            &source_csv,
+            &source_json,
+            count_like_integer_tolerance,
+            Path::new(&source_csv).is_file(),
+            Path::new(&source_json).is_file(),
+        ));
     }
 
     write_legacy_summary_figure_sources(bundle, layout)?;
@@ -1111,10 +1078,21 @@ fn write_summary_figure_source_tables(
         layout.csv_dir.join("figure_integrity_checks.csv").as_path(),
         checks.iter().map(figure_integrity_csv_row),
     )?;
+    write_rows(
+        layout.csv_dir.join("figure_integrity_report.csv").as_path(),
+        checks.iter().map(figure_integrity_csv_row),
+    )?;
     write_pretty(
         layout
             .json_dir
             .join("figure_integrity_checks.json")
+            .as_path(),
+        &checks,
+    )?;
+    write_pretty(
+        layout
+            .json_dir
+            .join("figure_integrity_report.json")
             .as_path(),
         &checks,
     )?;
@@ -1217,6 +1195,156 @@ fn write_legacy_summary_figure_sources(
     }
 
     Ok(())
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Figure-integrity helpers keep the export contract explicit without hiding artifact fields behind ad hoc tuples."
+)]
+fn build_figure_integrity_check(
+    run_metadata: &crate::engine::types::RunMetadata,
+    table: &FigureSourceTable,
+    artifact: Option<&FigureArtifact>,
+    source_csv: &str,
+    source_json: &str,
+    count_like_integer_tolerance: f64,
+    source_csv_present: bool,
+    source_json_present: bool,
+) -> FigureIntegrityCheck {
+    let observed_panels = ordered_panel_ids(table);
+    let panel_labels = observed_panels
+        .iter()
+        .map(|panel_id| panel_title(table, panel_id))
+        .collect::<Vec<_>>();
+    let series_lengths = observed_panels
+        .iter()
+        .map(|panel_id| {
+            table
+                .rows
+                .iter()
+                .filter(|row| row.panel_id == *panel_id)
+                .count()
+        })
+        .collect::<Vec<_>>();
+    let source_row_count = table.rows.len();
+    let nonempty_series = !table.rows.is_empty() && series_lengths.iter().all(|length| *length > 0);
+    let nonzero_values_present = table.rows.iter().any(|row| {
+        row.y_value.abs() > 1.0e-12
+            || row
+                .secondary_y_value
+                .map(|value| value.abs() > 1.0e-12)
+                .unwrap_or(false)
+    });
+    let count_like_panels_integerlike = table.count_like_panel_ids.iter().all(|panel_id| {
+        table
+            .rows
+            .iter()
+            .filter(|row| row.panel_id == *panel_id)
+            .all(|row| (row.y_value - row.y_value.round()).abs() <= count_like_integer_tolerance)
+    });
+    let png_path = artifact
+        .map(|artifact| artifact.png_path.clone())
+        .unwrap_or_default();
+    let svg_path = artifact
+        .map(|artifact| artifact.svg_path.clone())
+        .unwrap_or_default();
+    let png_present = !png_path.is_empty() && Path::new(&png_path).is_file();
+    let svg_present = !svg_path.is_empty() && Path::new(&svg_path).is_file();
+    let expected_panels = if table.expected_panel_ids.is_empty() {
+        (0..table.expected_panel_count)
+            .map(|index| format!("panel_{}", index + 1))
+            .collect::<Vec<_>>()
+    } else {
+        table.expected_panel_ids.clone()
+    };
+    let source_table_present = source_csv_present && source_json_present;
+    let failures = figure_integrity_failures(
+        table,
+        &expected_panels,
+        &observed_panels,
+        source_table_present,
+        nonempty_series,
+        count_like_panels_integerlike,
+        png_present,
+        svg_present,
+    );
+    let integrity_passed = failures.is_empty();
+
+    FigureIntegrityCheck {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        engine_version: run_metadata.crate_version.clone(),
+        bank_version: run_metadata.bank.bank_version.clone(),
+        figure_id: table.figure_id.clone(),
+        expected_panel_count: table.expected_panel_count,
+        observed_panel_count: observed_panels.len(),
+        expected_panels,
+        observed_panels,
+        panel_labels,
+        series_lengths,
+        source_row_count,
+        source_table_present,
+        nonempty_series,
+        nonzero_values_present,
+        count_like_panels_integerlike,
+        consistent_with_source: integrity_passed,
+        integrity_passed,
+        failures,
+        source_csv: source_csv.to_string(),
+        source_json: source_json.to_string(),
+        png_path,
+        svg_path,
+        png_present,
+        svg_present,
+        note: "Figure rendered from the exported figure-source table; integrity check covers panel identity, source rows, count-like panels, and emitted PNG/SVG presence."
+            .to_string(),
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Figure-integrity failures are assembled from explicit typed checks so each exported failure surface stays auditable."
+)]
+fn figure_integrity_failures(
+    table: &FigureSourceTable,
+    expected_panels: &[String],
+    observed_panels: &[String],
+    source_table_present: bool,
+    nonempty_series: bool,
+    count_like_panels_integerlike: bool,
+    png_present: bool,
+    svg_present: bool,
+) -> Vec<String> {
+    let mut failures = Vec::new();
+    if !source_table_present {
+        failures.push("source table missing".to_string());
+    }
+    if observed_panels.len() != table.expected_panel_count {
+        failures.push(format!(
+            "expected {} panels but observed {}",
+            table.expected_panel_count,
+            observed_panels.len()
+        ));
+    }
+    if expected_panels != observed_panels {
+        failures.push(format!(
+            "expected panels [{}] but observed [{}]",
+            expected_panels.join(", "),
+            observed_panels.join(", ")
+        ));
+    }
+    if !nonempty_series {
+        failures.push("one or more observed panels has an empty series".to_string());
+    }
+    if !count_like_panels_integerlike {
+        failures.push("count-like panel used non-integer-like values".to_string());
+    }
+    if !png_present {
+        failures.push("png render missing".to_string());
+    }
+    if !svg_present {
+        failures.push("svg render missing".to_string());
+    }
+    failures
 }
 
 fn ordered_panel_ids(table: &FigureSourceTable) -> Vec<String> {
@@ -1726,6 +1854,8 @@ struct BankValidationCsvRow {
     regime_tag_notes: String,
     retrieval_priority_notes: String,
     scope_sanity_notes: String,
+    violations: String,
+    warnings: String,
     note: String,
 }
 
@@ -1769,13 +1899,18 @@ struct FigureIntegrityCsvRow {
     figure_id: String,
     expected_panel_count: usize,
     observed_panel_count: usize,
+    expected_panels: String,
+    observed_panels: String,
     panel_labels: String,
     series_lengths: String,
     source_row_count: usize,
+    source_table_present: bool,
     nonempty_series: bool,
     nonzero_values_present: bool,
     count_like_panels_integerlike: bool,
     consistent_with_source: bool,
+    integrity_passed: bool,
+    failures: String,
     source_csv: String,
     source_json: String,
     png_path: String,
@@ -1783,6 +1918,23 @@ struct FigureIntegrityCsvRow {
     png_present: bool,
     svg_present: bool,
     note: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ComparatorResultsCsvRow {
+    schema_version: String,
+    engine_version: String,
+    bank_version: String,
+    scenario_id: String,
+    comparator_id: String,
+    comparator_name: String,
+    comparator_label: String,
+    alarm: bool,
+    first_alarm_step: Option<usize>,
+    first_alarm_time: Option<f64>,
+    config_reference: String,
+    comparator_summary: String,
+    distinction_note: String,
 }
 
 fn time_series_row(
@@ -2089,6 +2241,8 @@ fn bank_validation_csv_row(
         regime_tag_notes: report.regime_tag_notes.join(" | "),
         retrieval_priority_notes: report.retrieval_priority_notes.join(" | "),
         scope_sanity_notes: report.scope_sanity_notes.join(" | "),
+        violations: report.violations.join(" | "),
+        warnings: report.warnings.join(" | "),
         note: report.note.clone(),
     }
 }
@@ -2137,6 +2291,8 @@ fn figure_integrity_csv_row(check: &FigureIntegrityCheck) -> FigureIntegrityCsvR
         figure_id: check.figure_id.clone(),
         expected_panel_count: check.expected_panel_count,
         observed_panel_count: check.observed_panel_count,
+        expected_panels: check.expected_panels.join(" | "),
+        observed_panels: check.observed_panels.join(" | "),
         panel_labels: check.panel_labels.join(" | "),
         series_lengths: check
             .series_lengths
@@ -2145,10 +2301,13 @@ fn figure_integrity_csv_row(check: &FigureIntegrityCheck) -> FigureIntegrityCsvR
             .collect::<Vec<_>>()
             .join(" | "),
         source_row_count: check.source_row_count,
+        source_table_present: check.source_table_present,
         nonempty_series: check.nonempty_series,
         nonzero_values_present: check.nonzero_values_present,
         count_like_panels_integerlike: check.count_like_panels_integerlike,
         consistent_with_source: check.consistent_with_source,
+        integrity_passed: check.integrity_passed,
+        failures: check.failures.join(" | "),
         source_csv: check.source_csv.clone(),
         source_json: check.source_json.clone(),
         png_path: check.png_path.clone(),
@@ -2156,6 +2315,27 @@ fn figure_integrity_csv_row(check: &FigureIntegrityCheck) -> FigureIntegrityCsvR
         png_present: check.png_present,
         svg_present: check.svg_present,
         note: check.note.clone(),
+    }
+}
+
+fn comparator_results_csv_row(
+    bundle: &EngineOutputBundle,
+    result: &crate::evaluation::types::BaselineComparatorResult,
+) -> ComparatorResultsCsvRow {
+    ComparatorResultsCsvRow {
+        schema_version: result.schema_version.clone(),
+        engine_version: result.engine_version.clone(),
+        bank_version: result.bank_version.clone(),
+        scenario_id: result.scenario_id.clone(),
+        comparator_id: result.comparator_id.clone(),
+        comparator_name: result.comparator_id.clone(),
+        comparator_label: result.comparator_label.clone(),
+        alarm: result.triggered,
+        first_alarm_step: result.first_trigger_step,
+        first_alarm_time: result.first_trigger_time,
+        config_reference: bundle.run_metadata.run_configuration_hash.clone(),
+        comparator_summary: result.comparator_summary.clone(),
+        distinction_note: result.distinction_note.clone(),
     }
 }
 
@@ -2168,4 +2348,184 @@ fn join_count_map(map: &BTreeMap<String, usize>) -> String {
 
 fn value_at(values: &[f64], index: usize) -> Option<f64> {
     values.get(index).copied()
+}
+
+#[cfg(test)]
+mod figure_integrity_tests {
+    use super::{build_figure_integrity_check, figure_integrity_failures};
+    use crate::engine::bank::{BankSourceKind, LoadedBankDescriptor};
+    use crate::engine::settings::EngineSettings;
+    use crate::engine::types::{FigureArtifact, RunMetadata};
+    use crate::figures::source::{FigureSourceRow, FigureSourceTable};
+    use crate::io::schema::ARTIFACT_SCHEMA_VERSION;
+
+    fn run_metadata() -> RunMetadata {
+        RunMetadata {
+            schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: env!("CARGO_PKG_VERSION").to_string(),
+            bank_version: "heuristic-bank/test".to_string(),
+            run_configuration_hash: "config-hash".to_string(),
+            crate_name: "dsfb-semiotics-engine".to_string(),
+            crate_version: env!("CARGO_PKG_VERSION").to_string(),
+            rust_version: None,
+            git_commit: None,
+            timestamp: "2026-03-20T10:00:00Z".to_string(),
+            input_mode: "synthetic".to_string(),
+            seed: 123,
+            steps: 16,
+            dt: 1.0,
+            engine_settings: EngineSettings::default(),
+            bank: LoadedBankDescriptor {
+                schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+                bank_schema_version: "dsfb-semiotics-engine-bank/v1".to_string(),
+                bank_version: "heuristic-bank/test".to_string(),
+                source_kind: BankSourceKind::Builtin,
+                source_path: None,
+                content_hash: "bank-hash".to_string(),
+                strict_validation: true,
+                validation_mode: "strict".to_string(),
+                note: "test".to_string(),
+            },
+            cli_args: vec!["--scenario".to_string(), "nominal_stable".to_string()],
+            os: "linux".to_string(),
+            arch: "x86_64".to_string(),
+        }
+    }
+
+    fn row(panel_id: &str, series_id: &str, y_value: f64) -> FigureSourceRow {
+        FigureSourceRow {
+            schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: env!("CARGO_PKG_VERSION").to_string(),
+            bank_version: "heuristic-bank/test".to_string(),
+            figure_id: "figure_test".to_string(),
+            plot_title: "Figure Test".to_string(),
+            panel_id: panel_id.to_string(),
+            panel_title: panel_id.to_string(),
+            x_label: "x".to_string(),
+            y_label: "y".to_string(),
+            series_id: series_id.to_string(),
+            series_label: series_id.to_string(),
+            series_kind: "line".to_string(),
+            color_key: "blue".to_string(),
+            point_order: 0,
+            x_value: 0.0,
+            y_value,
+            secondary_x_value: None,
+            secondary_y_value: None,
+            x_tick_label: String::new(),
+            annotation_text: String::new(),
+            scenario_id: "scenario".to_string(),
+            note: "test row".to_string(),
+        }
+    }
+
+    fn artifact() -> FigureArtifact {
+        FigureArtifact {
+            figure_id: "figure_test".to_string(),
+            caption: "caption".to_string(),
+            png_path: "/tmp/nonexistent.png".to_string(),
+            svg_path: "/tmp/nonexistent.svg".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_count_panel_uses_count_values() {
+        let table = FigureSourceTable {
+            schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: env!("CARGO_PKG_VERSION").to_string(),
+            bank_version: "heuristic-bank/test".to_string(),
+            figure_id: "figure_test".to_string(),
+            plot_title: "Figure Test".to_string(),
+            generation_timestamp: "2026-03-20T10:00:00Z".to_string(),
+            expected_panel_count: 1,
+            expected_panel_ids: vec!["count_panel".to_string()],
+            count_like_panel_ids: vec!["count_panel".to_string()],
+            panel_ids: vec!["count_panel".to_string()],
+            series_ids: vec!["count_series".to_string()],
+            rows: vec![row("count_panel", "count_series", 1.5)],
+        };
+        let check = build_figure_integrity_check(
+            &run_metadata(),
+            &table,
+            Some(&artifact()),
+            "source.csv",
+            "source.json",
+            1.0e-9,
+            true,
+            true,
+        );
+
+        assert!(!check.count_like_panels_integerlike);
+        assert!(!check.integrity_passed);
+        assert!(check
+            .failures
+            .iter()
+            .any(|failure| failure.contains("count-like panel")));
+    }
+
+    #[test]
+    fn test_missing_panel_fails_integrity_check() {
+        let table = FigureSourceTable {
+            schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: env!("CARGO_PKG_VERSION").to_string(),
+            bank_version: "heuristic-bank/test".to_string(),
+            figure_id: "figure_test".to_string(),
+            plot_title: "Figure Test".to_string(),
+            generation_timestamp: "2026-03-20T10:00:00Z".to_string(),
+            expected_panel_count: 2,
+            expected_panel_ids: vec!["panel_a".to_string(), "panel_b".to_string()],
+            count_like_panel_ids: Vec::new(),
+            panel_ids: vec!["panel_a".to_string()],
+            series_ids: vec!["series_a".to_string()],
+            rows: vec![row("panel_a", "series_a", 1.0)],
+        };
+        let failures = figure_integrity_failures(
+            &table,
+            &table.expected_panel_ids,
+            &["panel_a".to_string()],
+            true,
+            true,
+            true,
+            true,
+            true,
+        );
+
+        assert!(failures
+            .iter()
+            .any(|failure| failure.contains("expected 2 panels")));
+        assert!(failures
+            .iter()
+            .any(|failure| failure.contains("expected panels [panel_a, panel_b]")));
+    }
+
+    #[test]
+    fn test_wrong_series_mapping_fails_integrity_check() {
+        let table = FigureSourceTable {
+            schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: env!("CARGO_PKG_VERSION").to_string(),
+            bank_version: "heuristic-bank/test".to_string(),
+            figure_id: "figure_test".to_string(),
+            plot_title: "Figure Test".to_string(),
+            generation_timestamp: "2026-03-20T10:00:00Z".to_string(),
+            expected_panel_count: 1,
+            expected_panel_ids: vec!["expected_panel".to_string()],
+            count_like_panel_ids: Vec::new(),
+            panel_ids: vec!["wrong_panel".to_string()],
+            series_ids: vec!["series_a".to_string()],
+            rows: vec![row("wrong_panel", "series_a", 2.0)],
+        };
+        let failures = figure_integrity_failures(
+            &table,
+            &table.expected_panel_ids,
+            &["wrong_panel".to_string()],
+            true,
+            true,
+            true,
+            true,
+            true,
+        );
+
+        assert!(failures.iter().any(|failure| failure
+            .contains("expected panels [expected_panel] but observed [wrong_panel]")));
+    }
 }

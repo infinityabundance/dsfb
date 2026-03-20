@@ -1092,7 +1092,7 @@ fn report_explains_mixed_structured_noncommitment_when_semantics_still_match() {
     let bundle = engine.run_single("oscillatory_bounded").unwrap();
     let exported = export_artifacts(&bundle).unwrap();
     let report = fs::read_to_string(exported.report_markdown).unwrap();
-    assert!(report.contains("This syntax label is conservative non-commitment at the syntax layer"));
+    assert!(report.contains("bounded-oscillatory-structured"));
     assert!(report.contains("bounded oscillatory operation candidate"));
 }
 

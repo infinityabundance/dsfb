@@ -178,14 +178,15 @@ pub fn characterize_syntax_with_coordination_configured(
         && boundary_grazing_episode_count == 0
         && residual_norm_path_monotonicity <= thresholds.oscillatory_max_path_monotonicity
         && radial_sign_persistence >= thresholds.oscillatory_min_sign_persistence
-        && balance >= 0.65
-        && mean_squared_slew_norm >= thresholds.noisy_min_mean_squared_slew;
+        && balance >= thresholds.oscillatory_min_outward_inward_balance
+        && max_slew_norm >= thresholds.oscillatory_min_max_slew_norm
+        && slew_spike_strength <= thresholds.oscillatory_max_slew_spike_strength;
     let structured_noisy_admissible = violation_count == 0
         && boundary_grazing_episode_count <= 1
         && slew_spike_count >= thresholds.noisy_min_slew_spike_count
         && mean_squared_slew_norm >= thresholds.noisy_min_mean_squared_slew
         && residual_norm_path_monotonicity < thresholds.persistent_outward_min_path_monotonicity
-        && balance >= 0.45;
+        && balance >= thresholds.noisy_min_outward_inward_balance;
 
     let trajectory_label = if coordinated_group_breach_fraction
         > thresholds.coordinated_rise_min_group_breach_fraction
@@ -215,7 +216,9 @@ pub fn characterize_syntax_with_coordination_configured(
     } else if late_slew_growth_score > thresholds.curvature_transition_min_late_slew_growth
         || (mean_squared_slew_norm > thresholds.curvature_transition_min_mean_squared_slew
             && max_slew_norm > thresholds.curvature_transition_min_max_slew_norm)
-        || (slew_spike_count > 0 && slew_spike_strength > 0.015 && max_slew_norm > 0.005)
+        || (slew_spike_count > 0
+            && slew_spike_strength > thresholds.curvature_transition_spike_strength_floor
+            && max_slew_norm > thresholds.curvature_transition_spike_norm_floor)
     {
         "curvature-rich-transition".to_string()
     } else if boundary_grazing_episode_count >= thresholds.near_boundary_min_episode_count
