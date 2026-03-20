@@ -22,8 +22,8 @@ pub use engine::pipeline::{
     export_artifacts, run_all_demos, run_scenario, EngineConfig, StructuralSemioticsEngine,
 };
 pub use engine::settings::{
-    EngineSettings, EvaluationSettings, ReportingSettings, SemanticRetrievalSettings,
-    SyntaxThresholds,
+    EngineSettings, EvaluationSettings, PlottingSettings, ReportingSettings,
+    SemanticRetrievalSettings, SyntaxThresholds,
 };
 pub use engine::types::{
     AdmissibilityEnvelope, CoordinatedResidualStructure, DetectabilityResult, EngineOutputBundle,

@@ -16,6 +16,8 @@ Heuristic-bank artifacts use the separate bank schema marker:
 
 `dsfb-semiotics-engine-bank/v1`
 
+The external-bank artifact itself is documented in [bank_schema.md](bank_schema.md).
+
 ## Stability Discipline
 
 - The crate prefers additive schema evolution over breaking rewrites.
@@ -97,6 +99,7 @@ Scenario-specific CSV files are also emitted for time series, residual, drift, s
 - Every publication-style figure is paired with a machine-readable source table.
 - `figure_12_semantic_retrieval_source.*` exports explicit typed-bank counts including post-admissibility, post-regime, pre-scope, post-scope, rejected-stage counts, and final selected count.
 - Generic `<figure-id>_source.*` tables export panel ids, panel titles, series ids, series labels, plot coordinates, figure metadata, and additive notes for the rendered plot.
+- Figure-source tables and evaluation summaries carry additive schema, engine-version, and bank-version fields so the plotted values can be tied back to the exact deterministic runtime surface.
 - `figure_integrity_checks.*` records panel counts, source row counts, emitted image presence, count-like-panel integer checks, source-file locations, and simple consistency checks for the exported figure inputs.
 - The semantic retrieval figure's middle panel now plots admissibility-qualified heuristic counts directly, not grammar boundary counts or other proxies.
 

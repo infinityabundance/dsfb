@@ -11,7 +11,7 @@ From the repository root:
 ```bash
 cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
   --scenario nominal_stable \
-  --bank-source external \
+  --bank-mode external \
   --bank-path crates/dsfb-semiotics-engine/tests/fixtures/external_bank_minimal.json \
   --strict-bank-validation
 ```

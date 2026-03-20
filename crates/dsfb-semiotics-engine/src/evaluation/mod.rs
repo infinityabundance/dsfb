@@ -22,6 +22,8 @@ pub fn evaluate_bundle(
     bank_validation: &HeuristicBankValidationReport,
     sweep_summary: Option<SweepRunSummary>,
 ) -> RunEvaluationBundle {
+    let engine_version = bundle.run_metadata.crate_version.clone();
+    let bank_version = bundle.run_metadata.bank.bank_version.clone();
     let baseline_results = compute_baseline_results(bundle, settings);
     let mut baseline_trigger_counts = BTreeMap::new();
     for result in &baseline_results {
@@ -83,6 +85,8 @@ pub fn evaluate_bundle(
 
             ScenarioEvaluationSummary {
                 schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+                engine_version: engine_version.clone(),
+                bank_version: bank_version.clone(),
                 scenario_id: scenario.record.id.clone(),
                 input_mode: bundle.run_metadata.input_mode.clone(),
                 syntax_label: scenario.syntax.trajectory_label.clone(),
@@ -147,6 +151,8 @@ pub fn evaluate_bundle(
 
     let summary = RunEvaluationSummary {
         schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        engine_version: engine_version.clone(),
+        bank_version: bank_version.clone(),
         evaluation_version: "evaluation/v1".to_string(),
         input_mode: bundle.run_metadata.input_mode.clone(),
         scenario_count: bundle.scenario_outputs.len(),
@@ -193,6 +199,8 @@ fn summarize_sweep(
         .filter_map(|scenario| {
             Some(SweepPointResult {
                 schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+                engine_version: bundle.run_metadata.crate_version.clone(),
+                bank_version: bundle.run_metadata.bank.bank_version.clone(),
                 sweep_family: scenario.record.sweep_family.clone()?,
                 scenario_id: scenario.record.id.clone(),
                 parameter_name: scenario.record.sweep_parameter_name.clone()?,
@@ -244,6 +252,8 @@ fn summarize_sweep(
         results.clone(),
         Some(SweepRunSummary {
             schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: bundle.run_metadata.crate_version.clone(),
+            bank_version: bundle.run_metadata.bank.bank_version.clone(),
             sweep_family,
             member_count: results.len(),
             unique_syntax_labels,

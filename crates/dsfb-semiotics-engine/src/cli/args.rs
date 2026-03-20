@@ -171,7 +171,8 @@ pub struct CliArgs {
     pub input_mode: Option<InputModeArg>,
 
     #[arg(
-        long,
+        long = "bank-mode",
+        alias = "bank-source",
         value_enum,
         default_value_t = BankSourceArg::Builtin,
         help = "Heuristic-bank source selection. Use `external` together with --bank-path to load a validated bank artifact instead of the compiled builtin bank."
@@ -181,7 +182,7 @@ pub struct CliArgs {
     #[arg(
         long,
         value_hint = ValueHint::FilePath,
-        help = "Path to an external heuristic-bank JSON artifact. Only valid together with --bank-source external."
+        help = "Path to an external heuristic-bank JSON artifact. Only valid together with --bank-mode external."
     )]
     pub bank_path: Option<PathBuf>,
 
@@ -421,7 +422,7 @@ impl CliArgs {
             Self::command()
                 .error(
                     clap::error::ErrorKind::MissingRequiredArgument,
-                    "--bank-source external requires --bank-path",
+                    "--bank-mode external requires --bank-path",
                 )
                 .exit();
         }
@@ -429,7 +430,7 @@ impl CliArgs {
             Self::command()
                 .error(
                     clap::error::ErrorKind::ArgumentConflict,
-                    "--bank-path is only valid together with --bank-source external",
+                    "--bank-path is only valid together with --bank-mode external",
                 )
                 .exit();
         }

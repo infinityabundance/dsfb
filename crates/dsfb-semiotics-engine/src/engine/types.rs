@@ -476,6 +476,8 @@ pub struct ReproducibilitySummary {
 pub struct RunMetadata {
     /// Additive machine-readable schema marker for exported run metadata.
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub crate_name: String,
     pub crate_version: String,
     pub rust_version: Option<String>,
@@ -498,6 +500,8 @@ pub struct RunMetadata {
 pub struct ReportManifest {
     /// Additive machine-readable schema marker for exported artifact manifests.
     pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
     pub crate_name: String,
     pub crate_version: String,
     pub timestamp: String,

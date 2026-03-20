@@ -242,8 +242,11 @@ The internal deterministic comparators are intentionally simple:
 - moving-average residual norm trend only
 - slew spike detector only
 - envelope interaction only
+- one-sided CUSUM residual-norm detector only
+- innovation-style squared residual statistic only
 
 These are internal deterministic comparators for inspection. They are not field benchmarks and they do not support superiority claims.
+They intentionally collapse structure into scalar triggers; the layered DSFB pipeline preserves syntax, grammar, and constrained semantic distinctions that these comparators do not retain.
 
 ## Heuristic Bank Governance
 
@@ -255,6 +258,7 @@ The runtime supports two deterministic bank sources:
 - external bank: loaded from a typed JSON artifact under the schema marker `dsfb-semiotics-engine-bank/v1`
 
 External-bank loading does not bypass typing or validation. The artifact is parsed into the same typed registry used by the builtin bank, then validated before the engine runs. The crate records whether the active bank came from the builtin registry or an external artifact, together with the bank version and content hash.
+The typed external-bank artifact format is documented in [docs/bank_schema.md](docs/bank_schema.md).
 
 Each run exports a validation report covering:
 
@@ -336,7 +340,7 @@ Run with an external bank artifact instead of the builtin fallback:
 ```bash
 cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
   --scenario nominal_stable \
-  --bank-source external \
+  --bank-mode external \
   --bank-path crates/dsfb-semiotics-engine/tests/fixtures/external_bank_minimal.json \
   --strict-bank-validation
 ```
