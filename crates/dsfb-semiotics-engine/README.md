@@ -356,6 +356,15 @@ cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
   --sweep-points 6
 ```
 
+Render the deterministic `ratatui` replay dashboard for one scenario:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
+  --scenario nominal_stable \
+  --dashboard-replay \
+  --dashboard-max-frames 4
+```
+
 Override the output root:
 
 ```bash
@@ -381,9 +390,10 @@ cd crates/dsfb-semiotics-engine
 just qa
 ```
 
-This executes formatting, clippy, tests, docs, snapshots, and fixed-seed property tests for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
+This executes formatting, clippy, tests, docs, snapshots, fixed-seed property tests, and dashboard replay smoke coverage for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
 Because this work is restricted to the crate directory, crate-local GitHub Actions workflow templates are provided at `.github/workflows/crate-quality-gate.yml` and `ci/github-actions-crate-quality-gate.yml` rather than installing a live repo-root workflow automatically.
 The fixed-seed property-test surface can also be run directly with `cargo test --test proptest_invariants`.
+Property budgets are controlled with `DSFB_PROPTEST_MODE=smoke|research|stress`, where the default research-grade budget is 256 cases and the high-risk dashboard/near-threshold properties use 512 cases.
 
 The crate currently ships one additive Cargo feature flag:
 
@@ -500,7 +510,9 @@ It:
 - loads the newest timestamped run
 - displays summary tables inline
 - displays all figures inline
-- surfaces the PDF report path and zip path
+- displays resolved artifact paths for debugging
+- renders one-click download links for the PDF report and ZIP bundle when those artifacts exist
+- shows a clear warning instead of a broken button when an expected artifact is missing
 
 The notebook does not reimplement the semiotic engine logic in Python.
 

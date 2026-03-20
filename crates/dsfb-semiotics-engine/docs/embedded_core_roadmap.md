@@ -8,7 +8,7 @@ The codebase is already split conceptually into:
 
 - core mathematical primitives in `src/math/`
 - deterministic engine-layer transformations in `src/engine/`
-- runtime and artifact concerns in `src/io/`, `src/figures/`, `src/report/`, and `src/cli/`
+- runtime and artifact concerns in `src/io/`, `src/figures/`, `src/report/`, `src/cli/`, and `src/dashboard/`
 
 The first two groups are the best candidates for future extraction into a smaller embedded-friendly core crate. The latter groups are intentionally `std`-bound.
 
@@ -29,6 +29,7 @@ The following concerns would remain outside that core:
 - CSV parsing and validation
 - JSON/CSV artifact writing
 - plotting and figure rendering
+- terminal dashboard rendering
 - PDF report generation
 - zip packaging
 - CLI argument parsing

@@ -60,6 +60,23 @@ fn test_example_csv_workflow_exists() {
     assert!(crate_root()
         .join("docs/examples/illustrative_csv_example.md")
         .is_file());
+    assert!(crate_root()
+        .join("docs/examples/dashboard_replay.md")
+        .is_file());
+}
+
+#[test]
+fn test_readme_mentions_dashboard_if_dashboard_added() {
+    let readme = readme_text();
+    assert!(readme.contains("--dashboard-replay"));
+    assert!(readme.contains("ratatui"));
+}
+
+#[test]
+fn test_readme_mentions_colab_download_buttons() {
+    let readme = readme_text();
+    assert!(readme.contains("one-click download links"));
+    assert!(readme.contains("PDF report and ZIP bundle"));
 }
 
 #[test]
@@ -118,4 +135,12 @@ fn test_ci_workflow_mentions_figure_integrity_or_artifact_validation() {
         fs::read_to_string(crate_root().join(".github/workflows/crate-quality-gate.yml")).unwrap();
     assert!(workflow.contains("Figure integrity smoke check"));
     assert!(workflow.contains("figure_integrity_report.json"));
+}
+
+#[test]
+fn test_ci_workflow_mentions_dashboard_smoke_if_dashboard_added() {
+    let workflow =
+        fs::read_to_string(crate_root().join(".github/workflows/crate-quality-gate.yml")).unwrap();
+    assert!(workflow.contains("Dashboard replay smoke run"));
+    assert!(workflow.contains("--dashboard-replay"));
 }
