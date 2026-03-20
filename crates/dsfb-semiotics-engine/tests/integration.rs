@@ -312,6 +312,7 @@ fn curvature_case_does_not_collapse_into_monotone_drift_semantics() {
         steps: 180,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("curvature_onset".to_string()),
     });
 
@@ -333,6 +334,7 @@ fn abrupt_event_scenario_produces_meaningful_slew_spikes() {
         steps: 180,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("abrupt_event".to_string()),
     });
 
@@ -352,6 +354,7 @@ fn grouped_correlated_scenario_produces_coordinated_semantics() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("grouped_correlated".to_string()),
     });
 
@@ -376,6 +379,7 @@ fn nominal_stable_scenario_is_labeled_as_baseline_like_without_health_claim() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("nominal_stable".to_string()),
     });
 
@@ -407,6 +411,7 @@ fn oscillatory_bounded_scenario_receives_oscillatory_semantics() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("oscillatory_bounded".to_string()),
     });
 
@@ -430,6 +435,7 @@ fn noisy_structured_scenario_receives_structured_noisy_semantics() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("noisy_structured".to_string()),
     });
 
@@ -453,6 +459,7 @@ fn outward_exit_case_receives_violation_aware_departure_semantics() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("outward_exit_case_a".to_string()),
     });
 
@@ -476,6 +483,7 @@ fn curvature_onset_scenario_receives_curvature_departure_semantics() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("curvature_onset".to_string()),
     });
 
@@ -499,6 +507,7 @@ fn regime_switch_scenario_surfaces_mixed_regime_transition_compatibly() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("regime_switch".to_string()),
     });
 
@@ -523,6 +532,7 @@ fn curvature_and_boundary_cases_keep_distinct_syntax_labels() {
         steps: 180,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("curvature_onset".to_string()),
     });
 
@@ -602,6 +612,7 @@ fn reproducibility_is_checked_for_every_selected_scenario() {
         steps: 80,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::All,
     });
 
@@ -633,6 +644,7 @@ fn artifact_bundle_contains_manifest_report_zip_and_reproducibility_schema() {
         steps: 80,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("gradual_degradation".to_string()),
     });
 
@@ -664,6 +676,7 @@ fn export_artifacts_removes_stale_known_files_before_rewriting() {
         steps: 80,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("gradual_degradation".to_string()),
     });
 
@@ -700,6 +713,7 @@ fn export_artifacts_refuses_unexpected_root_entries() {
         steps: 80,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("gradual_degradation".to_string()),
     });
 
@@ -744,6 +758,7 @@ fn csv_ingest_mode_runs_through_same_pipeline() {
         steps: 80,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Csv(input.clone()),
     });
 
@@ -935,6 +950,7 @@ fn csv_reproducibility_is_checked_and_identical() {
         steps: 80,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Csv(input.clone()),
     });
 
@@ -1001,6 +1017,7 @@ fn exported_report_mentions_projection_and_run_mode_for_csv_runs() {
         steps: 80,
         dt: 0.5,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Csv(input.clone()),
     });
 
@@ -1020,6 +1037,7 @@ fn exported_report_and_csv_include_semantic_applicability_and_provenance() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("nominal_stable".to_string()),
     });
 
@@ -1047,6 +1065,7 @@ fn report_explains_mixed_structured_noncommitment_when_semantics_still_match() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("oscillatory_bounded".to_string()),
     });
 
@@ -1065,6 +1084,7 @@ fn report_keeps_small_nonzero_metric_values_visible() {
         steps: 180,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("curvature_onset".to_string()),
     });
 
@@ -1107,6 +1127,7 @@ fn semantic_retrieval_audit_counts_are_stage_consistent() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("nominal_stable".to_string()),
     });
 
@@ -1139,6 +1160,7 @@ fn semantic_retrieval_figure_source_uses_exported_admissibility_counts() {
         steps: 240,
         dt: 1.0,
         output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
         scenario_selection: ScenarioSelection::Single("nominal_stable".to_string()),
     });
 

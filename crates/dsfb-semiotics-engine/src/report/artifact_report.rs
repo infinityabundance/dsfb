@@ -28,6 +28,25 @@ pub fn build_markdown_report(
         "Bank version: `{}`",
         bundle.evaluation.bank_validation.bank_version
     ));
+    lines.push(format!(
+        "Bank schema: `{}`",
+        bundle.run_metadata.bank.bank_schema_version
+    ));
+    lines.push(format!(
+        "Bank source: `{}`",
+        bundle.run_metadata.bank.source_kind.as_label()
+    ));
+    if let Some(source_path) = &bundle.run_metadata.bank.source_path {
+        lines.push(format!("Bank source path: `{source_path}`"));
+    }
+    lines.push(format!(
+        "Bank content hash: `{}`",
+        bundle.run_metadata.bank.content_hash
+    ));
+    lines.push(format!(
+        "Strict bank validation: `{}`",
+        bundle.run_metadata.bank.strict_validation
+    ));
     if let Some(git_commit) = &bundle.run_metadata.git_commit {
         lines.push(format!("Git commit: `{git_commit}`"));
     }
@@ -46,7 +65,7 @@ pub fn build_markdown_report(
     lines.push(
         "- Grammar: admissibility checked pointwise against `||r(t)|| <= rho(t)`.".to_string(),
     );
-    lines.push("- Semantics: constrained retrieval over a typed heuristic bank with scope conditions, admissibility requirements, regime tags, provenance notes, and compatibility rules. Compatible sets carry explicit pairwise compatibility notes, while `Unknown` carries an explicit low-evidence or bank-noncoverage detail string.".to_string());
+    lines.push("- Semantics: constrained retrieval over a typed heuristic bank with scope conditions, admissibility requirements, regime tags, provenance notes, and compatibility rules. The bank may be builtin or external, but the loaded bank version, source, content hash, and validation result are exported explicitly for audit. Compatible sets carry explicit pairwise compatibility notes, while `Unknown` carries an explicit low-evidence or bank-noncoverage detail string.".to_string());
     lines.push("- Detectability bound: `t* - t0 <= Delta0 / (alpha - kappa)` when configured assumptions hold.".to_string());
     lines.push("- Evaluation: post-run deterministic summaries and simple internal deterministic comparators (residual threshold, moving-average trend, slew spike, and envelope interaction) are reported separately from the core engine outputs.".to_string());
     lines.push(String::new());
@@ -167,12 +186,26 @@ pub fn build_markdown_report(
     lines.push("- CSV ingestion mode, when used, applies the same deterministic layers to user-supplied trajectories but does not add validation claims beyond the supplied inputs and configured envelope.".to_string());
     lines.push("- Envelope exits demonstrate detectable departure from the configured admissibility grammar, not unique identification of latent physical cause.".to_string());
     lines.push("- Heuristic semantic matches are constrained typed-bank retrieval outcomes only; they are allowed to remain explicit compatible sets, ambiguous, or unknown.".to_string());
+    lines.push("- Builtin-bank and external-bank runs may differ when the bank artifact version, content, or validation policy differs. The run metadata records which bank was used.".to_string());
+    lines.push("- The current crate is not `no_std` and is not packaged for direct embedded deployment. A future embedded-core extraction path is documented separately.".to_string());
     lines.push("- No certification claim is made. The artifact is aligned with deterministic and auditable engineering evaluation logic only.".to_string());
     lines.push(String::new());
     lines.push("## Manifest Summary".to_string());
     lines.push(String::new());
     lines.push(format!("- Run directory: `{}`", manifest.run_dir));
     lines.push(format!("- Manifest schema: `{}`", manifest.schema_version));
+    lines.push(format!(
+        "- Manifest bank source: `{}`",
+        manifest.bank.source_kind.as_label()
+    ));
+    lines.push(format!(
+        "- Manifest bank version: `{}`",
+        manifest.bank.bank_version
+    ));
+    lines.push(format!(
+        "- Manifest bank content hash: `{}`",
+        manifest.bank.content_hash
+    ));
     lines.push(format!("- Figure files: {}", manifest.figure_paths.len()));
     lines.push(format!("- CSV files: {}", manifest.csv_paths.len()));
     lines.push(format!("- JSON files: {}", manifest.json_paths.len()));

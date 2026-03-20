@@ -12,6 +12,20 @@ pub const DEFAULT_STEPS: usize = 240;
 /// Default sample interval used by the crate when no override is supplied.
 pub const DEFAULT_DT: f64 = 1.0;
 
+/// Typed bank source selection used by deterministic runs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BankSourceConfig {
+    Builtin,
+    External(PathBuf),
+}
+
+/// Deterministic heuristic-bank loading policy shared by synthetic and CSV-driven runs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BankRunConfig {
+    pub source: BankSourceConfig,
+    pub strict_validation: bool,
+}
+
 /// Common engine settings shared by synthetic and CSV-driven runs.
 #[derive(Clone, Debug)]
 pub struct CommonRunConfig {
@@ -19,6 +33,7 @@ pub struct CommonRunConfig {
     pub steps: usize,
     pub dt: f64,
     pub output_root: Option<PathBuf>,
+    pub bank: BankRunConfig,
 }
 
 /// Explicit synthetic selection for library consumers who do not want to manipulate CLI enums.
@@ -49,6 +64,7 @@ impl Default for CommonRunConfig {
             steps: DEFAULT_STEPS,
             dt: DEFAULT_DT,
             output_root: None,
+            bank: BankRunConfig::default(),
         }
     }
 }
@@ -65,7 +81,50 @@ impl CommonRunConfig {
                 self.dt
             ));
         }
+        self.bank.validate()?;
         Ok(())
+    }
+}
+
+impl Default for BankRunConfig {
+    fn default() -> Self {
+        Self {
+            source: BankSourceConfig::Builtin,
+            strict_validation: false,
+        }
+    }
+}
+
+impl BankRunConfig {
+    /// Returns a deterministic built-in bank selection.
+    #[must_use]
+    pub fn builtin() -> Self {
+        Self::default()
+    }
+
+    /// Returns a deterministic external-bank selection.
+    #[must_use]
+    pub fn external(path: PathBuf, strict_validation: bool) -> Self {
+        Self {
+            source: BankSourceConfig::External(path),
+            strict_validation,
+        }
+    }
+
+    /// Validates the bank-loading request without touching the filesystem.
+    pub fn validate(&self) -> Result<()> {
+        match &self.source {
+            BankSourceConfig::Builtin => Ok(()),
+            BankSourceConfig::External(path) => {
+                if path.as_os_str().is_empty() {
+                    Err(anyhow!(
+                        "external bank loading requires a non-empty bank path"
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+        }
     }
 }
 
@@ -127,6 +186,7 @@ impl From<SyntheticRunConfig> for EngineConfig {
             steps: value.common.steps,
             dt: value.common.dt,
             output_root: value.common.output_root,
+            bank: value.common.bank,
             scenario_selection,
         }
     }
@@ -139,6 +199,7 @@ impl From<CsvRunConfig> for EngineConfig {
             steps: value.common.steps,
             dt: value.common.dt,
             output_root: value.common.output_root,
+            bank: value.common.bank,
             scenario_selection: ScenarioSelection::Csv(value.input),
         }
     }

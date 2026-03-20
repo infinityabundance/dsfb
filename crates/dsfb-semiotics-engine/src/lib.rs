@@ -11,9 +11,12 @@ pub mod report;
 pub mod sim;
 
 pub use cli::args::{CliArgs, ScenarioSelection};
+pub use engine::bank::{
+    BankSourceKind, HeuristicBankRegistry, HeuristicBankValidationReport, LoadedBankDescriptor,
+};
 pub use engine::config::{
-    CommonRunConfig, CsvRunConfig, SyntheticRunConfig, SyntheticSelection, DEFAULT_DT,
-    DEFAULT_SEED, DEFAULT_STEPS,
+    BankRunConfig, BankSourceConfig, CommonRunConfig, CsvRunConfig, SyntheticRunConfig,
+    SyntheticSelection, DEFAULT_DT, DEFAULT_SEED, DEFAULT_STEPS,
 };
 pub use engine::pipeline::{
     export_artifacts, run_all_demos, run_scenario, EngineConfig, StructuralSemioticsEngine,
@@ -27,4 +30,4 @@ pub use engine::types::{
     GrammarStatus, ObservedTrajectory, PredictedTrajectory, ReportManifest, ResidualTrajectory,
     SemanticMatchResult, SignTrajectory,
 };
-pub use io::schema::ARTIFACT_SCHEMA_VERSION;
+pub use io::schema::{ARTIFACT_SCHEMA_VERSION, HEURISTIC_BANK_SCHEMA_VERSION};

@@ -12,6 +12,10 @@ This marker appears in:
 - artifact completeness records
 - selected CSV summaries where a schema column is appropriate
 
+Heuristic-bank artifacts use the separate bank schema marker:
+
+`dsfb-semiotics-engine-bank/v1`
+
 ## Stability Discipline
 
 - The crate prefers additive schema evolution over breaking rewrites.
@@ -23,6 +27,8 @@ This marker appears in:
 
 - `run_metadata.json`
   Run provenance, crate version, Rust version when available, input mode, CLI args, and deterministic engine settings.
+- `loaded_heuristic_bank_descriptor.json`
+  Resolved bank provenance for the run, including bank schema version, bank version, source kind, optional source path, content hash, and strict-validation mode.
 - `scenario_catalog.json`
   Scenario metadata for synthetic, CSV-driven, or sweep members.
 - `scenario_outputs.json`
@@ -40,7 +46,7 @@ This marker appears in:
 - `semantic_matches.json`
   Standalone semantic retrieval results, including explicit stage-wise heuristic filtering counts.
 - `heuristic_bank_validation.json`
-  Built-in heuristic bank governance and validation summary.
+  Heuristic-bank governance and validation summary for the builtin or external bank selected for the run.
 - `artifact_completeness.json`
   Export completeness check recorded after artifact generation.
 - `<figure-id>_source.json`
@@ -99,3 +105,4 @@ Scenario-specific CSV files are also emitted for time series, residual, drift, s
 - Schema stability is computational and contractual, not a claim of field validity.
 - Evaluation outputs summarize deterministic engine behavior and internal deterministic comparators only.
 - Semantic outputs remain typed retrieval summaries, not unique latent-cause recovery.
+- External-bank loading preserves the typed registry contract. It changes the active bank content only when the caller selects a different validated bank artifact.

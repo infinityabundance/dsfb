@@ -15,6 +15,7 @@ fn main() -> Result<()> {
         steps: args.steps,
         dt: args.dt,
         output_root: args.output_dir.clone(),
+        bank: args.bank_config(),
     };
     let config = match selection.clone() {
         ScenarioSelection::All => EngineConfig::synthetic_all(common),
@@ -33,6 +34,11 @@ fn main() -> Result<()> {
     println!("zip_archive={}", exported.zip_path.display());
     println!("scenario_count={}", bundle.scenario_outputs.len());
     println!("input_mode={}", bundle.run_metadata.input_mode);
+    println!(
+        "bank_source={}",
+        bundle.run_metadata.bank.source_kind.as_label()
+    );
+    println!("bank_version={}", bundle.run_metadata.bank.bank_version);
 
     if args.output_dir.is_some() {
         println!("output_root_override=true");
