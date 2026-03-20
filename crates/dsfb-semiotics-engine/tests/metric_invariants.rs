@@ -1,3 +1,8 @@
+use dsfb_semiotics_engine::engine::grammar_layer::evaluate_grammar_layer;
+use dsfb_semiotics_engine::engine::types::{
+    AdmissibilityEnvelope, EnvelopeMode, EnvelopeSample, ResidualSample, ResidualTrajectory,
+};
+use dsfb_semiotics_engine::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 use dsfb_semiotics_engine::math::metrics::{
     euclidean_norm, hash_serializable_hex, project_sign, residual_norm_path_monotonicity,
     scalar_derivative, sign_with_deadband, trend_aligned_increment_fraction,
@@ -58,4 +63,87 @@ fn scalar_derivative_is_constant_for_linear_path() {
 fn monotonicity_score_stays_within_unit_interval() {
     let score = residual_norm_path_monotonicity(&[0.0, 1.0, 0.5, 1.5, 1.0]);
     assert!((0.0..=1.0).contains(&score));
+}
+
+#[test]
+fn short_trajectories_keep_drift_and_slew_finite() {
+    let one_step = ResidualTrajectory {
+        scenario_id: "one_step".to_string(),
+        channel_names: vec!["x".to_string()],
+        samples: vec![ResidualSample {
+            step: 0,
+            time: 0.0,
+            values: vec![1.0],
+            norm: 1.0,
+        }],
+    };
+    let two_step = ResidualTrajectory {
+        scenario_id: "two_step".to_string(),
+        channel_names: vec!["x".to_string()],
+        samples: vec![
+            ResidualSample {
+                step: 0,
+                time: 0.0,
+                values: vec![1.0],
+                norm: 1.0,
+            },
+            ResidualSample {
+                step: 1,
+                time: 1.0,
+                values: vec![1.5],
+                norm: 1.5,
+            },
+        ],
+    };
+
+    for residual in [one_step, two_step] {
+        let drift = compute_drift_trajectory(&residual, 1.0, &residual.scenario_id);
+        let slew = compute_slew_trajectory(&residual, 1.0, &residual.scenario_id);
+
+        assert!(drift.samples.iter().all(|sample| sample.norm.is_finite()));
+        assert!(slew.samples.iter().all(|sample| sample.norm.is_finite()));
+        assert!(slew
+            .samples
+            .iter()
+            .all(|sample| sample.norm.abs() <= 1.0e-12));
+    }
+}
+
+#[test]
+fn boundary_only_path_stays_boundary_without_violation() {
+    let residual = ResidualTrajectory {
+        scenario_id: "boundary_only".to_string(),
+        channel_names: vec!["x".to_string()],
+        samples: (0..4)
+            .map(|step| ResidualSample {
+                step,
+                time: step as f64,
+                values: vec![0.98],
+                norm: 0.98,
+            })
+            .collect(),
+    };
+    let envelope = AdmissibilityEnvelope {
+        scenario_id: "boundary_only".to_string(),
+        name: "fixed_boundary".to_string(),
+        mode: EnvelopeMode::Fixed,
+        samples: (0..4)
+            .map(|step| EnvelopeSample {
+                step,
+                time: step as f64,
+                radius: 1.0,
+                derivative_bound: 0.0,
+                regime: "fixed".to_string(),
+            })
+            .collect(),
+    };
+
+    let grammar = evaluate_grammar_layer(&residual, &envelope);
+    assert_eq!(grammar.len(), 4);
+    assert!(grammar.iter().all(|status| {
+        matches!(
+            status.state,
+            dsfb_semiotics_engine::engine::types::GrammarState::Boundary
+        )
+    }));
 }

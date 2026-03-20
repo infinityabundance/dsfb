@@ -257,7 +257,7 @@ The runtime supports two deterministic bank sources:
 - builtin bank: compiled into the crate for offline reference runs and tests
 - external bank: loaded from a typed JSON artifact under the schema marker `dsfb-semiotics-engine-bank/v1`
 
-External-bank loading does not bypass typing or validation. The artifact is parsed into the same typed registry used by the builtin bank, then validated before the engine runs. The crate records whether the active bank came from the builtin registry or an external artifact, together with the bank version and content hash.
+External-bank loading does not bypass typing or validation. The artifact is parsed into the same typed registry used by the builtin bank, normalized deterministically after parse, and then validated before the engine runs. The crate records whether the active bank came from the builtin registry or an external artifact, together with the bank version, content hash, and validation mode.
 The typed external-bank artifact format is documented in [docs/bank_schema.md](docs/bank_schema.md).
 
 Each run exports a validation report covering:
@@ -266,15 +266,18 @@ Each run exports a validation report covering:
 - bank schema version
 - bank source kind and optional source path
 - bank content hash
+- validation mode (`strict` or `permissive`)
 - duplicate heuristic ID detection
 - unknown compatibility-link targets
 - self-link detection
 - compatibility / incompatibility overlap detection
 - missing provenance text
+- empty or duplicated regime-tag notes
+- retrieval-priority sanity notes
 - scope-condition sanity notes
 - optional strict-mode symmetry failures for compatibility and incompatibility links
 
-Compatibility gaps are exported explicitly as review notes. They do not silently disappear into retrieval behavior.
+Compatibility gaps are exported explicitly as review notes. They do not silently disappear into retrieval behavior. Strict mode is appropriate for reference runs and release-grade artifacts; permissive mode is primarily useful while authoring or reviewing new bank content because it preserves the same validation report while allowing the run to proceed.
 
 ## Sweep Mode
 
@@ -416,7 +419,7 @@ Each run emits:
 The zip archive contains the generated run directory contents for convenient download.
 The PDF report embeds the generated figure PNG artifacts and appends a deterministic artifact appendix covering the exported markdown, manifest, CSV, and JSON text artifacts.
 Artifact export treats the timestamped run directory as owned scratch space: expected artifact subdirectories are cleaned before rewriting, and unexpected root-level files cause the export to fail rather than silently mixing stale results into a purportedly fresh run.
-Both `run_metadata.json` and `manifest.json` carry the additive schema marker `dsfb-semiotics-engine/v1` so downstream review tooling can check the exported contract explicitly.
+Both `run_metadata.json` and `manifest.json` carry the additive schema marker `dsfb-semiotics-engine/v1` so downstream review tooling can check the exported contract explicitly. They also export a deterministic `run_configuration_hash` alongside the explicit settings dump and bank provenance.
 Heuristic-bank artifacts use the separate schema marker `dsfb-semiotics-engine-bank/v1`, and the resolved bank descriptor is exported at `json/loaded_heuristic_bank_descriptor.json`.
 
 Additional evaluation artifacts include:
@@ -449,7 +452,7 @@ Additional evaluation artifacts include:
 - `csv/figure_14_sweep_stability_source.csv` and `json/figure_14_sweep_stability_source.json` for sweep runs
 
 A schema overview is provided in [`docs/schema.md`](docs/schema.md).
-Bank-artifact notes are summarized in [`docs/schema.md`](docs/schema.md), and future embedded-core extraction notes are recorded in [`docs/embedded_core_roadmap.md`](docs/embedded_core_roadmap.md).
+Bank-artifact notes are summarized in [`docs/bank_schema.md`](docs/bank_schema.md), and future embedded-core extraction notes are recorded in [`docs/embedded_core_roadmap.md`](docs/embedded_core_roadmap.md).
 
 ## Figure Suite
 

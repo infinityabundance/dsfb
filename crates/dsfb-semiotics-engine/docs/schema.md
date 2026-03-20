@@ -30,7 +30,7 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
 - `run_metadata.json`
   Run provenance, crate version, Rust version when available, input mode, CLI args, and deterministic engine settings.
 - `loaded_heuristic_bank_descriptor.json`
-  Resolved bank provenance for the run, including bank schema version, bank version, source kind, optional source path, content hash, and strict-validation mode.
+  Resolved bank provenance for the run, including bank schema version, bank version, source kind, optional source path, content hash, and validation mode.
 - `scenario_catalog.json`
   Scenario metadata for synthetic, CSV-driven, or sweep members.
 - `scenario_outputs.json`
@@ -100,6 +100,7 @@ Scenario-specific CSV files are also emitted for time series, residual, drift, s
 - `figure_12_semantic_retrieval_source.*` exports explicit typed-bank counts including post-admissibility, post-regime, pre-scope, post-scope, rejected-stage counts, and final selected count.
 - Generic `<figure-id>_source.*` tables export panel ids, panel titles, series ids, series labels, plot coordinates, figure metadata, and additive notes for the rendered plot.
 - Figure-source tables and evaluation summaries carry additive schema, engine-version, and bank-version fields so the plotted values can be tied back to the exact deterministic runtime surface.
+- `run_metadata.json` and `manifest.json` also export a deterministic `run_configuration_hash` so the settings surface can be referenced compactly in downstream audit tooling.
 - `figure_integrity_checks.*` records panel counts, source row counts, emitted image presence, count-like-panel integer checks, source-file locations, and simple consistency checks for the exported figure inputs.
 - The semantic retrieval figure's middle panel now plots admissibility-qualified heuristic counts directly, not grammar boundary counts or other proxies.
 
