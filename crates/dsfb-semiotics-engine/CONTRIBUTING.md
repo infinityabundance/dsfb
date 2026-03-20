@@ -55,3 +55,13 @@ When changing outputs:
 - preserve existing bundle structure unless a change is additive and justified
 - keep JSON/CSV field ordering and naming stable where possible
 - update README and report wording in the same change so code and documentation remain aligned
+
+## Snapshot Workflow
+
+Snapshot tests are intentionally small and human-readable. Refresh them only when a change is intentional and reviewed:
+
+```bash
+DSFB_UPDATE_SNAPSHOTS=1 cargo test --manifest-path Cargo.toml --test snapshots
+```
+
+Then inspect the updated files under `tests/snapshots/` before committing them.

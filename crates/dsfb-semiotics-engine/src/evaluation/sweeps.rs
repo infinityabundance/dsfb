@@ -20,6 +20,7 @@ pub enum SweepFamily {
 }
 
 impl SweepFamily {
+    /// Returns the stable exported identifier used in CLI values and sweep artifacts.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::GradualDriftSlope => "gradual_drift_slope",
@@ -57,6 +58,7 @@ pub struct SweepMemberDefinition {
 }
 
 impl SweepConfig {
+    /// Normalizes a sweep request against deterministic evaluation defaults.
     pub fn normalized(&self, settings: &EvaluationSettings) -> Self {
         Self {
             family: self.family,
@@ -70,6 +72,7 @@ impl SweepConfig {
     }
 }
 
+/// Generates deterministic synthetic sweep members for the requested family.
 pub fn generate_sweep_members(
     config: &SweepConfig,
     steps: usize,

@@ -1,9 +1,14 @@
 use std::collections::BTreeMap;
+use std::fs;
+use std::path::PathBuf;
 
 use serde::Serialize;
+use tempfile::tempdir;
 
 use dsfb_semiotics_engine::engine::config::CommonRunConfig;
-use dsfb_semiotics_engine::engine::pipeline::{EngineConfig, StructuralSemioticsEngine};
+use dsfb_semiotics_engine::engine::pipeline::{
+    export_artifacts, EngineConfig, StructuralSemioticsEngine,
+};
 
 #[derive(Serialize)]
 struct CanonicalScenarioSnapshot {
@@ -18,6 +23,22 @@ struct CanonicalSnapshot {
     input_mode: String,
     evaluation_dispositions: BTreeMap<String, usize>,
     scenarios: Vec<CanonicalScenarioSnapshot>,
+}
+
+fn snapshot_path(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("snapshots")
+        .join(name)
+}
+
+fn assert_snapshot(name: &str, actual: &str) {
+    let path = snapshot_path(name);
+    if std::env::var_os("DSFB_UPDATE_SNAPSHOTS").is_some() {
+        fs::write(&path, format!("{actual}\n")).unwrap();
+    }
+    let expected = fs::read_to_string(path).unwrap();
+    assert_eq!(actual, expected.trim_end());
 }
 
 #[test]
@@ -51,7 +72,30 @@ fn canonical_snapshot_remains_stable() {
         scenarios,
     };
     let actual = serde_json::to_string_pretty(&snapshot).unwrap();
-    let expected = include_str!("snapshots/canonical_snapshot.json");
 
-    assert_eq!(actual, expected.trim_end());
+    assert_snapshot("canonical_snapshot.json", &actual);
+}
+
+#[test]
+fn canonical_csv_exports_remain_stable() {
+    let temp = tempdir().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_single(
+        CommonRunConfig {
+            output_root: Some(temp.path().join("artifacts")),
+            ..Default::default()
+        },
+        "nominal_stable",
+    ));
+    let bundle = engine.run_selected().unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let evaluation_summary =
+        fs::read_to_string(exported.run_dir.join("csv/evaluation_summary.csv")).unwrap();
+    let semantic_matches =
+        fs::read_to_string(exported.run_dir.join("csv/semantic_matches.csv")).unwrap();
+
+    assert_snapshot(
+        "nominal_evaluation_summary.csv",
+        evaluation_summary.trim_end(),
+    );
+    assert_snapshot("nominal_semantic_matches.csv", semantic_matches.trim_end());
 }

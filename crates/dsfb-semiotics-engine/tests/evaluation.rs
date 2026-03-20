@@ -28,6 +28,19 @@ fn bank_registry_duplicate_detection_is_explicit() {
 }
 
 #[test]
+fn builtin_bank_registry_has_no_self_links_or_overlap() {
+    let registry = HeuristicBankRegistry::builtin();
+
+    for entry in &registry.entries {
+        assert!(!entry.compatible_with.contains(&entry.heuristic_id));
+        assert!(!entry.incompatible_with.contains(&entry.heuristic_id));
+        for target in &entry.compatible_with {
+            assert!(!entry.incompatible_with.contains(target));
+        }
+    }
+}
+
+#[test]
 fn evaluation_summary_and_baselines_cover_every_scenario() {
     let temp = tempdir().unwrap();
     let engine = StructuralSemioticsEngine::new(EngineConfig::synthetic_all(CommonRunConfig {

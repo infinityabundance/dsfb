@@ -47,6 +47,14 @@ fn scalar_derivative_is_zero_for_constant_path() {
 }
 
 #[test]
+fn scalar_derivative_is_constant_for_linear_path() {
+    let derivative = scalar_derivative(&[1.0, 3.0, 5.0, 7.0], &[0.0, 1.0, 2.0, 3.0]);
+    assert!(derivative
+        .iter()
+        .all(|value| (*value - 2.0).abs() <= 1.0e-12));
+}
+
+#[test]
 fn monotonicity_score_stays_within_unit_interval() {
     let score = residual_norm_path_monotonicity(&[0.0, 1.0, 0.5, 1.5, 1.0]);
     assert!((0.0..=1.0).contains(&score));

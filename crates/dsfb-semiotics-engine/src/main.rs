@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use anyhow::Result;
 use dsfb_semiotics_engine::cli::args::{CliArgs, ScenarioSelection};
 use dsfb_semiotics_engine::engine::config::CommonRunConfig;
