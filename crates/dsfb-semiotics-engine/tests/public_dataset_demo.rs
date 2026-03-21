@@ -126,6 +126,20 @@ fn test_dataset_fetch_script_exists() {
 }
 
 #[test]
+fn test_public_dataset_committed_raw_summary_cache_exists() {
+    for dataset in ["nasa_milling", "nasa_bearings"] {
+        assert!(crate_root()
+            .join("data/public_dataset/raw")
+            .join(format!("{dataset}_raw_summary.csv"))
+            .is_file());
+        assert!(crate_root()
+            .join("data/public_dataset/raw")
+            .join(format!("{dataset}_source_metadata.json"))
+            .is_file());
+    }
+}
+
+#[test]
 fn test_dataset_fetch_script_runs() {
     ensure_fetch_ran();
 }
