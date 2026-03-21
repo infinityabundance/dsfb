@@ -2,12 +2,14 @@ use crate::engine::types::{
     DetectabilityBoundInputs, DetectabilityResult, GrammarState, GrammarStatus, ResidualTrajectory,
 };
 
+// TRACE:ALGORITHM:ALG-FIRST-EXIT:First envelope exit detection:Finds the earliest grammar violation sample used by detectability reporting.
 pub fn first_exit_index(grammar: &[GrammarStatus]) -> Option<usize> {
     grammar
         .iter()
         .position(|status| matches!(status.state, GrammarState::Violation))
 }
 
+// TRACE:THEOREM:THM-DETECTABILITY-BOUND:Configured detectability upper bound:Computes theorem-aligned exit-time summaries when explicit bound assumptions are attached.
 pub fn compute_detectability_result(
     scenario_id: &str,
     residual: &ResidualTrajectory,

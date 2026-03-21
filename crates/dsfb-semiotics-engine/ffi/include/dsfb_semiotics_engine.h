@@ -74,10 +74,16 @@ typedef struct EngineHandle EngineHandle;
 EngineHandle *dsfb_semiotics_engine_create(size_t history_buffer_capacity,
                                            double envelope_radius,
                                            double dt);
+EngineHandle *dsfb_semiotics_engine_create_with_channels(
+    size_t history_buffer_capacity, size_t channel_count, double envelope_radius,
+    double dt);
 void dsfb_semiotics_engine_destroy(EngineHandle *handle);
 DsfbFfiResult dsfb_semiotics_engine_push_sample(EngineHandle *handle,
                                                 double time,
                                                 double residual_value);
+DsfbFfiResult dsfb_semiotics_engine_push_sample_batch(
+    EngineHandle *handle, const double *times, const double *residual_values,
+    size_t sample_count);
 DsfbFfiResult dsfb_semiotics_engine_current_status(const EngineHandle *handle,
                                                    DsfbCurrentStatus *out_status);
 DsfbFfiResult dsfb_semiotics_engine_current_trust_scalar(

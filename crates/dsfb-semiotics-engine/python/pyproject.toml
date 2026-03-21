@@ -1,0 +1,12 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "dsfb_engine"
+version = "0.1.0"
+description = "PyO3 bindings for the deterministic DSFB semiotics engine"
+requires-python = ">=3.8"
+
+[tool.maturin]
+module-name = "dsfb_engine"

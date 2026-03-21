@@ -36,6 +36,7 @@ pub enum ScenarioKind {
     NoisyStructured,
     MagnitudeMatchedAdmissible,
     MagnitudeMatchedDetectable,
+    ImuThermalDriftGpsDenied,
 }
 
 #[derive(Clone, Debug)]
@@ -65,6 +66,7 @@ pub fn all_scenarios() -> Vec<ScenarioDefinition> {
         scenario_noisy_structured(),
         scenario_magnitude_matched_admissible(),
         scenario_magnitude_matched_detectable(),
+        scenario_imu_thermal_drift_gps_denied(),
     ]
 }
 
@@ -452,6 +454,37 @@ fn scenario_magnitude_matched_detectable() -> ScenarioDefinition {
             kappa: 0.0004,
             delta0: 0.19,
         }),
+        groups: Vec::new(),
+        aggregate_envelope_spec: None,
+    }
+}
+
+fn scenario_imu_thermal_drift_gps_denied() -> ScenarioDefinition {
+    ScenarioDefinition {
+        kind: ScenarioKind::ImuThermalDriftGpsDenied,
+        record: record(
+            "imu_thermal_drift_gps_denied",
+            "IMU Thermal Drift Under GPS-Denied Blackout",
+            "Synthetic three-axis IMU residual story for A-PNT-oriented review: a GPS blackout window, slow thermal bias growth on one axis, low-level noise on the others, and an abrupt navigation-mode switch event.",
+            "Residual units are inherited here as angular-rate residuals in rad/s, with drift and slew therefore interpreted in rad/s^2 and rad/s^3. The scenario is synthetic and physically motivated, not field validation.",
+            ClaimClass::IllustrativeExample,
+            "Expected outputs are structural only: persistent outward migration on the drifting axis, an abrupt switch-compatible event near the mode-change pulse, and conservative semantics that may remain ambiguous depending on the configured bank.",
+        ),
+        channels: vec![
+            "imu_x_rad_s".to_string(),
+            "imu_y_rad_s".to_string(),
+            "imu_z_rad_s".to_string(),
+        ],
+        envelope_spec: EnvelopeSpec {
+            name: "imu_gps_denied_blackout".to_string(),
+            mode: EnvelopeMode::Fixed,
+            base_radius: 0.045,
+            slope: 0.0,
+            switch_step: None,
+            secondary_slope: None,
+            secondary_base: None,
+        },
+        detectability_inputs: None,
         groups: Vec::new(),
         aggregate_envelope_spec: None,
     }

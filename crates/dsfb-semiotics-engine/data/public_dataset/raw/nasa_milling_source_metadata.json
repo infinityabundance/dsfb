@@ -1,0 +1,9 @@
+{
+  "dataset": "nasa_milling",
+  "source_url": "https://phm-datasets.s3.amazonaws.com/NASA/3.+Milling.zip",
+  "source_archive": "data/public_dataset/source/nasa_milling.zip",
+  "source_sha256": "bdba8d52ec1a1baab24c2be58480e6ac62508c8cc1f8219f47ebde8fc9ebc474",
+  "raw_summary_csv": "data/public_dataset/raw/nasa_milling_raw_summary.csv",
+  "record_count": 23,
+  "selection_note": "NASA Milling case 11 only. Each retained record is one machining run collapsed into deterministic RMS features for vibration, AE, and spindle-current traces."
+}

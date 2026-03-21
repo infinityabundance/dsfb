@@ -1,0 +1,17 @@
+{
+  "schema_version": "dsfb-semiotics-public-dataset-demo/v1",
+  "dataset": "nasa_bearings",
+  "dataset_label": "NASA Bearings",
+  "source_url": "https://phm-datasets.s3.amazonaws.com/NASA/4.+Bearings.zip",
+  "source_archive": "data/public_dataset/source/nasa_bearings.zip",
+  "raw_summary_csv": "data/public_dataset/raw/nasa_bearings_raw_summary.csv",
+  "processed_observed_csv": "data/processed/nasa_bearings/observed.csv",
+  "processed_predicted_csv": "data/processed/nasa_bearings/predicted.csv",
+  "replay_events_csv": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_bearings/generated/2026-03-21_09-11-54/replay/replay_events.csv",
+  "replay_events_json": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_bearings/generated/2026-03-21_09-11-54/replay/replay_events.json",
+  "replay_ascii": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_bearings/generated/2026-03-21_09-11-54/replay/replay_ascii.txt",
+  "manifest_json": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_bearings/generated/2026-03-21_09-11-54/manifest.json",
+  "report_pdf": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_bearings/generated/2026-03-21_09-11-54/report/dsfb_semiotics_engine_report.pdf",
+  "zip_archive": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_bearings/generated/2026-03-21_09-11-54/dsfb-semiotics-engine-2026-03-21_09-11-54.zip",
+  "first_png": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_bearings/generated/2026-03-21_09-11-54/figures/figure_01_residual_prediction_observation_overview.png"
+}

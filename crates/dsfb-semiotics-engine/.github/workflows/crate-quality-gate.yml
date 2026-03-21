@@ -40,13 +40,32 @@ jobs:
       - name: Cargo doc
         run: cargo doc --no-deps
 
+      - name: Traceability freshness check
+        run: cargo run --bin dsfb-traceability -- --check
+
       - name: numeric-f32 compile smoke
         run: cargo check --features numeric-f32
+
+      - name: numeric-fixed compile smoke
+        run: cargo check --features numeric-fixed
+
+      - name: Timing determinism report smoke
+        run: cargo run --bin dsfb-timing-determinism -- --iterations 48 --warmup 8 --output-md ci-timing-determinism.md --output-json ci-timing-determinism.json
+
+      - name: Proof harness presence check
+        run: test -f proofs/kani/trust_scalar.rs
+
+      - name: cargo-deny and cargo-audit guidance
+        run: |
+          echo "cargo deny check"
+          echo "cargo audit"
 
       - name: FFI smoke compile
         run: |
           cc -c ffi/examples/minimal_ffi.c -I ffi/include -o /tmp/dsfb_semiotics_engine_ffi.o
+          cc -c ffi/examples/batch_ffi.c -I ffi/include -o /tmp/dsfb_semiotics_engine_ffi_batch.o
           c++ -c ffi/examples/minimal_ffi.cpp -I ffi/include -o /tmp/dsfb_semiotics_engine_ffi_cpp.o
+          c++ -std=c++17 -c ffi/examples/minimal_cpp_wrapper.cpp -I ffi/include -o /tmp/dsfb_semiotics_engine_cpp_wrapper.o
 
       - name: Synthetic smoke run
         run: cargo run -- --scenario nominal_stable --output-dir ci-smoke-synthetic
@@ -62,6 +81,15 @@ jobs:
 
       - name: Dashboard replay smoke run
         run: cargo run -- --scenario nominal_stable --dashboard-replay --dashboard-max-frames 1 --output-dir ci-smoke-dashboard
+
+      - name: Dashboard CSV replay smoke run
+        run: cargo run -- --input-mode csv --observed-csv tests/fixtures/observed_fixture.csv --predicted-csv tests/fixtures/predicted_fixture.csv --scenario-id fixture_csv --time-column time --dashboard-replay-csv --dashboard-max-frames 1 --output-dir ci-smoke-dashboard-csv
+
+      - name: Forensics CLI smoke run
+        run: cargo run --bin dsfb-forensics-gen -- --observed-csv tests/fixtures/observed_fixture.csv --predicted-csv tests/fixtures/predicted_fixture.csv --scenario-id fixture_csv --time-column time --output-dir ci-smoke-forensics
+
+      - name: NASA public dataset demo smoke run
+        run: cargo run --bin dsfb-public-dataset-demo -- --dataset nasa_milling --dataset nasa_bearings --phase all
 
       - name: Figure integrity smoke check
         run: |

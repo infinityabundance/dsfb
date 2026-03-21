@@ -1,0 +1,9 @@
+{
+  "dataset": "nasa_bearings",
+  "source_url": "https://phm-datasets.s3.amazonaws.com/NASA/4.+Bearings.zip",
+  "source_archive": "data/public_dataset/source/nasa_bearings.zip",
+  "source_sha256": "21001ac266c465f5d345ec42d7b508c6a6328487fd9d4d7774422dd5ea10ad83",
+  "raw_summary_csv": "data/public_dataset/raw/nasa_bearings_raw_summary.csv",
+  "record_count": 64,
+  "selection_note": "NASA IMS bearings set 1 only. The summary uses the last 64 one-second snapshots from 1st_test, collapsed into RMS and kurtosis features for the failing bearing 3 and bearing 4 channel groups (channels 5-8 in the IMS readme)."
+}

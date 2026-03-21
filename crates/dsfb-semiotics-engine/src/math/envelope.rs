@@ -64,6 +64,7 @@ impl EnvelopeSpec {
         Ok(())
     }
 
+    // TRACE:DEFINITION:DEF-ENVELOPE-RADIUS:Admissibility envelope radius:Maps configured envelope mode to per-sample radius, derivative bound, and regime label.
     pub fn radius_at(&self, step: usize, time: f64) -> (f64, f64, String) {
         match self.mode {
             EnvelopeMode::Fixed => (self.base_radius, 0.0, "fixed".to_string()),
@@ -107,6 +108,7 @@ impl EnvelopeSpec {
     }
 }
 
+// TRACE:ALGORITHM:ALG-ENVELOPE-BUILD:Envelope materialization:Builds the typed admissibility envelope trajectory used by grammar evaluation.
 pub fn build_envelope(
     residual: &ResidualTrajectory,
     spec: &EnvelopeSpec,
@@ -135,6 +137,7 @@ pub fn build_envelope(
     }
 }
 
+// TRACE:ALGORITHM:ALG-GRAMMAR-EVALUATION:Admissibility grammar evaluation:Assigns admissible, boundary, and violation states with typed reason codes and supporting metrics.
 pub fn evaluate_grammar(
     residual: &ResidualTrajectory,
     envelope: &AdmissibilityEnvelope,
@@ -231,6 +234,7 @@ pub fn evaluate_grammar(
         .collect()
 }
 
+// TRACE:CLAIM:CLM-TRUST-SEVERITY-MAPPING:Trust scalar from grammar severity:Maps grammar reason and envelope gap to a bounded deterministic trust scalar.
 fn trust_scalar_for(
     reason_code: GrammarReasonCode,
     margin: f64,

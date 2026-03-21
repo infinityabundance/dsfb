@@ -280,6 +280,7 @@ fn test_smoothed_constant_signal_preserves_zero_drift() {
         &SmoothingSettings {
             mode: SmoothingMode::ExponentialMovingAverage,
             exponential_alpha: 0.25,
+            causal_window: 5,
         },
     );
     let drift = compute_drift_trajectory(&smoothed, 1.0, "constant");
@@ -297,6 +298,7 @@ fn test_smoothing_reduces_high_frequency_noise_fixture() {
         &SmoothingSettings {
             mode: SmoothingMode::ExponentialMovingAverage,
             exponential_alpha: 0.25,
+            causal_window: 5,
         },
     );
     let times = (0..raw.len()).map(|index| index as f64).collect::<Vec<_>>();
@@ -407,6 +409,17 @@ fn test_report_contains_comparison_table_or_case_study() {
         "| Scenario | Threshold | Moving Average | CUSUM | Innovation-Style | DSFB Syntax | DSFB Grammar | DSFB Semantics |"
     ));
     assert!(report.contains("Case study note:"));
+}
+
+#[test]
+fn test_comparator_outputs_present_for_each_scenario() {
+    let (_bundle, run_dir) = export_single("nominal_stable", EngineSettings::default(), None);
+    let csv = fs::read_to_string(run_dir.join("csv/comparator_results.csv")).unwrap();
+    let json = fs::read_to_string(run_dir.join("json/comparator_results.json")).unwrap();
+    assert!(csv.contains("scenario_id"));
+    assert!(csv.contains("comparator_name"));
+    assert!(json.contains("\"scenario_id\""));
+    assert!(json.contains("\"comparator_name\""));
 }
 
 #[test]

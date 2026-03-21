@@ -6,6 +6,7 @@ use crate::sim::degradation::{
 use crate::sim::disturbances::{
     abrupt_event_residual, deterministic_noise, nominal_residual, oscillatory_residual,
 };
+use crate::sim::imu::imu_thermal_drift_gps_denied_residual;
 use crate::sim::scenarios::{ScenarioDefinition, ScenarioKind};
 
 #[derive(Clone, Debug)]
@@ -99,6 +100,9 @@ fn residual_signal(kind: ScenarioKind, step: usize, channel: usize, seed: u64) -
         ScenarioKind::MagnitudeMatchedAdmissible => magnitude_matched_admissible(step, channel),
         ScenarioKind::MagnitudeMatchedDetectable => {
             linear_exit_residual(step, channel, 0.24, 0.0028)
+        }
+        ScenarioKind::ImuThermalDriftGpsDenied => {
+            imu_thermal_drift_gps_denied_residual(step, channel)
         }
     }
 }

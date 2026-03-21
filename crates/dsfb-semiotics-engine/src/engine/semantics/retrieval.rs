@@ -93,6 +93,7 @@ pub fn retrieve_semantics_with_registry(
     })
 }
 
+// TRACE:ALGORITHM:ALG-SEMANTIC-RETRIEVAL:Typed semantic retrieval:Applies admissibility, regime, scope, and compatibility filtering to conservative semantic interpretation.
 pub(crate) fn retrieve_semantics_with_context(
     context: SemanticRetrievalContext<'_>,
 ) -> SemanticMatchResult {
@@ -352,6 +353,7 @@ pub(crate) fn retrieve_semantics_with_context(
     }
 }
 
+// TRACE:ALGORITHM:ALG-SEMANTIC-INDEX:Deterministic semantic prefilter index:Builds reproducible candidate buckets for larger heuristic banks without replacing exact validation.
 pub(crate) fn build_retrieval_index(
     registry: &HeuristicBankRegistry,
     settings: &RetrievalIndexSettings,
@@ -398,6 +400,7 @@ pub(crate) fn build_retrieval_index(
     index
 }
 
+// TRACE:CLAIM:CLM-RETRIEVAL-SCALING-REPORT:Retrieval scaling evidence:Exports deterministic candidate-count scaling observations for indexed versus fallback retrieval paths.
 pub(crate) fn benchmark_retrieval_scaling(
     syntax: &SyntaxCharacterization,
     grammar: &[GrammarStatus],
@@ -471,6 +474,7 @@ pub(crate) fn benchmark_retrieval_scaling(
         .collect()
 }
 
+// TRACE:DEFINITION:DEF-GRAMMAR-EVIDENCE:Grammar evidence summary:Reduces grammar trajectory state into counts and regime tags used by semantic retrieval.
 fn grammar_evidence(grammar: &[GrammarStatus]) -> GrammarEvidence {
     let boundary_count = grammar
         .iter()

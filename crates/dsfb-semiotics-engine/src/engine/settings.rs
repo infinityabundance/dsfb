@@ -60,6 +60,7 @@ pub struct SemanticRetrievalSettings {
 pub enum SmoothingMode {
     Disabled,
     ExponentialMovingAverage,
+    SafetyFirst,
 }
 
 /// Deterministic optional smoothing settings used before numerical differentiation.
@@ -67,6 +68,7 @@ pub enum SmoothingMode {
 pub struct SmoothingSettings {
     pub mode: SmoothingMode,
     pub exponential_alpha: f64,
+    pub causal_window: usize,
 }
 
 impl SmoothingSettings {
@@ -74,6 +76,65 @@ impl SmoothingSettings {
     #[must_use]
     pub const fn enabled(&self) -> bool {
         !matches!(self.mode, SmoothingMode::Disabled)
+    }
+
+    /// Returns the machine-readable smoothing-profile label exported in metadata.
+    #[must_use]
+    pub const fn profile_label(&self) -> &'static str {
+        match self.mode {
+            SmoothingMode::Disabled => "disabled",
+            SmoothingMode::ExponentialMovingAverage => "default_low_latency",
+            SmoothingMode::SafetyFirst => "safety_first",
+        }
+    }
+
+    /// Returns the estimated centroid delay in samples for the active profile.
+    #[must_use]
+    pub fn estimated_lag_samples(&self) -> f64 {
+        match self.mode {
+            SmoothingMode::Disabled => 0.0,
+            SmoothingMode::ExponentialMovingAverage => {
+                let alpha = self.exponential_alpha.clamp(1.0e-6, 1.0);
+                ((1.0 - alpha) / alpha).clamp(0.0, 8.0)
+            }
+            SmoothingMode::SafetyFirst => self.maximum_settling_samples() as f64 / 2.0,
+        }
+    }
+
+    /// Returns the conservative maximum settling horizon in samples for the active profile.
+    #[must_use]
+    pub fn maximum_settling_samples(&self) -> usize {
+        match self.mode {
+            SmoothingMode::Disabled => 0,
+            SmoothingMode::ExponentialMovingAverage => 1,
+            SmoothingMode::SafetyFirst => self.causal_window.max(2).saturating_sub(1),
+        }
+    }
+
+    /// Returns conservative integration guidance for guidance-loop users.
+    #[must_use]
+    pub const fn guidance_loop_caution_note(&self) -> &'static str {
+        match self.mode {
+            SmoothingMode::Disabled => {
+                "No derivative preconditioning is active. Jitter enters the finite-difference path directly."
+            }
+            SmoothingMode::ExponentialMovingAverage => {
+                "Low-latency smoothing is active. Treat the derivative path as slightly delayed and confirm the added lag against the downstream control stack."
+            }
+            SmoothingMode::SafetyFirst => {
+                "Safety-first smoothing prioritizes jitter attenuation over immediacy. Use the exported lag bound as an integration aid rather than as a closed-loop stability guarantee."
+            }
+        }
+    }
+
+    /// Returns a preconfigured safety-first profile with conservative bounded lag.
+    #[must_use]
+    pub fn safety_first() -> Self {
+        Self {
+            mode: SmoothingMode::SafetyFirst,
+            exponential_alpha: 0.18,
+            causal_window: 5,
+        }
     }
 }
 
@@ -84,6 +145,7 @@ impl SmoothingMode {
         match self {
             Self::Disabled => "disabled",
             Self::ExponentialMovingAverage => "exponential_moving_average",
+            Self::SafetyFirst => "safety_first",
         }
     }
 }
@@ -209,6 +271,7 @@ impl Default for SmoothingSettings {
         Self {
             mode: SmoothingMode::Disabled,
             exponential_alpha: 0.35,
+            causal_window: 5,
         }
     }
 }
@@ -254,7 +317,9 @@ impl Default for OnlineEngineSettings {
         Self {
             history_buffer_capacity: 64,
             offline_history_enabled: false,
-            numeric_mode: if cfg!(feature = "numeric-f32") {
+            numeric_mode: if cfg!(feature = "numeric-fixed") {
+                "fixed_q16_16".to_string()
+            } else if cfg!(feature = "numeric-f32") {
                 "f32".to_string()
             } else {
                 "f64".to_string()

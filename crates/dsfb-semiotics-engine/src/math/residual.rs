@@ -3,6 +3,7 @@ use crate::engine::types::{
 };
 use crate::math::metrics::euclidean_norm;
 
+// TRACE:DEFINITION:DEF-RESIDUAL:Residual construction:Implements sample-wise observed minus predicted residual formation.
 pub fn compute_residual_trajectory(
     observed: &ObservedTrajectory,
     predicted: &PredictedTrajectory,

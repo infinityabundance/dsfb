@@ -105,6 +105,13 @@ fn test_readme_mentions_dashboard() {
 }
 
 #[test]
+fn test_readme_mentions_dashboard_csv_replay() {
+    let readme = readme_text();
+    assert!(readme.contains("--dashboard-replay-csv"));
+    assert!(readme.contains("CSV live replay"));
+}
+
+#[test]
 fn test_readme_mentions_colab_download_buttons() {
     let readme = readme_text();
     assert!(readme.contains("one-click download"));
@@ -192,6 +199,13 @@ fn test_readme_mentions_drop_in_example_if_added() {
 }
 
 #[test]
+fn test_csv_replay_example_command_present() {
+    let docs = fs::read_to_string(crate_root().join("docs/examples/dashboard_replay.md")).unwrap();
+    assert!(docs.contains("--dashboard-replay-csv"));
+    assert!(docs.contains("--dashboard-playback-speed"));
+}
+
+#[test]
 fn test_readme_mentions_operator_legible_comparator_context() {
     let readme = readme_text();
     assert!(readme.contains("EKF innovation monitoring"));
@@ -273,4 +287,14 @@ fn test_ci_workflow_mentions_numeric_f32_and_ffi_smoke() {
     assert!(workflow.contains("FFI smoke compile"));
     assert!(workflow.contains("ffi/examples/minimal_ffi.c"));
     assert!(workflow.contains("ffi/examples/minimal_ffi.cpp"));
+}
+
+#[test]
+fn test_ci_workflow_mentions_dashboard_csv_replay_and_forensics_smoke() {
+    let workflow =
+        fs::read_to_string(crate_root().join(".github/workflows/crate-quality-gate.yml")).unwrap();
+    assert!(workflow.contains("Dashboard CSV replay smoke run"));
+    assert!(workflow.contains("--dashboard-replay-csv"));
+    assert!(workflow.contains("Forensics CLI smoke run"));
+    assert!(workflow.contains("dsfb-forensics-gen"));
 }

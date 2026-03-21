@@ -30,6 +30,7 @@ pub fn characterize_syntax_with_coordination(
     )
 }
 
+// TRACE:ALGORITHM:ALG-SYNTAX-FORMATION:Deterministic syntax formation:Combines sign, grammar, and coordination summaries into conservative syntax headlines.
 pub fn characterize_syntax_with_coordination_configured(
     sign: &SignTrajectory,
     grammar: &[GrammarStatus],

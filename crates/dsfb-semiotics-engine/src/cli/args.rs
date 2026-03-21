@@ -340,6 +340,12 @@ pub struct CliArgs {
 
     #[arg(
         long,
+        help = "Render the first-class CSV live replay dashboard by routing the observed/predicted CSV inputs through the deterministic engine path sample by sample"
+    )]
+    pub dashboard_replay_csv: bool,
+
+    #[arg(
+        long,
         default_value_t = 120,
         help = "Replay dashboard width in terminal cells"
     )]
@@ -358,6 +364,19 @@ pub struct CliArgs {
         help = "Optional maximum replay frames to render per selected scenario. Zero replays all available frames."
     )]
     pub dashboard_max_frames: usize,
+
+    #[arg(
+        long,
+        default_value_t = 1.0,
+        help = "Deterministic dashboard playback rate multiplier used by the replay driver"
+    )]
+    pub dashboard_playback_speed: f64,
+
+    #[arg(
+        long,
+        help = "Start dashboard replay in the paused state instead of running immediately"
+    )]
+    pub dashboard_start_paused: bool,
 
     #[arg(
         long,
@@ -498,11 +517,60 @@ impl CliArgs {
                 )
                 .exit();
         }
-        if args.dashboard_scenario.is_some() && !args.dashboard_replay {
+        if args.dashboard_scenario.is_some() && !args.dashboard_replay && !args.dashboard_replay_csv
+        {
             Self::command()
                 .error(
                     clap::error::ErrorKind::MissingRequiredArgument,
-                    "--dashboard-scenario requires --dashboard-replay",
+                    "--dashboard-scenario requires --dashboard-replay or --dashboard-replay-csv",
+                )
+                .exit();
+        }
+        if args.dashboard_replay && args.dashboard_replay_csv {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--dashboard-replay and --dashboard-replay-csv are mutually exclusive",
+                )
+                .exit();
+        }
+        if args.dashboard_replay_csv && !csv_mode {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "--dashboard-replay-csv requires --observed-csv and --predicted-csv",
+                )
+                .exit();
+        }
+        if args.dashboard_replay_csv && sweep_mode {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--dashboard-replay-csv cannot be combined with --sweep-family",
+                )
+                .exit();
+        }
+        if args.dashboard_replay_csv && args.all {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    "--dashboard-replay-csv cannot be combined with --all",
+                )
+                .exit();
+        }
+        if !args.dashboard_playback_speed.is_finite() || args.dashboard_playback_speed <= 0.0 {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::ValueValidation,
+                    "--dashboard-playback-speed must be positive and finite",
+                )
+                .exit();
+        }
+        if args.dashboard_start_paused && !args.dashboard_replay && !args.dashboard_replay_csv {
+            Self::command()
+                .error(
+                    clap::error::ErrorKind::MissingRequiredArgument,
+                    "--dashboard-start-paused requires --dashboard-replay or --dashboard-replay-csv",
                 )
                 .exit();
         }
@@ -581,6 +649,10 @@ impl CliArgs {
                 Some(self.dashboard_max_frames)
             },
             scenario_filter: self.dashboard_scenario.clone(),
+            playback_speed: self.dashboard_playback_speed,
+            start_paused: self.dashboard_start_paused,
+            source_label: None,
+            trust_threshold: 0.75,
         }
     }
 }

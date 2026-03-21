@@ -11,7 +11,7 @@ use std::sync::{Mutex, OnceLock};
 
 use dsfb_semiotics_engine::engine::settings::EngineSettings;
 use dsfb_semiotics_engine::engine::types::{EnvelopeMode, GrammarReasonCode, GrammarState};
-use dsfb_semiotics_engine::live::{LiveEngineStatus, OnlineStructuralEngine, Real};
+use dsfb_semiotics_engine::live::{to_real, LiveEngineStatus, OnlineStructuralEngine, Real};
 use dsfb_semiotics_engine::math::envelope::EnvelopeSpec;
 
 #[repr(C)]
@@ -89,6 +89,7 @@ pub struct DsfbCurrentStatus {
 
 pub struct EngineHandle {
     history_buffer_capacity: usize,
+    channel_count: usize,
     envelope_radius: f64,
     dt: f64,
     engine: OnlineStructuralEngine,
@@ -116,6 +117,7 @@ fn last_error_message() -> String {
         .clone()
 }
 
+// TRACE:INTERFACE:IFACE-C-ABI-STATUS:Stable C ABI status surface:Maps layered live-engine status into a repr-C numeric interface for external callers.
 fn syntax_code_from_label(label: &str) -> DsfbSyntaxCode {
     match label {
         "weakly-structured-baseline-like" => DsfbSyntaxCode::WeaklyStructuredBaselineLike,
@@ -226,7 +228,15 @@ fn map_status(status: &LiveEngineStatus) -> DsfbCurrentStatus {
 }
 
 impl EngineHandle {
-    fn new(history_buffer_capacity: usize, envelope_radius: f64, dt: f64) -> Result<Self, String> {
+    fn new(
+        history_buffer_capacity: usize,
+        channel_count: usize,
+        envelope_radius: f64,
+        dt: f64,
+    ) -> Result<Self, String> {
+        if channel_count == 0 {
+            return Err("channel_count must be greater than zero".to_string());
+        }
         if !envelope_radius.is_finite() || envelope_radius <= 0.0 {
             return Err("envelope_radius must be positive and finite".to_string());
         }
@@ -237,7 +247,9 @@ impl EngineHandle {
         settings.online.history_buffer_capacity = history_buffer_capacity;
         let engine = OnlineStructuralEngine::with_builtin_bank(
             "ffi_live_engine",
-            vec!["residual".to_string()],
+            (0..channel_count)
+                .map(|index| format!("residual_{index}"))
+                .collect(),
             dt,
             EnvelopeSpec {
                 name: "ffi_fixed_envelope".to_string(),
@@ -253,6 +265,7 @@ impl EngineHandle {
         .map_err(|error| error.to_string())?;
         Ok(Self {
             history_buffer_capacity,
+            channel_count,
             envelope_radius,
             dt,
             engine,
@@ -261,20 +274,37 @@ impl EngineHandle {
     }
 
     fn reset(&mut self) -> Result<(), String> {
-        let replacement = Self::new(self.history_buffer_capacity, self.envelope_radius, self.dt)?;
+        let replacement = Self::new(
+            self.history_buffer_capacity,
+            self.channel_count,
+            self.envelope_radius,
+            self.dt,
+        )?;
         self.engine = replacement.engine;
         self.latest_status = None;
         Ok(())
     }
 }
 
+// TRACE:INTERFACE:IFACE-C-ABI-LIFECYCLE:C ABI engine lifecycle:Creates the bounded live engine handle exposed to legacy hosts.
 #[no_mangle]
 pub extern "C" fn dsfb_semiotics_engine_create(
     history_buffer_capacity: usize,
     envelope_radius: f64,
     dt: f64,
 ) -> *mut EngineHandle {
-    match EngineHandle::new(history_buffer_capacity, envelope_radius, dt) {
+    dsfb_semiotics_engine_create_with_channels(history_buffer_capacity, 1, envelope_radius, dt)
+}
+
+/// Creates a bounded engine handle with an explicit channel count for vector and batch ingestion.
+#[no_mangle]
+pub extern "C" fn dsfb_semiotics_engine_create_with_channels(
+    history_buffer_capacity: usize,
+    channel_count: usize,
+    envelope_radius: f64,
+    dt: f64,
+) -> *mut EngineHandle {
+    match EngineHandle::new(history_buffer_capacity, channel_count, envelope_radius, dt) {
         Ok(handle) => {
             clear_last_error();
             Box::into_raw(Box::new(handle))
@@ -319,10 +349,72 @@ pub unsafe extern "C" fn dsfb_semiotics_engine_push_sample(
     };
     match handle
         .engine
-        .push_residual_sample(time, &[residual_value as Real])
+        .push_residual_sample(time, &[to_real(residual_value)])
     {
         Ok(status) => {
             handle.latest_status = Some(status);
+            clear_last_error();
+            DsfbFfiResult::Ok
+        }
+        Err(error) => {
+            set_last_error(error.to_string());
+            DsfbFfiResult::EngineError
+        }
+    }
+}
+
+/// Pushes a deterministic batch of residual samples in row-major sample order.
+///
+/// Memory layout:
+/// - `times[i]` is the timestamp for sample `i`
+/// - `residual_values[(i * channel_count) + channel]` stores the value for one channel of sample
+///   `i`
+///
+/// Processing order is strictly increasing in `i` and matches repeated scalar pushes through the
+/// same handle.
+///
+/// # Safety
+///
+/// `handle` must be a valid mutable pointer returned by
+/// `dsfb_semiotics_engine_create` or `dsfb_semiotics_engine_create_with_channels`.
+/// `times` must be readable for `sample_count` entries when `sample_count > 0`.
+/// `residual_values` must be readable for `sample_count * channel_count` entries when
+/// `sample_count > 0`.
+#[no_mangle]
+pub unsafe extern "C" fn dsfb_semiotics_engine_push_sample_batch(
+    handle: *mut EngineHandle,
+    times: *const f64,
+    residual_values: *const f64,
+    sample_count: usize,
+) -> DsfbFfiResult {
+    let Some(handle) = (unsafe { handle.as_mut() }) else {
+        set_last_error("null engine handle");
+        return DsfbFfiResult::NullHandle;
+    };
+    if sample_count == 0 {
+        clear_last_error();
+        return DsfbFfiResult::Ok;
+    }
+    if times.is_null() || residual_values.is_null() {
+        set_last_error("times and residual_values must be non-null when sample_count > 0");
+        return DsfbFfiResult::InvalidArgument;
+    }
+    let times = unsafe { std::slice::from_raw_parts(times, sample_count) };
+    let flat_values = unsafe {
+        std::slice::from_raw_parts(
+            residual_values,
+            sample_count.saturating_mul(handle.channel_count),
+        )
+    };
+    let real_values = flat_values
+        .iter()
+        .map(|value| to_real(*value))
+        .collect::<Vec<Real>>();
+    match handle.engine.push_residual_sample_batch(times, &real_values) {
+        Ok(status) => {
+            if let Some(status) = status {
+                handle.latest_status = Some(status);
+            }
             clear_last_error();
             DsfbFfiResult::Ok
         }
@@ -670,6 +762,98 @@ mod tests {
                 dsfb_semiotics_engine_copy_last_error(buffer.as_mut_ptr(), buffer.len()),
                 DsfbFfiResult::Ok
             );
+        }
+    }
+
+    #[test]
+    fn ffi_batch_push_matches_scalar_semantics() {
+        let scalar = dsfb_semiotics_engine_create_with_channels(8, 2, 1.0, 1.0);
+        let batch = dsfb_semiotics_engine_create_with_channels(8, 2, 1.0, 1.0);
+        assert!(!scalar.is_null());
+        assert!(!batch.is_null());
+        let times = [0.0, 1.0, 2.0];
+        let values = [0.1, 0.0, 0.15, 0.02, 0.2, 0.03];
+        let mut scalar_status = DsfbCurrentStatus {
+            step: 0,
+            time: 0.0,
+            residual_norm: 0.0,
+            drift_norm: 0.0,
+            slew_norm: 0.0,
+            trust_scalar: 0.0,
+            history_buffer_capacity: 0,
+            current_history_len: 0,
+            offline_history_len: 0,
+            syntax_code: DsfbSyntaxCode::Other,
+            grammar_state: DsfbGrammarState::Admissible,
+            grammar_reason: DsfbGrammarReason::Admissible,
+            semantic_disposition: DsfbSemanticDisposition::Unknown,
+        };
+        let mut batch_status = scalar_status;
+        unsafe {
+            for index in 0..times.len() {
+                let sample = &values[index * 2..index * 2 + 2];
+                let real_values = [to_real(sample[0]), to_real(sample[1])];
+                let status = (&mut *scalar)
+                    .engine
+                    .push_residual_sample(times[index], &real_values)
+                    .expect("scalar status");
+                (&mut *scalar).latest_status = Some(status);
+            }
+            assert_eq!(
+                dsfb_semiotics_engine_push_sample_batch(
+                    batch,
+                    times.as_ptr(),
+                    values.as_ptr(),
+                    times.len(),
+                ),
+                DsfbFfiResult::Ok
+            );
+            assert_eq!(
+                dsfb_semiotics_engine_current_status(scalar, &mut scalar_status),
+                DsfbFfiResult::Ok
+            );
+            assert_eq!(
+                dsfb_semiotics_engine_current_status(batch, &mut batch_status),
+                DsfbFfiResult::Ok
+            );
+            assert_eq!(scalar_status.step, batch_status.step);
+            assert_eq!(scalar_status.syntax_code, batch_status.syntax_code);
+            assert_eq!(scalar_status.grammar_reason, batch_status.grammar_reason);
+            assert_eq!(
+                scalar_status.semantic_disposition,
+                batch_status.semantic_disposition
+            );
+            dsfb_semiotics_engine_destroy(scalar);
+            dsfb_semiotics_engine_destroy(batch);
+        }
+    }
+
+    #[test]
+    fn ffi_batch_push_handles_empty_and_singleton_batches() {
+        let handle = dsfb_semiotics_engine_create_with_channels(8, 1, 1.0, 1.0);
+        assert!(!handle.is_null());
+        let times = [0.0];
+        let values = [0.12];
+        unsafe {
+            assert_eq!(
+                dsfb_semiotics_engine_push_sample_batch(
+                    handle,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                ),
+                DsfbFfiResult::Ok
+            );
+            assert_eq!(
+                dsfb_semiotics_engine_push_sample_batch(
+                    handle,
+                    times.as_ptr(),
+                    values.as_ptr(),
+                    1,
+                ),
+                DsfbFfiResult::Ok
+            );
+            dsfb_semiotics_engine_destroy(handle);
         }
     }
 }

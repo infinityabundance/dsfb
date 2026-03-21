@@ -11,7 +11,7 @@ use dsfb_semiotics_engine::engine::settings::EngineSettings;
 use dsfb_semiotics_engine::engine::types::{
     EnvelopeMode, GrammarReasonCode, GrammarState, ResidualSample, ResidualTrajectory,
 };
-use dsfb_semiotics_engine::live::{numeric_mode_label, OnlineStructuralEngine, Real};
+use dsfb_semiotics_engine::live::{numeric_mode_label, to_real, OnlineStructuralEngine};
 use dsfb_semiotics_engine::math::envelope::{build_envelope, EnvelopeSpec};
 use tempfile::TempDir;
 
@@ -330,13 +330,14 @@ fn test_online_engine_memory_history_bounded() {
     .unwrap();
     for step in 0..32 {
         engine
-            .push_residual_sample(step as f64, &[(0.1 + step as f64 * 0.01) as Real])
+            .push_residual_sample(step as f64, &[to_real(0.1 + step as f64 * 0.01)])
             .unwrap();
     }
     assert_eq!(engine.online_history_len(), 5);
 }
 
 #[test]
+// TRACE:CLAIM:CLM-TEST-BOUNDED-ONLINE-HISTORY:Executable bounded-history evidence:Long-stream smoke test confirms online live state remains bounded.
 fn test_online_engine_memory_history_bounded_under_long_stream() {
     let mut settings = EngineSettings::default();
     settings.online.history_buffer_capacity = 7;
@@ -358,7 +359,7 @@ fn test_online_engine_memory_history_bounded_under_long_stream() {
     .unwrap();
     for step in 0..5000 {
         engine
-            .push_residual_sample(step as f64, &[(0.05 + step as f64 * 0.0001) as Real])
+            .push_residual_sample(step as f64, &[to_real(0.05 + step as f64 * 0.0001)])
             .unwrap();
     }
     assert_eq!(engine.online_history_len(), 7);
@@ -366,5 +367,8 @@ fn test_online_engine_memory_history_bounded_under_long_stream() {
 
 #[test]
 fn test_numeric_mode_label_exposed() {
-    assert!(matches!(numeric_mode_label(), "f32" | "f64"));
+    assert!(matches!(
+        numeric_mode_label(),
+        "f32" | "f64" | "fixed_q16_16"
+    ));
 }

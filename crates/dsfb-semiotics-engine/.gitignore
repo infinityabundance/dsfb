@@ -1,5 +1,8 @@
 /output-dsfb-semiotics-engine/*
 !/output-dsfb-semiotics-engine/.gitkeep
+/artifacts/public_dataset_demo/*/generated/
+/artifacts/public_dataset_demo/*/latest/
+/data/public_dataset/source/
 /target/
 /.ipynb_checkpoints/
 __pycache__/

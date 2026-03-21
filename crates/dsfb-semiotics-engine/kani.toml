@@ -1,0 +1,7 @@
+[kani]
+manifest-path = "Cargo.toml"
+default-harnesses = [
+  "proof_trust_scalar_in_unit_interval",
+  "proof_trust_scalar_not_nan",
+  "proof_grammar_reason_enum_is_closed",
+]
