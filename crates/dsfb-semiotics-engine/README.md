@@ -676,16 +676,17 @@ The crate generates the original twelve paper-aligned figures plus additive eval
 7. exit-invariance pair under a common envelope
 8. residual trajectory separation
 9. detectability bound comparison
+   run-specific: the figure stays within the current run and now uses either multi-case bound-versus-observed timing or single-run residual/envelope detectability context with windowed detectability ratios
 10. deterministic pipeline flow
 11. coordinated group semiotics with local versus aggregate envelope behavior
 12. semantic retrieval / heuristics-bank summary
-    panel 1: leading candidate score
-    panel 2: typed-bank entries remaining after admissibility filtering
-    panel 3: final disposition code (`Unknown=0`, `Ambiguous=1`, `CompatibleSet=2`, `Match=3`)
+    run-specific: the figure stays within the current run and now exposes ranked post-regime candidate scores, retrieval funnel counts, and stage-specific rejection counts instead of only one final snapshot
 13. internal deterministic baseline comparator summary
+    run-specific: the figure stays within the current run and now shows comparator onset timing, onset order, and triggered-scenario counts instead of only a flat trigger-count view
 14. sweep stability summary when sweep mode is executed
 
 Every publication-style figure is now paired with a machine-readable figure-source table whose rows carry the exact panel ids, series labels, plotted coordinates, generation timestamp, and additive figure metadata used by the renderer. The artifact pipeline also emits figure-integrity records that check panel counts, expected-versus-observed panel identities, emitted PNG/SVG presence, integer-like behavior for count-labeled panels, and source-table consistency.
+Figures 9, 12, and 13 remain run-specific rather than cross-dataset comparison figures, and their PNG basenames remain unchanged so they can still be dropped directly into the paper `figures/` folder without LaTeX edits.
 
 ## Colab Notebook
 

@@ -358,6 +358,20 @@ pub struct HeuristicCandidate {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RetrievalAuditCandidatePreview {
+    /// Stage from which this preview candidate list was exported.
+    pub stage: String,
+    /// Stable heuristic identifier from the typed bank.
+    pub heuristic_id: String,
+    /// Short human-facing label used by figure and report summaries.
+    pub short_label: String,
+    /// Full motif label retained for audit export.
+    pub motif_label: String,
+    /// Deterministic retrieval score computed for this stage.
+    pub score: f64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SemanticRetrievalAudit {
     /// Total typed bank entries considered before semantic filtering.
     pub heuristic_bank_entry_count: usize,
@@ -392,6 +406,10 @@ pub struct SemanticRetrievalAudit {
     pub candidate_ids_post_regime: Vec<String>,
     /// Explicit IDs that passed scope filtering.
     pub candidate_ids_post_scope: Vec<String>,
+    /// Ranked preview of candidates that survived regime filtering but before exact scope checks.
+    pub ranked_candidates_post_regime: Vec<RetrievalAuditCandidatePreview>,
+    /// Ranked preview of candidates that survived exact scope checks.
+    pub ranked_candidates_post_scope: Vec<RetrievalAuditCandidatePreview>,
     /// Explicit IDs rejected at the admissibility stage.
     pub rejected_by_admissibility_ids: Vec<String>,
     /// Explicit IDs rejected at the regime stage.

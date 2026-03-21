@@ -285,7 +285,7 @@ fn test_public_dataset_zip_root_folder_matches_zip_name() {
         let zip_stem = zip_path.file_stem().unwrap().to_string_lossy().to_string();
         let file = std::fs::File::open(&zip_path).unwrap();
         let mut archive = ZipArchive::new(file).unwrap();
-        assert!(archive.len() > 0);
+        assert!(!archive.is_empty());
         for index in 0..archive.len() {
             let entry = archive.by_index(index).unwrap();
             assert!(entry.name().starts_with(&format!("{zip_stem}/")));
@@ -347,12 +347,17 @@ fn test_public_dataset_detectability_figure_uses_observed_event_fallback() {
     for dataset in ["nasa_milling", "nasa_bearings"] {
         let table = latest_source_table(dataset, "figure_09_detectability_bound_comparison");
         assert!(table.rows.iter().any(|row| {
-            row.panel_id == "detectability_bound"
-                && row.series_kind == "bar"
+            row.panel_id == "detectability_context"
+                && row.series_kind == "segment"
                 && matches!(
                     row.series_id.as_str(),
-                    "observed_boundary_time" | "observed_violation_time"
+                    "first_boundary_time" | "first_violation_time"
                 )
+        }));
+        assert!(table.rows.iter().any(|row| {
+            row.panel_id == "detectability_window_ratio"
+                && row.series_kind == "bar"
+                && row.series_id == "window_max_ratio"
         }));
     }
 }
