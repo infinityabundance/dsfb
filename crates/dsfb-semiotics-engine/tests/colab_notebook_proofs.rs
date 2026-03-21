@@ -237,6 +237,15 @@ fn test_colab_notebook_displays_resolved_paths_for_bearings() {
 }
 
 #[test]
+fn test_colab_notebook_displays_all_generated_figures_for_public_datasets() {
+    let notebook = notebook_text();
+    assert!(notebook.contains("def render_public_dataset_results(result):"));
+    assert!(notebook.contains("### {dataset_label}: all generated figures"));
+    assert!(notebook.contains("for figure_path in result[\"figure_paths\"]:"));
+    assert!(!notebook.contains("result[\"figure_paths\"][:inline_figure_limit]"));
+}
+
+#[test]
 fn test_colab_notebook_preserves_figure_basename_conventions() {
     let notebook = notebook_text();
     assert_contains_all(
