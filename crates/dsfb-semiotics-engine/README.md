@@ -699,6 +699,8 @@ It:
 - locates or clones the repository
 - rebuilds the crate from source
 - reruns the Rust artifact generator
+- reruns the real NASA Milling public-dataset path from scratch using the crate's existing fetch/preprocess/demo tooling
+- reruns the real NASA Bearings public-dataset path from scratch using the crate's existing fetch/preprocess/demo tooling
 - loads the newest timestamped run
 - displays summary tables inline
 - displays all figures inline
@@ -709,6 +711,8 @@ It:
 The notebook does not reimplement the semiotic engine logic in Python.
 It also surfaces a concise run metadata summary including validation mode, bank source, numeric mode,
 online buffer capacity, and whether trust scalars were exported.
+For the NASA dataset sections, artifact outputs remain in dataset-specific directories, but the paper-facing
+figure basenames are preserved exactly so the existing LaTeX copy/recompile workflow is unchanged.
 
 ## FFI And Legacy Integration
 
