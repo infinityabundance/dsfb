@@ -398,6 +398,18 @@ fn test_report_contains_operator_legible_comparator_section() {
 }
 
 #[test]
+fn test_report_contains_comparison_table_or_case_study() {
+    let (_bundle, run_dir) = export_single("oscillatory_bounded", EngineSettings::default(), None);
+    let report =
+        fs::read_to_string(run_dir.join("report/dsfb_semiotics_engine_report.md")).unwrap();
+    assert!(report.contains("Operator-Legible Comparator Case Study"));
+    assert!(report.contains(
+        "| Scenario | Threshold | Moving Average | CUSUM | Innovation-Style | DSFB Syntax | DSFB Grammar | DSFB Semantics |"
+    ));
+    assert!(report.contains("Case study note:"));
+}
+
+#[test]
 fn test_indexed_retrieval_matches_linear_retrieval_for_fixture_bank() {
     let common = CommonRunConfig::default();
     let mut linear_settings = EngineSettings::default();

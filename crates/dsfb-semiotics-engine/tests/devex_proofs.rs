@@ -27,7 +27,19 @@ fn test_readme_mentions_strict_bank_validation() {
 }
 
 #[test]
+fn test_readme_mentions_strict_validation_default() {
+    let readme = readme_text();
+    assert!(readme.contains("strict validation default"));
+}
+
+#[test]
 fn test_readme_mentions_property_tests_or_testing_discipline_docs() {
+    let readme = readme_text();
+    assert!(readme.contains("cargo test --test proptest_invariants"));
+}
+
+#[test]
+fn test_readme_mentions_property_tests() {
     let readme = readme_text();
     assert!(readme.contains("cargo test --test proptest_invariants"));
 }
@@ -75,10 +87,18 @@ fn test_example_csv_workflow_exists() {
     assert!(crate_root()
         .join("docs/examples/vibration_to_thermal_drift.md")
         .is_file());
+    assert!(crate_root().join("docs/examples/live_drop_in.md").is_file());
 }
 
 #[test]
 fn test_readme_mentions_dashboard_if_dashboard_added() {
+    let readme = readme_text();
+    assert!(readme.contains("--dashboard-replay"));
+    assert!(readme.contains("ratatui"));
+}
+
+#[test]
+fn test_readme_mentions_dashboard() {
     let readme = readme_text();
     assert!(readme.contains("--dashboard-replay"));
     assert!(readme.contains("ratatui"));
@@ -118,6 +138,12 @@ fn test_readme_mentions_ring_buffer_or_bounded_memory_if_added() {
 }
 
 #[test]
+fn test_readme_mentions_ring_buffer_or_bounded_memory() {
+    let readme = readme_text();
+    assert!(readme.contains("fixed-capacity ring buffer"));
+}
+
+#[test]
 fn test_readme_mentions_smoothing_if_added() {
     let readme = readme_text();
     assert!(readme.contains("smoothing"));
@@ -149,6 +175,20 @@ fn test_readme_mentions_ffi_and_failure_injection_example() {
 fn test_readme_mentions_ffi_if_added() {
     let readme = readme_text();
     assert!(readme.contains("ffi/include/dsfb_semiotics_engine.h"));
+}
+
+#[test]
+fn test_readme_mentions_ffi() {
+    let readme = readme_text();
+    assert!(readme.contains("ffi/include/dsfb_semiotics_engine.h"));
+    assert!(readme.contains("caller-owned buffers"));
+}
+
+#[test]
+fn test_readme_mentions_drop_in_example_if_added() {
+    let readme = readme_text();
+    assert!(readme.contains("live_drop_in"));
+    assert!(readme.contains("one-sample-at-a-time bounded loop"));
 }
 
 #[test]

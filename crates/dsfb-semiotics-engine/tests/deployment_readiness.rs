@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
+use dsfb_semiotics_engine::demos::live_drop_in_trace;
 use dsfb_semiotics_engine::engine::config::CommonRunConfig;
 use dsfb_semiotics_engine::engine::pipeline::{
     export_artifacts, EngineConfig, StructuralSemioticsEngine,
@@ -31,6 +33,33 @@ fn simple_residual(values: &[f64]) -> ResidualTrajectory {
                 norm: value.abs(),
             })
             .collect(),
+    }
+}
+
+fn compile_example_if_available(compiler: &str, source: &str, output_name: &str) {
+    match Command::new(compiler).arg("--version").output() {
+        Ok(_) => {
+            let temp = TempDir::new().unwrap();
+            let output = temp.path().join(output_name);
+            let source_path = crate_root().join(source);
+            let status = Command::new(compiler)
+                .args([
+                    "-c",
+                    source_path.to_str().expect("utf-8 source path"),
+                    "-I",
+                    crate_root()
+                        .join("ffi/include")
+                        .to_str()
+                        .expect("utf-8 include path"),
+                    "-o",
+                    output.to_str().expect("utf-8 output path"),
+                ])
+                .status()
+                .unwrap();
+            assert!(status.success());
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => panic!("failed to invoke {compiler}: {error}"),
     }
 }
 
@@ -181,6 +210,9 @@ fn test_c_header_generated_or_present() {
     let text = fs::read_to_string(header).unwrap();
     assert!(text.contains("dsfb_semiotics_engine_create"));
     assert!(text.contains("dsfb_semiotics_engine_current_status"));
+    assert!(text.contains("DsfbSyntaxCode"));
+    assert!(text.contains("dsfb_semiotics_engine_current_trust_scalar"));
+    assert!(text.contains("dsfb_semiotics_engine_copy_last_error"));
 }
 
 #[test]
@@ -190,12 +222,35 @@ fn test_ffi_symbols_exported() {
     assert!(source.contains("dsfb_semiotics_engine_push_sample"));
     assert!(source.contains("dsfb_semiotics_engine_current_status"));
     assert!(source.contains("dsfb_semiotics_engine_reset"));
+    assert!(source.contains("dsfb_semiotics_engine_current_trust_scalar"));
+    assert!(source.contains("dsfb_semiotics_engine_copy_current_syntax_label"));
+    assert!(source.contains("dsfb_semiotics_engine_copy_last_error"));
 }
 
 #[test]
 fn test_ffi_examples_present() {
     assert!(crate_root().join("ffi/examples/minimal_ffi.c").is_file());
     assert!(crate_root().join("ffi/examples/minimal_ffi.cpp").is_file());
+}
+
+#[test]
+fn test_c_example_builds() {
+    compile_example_if_available("cc", "ffi/examples/minimal_ffi.c", "minimal_ffi.o");
+}
+
+#[test]
+fn test_cpp_example_builds() {
+    compile_example_if_available("c++", "ffi/examples/minimal_ffi.cpp", "minimal_ffi.o");
+}
+
+#[test]
+fn test_ffi_trust_query_if_exposed() {
+    let header =
+        fs::read_to_string(crate_root().join("ffi/include/dsfb_semiotics_engine.h")).unwrap();
+    let source = fs::read_to_string(crate_root().join("ffi/src/lib.rs")).unwrap();
+    assert!(header.contains("trust_scalar"));
+    assert!(header.contains("dsfb_semiotics_engine_current_trust_scalar"));
+    assert!(source.contains("dsfb_semiotics_engine_current_trust_scalar"));
 }
 
 #[test]
@@ -212,6 +267,27 @@ fn test_synthetic_failure_injection_example_documented() {
     assert!(crate_root()
         .join("docs/examples/synthetic_failure_injection.md")
         .is_file());
+}
+
+#[test]
+fn test_live_drop_in_example_exists() {
+    assert!(crate_root().join("examples/live_drop_in.rs").is_file());
+}
+
+#[test]
+fn test_live_drop_in_example_runs() {
+    let output = live_drop_in_trace().unwrap();
+    assert!(output.contains("Live drop-in trace"));
+}
+
+#[test]
+fn test_live_drop_in_example_prints_stepwise_trace() {
+    let output = live_drop_in_trace().unwrap();
+    assert!(output.contains("step=0"));
+    assert!(output.contains("syntax="));
+    assert!(output.contains("grammar="));
+    assert!(output.contains("semantics="));
+    assert!(output.contains("trust="));
 }
 
 #[test]
@@ -258,6 +334,34 @@ fn test_online_engine_memory_history_bounded() {
             .unwrap();
     }
     assert_eq!(engine.online_history_len(), 5);
+}
+
+#[test]
+fn test_online_engine_memory_history_bounded_under_long_stream() {
+    let mut settings = EngineSettings::default();
+    settings.online.history_buffer_capacity = 7;
+    let mut engine = OnlineStructuralEngine::with_builtin_bank(
+        "bounded_long_stream",
+        vec!["x".to_string()],
+        1.0,
+        EnvelopeSpec {
+            name: "fixed".to_string(),
+            mode: EnvelopeMode::Fixed,
+            base_radius: 1.0,
+            slope: 0.0,
+            switch_step: None,
+            secondary_slope: None,
+            secondary_base: None,
+        },
+        settings,
+    )
+    .unwrap();
+    for step in 0..5000 {
+        engine
+            .push_residual_sample(step as f64, &[(0.05 + step as f64 * 0.0001) as Real])
+            .unwrap();
+    }
+    assert_eq!(engine.online_history_len(), 7);
 }
 
 #[test]
