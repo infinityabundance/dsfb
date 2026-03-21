@@ -126,14 +126,14 @@ pub(crate) fn write_legacy_summary_figure_sources(
     write_rows(
         layout
             .csv_dir
-            .join("figure_13_internal_baseline_comparators_source.csv")
+            .join("figure_13_internal_baseline_comparators_legacy_source.csv")
             .as_path(),
         baseline_rows.clone(),
     )?;
     write_pretty(
         layout
             .json_dir
-            .join("figure_13_internal_baseline_comparators_source.json")
+            .join("figure_13_internal_baseline_comparators_legacy_source.json")
             .as_path(),
         &baseline_rows,
     )?;

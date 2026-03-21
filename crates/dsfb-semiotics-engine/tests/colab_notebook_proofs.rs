@@ -98,8 +98,8 @@ fn test_colab_notebook_runs_fetch_for_milling() {
         &[
             "dataset_slug=\"nasa_milling\"",
             "fetch_public_dataset.py",
-            "--force-download",
             "--force-regenerate",
+            "fetch raw dataset / rebuild raw summary from scratch",
         ],
     );
 }
@@ -112,8 +112,8 @@ fn test_colab_notebook_runs_fetch_for_bearings() {
         &[
             "dataset_slug=\"nasa_bearings\"",
             "fetch_public_dataset.py",
-            "--force-download",
             "--force-regenerate",
+            "fetch raw dataset / rebuild raw summary from scratch",
         ],
     );
 }
@@ -248,7 +248,8 @@ fn test_colab_notebook_preserves_figure_basename_conventions() {
 fn test_colab_notebook_does_not_require_manual_dataset_download() {
     let notebook = notebook_text();
     assert!(notebook.contains("fetch_public_dataset.py"));
-    assert!(notebook.contains("--force-download"));
+    assert!(notebook.contains("downloaded automatically"));
+    assert!(notebook.contains("reused after integrity verification"));
     assert!(!notebook.contains("download this yourself"));
     assert!(!notebook.contains("manual download"));
 }
@@ -261,9 +262,9 @@ fn test_colab_notebook_rebuilds_from_scratch_each_run_or_explicitly_cleans_datas
         &[
             "clean_public_dataset_workdir",
             "clear_notebook_dataset_path",
-            "clean/reset notebook working directories",
-            "--force-download",
+            "derived outputs",
             "--force-regenerate",
+            "reused so notebook reruns are deterministic without depending on a second network fetch",
         ],
     );
 }

@@ -7,11 +7,11 @@
   "raw_summary_csv": "data/public_dataset/raw/nasa_milling_raw_summary.csv",
   "processed_observed_csv": "data/processed/nasa_milling/observed.csv",
   "processed_predicted_csv": "data/processed/nasa_milling/predicted.csv",
-  "replay_events_csv": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_09-11-47/replay/replay_events.csv",
-  "replay_events_json": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_09-11-47/replay/replay_events.json",
-  "replay_ascii": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_09-11-47/replay/replay_ascii.txt",
-  "manifest_json": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_09-11-47/manifest.json",
-  "report_pdf": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_09-11-47/report/dsfb_semiotics_engine_report.pdf",
-  "zip_archive": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_09-11-47/dsfb-semiotics-engine-2026-03-21_09-11-47.zip",
-  "first_png": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_09-11-47/figures/figure_01_residual_prediction_observation_overview.png"
+  "replay_events_csv": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_10-51-58/replay/replay_events.csv",
+  "replay_events_json": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_10-51-58/replay/replay_events.json",
+  "replay_ascii": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_10-51-58/replay/replay_ascii.txt",
+  "manifest_json": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_10-51-58/manifest.json",
+  "report_pdf": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_10-51-58/report/dsfb_semiotics_engine_report.pdf",
+  "zip_archive": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_10-51-58/dsfb-semiotics-engine-2026-03-21_10-51-58.zip",
+  "first_png": "/home/one/dsfb/crates/dsfb-semiotics-engine/artifacts/public_dataset_demo/nasa_milling/generated/2026-03-21_10-51-58/figures/figure_01_residual_prediction_observation_overview.png"
 }
