@@ -97,9 +97,11 @@ fn test_colab_notebook_runs_fetch_for_milling() {
         &notebook,
         &[
             "dataset_slug=\"nasa_milling\"",
+            "prepare_public_dataset_raw_inputs",
             "fetch_public_dataset.py",
+            "fetch raw dataset or reuse deterministic raw-summary cache",
+            "rebuild raw summary from verified local archive",
             "--force-regenerate",
-            "fetch raw dataset / rebuild raw summary from scratch",
         ],
     );
 }
@@ -111,9 +113,11 @@ fn test_colab_notebook_runs_fetch_for_bearings() {
         &notebook,
         &[
             "dataset_slug=\"nasa_bearings\"",
+            "prepare_public_dataset_raw_inputs",
             "fetch_public_dataset.py",
+            "fetch raw dataset or reuse deterministic raw-summary cache",
+            "rebuild raw summary from verified local archive",
             "--force-regenerate",
-            "fetch raw dataset / rebuild raw summary from scratch",
         ],
     );
 }
@@ -250,6 +254,7 @@ fn test_colab_notebook_does_not_require_manual_dataset_download() {
     assert!(notebook.contains("fetch_public_dataset.py"));
     assert!(notebook.contains("downloaded automatically"));
     assert!(notebook.contains("reused after integrity verification"));
+    assert!(notebook.contains("raw summary cache is reused"));
     assert!(!notebook.contains("download this yourself"));
     assert!(!notebook.contains("manual download"));
 }
