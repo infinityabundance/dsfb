@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 
 use crate::engine::types::{
     AdmissibilityEnvelope, EnvelopeMode, EnvelopeSample, GrammarReasonCode, GrammarState,
-    GrammarStatus, ResidualTrajectory,
+    GrammarStatus, ResidualTrajectory, TrustScalar,
 };
 
 /// Typed envelope configuration used by both synthetic and CSV-driven runs.
@@ -147,9 +147,10 @@ pub fn evaluate_grammar(
         .enumerate()
         .map(|(index, (sample, env))| {
             let margin = env.radius - sample.norm;
+            let boundary_band = 0.04 * env.radius.max(1.0);
             let state = if margin < 0.0 {
                 GrammarState::Violation
-            } else if margin <= 0.04 * env.radius.max(1.0) {
+            } else if margin <= boundary_band {
                 GrammarState::Boundary
             } else {
                 GrammarState::Admissible
@@ -198,6 +199,7 @@ pub fn evaluate_grammar(
                         .to_string(),
                 ),
             };
+            let trust_scalar = trust_scalar_for(reason_code, margin, env.radius, boundary_band);
             GrammarStatus {
                 scenario_id: residual.scenario_id.clone(),
                 step: sample.step,
@@ -212,14 +214,43 @@ pub fn evaluate_grammar(
                 .to_string(),
                 reason_text,
                 supporting_metric_summary: format!(
-                    "margin={}, radius={}, residual_norm={}, norm_delta={}",
-                    margin, env.radius, sample.norm, norm_delta
+                    "margin={}, radius={}, residual_norm={}, norm_delta={}, trust={}",
+                    margin,
+                    env.radius,
+                    sample.norm,
+                    norm_delta,
+                    trust_scalar.value()
                 ),
                 margin,
                 radius: env.radius,
                 residual_norm: sample.norm,
+                trust_scalar,
                 regime: env.regime.clone(),
             }
         })
         .collect()
+}
+
+fn trust_scalar_for(
+    reason_code: GrammarReasonCode,
+    margin: f64,
+    radius: f64,
+    boundary_band: f64,
+) -> TrustScalar {
+    let normalized_gap = if margin < 0.0 {
+        (-margin / radius.max(1.0e-12)).clamp(0.0, 1.0)
+    } else if boundary_band <= 1.0e-12 {
+        0.0
+    } else {
+        ((boundary_band - margin.max(0.0)) / boundary_band).clamp(0.0, 1.0)
+    };
+    let base_severity = match reason_code {
+        GrammarReasonCode::Admissible => 0.0,
+        GrammarReasonCode::Boundary => 0.20,
+        GrammarReasonCode::RecurrentBoundaryGrazing => 0.35,
+        GrammarReasonCode::SustainedOutwardDrift => 0.65,
+        GrammarReasonCode::EnvelopeViolation => 0.75,
+        GrammarReasonCode::AbruptSlewViolation => 0.85,
+    };
+    TrustScalar::new(1.0 - (base_severity + 0.15 * normalized_gap).clamp(0.0, 1.0))
 }

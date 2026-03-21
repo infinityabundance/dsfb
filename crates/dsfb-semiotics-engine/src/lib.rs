@@ -3,6 +3,7 @@
 
 pub mod cli;
 pub mod dashboard;
+pub mod demos;
 pub mod engine;
 pub mod evaluation;
 pub mod figures;
@@ -29,12 +30,13 @@ pub use engine::pipeline::{
 };
 pub use engine::settings::{
     EngineSettings, EvaluationSettings, OnlineEngineSettings, PlottingSettings, ReportingSettings,
-    SemanticRetrievalSettings, SyntaxThresholds,
+    RetrievalIndexSettings, SemanticRetrievalSettings, SmoothingMode, SmoothingSettings,
+    SyntaxThresholds,
 };
 pub use engine::types::{
     AdmissibilityEnvelope, CoordinatedResidualStructure, DetectabilityResult, EngineOutputBundle,
     GrammarReasonCode, GrammarState, GrammarStatus, ObservedTrajectory, PredictedTrajectory,
-    ReportManifest, ResidualTrajectory, SemanticMatchResult, SignTrajectory,
+    ReportManifest, ResidualTrajectory, SemanticMatchResult, SignTrajectory, TrustScalar,
 };
 pub use io::schema::{ARTIFACT_SCHEMA_VERSION, HEURISTIC_BANK_SCHEMA_VERSION};
 pub use live::{

@@ -72,6 +72,9 @@ fn test_example_csv_workflow_exists() {
     assert!(crate_root()
         .join("docs/examples/synthetic_failure_injection.md")
         .is_file());
+    assert!(crate_root()
+        .join("docs/examples/vibration_to_thermal_drift.md")
+        .is_file());
 }
 
 #[test]
@@ -112,6 +115,27 @@ fn test_readme_mentions_f32_mode_if_added() {
 fn test_readme_mentions_ring_buffer_or_bounded_memory_if_added() {
     let readme = readme_text();
     assert!(readme.contains("fixed-capacity ring buffer"));
+}
+
+#[test]
+fn test_readme_mentions_smoothing_if_added() {
+    let readme = readme_text();
+    assert!(readme.contains("smoothing"));
+    assert!(readme.contains("low-latency smoothing"));
+}
+
+#[test]
+fn test_readme_mentions_retrieval_indexing_if_added() {
+    let readme = readme_text();
+    assert!(readme.contains("prefilter index"));
+    assert!(readme.contains("indexed or linear path"));
+}
+
+#[test]
+fn test_readme_mentions_grammar_trust_if_added() {
+    let readme = readme_text();
+    assert!(readme.contains("trust scalar"));
+    assert!(readme.contains("grammar severity"));
 }
 
 #[test]

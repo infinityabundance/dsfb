@@ -78,6 +78,24 @@ pub(crate) fn write_tabular_artifacts(
         layout.csv_dir.join("baseline_comparators.csv").as_path(),
         bundle.evaluation.baseline_results.clone(),
     )?;
+    if !bundle.evaluation.smoothing_comparison_report.is_empty() {
+        write_rows(
+            layout
+                .csv_dir
+                .join("smoothing_comparison_report.csv")
+                .as_path(),
+            bundle.evaluation.smoothing_comparison_report.clone(),
+        )?;
+    }
+    if !bundle.evaluation.retrieval_latency_report.is_empty() {
+        write_rows(
+            layout
+                .csv_dir
+                .join("retrieval_latency_report.csv")
+                .as_path(),
+            bundle.evaluation.retrieval_latency_report.clone(),
+        )?;
+    }
     write_rows(
         layout.csv_dir.join("comparator_results.csv").as_path(),
         bundle
@@ -281,6 +299,24 @@ pub(crate) fn write_tabular_artifacts(
         layout.json_dir.join("baseline_comparators.json").as_path(),
         &bundle.evaluation.baseline_results,
     )?;
+    if !bundle.evaluation.smoothing_comparison_report.is_empty() {
+        write_pretty(
+            layout
+                .json_dir
+                .join("smoothing_comparison_report.json")
+                .as_path(),
+            &bundle.evaluation.smoothing_comparison_report,
+        )?;
+    }
+    if !bundle.evaluation.retrieval_latency_report.is_empty() {
+        write_pretty(
+            layout
+                .json_dir
+                .join("retrieval_latency_report.json")
+                .as_path(),
+            &bundle.evaluation.retrieval_latency_report,
+        )?;
+    }
     write_pretty(
         layout.json_dir.join("comparator_results.json").as_path(),
         &bundle
@@ -400,6 +436,10 @@ struct SemanticMatchCsvRow {
     heuristics_rejected_by_regime: usize,
     heuristics_rejected_by_scope: usize,
     heuristics_selected_final: usize,
+    retrieval_path: String,
+    prefilter_candidate_count: usize,
+    prefilter_candidate_ids: String,
+    index_buckets_considered: usize,
     candidate_ids_post_admissibility: String,
     candidate_ids_post_regime: String,
     candidate_ids_post_scope: String,
@@ -454,6 +494,7 @@ struct EvaluationSummaryCsvRow {
     comparator_trigger_counts: String,
     reproducible_scenario_count: usize,
     all_reproducible: bool,
+    minimum_trust_scalar: f64,
     note: String,
 }
 
@@ -467,6 +508,9 @@ struct ScenarioEvaluationCsvRow {
     syntax_label: String,
     semantic_disposition: String,
     selected_heuristic_ids: String,
+    grammar_reason_code: String,
+    grammar_reason_text: String,
+    trust_scalar: f64,
     heuristic_bank_entry_count: usize,
     heuristic_candidates_post_admissibility: usize,
     heuristic_candidates_post_regime: usize,
@@ -647,6 +691,10 @@ fn semantic_csv_row(result: &crate::engine::types::SemanticMatchResult) -> Seman
         heuristics_rejected_by_regime: result.retrieval_audit.heuristics_rejected_by_regime,
         heuristics_rejected_by_scope: result.retrieval_audit.heuristics_rejected_by_scope,
         heuristics_selected_final: result.retrieval_audit.heuristics_selected_final,
+        retrieval_path: result.retrieval_audit.retrieval_path.clone(),
+        prefilter_candidate_count: result.retrieval_audit.prefilter_candidate_count,
+        prefilter_candidate_ids: result.retrieval_audit.prefilter_candidate_ids.join(" | "),
+        index_buckets_considered: result.retrieval_audit.index_buckets_considered,
         candidate_ids_post_admissibility: result
             .retrieval_audit
             .candidate_ids_post_admissibility
@@ -806,6 +854,7 @@ fn evaluation_summary_csv_row(
         comparator_trigger_counts: join_count_map(&summary.comparator_trigger_counts),
         reproducible_scenario_count: summary.reproducible_scenario_count,
         all_reproducible: summary.all_reproducible,
+        minimum_trust_scalar: summary.minimum_trust_scalar,
         note: summary.note.clone(),
     }
 }
@@ -822,6 +871,9 @@ fn scenario_evaluation_csv_row(
         syntax_label: summary.syntax_label.clone(),
         semantic_disposition: summary.semantic_disposition.clone(),
         selected_heuristic_ids: summary.selected_heuristic_ids.join(" | "),
+        grammar_reason_code: summary.grammar_reason_code.clone(),
+        grammar_reason_text: summary.grammar_reason_text.clone(),
+        trust_scalar: summary.trust_scalar,
         heuristic_bank_entry_count: summary.heuristic_bank_entry_count,
         heuristic_candidates_post_admissibility: summary.heuristic_candidates_post_admissibility,
         heuristic_candidates_post_regime: summary.heuristic_candidates_post_regime,

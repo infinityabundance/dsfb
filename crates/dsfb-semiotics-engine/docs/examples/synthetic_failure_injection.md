@@ -13,7 +13,7 @@ cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --example synt
 - generates a nominal sine-like signal
 - injects a linear drift term after a nominal period
 - pushes the resulting residual stream through the bounded online engine
-- prints time-stamped syntax, grammar, and semantic changes
+- prints time-stamped syntax, grammar, trust, and semantic changes
 
 Representative output is intentionally plain-English and operator-readable. The exact heuristic wording depends on the currently selected bank configuration.
 

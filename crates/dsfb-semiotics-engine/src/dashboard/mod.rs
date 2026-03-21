@@ -57,6 +57,8 @@ pub struct DashboardReplayEvent {
     pub syntax_label: String,
     pub grammar_state: String,
     pub grammar_margin: f64,
+    pub grammar_reason_text: String,
+    pub trust_scalar: f64,
     pub semantic_disposition: String,
     pub semantic_candidates: String,
     pub selected_heuristics: String,
@@ -250,6 +252,8 @@ fn build_events(
                 syntax_label: scenario.syntax.trajectory_label.clone(),
                 grammar_state: grammar_state_label(grammar.state).to_string(),
                 grammar_margin: grammar.margin,
+                grammar_reason_text: grammar.reason_text.clone(),
+                trust_scalar: grammar.trust_scalar.value(),
                 semantic_disposition: format!("{:?}", scenario.semantics.disposition),
                 semantic_candidates: joined_candidates(scenario),
                 selected_heuristics: joined_selected_heuristics(scenario),
@@ -361,8 +365,8 @@ fn render_frame_ascii(
     .render(header[0], &mut buffer);
 
     Paragraph::new(format!(
-        "syntax={}\ngrammar={}\nsemantics={}",
-        event.syntax_label, event.grammar_state, event.semantic_disposition
+        "syntax={}\ngrammar={}\ntrust={:.3}\nsemantics={}",
+        event.syntax_label, event.grammar_state, event.trust_scalar, event.semantic_disposition
     ))
     .block(
         Block::default()
@@ -397,8 +401,8 @@ fn render_frame_ascii(
     .render(metrics[0], &mut buffer);
 
     Paragraph::new(format!(
-        "drift={:.6}\nslew={:.6}\nmargin={:.6}",
-        event.drift_norm, event.slew_norm, event.grammar_margin
+        "drift={:.6}\nslew={:.6}\nmargin={:.6}\n{}",
+        event.drift_norm, event.slew_norm, event.grammar_margin, event.grammar_reason_text
     ))
     .block(Block::default().title("Drift / Slew").borders(Borders::ALL))
     .wrap(Wrap { trim: true })

@@ -71,15 +71,20 @@ pub fn build_markdown_report(
     lines.push("## Definitions Used".to_string());
     lines.push(String::new());
     lines.push("- Residual: `r(t) = y(t) - y_hat(t)`".to_string());
-    lines.push("- Drift: `d(t) = dr/dt` via deterministic finite differences.".to_string());
-    lines.push("- Slew: `s(t) = d^2r/dt^2` via deterministic second differences.".to_string());
+    lines.push("- Drift: `d(t) = dr/dt` via deterministic finite differences, optionally after a configured low-latency smoothing pass used only for derivative estimation.".to_string());
+    lines.push("- Slew: `s(t) = d^2r/dt^2` via deterministic second differences over the same configured derivative-preconditioning path.".to_string());
     lines.push("- Sign tuple: `sigma(t) = (r(t), d(t), s(t))`.".to_string());
+    lines.push(format!(
+        "- Smoothing mode: `{}` with alpha `{}`. Raw residual exports remain unchanged; only derivative estimation uses this optional preconditioning path.",
+        bundle.run_metadata.engine_settings.smoothing.mode.as_label(),
+        format_metric(bundle.run_metadata.engine_settings.smoothing.exponential_alpha)
+    ));
     lines.push("- Sign projection used in Figure 03: deterministic projected sign coordinates `[||r(t)||, dot(r(t), d(t))/||r(t)||, ||s(t)||]`, reported as residual norm, signed radial drift, and slew norm, with zero radial drift reported at exact zero residual norm.".to_string());
     lines.push("- Syntax metrics include outward and inward drift fractions from residual-norm and margin evolution, radial-sign dominance, radial-sign persistence, drift-channel sign alignment, residual-norm path monotonicity, residual-norm trend alignment, mean squared slew norm, late slew-growth score, slew spike count and strength, boundary grazing episodes, boundary recovery count, and grouped aggregate breach fraction when coordinated structure is configured. Labels such as `weakly-structured-baseline-like` and `mixed-structured` remain conservative summaries rather than health judgments.".to_string());
     lines.push(
-        "- Grammar: admissibility checked pointwise against `||r(t)|| <= rho(t)`.".to_string(),
+        "- Grammar: admissibility checked pointwise against `||r(t)|| <= rho(t)`. Each grammar sample also carries a deterministic trust scalar in `[0,1]` derived from typed grammar severity, with lower trust reserved for stronger or more abrupt admissibility departures.".to_string(),
     );
-    lines.push("- Semantics: constrained retrieval over a typed heuristic bank with scope conditions, admissibility requirements, regime tags, provenance notes, and compatibility rules. The bank may be builtin or external, but the loaded bank version, source, content hash, and validation result are exported explicitly for audit. Compatible sets carry explicit pairwise compatibility notes, while `Unknown` carries an explicit low-evidence or bank-noncoverage detail string.".to_string());
+    lines.push("- Semantics: constrained retrieval over a typed heuristic bank with scope conditions, admissibility requirements, regime tags, provenance notes, and compatibility rules. The bank may be builtin or external, but the loaded bank version, source, content hash, and validation result are exported explicitly for audit. Compatible sets carry explicit pairwise compatibility notes, while `Unknown` carries an explicit low-evidence or bank-noncoverage detail string. Larger banks may use a deterministic admissibility/regime/group-breach index to narrow candidates before the exact typed scope and compatibility checks run.".to_string());
     lines.push("- Detectability bound: `t* - t0 <= Delta0 / (alpha - kappa)` when configured assumptions hold.".to_string());
     lines.push("- Evaluation: post-run deterministic summaries and simple internal deterministic comparators (residual threshold, moving-average trend, slew spike, envelope interaction, one-sided CUSUM, and a fixed innovation-style squared residual statistic) are reported separately from the core engine outputs.".to_string());
     lines.push("- Comparator framing: these internal deterministic comparators are operator-legible analogies to threshold monitors, EKF innovation monitoring, chi-squared-style gating, and one-sided change detectors on the same controlled scenario families. They are not field benchmarks and do not support superiority claims by themselves.".to_string());
@@ -131,6 +136,10 @@ pub fn build_markdown_report(
             .map(|(comparator, count)| format!("{comparator}={count}"))
             .collect::<Vec<_>>()
             .join(", ")
+    ));
+    lines.push(format!(
+        "- Minimum trust scalar: {}",
+        format_metric(bundle.evaluation.summary.minimum_trust_scalar)
     ));
     lines.push(format!(
         "- Bank validation mode: `{}`",
@@ -189,6 +198,18 @@ pub fn build_markdown_report(
             sweep_summary.unknown_count,
             sweep_summary.ambiguous_count,
             sweep_summary.disposition_flip_count
+        ));
+    }
+    if !bundle.evaluation.smoothing_comparison_report.is_empty() {
+        lines.push(format!(
+            "- Smoothing comparison rows exported: {}",
+            bundle.evaluation.smoothing_comparison_report.len()
+        ));
+    }
+    if !bundle.evaluation.retrieval_latency_report.is_empty() {
+        lines.push(format!(
+            "- Retrieval scaling rows exported: {}",
+            bundle.evaluation.retrieval_latency_report.len()
         ));
     }
     if let Some(figure_integrity_checks) = figure_integrity_checks {
@@ -331,6 +352,12 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
                 .unwrap_or_else(|| "n/a".to_string())
         ),
         format!(
+            "- Trust scalar: `{}`",
+            latest_grammar_status
+                .map(|status| format_metric(status.trust_scalar.value()))
+                .unwrap_or_else(|| "n/a".to_string())
+        ),
+        format!(
             "- Syntax metrics: outward={}, inward={}, residual_norm_path_monotonicity={}, residual_norm_trend_alignment={}, radial_sign_persistence={}, radial_sign_dominance={}, drift_channel_sign_alignment={}, mean_squared_slew_norm={}, late_slew_growth_score={}, slew_spikes={}, spike_strength={}, grazing_episodes={}, boundary_recoveries={}, coordinated_group_breach_fraction={}",
             format_metric(scenario.syntax.outward_drift_fraction),
             format_metric(scenario.syntax.inward_drift_fraction),
@@ -357,8 +384,10 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
             scenario.semantics.disposition
         ),
         format!(
-            "- Semantic retrieval audit: bank_entries={}, post_admissibility={}, post_regime={}, pre_scope={}, post_scope={}, rejected_by_admissibility={}, rejected_by_regime={}, rejected_by_scope={}, selected_final={}",
+            "- Semantic retrieval audit: path={}, bank_entries={}, prefilter_candidates={}, post_admissibility={}, post_regime={}, pre_scope={}, post_scope={}, rejected_by_admissibility={}, rejected_by_regime={}, rejected_by_scope={}, selected_final={}",
+            scenario.semantics.retrieval_audit.retrieval_path,
             scenario.semantics.retrieval_audit.heuristic_bank_entry_count,
+            scenario.semantics.retrieval_audit.prefilter_candidate_count,
             scenario
                 .semantics
                 .retrieval_audit

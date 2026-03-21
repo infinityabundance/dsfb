@@ -44,6 +44,7 @@ d(t) = \frac{dr}{dt}, \qquad s(t) = \frac{d^2 r}{dt^2}
 \]
 
 In discrete time the crate uses one-sided differences at the boundaries and centered finite differences in the interior. This is a deterministic numerical choice, not a claim that the paper’s continuous-time objects have been solved in full generality.
+Because raw differentiation can amplify jitter, the sign generator also supports an optional deterministic low-latency smoothing pass before drift and slew estimation. The default posture remains conservative (`disabled`), the selected smoothing mode and parameters are exported in run metadata, and the raw residual export path remains unchanged.
 
 ### Signs
 
@@ -98,6 +99,7 @@ Grammar export is not limited to a bare boolean outcome. Each sample also carrie
 - `EnvelopeViolation`
 
 These grammar reports describe structural inadmissibility relative to the configured envelope. They do not imply root-cause certainty.
+Each grammar sample also exports a deterministic trust scalar in `[0,1]`. This trust value is a deployment-oriented interface derived from grammar severity and margin behavior, not a field-validated control law.
 
 ### Detectability Bound
 
@@ -148,6 +150,7 @@ Retrieval is constrained rather than purely threshold-labeled. Each candidate no
 - explicit `Unknown`, including whether the current outcome reflects low evidence or bank noncoverage, with an exported detail string explaining which case occurred
 
 These are constrained heuristic retrieval outcomes only. They do not imply unique latent cause. In particular, the baseline-compatible path is a low-commitment description relative to the configured prediction and envelope, not a validated health classifier, and compatible sets remain jointly reportable motifs rather than collapsed diagnoses.
+For larger banks the crate can also build a deterministic admissibility/regime/group-breach prefilter index before exact scope and compatibility checks run. That index narrows candidate sets without replacing the authoritative typed validation path, and the export surface records whether retrieval used the indexed or linear path.
 
 ### CSV Ingestion Path
 
@@ -240,6 +243,18 @@ In addition to the batch artifact pipeline, the crate now exposes a bounded onli
 
 This separation matters for long-endurance or embedded-style use because the live engine path no longer requires unbounded sign or residual history growth.
 
+## Units and Physical Interpretation
+
+Residual units are inherited from the upstream residual source. When the residual is physically meaningful, the downstream drift and slew quantities inherit those units in the usual way. For example:
+
+- residual: `mm`
+- drift: `mm/s`
+- slew: `mm/s^2`
+
+Equivalently, a residual measured in millimeters implies drift in millimeters/second and slew in millimeters/second^2.
+
+The crate does not fake units when the residual source is abstract or normalized. In those cases the docs and examples treat the quantities as unitless or source-inherited rather than claiming a universal physical interpretation.
+
 ## Evaluation Harness
 
 The crate keeps deterministic engine outputs separate from deterministic evaluation summaries.
@@ -253,6 +268,8 @@ The evaluation layer exports:
 - per-scenario reproducibility status
 - heuristic-bank validation results
 - artifact completeness checks
+- smoothing comparison reports showing raw-versus-active derivative behavior
+- retrieval indexing reports using deterministic candidate-count scaling proxies
 - figure-source tables for every publication-style figure
 - figure-integrity checks tying rendered figures back to exported source rows and emitted image files
 - sweep summaries when sweep mode is used
@@ -440,6 +457,12 @@ Run the bounded online failure-injection example:
 cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --example synthetic_failure_injection
 ```
 
+Run the physically grounded vibration-to-thermal-drift example:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --example vibration_to_thermal_drift
+```
+
 Build the legacy-integration FFI crate and header surface:
 
 ```bash
@@ -494,6 +517,8 @@ Additional evaluation artifacts include:
 - `csv/heuristic_bank_validation.csv`
 - `csv/bank_validation_report.csv`
 - `csv/artifact_completeness.csv`
+- `csv/smoothing_comparison_report.csv`
+- `csv/retrieval_latency_report.csv`
 - `csv/figure_09_detectability_source.csv`
 - `csv/figure_12_semantic_retrieval_source.csv`
 - `csv/figure_13_internal_baseline_comparators_source.csv`
@@ -508,6 +533,8 @@ Additional evaluation artifacts include:
 - `json/bank_validation_report.json`
 - `json/loaded_heuristic_bank_descriptor.json`
 - `json/artifact_completeness.json`
+- `json/smoothing_comparison_report.json`
+- `json/retrieval_latency_report.json`
 - `json/figure_09_detectability_source.json`
 - `json/figure_12_semantic_retrieval_source.json`
 - `json/figure_13_internal_baseline_comparators_source.json`
@@ -573,6 +600,7 @@ For legacy control stacks and C or C++ hosts, the crate includes a minimal neste
 - it exposes a small C ABI around the bounded online engine
 - the exported surface supports create, destroy, push-sample, current-status query, and reset
 - grammar state and grammar reason are exposed explicitly through C-friendly enums
+- the current-status ABI also exports a trust scalar and semantic disposition code instead of relying only on strings
 - the header is checked in so downstream users do not need Rust tooling merely to inspect the ABI
 
 This is a minimal integration path for experimentation and interoperability. It is not a certification claim.
@@ -589,6 +617,10 @@ The example demonstrates:
 - semantic retrieval under the current bank
 
 The printed wording is illustrative and depends on the configured heuristic bank, but the example is intended to be operator-readable and easy to rerun locally.
+
+## Vibration To Thermal Drift Example
+
+[`examples/vibration_to_thermal_drift.rs`](examples/vibration_to_thermal_drift.rs) and [`docs/examples/vibration_to_thermal_drift.md`](docs/examples/vibration_to_thermal_drift.md) provide a more physically grounded walkthrough. The example treats the residual as a bearing-gap signal in millimeters and explicitly discusses residual, drift, and slew in millimeters, millimeters/second, and millimeters/second^2 as the signal transitions from vibration-like high-frequency behavior into slower thermal-like drift.
 
 ## Limitations and Non-Claims
 

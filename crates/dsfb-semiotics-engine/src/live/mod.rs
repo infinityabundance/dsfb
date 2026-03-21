@@ -8,17 +8,21 @@ use serde::{Deserialize, Serialize};
 
 use crate::engine::bank::HeuristicBankRegistry;
 use crate::engine::grammar_layer::evaluate_grammar_layer;
-use crate::engine::semantics_layer::retrieve_semantics_with_registry;
+use crate::engine::semantics::{
+    build_retrieval_index, retrieve_semantics_with_context, SemanticRetrievalContext,
+    SemanticRetrievalIndex,
+};
 use crate::engine::settings::EngineSettings;
 use crate::engine::sign_layer::construct_signs;
 use crate::engine::syntax_layer::characterize_syntax_with_coordination_configured;
 use crate::engine::types::{
     GrammarReasonCode, GrammarState, GrammarStatus, ResidualSample, ResidualTrajectory,
-    SemanticMatchResult, SyntaxCharacterization,
+    SemanticDisposition, SemanticMatchResult, SyntaxCharacterization,
 };
 use crate::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 use crate::math::envelope::{build_envelope, EnvelopeSpec};
 use crate::math::metrics::euclidean_norm;
+use crate::math::smoothing::smooth_residual_trajectory;
 
 /// Stable machine-readable schema identifier for bounded online-engine status snapshots.
 pub const LIVE_ENGINE_STATUS_SCHEMA_VERSION: &str = "dsfb-semiotics-live-status/v1";
@@ -123,6 +127,8 @@ pub struct LiveEngineStatus {
     pub grammar_state: GrammarState,
     pub grammar_reason_code: GrammarReasonCode,
     pub grammar_reason_text: String,
+    pub trust_scalar: f64,
+    pub semantic_disposition_code: u8,
     pub semantic_disposition: String,
     pub selected_heuristic_ids: Vec<String>,
     pub note: String,
@@ -138,6 +144,7 @@ pub struct OnlineStructuralEngine {
     envelope_spec: EnvelopeSpec,
     settings: EngineSettings,
     bank_registry: HeuristicBankRegistry,
+    retrieval_index: SemanticRetrievalIndex,
     residual_history: RingBuffer<ResidualSample>,
     offline_history: Option<Vec<ResidualSample>>,
     next_step: usize,
@@ -184,11 +191,13 @@ impl OnlineStructuralEngine {
         } else {
             None
         };
+        let retrieval_index = build_retrieval_index(&bank_registry, &settings.retrieval_index);
         Ok(Self {
             scenario_id: scenario_id.into(),
             channel_names,
             dt,
             envelope_spec,
+            retrieval_index,
             settings,
             bank_registry,
             residual_history,
@@ -251,8 +260,9 @@ impl OnlineStructuralEngine {
             channel_names: self.channel_names.clone(),
             samples: self.residual_history.iter().cloned().collect(),
         };
-        let drift = compute_drift_trajectory(&residual, self.dt, &self.scenario_id);
-        let slew = compute_slew_trajectory(&residual, self.dt, &self.scenario_id);
+        let derivative_residual = smooth_residual_trajectory(&residual, &self.settings.smoothing);
+        let drift = compute_drift_trajectory(&derivative_residual, self.dt, &self.scenario_id);
+        let slew = compute_slew_trajectory(&derivative_residual, self.dt, &self.scenario_id);
         let sign = construct_signs(&residual, &drift, &slew);
         let envelope = build_envelope(&residual, &self.envelope_spec, &self.scenario_id);
         let grammar = evaluate_grammar_layer(&residual, &envelope);
@@ -262,14 +272,16 @@ impl OnlineStructuralEngine {
             None,
             &self.settings.syntax,
         );
-        let semantics = retrieve_semantics_with_registry(
-            &self.scenario_id,
-            &syntax,
-            &grammar,
-            None,
-            &self.bank_registry,
-            &self.settings.semantics,
-        );
+        let semantics = retrieve_semantics_with_context(SemanticRetrievalContext {
+            scenario_id: &self.scenario_id,
+            syntax: &syntax,
+            grammar: &grammar,
+            coordinated: None,
+            registry: &self.bank_registry,
+            settings: &self.settings.semantics,
+            index_settings: &self.settings.retrieval_index,
+            index: Some(&self.retrieval_index),
+        });
         self.status_from_latest(&sign, &grammar, &syntax, &semantics)
     }
 
@@ -306,6 +318,13 @@ impl OnlineStructuralEngine {
             grammar_state: latest_grammar.state,
             grammar_reason_code: latest_grammar.reason_code,
             grammar_reason_text: latest_grammar.reason_text,
+            trust_scalar: latest_grammar.trust_scalar.value(),
+            semantic_disposition_code: match semantics.disposition {
+                SemanticDisposition::Match => 0,
+                SemanticDisposition::CompatibleSet => 1,
+                SemanticDisposition::Ambiguous => 2,
+                SemanticDisposition::Unknown => 3,
+            },
             semantic_disposition: format!("{:?}", semantics.disposition),
             selected_heuristic_ids: semantics.selected_heuristic_ids.clone(),
             note: "Status derives from the bounded online window only. Optional offline accumulation remains separate from the memory-bounded live path.".to_string(),

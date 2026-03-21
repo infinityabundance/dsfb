@@ -15,7 +15,8 @@ use dsfb_semiotics_engine::engine::syntax_layer::characterize_syntax;
 use dsfb_semiotics_engine::engine::types::{
     CoordinatedResidualStructure, EnvelopeMode, GrammarReasonCode, GrammarState, GrammarStatus,
     GroupDefinition, GroupResidualPoint, ObservedTrajectory, PredictedTrajectory,
-    SemanticDisposition, SignSample, SignTrajectory, SyntaxCharacterization, VectorSample,
+    SemanticDisposition, SignSample, SignTrajectory, SyntaxCharacterization, TrustScalar,
+    VectorSample,
 };
 use dsfb_semiotics_engine::io::input::load_csv_trajectories;
 use dsfb_semiotics_engine::io::output::create_output_layout;
@@ -1667,6 +1668,11 @@ fn grammar_status(
         margin,
         radius: 1.0,
         residual_norm: 1.0 - margin,
+        trust_scalar: TrustScalar::new(match state {
+            GrammarState::Admissible => 1.0,
+            GrammarState::Boundary => 0.8,
+            GrammarState::Violation => 0.3,
+        }),
         regime: "fixed".to_string(),
     }
 }
@@ -1694,6 +1700,11 @@ fn grammar_status_with_regime(
         margin,
         radius: 1.0,
         residual_norm: 1.0 - margin,
+        trust_scalar: TrustScalar::new(match state {
+            GrammarState::Admissible => 1.0,
+            GrammarState::Boundary => 0.8,
+            GrammarState::Violation => 0.3,
+        }),
         regime: regime.to_string(),
     }
 }

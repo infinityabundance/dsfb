@@ -117,6 +117,25 @@ pub enum GrammarReasonCode {
     EnvelopeViolation,
 }
 
+/// Deterministic trust scalar derived from grammar severity.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(transparent)]
+pub struct TrustScalar(pub f64);
+
+impl TrustScalar {
+    /// Creates a bounded trust scalar in the unit interval.
+    #[must_use]
+    pub fn new(value: f64) -> Self {
+        Self(value.clamp(0.0, 1.0))
+    }
+
+    /// Returns the scalar value.
+    #[must_use]
+    pub const fn value(self) -> f64 {
+        self.0
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GrammarStatus {
     pub scenario_id: String,
@@ -130,6 +149,7 @@ pub struct GrammarStatus {
     pub margin: f64,
     pub radius: f64,
     pub residual_norm: f64,
+    pub trust_scalar: TrustScalar,
     pub regime: String,
 }
 
@@ -358,6 +378,14 @@ pub struct SemanticRetrievalAudit {
     pub heuristics_rejected_by_scope: usize,
     /// Final number of selected heuristics carried in the semantic result.
     pub heuristics_selected_final: usize,
+    /// Retrieval path used for this scenario (`linear` or `indexed`).
+    pub retrieval_path: String,
+    /// Number of candidates produced by the index prefilter before exact typed validation.
+    pub prefilter_candidate_count: usize,
+    /// Explicit IDs returned by the deterministic prefilter.
+    pub prefilter_candidate_ids: Vec<String>,
+    /// Number of index buckets consulted before exact typed validation.
+    pub index_buckets_considered: usize,
     /// Explicit IDs that passed admissibility filtering.
     pub candidate_ids_post_admissibility: Vec<String>,
     /// Explicit IDs that passed regime filtering.

@@ -44,6 +44,7 @@ typedef struct DsfbCurrentStatus {
   double residual_norm;
   double drift_norm;
   double slew_norm;
+  double trust_scalar;
   uint64_t history_buffer_capacity;
   uint64_t current_history_len;
   uint64_t offline_history_len;

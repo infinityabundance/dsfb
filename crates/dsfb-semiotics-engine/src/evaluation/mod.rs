@@ -4,21 +4,27 @@ pub mod types;
 
 use std::collections::BTreeMap;
 
-use crate::engine::bank::HeuristicBankValidationReport;
-use crate::engine::settings::EvaluationSettings;
+use crate::engine::bank::{HeuristicBankRegistry, HeuristicBankValidationReport};
+use crate::engine::semantics::benchmark_retrieval_scaling;
+use crate::engine::settings::{EngineSettings, EvaluationSettings};
+use crate::engine::sign_layer::construct_signs;
+use crate::engine::syntax_layer::characterize_syntax_with_coordination_configured;
 use crate::engine::types::{EngineOutputBundle, GrammarState, SemanticDisposition};
 use crate::evaluation::baselines::compute_baseline_results;
 use crate::evaluation::types::{
-    ArtifactCompletenessCheck, RunEvaluationBundle, RunEvaluationSummary,
-    ScenarioEvaluationSummary, SweepPointResult, SweepRunSummary,
+    ArtifactCompletenessCheck, RetrievalLatencyRecord, RunEvaluationBundle, RunEvaluationSummary,
+    ScenarioEvaluationSummary, SmoothingComparisonRecord, SweepPointResult, SweepRunSummary,
 };
 use crate::io::schema::ARTIFACT_SCHEMA_VERSION;
+use crate::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 
 /// Evaluates a completed engine bundle with deterministic post-run summaries and internal
 /// deterministic comparators.
 pub fn evaluate_bundle(
     bundle: &EngineOutputBundle,
     settings: &EvaluationSettings,
+    engine_settings: &EngineSettings,
+    bank_registry: &HeuristicBankRegistry,
     bank_validation: &HeuristicBankValidationReport,
     sweep_summary: Option<SweepRunSummary>,
 ) -> RunEvaluationBundle {
@@ -41,11 +47,22 @@ pub fn evaluate_bundle(
     let mut syntax_label_counts = BTreeMap::new();
     let mut boundary_interaction_count = 0usize;
     let mut violation_count = 0usize;
+    let mut minimum_trust_scalar = 1.0f64;
 
     let scenario_evaluations = bundle
         .scenario_outputs
         .iter()
         .map(|scenario| {
+            let worst_grammar = scenario
+                .grammar
+                .iter()
+                .min_by(|left, right| {
+                    left.trust_scalar
+                        .value()
+                        .total_cmp(&right.trust_scalar.value())
+                })
+                .or_else(|| scenario.grammar.last())
+                .expect("scenario grammar should be populated");
             let boundary_samples = scenario
                 .grammar
                 .iter()
@@ -82,6 +99,7 @@ pub fn evaluate_bundle(
             if violation_samples > 0 {
                 violation_count += 1;
             }
+            minimum_trust_scalar = minimum_trust_scalar.min(worst_grammar.trust_scalar.value());
 
             ScenarioEvaluationSummary {
                 schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
@@ -92,6 +110,9 @@ pub fn evaluate_bundle(
                 syntax_label: scenario.syntax.trajectory_label.clone(),
                 semantic_disposition: format!("{:?}", scenario.semantics.disposition),
                 selected_heuristic_ids: scenario.semantics.selected_heuristic_ids.clone(),
+                grammar_reason_code: format!("{:?}", worst_grammar.reason_code),
+                grammar_reason_text: worst_grammar.reason_text.clone(),
+                trust_scalar: worst_grammar.trust_scalar.value(),
                 heuristic_bank_entry_count: scenario
                     .semantics
                     .retrieval_audit
@@ -167,13 +188,19 @@ pub fn evaluate_bundle(
             .filter(|check| check.identical)
             .count(),
         all_reproducible: bundle.reproducibility_summary.all_identical,
+        minimum_trust_scalar,
         note: "Evaluation summaries are deterministic post-run summaries over engine outputs and internal deterministic comparators. They are not field benchmarks.".to_string(),
     };
+    let smoothing_comparison_report = build_smoothing_comparison_report(bundle, engine_settings);
+    let retrieval_latency_report =
+        build_retrieval_latency_report(bundle, bank_registry, engine_settings);
 
     RunEvaluationBundle {
         summary,
         scenario_evaluations,
         baseline_results,
+        smoothing_comparison_report,
+        retrieval_latency_report,
         bank_validation: bank_validation.clone(),
         artifact_completeness: None,
         sweep_results,
@@ -264,4 +291,86 @@ fn summarize_sweep(
             note: "Sweep summaries report deterministic semantic and syntax transitions across a configured synthetic parameter family. They are internal calibration-style summaries, not field benchmarks.".to_string(),
         }),
     )
+}
+
+fn build_smoothing_comparison_report(
+    bundle: &EngineOutputBundle,
+    engine_settings: &EngineSettings,
+) -> Vec<SmoothingComparisonRecord> {
+    bundle
+        .scenario_outputs
+        .iter()
+        .map(|scenario| {
+            let raw_drift = compute_drift_trajectory(
+                &scenario.residual,
+                bundle.run_metadata.dt,
+                &scenario.record.id,
+            );
+            let raw_slew = compute_slew_trajectory(
+                &scenario.residual,
+                bundle.run_metadata.dt,
+                &scenario.record.id,
+            );
+            let raw_sign = construct_signs(&scenario.residual, &raw_drift, &raw_slew);
+            let raw_syntax = characterize_syntax_with_coordination_configured(
+                &raw_sign,
+                &scenario.grammar,
+                scenario.coordinated.as_ref(),
+                &engine_settings.syntax,
+            );
+            SmoothingComparisonRecord {
+                schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+                engine_version: bundle.run_metadata.crate_version.clone(),
+                bank_version: bundle.run_metadata.bank.bank_version.clone(),
+                scenario_id: scenario.record.id.clone(),
+                smoothing_mode: engine_settings.smoothing.mode.as_label().to_string(),
+                smoothing_enabled: engine_settings.smoothing.enabled(),
+                smoothing_alpha: engine_settings.smoothing.exponential_alpha,
+                raw_mean_squared_slew_norm: raw_syntax.mean_squared_slew_norm,
+                active_mean_squared_slew_norm: scenario.syntax.mean_squared_slew_norm,
+                raw_max_slew_norm: raw_syntax.max_slew_norm,
+                active_max_slew_norm: scenario.syntax.max_slew_norm,
+                raw_slew_spike_count: raw_syntax.slew_spike_count,
+                active_slew_spike_count: scenario.syntax.slew_spike_count,
+                raw_syntax_label: raw_syntax.trajectory_label,
+                active_syntax_label: scenario.syntax.trajectory_label.clone(),
+                note: "Raw and active syntax metrics are compared using the same grammar trajectory so smoothing effects stay isolated to derivative estimation rather than envelope evaluation.".to_string(),
+            }
+        })
+        .collect()
+}
+
+fn build_retrieval_latency_report(
+    bundle: &EngineOutputBundle,
+    bank_registry: &HeuristicBankRegistry,
+    engine_settings: &EngineSettings,
+) -> Vec<RetrievalLatencyRecord> {
+    if !engine_settings.retrieval_index.export_latency_report {
+        return Vec::new();
+    }
+    let Some(reference) = bundle.scenario_outputs.first() else {
+        return Vec::new();
+    };
+    benchmark_retrieval_scaling(
+        &reference.syntax,
+        &reference.grammar,
+        reference.coordinated.as_ref(),
+        bank_registry,
+        &engine_settings.semantics,
+        &engine_settings.retrieval_index,
+    )
+    .into_iter()
+    .map(|observation| RetrievalLatencyRecord {
+        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+        engine_version: bundle.run_metadata.crate_version.clone(),
+        bank_version: bundle.run_metadata.bank.bank_version.clone(),
+        bank_size: observation.bank_size,
+        retrieval_path: observation.retrieval_path,
+        linear_candidates_considered: observation.linear_candidates_considered,
+        indexed_prefilter_candidate_count: observation.indexed_prefilter_candidate_count,
+        indexed_post_scope_candidate_count: observation.indexed_post_scope_candidate_count,
+        index_buckets_considered: observation.index_buckets_considered,
+        note: observation.note,
+    })
+    .collect()
 }
