@@ -865,6 +865,16 @@ fn prepare_figure_09(bundle: &EngineOutputBundle) -> FigureSourceTable {
             return table;
         }
     }
+    if is_primary_milling_bundle(bundle) {
+        if let Ok(table) = prepare_figure_09_milling(bundle) {
+            return table;
+        }
+    }
+    if is_synthetic_bundle(bundle) {
+        if let Ok(table) = prepare_figure_09_synthetic(bundle) {
+            return table;
+        }
+    }
     let rows = detectability_source_rows(bundle);
     let use_multi_case_comparison = rows
         .iter()
@@ -1604,6 +1614,16 @@ fn prepare_figure_12(bundle: &EngineOutputBundle) -> FigureSourceTable {
             return table;
         }
     }
+    if is_primary_milling_bundle(bundle) {
+        if let Ok(table) = prepare_figure_12_milling(bundle) {
+            return table;
+        }
+    }
+    if is_synthetic_bundle(bundle) {
+        if let Ok(table) = prepare_figure_12_synthetic(bundle) {
+            return table;
+        }
+    }
     let mut table = new_source_table(
         &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
@@ -1771,6 +1791,16 @@ fn prepare_figure_13(bundle: &EngineOutputBundle) -> FigureSourceTable {
             return table;
         }
     }
+    if is_primary_milling_bundle(bundle) {
+        if let Ok(table) = prepare_figure_13_milling(bundle) {
+            return table;
+        }
+    }
+    if is_synthetic_bundle(bundle) {
+        if let Ok(table) = prepare_figure_13_synthetic(bundle) {
+            return table;
+        }
+    }
     let mut table = new_source_table(
         &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
@@ -1843,7 +1873,7 @@ fn prepare_figure_13(bundle: &EngineOutputBundle) -> FigureSourceTable {
 }
 
 #[derive(Clone, Debug)]
-struct BearingsMatchedWindowSelection {
+struct MatchedWindowSelection {
     channel_index: usize,
     stable_window: Range<usize>,
     departure_window: Range<usize>,
@@ -1851,11 +1881,25 @@ struct BearingsMatchedWindowSelection {
     departure_primary_mean: f64,
     stable_meta_mean: f64,
     departure_meta_mean: f64,
+    stable_outcome_mean: f64,
+    departure_outcome_mean: f64,
+}
+
+#[derive(Clone, Debug)]
+struct SyntheticScenarioPairSelection<'a> {
+    admissible_case: &'a ScenarioOutput,
+    detectable_case: &'a ScenarioOutput,
+    admissible_primary_mean: f64,
+    detectable_primary_mean: f64,
+    admissible_meta_mean: f64,
+    detectable_meta_mean: f64,
+    admissible_outcome_mean: f64,
+    detectable_outcome_mean: f64,
 }
 
 fn prepare_figure_09_bearings(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = bearings_primary_scenario(bundle)?;
-    let selection = select_bearings_matched_windows(scenario)
+    let selection = select_matched_windows(scenario)
         .with_context(|| "unable to select comparable NASA Bearings windows for figure 09")?;
     let channel_label = scenario_channel_label(scenario, selection.channel_index);
     let note = format!(
@@ -2248,6 +2292,618 @@ fn prepare_figure_13_bearings(bundle: &EngineOutputBundle) -> Result<FigureSourc
             .enumerate()
             .map(|(index, point)| (index, point.time, point.semantic_disposition_code as f64)),
         &note,
+    );
+    Ok(table)
+}
+
+fn prepare_figure_09_milling(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
+    let scenario = milling_primary_scenario(bundle)?;
+    let selection = select_process_windows(scenario)
+        .with_context(|| "unable to select comparable NASA Milling windows for figure 09")?;
+    let channel_label = scenario_channel_label(scenario, selection.channel_index);
+    let note = format!(
+        "Windows were matched within the NASA Milling run by minimizing absolute primary residual-magnitude difference on `{}` while retaining materially different higher-order slew and grammar outcomes. stable_steps={}..{}, departure_steps={}..{}, stable_mean_abs_primary={:.6}, departure_mean_abs_primary={:.6}, stable_mean_abs_meta={:.6}, departure_mean_abs_meta={:.6}, stable_mean_outcome={:.6}, departure_mean_outcome={:.6}. Similar primary behavior alone does not separate the milling process windows; first-order behavior alone is insufficient, and higher-order structure plus grammar outcome do.",
+        channel_label,
+        selection.stable_window.start,
+        selection.stable_window.end.saturating_sub(1),
+        selection.departure_window.start,
+        selection.departure_window.end.saturating_sub(1),
+        selection.stable_primary_mean,
+        selection.departure_primary_mean,
+        selection.stable_meta_mean,
+        selection.departure_meta_mean,
+        selection.stable_outcome_mean,
+        selection.departure_outcome_mean
+    );
+    let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
+        &bundle.run_metadata.bank.bank_version,
+        "figure_09_detectability_bound_comparison",
+        "NASA Milling: Similar Primary Behavior, Divergent Higher-Order Structure, Divergent Outcome",
+        &[
+            "primary_magnitude_similarity",
+            "meta_residual_divergence",
+            "outcome_consequence",
+        ],
+        &[],
+    );
+    push_scalar_series(
+        &mut table,
+        "primary_magnitude_similarity",
+        "Panel A: Similar primary residual behavior across milling process windows",
+        "window-local sample index",
+        &format!("|{} residual|", channel_label),
+        "stable_primary_window",
+        "stable process window",
+        "line",
+        "blue",
+        &scenario.record.id,
+        scenario.residual.samples[selection.stable_window.clone()]
+            .iter()
+            .enumerate()
+            .map(|(local_index, sample)| {
+                (
+                    local_index,
+                    local_index as f64,
+                    sample
+                        .values
+                        .get(selection.channel_index)
+                        .copied()
+                        .unwrap_or_default()
+                        .abs(),
+                )
+            }),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "primary_magnitude_similarity",
+        "Panel A: Similar primary residual behavior across milling process windows",
+        "window-local sample index",
+        &format!("|{} residual|", channel_label),
+        "departure_primary_window",
+        "departure process window",
+        "line",
+        "red",
+        &scenario.record.id,
+        scenario.residual.samples[selection.departure_window.clone()]
+            .iter()
+            .enumerate()
+            .map(|(local_index, sample)| {
+                (
+                    local_index,
+                    local_index as f64,
+                    sample
+                        .values
+                        .get(selection.channel_index)
+                        .copied()
+                        .unwrap_or_default()
+                        .abs(),
+                )
+            }),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "meta_residual_divergence",
+        "Panel B: Higher-order slew diverges within the milling run",
+        "window-local sample index",
+        &format!("|{} slew|", channel_label),
+        "stable_meta_window",
+        "stable meta-window",
+        "line",
+        "blue",
+        &scenario.record.id,
+        scenario.slew.samples[selection.stable_window.clone()]
+            .iter()
+            .enumerate()
+            .map(|(local_index, sample)| {
+                (
+                    local_index,
+                    local_index as f64,
+                    sample
+                        .values
+                        .get(selection.channel_index)
+                        .copied()
+                        .unwrap_or_default()
+                        .abs(),
+                )
+            }),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "meta_residual_divergence",
+        "Panel B: Higher-order slew diverges within the milling run",
+        "window-local sample index",
+        &format!("|{} slew|", channel_label),
+        "departure_meta_window",
+        "departure meta-window",
+        "line",
+        "red",
+        &scenario.record.id,
+        scenario.slew.samples[selection.departure_window.clone()]
+            .iter()
+            .enumerate()
+            .map(|(local_index, sample)| {
+                (
+                    local_index,
+                    local_index as f64,
+                    sample
+                        .values
+                        .get(selection.channel_index)
+                        .copied()
+                        .unwrap_or_default()
+                        .abs(),
+                )
+            }),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "outcome_consequence",
+        "Panel C: Grammar outcome diverges across the matched milling windows",
+        "window-local sample index",
+        "grammar state code (0=Adm, 1=Bnd, 2=Viol)",
+        "stable_outcome_window",
+        "stable outcome",
+        "line",
+        "blue",
+        &scenario.record.id,
+        scenario.grammar[selection.stable_window.clone()]
+            .iter()
+            .enumerate()
+            .map(|(local_index, status)| {
+                (
+                    local_index,
+                    local_index as f64,
+                    grammar_state_code(status.state) as f64,
+                )
+            }),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "outcome_consequence",
+        "Panel C: Grammar outcome diverges across the matched milling windows",
+        "window-local sample index",
+        "grammar state code (0=Adm, 1=Bnd, 2=Viol)",
+        "departure_outcome_window",
+        "departure outcome",
+        "line",
+        "red",
+        &scenario.record.id,
+        scenario.grammar[selection.departure_window.clone()]
+            .iter()
+            .enumerate()
+            .map(|(local_index, status)| {
+                (
+                    local_index,
+                    local_index as f64,
+                    grammar_state_code(status.state) as f64,
+                )
+            }),
+        &note,
+    );
+    Ok(table)
+}
+
+fn prepare_figure_09_synthetic(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
+    let selection = select_synthetic_structural_pair(bundle)
+        .with_context(|| "unable to select comparable synthetic cases for figure 09")?;
+    let admissible = selection.admissible_case;
+    let detectable = selection.detectable_case;
+    let note = format!(
+        "Synthetic figure 09 uses the executed synthetic pair `{}` and `{}` chosen by minimizing primary residual-magnitude difference while preserving materially different higher-order slew and grammar outcomes. admissible_mean_primary={:.6}, detectable_mean_primary={:.6}, admissible_mean_meta={:.6}, detectable_mean_meta={:.6}, admissible_mean_outcome={:.6}, detectable_mean_outcome={:.6}. The cases keep apparent primary residual magnitude similar while higher-order structure and grammar outcome diverge, so primary behavior alone is insufficient.",
+        admissible.record.id,
+        detectable.record.id,
+        selection.admissible_primary_mean,
+        selection.detectable_primary_mean,
+        selection.admissible_meta_mean,
+        selection.detectable_meta_mean,
+        selection.admissible_outcome_mean,
+        selection.detectable_outcome_mean
+    );
+    let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
+        &bundle.run_metadata.bank.bank_version,
+        "figure_09_detectability_bound_comparison",
+        "Synthetic: Similar Primary Magnitude, Divergent Higher-Order Structure, Divergent Outcome",
+        &[
+            "primary_magnitude_similarity",
+            "meta_residual_divergence",
+            "outcome_consequence",
+        ],
+        &[],
+    );
+    push_scalar_series(
+        &mut table,
+        "primary_magnitude_similarity",
+        "Panel A: Primary residual magnitude stays closely matched by construction",
+        "time",
+        "residual norm",
+        "admissible_primary_case",
+        "magnitude-matched admissible",
+        "line",
+        "blue",
+        &admissible.record.id,
+        admissible
+            .residual
+            .samples
+            .iter()
+            .enumerate()
+            .map(|(index, sample)| (index, sample.time, sample.norm)),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "primary_magnitude_similarity",
+        "Panel A: Primary residual magnitude stays closely matched by construction",
+        "time",
+        "residual norm",
+        "detectable_primary_case",
+        "magnitude-matched detectable",
+        "line",
+        "red",
+        &detectable.record.id,
+        detectable
+            .residual
+            .samples
+            .iter()
+            .enumerate()
+            .map(|(index, sample)| (index, sample.time, sample.norm)),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "meta_residual_divergence",
+        "Panel B: Higher-order slew separates the controlled synthetic cases",
+        "time",
+        "slew norm",
+        "admissible_meta_case",
+        "admissible higher-order structure",
+        "line",
+        "blue",
+        &admissible.record.id,
+        admissible
+            .slew
+            .samples
+            .iter()
+            .enumerate()
+            .map(|(index, sample)| (index, sample.time, sample.norm)),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "meta_residual_divergence",
+        "Panel B: Higher-order slew separates the controlled synthetic cases",
+        "time",
+        "slew norm",
+        "detectable_meta_case",
+        "detectable higher-order structure",
+        "line",
+        "red",
+        &detectable.record.id,
+        detectable
+            .slew
+            .samples
+            .iter()
+            .enumerate()
+            .map(|(index, sample)| (index, sample.time, sample.norm)),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "outcome_consequence",
+        "Panel C: Grammar outcome diverges under similar first-order behavior",
+        "time",
+        "grammar state code (0=Adm, 1=Bnd, 2=Viol)",
+        "admissible_outcome_case",
+        "admissible outcome",
+        "line",
+        "blue",
+        &admissible.record.id,
+        admissible
+            .grammar
+            .iter()
+            .enumerate()
+            .map(|(index, status)| (index, status.time, grammar_state_code(status.state) as f64)),
+        &note,
+    );
+    push_scalar_series(
+        &mut table,
+        "outcome_consequence",
+        "Panel C: Grammar outcome diverges under similar first-order behavior",
+        "time",
+        "grammar state code (0=Adm, 1=Bnd, 2=Viol)",
+        "detectable_outcome_case",
+        "detectable outcome",
+        "line",
+        "red",
+        &detectable.record.id,
+        detectable
+            .grammar
+            .iter()
+            .enumerate()
+            .map(|(index, status)| (index, status.time, grammar_state_code(status.state) as f64)),
+        &note,
+    );
+    Ok(table)
+}
+
+fn prepare_figure_12_milling(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
+    let scenario = milling_primary_scenario(bundle)?;
+    let timeline = build_prefix_semantic_timeline(bundle, scenario)?;
+    let note = "NASA Milling semantic-timeline source derived from prefix-by-prefix retrieval over the executed milling run. The figure shows semantic process through the milling progression rather than a single final candidate snapshot.".to_string();
+    build_semantic_timeline_table(
+        bundle,
+        scenario,
+        &timeline,
+        "NASA Milling: Semantic Evolution Through Process Windows",
+        &note,
+    )
+}
+
+fn prepare_figure_12_synthetic(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
+    let scenario = synthetic_transition_scenario(bundle)?;
+    let timeline = build_prefix_semantic_timeline(bundle, scenario)?;
+    let note = format!(
+        "Synthetic semantic-timeline source derived from prefix-by-prefix retrieval over `{}`. The figure shows semantic evolution through the controlled synthetic transition rather than a static label snapshot.",
+        scenario.record.id
+    );
+    build_semantic_timeline_table(
+        bundle,
+        scenario,
+        &timeline,
+        "Synthetic: Semantic Evolution, Candidate Narrowing, and Disposition Timeline",
+        &note,
+    )
+}
+
+fn prepare_figure_13_milling(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
+    let scenario = milling_primary_scenario(bundle)?;
+    let semantic_timeline = build_prefix_semantic_timeline(bundle, scenario)?;
+    let event_timeline = build_scenario_event_timeline(bundle, scenario)?;
+    let note = "NASA Milling interpretability-delta source rows derived from the executed comparator results, grammar trajectory, and prefix semantic timeline. The figure is framed as baseline comparator view versus DSFB structural interpretation in the milling context, not as a performance benchmark.".to_string();
+    build_interpretability_delta_table(
+        bundle,
+        scenario,
+        &semantic_timeline,
+        &event_timeline,
+        "NASA Milling: Baseline Comparator View Versus DSFB Structural Interpretation",
+        &note,
+    )
+}
+
+fn prepare_figure_13_synthetic(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
+    let scenario = synthetic_transition_scenario(bundle)?;
+    let semantic_timeline = build_prefix_semantic_timeline(bundle, scenario)?;
+    let event_timeline = build_scenario_event_timeline(bundle, scenario)?;
+    let note = format!(
+        "Synthetic interpretability-delta source rows derived from the executed comparator results, grammar trajectory, and prefix semantic timeline for `{}`. The figure shows what the internal deterministic comparators see first and what DSFB adds structurally, without claiming performance superiority.",
+        scenario.record.id
+    );
+    build_interpretability_delta_table(
+        bundle,
+        scenario,
+        &semantic_timeline,
+        &event_timeline,
+        "Synthetic: Baseline Comparator View Versus DSFB Structural Interpretation",
+        &note,
+    )
+}
+
+fn build_semantic_timeline_table(
+    bundle: &EngineOutputBundle,
+    scenario: &ScenarioOutput,
+    timeline: &[crate::engine::event_timeline::PrefixSemanticTimelinePoint],
+    plot_title: &str,
+    note: &str,
+) -> Result<FigureSourceTable> {
+    let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
+        &bundle.run_metadata.bank.bank_version,
+        "figure_12_semantic_retrieval_heuristics_bank",
+        plot_title,
+        &[
+            "semantic_score_timeline",
+            "semantic_candidate_count_timeline",
+            "semantic_disposition_timeline",
+        ],
+        &[],
+    );
+    push_scalar_series(
+        &mut table,
+        "semantic_score_timeline",
+        "Panel A: Top-candidate score and score margin evolve through time",
+        "time",
+        "candidate score / score margin",
+        "top_candidate_score",
+        "top candidate score",
+        "line",
+        "blue",
+        &scenario.record.id,
+        timeline
+            .iter()
+            .enumerate()
+            .map(|(index, point)| (index, point.time, point.top_score)),
+        note,
+    );
+    push_scalar_series(
+        &mut table,
+        "semantic_score_timeline",
+        "Panel A: Top-candidate score and score margin evolve through time",
+        "time",
+        "candidate score / score margin",
+        "top_score_margin",
+        "top score margin",
+        "line",
+        "red",
+        &scenario.record.id,
+        timeline
+            .iter()
+            .enumerate()
+            .map(|(index, point)| (index, point.time, point.top_score_margin)),
+        note,
+    );
+    push_scalar_series(
+        &mut table,
+        "semantic_candidate_count_timeline",
+        "Panel B: Candidate-set narrowing through admissibility and scope",
+        "time",
+        "candidate count",
+        "post_regime_count",
+        "post-regime count",
+        "line",
+        "gold",
+        &scenario.record.id,
+        timeline
+            .iter()
+            .enumerate()
+            .map(|(index, point)| (index, point.time, point.post_regime_candidate_count as f64)),
+        note,
+    );
+    push_scalar_series(
+        &mut table,
+        "semantic_candidate_count_timeline",
+        "Panel B: Candidate-set narrowing through admissibility and scope",
+        "time",
+        "candidate count",
+        "post_scope_count",
+        "post-scope count",
+        "line",
+        "teal",
+        &scenario.record.id,
+        timeline
+            .iter()
+            .enumerate()
+            .map(|(index, point)| (index, point.time, point.post_scope_candidate_count as f64)),
+        note,
+    );
+    push_scalar_series(
+        &mut table,
+        "semantic_disposition_timeline",
+        "Panel C: Semantic disposition evolves through the current run",
+        "time",
+        "semantic code (0=Unknown, 1=Ambiguous, 2=CompatibleSet, 3=Match)",
+        "semantic_disposition_code",
+        "semantic disposition",
+        "line",
+        "green",
+        &scenario.record.id,
+        timeline
+            .iter()
+            .enumerate()
+            .map(|(index, point)| (index, point.time, point.semantic_disposition_code as f64)),
+        note,
+    );
+    Ok(table)
+}
+
+fn build_interpretability_delta_table(
+    bundle: &EngineOutputBundle,
+    scenario: &ScenarioOutput,
+    semantic_timeline: &[crate::engine::event_timeline::PrefixSemanticTimelinePoint],
+    event_timeline: &[crate::engine::event_timeline::ScenarioEventTimelineRow],
+    plot_title: &str,
+    note: &str,
+) -> Result<FigureSourceTable> {
+    let mut table = new_source_table(
+        &bundle.run_metadata.timestamp,
+        &bundle.run_metadata.bank.bank_version,
+        "figure_13_internal_baseline_comparators",
+        plot_title,
+        &[
+            "baseline_alarm_timing",
+            "dsfb_grammar_timeline",
+            "dsfb_semantic_timeline",
+        ],
+        &["baseline_alarm_timing"],
+    );
+    let triggered_results = bundle
+        .evaluation
+        .baseline_results
+        .iter()
+        .filter(|result| result.scenario_id == scenario.record.id && result.triggered)
+        .collect::<Vec<_>>();
+    for (index, result) in triggered_results.iter().enumerate() {
+        if let Some(first_trigger_time) = result.first_trigger_time {
+            push_bar_row(
+                &mut table,
+                "baseline_alarm_timing",
+                "Panel A: Baseline comparator first-alarm timing",
+                "comparator",
+                "first alarm time",
+                &format!("{}_first_alarm", result.comparator_id),
+                &result.comparator_label,
+                ["blue", "gold", "teal", "red", "green", "slate"][index % 6],
+                &scenario.record.id,
+                index,
+                index as f64 + 0.18,
+                index as f64 + 0.82,
+                first_trigger_time,
+                short_comparator_tick_label(&result.comparator_id),
+                note,
+            );
+        }
+    }
+    push_scalar_series(
+        &mut table,
+        "dsfb_grammar_timeline",
+        "Panel B: DSFB syntax and grammar add structured temporal context",
+        "time",
+        "grammar state code (0=Adm, 1=Bnd, 2=Viol)",
+        "grammar_state_code",
+        "grammar state",
+        "line",
+        "red",
+        &scenario.record.id,
+        scenario
+            .grammar
+            .iter()
+            .enumerate()
+            .map(|(index, status)| (index, status.time, grammar_state_code(status.state) as f64)),
+        note,
+    );
+    for (index, event) in event_timeline
+        .iter()
+        .filter(|event| event.layer == "syntax")
+        .enumerate()
+    {
+        push_segment_row(
+            &mut table,
+            "dsfb_grammar_timeline",
+            "Panel B: DSFB syntax and grammar add structured temporal context",
+            "time",
+            "grammar state code (0=Adm, 1=Bnd, 2=Viol)",
+            &format!("syntax_transition_{}", index + 1),
+            &event.event_label,
+            "slate",
+            index,
+            event.time,
+            0.0,
+            event.time,
+            2.1,
+            &scenario.record.id,
+            note,
+        );
+    }
+    push_scalar_series(
+        &mut table,
+        "dsfb_semantic_timeline",
+        "Panel C: DSFB semantic layer shows interpretation evolution beyond alarms",
+        "time",
+        "semantic code (0=Unknown, 1=Ambiguous, 2=CompatibleSet, 3=Match)",
+        "semantic_disposition_code",
+        "semantic disposition",
+        "line",
+        "green",
+        &scenario.record.id,
+        semantic_timeline
+            .iter()
+            .enumerate()
+            .map(|(index, point)| (index, point.time, point.semantic_disposition_code as f64)),
+        note,
     );
     Ok(table)
 }
@@ -2938,6 +3594,13 @@ fn detectability_summary_scenario(bundle: &EngineOutputBundle) -> Option<&Scenar
         .or_else(|| bundle.scenario_outputs.first())
 }
 
+fn is_primary_milling_bundle(bundle: &EngineOutputBundle) -> bool {
+    bundle
+        .scenario_outputs
+        .iter()
+        .any(|scenario| scenario.record.id == "nasa_milling_public_demo")
+}
+
 fn is_primary_bearings_bundle(bundle: &EngineOutputBundle) -> bool {
     bundle
         .scenario_outputs
@@ -2945,8 +3608,192 @@ fn is_primary_bearings_bundle(bundle: &EngineOutputBundle) -> bool {
         .any(|scenario| scenario.record.id == "nasa_bearings_public_demo")
 }
 
+fn is_synthetic_bundle(bundle: &EngineOutputBundle) -> bool {
+    bundle.run_metadata.input_mode == "synthetic"
+        && !is_primary_milling_bundle(bundle)
+        && !is_primary_bearings_bundle(bundle)
+}
+
+fn milling_primary_scenario(bundle: &EngineOutputBundle) -> Result<&ScenarioOutput> {
+    source_scenario_or_first(bundle, "nasa_milling_public_demo")
+}
+
 fn bearings_primary_scenario(bundle: &EngineOutputBundle) -> Result<&ScenarioOutput> {
     source_scenario_or_first(bundle, "nasa_bearings_public_demo")
+}
+
+fn synthetic_transition_scenario(bundle: &EngineOutputBundle) -> Result<&ScenarioOutput> {
+    let mut best: Option<(usize, &ScenarioOutput)> = None;
+    for scenario in &bundle.scenario_outputs {
+        let timeline = match build_prefix_semantic_timeline(bundle, scenario) {
+            Ok(timeline) => timeline,
+            Err(_) => continue,
+        };
+        let semantic_transitions =
+            count_transitions(timeline.iter().map(|point| point.semantic_disposition_code));
+        let candidate_transitions = count_transitions(timeline.iter().map(|point| {
+            (
+                point.post_regime_candidate_count,
+                point.post_scope_candidate_count,
+            )
+        }));
+        let grammar_transitions = count_transitions(
+            scenario
+                .grammar
+                .iter()
+                .map(|status| grammar_state_code(status.state)),
+        );
+        let triggered_comparators = bundle
+            .evaluation
+            .baseline_results
+            .iter()
+            .filter(|result| result.scenario_id == scenario.record.id && result.triggered)
+            .count();
+        let preference_bonus = match scenario.record.id.as_str() {
+            "regime_switch" => 20,
+            "abrupt_event" => 12,
+            "curvature_onset" => 8,
+            _ => 0,
+        };
+        let score = semantic_transitions * 20
+            + candidate_transitions * 12
+            + grammar_transitions * 8
+            + triggered_comparators * 4
+            + preference_bonus;
+        match best {
+            Some((best_score, _)) if score <= best_score => {}
+            _ => best = Some((score, scenario)),
+        }
+    }
+    best.map(|(_, scenario)| scenario)
+        .or_else(|| {
+            bundle
+                .scenario_outputs
+                .iter()
+                .find(|scenario| scenario.record.id == "regime_switch")
+        })
+        .or_else(|| bundle.scenario_outputs.first())
+        .with_context(|| "missing synthetic scenario for upgraded figure generation")
+}
+
+fn select_synthetic_structural_pair(
+    bundle: &EngineOutputBundle,
+) -> Option<SyntheticScenarioPairSelection<'_>> {
+    let mut best: Option<(f64, SyntheticScenarioPairSelection<'_>)> = None;
+    for (left_index, left) in bundle.scenario_outputs.iter().enumerate() {
+        let left_primary_mean = mean_norm(left.residual.samples.iter().map(|sample| sample.norm));
+        let left_meta_mean = mean_norm(left.slew.samples.iter().map(|sample| sample.norm));
+        let left_outcome_mean = mean_grammar_state_code(&left.grammar)?;
+        for right in bundle.scenario_outputs.iter().skip(left_index + 1) {
+            let right_primary_mean =
+                mean_norm(right.residual.samples.iter().map(|sample| sample.norm));
+            let right_meta_mean = mean_norm(right.slew.samples.iter().map(|sample| sample.norm));
+            let right_outcome_mean = mean_grammar_state_code(&right.grammar)?;
+            let primary_gap = (left_primary_mean - right_primary_mean).abs();
+            let meta_gap = (left_meta_mean - right_meta_mean).abs();
+            let outcome_gap = (left_outcome_mean - right_outcome_mean).abs();
+            if meta_gap <= 1.0e-3 || outcome_gap <= 0.0 {
+                continue;
+            }
+            let (
+                admissible_case,
+                detectable_case,
+                admissible_primary_mean,
+                detectable_primary_mean,
+                admissible_meta_mean,
+                detectable_meta_mean,
+                admissible_outcome_mean,
+                detectable_outcome_mean,
+            ) = if left_outcome_mean <= right_outcome_mean {
+                (
+                    left,
+                    right,
+                    left_primary_mean,
+                    right_primary_mean,
+                    left_meta_mean,
+                    right_meta_mean,
+                    left_outcome_mean,
+                    right_outcome_mean,
+                )
+            } else {
+                (
+                    right,
+                    left,
+                    right_primary_mean,
+                    left_primary_mean,
+                    right_meta_mean,
+                    left_meta_mean,
+                    right_outcome_mean,
+                    left_outcome_mean,
+                )
+            };
+            let preference_bonus = match (
+                admissible_case.record.id.as_str(),
+                detectable_case.record.id.as_str(),
+            ) {
+                ("abrupt_event", "imu_thermal_drift_gps_denied") => 0.02,
+                ("nominal_stable", "imu_thermal_drift_gps_denied") => 0.01,
+                _ => 0.0,
+            };
+            let score = primary_gap / (1.0e-9 + meta_gap + outcome_gap) - preference_bonus;
+            let selection = SyntheticScenarioPairSelection {
+                admissible_case,
+                detectable_case,
+                admissible_primary_mean,
+                detectable_primary_mean,
+                admissible_meta_mean,
+                detectable_meta_mean,
+                admissible_outcome_mean,
+                detectable_outcome_mean,
+            };
+            match &best {
+                Some((best_score, _)) if score >= *best_score => {}
+                _ => best = Some((score, selection)),
+            }
+        }
+    }
+    best.map(|(_, selection)| selection).or_else(|| {
+        source_scenario_pair_or_first(bundle, "abrupt_event", "imu_thermal_drift_gps_denied")
+            .ok()
+            .map(
+                |(admissible_case, detectable_case)| SyntheticScenarioPairSelection {
+                    admissible_primary_mean: mean_norm(
+                        admissible_case
+                            .residual
+                            .samples
+                            .iter()
+                            .map(|sample| sample.norm),
+                    ),
+                    detectable_primary_mean: mean_norm(
+                        detectable_case
+                            .residual
+                            .samples
+                            .iter()
+                            .map(|sample| sample.norm),
+                    ),
+                    admissible_meta_mean: mean_norm(
+                        admissible_case
+                            .slew
+                            .samples
+                            .iter()
+                            .map(|sample| sample.norm),
+                    ),
+                    detectable_meta_mean: mean_norm(
+                        detectable_case
+                            .slew
+                            .samples
+                            .iter()
+                            .map(|sample| sample.norm),
+                    ),
+                    admissible_outcome_mean: mean_grammar_state_code(&admissible_case.grammar)
+                        .unwrap_or_default(),
+                    detectable_outcome_mean: mean_grammar_state_code(&detectable_case.grammar)
+                        .unwrap_or_default(),
+                    admissible_case,
+                    detectable_case,
+                },
+            )
+    })
 }
 
 fn first_non_admissible_time(scenario: &ScenarioOutput) -> Option<f64> {
@@ -2974,9 +3821,25 @@ fn grammar_state_code(state: GrammarState) -> i32 {
     }
 }
 
-fn select_bearings_matched_windows(
-    scenario: &ScenarioOutput,
-) -> Option<BearingsMatchedWindowSelection> {
+fn count_transitions<T>(values: impl IntoIterator<Item = T>) -> usize
+where
+    T: PartialEq,
+{
+    let mut iter = values.into_iter();
+    let Some(mut previous) = iter.next() else {
+        return 0;
+    };
+    let mut transitions = 0;
+    for value in iter {
+        if value != previous {
+            transitions += 1;
+            previous = value;
+        }
+    }
+    transitions
+}
+
+fn select_matched_windows(scenario: &ScenarioOutput) -> Option<MatchedWindowSelection> {
     let sample_count = scenario
         .residual
         .samples
@@ -3005,7 +3868,7 @@ fn select_bearings_matched_windows(
     }
     let stable_last_start = first_non_admissible.saturating_sub(window_len);
     let channel_count = scenario_channel_count(scenario).min(3);
-    let mut best: Option<(f64, BearingsMatchedWindowSelection)> = None;
+    let mut best: Option<(f64, MatchedWindowSelection)> = None;
     for channel_index in 0..channel_count {
         let departure_primary_mean = mean_abs_channel_residual(
             &scenario.residual.samples[departure_window.clone()],
@@ -3036,7 +3899,7 @@ fn select_bearings_matched_windows(
                 continue;
             }
             let score = primary_gap / (1.0e-9 + meta_gap + outcome_gap);
-            let selection = BearingsMatchedWindowSelection {
+            let selection = MatchedWindowSelection {
                 channel_index,
                 stable_window: stable_window.clone(),
                 departure_window: departure_window.clone(),
@@ -3044,10 +3907,118 @@ fn select_bearings_matched_windows(
                 departure_primary_mean,
                 stable_meta_mean,
                 departure_meta_mean,
+                stable_outcome_mean,
+                departure_outcome_mean,
             };
             match &best {
                 Some((best_score, _)) if score >= *best_score => {}
                 _ => best = Some((score, selection)),
+            }
+        }
+    }
+    best.map(|(_, selection)| selection)
+}
+
+fn select_process_windows(scenario: &ScenarioOutput) -> Option<MatchedWindowSelection> {
+    let sample_count = scenario
+        .residual
+        .samples
+        .len()
+        .min(scenario.slew.samples.len())
+        .min(scenario.grammar.len());
+    if sample_count < 8 {
+        return None;
+    }
+    let max_window_len = 6usize.min(sample_count / 2).max(3);
+    let channel_count = scenario_channel_count(scenario).min(3);
+    let mut best: Option<(f64, MatchedWindowSelection)> = None;
+    for window_len in 3..=max_window_len {
+        for channel_index in 0..channel_count {
+            for left_start in 0..=sample_count.saturating_sub(window_len) {
+                let left_window = left_start..left_start + window_len;
+                let left_primary_mean = mean_abs_channel_residual(
+                    &scenario.residual.samples[left_window.clone()],
+                    channel_index,
+                )?;
+                let left_meta_mean = mean_abs_channel_slew(
+                    &scenario.slew.samples[left_window.clone()],
+                    channel_index,
+                )?;
+                let left_outcome_mean =
+                    mean_grammar_state_code(&scenario.grammar[left_window.clone()])?;
+                for right_start in
+                    (left_start + window_len)..=sample_count.saturating_sub(window_len)
+                {
+                    let right_window = right_start..right_start + window_len;
+                    let right_primary_mean = mean_abs_channel_residual(
+                        &scenario.residual.samples[right_window.clone()],
+                        channel_index,
+                    )?;
+                    let right_meta_mean = mean_abs_channel_slew(
+                        &scenario.slew.samples[right_window.clone()],
+                        channel_index,
+                    )?;
+                    let right_outcome_mean =
+                        mean_grammar_state_code(&scenario.grammar[right_window.clone()])?;
+                    let primary_gap = (left_primary_mean - right_primary_mean).abs();
+                    let meta_gap = (left_meta_mean - right_meta_mean).abs();
+                    let outcome_gap = (left_outcome_mean - right_outcome_mean).abs();
+                    if meta_gap <= 1.0e-3 || outcome_gap <= 0.0 {
+                        continue;
+                    }
+                    let (
+                        stable_window,
+                        departure_window,
+                        stable_primary_mean,
+                        departure_primary_mean,
+                        stable_meta_mean,
+                        departure_meta_mean,
+                        stable_outcome_mean,
+                        departure_outcome_mean,
+                    ) = if left_outcome_mean <= right_outcome_mean {
+                        (
+                            left_window.clone(),
+                            right_window.clone(),
+                            left_primary_mean,
+                            right_primary_mean,
+                            left_meta_mean,
+                            right_meta_mean,
+                            left_outcome_mean,
+                            right_outcome_mean,
+                        )
+                    } else {
+                        (
+                            right_window.clone(),
+                            left_window.clone(),
+                            right_primary_mean,
+                            left_primary_mean,
+                            right_meta_mean,
+                            left_meta_mean,
+                            right_outcome_mean,
+                            left_outcome_mean,
+                        )
+                    };
+                    let temporal_separation = (departure_window.start as isize
+                        - stable_window.end as isize)
+                        .unsigned_abs() as f64;
+                    let score = primary_gap / (1.0e-9 + meta_gap + outcome_gap)
+                        - temporal_separation * 1.0e-6;
+                    let selection = MatchedWindowSelection {
+                        channel_index,
+                        stable_window,
+                        departure_window,
+                        stable_primary_mean,
+                        departure_primary_mean,
+                        stable_meta_mean,
+                        departure_meta_mean,
+                        stable_outcome_mean,
+                        departure_outcome_mean,
+                    };
+                    match &best {
+                        Some((best_score, _)) if score >= *best_score => {}
+                        _ => best = Some((score, selection)),
+                    }
+                }
             }
         }
     }
@@ -3075,6 +4046,20 @@ fn mean_abs_channel_residual(
             .sum::<f64>()
             / samples.len() as f64,
     )
+}
+
+fn mean_norm(values: impl IntoIterator<Item = f64>) -> f64 {
+    let mut count = 0usize;
+    let mut total = 0.0;
+    for value in values {
+        count += 1;
+        total += value;
+    }
+    if count == 0 {
+        0.0
+    } else {
+        total / count as f64
+    }
 }
 
 fn mean_abs_channel_slew(

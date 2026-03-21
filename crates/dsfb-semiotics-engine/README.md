@@ -40,6 +40,8 @@ surfaces for bounded integration under stated assumptions:
 - [A-PNT Technical Brief](docs/briefs/dsfb_apnt_brief.md)
 - [IMU GPS-Denied Scenario](docs/examples/imu_thermal_drift_gps_denied.md)
 - [Decision-Grade Demo](docs/examples/decision_grade_demo.md)
+- [Paper Synthetic Figures 9 / 12 / 13](docs/examples/paper_synthetic_figures_09_12_13.md)
+- [Paper Milling Figures 9 / 12 / 13](docs/examples/paper_milling_figures_09_12_13.md)
 - [Paper Bearings Figures 9 / 12 / 13](docs/examples/paper_bearings_figures_09_12_13.md)
 - [Docs Index](docs/INDEX.md)
 
@@ -216,7 +218,8 @@ cross-dataset comparison unless that already existed by design.
 
 For the current paper-facing path, NASA Bearings is the primary dataset for Figures 9, 12, and 13
 because it provides the clearest within-run structural progression for those arguments. Synthetic
-and NASA Milling generation paths remain intact elsewhere in the artifact pipeline.
+and NASA Milling now carry the same upgraded run-specific figure pattern through their own paper
+figure docs and artifact paths.
 
 PNG basenames remain unchanged, so the regenerated files can still be dropped directly into the
 paper `figures/` folder without LaTeX edits.
