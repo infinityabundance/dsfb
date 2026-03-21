@@ -242,6 +242,7 @@ In addition to the batch artifact pipeline, the crate now exposes a bounded onli
 - optional offline accumulation remains separate so report/export workflows can still retain full histories without making the live path unbounded
 
 This separation matters for long-endurance or embedded-style use because the live engine path no longer requires unbounded sign or residual history growth.
+The public example [`examples/live_drop_in.rs`](examples/live_drop_in.rs) shows the intended one-sample-at-a-time bounded loop directly.
 
 ## Units and Physical Interpretation
 
@@ -288,6 +289,7 @@ They intentionally collapse structure into scalar triggers; the layered DSFB pip
 
 The comparison framing is intentionally operator-legible. These internal monitors are analogous in spirit to threshold detectors, innovation-style monitoring, and change detectors, but they remain within-crate deterministic comparisons on shared scenario families rather than external benchmarks.
 More concretely, the report and docs frame them as conservative within-crate analogies to threshold monitors, EKF innovation monitoring, chi-squared-style gating, and one-sided change detectors. They are presented to help an operator compare alarm behavior and lost structural resolution, not to claim benchmark superiority.
+Each exported report now includes an `Operator-Legible Comparator Case Study` table for a curated scenario family so a reviewer can see, in one place, which scalar comparators alarm and where DSFB retains bounded-oscillatory, structured-noisy, discrete-event, or curvature-led distinctions instead of collapsing structure into a single trigger.
 
 ## Heuristic Bank Governance
 
@@ -319,6 +321,7 @@ Each run exports a validation report covering:
 - optional strict-mode symmetry failures for compatibility and incompatibility links
 
 Strict governance is now the default posture for both builtin and external banks. Compatibility gaps are exported explicitly and, under the default strict mode, missing reverse links, unknown references, contradictions, duplicate IDs, and incomplete required metadata fail the run. Permissive mode is explicit opt-in through `--bank-validation-mode permissive` and is intended for authoring or review only; permissive runs are exported as not governance-clean in the manifest and report. The compatibility alias `--strict-bank-validation` is still accepted for users carrying older scripts.
+This strict validation default is part of the runtime contract rather than a documentation-only preference.
 
 The builtin bank is no longer treated as the only operational path. A validated external JSON bank can be swapped at startup without recompiling the engine logic, which allows motif-library updates to remain data-driven and separately versioned from the core engine implementation.
 
@@ -463,6 +466,12 @@ Run the physically grounded vibration-to-thermal-drift example:
 cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --example vibration_to_thermal_drift
 ```
 
+Run the bounded live drop-in example:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --example live_drop_in
+```
+
 Build the legacy-integration FFI crate and header surface:
 
 ```bash
@@ -470,6 +479,7 @@ cargo test --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -p dsfb-semio
 ```
 
 The checked-in header lives at [`ffi/include/dsfb_semiotics_engine.h`](ffi/include/dsfb_semiotics_engine.h), with minimal examples at [`ffi/examples/minimal_ffi.c`](ffi/examples/minimal_ffi.c) and [`ffi/examples/minimal_ffi.cpp`](ffi/examples/minimal_ffi.cpp).
+The FFI ABI is intentionally code-oriented: `DsfbCurrentStatus` carries numeric syntax / grammar / semantic codes plus trust, while dedicated helpers copy human-readable labels and the stable last-error string into caller-owned buffers. Ownership rules and shared/static library build notes are documented in [`docs/examples/ffi_integration.md`](docs/examples/ffi_integration.md).
 
 Refresh snapshot fixtures intentionally with:
 

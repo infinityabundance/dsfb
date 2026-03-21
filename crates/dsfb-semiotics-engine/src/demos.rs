@@ -156,3 +156,61 @@ pub fn vibration_to_thermal_drift_trace() -> Result<String> {
 
     Ok(lines.join("\n"))
 }
+
+/// Runs a bounded live-engine trace that reads like a drop-in systems-component integration loop.
+pub fn live_drop_in_trace() -> Result<String> {
+    let mut settings = EngineSettings::default();
+    settings.online.history_buffer_capacity = 12;
+    settings.online.offline_history_enabled = false;
+    settings.smoothing.mode = SmoothingMode::ExponentialMovingAverage;
+    settings.smoothing.exponential_alpha = 0.25;
+
+    let mut engine = OnlineStructuralEngine::with_builtin_bank(
+        "live_drop_in",
+        vec!["residual".to_string()],
+        1.0,
+        EnvelopeSpec {
+            name: "live_drop_in_envelope".to_string(),
+            mode: EnvelopeMode::Fixed,
+            base_radius: 0.72,
+            slope: 0.0,
+            switch_step: None,
+            secondary_slope: None,
+            secondary_base: None,
+        },
+        settings,
+    )?;
+
+    let samples = [0.04, 0.08, 0.11, 0.18, 0.29, 0.47, 0.61, 0.66, 0.58, 0.44];
+    let mut lines = vec![
+        "Live drop-in trace".to_string(),
+        "This example pushes one residual sample at a time through the bounded online engine and queries syntax, grammar, semantics, and trust after each update.".to_string(),
+        format!(
+            "history_buffer_capacity={} offline_history_enabled=false",
+            engine.history_capacity()
+        ),
+    ];
+
+    for (step, sample) in samples.iter().enumerate() {
+        let status = engine.push_residual_sample(step as f64, &[*sample as Real])?;
+        let selected = if status.selected_heuristic_ids.is_empty() {
+            "none".to_string()
+        } else {
+            status.selected_heuristic_ids.join("|")
+        };
+        lines.push(format!(
+            "step={} history={}/{} syntax={} grammar={:?}/{} semantics={} [{}] trust={:.3}",
+            status.step,
+            status.current_history_len,
+            status.history_buffer_capacity,
+            status.syntax_label,
+            status.grammar_state,
+            status.grammar_reason_text,
+            status.semantic_disposition,
+            selected,
+            status.trust_scalar
+        ));
+    }
+
+    Ok(lines.join("\n"))
+}

@@ -1,7 +1,9 @@
 use crate::engine::types::{
     EngineOutputBundle, FigureArtifact, GrammarState, ReportManifest, ScenarioOutput,
 };
-use crate::evaluation::types::{ArtifactCompletenessCheck, FigureIntegrityCheck};
+use crate::evaluation::types::{
+    ArtifactCompletenessCheck, BaselineComparatorResult, FigureIntegrityCheck,
+};
 use crate::math::metrics::format_metric;
 
 pub fn build_markdown_report(
@@ -218,6 +220,12 @@ pub fn build_markdown_report(
             figure_integrity_checks.len()
         ));
     }
+    lines.push(String::new());
+    lines.push("## Operator-Legible Comparator Case Study".to_string());
+    lines.push(String::new());
+    lines.push("This compact table stays within the crate's conservative framing. It compares internal deterministic comparators on the same controlled scenario family and shows where scalar alarm logic triggers while DSFB retains syntax, grammar, and constrained semantic distinctions.".to_string());
+    lines.push(String::new());
+    lines.extend(render_comparator_case_study(bundle));
     lines.push(String::new());
     lines.push("## Scenario Summary".to_string());
     lines.push(String::new());
@@ -488,6 +496,103 @@ fn render_scenario_summary(scenario: &ScenarioOutput) -> Vec<String> {
     )
     .chain(std::iter::once(String::new()))
     .collect()
+}
+
+fn render_comparator_case_study(bundle: &EngineOutputBundle) -> Vec<String> {
+    let preferred = [
+        "oscillatory_bounded",
+        "noisy_structured",
+        "abrupt_event",
+        "curvature_onset",
+    ];
+    let mut selected = preferred
+        .iter()
+        .filter_map(|scenario_id| {
+            bundle
+                .scenario_outputs
+                .iter()
+                .find(|scenario| scenario.record.id == *scenario_id)
+        })
+        .collect::<Vec<_>>();
+    if selected.is_empty() {
+        selected = bundle.scenario_outputs.iter().take(4).collect();
+    }
+
+    let mut lines = vec![
+        "| Scenario | Threshold | Moving Average | CUSUM | Innovation-Style | DSFB Syntax | DSFB Grammar | DSFB Semantics |".to_string(),
+        "|----------|-----------|----------------|-------|------------------|-------------|--------------|----------------|".to_string(),
+    ];
+    for scenario in selected {
+        let grammar_cell = scenario
+            .grammar
+            .last()
+            .map(|status| format!("{:?}/{:?}", status.state, status.reason_code))
+            .unwrap_or_else(|| "n/a".to_string());
+        lines.push(format!(
+            "| `{}` | {} | {} | {} | {} | `{}` | `{}` | `{}` |",
+            scenario.record.id,
+            comparator_cell(
+                &bundle.evaluation.baseline_results,
+                &scenario.record.id,
+                "baseline_residual_threshold",
+            ),
+            comparator_cell(
+                &bundle.evaluation.baseline_results,
+                &scenario.record.id,
+                "baseline_moving_average_trend",
+            ),
+            comparator_cell(
+                &bundle.evaluation.baseline_results,
+                &scenario.record.id,
+                "baseline_cusum",
+            ),
+            comparator_cell(
+                &bundle.evaluation.baseline_results,
+                &scenario.record.id,
+                "baseline_innovation_chi_squared_style",
+            ),
+            scenario.syntax.trajectory_label,
+            grammar_cell,
+            semantic_case_study_cell(scenario)
+        ));
+    }
+    lines.push(String::new());
+    lines.push("Case study note: `oscillatory_bounded` and `noisy_structured` can both remain admissible while simple scalar triggers stay silent or under-resolved, but DSFB preserves bounded-oscillatory versus structured-noisy syntax and semantic retrieval. `abrupt_event` and `curvature_onset` can both alarm under scalar comparators, while DSFB still separates discrete-event structure from curvature-led departure.".to_string());
+    lines
+}
+
+fn comparator_cell(
+    results: &[BaselineComparatorResult],
+    scenario_id: &str,
+    comparator_id: &str,
+) -> String {
+    results
+        .iter()
+        .find(|result| result.scenario_id == scenario_id && result.comparator_id == comparator_id)
+        .map(|result| {
+            if result.triggered {
+                result
+                    .first_trigger_time
+                    .map(|time| format!("alarm @ {}", format_metric(time)))
+                    .unwrap_or_else(|| "alarm".to_string())
+            } else {
+                "no alarm".to_string()
+            }
+        })
+        .unwrap_or_else(|| "n/a".to_string())
+}
+
+fn semantic_case_study_cell(scenario: &ScenarioOutput) -> String {
+    if scenario.semantics.selected_heuristic_ids.is_empty() {
+        format!("{:?}", scenario.semantics.disposition)
+    } else {
+        let disposition = format!("{:?}", scenario.semantics.disposition);
+        format!(
+            "{} ({})",
+            disposition,
+            scenario.semantics.selected_heuristic_ids.join("|")
+        )
+    }
 }
 
 fn syntax_note(scenario: &ScenarioOutput) -> String {

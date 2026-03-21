@@ -42,3 +42,14 @@ fn test_colab_notebook_uses_resolved_output_paths() {
     assert!(notebook.contains("Resolved report PDF:"));
     assert!(notebook.contains("Resolved ZIP bundle:"));
 }
+
+#[test]
+fn test_colab_notebook_surfaces_run_metadata_summary() {
+    let notebook = notebook_text();
+    assert!(notebook.contains("## Run Metadata Summary"));
+    assert!(notebook.contains("Validation mode"));
+    assert!(notebook.contains("Bank source"));
+    assert!(notebook.contains("Numeric mode"));
+    assert!(notebook.contains("Online buffer capacity"));
+    assert!(notebook.contains("Trust scalar exported"));
+}
