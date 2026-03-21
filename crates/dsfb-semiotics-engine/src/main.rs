@@ -2,11 +2,12 @@
 
 use anyhow::Result;
 use dsfb_semiotics_engine::cli::args::{CliArgs, ScenarioSelection};
-use dsfb_semiotics_engine::dashboard::DashboardReplay;
+use dsfb_semiotics_engine::dashboard::{CsvReplayDriver, DashboardReplay};
 use dsfb_semiotics_engine::engine::config::CommonRunConfig;
 use dsfb_semiotics_engine::engine::pipeline::{
     export_artifacts, EngineConfig, StructuralSemioticsEngine,
 };
+use dsfb_semiotics_engine::engine::settings::EngineSettings;
 
 fn main() -> Result<()> {
     let args = CliArgs::parse_args();
@@ -19,10 +20,10 @@ fn main() -> Result<()> {
         bank: args.bank_config(),
     };
     let config = match selection.clone() {
-        ScenarioSelection::All => EngineConfig::synthetic_all(common),
-        ScenarioSelection::Single(id) => EngineConfig::synthetic_single(common, id),
-        ScenarioSelection::Csv(input) => EngineConfig::csv(common, input),
-        ScenarioSelection::Sweep(sweep) => EngineConfig::sweep(common, sweep),
+        ScenarioSelection::All => EngineConfig::synthetic_all(common.clone()),
+        ScenarioSelection::Single(id) => EngineConfig::synthetic_single(common.clone(), id),
+        ScenarioSelection::Csv(input) => EngineConfig::csv(common.clone(), input),
+        ScenarioSelection::Sweep(sweep) => EngineConfig::sweep(common.clone(), sweep),
     };
 
     let engine = StructuralSemioticsEngine::new(config);
@@ -45,7 +46,18 @@ fn main() -> Result<()> {
         println!("output_root_override=true");
     }
 
-    if args.dashboard_replay {
+    if args.dashboard_replay_csv {
+        let ScenarioSelection::Csv(input) = selection else {
+            unreachable!("validated CLI should guarantee CSV replay selection")
+        };
+        let replay = CsvReplayDriver::from_csv_run(
+            common,
+            input,
+            EngineSettings::default(),
+            args.dashboard_config(),
+        )?;
+        println!("{}", replay.render_replay_ascii());
+    } else if args.dashboard_replay {
         let replay = DashboardReplay::from_bundle(&bundle, args.dashboard_config())?;
         replay.print_replay()?;
     }

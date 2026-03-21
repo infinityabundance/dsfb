@@ -21,30 +21,94 @@ use crate::engine::types::{
 };
 use crate::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 use crate::math::envelope::{build_envelope, EnvelopeSpec};
+#[cfg(feature = "numeric-fixed")]
+use crate::math::fixed_point::{dequantize_q16_16, quantize_q16_16};
+use crate::math::fixed_point::{
+    fixed_point_overflow_policy, FIXED_POINT_FRACTIONAL_BITS, FIXED_POINT_NUMERIC_MODE,
+};
 use crate::math::metrics::euclidean_norm;
 use crate::math::smoothing::smooth_residual_trajectory;
 
 /// Stable machine-readable schema identifier for bounded online-engine status snapshots.
 pub const LIVE_ENGINE_STATUS_SCHEMA_VERSION: &str = "dsfb-semiotics-live-status/v1";
+/// Stable schema identifier for serialized bounded online-engine snapshots.
+pub const LIVE_ENGINE_SNAPSHOT_SCHEMA_VERSION: &str = "dsfb-semiotics-live-snapshot/v1";
+const LIVE_ENGINE_SNAPSHOT_MAGIC: &[u8; 8] = b"DSFBSNP1";
 
 /// Numeric type used by the bounded online engine path.
-#[cfg(feature = "numeric-f32")]
+#[cfg(feature = "numeric-fixed")]
+pub type Real = i64;
+/// Numeric type used by the bounded online engine path.
+#[cfg(all(not(feature = "numeric-fixed"), feature = "numeric-f32"))]
 pub type Real = f32;
 /// Numeric type used by the bounded online engine path.
-#[cfg(not(feature = "numeric-f32"))]
+#[cfg(not(any(feature = "numeric-f32", feature = "numeric-fixed")))]
 pub type Real = f64;
 
 /// Returns the compile-time numeric mode used by the bounded online path.
 #[must_use]
 pub const fn numeric_mode_label() -> &'static str {
-    if cfg!(feature = "numeric-f32") {
+    if cfg!(feature = "numeric-fixed") {
+        FIXED_POINT_NUMERIC_MODE
+    } else if cfg!(feature = "numeric-f32") {
         "f32"
     } else {
         "f64"
     }
 }
 
+/// Converts a `f64` into the active bounded-live numeric representation.
+#[must_use]
+pub fn to_real(value: f64) -> Real {
+    #[cfg(feature = "numeric-fixed")]
+    {
+        quantize_q16_16(value)
+    }
+    #[cfg(all(not(feature = "numeric-fixed"), feature = "numeric-f32"))]
+    {
+        value as Real
+    }
+    #[cfg(not(any(feature = "numeric-f32", feature = "numeric-fixed")))]
+    {
+        value
+    }
+}
+
+/// Converts the active bounded-live numeric representation into `f64`.
+#[must_use]
+pub fn real_to_f64(value: Real) -> f64 {
+    #[cfg(feature = "numeric-fixed")]
+    {
+        dequantize_q16_16(value)
+    }
+    #[cfg(all(not(feature = "numeric-fixed"), feature = "numeric-f32"))]
+    {
+        f64::from(value)
+    }
+    #[cfg(not(any(feature = "numeric-f32", feature = "numeric-fixed")))]
+    {
+        value
+    }
+}
+
+/// Conservative documentation note for the active numeric backend.
+#[must_use]
+pub fn numeric_backend_note() -> String {
+    if cfg!(feature = "numeric-fixed") {
+        format!(
+            "Experimental q16.16 fixed-point ingress with {} fractional bits and {}.",
+            FIXED_POINT_FRACTIONAL_BITS,
+            fixed_point_overflow_policy()
+        )
+    } else if cfg!(feature = "numeric-f32") {
+        "Single-precision floating point for the bounded live path.".to_string()
+    } else {
+        "Double-precision floating point for the bounded live path.".to_string()
+    }
+}
+
 /// Fixed-capacity ring buffer with deterministic overwrite semantics.
+// TRACE:ASSUMPTION:ASM-BOUNDED-ONLINE-HISTORY:Bounded online history window:The deployment path retains only the last N residual samples in a fixed-capacity ring buffer.
 #[derive(Clone, Debug)]
 pub struct RingBuffer<T> {
     slots: Vec<Option<T>>,
@@ -134,6 +198,63 @@ pub struct LiveEngineStatus {
     pub note: String,
 }
 
+/// Serializable bounded live-engine snapshot used for state-exact one-step replay.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LiveEngineSnapshot {
+    pub schema_version: String,
+    pub scenario_id: String,
+    pub channel_names: Vec<String>,
+    pub dt: f64,
+    pub envelope_spec: SnapshotEnvelopeSpec,
+    pub settings: EngineSettings,
+    pub bank_registry: HeuristicBankRegistry,
+    pub residual_history: Vec<ResidualSample>,
+    pub offline_history: Option<Vec<ResidualSample>>,
+    pub next_step: usize,
+    pub latest_status: Option<LiveEngineStatus>,
+    pub note: String,
+}
+
+/// Serializable envelope-spec mirror used by live-engine state replay.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SnapshotEnvelopeSpec {
+    pub name: String,
+    pub mode: crate::engine::types::EnvelopeMode,
+    pub base_radius: f64,
+    pub slope: f64,
+    pub switch_step: Option<usize>,
+    pub secondary_slope: Option<f64>,
+    pub secondary_base: Option<f64>,
+}
+
+impl From<&EnvelopeSpec> for SnapshotEnvelopeSpec {
+    fn from(value: &EnvelopeSpec) -> Self {
+        Self {
+            name: value.name.clone(),
+            mode: value.mode,
+            base_radius: value.base_radius,
+            slope: value.slope,
+            switch_step: value.switch_step,
+            secondary_slope: value.secondary_slope,
+            secondary_base: value.secondary_base,
+        }
+    }
+}
+
+impl From<SnapshotEnvelopeSpec> for EnvelopeSpec {
+    fn from(value: SnapshotEnvelopeSpec) -> Self {
+        Self {
+            name: value.name,
+            mode: value.mode,
+            base_radius: value.base_radius,
+            slope: value.slope,
+            switch_step: value.switch_step,
+            secondary_slope: value.secondary_slope,
+            secondary_base: value.secondary_base,
+        }
+    }
+}
+
 /// Bounded online engine that reuses the existing layered batch logic over a fixed trailing
 /// window.
 #[derive(Clone, Debug)]
@@ -148,6 +269,7 @@ pub struct OnlineStructuralEngine {
     residual_history: RingBuffer<ResidualSample>,
     offline_history: Option<Vec<ResidualSample>>,
     next_step: usize,
+    latest_status: Option<LiveEngineStatus>,
 }
 
 impl OnlineStructuralEngine {
@@ -203,6 +325,7 @@ impl OnlineStructuralEngine {
             residual_history,
             offline_history,
             next_step: 0,
+            latest_status: None,
         })
     }
 
@@ -231,6 +354,7 @@ impl OnlineStructuralEngine {
     }
 
     /// Pushes one residual sample into the bounded live engine and returns the current status.
+    // TRACE:ALGORITHM:ALG-BOUNDED-ONLINE-STEP:Bounded online layered step:Replays residual to semantics over the fixed trailing window without unbounded live-state growth.
     pub fn push_residual_sample(&mut self, time: f64, values: &[Real]) -> Result<LiveEngineStatus> {
         if values.len() != self.channel_names.len() {
             return Err(anyhow!(
@@ -241,7 +365,7 @@ impl OnlineStructuralEngine {
         }
         let values_f64 = values
             .iter()
-            .map(|value| f64::from(*value))
+            .map(|value| real_to_f64(*value))
             .collect::<Vec<_>>();
         let sample = ResidualSample {
             step: self.next_step,
@@ -282,7 +406,118 @@ impl OnlineStructuralEngine {
             index_settings: &self.settings.retrieval_index,
             index: Some(&self.retrieval_index),
         });
-        self.status_from_latest(&sign, &grammar, &syntax, &semantics)
+        let status = self.status_from_latest(&sign, &grammar, &syntax, &semantics)?;
+        self.latest_status = Some(status.clone());
+        Ok(status)
+    }
+
+    /// Pushes a deterministic sample batch in row-major order and returns the last live status,
+    /// if any samples were supplied.
+    pub fn push_residual_sample_batch(
+        &mut self,
+        times: &[f64],
+        flat_values: &[Real],
+    ) -> Result<Option<LiveEngineStatus>> {
+        let channel_count = self.channel_names.len();
+        if times.is_empty() {
+            return Ok(None);
+        }
+        let expected = times.len() * channel_count;
+        if flat_values.len() != expected {
+            return Err(anyhow!(
+                "online batch expected {} flat values for {} samples across {} channels but received {}",
+                expected,
+                times.len(),
+                channel_count,
+                flat_values.len()
+            ));
+        }
+        let mut latest = None;
+        for (index, time) in times.iter().enumerate() {
+            let start = index * channel_count;
+            latest =
+                Some(self.push_residual_sample(*time, &flat_values[start..start + channel_count])?);
+        }
+        Ok(latest)
+    }
+
+    /// Captures a versioned bounded live-engine snapshot for state-exact replay.
+    #[must_use]
+    pub fn snapshot(&self) -> LiveEngineSnapshot {
+        LiveEngineSnapshot {
+            schema_version: LIVE_ENGINE_SNAPSHOT_SCHEMA_VERSION.to_string(),
+            scenario_id: self.scenario_id.clone(),
+            channel_names: self.channel_names.clone(),
+            dt: self.dt,
+            envelope_spec: SnapshotEnvelopeSpec::from(&self.envelope_spec),
+            settings: self.settings.clone(),
+            bank_registry: self.bank_registry.clone(),
+            residual_history: self.residual_history.iter().cloned().collect(),
+            offline_history: self.offline_history.clone(),
+            next_step: self.next_step,
+            latest_status: self.latest_status.clone(),
+            note: "Snapshot captures the bounded live-engine state so one additional input sample can be replayed deterministically under the same numeric backend and settings.".to_string(),
+        }
+    }
+
+    /// Rebuilds a bounded live engine from a versioned snapshot.
+    pub fn from_snapshot(snapshot: LiveEngineSnapshot) -> Result<Self> {
+        if snapshot.schema_version != LIVE_ENGINE_SNAPSHOT_SCHEMA_VERSION {
+            return Err(anyhow!(
+                "unsupported live snapshot schema `{}`",
+                snapshot.schema_version
+            ));
+        }
+        let envelope_spec: EnvelopeSpec = snapshot.envelope_spec.clone().into();
+        let mut engine = Self::new(
+            snapshot.scenario_id.clone(),
+            snapshot.channel_names.clone(),
+            snapshot.dt,
+            envelope_spec,
+            snapshot.settings.clone(),
+            snapshot.bank_registry.clone(),
+        )?;
+        engine.next_step = snapshot.next_step;
+        engine.latest_status = snapshot.latest_status.clone();
+        for sample in snapshot.residual_history {
+            engine.residual_history.push(sample);
+        }
+        engine.offline_history = snapshot.offline_history;
+        engine.latest_status = snapshot.latest_status;
+        Ok(engine)
+    }
+
+    /// Serializes a bounded live-engine snapshot to a compact binary envelope.
+    pub fn snapshot_binary(&self) -> Result<Vec<u8>> {
+        let payload = serde_json::to_vec(&self.snapshot())?;
+        let mut bytes = Vec::with_capacity(LIVE_ENGINE_SNAPSHOT_MAGIC.len() + 4 + payload.len());
+        bytes.extend_from_slice(LIVE_ENGINE_SNAPSHOT_MAGIC);
+        bytes.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(&payload);
+        Ok(bytes)
+    }
+
+    /// Restores a bounded live-engine snapshot from the compact binary envelope.
+    pub fn from_snapshot_binary(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() < LIVE_ENGINE_SNAPSHOT_MAGIC.len() + 4 {
+            return Err(anyhow!("snapshot binary was too short"));
+        }
+        if &bytes[..LIVE_ENGINE_SNAPSHOT_MAGIC.len()] != LIVE_ENGINE_SNAPSHOT_MAGIC {
+            return Err(anyhow!("snapshot binary had an unknown magic header"));
+        }
+        let mut len_bytes = [0u8; 4];
+        len_bytes.copy_from_slice(
+            &bytes[LIVE_ENGINE_SNAPSHOT_MAGIC.len()..LIVE_ENGINE_SNAPSHOT_MAGIC.len() + 4],
+        );
+        let payload_len = u32::from_le_bytes(len_bytes) as usize;
+        let payload_start = LIVE_ENGINE_SNAPSHOT_MAGIC.len() + 4;
+        if bytes.len() != payload_start + payload_len {
+            return Err(anyhow!(
+                "snapshot binary payload length did not match the header"
+            ));
+        }
+        let snapshot: LiveEngineSnapshot = serde_json::from_slice(&bytes[payload_start..])?;
+        Self::from_snapshot(snapshot)
     }
 
     fn status_from_latest(
@@ -334,7 +569,10 @@ impl OnlineStructuralEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::{numeric_mode_label, OnlineStructuralEngine, Real, RingBuffer};
+    use super::{
+        numeric_mode_label, to_real, LiveEngineSnapshot, OnlineStructuralEngine, RingBuffer,
+        LIVE_ENGINE_SNAPSHOT_SCHEMA_VERSION,
+    };
     use crate::engine::settings::EngineSettings;
     use crate::engine::types::EnvelopeMode;
     use crate::math::envelope::EnvelopeSpec;
@@ -377,7 +615,7 @@ mod tests {
         .expect("engine");
         for step in 0..16 {
             engine
-                .push_residual_sample(step as f64, &[step as Real * 0.01])
+                .push_residual_sample(step as f64, &[to_real(step as f64 * 0.01)])
                 .expect("status");
         }
         assert_eq!(engine.online_history_len(), 4);
@@ -407,7 +645,7 @@ mod tests {
         let mut last_label = String::new();
         for step in 0..12 {
             let status = engine
-                .push_residual_sample(step as f64, &[0.1 + step as Real * 0.02])
+                .push_residual_sample(step as f64, &[to_real(0.1 + step as f64 * 0.02)])
                 .expect("status");
             last_label = status.syntax_label;
         }
@@ -437,7 +675,7 @@ mod tests {
         .expect("engine");
         for step in 0..8 {
             engine
-                .push_residual_sample(step as f64, &[0.2 + step as Real * 0.01])
+                .push_residual_sample(step as f64, &[to_real(0.2 + step as f64 * 0.01)])
                 .expect("status");
         }
         assert_eq!(engine.online_history_len(), 3);
@@ -453,6 +691,89 @@ mod tests {
 
     #[test]
     fn numeric_mode_reports_compile_time_selection() {
-        assert!(matches!(numeric_mode_label(), "f32" | "f64"));
+        assert!(matches!(
+            numeric_mode_label(),
+            "f32" | "f64" | "fixed_q16_16"
+        ));
+    }
+
+    #[test]
+    fn state_snapshot_roundtrip_preserves_live_window() {
+        let mut engine = OnlineStructuralEngine::with_builtin_bank(
+            "snapshot",
+            vec!["x".to_string()],
+            1.0,
+            EnvelopeSpec {
+                name: "fixed".to_string(),
+                mode: EnvelopeMode::Fixed,
+                base_radius: 1.0,
+                slope: 0.0,
+                switch_step: None,
+                secondary_slope: None,
+                secondary_base: None,
+            },
+            EngineSettings::default(),
+        )
+        .expect("engine");
+        for step in 0..5 {
+            engine
+                .push_residual_sample(step as f64, &[to_real(0.1 + step as f64 * 0.02)])
+                .expect("status");
+        }
+        let snapshot = engine.snapshot();
+        assert_eq!(snapshot.schema_version, LIVE_ENGINE_SNAPSHOT_SCHEMA_VERSION);
+        let restored =
+            OnlineStructuralEngine::from_snapshot(snapshot.clone()).expect("restored engine");
+        assert_eq!(restored.online_history_len(), engine.online_history_len());
+        assert_eq!(restored.history_capacity(), engine.history_capacity());
+        assert_eq!(snapshot.residual_history.len(), engine.online_history_len());
+    }
+
+    #[test]
+    fn binary_snapshot_roundtrip_replays_one_step_exactly() {
+        let mut original = OnlineStructuralEngine::with_builtin_bank(
+            "replay",
+            vec!["x".to_string()],
+            1.0,
+            EnvelopeSpec {
+                name: "fixed".to_string(),
+                mode: EnvelopeMode::Fixed,
+                base_radius: 1.0,
+                slope: 0.0,
+                switch_step: None,
+                secondary_slope: None,
+                secondary_base: None,
+            },
+            EngineSettings::default(),
+        )
+        .expect("engine");
+        for step in 0..4 {
+            original
+                .push_residual_sample(step as f64, &[to_real(0.05 + step as f64 * 0.01)])
+                .expect("status");
+        }
+        let snapshot_binary = original.snapshot_binary().expect("binary snapshot");
+        let snapshot: LiveEngineSnapshot =
+            serde_json::from_slice(&snapshot_binary[12..]).expect("snapshot payload");
+        assert_eq!(snapshot.schema_version, LIVE_ENGINE_SNAPSHOT_SCHEMA_VERSION);
+
+        let mut replay =
+            OnlineStructuralEngine::from_snapshot_binary(&snapshot_binary).expect("replay");
+        let original_status = original
+            .push_residual_sample(4.0, &[to_real(0.09)])
+            .expect("original next status");
+        let replay_status = replay
+            .push_residual_sample(4.0, &[to_real(0.09)])
+            .expect("replay next status");
+        assert_eq!(original_status.step, replay_status.step);
+        assert_eq!(original_status.syntax_label, replay_status.syntax_label);
+        assert_eq!(
+            original_status.grammar_reason_code,
+            replay_status.grammar_reason_code
+        );
+        assert_eq!(
+            original_status.semantic_disposition_code,
+            replay_status.semantic_disposition_code
+        );
     }
 }

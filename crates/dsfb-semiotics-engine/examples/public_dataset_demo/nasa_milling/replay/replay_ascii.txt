@@ -1,0 +1,896 @@
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=1.000     ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=weakly-structured-baseline-lik││candidates=curvature_transition       │
+│frame=1/23                             ││e                                    ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=1.000                     ││drift=0.000000              ││p1=0.0000                   ││alarms=none                 │
+│step=0                      ││slew=0.000000               ││p2=0.0000                   ││audit=Counts reflect typed  │
+│residual=0.000000           ││margin=0.300000             ││p3=0.0000                   ││bank entries after          │
+│                            ││Residual norm remained      ││                            ││admissibility, regime, and  │
+│                            ││inside the configured       ││                            ││scope filtering in that     │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00                        │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││                                      │
+│bank_version=heuristic-bank/v3         ││markers=start                        ││                                      │
+│                                       ││scenario=nasa_milling_public_demo    ││                                      │
+│                                       ││t=1.000 | syntax ->                  ││                                      │
+│                                       ││weakly-structured-baseline-like at   ││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=3.000     ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=2/23                             ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=3.000                     ││drift=0.006399              ││p1=0.1422                   ││alarms=Moving-average       │
+│step=1                      ││slew=0.000000               ││p2=0.0064                   ││residual trend only | CUSUM │
+│residual=0.142202           ││margin=0.157798             ││p3=0.0000                   ││trend only                  │
+│                            ││Residual norm remained      ││                            ││audit=Counts reflect typed  │
+│                            ││inside the configured       ││                            ││bank entries after          │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00       │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││                                      │
+│bank_version=heuristic-bank/v3         ││markers=syntax -> mixed-structured at││                                      │
+│                                       ││step 1 | Moving-average residual     ││                                      │
+│                                       ││trend only alarm at t=3.000 | CUSUM  ││                                      │
+│                                       ││trend only alarm at t=3.000          ││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=10.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=3/23                             ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=10.000                    ││drift=0.001165              ││p1=0.0853                   ││alarms=Moving-average       │
+│step=2                      ││slew=0.001231               ││p2=0.0008                   ││residual trend only | CUSUM │
+│residual=0.085257           ││margin=0.214743             ││p3=0.0012                   ││trend only                  │
+│                            ││Residual norm remained      ││                            ││audit=Counts reflect typed  │
+│                            ││inside the configured       ││                            ││bank entries after          │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00                        │
+│bank_version=heuristic-bank/v3         ││markers=none                         ││                                      │
+│                                       ││log=semantic -> Unknown at step 0 |  ││                                      │
+│                                       ││syntax -> mixed-structured at step 1 ││                                      │
+│                                       ││| Moving-average residual trend only ││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=12.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=4/23                             ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=12.000                    ││drift=0.005304              ││p1=0.1528                   ││alarms=Moving-average       │
+│step=3                      ││slew=0.000947               ││p2=0.0052                   ││residual trend only | Slew  │
+│residual=0.152784           ││margin=0.147216             ││p3=0.0009                   ││spike only | CUSUM trend    │
+│                            ││Residual norm remained      ││                            ││only                        │
+│                            ││inside the configured       ││                            ││audit=Counts reflect typed  │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00       │
+│bank_version=heuristic-bank/v3         ││markers=Slew spike only alarm at     ││                                      │
+│                                       ││t=12.000                             ││                                      │
+│                                       ││log=syntax -> mixed-structured at    ││                                      │
+│                                       ││step 1 | Moving-average residual     ││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=14.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=curvature-rich-transition     ││candidates=curvature_transition       │
+│frame=5/23                             ││grammar=violation                    ││selected=H-CURVATURE-LED-DEPARTURE    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=14.000                    ││drift=0.008646              ││p1=0.4946                   ││alarms=Residual threshold   │
+│step=4                      ││slew=0.004955               ││p2=0.0081                   ││only | Moving-average       │
+│residual=0.494606           ││margin=-0.194606            ││p3=0.0050                   ││residual trend only | Slew  │
+│                            ││Residual norm breached the  ││                            ││spike only | Envelope       │
+│                            ││configured envelope with an ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=syntax ->                    ││0.49/0.01/0.00                        │
+│                                       ││curvature-rich-transition at step 4 |││                                      │
+│                                       ││grammar -> violation at step 4 |     ││                                      │
+│                                       ││grammar_reason -> Residual norm      ││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=17.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=6/23                             ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=17.000                    ││drift=0.007547              ││p1=0.2352                   ││alarms=Residual threshold   │
+│step=5                      ││slew=0.000442               ││p2=0.0075                   ││only | Moving-average       │
+│residual=0.235169           ││margin=0.064831             ││p3=0.0004                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=syntax -> mixed-structured at││0.49/0.01/0.00 | 0.24/0.01/0.00       │
+│                                       ││step 5 | grammar -> admissible at    ││                                      │
+│                                       ││step 5 | grammar_reason -> Residual  ││                                      │
+│                                       ││norm remained inside the configured  ││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=19.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=7/23                             ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=19.000                    ││drift=0.009664              ││p1=0.2350                   ││alarms=Residual threshold   │
+│step=6                      ││slew=0.001250               ││p2=0.0010                   ││only | Moving-average       │
+│residual=0.234950           ││margin=0.065050             ││p3=0.0013                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=none                         ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││log=trust threshold 0.75 crossed at  ││0.23/0.00/0.00                        │
+│                                       ││t=14.000 | syntax -> mixed-structured││                                      │
+│                                       ││at step 5 | grammar -> admissible at ││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=21.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=discrete-event-like           ││candidates=curvature_transition       │
+│frame=8/23                             ││grammar=violation                    ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=21.000                    ││drift=0.008421              ││p1=0.3013                   ││alarms=Residual threshold   │
+│step=7                      ││slew=0.002505               ││p2=0.0033                   ││only | Moving-average       │
+│residual=0.301327           ││margin=-0.001327            ││p3=0.0025                   ││residual trend only | Slew  │
+│                            ││Residual norm breached the  ││                            ││spike only | Envelope       │
+│                            ││configured envelope during  ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=syntax -> discrete-event-like││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││at step 7 | grammar -> violation at  ││0.23/0.00/0.00 | 0.30/0.00/0.00       │
+│                                       ││step 7 | grammar_reason -> Residual  ││                                      │
+│                                       ││norm breached the configured envelope││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=27.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=discrete-event-like           ││candidates=curvature_transition       │
+│frame=9/23                             ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=27.000                    ││drift=0.001524              ││p1=0.2237                   ││alarms=Residual threshold   │
+│step=8                      ││slew=0.001808               ││p2=0.0006                   ││only | Moving-average       │
+│residual=0.223740           ││margin=0.076260             ││p3=0.0018                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=grammar -> admissible at step││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││8 | grammar_reason -> Residual norm  ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││remained inside the configured       ││0.22/0.00/0.00                        │
+│                                       ││admissibility envelope. at step 8    ││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=33.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=10/23                            ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=33.000                    ││drift=0.004301              ││p1=0.1676                   ││alarms=Residual threshold   │
+│step=9                      ││slew=0.000629               ││p2=0.0040                   ││only | Moving-average       │
+│residual=0.167599           ││margin=0.132401             ││p3=0.0006                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=syntax -> mixed-structured at││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││step 9                               ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││log=trust threshold 0.75 crossed at  ││0.22/0.00/0.00 | 0.17/0.00/0.00       │
+│                                       ││t=21.000 | grammar -> admissible at  ││                                      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=39.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=11/23                            ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=39.000                    ││drift=0.004607              ││p1=0.0980                   ││alarms=Residual threshold   │
+│step=10                     ││slew=0.000126               ││p2=0.0000                   ││only | Moving-average       │
+│residual=0.097993           ││margin=0.202007             ││p3=0.0001                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=none                         ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││log=trust threshold 0.75 crossed at  ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││t=21.000 | grammar -> admissible at  ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││step 8 | grammar_reason -> Residual  ││0.10/0.00/0.00                        │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=45.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=12/23                            ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=45.000                    ││drift=0.001830              ││p1=0.2573                   ││alarms=Residual threshold   │
+│step=11                     ││slew=0.000571               ││p2=-0.0012                  ││only | Moving-average       │
+│residual=0.257308           ││margin=0.042692             ││p3=0.0006                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=none                         ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││log=trust threshold 0.75 crossed at  ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││t=21.000 | grammar -> admissible at  ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││step 8 | grammar_reason -> Residual  ││0.10/0.00/0.00 | 0.26/-0.00/0.00      │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=51.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=13/23                            ││grammar=violation                    ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=51.000                    ││drift=0.000607              ││p1=0.3520                   ││alarms=Residual threshold   │
+│step=12                     ││slew=0.000235               ││p2=0.0003                   ││only | Moving-average       │
+│residual=0.352032           ││margin=-0.052032            ││p3=0.0002                   ││residual trend only | Slew  │
+│                            ││Residual norm breached the  ││                            ││spike only | Envelope       │
+│                            ││configured envelope with an ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=grammar -> violation at step ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││12 | grammar_reason -> Residual norm ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││breached the configured envelope with││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││an abrupt increase relative to the   ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=54.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=14/23                            ││grammar=boundary                     ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=54.000                    ││drift=0.003833              ││p1=0.2722                   ││alarms=Residual threshold   │
+│step=13                     ││slew=0.000904               ││p2=0.0034                   ││only | Moving-average       │
+│residual=0.272240           ││margin=0.027760             ││p3=0.0009                   ││residual trend only | Slew  │
+│                            ││Residual norm approached the││                            ││spike only | Envelope       │
+│                            ││configured admissibility    ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=grammar -> boundary at step  ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││13 | grammar_reason -> Residual norm ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││approached the configured            ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││admissibility boundary without       ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=57.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=15/23                            ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=57.000                    ││drift=0.005119              ││p1=0.2441                   ││alarms=Residual threshold   │
+│step=14                     ││slew=0.000609               ││p2=0.0026                   ││only | Moving-average       │
+│residual=0.244123           ││margin=0.055877             ││p3=0.0006                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=grammar -> admissible at step││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││14 | grammar_reason -> Residual norm ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││remained inside the configured       ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││admissibility envelope. at step 14   ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=63.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=16/23                            ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=63.000                    ││drift=0.001575              ││p1=0.1476                   ││alarms=Residual threshold   │
+│step=15                     ││slew=0.000871               ││p2=0.0005                   ││only | Moving-average       │
+│residual=0.147614           ││margin=0.152386             ││p3=0.0009                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=none                         ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││log=grammar -> boundary at step 13 | ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││grammar_reason -> Residual norm      ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││approached the configured            ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=67.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=17/23                            ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=67.000                    ││drift=0.003079              ││p1=0.1975                   ││alarms=Residual threshold   │
+│step=16                     ││slew=0.000411               ││p2=0.0021                   ││only | Moving-average       │
+│residual=0.197466           ││margin=0.102534             ││p3=0.0004                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=none                         ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││log=grammar -> boundary at step 13 | ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││grammar_reason -> Residual norm      ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││approached the configured            ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=72.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=18/23                            ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=72.000                    ││drift=0.000942              ││p1=0.2238                   ││alarms=Residual threshold   │
+│step=17                     ││slew=0.000486               ││p2=0.0004                   ││only | Moving-average       │
+│residual=0.223764           ││margin=0.076236             ││p3=0.0005                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=none                         ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││log=grammar -> boundary at step 13 | ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││grammar_reason -> Residual norm      ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││approached the configured            ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=80.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=19/23                            ││grammar=violation                    ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=80.000                    ││drift=0.001395              ││p1=0.3944                   ││alarms=Residual threshold   │
+│step=18                     ││slew=0.000242               ││p2=0.0012                   ││only | Moving-average       │
+│residual=0.394397           ││margin=-0.094397            ││p3=0.0002                   ││residual trend only | Slew  │
+│                            ││Residual norm breached the  ││                            ││spike only | Envelope       │
+│                            ││configured envelope with an ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=grammar -> violation at step ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││18 | grammar_reason -> Residual norm ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││breached the configured envelope with││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││an abrupt increase relative to the   ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=86.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=20/23                            ││grammar=boundary                     ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=86.000                    ││drift=0.002664              ││p1=0.2809                   ││alarms=Residual threshold   │
+│step=19                     ││slew=0.000194               ││p2=0.0013                   ││only | Moving-average       │
+│residual=0.280944           ││margin=0.019056             ││p3=0.0002                   ││residual trend only | Slew  │
+│                            ││Residual norm approached the││                            ││spike only | Envelope       │
+│                            ││configured admissibility    ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=grammar -> boundary at step  ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││19 | grammar_reason -> Residual norm ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││approached the configured            ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││admissibility boundary without       ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=93.000    ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=21/23                            ││grammar=admissible                   ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=93.000                    ││drift=0.002775              ││p1=0.2206                   ││alarms=Residual threshold   │
+│step=20                     ││slew=0.000223               ││p2=0.0027                   ││only | Moving-average       │
+│residual=0.220583           ││margin=0.079417             ││p3=0.0002                   ││residual trend only | Slew  │
+│                            ││Residual norm remained      ││                            ││spike only | Envelope       │
+│                            ││inside the configured       ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=grammar -> admissible at step││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││20 | grammar_reason -> Residual norm ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││remained inside the configured       ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││admissibility envelope. at step 20   ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=100.000   ││speed=1.00x           │
+│status=running              ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=22/23                            ││grammar=violation                    ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=100.000                   ││drift=0.003475              ││p1=0.4329                   ││alarms=Residual threshold   │
+│step=21                     ││slew=0.000243               ││p2=0.0032                   ││only | Moving-average       │
+│residual=0.432897           ││margin=-0.132897            ││p3=0.0002                   ││residual trend only | Slew  │
+│                            ││Residual norm breached the  ││                            ││spike only | Envelope       │
+│                            ││configured envelope with an ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=grammar -> violation at step ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││21 | grammar_reason -> Residual norm ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││breached the configured envelope with││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││an abrupt increase relative to the   ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌Replay Mode─────────────────┐┌Source──────────────────────────────────┐┌Replay Time───────────┐┌Playback Speed────────┐
+│REPLAY MODE: CSV            ││source=NASA Milling                     ││replay_time=105.000   ││speed=1.00x           │
+│status=ended                ││scenario=nasa_milling_public_demo       ││                      ││                      │
+└────────────────────────────┘└────────────────────────────────────────┘└──────────────────────┘└──────────────────────┘
+┌Scenario / Stream──────────────────────┐┌Headline State───────────────────────┐┌Semantic Candidates───────────────────┐
+│scenario=nasa_milling_public_demo      ││syntax=mixed-structured              ││candidates=curvature_transition       │
+│frame=23/23                            ││grammar=violation                    ││selected=H-CURVATURE-RICH-TRANSITION  │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Residual Norm───────────────┐┌Drift / Slew────────────────┐┌Projected Sign──────────────┐┌Comparators / Admissibility─┐
+│t=105.000                   ││drift=0.008834              ││p1=1.0423                   ││alarms=Residual threshold   │
+│step=22                     ││slew=0.001252               ││p2=0.0086                   ││only | Moving-average       │
+│residual=1.042270           ││margin=-0.742270            ││p3=0.0013                   ││residual trend only | Slew  │
+│                            ││Residual norm breached the  ││                            ││spike only | Envelope       │
+│                            ││configured envelope with an ││                            ││interaction only | CUSUM    │
+└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘└────────────────────────────┘
+┌Run Metadata───────────────────────────┐┌Event / Transition Log───────────────┐┌Sign Timeline─────────────────────────┐
+│input_mode=csv                         ││scenario_title=External CSV Scenario ││0.00/0.00/0.00 | 0.14/0.01/0.00 |     │
+│engine_version=0.1.0                   ││(nasa_milling_public_demo)           ││0.09/0.00/0.00 | 0.15/0.01/0.00 |     │
+│bank_version=heuristic-bank/v3         ││markers=none                         ││0.49/0.01/0.00 | 0.24/0.01/0.00 |     │
+│                                       ││log=grammar_reason -> Residual norm  ││0.23/0.00/0.00 | 0.30/0.00/0.00 |     │
+│                                       ││remained inside the configured       ││0.22/0.00/0.00 | 0.17/0.00/0.00 |     │
+│                                       ││admissibility envelope. at step 20 | ││0.10/0.00/0.00 | 0.26/-0.00/0.00 |    │
+└───────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+┌Replay Note───────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│dashboard_schema=dsfb-semiotics-dashboard-event-stream/v1                                                             │
+│This ratatui replay consumes engine/evaluation events only; it does not recompute residual, syntax, grammar,          │
+│semantics, or comparator logic in the UI layer.                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

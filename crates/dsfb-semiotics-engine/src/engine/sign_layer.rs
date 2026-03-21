@@ -3,6 +3,7 @@ use crate::engine::types::{
 };
 use crate::math::metrics::{project_sign, sign_projection_metadata};
 
+// TRACE:ALGORITHM:ALG-SIGN-PROJECTION:Sign-space projection:Maps residual, drift, and slew into the exported three-coordinate sign representation.
 pub fn construct_signs(
     residual: &ResidualTrajectory,
     drift: &DriftTrajectory,

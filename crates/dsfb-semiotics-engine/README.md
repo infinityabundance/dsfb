@@ -8,6 +8,28 @@
 
 The crate is intentionally conservative. It does not claim field validation, universal diagnosis, certification, or complete inverse recovery. It implements a reproducible computational companion that turns the paper’s layered objects into explicit Rust types, deterministic scenario generators, deterministic CSV ingestion, tabular artifacts, figures, a PDF report, and a zipped bundle that can be rerun from scratch locally or in Colab.
 
+## Visual Logic
+
+```mermaid
+flowchart LR
+  A[Signal / Residual Source] --> B[Residual]
+  B --> C[Sign]
+  C --> D[Syntax]
+  D --> E[Grammar]
+  E --> F[Semantics]
+  F --> G[Artifacts / Replay / FFI]
+```
+
+```mermaid
+flowchart TD
+  A[Slew Spike or Drift Growth] --> B[Syntax Label]
+  B --> C[Grammar Reason]
+  C --> D[Semantic Candidate or Ambiguity]
+  C --> E[Trust Scalar]
+  D --> F[Report / Dashboard / FFI]
+  E --> F
+```
+
 ## Why This Crate Exists
 
 The paper argues that residual evolution can be treated as a structured inferential object rather than as noise alone. This crate exists to make that claim inspectable:
@@ -44,7 +66,7 @@ d(t) = \frac{dr}{dt}, \qquad s(t) = \frac{d^2 r}{dt^2}
 \]
 
 In discrete time the crate uses one-sided differences at the boundaries and centered finite differences in the interior. This is a deterministic numerical choice, not a claim that the paper’s continuous-time objects have been solved in full generality.
-Because raw differentiation can amplify jitter, the sign generator also supports an optional deterministic low-latency smoothing pass before drift and slew estimation. The default posture remains conservative (`disabled`), the selected smoothing mode and parameters are exported in run metadata, and the raw residual export path remains unchanged.
+Because raw differentiation can amplify jitter, the sign generator also supports an optional deterministic low-latency smoothing pass before drift and slew estimation. The default posture remains conservative (`disabled`), the selected smoothing mode and parameters are exported in run metadata, and the raw residual export path remains unchanged. A named `safety_first` profile is also available when guidance-loop users want stronger jitter attenuation with an explicitly exported lag bound and caution note.
 
 ### Signs
 
@@ -240,9 +262,11 @@ In addition to the batch artifact pipeline, the crate now exposes a bounded onli
 - the buffer capacity is explicit in `EngineSettings::online.history_buffer_capacity`
 - run metadata and manifests export the configured online history buffer capacity
 - optional offline accumulation remains separate so report/export workflows can still retain full histories without making the live path unbounded
+- the bounded live path also supports a versioned state snapshot for one-step replay and an experimental `numeric-fixed` embedded-oriented backend
 
 This separation matters for long-endurance or embedded-style use because the live engine path no longer requires unbounded sign or residual history growth.
 The public example [`examples/live_drop_in.rs`](examples/live_drop_in.rs) shows the intended one-sample-at-a-time bounded loop directly.
+The corresponding deployment note is [`docs/high_assurance_embedded.md`](docs/high_assurance_embedded.md).
 
 ## Units and Physical Interpretation
 
@@ -412,6 +436,45 @@ cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
   --dashboard-max-frames 4
 ```
 
+Render the first-class CSV live replay dashboard:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -- \
+  --input-mode csv \
+  --observed-csv crates/dsfb-semiotics-engine/tests/fixtures/observed_fixture.csv \
+  --predicted-csv crates/dsfb-semiotics-engine/tests/fixtures/predicted_fixture.csv \
+  --scenario-id fixture_csv \
+  --time-column time \
+  --dashboard-replay-csv \
+  --dashboard-playback-speed 1.0 \
+  --dashboard-scenario fixture_csv
+```
+
+Generate a replay-to-report forensic bundle directly from a CSV pair:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --bin dsfb-forensics-gen -- \
+  --observed-csv crates/dsfb-semiotics-engine/tests/fixtures/observed_fixture.csv \
+  --predicted-csv crates/dsfb-semiotics-engine/tests/fixtures/predicted_fixture.csv \
+  --scenario-id fixture_csv \
+  --time-column time \
+  --output-dir /tmp/dsfb-forensics
+```
+
+Run the executed NASA public-dataset demo pipeline:
+
+```bash
+cd crates/dsfb-semiotics-engine
+just demo-public-dataset
+```
+
+Or run the dedicated demo binary directly:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --bin dsfb-public-dataset-demo -- \
+  --phase all
+```
+
 Override the output root:
 
 ```bash
@@ -437,21 +500,45 @@ cd crates/dsfb-semiotics-engine
 just qa
 ```
 
-This executes formatting, clippy, tests, docs, snapshots, fixed-seed property tests, and dashboard replay smoke coverage for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
+This executes formatting, clippy, tests, docs, traceability freshness checks, a timing-determinism report refresh, fixed-seed property tests, and dashboard replay smoke coverage for the crate only. Contributor expectations and extension guidance are recorded in `CONTRIBUTING.md`.
 Because this work is restricted to the crate directory, crate-local GitHub Actions workflow templates are provided at `.github/workflows/crate-quality-gate.yml` and `ci/github-actions-crate-quality-gate.yml` rather than installing a live repo-root workflow automatically.
 The fixed-seed property-test surface can also be run directly with `cargo test --test proptest_invariants`.
-The crate-local workflow mirrors also include a `numeric-f32` compile check and a small FFI smoke compile for the checked-in C example.
+The crate-local workflow mirrors also include `numeric-f32` and `numeric-fixed` compile checks, a timing-determinism report smoke run, proof-harness presence checks, and a small FFI smoke compile for the checked-in C examples.
+Supply-chain review is configured separately through `deny.toml`, `cargo deny`, and `cargo audit`; the mapping from important claims to code and tests is tracked in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
 Property budgets are controlled with `DSFB_PROPTEST_MODE=smoke|research|stress`, where the default research-grade budget is 256 cases and the high-risk dashboard/near-threshold properties use 512 cases.
 
-The crate currently ships one additive Cargo feature flag:
+Regenerate the theorem-to-code traceability matrix:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --bin dsfb-traceability
+```
+
+Check that the committed matrix is fresh:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --bin dsfb-traceability -- --check
+```
+
+Trace-tag maintenance rules live in [`docs/traceability.md`](docs/traceability.md), and the
+generated matrix lives at
+[`docs/THEOREM_TO_CODE_TRACEABILITY.md`](docs/THEOREM_TO_CODE_TRACEABILITY.md).
+
+The crate currently ships additive Cargo feature flags:
 
 - `external-bank` (enabled by default): enables external heuristic-bank JSON loading alongside the builtin fallback
 - `numeric-f32`: narrows the bounded live-engine ingestion surface to `f32` while the internal deterministic math remains explicitly widened for conservative reproducibility; manifests record the selected numeric mode
+- `numeric-fixed`: enables the experimental bounded-live `q16.16` fixed-point ingress path for embedded-oriented evaluation; its supported scope and quantization tradeoffs are documented in [`docs/high_assurance_embedded.md`](docs/high_assurance_embedded.md)
 
 Check the crate in `numeric-f32` mode:
 
 ```bash
 cargo check --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --features numeric-f32
+```
+
+Check the crate in `numeric-fixed` mode:
+
+```bash
+cargo check --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --features numeric-fixed
 ```
 
 Run the bounded online failure-injection example:
@@ -479,7 +566,25 @@ cargo test --manifest-path crates/dsfb-semiotics-engine/Cargo.toml -p dsfb-semio
 ```
 
 The checked-in header lives at [`ffi/include/dsfb_semiotics_engine.h`](ffi/include/dsfb_semiotics_engine.h), with minimal examples at [`ffi/examples/minimal_ffi.c`](ffi/examples/minimal_ffi.c) and [`ffi/examples/minimal_ffi.cpp`](ffi/examples/minimal_ffi.cpp).
-The FFI ABI is intentionally code-oriented: `DsfbCurrentStatus` carries numeric syntax / grammar / semantic codes plus trust, while dedicated helpers copy human-readable labels and the stable last-error string into caller-owned buffers. Ownership rules and shared/static library build notes are documented in [`docs/examples/ffi_integration.md`](docs/examples/ffi_integration.md).
+The FFI ABI is intentionally code-oriented: `DsfbCurrentStatus` carries numeric syntax / grammar / semantic codes plus trust, while dedicated helpers copy human-readable labels and the stable last-error string into caller-owned buffers. The ABI also exposes explicit batch ingestion for contiguous row-major sample blocks, which is the recommended path for higher-rate or multi-axis logs. Ownership rules and shared/static library build notes are documented in [`docs/examples/ffi_integration.md`](docs/examples/ffi_integration.md).
+For C++ hosts that do not want to manage raw handles directly, the crate also ships the header-only wrapper [`ffi/include/dsfb.hpp`](ffi/include/dsfb.hpp) with examples at [`ffi/examples/minimal_cpp_wrapper.cpp`](ffi/examples/minimal_cpp_wrapper.cpp) and [`ffi/examples/stepwise_cpp_wrapper.cpp`](ffi/examples/stepwise_cpp_wrapper.cpp). The wrapper is RAII-oriented and exception-based in the common path.
+
+Python/Jupyter users can use the nested PyO3 package under [`python/`](python/) together with the quickstart in [`docs/examples/python_quickstart.md`](docs/examples/python_quickstart.md).
+
+Generate the host-side timing determinism report:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --bin dsfb-timing-determinism
+```
+
+Replay exactly one live transition from a serialized bounded-engine snapshot:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiotics-engine/Cargo.toml --bin dsfb-state-replay -- \
+  --snapshot-in /tmp/live.dsfb \
+  --sample-time 12.0 \
+  --sample-values 0.12
+```
 
 Refresh snapshot fixtures intentionally with:
 
@@ -602,18 +707,21 @@ It:
 - shows a clear warning instead of a broken button when an expected artifact is missing
 
 The notebook does not reimplement the semiotic engine logic in Python.
+It also surfaces a concise run metadata summary including validation mode, bank source, numeric mode,
+online buffer capacity, and whether trust scalars were exported.
 
 ## FFI And Legacy Integration
 
 For legacy control stacks and C or C++ hosts, the crate includes a minimal nested FFI crate at [`ffi/`](ffi/).
 
 - it exposes a small C ABI around the bounded online engine
-- the exported surface supports create, destroy, push-sample, current-status query, and reset
+- the exported surface supports create, destroy, push-sample, batch ingestion, current-status query, and reset
 - grammar state and grammar reason are exposed explicitly through C-friendly enums
 - the current-status ABI also exports a trust scalar and semantic disposition code instead of relying only on strings
 - the header is checked in so downstream users do not need Rust tooling merely to inspect the ABI
 
 This is a minimal integration path for experimentation and interoperability. It is not a certification claim.
+The corresponding architectural note on low-coupling modular integration is recorded in [`docs/mosa_compatibility.md`](docs/mosa_compatibility.md).
 
 ## Synthetic Failure Injection Example
 
@@ -631,6 +739,40 @@ The printed wording is illustrative and depends on the configured heuristic bank
 ## Vibration To Thermal Drift Example
 
 [`examples/vibration_to_thermal_drift.rs`](examples/vibration_to_thermal_drift.rs) and [`docs/examples/vibration_to_thermal_drift.md`](docs/examples/vibration_to_thermal_drift.md) provide a more physically grounded walkthrough. The example treats the residual as a bearing-gap signal in millimeters and explicitly discusses residual, drift, and slew in millimeters, millimeters/second, and millimeters/second^2 as the signal transitions from vibration-like high-frequency behavior into slower thermal-like drift.
+
+## IMU GPS-Denied Scenario
+
+The scenario `imu_thermal_drift_gps_denied` is a synthetic A-PNT-oriented example with three IMU residual channels, a GPS blackout window, slowly accelerating thermal drift on one axis, and a mode-switch pulse. Assumptions and units are documented in [`docs/examples/imu_thermal_drift_gps_denied.md`](docs/examples/imu_thermal_drift_gps_denied.md).
+
+## Public Dataset Demo Path
+
+The public-dataset path is now executed and reproducible rather than doc-only. The primary path uses the NASA Milling dataset and the secondary path uses the NASA IMS Bearings dataset. Fetch, preprocessing, artifact generation, and dashboard replay commands are documented in [`docs/public_dataset_demo.md`](docs/public_dataset_demo.md). A legacy dashboard-facing pointer remains at [`docs/examples/public_dataset_dashboard_demo.md`](docs/examples/public_dataset_dashboard_demo.md).
+
+Representative checked-in sample artifacts live under:
+
+- [`examples/public_dataset_demo/nasa_milling`](examples/public_dataset_demo/nasa_milling)
+- [`examples/public_dataset_demo/nasa_bearings`](examples/public_dataset_demo/nasa_bearings)
+
+This remains a public-data demonstration path only, not field validation.
+
+## Execution Budget
+
+Host-side execution-budget benchmarking is recorded in [`docs/execution_budget.md`](docs/execution_budget.md), with a formal Criterion target at [`benches/execution_budget.rs`](benches/execution_budget.rs). The benchmark covers one bounded online-engine step, one CSV replay step, and semantic retrieval on small and enlarged typed banks.
+
+For tail-oriented review, the crate also generates a dedicated `Timing Determinism Report` at [`docs/TIMING_DETERMINISM_REPORT.md`](docs/TIMING_DETERMINISM_REPORT.md) with observed mean, median, p95, p99, p99.9, maximum, and jitter summaries for scalar live steps, batch live steps, grammar evaluation paths, and semantic retrieval paths on the measured host.
+
+## Briefs And Adoption Notes
+
+- technical brief: [`docs/briefs/dsfb_auditable_ins_residual_interpretation_layer.md`](docs/briefs/dsfb_auditable_ins_residual_interpretation_layer.md)
+- modular-architecture note: [`docs/mosa_compatibility.md`](docs/mosa_compatibility.md)
+- source traceability guide: [`docs/traceability.md`](docs/traceability.md)
+- generated theorem-to-code matrix: [`docs/THEOREM_TO_CODE_TRACEABILITY.md`](docs/THEOREM_TO_CODE_TRACEABILITY.md)
+- high-assurance embedded note: [`docs/high_assurance_embedded.md`](docs/high_assurance_embedded.md)
+- requirements and claim mapping: [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
+- C++ wrapper quickstart: [`docs/examples/cpp_wrapper.md`](docs/examples/cpp_wrapper.md)
+- replay-to-report workflow: [`docs/examples/forensics_gen.md`](docs/examples/forensics_gen.md)
+- dashboard replay guide: [`docs/examples/dashboard_replay.md`](docs/examples/dashboard_replay.md)
+- state replay workflow: [`docs/examples/state_replay.md`](docs/examples/state_replay.md)
 
 ## Limitations and Non-Claims
 

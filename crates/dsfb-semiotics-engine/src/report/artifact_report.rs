@@ -77,9 +77,25 @@ pub fn build_markdown_report(
     lines.push("- Slew: `s(t) = d^2r/dt^2` via deterministic second differences over the same configured derivative-preconditioning path.".to_string());
     lines.push("- Sign tuple: `sigma(t) = (r(t), d(t), s(t))`.".to_string());
     lines.push(format!(
-        "- Smoothing mode: `{}` with alpha `{}`. Raw residual exports remain unchanged; only derivative estimation uses this optional preconditioning path.",
+        "- Smoothing profile: `{}` with mode `{}`, alpha `{}`, causal window `{}`, estimated lag `{}` samples, and maximum settling horizon `{}` samples. Raw residual exports remain unchanged; only derivative estimation uses this optional preconditioning path.",
+        bundle.run_metadata.engine_settings.smoothing.profile_label(),
         bundle.run_metadata.engine_settings.smoothing.mode.as_label(),
-        format_metric(bundle.run_metadata.engine_settings.smoothing.exponential_alpha)
+        format_metric(bundle.run_metadata.engine_settings.smoothing.exponential_alpha),
+        bundle.run_metadata.engine_settings.smoothing.causal_window,
+        format_metric(bundle.run_metadata.engine_settings.smoothing.estimated_lag_samples()),
+        bundle
+            .run_metadata
+            .engine_settings
+            .smoothing
+            .maximum_settling_samples()
+    ));
+    lines.push(format!(
+        "- Smoothing guidance note: {}",
+        bundle
+            .run_metadata
+            .engine_settings
+            .smoothing
+            .guidance_loop_caution_note()
     ));
     lines.push("- Sign projection used in Figure 03: deterministic projected sign coordinates `[||r(t)||, dot(r(t), d(t))/||r(t)||, ||s(t)||]`, reported as residual norm, signed radial drift, and slew norm, with zero radial drift reported at exact zero residual norm.".to_string());
     lines.push("- Syntax metrics include outward and inward drift fractions from residual-norm and margin evolution, radial-sign dominance, radial-sign persistence, drift-channel sign alignment, residual-norm path monotonicity, residual-norm trend alignment, mean squared slew norm, late slew-growth score, slew spike count and strength, boundary grazing episodes, boundary recovery count, and grouped aggregate breach fraction when coordinated structure is configured. Labels such as `weakly-structured-baseline-like` and `mixed-structured` remain conservative summaries rather than health judgments.".to_string());

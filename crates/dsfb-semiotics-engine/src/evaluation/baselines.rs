@@ -4,6 +4,7 @@ use crate::evaluation::types::BaselineComparatorResult;
 use crate::io::schema::ARTIFACT_SCHEMA_VERSION;
 use crate::math::metrics::{mean, standard_deviation};
 
+// TRACE:ALGORITHM:ALG-COMPARATOR-BASELINES:Deterministic comparator baselines:Computes threshold, moving-average, slew, envelope, CUSUM, and innovation-style comparison outputs.
 /// Computes simple deterministic comparator outputs for each scenario in a completed engine run.
 pub fn compute_baseline_results(
     bundle: &EngineOutputBundle,

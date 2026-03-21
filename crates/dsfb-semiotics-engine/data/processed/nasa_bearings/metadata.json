@@ -1,0 +1,14 @@
+{
+  "dataset": "nasa_bearings",
+  "raw_summary_csv": "data/public_dataset/raw/nasa_bearings_raw_summary.csv",
+  "observed_csv": "data/processed/nasa_bearings/observed.csv",
+  "predicted_csv": "data/processed/nasa_bearings/predicted.csv",
+  "selected_channels": [
+    "bearing3_rms",
+    "bearing4_rms",
+    "bearing4_kurtosis"
+  ],
+  "baseline_window": 4,
+  "trailing_prediction_window": 4,
+  "normalization_note": "NASA IMS bearings set 1 last-64-file progression using failing-bearing RMS and kurtosis feature ratios."
+}

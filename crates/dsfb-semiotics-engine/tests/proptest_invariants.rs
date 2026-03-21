@@ -282,6 +282,7 @@ fn prop_projected_sign_finite() {
 }
 
 #[test]
+// TRACE:CLAIM:CLM-TEST-CONSTANT-DRIFT-ZERO:Executable constant-drift evidence:Property test confirms constant scalar paths yield zero drift.
 fn prop_constant_signal_zero_drift() {
     let strategy = (1usize..=10, -500i32..=500).prop_flat_map(|(len, value_raw)| {
         proptest::collection::vec(1u16..=8, len.saturating_sub(1)).prop_map(move |increments| {
@@ -446,6 +447,7 @@ fn prop_no_nan_or_inf_in_exported_metrics() {
 }
 
 #[test]
+// TRACE:CLAIM:CLM-TEST-REPRODUCIBILITY-HASH:Executable reproducibility evidence:Property test confirms identical inputs keep deterministic layered hashes stable.
 fn prop_reproducibility_hash_stable_for_identical_inputs() {
     let strategy = (1usize..=4).prop_flat_map(|outer_len| {
         proptest::collection::vec(proptest::collection::vec(-200i32..=200, 0..=6), outer_len)

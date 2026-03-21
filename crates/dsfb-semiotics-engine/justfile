@@ -17,7 +17,26 @@ test:
 doc:
     cargo doc --manifest-path Cargo.toml --no-deps
 
+traceability:
+    cargo run --manifest-path Cargo.toml --bin dsfb-traceability
+
+traceability-check:
+    cargo run --manifest-path Cargo.toml --bin dsfb-traceability -- --check
+
+timing-report:
+    cargo run --manifest-path Cargo.toml --bin dsfb-timing-determinism
+
+demo-public-dataset:
+    cargo run --manifest-path Cargo.toml --bin dsfb-public-dataset-demo -- --phase all
+
+supply-chain:
+    cargo deny check
+    cargo audit
+
+proof-step:
+    if command -v cargo-kani >/dev/null 2>&1; then cargo kani --manifest-path Cargo.toml --harness proof_trust_scalar_in_unit_interval && cargo kani --manifest-path Cargo.toml --harness proof_trust_scalar_not_nan && cargo kani --manifest-path Cargo.toml --harness proof_grammar_reason_enum_is_closed; else echo "cargo-kani unavailable; proof harnesses remain under proofs/kani for explicit execution"; fi
+
 smoke:
     cargo run --manifest-path Cargo.toml -- --all --output-dir /tmp/dsfb-semiotics-engine-smoke
 
-qa: fmt-check clippy test doc
+qa: fmt-check clippy test doc traceability-check timing-report proof-step

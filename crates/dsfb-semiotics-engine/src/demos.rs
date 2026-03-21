@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::engine::settings::{EngineSettings, SmoothingMode};
 use crate::engine::types::{EnvelopeMode, GrammarState};
-use crate::live::{OnlineStructuralEngine, Real};
+use crate::live::{to_real, OnlineStructuralEngine};
 use crate::math::envelope::EnvelopeSpec;
 
 /// Runs the bounded failure-injection demo and returns the printed trace.
@@ -45,7 +45,7 @@ pub fn synthetic_failure_injection_trace() -> Result<String> {
             0.012 * (step - 42) as f64
         };
         let value = nominal + drift;
-        let status = engine.push_residual_sample(time, &[value as Real])?;
+        let status = engine.push_residual_sample(time, &[to_real(value)])?;
 
         if step == 0 || status.syntax_label != previous_syntax {
             lines.push(format!(
@@ -124,7 +124,7 @@ pub fn vibration_to_thermal_drift_trace() -> Result<String> {
             0.0075 * (step - 52) as f64
         };
         let value_mm = vibration + thermal_drift;
-        let status = engine.push_residual_sample(time, &[value_mm as Real])?;
+        let status = engine.push_residual_sample(time, &[to_real(value_mm)])?;
 
         if step == 0 || status.syntax_label != previous_syntax {
             lines.push(format!(
@@ -192,7 +192,7 @@ pub fn live_drop_in_trace() -> Result<String> {
     ];
 
     for (step, sample) in samples.iter().enumerate() {
-        let status = engine.push_residual_sample(step as f64, &[*sample as Real])?;
+        let status = engine.push_residual_sample(step as f64, &[to_real(*sample)])?;
         let selected = if status.selected_heuristic_ids.is_empty() {
             "none".to_string()
         } else {

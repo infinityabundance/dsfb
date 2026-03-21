@@ -31,7 +31,7 @@ observed + predicted
 - `src/engine`
   Typed layered engine objects, threshold settings, heuristic-bank governance, and orchestration.
 - `src/live`
-  Bounded ring-buffer online engine state used by replay, FFI, and deployment-oriented integration surfaces.
+  Bounded ring-buffer online engine state used by replay, FFI, fixed-point ingress experiments, and state-exact one-step replay tooling.
 - `src/evaluation`
   Post-run deterministic summaries, internal comparator baselines, and sweep summarization.
 - `src/io`
@@ -51,6 +51,12 @@ observed + predicted
 - Keep semantics retrieval separate from syntax characterization.
 - Keep export formatting separate from engine math.
 - Keep public types explicit enough for line-by-line review.
+
+## Traceability
+
+Source-level theorem and definition tags are documented in
+[`docs/traceability.md`](traceability.md), and the generated matrix lives at
+[`docs/THEOREM_TO_CODE_TRACEABILITY.md`](THEOREM_TO_CODE_TRACEABILITY.md).
 
 ## Extension Discipline
 

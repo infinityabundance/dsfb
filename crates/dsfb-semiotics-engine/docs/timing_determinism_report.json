@@ -1,0 +1,83 @@
+{
+  "schema_version": "dsfb-semiotics-timing-determinism/v1",
+  "platform": "linux-x86_64",
+  "rust_version": "rustc 1.93.0 (254b59607 2026-01-19)",
+  "numeric_mode": "f64",
+  "iterations": 400,
+  "warmup": 32,
+  "metrics": [
+    {
+      "name": "scalar_push_sample",
+      "iterations": 400,
+      "mean_ns": 637359,
+      "median_ns": 616728,
+      "p95_ns": 763010,
+      "p99_ns": 981176,
+      "p999_ns": 992276,
+      "max_ns": 992276,
+      "jitter_ns": 375548,
+      "note": "Observed bounded live scalar step on the current host after warmup."
+    },
+    {
+      "name": "batch_push_sample",
+      "iterations": 400,
+      "mean_ns": 1877424,
+      "median_ns": 1873025,
+      "p95_ns": 1908592,
+      "p99_ns": 1951953,
+      "p999_ns": 2117250,
+      "max_ns": 2117250,
+      "jitter_ns": 244225,
+      "note": "Observed bounded live batch step on the current host after warmup."
+    },
+    {
+      "name": "grammar_admissible_path",
+      "iterations": 400,
+      "mean_ns": 1373,
+      "median_ns": 1373,
+      "p95_ns": 1403,
+      "p99_ns": 1422,
+      "p999_ns": 1433,
+      "max_ns": 1433,
+      "jitter_ns": 60,
+      "note": "Observed grammar evaluation on an admissible fixture."
+    },
+    {
+      "name": "grammar_violation_path",
+      "iterations": 400,
+      "mean_ns": 1505,
+      "median_ns": 1473,
+      "p95_ns": 1522,
+      "p99_ns": 2314,
+      "p999_ns": 3046,
+      "max_ns": 3046,
+      "jitter_ns": 1573,
+      "note": "Observed grammar evaluation on a violation-like fixture."
+    },
+    {
+      "name": "semantic_retrieval_builtin_bank",
+      "iterations": 400,
+      "mean_ns": 39455,
+      "median_ns": 38762,
+      "p95_ns": 41457,
+      "p99_ns": 62627,
+      "p999_ns": 112379,
+      "max_ns": 112379,
+      "jitter_ns": 73617,
+      "note": "Observed semantic retrieval on the builtin bank."
+    },
+    {
+      "name": "semantic_retrieval_enlarged_bank",
+      "iterations": 400,
+      "mean_ns": 187992,
+      "median_ns": 187509,
+      "p95_ns": 191617,
+      "p99_ns": 197086,
+      "p999_ns": 201735,
+      "max_ns": 201735,
+      "jitter_ns": 14226,
+      "note": "Observed semantic retrieval on an enlarged synthetic bank."
+    }
+  ],
+  "note": "These are host-side observed timing summaries, not certified WCET bounds. Median and tail metrics describe the measured platform only."
+}

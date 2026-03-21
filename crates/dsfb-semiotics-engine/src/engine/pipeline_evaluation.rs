@@ -5,6 +5,7 @@ use anyhow::Result;
 use crate::engine::types::{ReproducibilityCheck, ReproducibilitySummary, ScenarioOutput};
 use crate::math::metrics::hash_serializable_hex;
 
+// TRACE:CLAIM:CLM-COMPUTATIONAL-REPRODUCIBILITY:Layered output reproducibility:Hashes full scenario outputs twice under identical deterministic configuration.
 pub(crate) fn compare_outputs(
     first: &ScenarioOutput,
     second: &ScenarioOutput,
@@ -34,6 +35,7 @@ pub(crate) fn compare_outputs(
     })
 }
 
+// TRACE:CLAIM:CLM-REPRODUCIBILITY-SUMMARY:Aggregate reproducibility summary:Summarizes per-scenario identical reruns over the full layered output bundle.
 pub(crate) fn summarize_reproducibility(checks: &[ReproducibilityCheck]) -> ReproducibilitySummary {
     let identical_count = checks.iter().filter(|check| check.identical).count();
     ReproducibilitySummary {

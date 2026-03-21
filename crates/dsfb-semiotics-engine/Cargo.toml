@@ -15,12 +15,21 @@ include = [
     ".github/workflows/**",
     "ci/**",
     "docs/**",
+    "data/public_dataset/raw/**",
+    "data/processed/**",
+    "benches/**",
     "src/**",
     "examples/**",
+    "ffi/**",
+    "python/**",
+    "proofs/**",
+    "tools/**",
     "tests/**",
     "tests/fixtures/**",
     "Cargo.toml",
     "Cargo.lock",
+    "deny.toml",
+    "kani.toml",
     "README.md",
     "CONTRIBUTING.md",
     "justfile",
@@ -36,6 +45,7 @@ members = [".", "ffi"]
 default = ["external-bank"]
 external-bank = []
 numeric-f32 = []
+numeric-fixed = []
 
 [dependencies]
 anyhow = "1"
@@ -50,6 +60,7 @@ serde_json = "1"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
+criterion = { version = "0.5.1", default-features = false, features = ["cargo_bench_support"] }
 proptest = "1"
 tempfile = "3"
 
@@ -60,3 +71,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "dsfb-semiotics-engine"
 path = "src/main.rs"
+
+[[bench]]
+name = "execution_budget"
+harness = false

@@ -10,13 +10,16 @@ pub mod figures;
 pub mod io;
 pub mod live;
 pub mod math;
+pub mod public_dataset;
 pub mod report;
 pub mod sim;
+pub mod traceability;
 
 pub use cli::args::{CliArgs, ScenarioSelection};
 pub use dashboard::{
-    DashboardReplay, DashboardReplayConfig, DashboardReplayEvent, DashboardReplayStream,
-    DASHBOARD_EVENT_SCHEMA_VERSION,
+    CsvReplayDriver, CsvReplayRunState, CsvReplayTimingState, DashboardReplay,
+    DashboardReplayConfig, DashboardReplayEvent, DashboardReplayStream,
+    CSV_REPLAY_STATE_SCHEMA_VERSION, DASHBOARD_EVENT_SCHEMA_VERSION,
 };
 pub use engine::bank::{
     BankSourceKind, HeuristicBankRegistry, HeuristicBankValidationReport, LoadedBankDescriptor,
@@ -40,6 +43,8 @@ pub use engine::types::{
 };
 pub use io::schema::{ARTIFACT_SCHEMA_VERSION, HEURISTIC_BANK_SCHEMA_VERSION};
 pub use live::{
-    numeric_mode_label, LiveEngineStatus, OnlineStructuralEngine, Real, RingBuffer,
-    LIVE_ENGINE_STATUS_SCHEMA_VERSION,
+    numeric_backend_note, numeric_mode_label, real_to_f64, to_real, LiveEngineSnapshot,
+    LiveEngineStatus, OnlineStructuralEngine, Real, RingBuffer,
+    LIVE_ENGINE_SNAPSHOT_SCHEMA_VERSION, LIVE_ENGINE_STATUS_SCHEMA_VERSION,
 };
+pub use public_dataset::{PublicDatasetArtifactSummary, PublicDatasetKind, ReplayArtifactPaths};

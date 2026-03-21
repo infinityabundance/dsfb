@@ -1,0 +1,14 @@
+{
+  "dataset": "nasa_milling",
+  "raw_summary_csv": "data/public_dataset/raw/nasa_milling_raw_summary.csv",
+  "observed_csv": "data/processed/nasa_milling/observed.csv",
+  "predicted_csv": "data/processed/nasa_milling/predicted.csv",
+  "selected_channels": [
+    "vib_table_rms",
+    "ae_spindle_rms",
+    "smc_dc_rms"
+  ],
+  "baseline_window": 5,
+  "trailing_prediction_window": 4,
+  "normalization_note": "NASA Milling case 11 per-run RMS feature ratios relative to the early healthy baseline."
+}

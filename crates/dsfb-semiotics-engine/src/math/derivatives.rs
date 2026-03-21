@@ -3,6 +3,7 @@ use crate::engine::types::{
 };
 use crate::math::metrics::{euclidean_norm, scalar_derivative};
 
+// TRACE:DEFINITION:DEF-DRIFT:Finite-difference drift:Implements channel-wise first derivative of the residual trajectory.
 pub fn compute_drift_trajectory(
     residual: &ResidualTrajectory,
     _dt: f64,
@@ -50,6 +51,7 @@ pub fn compute_drift_trajectory(
     }
 }
 
+// TRACE:DEFINITION:DEF-SLEW:Nonuniform finite-difference slew:Implements channel-wise second derivative over nonuniform sampled times.
 pub fn compute_slew_trajectory(
     residual: &ResidualTrajectory,
     _dt: f64,
@@ -106,6 +108,7 @@ pub fn compute_slew_trajectory(
     }
 }
 
+// TRACE:ALGORITHM:ALG-NONUNIFORM-SECOND-DERIVATIVE:Nonuniform three-point curvature estimate:Used by slew construction near boundaries and interior samples.
 fn second_derivative_nonuniform(
     left_value: f64,
     left_time: f64,
