@@ -10,6 +10,7 @@ use dsfb_semiotics_engine::engine::settings::EngineSettings;
 use dsfb_semiotics_engine::engine::types::EnvelopeMode;
 use dsfb_semiotics_engine::figures::source::FigureSourceTable;
 use serde_json::Value;
+use zip::ZipArchive;
 
 fn crate_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -85,6 +86,16 @@ fn sample_root(dataset: &str) -> PathBuf {
     crate_root()
         .join("examples/public_dataset_demo")
         .join(dataset)
+}
+
+fn latest_zip_path(dataset: &str) -> PathBuf {
+    fs::read_dir(dataset_root(dataset))
+        .unwrap()
+        .find_map(|entry| {
+            let path = entry.ok()?.path();
+            (path.extension().unwrap_or_default() == "zip").then_some(path)
+        })
+        .unwrap_or_else(|| panic!("missing zip archive for {dataset}"))
 }
 
 fn processed_root(dataset: &str) -> PathBuf {
@@ -253,6 +264,32 @@ fn test_zip_generated() {
         assert!(fs::read_dir(dataset_root(dataset))
             .unwrap()
             .any(|entry| entry.unwrap().path().extension().unwrap_or_default() == "zip"));
+    }
+}
+
+#[test]
+fn test_public_dataset_zip_name_has_dataset_prefix() {
+    ensure_full_pipeline_ran();
+    for dataset in ["nasa_milling", "nasa_bearings"] {
+        let zip_path = latest_zip_path(dataset);
+        let file_name = zip_path.file_name().unwrap().to_string_lossy();
+        assert!(file_name.starts_with(&format!("{dataset}-dsfb-semiotics-engine-")));
+    }
+}
+
+#[test]
+fn test_public_dataset_zip_root_folder_matches_zip_name() {
+    ensure_full_pipeline_ran();
+    for dataset in ["nasa_milling", "nasa_bearings"] {
+        let zip_path = latest_zip_path(dataset);
+        let zip_stem = zip_path.file_stem().unwrap().to_string_lossy().to_string();
+        let file = std::fs::File::open(&zip_path).unwrap();
+        let mut archive = ZipArchive::new(file).unwrap();
+        assert!(archive.len() > 0);
+        for index in 0..archive.len() {
+            let entry = archive.by_index(index).unwrap();
+            assert!(entry.name().starts_with(&format!("{zip_stem}/")));
+        }
     }
 }
 

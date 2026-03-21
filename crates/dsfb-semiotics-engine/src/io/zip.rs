@@ -6,7 +6,11 @@ use anyhow::{Context, Result};
 use zip::write::SimpleFileOptions;
 use zip::CompressionMethod;
 
-pub fn zip_directory(source_dir: &Path, destination_zip: &Path) -> Result<()> {
+pub fn zip_directory(
+    source_dir: &Path,
+    destination_zip: &Path,
+    archive_root_name: &str,
+) -> Result<()> {
     let file = File::create(destination_zip)
         .with_context(|| format!("failed to create {}", destination_zip.display()))?;
     let mut archive = zip::ZipWriter::new(file);
@@ -19,6 +23,7 @@ pub fn zip_directory(source_dir: &Path, destination_zip: &Path) -> Result<()> {
         source_dir,
         source_dir,
         destination_zip,
+        archive_root_name,
         options,
     )?;
     archive
@@ -32,6 +37,7 @@ fn add_directory_recursive<W: Write + Seek>(
     base_dir: &Path,
     current_dir: &Path,
     destination_zip: &Path,
+    archive_root_name: &str,
     options: SimpleFileOptions,
 ) -> Result<()> {
     for entry in fs::read_dir(current_dir)
@@ -43,15 +49,23 @@ fn add_directory_recursive<W: Write + Seek>(
             continue;
         }
         if path.is_dir() {
-            add_directory_recursive(archive, base_dir, &path, destination_zip, options)?;
+            add_directory_recursive(
+                archive,
+                base_dir,
+                &path,
+                destination_zip,
+                archive_root_name,
+                options,
+            )?;
         } else if path.is_file() {
             let relative = path
-                .strip_prefix(base_dir.parent().unwrap_or(base_dir))
+                .strip_prefix(base_dir)
                 .with_context(|| format!("failed to relativize {}", path.display()))?
                 .to_string_lossy()
                 .replace('\\', "/");
+            let archive_entry = format!("{archive_root_name}/{relative}");
             archive
-                .start_file(relative, options)
+                .start_file(archive_entry, options)
                 .with_context(|| format!("failed to start zip entry for {}", path.display()))?;
             archive
                 .write_all(
