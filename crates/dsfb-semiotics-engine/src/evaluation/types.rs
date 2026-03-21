@@ -31,6 +31,9 @@ pub struct ScenarioEvaluationSummary {
     pub syntax_label: String,
     pub semantic_disposition: String,
     pub selected_heuristic_ids: Vec<String>,
+    pub grammar_reason_code: String,
+    pub grammar_reason_text: String,
+    pub trust_scalar: f64,
     pub heuristic_bank_entry_count: usize,
     pub heuristic_candidates_post_admissibility: usize,
     pub heuristic_candidates_post_regime: usize,
@@ -66,6 +69,43 @@ pub struct RunEvaluationSummary {
     pub comparator_trigger_counts: BTreeMap<String, usize>,
     pub reproducible_scenario_count: usize,
     pub all_reproducible: bool,
+    pub minimum_trust_scalar: f64,
+    pub note: String,
+}
+
+/// Deterministic smoothing-comparison record for one scenario.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SmoothingComparisonRecord {
+    pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
+    pub scenario_id: String,
+    pub smoothing_mode: String,
+    pub smoothing_enabled: bool,
+    pub smoothing_alpha: f64,
+    pub raw_mean_squared_slew_norm: f64,
+    pub active_mean_squared_slew_norm: f64,
+    pub raw_max_slew_norm: f64,
+    pub active_max_slew_norm: f64,
+    pub raw_slew_spike_count: usize,
+    pub active_slew_spike_count: usize,
+    pub raw_syntax_label: String,
+    pub active_syntax_label: String,
+    pub note: String,
+}
+
+/// Deterministic retrieval-scaling record using candidate-count proxies rather than wall-clock timing.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RetrievalLatencyRecord {
+    pub schema_version: String,
+    pub engine_version: String,
+    pub bank_version: String,
+    pub bank_size: usize,
+    pub retrieval_path: String,
+    pub linear_candidates_considered: usize,
+    pub indexed_prefilter_candidate_count: usize,
+    pub indexed_post_scope_candidate_count: usize,
+    pub index_buckets_considered: usize,
     pub note: String,
 }
 
@@ -156,6 +196,8 @@ pub struct RunEvaluationBundle {
     pub summary: RunEvaluationSummary,
     pub scenario_evaluations: Vec<ScenarioEvaluationSummary>,
     pub baseline_results: Vec<BaselineComparatorResult>,
+    pub smoothing_comparison_report: Vec<SmoothingComparisonRecord>,
+    pub retrieval_latency_report: Vec<RetrievalLatencyRecord>,
     pub bank_validation: HeuristicBankValidationReport,
     pub artifact_completeness: Option<ArtifactCompletenessCheck>,
     pub sweep_results: Vec<SweepPointResult>,

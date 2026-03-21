@@ -17,4 +17,8 @@ pub(crate) use bank_loader::{
     ensure_supported_bank_schema, load_builtin_registry, load_external_registry_json,
 };
 pub(crate) use bank_validation::build_bank_validation_report;
+pub(crate) use retrieval::{
+    benchmark_retrieval_scaling, build_retrieval_index, retrieve_semantics_with_context,
+    SemanticRetrievalContext, SemanticRetrievalIndex,
+};
 pub use retrieval::{retrieve_semantics, retrieve_semantics_with_registry};

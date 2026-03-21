@@ -17,7 +17,10 @@ use crate::engine::config::{
 use crate::engine::grammar_layer::{evaluate_detectability, evaluate_grammar_layer};
 use crate::engine::pipeline_evaluation::{compare_outputs, summarize_reproducibility};
 use crate::engine::residual_layer::extract_residuals;
-use crate::engine::semantics_layer::retrieve_semantics_with_registry;
+use crate::engine::semantics::{
+    build_retrieval_index, retrieve_semantics_with_context, SemanticRetrievalContext,
+    SemanticRetrievalIndex,
+};
 use crate::engine::settings::EngineSettings;
 use crate::engine::sign_layer::construct_signs;
 use crate::engine::syntax_layer::characterize_syntax_with_coordination_configured;
@@ -34,6 +37,7 @@ use crate::io::schema::ARTIFACT_SCHEMA_VERSION;
 use crate::math::derivatives::{compute_drift_trajectory, compute_slew_trajectory};
 use crate::math::envelope::{build_envelope, EnvelopeSpec};
 use crate::math::metrics::{format_metric, hash_serializable_hex, max_abs, pairwise_abs_mean};
+use crate::math::smoothing::smooth_residual_trajectory;
 use crate::sim::generators::synthesize;
 use crate::sim::scenarios::{all_scenarios, ScenarioDefinition};
 
@@ -117,6 +121,7 @@ pub struct StructuralSemioticsEngine {
     config: EngineConfig,
     settings: EngineSettings,
     bank_registry: HeuristicBankRegistry,
+    retrieval_index: SemanticRetrievalIndex,
     loaded_bank: LoadedBankDescriptor,
     bank_validation: HeuristicBankValidationReport,
 }
@@ -175,9 +180,11 @@ impl StructuralSemioticsEngine {
                 HeuristicBankRegistry::load_external_json(path, config.bank.is_strict())?
             }
         };
+        let retrieval_index = build_retrieval_index(&bank_registry, &settings.retrieval_index);
         Ok(Self {
             config,
             settings,
+            retrieval_index,
             bank_registry,
             loaded_bank,
             bank_validation,
@@ -303,10 +310,13 @@ impl StructuralSemioticsEngine {
                     comparator_trigger_counts: BTreeMap::new(),
                     reproducible_scenario_count: 0,
                     all_reproducible: false,
+                    minimum_trust_scalar: 1.0,
                     note: String::new(),
                 },
                 scenario_evaluations: Vec::new(),
                 baseline_results: Vec::new(),
+                smoothing_comparison_report: Vec::new(),
+                retrieval_latency_report: Vec::new(),
                 bank_validation: self.bank_validation.clone(),
                 artifact_completeness: None,
                 sweep_results: Vec::new(),
@@ -322,6 +332,8 @@ impl StructuralSemioticsEngine {
         let evaluation = evaluate_bundle(
             &provisional_bundle,
             &self.settings.evaluation,
+            &self.settings,
+            &self.bank_registry,
             &self.bank_validation,
             None,
         );
@@ -401,8 +413,11 @@ impl StructuralSemioticsEngine {
         prepared.envelope_spec.validate()?;
         let residual =
             extract_residuals(&prepared.observed, &prepared.predicted, &prepared.record.id);
-        let drift = compute_drift_trajectory(&residual, self.config.dt, &prepared.record.id);
-        let slew = compute_slew_trajectory(&residual, self.config.dt, &prepared.record.id);
+        let derivative_residual = smooth_residual_trajectory(&residual, &self.settings.smoothing);
+        let drift =
+            compute_drift_trajectory(&derivative_residual, self.config.dt, &prepared.record.id);
+        let slew =
+            compute_slew_trajectory(&derivative_residual, self.config.dt, &prepared.record.id);
         let sign = construct_signs(&residual, &drift, &slew);
         let envelope = build_envelope(&residual, &prepared.envelope_spec, &prepared.record.id);
         let coordinated = build_coordinated(
@@ -448,14 +463,16 @@ impl StructuralSemioticsEngine {
             prepared.detectability_inputs.clone(),
             reference,
         );
-        let semantics = retrieve_semantics_with_registry(
-            &partial.record.id,
-            &partial.syntax,
-            &partial.grammar,
-            partial.coordinated.as_ref(),
-            &self.bank_registry,
-            &self.settings.semantics,
-        );
+        let semantics = retrieve_semantics_with_context(SemanticRetrievalContext {
+            scenario_id: &partial.record.id,
+            syntax: &partial.syntax,
+            grammar: &partial.grammar,
+            coordinated: partial.coordinated.as_ref(),
+            registry: &self.bank_registry,
+            settings: &self.settings.semantics,
+            index_settings: &self.settings.retrieval_index,
+            index: Some(&self.retrieval_index),
+        });
 
         ScenarioOutput {
             record: partial.record,

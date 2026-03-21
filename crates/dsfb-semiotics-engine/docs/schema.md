@@ -28,13 +28,13 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
 ## Core JSON Artifacts
 
 - `run_metadata.json`
-  Run provenance, crate version, Rust version when available, input mode, CLI args, deterministic engine settings, bounded online-history buffer capacity, and selected numeric mode.
+  Run provenance, crate version, Rust version when available, input mode, CLI args, deterministic engine settings, bounded online-history buffer capacity, selected numeric mode, smoothing settings, and retrieval-index settings.
 - `loaded_heuristic_bank_descriptor.json`
   Resolved bank provenance for the run, including bank schema version, bank version, source kind, optional source path, content hash, and validation mode.
 - `scenario_catalog.json`
   Scenario metadata for synthetic, CSV-driven, or sweep members.
 - `scenario_outputs.json`
-  Full layered outputs for each executed scenario, including typed grammar reason codes and reason text.
+  Full layered outputs for each executed scenario, including typed grammar reason codes, reason text, and per-sample trust scalars.
 - `reproducibility_checks.json`
   Per-scenario deterministic materialization hashes over full layered outputs.
 - `reproducibility_summary.json`
@@ -42,7 +42,11 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
 - `evaluation_summary.json`
   Run-level deterministic evaluation summary.
 - `scenario_evaluations.json`
-  Scenario-level evaluation summaries.
+  Scenario-level evaluation summaries, including grammar reason summaries and trust scalars.
+- `smoothing_comparison_report.json`
+  Raw-versus-active derivative and syntax comparison rows for the configured smoothing mode.
+- `retrieval_latency_report.json`
+  Deterministic candidate-count scaling report for indexed-versus-linear semantic retrieval.
 - `baseline_comparators.json`
   Internal deterministic comparator results.
 - `comparator_results.json`
@@ -80,7 +84,7 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
 - `semantic_matches.csv`
 - `grammar_events.csv`
 - `grammar_events.csv`
-  Includes grammar state, grammar reason code, reason text, and supporting metric summary per step.
+  Includes grammar state, grammar reason code, reason text, supporting metric summary, and trust scalar per step.
 - `pipeline_summary.csv`
 - `reproducibility_check.csv`
 - `reproducibility_summary.csv`
@@ -91,6 +95,8 @@ The external-bank artifact itself is documented in [bank_schema.md](bank_schema.
 - `heuristic_bank_validation.csv`
 - `bank_validation_report.csv`
 - `artifact_completeness.csv`
+- `smoothing_comparison_report.csv`
+- `retrieval_latency_report.csv`
 - `<figure-id>_source.csv`
 - `figure_09_detectability_source.csv`
 - `figure_12_semantic_retrieval_source.csv`

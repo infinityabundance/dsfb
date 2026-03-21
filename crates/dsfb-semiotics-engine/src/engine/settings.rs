@@ -54,6 +54,49 @@ pub struct SemanticRetrievalSettings {
     pub observation_limited_max_late_slew_growth: f64,
 }
 
+/// Deterministic sign-generator preconditioning mode.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SmoothingMode {
+    Disabled,
+    ExponentialMovingAverage,
+}
+
+/// Deterministic optional smoothing settings used before numerical differentiation.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SmoothingSettings {
+    pub mode: SmoothingMode,
+    pub exponential_alpha: f64,
+}
+
+impl SmoothingSettings {
+    /// Returns whether smoothing is active for sign generation.
+    #[must_use]
+    pub const fn enabled(&self) -> bool {
+        !matches!(self.mode, SmoothingMode::Disabled)
+    }
+}
+
+impl SmoothingMode {
+    /// Returns the machine-readable smoothing label.
+    #[must_use]
+    pub const fn as_label(self) -> &'static str {
+        match self {
+            Self::Disabled => "disabled",
+            Self::ExponentialMovingAverage => "exponential_moving_average",
+        }
+    }
+}
+
+/// Deterministic indexed-retrieval settings for larger semantic banks.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RetrievalIndexSettings {
+    pub enabled: bool,
+    pub minimum_bank_size: usize,
+    pub export_latency_report: bool,
+    pub benchmark_scaling_points: Vec<usize>,
+}
+
 /// Deterministic empirical evaluation settings for baseline comparators and sweeps.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EvaluationSettings {
@@ -96,6 +139,8 @@ pub struct ReportingSettings {
 pub struct EngineSettings {
     pub syntax: SyntaxThresholds,
     pub semantics: SemanticRetrievalSettings,
+    pub smoothing: SmoothingSettings,
+    pub retrieval_index: RetrievalIndexSettings,
     pub evaluation: EvaluationSettings,
     pub plotting: PlottingSettings,
     pub reporting: ReportingSettings,
@@ -155,6 +200,26 @@ impl Default for SemanticRetrievalSettings {
             observation_limited_max_radial_persistence: 0.35,
             observation_limited_max_radial_dominance: 0.35,
             observation_limited_max_late_slew_growth: 0.15,
+        }
+    }
+}
+
+impl Default for SmoothingSettings {
+    fn default() -> Self {
+        Self {
+            mode: SmoothingMode::Disabled,
+            exponential_alpha: 0.35,
+        }
+    }
+}
+
+impl Default for RetrievalIndexSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            minimum_bank_size: 24,
+            export_latency_report: true,
+            benchmark_scaling_points: vec![16, 64, 256],
         }
     }
 }

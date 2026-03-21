@@ -57,6 +57,7 @@ pub struct DsfbCurrentStatus {
     pub residual_norm: f64,
     pub drift_norm: f64,
     pub slew_norm: f64,
+    pub trust_scalar: f64,
     pub history_buffer_capacity: u64,
     pub current_history_len: u64,
     pub offline_history_len: u64,
@@ -196,6 +197,7 @@ pub unsafe extern "C" fn dsfb_semiotics_engine_current_status(
         residual_norm: status.residual_norm,
         drift_norm: status.drift_norm,
         slew_norm: status.slew_norm,
+        trust_scalar: status.trust_scalar,
         history_buffer_capacity: status.history_buffer_capacity as u64,
         current_history_len: status.current_history_len as u64,
         offline_history_len: status.offline_history_len.unwrap_or(0) as u64,
@@ -214,10 +216,10 @@ pub unsafe extern "C" fn dsfb_semiotics_engine_current_status(
             GrammarReasonCode::AbruptSlewViolation => DsfbGrammarReason::AbruptSlewViolation,
             GrammarReasonCode::EnvelopeViolation => DsfbGrammarReason::EnvelopeViolation,
         },
-        semantic_disposition: match status.semantic_disposition.as_str() {
-            "Match" => DsfbSemanticDisposition::Match,
-            "CompatibleSet" => DsfbSemanticDisposition::CompatibleSet,
-            "Ambiguous" => DsfbSemanticDisposition::Ambiguous,
+        semantic_disposition: match status.semantic_disposition_code {
+            0 => DsfbSemanticDisposition::Match,
+            1 => DsfbSemanticDisposition::CompatibleSet,
+            2 => DsfbSemanticDisposition::Ambiguous,
             _ => DsfbSemanticDisposition::Unknown,
         },
     };
@@ -274,6 +276,7 @@ mod tests {
             residual_norm: 0.0,
             drift_norm: 0.0,
             slew_norm: 0.0,
+            trust_scalar: 0.0,
             history_buffer_capacity: 0,
             current_history_len: 0,
             offline_history_len: 0,
