@@ -60,6 +60,10 @@ pub struct DetectabilityFigureSourceRow {
     pub scenario_id: String,
     pub predicted_upper_bound: Option<f64>,
     pub observed_crossing_time: Option<f64>,
+    pub first_boundary_time: Option<f64>,
+    pub first_violation_time: Option<f64>,
+    pub min_margin_time: Option<f64>,
+    pub min_margin_value: Option<f64>,
     pub bound_satisfied: Option<bool>,
     pub note: String,
 }
@@ -75,7 +79,10 @@ pub struct SemanticRetrievalFigureSourceRow {
     pub selection_reason: String,
     pub scenario_id: String,
     pub leading_candidate_score: f64,
+    pub runner_up_candidate_score: f64,
+    pub top_score_margin: f64,
     pub heuristic_bank_entry_count: usize,
+    pub prefilter_candidate_count: usize,
     pub heuristic_candidates_post_admissibility: usize,
     pub heuristic_candidates_post_regime: usize,
     pub heuristic_candidates_pre_scope: usize,
@@ -86,6 +93,7 @@ pub struct SemanticRetrievalFigureSourceRow {
     pub heuristics_selected_final: usize,
     pub semantic_disposition: String,
     pub disposition_code: i32,
+    pub ranked_post_regime_candidate_labels: String,
     pub note: String,
 }
 
@@ -99,6 +107,10 @@ pub struct BaselineComparatorFigureSourceRow {
     pub comparator_id: String,
     pub comparator_label: String,
     pub triggered_scenario_count: usize,
+    pub earliest_first_trigger_time: Option<f64>,
+    pub latest_first_trigger_time: Option<f64>,
+    pub median_first_trigger_time: Option<f64>,
+    pub onset_rank: Option<usize>,
     pub note: String,
 }
 
@@ -160,9 +172,12 @@ pub fn detectability_source_rows(bundle: &EngineOutputBundle) -> Vec<Detectabili
             scenario_id: scenario.record.id.clone(),
             predicted_upper_bound: scenario.detectability.predicted_upper_bound,
             observed_crossing_time: scenario.detectability.observed_crossing_time,
+            first_boundary_time: first_non_admissible_time(scenario),
+            first_violation_time: first_violation_time(scenario),
+            min_margin_time: min_margin_sample(scenario).map(|sample| sample.time),
+            min_margin_value: min_margin_sample(scenario).map(|sample| sample.margin),
             bound_satisfied: scenario.detectability.bound_satisfied,
-            note: "Source row for the predicted-versus-observed detectability comparison figure."
-                .to_string(),
+            note: "Source row for the run-specific detectability comparison figure, including theorem-aligned bounds when available and observed grammar or margin timing context when they are not.".to_string(),
         })
         .collect()
 }
@@ -185,14 +200,40 @@ pub fn semantic_retrieval_source_rows(
             scenario_id: scenario.record.id.clone(),
             leading_candidate_score: scenario
                 .semantics
-                .candidates
+                .retrieval_audit
+                .ranked_candidates_post_regime
                 .first()
                 .map(|candidate| candidate.score)
                 .unwrap_or(0.0),
+            runner_up_candidate_score: scenario
+                .semantics
+                .retrieval_audit
+                .ranked_candidates_post_regime
+                .get(1)
+                .map(|candidate| candidate.score)
+                .unwrap_or(0.0),
+            top_score_margin: scenario
+                .semantics
+                .retrieval_audit
+                .ranked_candidates_post_regime
+                .first()
+                .map(|candidate| candidate.score)
+                .unwrap_or(0.0)
+                - scenario
+                    .semantics
+                    .retrieval_audit
+                    .ranked_candidates_post_regime
+                    .get(1)
+                    .map(|candidate| candidate.score)
+                    .unwrap_or(0.0),
             heuristic_bank_entry_count: scenario
                 .semantics
                 .retrieval_audit
                 .heuristic_bank_entry_count,
+            prefilter_candidate_count: scenario
+                .semantics
+                .retrieval_audit
+                .prefilter_candidate_count,
             heuristic_candidates_post_admissibility: scenario
                 .semantics
                 .retrieval_audit
@@ -227,8 +268,15 @@ pub fn semantic_retrieval_source_rows(
                 .heuristics_selected_final,
             semantic_disposition: format!("{:?}", scenario.semantics.disposition),
             disposition_code: semantic_disposition_code(&scenario.semantics.disposition),
-            note: "Panel 1 uses `leading_candidate_score`, panel 2 uses `heuristic_candidates_post_admissibility`, and panel 3 uses `disposition_code`."
-                .to_string(),
+            ranked_post_regime_candidate_labels: scenario
+                .semantics
+                .retrieval_audit
+                .ranked_candidates_post_regime
+                .iter()
+                .map(|candidate| candidate.short_label.clone())
+                .collect::<Vec<_>>()
+                .join(" | "),
+            note: "Source row for the run-specific semantic retrieval process figure. Leading score and margin are derived from the ranked post-regime candidate list, while the stage counts come from the exported retrieval audit.".to_string(),
         })
         .collect()
 }
@@ -237,7 +285,7 @@ pub fn semantic_retrieval_source_rows(
 pub fn baseline_comparator_source_rows(
     bundle: &EngineOutputBundle,
 ) -> Vec<BaselineComparatorFigureSourceRow> {
-    [
+    let comparators = [
         ("baseline_residual_threshold", "Residual threshold"),
         ("baseline_moving_average_trend", "Moving-average trend"),
         ("baseline_cusum", "CUSUM"),
@@ -247,24 +295,78 @@ pub fn baseline_comparator_source_rows(
             "baseline_innovation_chi_squared_style",
             "Innovation-style squared residual",
         ),
-    ]
+    ];
+    let mut onset_lookup = comparators
+        .iter()
+        .filter_map(|(id, _)| {
+            let mut sorted = bundle
+                .evaluation
+                .baseline_results
+                .iter()
+                .filter(|result| result.comparator_id == *id)
+                .filter_map(|result| result.first_trigger_time)
+                .collect::<Vec<_>>();
+            if sorted.is_empty() {
+                return None;
+            }
+            sorted.sort_by(|left, right| {
+                left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal)
+            });
+            Some(((*id).to_string(), sorted[sorted.len() / 2]))
+        })
+        .collect::<Vec<_>>();
+    onset_lookup.sort_by(|left, right| {
+        left.1
+            .partial_cmp(&right.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    let onset_ranks = onset_lookup
+        .iter()
+        .enumerate()
+        .map(|(index, (comparator_id, _))| (comparator_id.clone(), index + 1))
+        .collect::<std::collections::BTreeMap<_, _>>();
+
+    comparators
     .into_iter()
-    .map(|(id, label)| BaselineComparatorFigureSourceRow {
-        schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
-        engine_version: bundle.run_metadata.crate_version.clone(),
-        bank_version: bundle.run_metadata.bank.bank_version.clone(),
-        figure_id: "figure_13_internal_baseline_comparators".to_string(),
-        comparator_id: id.to_string(),
-        comparator_label: label.to_string(),
-        triggered_scenario_count: bundle
+    .map(|(id, label)| {
+        let times = bundle
             .evaluation
-            .summary
-            .comparator_trigger_counts
-            .get(id)
-            .copied()
-            .unwrap_or(0),
-        note: "Source row for the internal deterministic comparator trigger-count figure."
-            .to_string(),
+            .baseline_results
+            .iter()
+            .filter(|result| result.comparator_id == id)
+            .filter_map(|result| result.first_trigger_time)
+            .collect::<Vec<_>>();
+        let median_first_trigger_time = if times.is_empty() {
+            None
+        } else {
+            let mut sorted = times.clone();
+            sorted.sort_by(|left, right| {
+                left.partial_cmp(right)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            Some(sorted[sorted.len() / 2])
+        };
+        BaselineComparatorFigureSourceRow {
+            schema_version: ARTIFACT_SCHEMA_VERSION.to_string(),
+            engine_version: bundle.run_metadata.crate_version.clone(),
+            bank_version: bundle.run_metadata.bank.bank_version.clone(),
+            figure_id: "figure_13_internal_baseline_comparators".to_string(),
+            comparator_id: id.to_string(),
+            comparator_label: label.to_string(),
+            triggered_scenario_count: bundle
+                .evaluation
+                .summary
+                .comparator_trigger_counts
+                .get(id)
+                .copied()
+                .unwrap_or(0),
+            earliest_first_trigger_time: times.iter().copied().reduce(f64::min),
+            latest_first_trigger_time: times.iter().copied().reduce(f64::max),
+            median_first_trigger_time,
+            onset_rank: onset_ranks.get(id).copied(),
+            note: "Source row for the run-specific internal deterministic comparator figure, including triggered-scenario counts and first-trigger timing summaries.".to_string(),
+        }
     })
     .collect()
 }
@@ -753,15 +855,227 @@ fn prepare_figure_08(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
 }
 
 fn prepare_figure_09(bundle: &EngineOutputBundle) -> FigureSourceTable {
+    let rows = detectability_source_rows(bundle);
+    let use_multi_case_comparison = rows
+        .iter()
+        .filter(|row| row.predicted_upper_bound.is_some())
+        .count()
+        > 1;
     let mut table = new_source_table(
         &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_09_detectability_bound_comparison",
-        "Predicted vs Observed Detectability Times",
-        &["detectability_bound"],
+        if use_multi_case_comparison {
+            "Run-Specific Detectability Timing Summary"
+        } else {
+            "Run-Specific Detectability Context"
+        },
+        if use_multi_case_comparison {
+            &["detectability_bound", "detectability_gap"]
+        } else {
+            &["detectability_context", "detectability_window_ratio"]
+        },
         &[],
     );
-    let rows = detectability_source_rows(bundle);
+    if use_multi_case_comparison {
+        for (index, row) in rows.into_iter().enumerate() {
+            if let Some(predicted) = row.predicted_upper_bound {
+                push_bar_row(
+                    &mut table,
+                    "detectability_bound",
+                    "Predicted vs Observed Detectability Times",
+                    "scenario index",
+                    "time to first exit",
+                    "predicted_upper_bound",
+                    "predicted upper bound",
+                    "blue",
+                    &row.scenario_id,
+                    index * 2,
+                    index as f64 + 0.18,
+                    index as f64 + 0.40,
+                    predicted,
+                    &compact_scenario_tick_label(&row.scenario_id, index + 1),
+                    "Predicted detectability upper bound for one configured theorem-aligned case.",
+                );
+            }
+            if let Some(observed) = row.observed_crossing_time {
+                push_bar_row(
+                    &mut table,
+                    "detectability_bound",
+                    "Predicted vs Observed Detectability Times",
+                    "scenario index",
+                    "time to first exit",
+                    "observed_crossing_time",
+                    "observed crossing time",
+                    "red",
+                    &row.scenario_id,
+                    index * 2 + 1,
+                    index as f64 + 0.44,
+                    index as f64 + 0.66,
+                    observed,
+                    &compact_scenario_tick_label(&row.scenario_id, index + 1),
+                    "Observed detectability crossing time for one configured theorem-aligned case.",
+                );
+            }
+            if let (Some(predicted), Some(observed)) =
+                (row.predicted_upper_bound, row.observed_crossing_time)
+            {
+                push_bar_row(
+                    &mut table,
+                    "detectability_gap",
+                    "Observed Minus Predicted Detectability Gap",
+                    "scenario index",
+                    "absolute timing gap",
+                    "detectability_gap",
+                    "absolute timing gap",
+                    if observed <= predicted { "green" } else { "red" },
+                    &row.scenario_id,
+                    index,
+                    index as f64 + 0.18,
+                    index as f64 + 0.64,
+                    (observed - predicted).abs(),
+                    &compact_scenario_tick_label(&row.scenario_id, index + 1),
+                    "Absolute gap between the observed detectability time and the configured predicted upper bound.",
+                );
+            }
+        }
+        return table;
+    }
+
+    if let Some(scenario) = detectability_summary_scenario(bundle) {
+        let scenario_id = scenario.record.id.clone();
+        let y_upper = scenario
+            .residual
+            .samples
+            .iter()
+            .map(|sample| sample.norm)
+            .chain(scenario.envelope.samples.iter().map(|sample| sample.radius))
+            .fold(0.0_f64, f64::max)
+            .max(0.1);
+        push_scalar_series(
+            &mut table,
+            "detectability_context",
+            "Residual Norm vs Envelope Radius",
+            "time",
+            "magnitude",
+            "residual_norm",
+            "residual norm",
+            "line",
+            "red",
+            &scenario_id,
+            scenario
+                .residual
+                .samples
+                .iter()
+                .enumerate()
+                .map(|(index, sample)| (index, sample.time, sample.norm)),
+            "Residual norm trajectory for the selected run-specific detectability context view.",
+        );
+        push_scalar_series(
+            &mut table,
+            "detectability_context",
+            "Residual Norm vs Envelope Radius",
+            "time",
+            "magnitude",
+            "envelope_radius",
+            "envelope radius",
+            "line",
+            "slate",
+            &scenario_id,
+            scenario
+                .envelope
+                .samples
+                .iter()
+                .enumerate()
+                .map(|(index, sample)| (index, sample.time, sample.radius)),
+            "Envelope radius trajectory for the selected run-specific detectability context view.",
+        );
+        if let Some(time) = scenario.detectability.predicted_upper_bound {
+            let point_order = table.rows.len();
+            push_segment_row(
+                &mut table,
+                "detectability_context",
+                "Residual Norm vs Envelope Radius",
+                "time",
+                "magnitude",
+                "predicted_upper_bound",
+                "predicted bound",
+                "blue",
+                point_order,
+                time,
+                0.0,
+                time,
+                y_upper,
+                &scenario_id,
+                "Vertical marker for the configured detectability upper-bound time.",
+            );
+        }
+        if let Some(time) = first_non_admissible_time(scenario) {
+            let point_order = table.rows.len();
+            push_segment_row(
+                &mut table,
+                "detectability_context",
+                "Residual Norm vs Envelope Radius",
+                "time",
+                "magnitude",
+                "first_boundary_time",
+                "first boundary",
+                "gold",
+                point_order,
+                time,
+                0.0,
+                time,
+                y_upper,
+                &scenario_id,
+                "Vertical marker for the first non-admissible grammar interaction time.",
+            );
+        }
+        if let Some(time) = first_violation_time(scenario) {
+            let point_order = table.rows.len();
+            push_segment_row(
+                &mut table,
+                "detectability_context",
+                "Residual Norm vs Envelope Radius",
+                "time",
+                "magnitude",
+                "first_violation_time",
+                "first violation",
+                "red",
+                point_order,
+                time,
+                0.0,
+                time,
+                y_upper,
+                &scenario_id,
+                "Vertical marker for the first grammar violation time.",
+            );
+        }
+
+        for (window_index, (ratio, label)) in detectability_window_max_ratio(scenario, 6)
+            .into_iter()
+            .enumerate()
+        {
+            push_bar_row(
+                &mut table,
+                "detectability_window_ratio",
+                "Window Maximum Residual/Envelope Ratio",
+                "window",
+                "max residual/envelope ratio",
+                "window_max_ratio",
+                "window max ratio",
+                if ratio > 1.0 { "red" } else { "teal" },
+                &scenario_id,
+                window_index,
+                window_index as f64 + 0.18,
+                window_index as f64 + 0.72,
+                ratio,
+                &label,
+                "Maximum residual-norm to envelope-radius ratio within one deterministic run window.",
+            );
+        }
+        return table;
+    }
+
     if rows.is_empty() {
         if let Some(scenario) = detectability_summary_scenario(bundle) {
             let mut point_order = 0;
@@ -863,46 +1177,6 @@ fn prepare_figure_09(bundle: &EngineOutputBundle) -> FigureSourceTable {
                 "",
                 "No detectability-bound comparison rows were available for this run selection.",
                 "Fallback annotation rendered when no scenarios in the selected bundle expose a detectability-bound comparison.",
-            );
-        }
-    }
-    for (index, row) in rows.into_iter().enumerate() {
-        if let Some(predicted) = row.predicted_upper_bound {
-            push_bar_row(
-                &mut table,
-                "detectability_bound",
-                "Predicted vs Observed Detectability Times",
-                "scenario index",
-                "time to first exit",
-                "predicted_upper_bound",
-                "predicted upper bound",
-                "blue",
-                &row.scenario_id,
-                index * 2,
-                index as f64 + 0.25,
-                index as f64 + 0.43,
-                predicted,
-                &row.scenario_id,
-                "Predicted bound bar rendered for this scenario.",
-            );
-        }
-        if let Some(observed) = row.observed_crossing_time {
-            push_bar_row(
-                &mut table,
-                "detectability_bound",
-                "Predicted vs Observed Detectability Times",
-                "scenario index",
-                "time to first exit",
-                "observed_crossing_time",
-                "observed crossing time",
-                "red",
-                &row.scenario_id,
-                index * 2 + 1,
-                index as f64 + 0.47,
-                index as f64 + 0.65,
-                observed,
-                &row.scenario_id,
-                "Observed crossing-time bar rendered for this scenario.",
             );
         }
     }
@@ -1319,70 +1593,159 @@ fn prepare_figure_12(bundle: &EngineOutputBundle) -> FigureSourceTable {
         &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_12_semantic_retrieval_heuristics_bank",
-        "Representative Constrained Retrieval Summary",
+        "Run-Specific Constrained Retrieval Process",
         &[
-            "leading_candidate_score",
-            "admissibility_filter_count",
-            "retrieval_disposition_code",
+            "post_regime_candidate_scores",
+            "retrieval_filter_funnel",
+            "retrieval_stage_rejections",
         ],
-        &["admissibility_filter_count"],
+        &["retrieval_filter_funnel", "retrieval_stage_rejections"],
     );
     for (index, row) in semantic_retrieval_source_rows(bundle)
         .into_iter()
         .enumerate()
     {
         let label = compact_scenario_tick_label(&row.scenario_id, row.representative_rank);
-        push_bar_row(
-            &mut table,
-            "leading_candidate_score",
-            "Leading Candidate Score",
-            "representative scenario",
-            "candidate score",
-            "leading_candidate_score",
-            "leading candidate score",
-            ["blue", "red", "slate"][index % 3],
-            &row.scenario_id,
-            index,
-            index as f64 + 0.18,
-            index as f64 + 0.64,
-            row.leading_candidate_score,
-            &label,
-            "Leading candidate score bar.",
-        );
-        push_bar_row(
-            &mut table,
-            "admissibility_filter_count",
-            "Candidates After Admissibility Filter",
-            "representative scenario",
-            "heuristic count",
-            "post_admissibility_count",
-            "post-admissibility count",
-            "gold",
-            &row.scenario_id,
-            index,
-            index as f64 + 0.18,
-            index as f64 + 0.64,
-            row.heuristic_candidates_post_admissibility as f64,
-            &label,
-            "Admissibility-qualified heuristic count bar.",
-        );
-        push_bar_row(
-            &mut table,
-            "retrieval_disposition_code",
-            "Final Retrieval Disposition Code",
-            "representative scenario",
-            "disposition code (0..3)",
-            "retrieval_disposition_code",
-            "retrieval disposition code",
-            ["blue", "red", "slate"][index % 3],
-            &row.scenario_id,
-            index,
-            index as f64 + 0.18,
-            index as f64 + 0.64,
-            row.disposition_code as f64,
-            &label,
-            "Disposition-code bar (Unknown=0, Ambiguous=1, CompatibleSet=2, Match=3).",
-        );
+        let score_bars = representative_candidate_score_bars(bundle, &row.scenario_id);
+        if score_bars.is_empty() {
+            let x_left = index as f64 * 1.2 + 0.18;
+            push_bar_row(
+                &mut table,
+                "post_regime_candidate_scores",
+                "Top Post-Regime Candidate Scores",
+                "candidate preview",
+                "candidate score",
+                "no_post_regime_candidate",
+                "no candidate",
+                "slate",
+                &row.scenario_id,
+                index,
+                x_left,
+                x_left + 0.46,
+                0.0,
+                &format!("{label} none"),
+                "Zero-height placeholder rendered when the current run produced no post-regime candidates.",
+            );
+        } else {
+            for (candidate_index, (candidate_label, score)) in score_bars.into_iter().enumerate() {
+                let x_base = index as f64 * 1.35 + candidate_index as f64 * 0.22;
+                push_bar_row(
+                    &mut table,
+                    "post_regime_candidate_scores",
+                    "Top Post-Regime Candidate Scores",
+                    "candidate preview",
+                    "candidate score",
+                    &format!("candidate_score_{candidate_index}"),
+                    &candidate_label,
+                    ["blue", "red", "teal", "gold"][candidate_index % 4],
+                    &row.scenario_id,
+                    index * 10 + candidate_index,
+                    x_base + 0.18,
+                    x_base + 0.36,
+                    score,
+                    &format!("{label} {candidate_label}"),
+                    "Ranked post-regime candidate score preview rendered from the exported retrieval audit.",
+                );
+            }
+        }
+
+        for (stage_index, (stage_id, stage_label, value, color_key)) in [
+            (
+                "prefilter_count",
+                "pref",
+                row.prefilter_candidate_count as f64,
+                "slate",
+            ),
+            (
+                "post_admissibility_count",
+                "adm",
+                row.heuristic_candidates_post_admissibility as f64,
+                "gold",
+            ),
+            (
+                "post_regime_count",
+                "reg",
+                row.heuristic_candidates_post_regime as f64,
+                "teal",
+            ),
+            (
+                "post_scope_count",
+                "scope",
+                row.heuristic_candidates_post_scope as f64,
+                "green",
+            ),
+            (
+                "selected_count",
+                "sel",
+                row.heuristics_selected_final as f64,
+                "blue",
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let x_base = index as f64 * 1.35 + stage_index as f64 * 0.22;
+            push_bar_row(
+                &mut table,
+                "retrieval_filter_funnel",
+                "Retrieval Filter Funnel Counts",
+                "retrieval stage",
+                "candidate count",
+                stage_id,
+                stage_label,
+                color_key,
+                &row.scenario_id,
+                index * 10 + stage_index,
+                x_base + 0.18,
+                x_base + 0.36,
+                value,
+                &format!("{label} {stage_label}"),
+                "Stage-wise candidate-count bar rendered from the exported retrieval audit.",
+            );
+        }
+
+        for (stage_index, (stage_id, stage_label, value, color_key)) in [
+            (
+                "rejected_by_admissibility",
+                "rej adm",
+                row.heuristics_rejected_by_admissibility as f64,
+                "gold",
+            ),
+            (
+                "rejected_by_regime",
+                "rej reg",
+                row.heuristics_rejected_by_regime as f64,
+                "teal",
+            ),
+            (
+                "rejected_by_scope",
+                "rej scope",
+                row.heuristics_rejected_by_scope as f64,
+                "red",
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let x_base = index as f64 * 0.95 + stage_index as f64 * 0.24;
+            push_bar_row(
+                &mut table,
+                "retrieval_stage_rejections",
+                "Retrieval Rejections By Stage",
+                "rejection stage",
+                "candidate count",
+                stage_id,
+                stage_label,
+                color_key,
+                &row.scenario_id,
+                index * 10 + stage_index,
+                x_base + 0.18,
+                x_base + 0.40,
+                value,
+                &format!("{label} {stage_label}"),
+                "Stage-specific rejected-candidate count rendered from the exported retrieval audit.",
+            );
+        }
     }
     table
 }
@@ -1392,9 +1755,13 @@ fn prepare_figure_13(bundle: &EngineOutputBundle) -> FigureSourceTable {
         &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_13_internal_baseline_comparators",
-        "Internal Deterministic Comparator Trigger Counts",
-        &["comparator_trigger_counts"],
-        &["comparator_trigger_counts"],
+        "Run-Specific Internal Comparator Activity",
+        &[
+            "comparator_first_trigger_time",
+            "comparator_onset_rank",
+            "comparator_trigger_counts",
+        ],
+        &["comparator_onset_rank", "comparator_trigger_counts"],
     );
     for (index, row) in baseline_comparator_source_rows(bundle)
         .into_iter()
@@ -1402,8 +1769,42 @@ fn prepare_figure_13(bundle: &EngineOutputBundle) -> FigureSourceTable {
     {
         push_bar_row(
             &mut table,
+            "comparator_first_trigger_time",
+            "Median First Trigger Time By Comparator",
+            "comparator",
+            "first trigger time",
+            &format!("{}_first_trigger_time", row.comparator_id),
+            &row.comparator_label,
+            ["blue", "gold", "teal", "red", "green", "slate"][index % 6],
+            &row.comparator_id,
+            index,
+            index as f64 + 0.18,
+            index as f64 + 0.82,
+            row.median_first_trigger_time.unwrap_or(0.0),
+            short_comparator_tick_label(&row.comparator_id),
+            "Comparator first-trigger timing bar. Zero indicates that no trigger was observed in the selected run.",
+        );
+        push_bar_row(
+            &mut table,
+            "comparator_onset_rank",
+            "Comparator Onset Order",
+            "comparator",
+            "rank (0 = no trigger)",
+            &format!("{}_onset_rank", row.comparator_id),
+            &row.comparator_label,
+            ["blue", "gold", "teal", "red", "green", "slate"][index % 6],
+            &row.comparator_id,
+            index,
+            index as f64 + 0.18,
+            index as f64 + 0.82,
+            row.onset_rank.unwrap_or(0) as f64,
+            short_comparator_tick_label(&row.comparator_id),
+            "Comparator onset-order bar derived from the median first-trigger time ordering within the current run.",
+        );
+        push_bar_row(
+            &mut table,
             "comparator_trigger_counts",
-            "Internal Deterministic Comparator Trigger Counts",
+            "Triggered Scenario Count By Comparator",
             "comparator",
             "triggered scenarios",
             &row.comparator_id,
@@ -2017,6 +2418,45 @@ fn compact_scenario_tick_label(scenario_id: &str, representative_rank: usize) ->
     }
 }
 
+fn compact_candidate_tick_label(short_label: &str, candidate_rank: usize) -> String {
+    let cleaned = short_label.trim();
+    if cleaned.is_empty() {
+        format!("cand {candidate_rank}")
+    } else if cleaned.chars().count() > 12 {
+        let shortened = cleaned.chars().take(10).collect::<String>();
+        format!("{shortened}..")
+    } else {
+        cleaned.to_string()
+    }
+}
+
+fn representative_candidate_score_bars(
+    bundle: &EngineOutputBundle,
+    scenario_id: &str,
+) -> Vec<(String, f64)> {
+    bundle
+        .scenario_outputs
+        .iter()
+        .find(|scenario| scenario.record.id == scenario_id)
+        .map(|scenario| {
+            scenario
+                .semantics
+                .retrieval_audit
+                .ranked_candidates_post_regime
+                .iter()
+                .take(4)
+                .enumerate()
+                .map(|(index, candidate)| {
+                    (
+                        compact_candidate_tick_label(&candidate.short_label, index + 1),
+                        candidate.score,
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn short_comparator_tick_label(comparator_id: &str) -> &'static str {
     match comparator_id {
         "baseline_residual_threshold" => "threshold",
@@ -2083,6 +2523,48 @@ fn first_violation_time(scenario: &ScenarioOutput) -> Option<f64> {
         .iter()
         .find(|status| matches!(status.state, GrammarState::Violation))
         .map(|status| status.time)
+}
+
+fn min_margin_sample(scenario: &ScenarioOutput) -> Option<&crate::engine::types::GrammarStatus> {
+    scenario.grammar.iter().min_by(|left, right| {
+        left.margin
+            .partial_cmp(&right.margin)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    })
+}
+
+fn detectability_window_max_ratio(
+    scenario: &ScenarioOutput,
+    window_count: usize,
+) -> Vec<(f64, String)> {
+    let sample_count = scenario
+        .residual
+        .samples
+        .len()
+        .min(scenario.envelope.samples.len());
+    if sample_count == 0 {
+        return vec![(0.0, "w1".to_string())];
+    }
+    let windows = window_count.max(1).min(sample_count);
+    let window_len = sample_count.div_ceil(windows);
+    (0..windows)
+        .filter_map(|window_index| {
+            let start = window_index * window_len;
+            if start >= sample_count {
+                return None;
+            }
+            let end = ((window_index + 1) * window_len).min(sample_count);
+            let max_ratio = scenario.residual.samples[start..end]
+                .iter()
+                .zip(&scenario.envelope.samples[start..end])
+                .map(|(residual, envelope)| {
+                    let radius = envelope.radius.abs().max(1.0e-9);
+                    residual.norm / radius
+                })
+                .fold(0.0_f64, f64::max);
+            Some((max_ratio, format!("w{}", window_index + 1)))
+        })
+        .collect()
 }
 
 fn scenario_channel_count(scenario: &ScenarioOutput) -> usize {

@@ -695,7 +695,7 @@ fn synthetic_zip_name_and_root_folder_use_synthetic_prefix() {
         .to_string();
     let file = std::fs::File::open(&exported.zip_path).unwrap();
     let mut archive = ZipArchive::new(file).unwrap();
-    assert!(archive.len() > 0);
+    assert!(!archive.is_empty());
     for index in 0..archive.len() {
         let entry = archive.by_index(index).unwrap();
         assert!(entry.name().starts_with(&format!("{zip_root}/")));

@@ -361,23 +361,80 @@ where
     DB::ErrorType: 'static,
 {
     root.fill(&WHITE_BG)?;
-    match extract_bar_panel(table, "detectability_bound") {
-        Ok(panel) => draw_bar_panel(
-            &root,
-            &panel,
+    if table
+        .panel_ids
+        .iter()
+        .any(|panel_id| panel_id == "detectability_context")
+    {
+        let areas = root.split_evenly((2, 1));
+        draw_line_panel_with_segments(
+            &areas[0],
+            &extract_line_panel(table, "detectability_context", &["line"])?,
+            &segment_rows(table, "detectability_context"),
+            LinePanelStyle {
+                caption_size: 24,
+                margin: 18,
+                x_label_area: 40,
+                y_label_area: 60,
+                zero_floor: true,
+                show_legend: true,
+            },
+        )?;
+        draw_bar_panel(
+            &areas[1],
+            &extract_bar_panel(table, "detectability_window_ratio")?,
             BarPanelStyle {
-                caption_size: 30,
-                margin: 24,
-                x_label_area: 60,
+                caption_size: 24,
+                margin: 18,
+                x_label_area: 44,
                 y_label_area: 64,
             },
-        )?,
-        Err(_) => draw_annotation_only_panel(
-            &root,
-            table,
-            "detectability_bound",
-            "Predicted vs Observed Detectability Times",
-        )?,
+        )?;
+    } else if table
+        .panel_ids
+        .iter()
+        .any(|panel_id| panel_id == "detectability_gap")
+    {
+        let areas = root.split_evenly((2, 1));
+        draw_bar_panel(
+            &areas[0],
+            &extract_bar_panel(table, "detectability_bound")?,
+            BarPanelStyle {
+                caption_size: 24,
+                margin: 18,
+                x_label_area: 44,
+                y_label_area: 64,
+            },
+        )?;
+        draw_bar_panel(
+            &areas[1],
+            &extract_bar_panel(table, "detectability_gap")?,
+            BarPanelStyle {
+                caption_size: 24,
+                margin: 18,
+                x_label_area: 44,
+                y_label_area: 64,
+            },
+        )?;
+    } else {
+        match extract_bar_panel(table, "detectability_bound") {
+            Ok(panel) => draw_bar_panel(
+                &root,
+                &panel,
+                BarPanelStyle {
+                    caption_size: 30,
+                    margin: 24,
+                    x_label_area: 60,
+                    y_label_area: 64,
+                },
+            )?,
+            Err(_) => draw_annotation_only_panel(
+                &root,
+                table,
+                "detectability_bound",
+                "Predicted vs Observed Detectability Times",
+            )?,
+        }
     }
     root.present()?;
     Ok(())
@@ -599,9 +656,9 @@ where
     root.fill(&WHITE_BG)?;
     let areas = root.split_evenly((3, 1));
     for (index, panel_id) in [
-        "leading_candidate_score",
-        "admissibility_filter_count",
-        "retrieval_disposition_code",
+        "post_regime_candidate_scores",
+        "retrieval_filter_funnel",
+        "retrieval_stage_rejections",
     ]
     .into_iter()
     .enumerate()
@@ -629,16 +686,26 @@ where
     DB::ErrorType: 'static,
 {
     root.fill(&WHITE_BG)?;
-    draw_bar_panel(
-        &root,
-        &extract_bar_panel(table, "comparator_trigger_counts")?,
-        BarPanelStyle {
-            caption_size: 30,
-            margin: 24,
-            x_label_area: 80,
-            y_label_area: 56,
-        },
-    )?;
+    let areas = root.split_evenly((3, 1));
+    for (index, panel_id) in [
+        "comparator_first_trigger_time",
+        "comparator_onset_rank",
+        "comparator_trigger_counts",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        draw_bar_panel(
+            &areas[index],
+            &extract_bar_panel(table, panel_id)?,
+            BarPanelStyle {
+                caption_size: 24,
+                margin: 18,
+                x_label_area: 52,
+                y_label_area: 64,
+            },
+        )?;
+    }
     root.present()?;
     Ok(())
 }
@@ -942,7 +1009,17 @@ where
                     segment.secondary_y_value.unwrap_or(segment.y_value),
                 ),
             ],
-            BLACK.mix(0.6).stroke_width(2),
+            color_for_key(&segment.color_key).mix(0.75).stroke_width(2),
+        )))?;
+        chart.draw_series(std::iter::once(Text::new(
+            segment.series_label.clone(),
+            (
+                segment.x_value,
+                segment.secondary_y_value.unwrap_or(segment.y_value) * 0.96,
+            ),
+            ("sans-serif", 14)
+                .into_font()
+                .color(&color_for_key(&segment.color_key)),
         )))?;
     }
     if style.show_legend && panel.series.len() > 1 {
@@ -1145,8 +1222,8 @@ fn render_08(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<
 
 fn render_09(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_09_detectability_bound_comparison";
-    let caption = "Predicted residual-envelope detectability bounds versus observed envelope-crossing times across multiple synthetic cases.";
-    let size = (1280, 720);
+    let caption = "Run-specific detectability view. The exported figure preserves the paper-facing filename while using either multi-case bound-versus-observed timing summaries or single-run residual-versus-envelope context with windowed detectability ratios, depending on the executed run.";
+    let size = (1280, 860);
     let table = figure_table(figure_tables, figure_id)?;
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_detectability_bounds(
@@ -1187,7 +1264,7 @@ fn render_11(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<
 
 fn render_12(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_12_semantic_retrieval_heuristics_bank";
-    let caption = "Representative constrained-retrieval summary rendered from exported source rows. Panel 1 shows the leading candidate score, panel 2 shows the number of typed bank entries remaining after admissibility filtering, and panel 3 shows the final disposition code (Unknown=0, Ambiguous=1, CompatibleSet=2, Match=3). Synthetic deterministic demonstration only.";
+    let caption = "Run-specific constrained-retrieval process summary rendered from exported source rows. Panel 1 shows ranked post-regime candidate scores, panel 2 shows the deterministic filter funnel, and panel 3 shows stage-specific rejection counts. The figure remains within-run rather than cross-dataset.";
     let size = (1280, 860);
     let table = figure_table(figure_tables, figure_id)?;
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
@@ -1201,8 +1278,8 @@ fn render_12(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<
 
 fn render_13(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_13_internal_baseline_comparators";
-    let caption = "Internal deterministic comparator trigger counts across the executed scenarios. These are simple baseline heuristics for within-crate comparison only, not field benchmarks.";
-    let size = (1280, 720);
+    let caption = "Run-specific internal deterministic comparator activity. The panels show first-trigger timing, onset ordering, and triggered-scenario counts within the executed run. These remain within-crate comparator views only, not field benchmarks.";
+    let size = (1280, 920);
     let table = figure_table(figure_tables, figure_id)?;
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_baseline_comparators(

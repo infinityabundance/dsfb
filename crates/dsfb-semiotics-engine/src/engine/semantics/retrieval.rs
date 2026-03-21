@@ -11,8 +11,8 @@ use crate::engine::bank::HeuristicBankRegistry;
 use crate::engine::settings::{RetrievalIndexSettings, SemanticRetrievalSettings};
 use crate::engine::types::{
     AdmissibilityRequirement, CoordinatedResidualStructure, GrammarState, GrammarStatus,
-    HeuristicBankEntry, HeuristicCandidate, SemanticDisposition, SemanticMatchResult,
-    SemanticRetrievalAudit, SyntaxCharacterization,
+    HeuristicBankEntry, HeuristicCandidate, RetrievalAuditCandidatePreview, SemanticDisposition,
+    SemanticMatchResult, SemanticRetrievalAudit, SyntaxCharacterization,
 };
 use crate::math::metrics::{format_metric, hash_serializable_hex};
 
@@ -148,6 +148,18 @@ pub(crate) fn retrieve_semantics_with_context(
         .iter()
         .map(|entry| entry.heuristic_id.clone())
         .collect::<Vec<_>>();
+    let mut ranked_candidates_post_regime = regime_entries
+        .iter()
+        .map(|entry| build_candidate(entry, syntax, &evidence, coordinated))
+        .collect::<Vec<_>>();
+    ranked_candidates_post_regime.sort_by(|left, right| {
+        right
+            .entry
+            .retrieval_priority
+            .cmp(&left.entry.retrieval_priority)
+            .then_with(|| right.score.total_cmp(&left.score))
+            .then_with(|| left.entry.heuristic_id.cmp(&right.entry.heuristic_id))
+    });
     for entry in regime_entries {
         if scope_satisfied(entry, syntax, coordinated, settings.comparison_epsilon) {
             scope_entries.push(entry);
@@ -199,6 +211,14 @@ pub(crate) fn retrieve_semantics_with_context(
         candidate_ids_post_admissibility,
         candidate_ids_post_regime,
         candidate_ids_post_scope,
+        ranked_candidates_post_regime: ranked_candidates_post_regime
+            .iter()
+            .map(|candidate| candidate_preview("post_regime", candidate))
+            .collect(),
+        ranked_candidates_post_scope: candidates
+            .iter()
+            .map(|candidate| candidate_preview("post_scope", candidate))
+            .collect(),
         rejected_by_admissibility_ids,
         rejected_by_regime_ids,
         rejected_by_scope_ids,
@@ -523,6 +543,19 @@ fn build_candidate(
         scope_explanation: scope_explanation(entry, syntax, coordinated),
         rationale: rationale(entry, syntax, evidence, coordinated),
         matched_regimes,
+    }
+}
+
+fn candidate_preview(
+    stage: &str,
+    candidate: &HeuristicCandidate,
+) -> RetrievalAuditCandidatePreview {
+    RetrievalAuditCandidatePreview {
+        stage: stage.to_string(),
+        heuristic_id: candidate.entry.heuristic_id.clone(),
+        short_label: candidate.entry.short_label.clone(),
+        motif_label: candidate.entry.motif_label.clone(),
+        score: candidate.score,
     }
 }
 
