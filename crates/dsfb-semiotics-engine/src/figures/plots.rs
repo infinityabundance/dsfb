@@ -1325,7 +1325,21 @@ fn render_09(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<
         .iter()
         .any(|panel_id| panel_id == "primary_magnitude_similarity")
     {
-        "NASA Bearings paper figure. Two within-run windows are matched on similar primary residual magnitude, then contrasted by meta-residual slew and downstream grammar outcome. The figure argues conservatively that primary magnitude alone is insufficient for separation in this run."
+        if table
+            .rows
+            .iter()
+            .any(|row| row.scenario_id == "nasa_bearings_public_demo")
+        {
+            "NASA Bearings paper figure. Two within-run windows are matched on similar primary residual magnitude, then contrasted by meta-residual slew and downstream grammar outcome. The figure argues conservatively that primary magnitude alone is insufficient for separation in this run."
+        } else if table
+            .rows
+            .iter()
+            .any(|row| row.scenario_id == "nasa_milling_public_demo")
+        {
+            "NASA Milling paper figure. Two process windows are matched on similar primary residual behavior, then separated by higher-order residual structure and grammar outcome. The figure argues conservatively that first-order behavior alone is insufficient in this milling run."
+        } else {
+            "Synthetic paper figure. Two controlled cases retain similar primary residual magnitude while higher-order structure and grammar outcome diverge. The figure argues conservatively that first-order behavior alone is insufficient even in a controlled synthetic setting."
+        }
     } else {
         "Run-specific detectability view. The exported figure preserves the paper-facing filename while using either multi-case bound-versus-observed timing summaries or single-run residual-versus-envelope context with windowed detectability ratios, depending on the executed run."
     };
@@ -1375,7 +1389,21 @@ fn render_12(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<
         .iter()
         .any(|panel_id| panel_id == "semantic_score_timeline")
     {
-        "NASA Bearings paper figure. The panels show semantic interpretation through time: evolving top-candidate score and score margin, narrowing candidate counts, and the disposition timeline. This is a semantic-process view, not a static bank-existence summary."
+        if table
+            .rows
+            .iter()
+            .any(|row| row.scenario_id == "nasa_bearings_public_demo")
+        {
+            "NASA Bearings paper figure. The panels show semantic interpretation through time: evolving top-candidate score and score margin, narrowing candidate counts, and the disposition timeline. This is a semantic-process view, not a static bank-existence summary."
+        } else if table
+            .rows
+            .iter()
+            .any(|row| row.scenario_id == "nasa_milling_public_demo")
+        {
+            "NASA Milling paper figure. The panels show semantic interpretation through the milling process: evolving top-candidate score and score margin, narrowing candidate counts, and the disposition timeline. This is a semantic-process view, not a static bank-existence summary."
+        } else {
+            "Synthetic paper figure. The panels show semantic interpretation through a controlled structural transition: evolving top-candidate score and score margin, narrowing candidate counts, and the disposition timeline. This is a semantic-process view, not a static bank-existence summary."
+        }
     } else {
         "Run-specific constrained-retrieval process summary rendered from exported source rows. Panel 1 shows ranked post-regime candidate scores, panel 2 shows the deterministic filter funnel, and panel 3 shows stage-specific rejection counts. The figure remains within-run rather than cross-dataset."
     };
@@ -1397,7 +1425,21 @@ fn render_13(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<
         .iter()
         .any(|panel_id| panel_id == "baseline_alarm_timing")
     {
-        "NASA Bearings paper figure. Panel A shows what the internal deterministic comparators see first, while Panels B and C show the additional DSFB grammar and semantic timelines. The figure is framed as an interpretability delta, not a performance benchmark."
+        if table
+            .rows
+            .iter()
+            .any(|row| row.scenario_id == "nasa_bearings_public_demo")
+        {
+            "NASA Bearings paper figure. Panel A shows what the internal deterministic comparators see first, while Panels B and C show the additional DSFB grammar and semantic timelines. The figure is framed as an interpretability delta, not a performance benchmark."
+        } else if table
+            .rows
+            .iter()
+            .any(|row| row.scenario_id == "nasa_milling_public_demo")
+        {
+            "NASA Milling paper figure. Panel A shows what the internal deterministic comparators see first in the milling run, while Panels B and C show the additional DSFB grammar and semantic timelines. The figure is framed as an interpretability delta, not a performance benchmark."
+        } else {
+            "Synthetic paper figure. Panel A shows what the internal deterministic comparators see first in the controlled synthetic transition, while Panels B and C show the additional DSFB grammar and semantic timelines. The figure is framed as an interpretability delta, not a performance benchmark."
+        }
     } else {
         "Run-specific internal deterministic comparator activity. The panels show first-trigger timing, onset ordering, and triggered-scenario counts within the executed run. These remain within-crate comparator views only, not field benchmarks."
     };
