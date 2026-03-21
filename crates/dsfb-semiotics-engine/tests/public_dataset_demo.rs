@@ -8,6 +8,7 @@ use dsfb_semiotics_engine::dashboard::{CsvReplayDriver, DashboardReplayConfig};
 use dsfb_semiotics_engine::engine::config::CommonRunConfig;
 use dsfb_semiotics_engine::engine::settings::EngineSettings;
 use dsfb_semiotics_engine::engine::types::EnvelopeMode;
+use dsfb_semiotics_engine::figures::source::FigureSourceTable;
 use serde_json::Value;
 
 fn crate_root() -> PathBuf {
@@ -88,6 +89,13 @@ fn sample_root(dataset: &str) -> PathBuf {
 
 fn processed_root(dataset: &str) -> PathBuf {
     crate_root().join("data/processed").join(dataset)
+}
+
+fn latest_source_table(dataset: &str, figure_id: &str) -> FigureSourceTable {
+    let source_path = dataset_root(dataset)
+        .join("json")
+        .join(format!("{figure_id}_source.json"));
+    serde_json::from_str(&fs::read_to_string(source_path).unwrap()).unwrap()
 }
 
 fn processed_input(dataset: &str) -> CsvInputConfig {
@@ -279,6 +287,66 @@ fn test_replay_has_non_empty_event_sequence() {
         let lines = replay.lines().collect::<Vec<_>>();
         assert!(lines.len() > 2);
         assert!(lines.iter().skip(1).any(|line| line.contains("syntax")));
+    }
+}
+
+#[test]
+fn test_public_dataset_detectability_figure_uses_observed_event_fallback() {
+    ensure_full_pipeline_ran();
+    for dataset in ["nasa_milling", "nasa_bearings"] {
+        let table = latest_source_table(dataset, "figure_09_detectability_bound_comparison");
+        assert!(table.rows.iter().any(|row| {
+            row.panel_id == "detectability_bound"
+                && row.series_kind == "bar"
+                && matches!(
+                    row.series_id.as_str(),
+                    "observed_boundary_time" | "observed_violation_time"
+                )
+        }));
+    }
+}
+
+#[test]
+fn test_public_dataset_group_figure_uses_multi_channel_fallback() {
+    ensure_full_pipeline_ran();
+    for dataset in ["nasa_milling", "nasa_bearings"] {
+        let table = latest_source_table(dataset, "figure_11_coordinated_group_semiotics");
+        assert!(table
+            .rows
+            .iter()
+            .any(|row| { row.panel_id == "local_channels" && row.series_id == "local_channel_1" }));
+        assert!(table.rows.iter().any(|row| {
+            row.panel_id == "aggregate_group" && row.series_id == "aggregate_abs_mean"
+        }));
+    }
+}
+
+#[test]
+fn test_public_dataset_semantic_retrieval_uses_compact_tick_labels() {
+    ensure_full_pipeline_ran();
+    for dataset in ["nasa_milling", "nasa_bearings"] {
+        let table = latest_source_table(dataset, "figure_12_semantic_retrieval_heuristics_bank");
+        let labels = table
+            .rows
+            .iter()
+            .filter(|row| row.series_kind == "bar")
+            .map(|row| row.x_tick_label.as_str())
+            .collect::<Vec<_>>();
+        assert!(labels.iter().any(|label| label.contains("nasa")));
+        assert!(!labels.iter().any(|label| label.contains("_public_demo")));
+    }
+}
+
+#[test]
+fn test_public_dataset_comparator_source_preserves_figure_source_table() {
+    ensure_full_pipeline_ran();
+    for dataset in ["nasa_milling", "nasa_bearings"] {
+        let table = latest_source_table(dataset, "figure_13_internal_baseline_comparators");
+        assert_eq!(table.figure_id, "figure_13_internal_baseline_comparators");
+        assert!(table.rows.iter().any(|row| row.series_kind == "bar"));
+        assert!(dataset_root(dataset)
+            .join("json/figure_13_internal_baseline_comparators_legacy_source.json")
+            .is_file());
     }
 }
 

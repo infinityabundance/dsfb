@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::engine::types::{EngineOutputBundle, ScenarioOutput, SemanticDisposition, VectorSample};
+use crate::engine::types::{
+    EngineOutputBundle, GrammarState, ScenarioOutput, SemanticDisposition, VectorSample,
+};
 use crate::io::schema::ARTIFACT_SCHEMA_VERSION;
 
 /// Generic machine-readable row for publication-style figure source tables.
@@ -761,24 +763,108 @@ fn prepare_figure_09(bundle: &EngineOutputBundle) -> FigureSourceTable {
     );
     let rows = detectability_source_rows(bundle);
     if rows.is_empty() {
-        push_annotation_point(
-            &mut table,
-            "detectability_bound",
-            "Predicted vs Observed Detectability Times",
-            "scenario index",
-            "time to first exit",
-            "detectability_notice",
-            "detectability notice",
-            "annotation",
-            "slate",
-            "",
-            0,
-            0.5,
-            0.5,
-            "",
-            "No detectability-bound comparison rows were available for this run selection.",
-            "Fallback annotation rendered when no scenarios in the selected bundle expose a detectability-bound comparison.",
-        );
+        if let Some(scenario) = detectability_summary_scenario(bundle) {
+            let mut point_order = 0;
+            if let Some(boundary_time) = first_non_admissible_time(scenario) {
+                push_bar_row(
+                    &mut table,
+                    "detectability_bound",
+                    "Predicted vs Observed Detectability Times",
+                    "observed event",
+                    "time to first event",
+                    "observed_boundary_time",
+                    "observed boundary",
+                    "gold",
+                    &scenario.record.id,
+                    point_order,
+                    0.18,
+                    0.44,
+                    boundary_time,
+                    "boundary",
+                    "Observed first non-admissible grammar interaction time rendered when no theorem-aligned predicted bound is available.",
+                );
+                point_order += 1;
+            }
+            if let Some(violation_time) = first_violation_time(scenario) {
+                push_bar_row(
+                    &mut table,
+                    "detectability_bound",
+                    "Predicted vs Observed Detectability Times",
+                    "observed event",
+                    "time to first event",
+                    "observed_violation_time",
+                    "observed violation",
+                    "red",
+                    &scenario.record.id,
+                    point_order,
+                    0.56,
+                    0.82,
+                    violation_time,
+                    "violation",
+                    "Observed first grammar-violation time rendered when no theorem-aligned predicted bound is available.",
+                );
+            }
+            push_annotation_point(
+                &mut table,
+                "detectability_bound",
+                "Predicted vs Observed Detectability Times",
+                "observed event",
+                "time to first event",
+                "detectability_notice",
+                "detectability notice",
+                "annotation",
+                "slate",
+                &scenario.record.id,
+                point_order + 1,
+                0.5,
+                0.0,
+                "",
+                &format!(
+                    "scenario={} | no theorem-aligned predicted upper bound was configured for this run; showing observed grammar event times instead.",
+                    scenario.record.id
+                ),
+                "Fallback note rendered when the selected run exposes observed grammar events but no predicted detectability upper bound.",
+            );
+            if table.rows.iter().all(|row| row.series_kind == "annotation") {
+                push_annotation_point(
+                    &mut table,
+                    "detectability_bound",
+                    "Predicted vs Observed Detectability Times",
+                    "observed event",
+                    "time to first event",
+                    "detectability_notice_empty",
+                    "detectability notice",
+                    "annotation",
+                    "slate",
+                    &scenario.record.id,
+                    point_order + 2,
+                    0.5,
+                    0.5,
+                    "",
+                    "No non-admissible grammar event was observed in this run, so no detectability-summary bars were available.",
+                    "Fallback annotation rendered when the selected run exposes neither theorem-aligned detectability bounds nor observed non-admissible grammar events.",
+                );
+            }
+        } else {
+            push_annotation_point(
+                &mut table,
+                "detectability_bound",
+                "Predicted vs Observed Detectability Times",
+                "scenario index",
+                "time to first exit",
+                "detectability_notice",
+                "detectability notice",
+                "annotation",
+                "slate",
+                "",
+                0,
+                0.5,
+                0.5,
+                "",
+                "No detectability-bound comparison rows were available for this run selection.",
+                "Fallback annotation rendered when no scenarios in the selected bundle expose a detectability-bound comparison.",
+            );
+        }
     }
     for (index, row) in rows.into_iter().enumerate() {
         if let Some(predicted) = row.predicted_upper_bound {
@@ -987,12 +1073,13 @@ fn prepare_figure_10(bundle: &EngineOutputBundle) -> FigureSourceTable {
 
 fn prepare_figure_11(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
     let scenario = source_scenario_or_first(bundle, "grouped_correlated")?;
+    let has_multi_channel_fallback = scenario_channel_count(scenario) > 1;
     let mut table = new_source_table(
         &bundle.run_metadata.timestamp,
         &bundle.run_metadata.bank.bank_version,
         "figure_11_coordinated_group_semiotics",
         "Coordinated Group Semiotics",
-        if scenario.coordinated.is_some() {
+        if scenario.coordinated.is_some() || has_multi_channel_fallback {
             &["local_channels", "aggregate_group"]
         } else {
             &["coordination_notice"]
@@ -1089,6 +1176,121 @@ fn prepare_figure_11(bundle: &EngineOutputBundle) -> Result<FigureSourceTable> {
                 .map(|(index, point)| (index, point.time, point.aggregate_radius)),
             "Aggregate grouped envelope radius.",
         );
+    } else if has_multi_channel_fallback {
+        for channel_index in 0..scenario_channel_count(scenario).min(3) {
+            let channel_label = scenario_channel_label(scenario, channel_index);
+            push_scalar_series(
+                &mut table,
+                "local_channels",
+                "Local Channel Absolute Residuals",
+                "time",
+                "local |r_i(t)|",
+                &format!("local_channel_{}", channel_index + 1),
+                &channel_label,
+                "line",
+                ["blue", "green", "teal"][channel_index % 3],
+                &scenario.record.id,
+                scenario
+                    .residual
+                    .samples
+                    .iter()
+                    .enumerate()
+                    .map(|(index, sample)| {
+                        (
+                            index,
+                            sample.time,
+                            sample
+                                .values
+                                .get(channel_index)
+                                .copied()
+                                .unwrap_or_default()
+                                .abs(),
+                        )
+                    }),
+                "Absolute residual of one available channel from the selected multi-channel run.",
+            );
+        }
+        push_scalar_series(
+            &mut table,
+            "local_channels",
+            "Local Channel Absolute Residuals",
+            "time",
+            "local |r_i(t)|",
+            "local_envelope",
+            "local envelope",
+            "line",
+            "slate",
+            &scenario.record.id,
+            scenario
+                .envelope
+                .samples
+                .iter()
+                .enumerate()
+                .map(|(index, sample)| (index, sample.time, sample.radius)),
+            "Envelope radius reused as a common local reference for the multi-channel fallback view.",
+        );
+        push_scalar_series(
+            &mut table,
+            "aggregate_group",
+            "Aggregate Multi-Channel Residual and Envelope",
+            "time",
+            "aggregate metric",
+            "aggregate_abs_mean",
+            "aggregate abs mean",
+            "line",
+            "red",
+            &scenario.record.id,
+            scenario
+                .residual
+                .samples
+                .iter()
+                .enumerate()
+                .map(|(index, sample)| {
+                    (
+                        index,
+                        sample.time,
+                        mean_abs_values(&sample.values).unwrap_or(sample.norm),
+                    )
+                }),
+            "Fallback aggregate absolute-mean residual across all available channels when no explicit grouped aggregate was configured.",
+        );
+        push_scalar_series(
+            &mut table,
+            "aggregate_group",
+            "Aggregate Multi-Channel Residual and Envelope",
+            "time",
+            "aggregate metric",
+            "aggregate_envelope",
+            "aggregate envelope",
+            "line",
+            "slate",
+            &scenario.record.id,
+            scenario
+                .envelope
+                .samples
+                .iter()
+                .enumerate()
+                .map(|(index, sample)| (index, sample.time, sample.radius)),
+            "Envelope radius paired with the fallback aggregate multi-channel residual view.",
+        );
+        push_annotation_point(
+            &mut table,
+            "aggregate_group",
+            "Aggregate Multi-Channel Residual and Envelope",
+            "time",
+            "aggregate metric",
+            "aggregate_group_note",
+            "aggregate note",
+            "annotation",
+            "slate",
+            &scenario.record.id,
+            scenario.residual.samples.len(),
+            0.0,
+            0.0,
+            "",
+            "No explicit grouped structure was configured for this run, so the figure falls back to aggregate multi-channel residual magnitude.",
+            "Fallback note for multi-channel runs without a configured coordinated aggregate structure.",
+        );
     } else {
         push_annotation_point(
             &mut table,
@@ -1129,7 +1331,7 @@ fn prepare_figure_12(bundle: &EngineOutputBundle) -> FigureSourceTable {
         .into_iter()
         .enumerate()
     {
-        let label = row.scenario_id.clone();
+        let label = compact_scenario_tick_label(&row.scenario_id, row.representative_rank);
         push_bar_row(
             &mut table,
             "leading_candidate_score",
@@ -1206,13 +1408,13 @@ fn prepare_figure_13(bundle: &EngineOutputBundle) -> FigureSourceTable {
             "triggered scenarios",
             &row.comparator_id,
             &row.comparator_label,
-            "blue",
+            ["blue", "gold", "teal", "red", "green", "slate"][index % 6],
             &row.comparator_id,
             index,
-            index as f64,
-            index as f64 + 1.0,
+            index as f64 + 0.18,
+            index as f64 + 0.82,
             row.triggered_scenario_count as f64,
-            &row.comparator_label,
+            short_comparator_tick_label(&row.comparator_id),
             "Comparator trigger-count bar.",
         );
     }
@@ -1799,6 +2001,34 @@ fn representative_semantic_scenarios(
     selected
 }
 
+fn compact_scenario_tick_label(scenario_id: &str, representative_rank: usize) -> String {
+    let cleaned = scenario_id
+        .strip_suffix("_public_demo")
+        .unwrap_or(scenario_id)
+        .replace('_', " ");
+    let trimmed = cleaned.trim();
+    if trimmed.is_empty() {
+        format!("run {representative_rank}")
+    } else if trimmed.chars().count() > 18 {
+        let shortened = trimmed.chars().take(15).collect::<String>();
+        format!("{shortened}...")
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn short_comparator_tick_label(comparator_id: &str) -> &'static str {
+    match comparator_id {
+        "baseline_residual_threshold" => "threshold",
+        "baseline_moving_average_trend" => "MA trend",
+        "baseline_cusum" => "CUSUM",
+        "baseline_slew_spike" => "slew",
+        "baseline_envelope_interaction" => "envelope",
+        "baseline_innovation_chi_squared_style" => "innovation",
+        _ => "comparator",
+    }
+}
+
 fn detectability_cases(bundle: &EngineOutputBundle) -> Vec<&ScenarioOutput> {
     let preferred = [
         "outward_exit_case_a",
@@ -1823,6 +2053,64 @@ fn detectability_cases(bundle: &EngineOutputBundle) -> Vec<&ScenarioOutput> {
             .collect()
     } else {
         selected
+    }
+}
+
+fn detectability_summary_scenario(bundle: &EngineOutputBundle) -> Option<&ScenarioOutput> {
+    bundle
+        .scenario_outputs
+        .iter()
+        .find(|scenario| {
+            first_non_admissible_time(scenario).is_some()
+                || first_violation_time(scenario).is_some()
+                || scenario.detectability.observed_crossing_time.is_some()
+        })
+        .or_else(|| bundle.scenario_outputs.first())
+}
+
+fn first_non_admissible_time(scenario: &ScenarioOutput) -> Option<f64> {
+    scenario
+        .grammar
+        .iter()
+        .find(|status| !matches!(status.state, GrammarState::Admissible))
+        .map(|status| status.time)
+        .or(scenario.detectability.observed_crossing_time)
+}
+
+fn first_violation_time(scenario: &ScenarioOutput) -> Option<f64> {
+    scenario
+        .grammar
+        .iter()
+        .find(|status| matches!(status.state, GrammarState::Violation))
+        .map(|status| status.time)
+}
+
+fn scenario_channel_count(scenario: &ScenarioOutput) -> usize {
+    scenario.residual.channel_names.len().max(
+        scenario
+            .residual
+            .samples
+            .iter()
+            .map(|sample| sample.values.len())
+            .max()
+            .unwrap_or(0),
+    )
+}
+
+fn scenario_channel_label(scenario: &ScenarioOutput, channel_index: usize) -> String {
+    scenario
+        .residual
+        .channel_names
+        .get(channel_index)
+        .cloned()
+        .unwrap_or_else(|| format!("ch{}", channel_index + 1))
+}
+
+fn mean_abs_values(values: &[f64]) -> Option<f64> {
+    if values.is_empty() {
+        None
+    } else {
+        Some(values.iter().map(|value| value.abs()).sum::<f64>() / values.len() as f64)
     }
 }
 

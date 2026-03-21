@@ -959,6 +959,12 @@ fn draw_bar_panel<DB: DrawingBackend>(
 where
     DB::ErrorType: 'static,
 {
+    let widest_bar = panel
+        .bars
+        .iter()
+        .map(|bar| (bar.right - bar.left).abs())
+        .fold(0.0_f64, f64::max)
+        .max(0.18);
     let x_min = panel
         .bars
         .iter()
@@ -969,22 +975,28 @@ where
         .iter()
         .map(|bar| bar.right)
         .fold(f64::NEG_INFINITY, f64::max);
+    let x_padding = ((x_max - x_min) * 0.12).max(widest_bar * 0.75);
     let y_max = panel
         .bars
         .iter()
         .map(|bar| bar.value)
         .fold(0.0, f64::max)
         .max(1.0);
+    let y_upper = (y_max * 1.28).max(y_max + 0.24);
     let mut chart = ChartBuilder::on(area)
         .caption(&panel.title, ("sans-serif", style.caption_size))
         .margin(style.margin)
         .x_label_area_size(style.x_label_area)
         .y_label_area_size(style.y_label_area)
-        .build_cartesian_2d(x_min..x_max, 0.0_f64..(y_max * 1.15))?;
+        .build_cartesian_2d((x_min - x_padding)..(x_max + x_padding), 0.0_f64..y_upper)?;
     chart
         .configure_mesh()
         .x_desc(&panel.x_label)
         .y_desc(&panel.y_label)
+        .x_labels(0)
+        .disable_x_mesh()
+        .light_line_style(RGBAColor(0, 0, 0, 0.08))
+        .bold_line_style(RGBAColor(0, 0, 0, 0.14))
         .draw()?;
     for bar in &panel.bars {
         chart.draw_series(std::iter::once(Rectangle::new(
@@ -993,23 +1005,27 @@ where
         )))?;
     }
 
-    let label_y = (y_max * 0.05).max(0.8);
-    let mut label_groups = BTreeMap::<String, (f64, f64)>::new();
+    let label_font_size = if panel.bars.len() > 5 { 12 } else { 14 };
+    let mut label_groups = BTreeMap::<String, (f64, f64, f64)>::new();
     for bar in &panel.bars {
         label_groups
             .entry(bar.label.clone())
-            .and_modify(|(left, right)| {
+            .and_modify(|(left, right, top)| {
                 *left = left.min(bar.left);
                 *right = right.max(bar.right);
+                *top = top.max(bar.value);
             })
-            .or_insert((bar.left, bar.right));
+            .or_insert((bar.left, bar.right, bar.value));
     }
-    for (label, (left, right)) in label_groups {
-        let mid = left + (right - left) * 0.15;
+    for (label, (left, right, top)) in label_groups {
+        let mid = left + (right - left) * 0.5;
+        let label_y = (top + y_upper * 0.04).min(y_upper * 0.95);
         chart.draw_series(std::iter::once(Text::new(
             label,
             (mid, label_y),
-            ("sans-serif", 14).into_font().color(&BLACK),
+            TextStyle::from(("sans-serif", label_font_size).into_font())
+                .color(&BLACK)
+                .pos(Pos::new(HPos::Center, VPos::Bottom)),
         )))?;
     }
     Ok(())
