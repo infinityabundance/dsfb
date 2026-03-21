@@ -73,6 +73,23 @@ fn figure_png(root: &Path, figure_id: &str) -> PathBuf {
     root.join("figures").join(format!("{figure_id}.png"))
 }
 
+fn semantic_disposition_code(label: &str) -> f64 {
+    match label {
+        "Match" => 3.0,
+        "CompatibleSet" => 2.0,
+        "Ambiguous" => 1.0,
+        _ => 0.0,
+    }
+}
+
+fn grammar_state_code(label: &str) -> f64 {
+    match label {
+        "Violation" => 2.0,
+        "Boundary" => 1.0,
+        _ => 0.0,
+    }
+}
+
 #[test]
 fn test_figure_09_generated() {
     ensure_public_pipeline_ran();
@@ -124,62 +141,124 @@ fn test_figure_09_uses_actual_detectability_outputs_from_current_run() {
     ensure_public_pipeline_ran();
     let root = public_dataset_root("nasa_bearings");
     let table = figure_table(&root, "figure_09_detectability_bound_comparison");
+    assert!(table
+        .rows
+        .iter()
+        .any(|row| row.panel_id == "primary_magnitude_similarity"));
+    assert!(table
+        .rows
+        .iter()
+        .any(|row| row.panel_id == "meta_residual_divergence"));
+    assert!(table
+        .rows
+        .iter()
+        .any(|row| row.panel_id == "outcome_consequence"));
     let scenario_outputs = json_array(&root, "scenario_outputs.json");
-    let observed = scenario_outputs[0]["detectability"]["observed_crossing_time"]
-        .as_f64()
-        .unwrap();
-    let segment = table
-        .rows
+    let residual_samples = scenario_outputs[0]["residual"]["samples"]
+        .as_array()
+        .unwrap()
         .iter()
-        .find(|row| {
-            row.panel_id == "detectability_context" && row.series_id == "first_boundary_time"
+        .flat_map(|sample| {
+            sample["values"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| value.as_f64().unwrap().abs())
+                .collect::<Vec<_>>()
         })
-        .unwrap();
-    assert!((segment.x_value - observed).abs() < 1.0e-9);
-    assert!(table
+        .collect::<Vec<_>>();
+    let slew_samples = scenario_outputs[0]["slew"]["samples"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|sample| {
+            sample["values"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| value.as_f64().unwrap().abs())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    for row in table
         .rows
         .iter()
-        .any(|row| row.panel_id == "detectability_context" && row.series_id == "residual_norm"));
-    assert!(table
+        .filter(|row| row.panel_id == "primary_magnitude_similarity")
+    {
+        assert!(residual_samples
+            .iter()
+            .any(|value| (value - row.y_value).abs() < 1.0e-9));
+    }
+    for row in table
         .rows
         .iter()
-        .any(|row| row.panel_id == "detectability_context" && row.series_id == "envelope_radius"));
+        .filter(|row| row.panel_id == "meta_residual_divergence")
+    {
+        assert!(slew_samples
+            .iter()
+            .any(|value| (value - row.y_value).abs() < 1.0e-9));
+    }
 }
 
 #[test]
 fn test_figure_12_uses_actual_retrieval_outputs_from_current_run() {
     ensure_public_pipeline_ran();
-    let root = public_dataset_root("nasa_milling");
+    let root = public_dataset_root("nasa_bearings");
     let table = figure_table(&root, "figure_12_semantic_retrieval_heuristics_bank");
     let semantic_matches = json_array(&root, "semantic_matches.json");
     let first = &semantic_matches[0];
     let audit = &first["retrieval_audit"];
-    let prefilter = audit["prefilter_candidate_count"].as_u64().unwrap() as f64;
-    let post_regime = audit["heuristic_candidates_post_regime"].as_u64().unwrap() as f64;
-    let funnel_prefilter = table
+    let final_post_regime = audit["heuristic_candidates_post_regime"].as_u64().unwrap() as f64;
+    let final_post_scope = audit["heuristic_candidates_post_scope"].as_u64().unwrap() as f64;
+    let final_disposition =
+        semantic_disposition_code(first["disposition"].as_str().unwrap_or("Unknown"));
+    let last_post_regime = table
         .rows
         .iter()
-        .find(|row| row.panel_id == "retrieval_filter_funnel" && row.series_id == "prefilter_count")
+        .rfind(|row| {
+            row.panel_id == "semantic_candidate_count_timeline"
+                && row.series_id == "post_regime_count"
+        })
         .unwrap();
-    let funnel_regime = table
+    let last_post_scope = table
         .rows
         .iter()
         .find(|row| {
-            row.panel_id == "retrieval_filter_funnel" && row.series_id == "post_regime_count"
+            row.panel_id == "semantic_candidate_count_timeline"
+                && row.series_id == "post_scope_count"
+                && (row.x_value
+                    - table
+                        .rows
+                        .iter()
+                        .rfind(|candidate| {
+                            candidate.panel_id == "semantic_candidate_count_timeline"
+                                && candidate.series_id == "post_scope_count"
+                        })
+                        .unwrap()
+                        .x_value)
+                    .abs()
+                    < 1.0e-9
         })
         .unwrap();
-    assert_eq!(funnel_prefilter.y_value, prefilter);
-    assert_eq!(funnel_regime.y_value, post_regime);
-    let ranked_candidates = audit["ranked_candidates_post_regime"]
-        .as_array()
-        .unwrap()
-        .len();
-    assert!(table
+    let last_disposition = table
         .rows
         .iter()
-        .filter(|row| row.panel_id == "post_regime_candidate_scores" && row.series_kind == "bar")
-        .count()
-        >= ranked_candidates.min(4));
+        .rfind(|row| {
+            row.panel_id == "semantic_disposition_timeline"
+                && row.series_id == "semantic_disposition_code"
+        })
+        .unwrap();
+    assert_eq!(last_post_regime.y_value, final_post_regime);
+    assert_eq!(last_post_scope.y_value, final_post_scope);
+    assert_eq!(last_disposition.y_value, final_disposition);
+    assert!(
+        table
+            .rows
+            .iter()
+            .filter(|row| row.panel_id == "semantic_score_timeline")
+            .count()
+            >= 10
+    );
 }
 
 #[test]
@@ -197,30 +276,61 @@ fn test_figure_13_uses_actual_comparator_outputs_from_current_run() {
         .rows
         .iter()
         .find(|row| {
-            row.panel_id == "comparator_first_trigger_time"
-                && row.series_id == "baseline_residual_threshold_first_trigger_time"
+            row.panel_id == "baseline_alarm_timing"
+                && row.series_id == "baseline_residual_threshold_first_alarm"
         })
         .unwrap();
     assert_eq!(timing_bar.y_value, first_trigger);
+    let scenario_outputs = json_array(&root, "scenario_outputs.json");
+    let final_grammar = grammar_state_code(
+        scenario_outputs[0]["grammar"]
+            .as_array()
+            .unwrap()
+            .last()
+            .unwrap()["state"]
+            .as_str()
+            .unwrap_or("Admissible"),
+    );
+    let final_semantics = semantic_disposition_code(
+        json_array(&root, "semantic_matches.json")[0]["disposition"]
+            .as_str()
+            .unwrap_or("Unknown"),
+    );
+    let grammar_last = table
+        .rows
+        .iter()
+        .rfind(|row| row.panel_id == "dsfb_grammar_timeline" && row.series_kind == "line")
+        .unwrap();
+    let semantic_last = table
+        .rows
+        .iter()
+        .rfind(|row| row.panel_id == "dsfb_semantic_timeline")
+        .unwrap();
+    assert_eq!(grammar_last.y_value, final_grammar);
+    assert_eq!(semantic_last.y_value, final_semantics);
 }
 
 #[test]
 fn test_figure_09_not_low_information_when_more_detectability_structure_exists() {
     ensure_public_pipeline_ran();
-    let root = public_dataset_root("nasa_milling");
+    let root = public_dataset_root("nasa_bearings");
     let table = figure_table(&root, "figure_09_detectability_bound_comparison");
     assert_eq!(
         table.panel_ids,
-        vec!["detectability_context", "detectability_window_ratio"]
+        vec![
+            "primary_magnitude_similarity",
+            "meta_residual_divergence",
+            "outcome_consequence"
+        ]
     );
     assert!(table.rows.len() >= 10);
     assert!(
         table
             .rows
             .iter()
-            .filter(|row| row.panel_id == "detectability_window_ratio" && row.series_kind == "bar")
+            .filter(|row| row.panel_id == "meta_residual_divergence")
             .count()
-            >= 4
+            >= 6
     );
 }
 
@@ -232,50 +342,63 @@ fn test_figure_12_not_low_information_when_more_retrieval_structure_exists() {
     assert_eq!(
         table.panel_ids,
         vec![
-            "post_regime_candidate_scores",
-            "retrieval_filter_funnel",
-            "retrieval_stage_rejections"
+            "semantic_score_timeline",
+            "semantic_candidate_count_timeline",
+            "semantic_disposition_timeline"
         ]
     );
     assert!(
         table
             .rows
             .iter()
-            .filter(|row| row.panel_id == "retrieval_filter_funnel" && row.series_kind == "bar")
+            .filter(|row| row.panel_id == "semantic_candidate_count_timeline")
             .count()
-            >= 5
+            >= 20
     );
-    assert!(table
-        .rows
-        .iter()
-        .filter(|row| row.panel_id == "post_regime_candidate_scores" && row.series_kind == "bar")
-        .count()
-        >= 3);
+    assert!(
+        table
+            .rows
+            .iter()
+            .filter(|row| row.panel_id == "semantic_score_timeline")
+            .count()
+            >= 20
+    );
 }
 
 #[test]
 fn test_figure_13_not_low_information_when_more_comparator_structure_exists() {
     ensure_public_pipeline_ran();
-    let root = public_dataset_root("nasa_milling");
+    let root = public_dataset_root("nasa_bearings");
     let table = figure_table(&root, "figure_13_internal_baseline_comparators");
     assert_eq!(
         table.panel_ids,
         vec![
-            "comparator_first_trigger_time",
-            "comparator_onset_rank",
-            "comparator_trigger_counts"
+            "baseline_alarm_timing",
+            "dsfb_grammar_timeline",
+            "dsfb_semantic_timeline"
         ]
     );
     assert!(table
         .rows
         .iter()
-        .filter(|row| row.panel_id == "comparator_first_trigger_time")
+        .filter(|row| row.panel_id == "baseline_alarm_timing")
         .any(|row| row.y_value > 0.0));
-    assert!(table
-        .rows
-        .iter()
-        .filter(|row| row.panel_id == "comparator_onset_rank")
-        .any(|row| row.y_value > 0.0));
+    assert!(
+        table
+            .rows
+            .iter()
+            .filter(|row| row.panel_id == "dsfb_grammar_timeline")
+            .count()
+            >= 20
+    );
+    assert!(
+        table
+            .rows
+            .iter()
+            .filter(|row| row.panel_id == "dsfb_semantic_timeline")
+            .count()
+            >= 20
+    );
 }
 
 #[test]
@@ -384,10 +507,10 @@ fn test_figure_12_source_table_nontrivial_for_current_run() {
 fn test_figure_13_source_table_nontrivial_for_current_run() {
     ensure_public_pipeline_ran();
     let table = figure_table(
-        &public_dataset_root("nasa_milling"),
+        &public_dataset_root("nasa_bearings"),
         "figure_13_internal_baseline_comparators",
     );
-    assert!(table.rows.len() >= 18);
+    assert!(table.rows.len() >= 12);
     assert!(table.panel_ids.len() == 3);
 }
 

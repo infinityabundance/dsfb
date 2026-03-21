@@ -346,19 +346,34 @@ fn test_public_dataset_detectability_figure_uses_observed_event_fallback() {
     ensure_full_pipeline_ran();
     for dataset in ["nasa_milling", "nasa_bearings"] {
         let table = latest_source_table(dataset, "figure_09_detectability_bound_comparison");
-        assert!(table.rows.iter().any(|row| {
-            row.panel_id == "detectability_context"
-                && row.series_kind == "segment"
-                && matches!(
-                    row.series_id.as_str(),
-                    "first_boundary_time" | "first_violation_time"
-                )
-        }));
-        assert!(table.rows.iter().any(|row| {
-            row.panel_id == "detectability_window_ratio"
-                && row.series_kind == "bar"
-                && row.series_id == "window_max_ratio"
-        }));
+        if dataset == "nasa_bearings" {
+            assert_eq!(
+                table.panel_ids,
+                vec![
+                    "primary_magnitude_similarity",
+                    "meta_residual_divergence",
+                    "outcome_consequence"
+                ]
+            );
+            assert!(table.rows.iter().any(|row| {
+                row.panel_id == "primary_magnitude_similarity"
+                    && row.series_id == "stable_primary_window"
+            }));
+        } else {
+            assert!(table.rows.iter().any(|row| {
+                row.panel_id == "detectability_context"
+                    && row.series_kind == "segment"
+                    && matches!(
+                        row.series_id.as_str(),
+                        "first_boundary_time" | "first_violation_time"
+                    )
+            }));
+            assert!(table.rows.iter().any(|row| {
+                row.panel_id == "detectability_window_ratio"
+                    && row.series_kind == "bar"
+                    && row.series_id == "window_max_ratio"
+            }));
+        }
     }
 }
 
@@ -382,14 +397,26 @@ fn test_public_dataset_semantic_retrieval_uses_compact_tick_labels() {
     ensure_full_pipeline_ran();
     for dataset in ["nasa_milling", "nasa_bearings"] {
         let table = latest_source_table(dataset, "figure_12_semantic_retrieval_heuristics_bank");
-        let labels = table
-            .rows
-            .iter()
-            .filter(|row| row.series_kind == "bar")
-            .map(|row| row.x_tick_label.as_str())
-            .collect::<Vec<_>>();
-        assert!(labels.iter().any(|label| label.contains("nasa")));
-        assert!(!labels.iter().any(|label| label.contains("_public_demo")));
+        if dataset == "nasa_bearings" {
+            assert_eq!(
+                table.panel_ids,
+                vec![
+                    "semantic_score_timeline",
+                    "semantic_candidate_count_timeline",
+                    "semantic_disposition_timeline"
+                ]
+            );
+            assert!(table.rows.iter().all(|row| row.series_kind == "line"));
+        } else {
+            let labels = table
+                .rows
+                .iter()
+                .filter(|row| row.series_kind == "bar")
+                .map(|row| row.x_tick_label.as_str())
+                .collect::<Vec<_>>();
+            assert!(labels.iter().any(|label| label.contains("nasa")));
+            assert!(!labels.iter().any(|label| label.contains("_public_demo")));
+        }
     }
 }
 
@@ -399,7 +426,22 @@ fn test_public_dataset_comparator_source_preserves_figure_source_table() {
     for dataset in ["nasa_milling", "nasa_bearings"] {
         let table = latest_source_table(dataset, "figure_13_internal_baseline_comparators");
         assert_eq!(table.figure_id, "figure_13_internal_baseline_comparators");
-        assert!(table.rows.iter().any(|row| row.series_kind == "bar"));
+        if dataset == "nasa_bearings" {
+            assert!(table
+                .rows
+                .iter()
+                .any(|row| row.panel_id == "baseline_alarm_timing"));
+            assert!(table
+                .rows
+                .iter()
+                .any(|row| row.panel_id == "dsfb_grammar_timeline"));
+            assert!(table
+                .rows
+                .iter()
+                .any(|row| row.panel_id == "dsfb_semantic_timeline"));
+        } else {
+            assert!(table.rows.iter().any(|row| row.series_kind == "bar"));
+        }
         assert!(dataset_root(dataset)
             .join("json/figure_13_internal_baseline_comparators_legacy_source.json")
             .is_file());

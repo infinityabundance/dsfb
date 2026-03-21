@@ -1,5 +1,6 @@
 pub mod bank;
 pub mod config;
+pub(crate) mod event_timeline;
 pub mod grammar_layer;
 pub mod pipeline;
 pub(crate) mod pipeline_artifacts;

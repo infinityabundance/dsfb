@@ -29,6 +29,8 @@ use crate::math::fixed_point::{
 use crate::math::metrics::euclidean_norm;
 use crate::math::smoothing::smooth_residual_trajectory;
 
+pub mod contract;
+
 /// Stable machine-readable schema identifier for bounded online-engine status snapshots.
 pub const LIVE_ENGINE_STATUS_SCHEMA_VERSION: &str = "dsfb-semiotics-live-status/v1";
 /// Stable schema identifier for serialized bounded online-engine snapshots.
@@ -356,6 +358,9 @@ impl OnlineStructuralEngine {
     /// Pushes one residual sample into the bounded live engine and returns the current status.
     // TRACE:ALGORITHM:ALG-BOUNDED-ONLINE-STEP:Bounded online layered step:Replays residual to semantics over the fixed trailing window without unbounded live-state growth.
     pub fn push_residual_sample(&mut self, time: f64, values: &[Real]) -> Result<LiveEngineStatus> {
+        if !time.is_finite() {
+            return Err(anyhow!("online engine requires a finite sample time"));
+        }
         if values.len() != self.channel_names.len() {
             return Err(anyhow!(
                 "online engine expected {} channels but received {}",
@@ -363,10 +368,17 @@ impl OnlineStructuralEngine {
                 values.len()
             ));
         }
-        let values_f64 = values
-            .iter()
-            .map(|value| real_to_f64(*value))
-            .collect::<Vec<_>>();
+        let mut values_f64 = Vec::with_capacity(values.len());
+        for (channel_index, value) in values.iter().enumerate() {
+            let as_f64 = real_to_f64(*value);
+            if !as_f64.is_finite() {
+                return Err(anyhow!(
+                    "online engine received a non-finite residual value at channel {}",
+                    channel_index
+                ));
+            }
+            values_f64.push(as_f64);
+        }
         let sample = ResidualSample {
             step: self.next_step,
             time,
@@ -374,10 +386,10 @@ impl OnlineStructuralEngine {
             values: values_f64,
         };
         self.next_step += 1;
-        self.residual_history.push(sample.clone());
         if let Some(history) = &mut self.offline_history {
-            history.push(sample);
+            history.push(sample.clone());
         }
+        self.residual_history.push(sample);
 
         let residual = ResidualTrajectory {
             scenario_id: self.scenario_id.clone(),
@@ -407,6 +419,7 @@ impl OnlineStructuralEngine {
             index: Some(&self.retrieval_index),
         });
         let status = self.status_from_latest(&sign, &grammar, &syntax, &semantics)?;
+        ensure_status_is_finite(&status)?;
         self.latest_status = Some(status.clone());
         Ok(status)
     }
@@ -560,11 +573,39 @@ impl OnlineStructuralEngine {
                 SemanticDisposition::Ambiguous => 2,
                 SemanticDisposition::Unknown => 3,
             },
-            semantic_disposition: format!("{:?}", semantics.disposition),
+            semantic_disposition: match semantics.disposition {
+                SemanticDisposition::Match => "Match".to_string(),
+                SemanticDisposition::CompatibleSet => "CompatibleSet".to_string(),
+                SemanticDisposition::Ambiguous => "Ambiguous".to_string(),
+                SemanticDisposition::Unknown => "Unknown".to_string(),
+            },
             selected_heuristic_ids: semantics.selected_heuristic_ids.clone(),
             note: "Status derives from the bounded online window only. Optional offline accumulation remains separate from the memory-bounded live path.".to_string(),
         })
     }
+}
+
+fn ensure_status_is_finite(status: &LiveEngineStatus) -> Result<()> {
+    for (label, value) in [
+        ("time", status.time),
+        ("residual_norm", status.residual_norm),
+        ("drift_norm", status.drift_norm),
+        ("slew_norm", status.slew_norm),
+        ("trust_scalar", status.trust_scalar),
+    ] {
+        if !value.is_finite() {
+            return Err(anyhow!("live status produced a non-finite {label}"));
+        }
+    }
+    for (axis_index, value) in status.projection.iter().copied().enumerate() {
+        if !value.is_finite() {
+            return Err(anyhow!(
+                "live status produced a non-finite sign projection axis {}",
+                axis_index
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

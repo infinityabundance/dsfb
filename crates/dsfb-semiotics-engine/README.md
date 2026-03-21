@@ -30,6 +30,27 @@ flowchart TD
   E --> F
 ```
 
+## Transition Readiness
+
+This crate is still conservative research software, but it now carries explicit transition-facing
+surfaces for bounded integration under stated assumptions:
+
+- [Real-Time Contract](docs/REAL_TIME_CONTRACT.md)
+- [Timing Determinism Report](docs/TIMING_DETERMINISM_REPORT.md)
+- [A-PNT Technical Brief](docs/briefs/dsfb_apnt_brief.md)
+- [IMU GPS-Denied Scenario](docs/examples/imu_thermal_drift_gps_denied.md)
+- [Decision-Grade Demo](docs/examples/decision_grade_demo.md)
+- [Paper Bearings Figures 9 / 12 / 13](docs/examples/paper_bearings_figures_09_12_13.md)
+- [Docs Index](docs/INDEX.md)
+
+Conservative framing:
+
+- observed timing is documented as observed host-side timing, not certified WCET
+- the bounded live path has an explicit allocation audit; no-allocation-after-init is not yet
+  claimed globally
+- batch ingestion is the primary ingestion style for multi-axis or IMU-class data
+- the `numeric-fixed` path is documented as a tested subset, not a blanket embedded-readiness claim
+
 ## Why This Crate Exists
 
 The paper argues that residual evolution can be treated as a structured inferential object rather than as noise alone. This crate exists to make that claim inspectable:
@@ -173,6 +194,32 @@ Retrieval is constrained rather than purely threshold-labeled. Each candidate no
 
 These are constrained heuristic retrieval outcomes only. They do not imply unique latent cause. In particular, the baseline-compatible path is a low-commitment description relative to the configured prediction and envelope, not a validated health classifier, and compatible sets remain jointly reportable motifs rather than collapsed diagnoses.
 For larger banks the crate can also build a deterministic admissibility/regime/group-breach prefilter index before exact scope and compatibility checks run. That index narrows candidate sets without replacing the authoritative typed validation path, and the export surface records whether retrieval used the indexed or linear path.
+
+## Batch Ingestion
+
+For multi-axis sensors, batch ingestion is the primary integration path.
+
+- Rust bounded live path: `push_residual_sample_batch(...)`
+- C ABI: `dsfb_semiotics_engine_push_sample_batch`
+- C++ wrapper: batch helpers through `dsfb.hpp`
+- Python bindings: array-like or batch-oriented entrypoints where supported
+
+This keeps IMU-style or replay-style ingestion deterministic while reducing FFI call overhead
+relative to repeated scalar pushes.
+
+## Paper Figure Workflow
+
+Figures 9, 12, and 13 remain run-specific.
+
+More explicitly: run-specific: the figure stays within the current run and is not converted into a
+cross-dataset comparison unless that already existed by design.
+
+For the current paper-facing path, NASA Bearings is the primary dataset for Figures 9, 12, and 13
+because it provides the clearest within-run structural progression for those arguments. Synthetic
+and NASA Milling generation paths remain intact elsewhere in the artifact pipeline.
+
+PNG basenames remain unchanged, so the regenerated files can still be dropped directly into the
+paper `figures/` folder without LaTeX edits.
 
 ### CSV Ingestion Path
 
