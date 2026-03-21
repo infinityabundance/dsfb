@@ -20,6 +20,14 @@ What this does **not** mean:
 - it is not a full fixed-point rewrite of the offline report pipeline
 - it is not a claim of FPGA or ASIC deployment readiness by itself
 
+Equivalence framing:
+
+- the tested claim is classification consistency within documented scope
+- fixed-point comparisons should be read as "same syntax / grammar / semantic disposition under the
+  tested fixtures within quantization tolerance," not as universal numerical identity
+- precision bounds and quantization tradeoffs must therefore remain documented alongside any
+  fixed-point demo or timing result
+
 ## Safety-First Smoothing
 
 The named `safety_first` profile is a conservative two-stage causal preconditioner for derivative estimation: a bounded moving average followed by a low-alpha exponential smoother.

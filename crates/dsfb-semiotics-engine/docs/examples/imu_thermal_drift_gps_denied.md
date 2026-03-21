@@ -32,4 +32,9 @@ Expected structural interpretation, conservatively framed:
 - semantics may return a conservative drift-compatible or event-compatible motif, or remain
   ambiguity-qualified, depending on the current bank contents
 
+Expected timeline artifact after a normal run:
+
+- `csv/imu_thermal_drift_gps_denied_event_timeline.csv`
+- `json/imu_thermal_drift_gps_denied_event_timeline.json`
+
 This is a synthetic A-PNT illustration, not a claim of GPS-denied field validation.

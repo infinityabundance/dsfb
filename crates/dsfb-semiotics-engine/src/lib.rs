@@ -43,6 +43,11 @@ pub use engine::types::{
 };
 pub use io::schema::{ARTIFACT_SCHEMA_VERSION, HEURISTIC_BANK_SCHEMA_VERSION};
 pub use live::{
+    contract::{
+        build_real_time_contract_summary, estimate_online_memory_budget,
+        online_path_allocation_audit, OnlineAllocationAuditFinding, OnlineMemoryBudgetEstimate,
+        RealTimeContractSummary, REAL_TIME_CONTRACT_SUMMARY_SCHEMA_VERSION,
+    },
     numeric_backend_note, numeric_mode_label, real_to_f64, to_real, LiveEngineSnapshot,
     LiveEngineStatus, OnlineStructuralEngine, Real, RingBuffer,
     LIVE_ENGINE_SNAPSHOT_SCHEMA_VERSION, LIVE_ENGINE_STATUS_SCHEMA_VERSION,

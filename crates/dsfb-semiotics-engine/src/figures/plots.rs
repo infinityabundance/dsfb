@@ -364,6 +364,33 @@ where
     if table
         .panel_ids
         .iter()
+        .any(|panel_id| panel_id == "primary_magnitude_similarity")
+    {
+        let areas = root.split_evenly((3, 1));
+        for (index, panel_id) in [
+            "primary_magnitude_similarity",
+            "meta_residual_divergence",
+            "outcome_consequence",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            draw_line_panel(
+                &areas[index],
+                &extract_line_panel(table, panel_id, &["line"])?,
+                LinePanelStyle {
+                    caption_size: 22,
+                    margin: 18,
+                    x_label_area: 40,
+                    y_label_area: 76,
+                    zero_floor: true,
+                    show_legend: true,
+                },
+            )?;
+        }
+    } else if table
+        .panel_ids
+        .iter()
         .any(|panel_id| panel_id == "detectability_context")
     {
         let areas = root.split_evenly((2, 1));
@@ -655,24 +682,52 @@ where
 {
     root.fill(&WHITE_BG)?;
     let areas = root.split_evenly((3, 1));
-    for (index, panel_id) in [
-        "post_regime_candidate_scores",
-        "retrieval_filter_funnel",
-        "retrieval_stage_rejections",
-    ]
-    .into_iter()
-    .enumerate()
+    if table
+        .panel_ids
+        .iter()
+        .any(|panel_id| panel_id == "semantic_score_timeline")
     {
-        draw_bar_panel(
-            &areas[index],
-            &extract_bar_panel(table, panel_id)?,
-            BarPanelStyle {
-                caption_size: 24,
-                margin: 18,
-                x_label_area: 44,
-                y_label_area: 56,
-            },
-        )?;
+        for (index, panel_id) in [
+            "semantic_score_timeline",
+            "semantic_candidate_count_timeline",
+            "semantic_disposition_timeline",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            draw_line_panel(
+                &areas[index],
+                &extract_line_panel(table, panel_id, &["line"])?,
+                LinePanelStyle {
+                    caption_size: 22,
+                    margin: 18,
+                    x_label_area: 40,
+                    y_label_area: 76,
+                    zero_floor: true,
+                    show_legend: true,
+                },
+            )?;
+        }
+    } else {
+        for (index, panel_id) in [
+            "post_regime_candidate_scores",
+            "retrieval_filter_funnel",
+            "retrieval_stage_rejections",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            draw_bar_panel(
+                &areas[index],
+                &extract_bar_panel(table, panel_id)?,
+                BarPanelStyle {
+                    caption_size: 24,
+                    margin: 18,
+                    x_label_area: 44,
+                    y_label_area: 56,
+                },
+            )?;
+        }
     }
     root.present()?;
     Ok(())
@@ -687,24 +742,66 @@ where
 {
     root.fill(&WHITE_BG)?;
     let areas = root.split_evenly((3, 1));
-    for (index, panel_id) in [
-        "comparator_first_trigger_time",
-        "comparator_onset_rank",
-        "comparator_trigger_counts",
-    ]
-    .into_iter()
-    .enumerate()
+    if table
+        .panel_ids
+        .iter()
+        .any(|panel_id| panel_id == "baseline_alarm_timing")
     {
         draw_bar_panel(
-            &areas[index],
-            &extract_bar_panel(table, panel_id)?,
+            &areas[0],
+            &extract_bar_panel(table, "baseline_alarm_timing")?,
             BarPanelStyle {
-                caption_size: 24,
+                caption_size: 22,
                 margin: 18,
                 x_label_area: 52,
-                y_label_area: 64,
+                y_label_area: 70,
             },
         )?;
+        draw_line_panel_with_segments(
+            &areas[1],
+            &extract_line_panel(table, "dsfb_grammar_timeline", &["line"])?,
+            &segment_rows(table, "dsfb_grammar_timeline"),
+            LinePanelStyle {
+                caption_size: 22,
+                margin: 18,
+                x_label_area: 40,
+                y_label_area: 84,
+                zero_floor: true,
+                show_legend: false,
+            },
+        )?;
+        draw_line_panel(
+            &areas[2],
+            &extract_line_panel(table, "dsfb_semantic_timeline", &["line"])?,
+            LinePanelStyle {
+                caption_size: 22,
+                margin: 18,
+                x_label_area: 40,
+                y_label_area: 96,
+                zero_floor: true,
+                show_legend: false,
+            },
+        )?;
+    } else {
+        for (index, panel_id) in [
+            "comparator_first_trigger_time",
+            "comparator_onset_rank",
+            "comparator_trigger_counts",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            draw_bar_panel(
+                &areas[index],
+                &extract_bar_panel(table, panel_id)?,
+                BarPanelStyle {
+                    caption_size: 24,
+                    margin: 18,
+                    x_label_area: 52,
+                    y_label_area: 64,
+                },
+            )?;
+        }
     }
     root.present()?;
     Ok(())
@@ -1222,9 +1319,17 @@ fn render_08(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<
 
 fn render_09(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_09_detectability_bound_comparison";
-    let caption = "Run-specific detectability view. The exported figure preserves the paper-facing filename while using either multi-case bound-versus-observed timing summaries or single-run residual-versus-envelope context with windowed detectability ratios, depending on the executed run.";
-    let size = (1280, 860);
     let table = figure_table(figure_tables, figure_id)?;
+    let caption = if table
+        .panel_ids
+        .iter()
+        .any(|panel_id| panel_id == "primary_magnitude_similarity")
+    {
+        "NASA Bearings paper figure. Two within-run windows are matched on similar primary residual magnitude, then contrasted by meta-residual slew and downstream grammar outcome. The figure argues conservatively that primary magnitude alone is insufficient for separation in this run."
+    } else {
+        "Run-specific detectability view. The exported figure preserves the paper-facing filename while using either multi-case bound-versus-observed timing summaries or single-run residual-versus-envelope context with windowed detectability ratios, depending on the executed run."
+    };
+    let size = (1280, 860);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_detectability_bounds(
         BitMapBackend::new(&png_path, size).into_drawing_area(),
@@ -1264,9 +1369,17 @@ fn render_11(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<
 
 fn render_12(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_12_semantic_retrieval_heuristics_bank";
-    let caption = "Run-specific constrained-retrieval process summary rendered from exported source rows. Panel 1 shows ranked post-regime candidate scores, panel 2 shows the deterministic filter funnel, and panel 3 shows stage-specific rejection counts. The figure remains within-run rather than cross-dataset.";
-    let size = (1280, 860);
     let table = figure_table(figure_tables, figure_id)?;
+    let caption = if table
+        .panel_ids
+        .iter()
+        .any(|panel_id| panel_id == "semantic_score_timeline")
+    {
+        "NASA Bearings paper figure. The panels show semantic interpretation through time: evolving top-candidate score and score margin, narrowing candidate counts, and the disposition timeline. This is a semantic-process view, not a static bank-existence summary."
+    } else {
+        "Run-specific constrained-retrieval process summary rendered from exported source rows. Panel 1 shows ranked post-regime candidate scores, panel 2 shows the deterministic filter funnel, and panel 3 shows stage-specific rejection counts. The figure remains within-run rather than cross-dataset."
+    };
+    let size = (1280, 860);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_semantic_retrieval(
         BitMapBackend::new(&png_path, size).into_drawing_area(),
@@ -1278,9 +1391,17 @@ fn render_12(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<
 
 fn render_13(figure_tables: &[FigureSourceTable], figures_dir: &Path) -> Result<FigureArtifact> {
     let figure_id = "figure_13_internal_baseline_comparators";
-    let caption = "Run-specific internal deterministic comparator activity. The panels show first-trigger timing, onset ordering, and triggered-scenario counts within the executed run. These remain within-crate comparator views only, not field benchmarks.";
-    let size = (1280, 920);
     let table = figure_table(figure_tables, figure_id)?;
+    let caption = if table
+        .panel_ids
+        .iter()
+        .any(|panel_id| panel_id == "baseline_alarm_timing")
+    {
+        "NASA Bearings paper figure. Panel A shows what the internal deterministic comparators see first, while Panels B and C show the additional DSFB grammar and semantic timelines. The figure is framed as an interpretability delta, not a performance benchmark."
+    } else {
+        "Run-specific internal deterministic comparator activity. The panels show first-trigger timing, onset ordering, and triggered-scenario counts within the executed run. These remain within-crate comparator views only, not field benchmarks."
+    };
+    let size = (1280, 920);
     let (png_path, svg_path) = figure_paths(figures_dir, figure_id);
     figure_baseline_comparators(
         BitMapBackend::new(&png_path, size).into_drawing_area(),

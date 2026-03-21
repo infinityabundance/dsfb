@@ -1,0 +1,89 @@
+{
+  "schema_version": "dsfb-semiotics-real-time-contract/v1",
+  "numeric_mode": "f64",
+  "default_history_buffer_capacity": 64,
+  "covered_symbols": [
+    "OnlineStructuralEngine::new",
+    "OnlineStructuralEngine::push_residual_sample",
+    "OnlineStructuralEngine::push_residual_sample_batch",
+    "ffi::dsfb_semiotics_engine_push_sample",
+    "ffi::dsfb_semiotics_engine_push_sample_batch"
+  ],
+  "documented_memory_profiles": [
+    {
+      "numeric_mode": "f64",
+      "channel_count": 1,
+      "history_buffer_capacity": 32,
+      "engine_handle_stack_bytes": 1384,
+      "ring_slot_bytes": 1536,
+      "retained_value_heap_bytes": 256,
+      "channel_name_storage_bytes": 24,
+      "estimated_total_bounded_bytes": 3200,
+      "note": "Estimate covers the bounded online residual window and handle-local storage only. Bank-registry and retrieval-index heaps are initialization-time assets and are excluded from this growth budget."
+    },
+    {
+      "numeric_mode": "f64",
+      "channel_count": 1,
+      "history_buffer_capacity": 64,
+      "engine_handle_stack_bytes": 1384,
+      "ring_slot_bytes": 3072,
+      "retained_value_heap_bytes": 512,
+      "channel_name_storage_bytes": 24,
+      "estimated_total_bounded_bytes": 4992,
+      "note": "Estimate covers the bounded online residual window and handle-local storage only. Bank-registry and retrieval-index heaps are initialization-time assets and are excluded from this growth budget."
+    },
+    {
+      "numeric_mode": "f64",
+      "channel_count": 3,
+      "history_buffer_capacity": 64,
+      "engine_handle_stack_bytes": 1384,
+      "ring_slot_bytes": 3072,
+      "retained_value_heap_bytes": 1536,
+      "channel_name_storage_bytes": 72,
+      "estimated_total_bounded_bytes": 6064,
+      "note": "Estimate covers the bounded online residual window and handle-local storage only. Bank-registry and retrieval-index heaps are initialization-time assets and are excluded from this growth budget."
+    },
+    {
+      "numeric_mode": "f64",
+      "channel_count": 3,
+      "history_buffer_capacity": 128,
+      "engine_handle_stack_bytes": 1384,
+      "ring_slot_bytes": 6144,
+      "retained_value_heap_bytes": 3072,
+      "channel_name_storage_bytes": 72,
+      "estimated_total_bounded_bytes": 10672,
+      "note": "Estimate covers the bounded online residual window and handle-local storage only. Bank-registry and retrieval-index heaps are initialization-time assets and are excluded from this growth budget."
+    }
+  ],
+  "no_heap_alloc_after_init_verified": false,
+  "allocation_audit_findings": [
+    {
+      "phase": "initialization",
+      "symbol": "OnlineStructuralEngine::new",
+      "allocation_behavior": "allowed",
+      "note": "Ring-buffer slots, channel names, builtin/external bank registry, and retrieval index are allocated at initialization time."
+    },
+    {
+      "phase": "per-sample",
+      "symbol": "OnlineStructuralEngine::push_residual_sample",
+      "allocation_behavior": "present",
+      "note": "The hot path still materializes bounded Vec-backed residual, drift, slew, sign, and status structures per step. These allocations are bounded by channel_count and history_buffer_capacity, but they are not yet eliminated."
+    },
+    {
+      "phase": "optional offline accumulation",
+      "symbol": "OnlineStructuralEngine::offline_history",
+      "allocation_behavior": "opt-in",
+      "note": "Offline accumulation is disabled by default. When enabled, it grows for export and forensics and is explicitly outside the bounded live-state contract."
+    },
+    {
+      "phase": "status/query wrappers",
+      "symbol": "LiveEngineStatus / FFI copy helpers",
+      "allocation_behavior": "present",
+      "note": "Owned status strings and selected heuristic ID vectors remain allocation-bearing at the interface boundary."
+    }
+  ],
+  "no_panic_policy": "The bounded hot path is audited to avoid explicit unwrap/expect/panic! in non-test online-step code. Invalid inputs return Result errors instead of panicking. This is an engineering policy and source audit, not a formal proof.",
+  "no_nan_policy": "Non-finite time or residual inputs are rejected at the live ingress boundary. Externally visible live status values are checked for finiteness before they are returned; non-finite internal values are converted into structured errors rather than emitted.",
+  "timing_report_json_path": "docs/timing_determinism_report.json",
+  "note": "This summary describes the current bounded live-path contract and explicit gaps. It does not claim certified WCET, whole-crate zero-allocation runtime, or platform certification."
+}

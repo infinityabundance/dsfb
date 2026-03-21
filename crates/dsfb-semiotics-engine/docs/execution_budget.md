@@ -5,6 +5,7 @@ The crate now ships a formal benchmark target at [`benches/execution_budget.rs`]
 Measured benchmark families:
 
 - one bounded online-engine step
+- one bounded online-engine batch step
 - one CSV replay-driver advance step
 - one semantic retrieval call on the builtin bank
 - one semantic retrieval call on an enlarged typed bank
@@ -13,9 +14,18 @@ Measured host-side medians from `cargo bench --bench execution_budget -- --sampl
 on the development host used for this crate pass:
 
 - bounded online engine step: about `1.63 ms`
+- bounded online engine batch step: about `1.88 ms`
 - CSV replay step: about `2.33 us`
 - semantic retrieval, builtin bank: about `12.6 us`
 - semantic retrieval, enlarged bank: about `74.2 us`
+
+Batch-versus-scalar interpretation:
+
+- on the documented host, one 3-sample batch step was slightly cheaper than three repeated scalar
+  steps when compared against the mean timing figures from the timing determinism report
+- that corresponds to an observed call-overhead reduction of roughly `1.8%` on this host
+- the crate still recommends batch ingestion as the primary API for multi-axis or IMU-class feeds
+  because the interface semantics stay deterministic while FFI call count drops materially
 
 What this benchmark is and is not:
 

@@ -124,6 +124,15 @@ Those sample subsets include:
 - `replay_inputs/observed.csv`
 - `replay_inputs/predicted.csv`
 
+Sample-versus-full packaging:
+
+- `examples/public_dataset_demo/...` is the lightweight sample-grade inspection surface checked
+  into the repository
+- `artifacts/public_dataset_demo/.../latest/` is the full regenerated artifact surface for the
+  current local run
+- sample artifacts are intended for immediate inspection; full artifacts are the reproducible
+  regeneration target
+
 ## Dashboard Replay
 
 Replay the primary NASA Milling processed CSV pair through the deterministic dashboard:

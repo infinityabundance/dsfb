@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use anyhow::Result;
 use serde::Serialize;
 
+use crate::engine::event_timeline::build_scenario_event_timeline;
 use crate::engine::pipeline_artifacts::figures::write_summary_figure_source_tables;
 use crate::engine::types::{EngineOutputBundle, FigureArtifact};
 use crate::evaluation::types::{FigureIntegrityCheck, SweepPointResult, SweepRunSummary};
@@ -159,6 +160,21 @@ pub(crate) fn write_tabular_artifacts(
     )?;
 
     for scenario in &bundle.scenario_outputs {
+        let event_timeline = build_scenario_event_timeline(bundle, scenario)?;
+        write_rows(
+            layout
+                .csv_dir
+                .join(format!("{}_event_timeline.csv", scenario.record.id))
+                .as_path(),
+            event_timeline.clone(),
+        )?;
+        write_pretty(
+            layout
+                .json_dir
+                .join(format!("{}_event_timeline.json", scenario.record.id))
+                .as_path(),
+            &event_timeline,
+        )?;
         write_rows(
             layout
                 .csv_dir

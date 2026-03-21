@@ -4,6 +4,12 @@
 
 This document defines the software interface boundary for the `dsfb-semiotics-engine` deployment surface, with particular emphasis on the C ABI / FFI boundary intended for integration into larger systems.
 
+Transition-critical companion references:
+
+- [`REAL_TIME_CONTRACT.md`](REAL_TIME_CONTRACT.md)
+- [`TIMING_DETERMINISM_REPORT.md`](TIMING_DETERMINISM_REPORT.md)
+- [`generated/real_time_contract_summary.json`](generated/real_time_contract_summary.json)
+
 This ICD is written for systems engineers, flight-software engineers, and integration teams who require:
 - deterministic interface behavior,
 - bounded online state behavior,
@@ -64,16 +70,22 @@ This software supports multiple numeric/runtime modes in the crate architecture,
 - enabled optional features
 
 ### 4.3 Memory footprint table
-Populate this table with **measured values from the actual crate build**, not estimates:
+Current documented bounded-live profiles from the generated contract summary:
 
 | Build Mode | Buffer Capacity | Channels | Approx. Online State Bytes | Notes |
 |---|---:|---:|---:|---|
-| `f32` | 32 | 1 | TBD | Measure from compiled build |
-| `f32` | 64 | 3 | TBD | Measure from compiled build |
-| `f64` | 32 | 1 | TBD | Measure from compiled build |
-| `f64` | 64 | 3 | TBD | Measure from compiled build |
+| `f64` | 32 | 1 | 3200 | bounded live handle + ring slots + retained value storage |
+| `f64` | 64 | 1 | 4992 | default single-channel profile |
+| `f64` | 64 | 3 | 6064 | default 3-axis profile |
+| `f64` | 128 | 3 | 10672 | enlarged bounded profile |
 
-**Rule:** this table must be generated from a measurement script or build-time report, not entered manually.
+Interpretation:
+
+- these values cover the bounded live path only
+- bank registry and retrieval index remain initialization-time assets and are excluded from this
+  growth budget
+- the authoritative machine-readable source is
+  [`generated/real_time_contract_summary.json`](generated/real_time_contract_summary.json)
 
 ---
 
@@ -88,14 +100,14 @@ The engine is designed as a deterministic mapping under fixed:
 The paper explicitly ties the structural semiotics engine to deterministic interpretability and certifiable early-warning inference under fixed conditions. 
 
 ### 5.1 Error handling contract
-Populate this table with actual codes from the FFI/API:
+The current FFI and bounded-live error policy is numeric-code-first and string-second:
 
 | Error Code | Meaning | Engine State After Error | Recoverable? | Caller Action |
 |---|---|---|---|---|
-| TBD | invalid handle | unchanged / invalid | no | recreate handle |
-| TBD | malformed input | unchanged | yes | correct input |
-| TBD | bank validation failure | engine not initialized | no | correct configuration |
-| TBD | replay end-of-stream | finalized / unchanged | yes | stop or reset |
+| invalid handle | opaque handle was null or stale | unchanged / invalid | no | recreate handle |
+| invalid input | non-finite time, wrong channel width, or malformed batch | unchanged | yes | correct input and retry |
+| bank/config init failure | bank or envelope setup rejected | engine not initialized | no | fix configuration |
+| replay end-of-stream | replay consumed all rows | unchanged | yes | stop or reset |
 
 ### 5.2 Determinism rule
 For any error that returns to the caller:
@@ -113,20 +125,22 @@ This matters more than the code number itself.
 The interface shall be auditable with respect to execution time under documented build conditions.
 
 ### 6.2 Measured timing
-Populate this section from actual benchmark artifacts:
+Observed host-side measurements from [`TIMING_DETERMINISM_REPORT.md`](TIMING_DETERMINISM_REPORT.md):
 
-| Target | Build Mode | Scenario | Mean Step Time | p95 | p99 | Notes |
+| Target | Build Mode | Scenario | Median | p95 | p99 | Max | Notes |
 |---|---|---|---:|---:|---:|---|
-| Host x86_64 | release | scalar online step | TBD | TBD | TBD | measured |
-| ARM target | release | scalar online step | TBD | TBD | TBD | measured if available |
+| Host x86_64 | release | scalar online step | 616728 ns | 763010 ns | 981176 ns | 992276 ns | observed only |
+| Host x86_64 | release | batch online step | 1873025 ns | 1908592 ns | 1951953 ns | 2117250 ns | observed only |
+| Host x86_64 | release | grammar admissible | 1373 ns | 1403 ns | 1422 ns | 1433 ns | observed only |
+| Host x86_64 | release | grammar violation-like | 1473 ns | 1522 ns | 2314 ns | 3046 ns | observed only |
+| Host x86_64 | release | semantic retrieval builtin bank | 38762 ns | 41457 ns | 62627 ns | 112379 ns | observed only |
+| Host x86_64 | release | semantic retrieval enlarged bank | 187509 ns | 191617 ns | 197086 ns | 201735 ns | observed only |
 
-### 6.3 Timing jitter chart
-Include:
-- a 10,000-step run chart,
-- histogram,
-- and summary statistics.
+Observed-vs-certified rule:
 
-If ARM measurements are not yet available, say so explicitly. Do not claim them.
+- the ICD may cite observed timing
+- the ICD does not claim certified WCET
+- target-hardware timing must be remeasured on the target
 
 ---
 
@@ -138,6 +152,7 @@ Document all externally stable structures, especially:
 - numeric status code enums
 - trust scalar range
 - semantic disposition enums
+- batch-ingestion ordering semantics
 
 ---
 
@@ -149,6 +164,7 @@ Document:
 - header generation / inclusion
 - compiler assumptions
 - C++ wrapper usage if provided
+- reference batch-ingestion examples for multi-axis integration
 
 ---
 
