@@ -58,5 +58,9 @@ pub(crate) fn write_report_bundle(
 }
 
 pub(crate) fn write_zip_bundle(run_dir: &Path, zip_path: &Path) -> Result<()> {
-    zip_directory(run_dir, zip_path)
+    let archive_root_name = zip_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or("dsfb-semiotics-engine-bundle");
+    zip_directory(run_dir, zip_path, archive_root_name)
 }

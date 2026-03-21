@@ -68,10 +68,8 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
     let manifest_path = layout.run_dir.join("manifest.json");
     let report_markdown_path = layout.report_dir.join("dsfb_semiotics_engine_report.md");
     let report_pdf_path = layout.report_dir.join("dsfb_semiotics_engine_report.pdf");
-    let zip_path = layout.run_dir.join(format!(
-        "dsfb-semiotics-engine-{}.zip",
-        bundle.run_metadata.timestamp
-    ));
+    let archive_stem = archive_bundle_stem(bundle);
+    let zip_path = layout.run_dir.join(format!("{archive_stem}.zip"));
 
     let initial_manifest = build_report_manifest(
         bundle,
@@ -157,4 +155,43 @@ pub fn export_artifacts(bundle: &EngineOutputBundle) -> Result<ExportedArtifacts
             })
             .collect(),
     })
+}
+
+fn archive_bundle_stem(bundle: &EngineOutputBundle) -> String {
+    format!(
+        "{}-dsfb-semiotics-engine-{}",
+        archive_bundle_prefix(bundle),
+        bundle.run_metadata.timestamp
+    )
+}
+
+fn archive_bundle_prefix(bundle: &EngineOutputBundle) -> String {
+    if bundle.run_metadata.input_mode.starts_with("synthetic") {
+        return "synthetic".to_string();
+    }
+    if bundle
+        .scenario_outputs
+        .iter()
+        .any(|scenario| scenario.record.id.starts_with("nasa_milling"))
+    {
+        return "nasa_milling".to_string();
+    }
+    if bundle
+        .scenario_outputs
+        .iter()
+        .any(|scenario| scenario.record.id.starts_with("nasa_bearings"))
+    {
+        return "nasa_bearings".to_string();
+    }
+    if bundle.run_metadata.input_mode == "csv" {
+        return "csv".to_string();
+    }
+    bundle
+        .run_metadata
+        .input_mode
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
 }

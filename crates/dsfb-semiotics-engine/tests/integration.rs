@@ -27,6 +27,7 @@ use dsfb_semiotics_engine::sim::generators::synthesize;
 use dsfb_semiotics_engine::sim::scenarios::all_scenarios;
 use serde::Deserialize;
 use tempfile::TempDir;
+use zip::ZipArchive;
 
 #[test]
 fn residual_computation_matches_observation_minus_prediction() {
@@ -667,6 +668,38 @@ fn artifact_bundle_contains_manifest_report_zip_and_reproducibility_schema() {
     let reproducibility_checks = exported.run_dir.join("json/reproducibility_checks.json");
     assert!(reproducibility_summary.exists());
     assert!(reproducibility_checks.exists());
+}
+
+#[test]
+fn synthetic_zip_name_and_root_folder_use_synthetic_prefix() {
+    let temp = TempDir::new().unwrap();
+    let engine = StructuralSemioticsEngine::new(EngineConfig {
+        seed: 123,
+        steps: 80,
+        dt: 1.0,
+        output_root: Some(temp.path().join("artifacts")),
+        bank: dsfb_semiotics_engine::engine::config::BankRunConfig::default(),
+        scenario_selection: ScenarioSelection::Single("gradual_degradation".to_string()),
+    });
+
+    let bundle = engine.run_single("gradual_degradation").unwrap();
+    let exported = export_artifacts(&bundle).unwrap();
+    let zip_name = exported.zip_path.file_name().unwrap().to_string_lossy();
+    assert!(zip_name.starts_with("synthetic-dsfb-semiotics-engine-"));
+
+    let zip_root = exported
+        .zip_path
+        .file_stem()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+    let file = std::fs::File::open(&exported.zip_path).unwrap();
+    let mut archive = ZipArchive::new(file).unwrap();
+    assert!(archive.len() > 0);
+    for index in 0..archive.len() {
+        let entry = archive.by_index(index).unwrap();
+        assert!(entry.name().starts_with(&format!("{zip_root}/")));
+    }
 }
 
 #[test]
