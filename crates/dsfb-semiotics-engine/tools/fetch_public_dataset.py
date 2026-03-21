@@ -13,11 +13,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.request
 import zipfile
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from urllib.error import URLError
 
 import numpy as np
 from scipy.io import loadmat
@@ -97,16 +99,33 @@ def maybe_download_archive(dataset: str, force_download: bool) -> Path:
     if archive_path.is_file() and not force_download:
         actual = sha256_file(archive_path)
         if actual == expected_sha:
-            print(f"{dataset}: source archive already present at {archive_path}")
+            print(f"{dataset}: source archive already present at {archive_path}", flush=True)
             return archive_path
         archive_path.unlink()
 
     with tempfile.TemporaryDirectory(prefix=f"dsfb-{dataset}-download-") as temp_dir:
         temp_path = Path(temp_dir) / archive_path.name
-        print(f"{dataset}: downloading {dataset_source_url(dataset)}")
-        with urllib.request.urlopen(dataset_source_url(dataset)) as response:
-            with temp_path.open("wb") as handle:
-                shutil.copyfileobj(response, handle)
+        source_url = dataset_source_url(dataset)
+        request = urllib.request.Request(
+            source_url,
+            headers={"User-Agent": "dsfb-semiotics-engine-public-dataset-fetch/1"},
+        )
+        attempts = 3
+        for attempt in range(1, attempts + 1):
+            try:
+                print(f"{dataset}: downloading {source_url} (attempt {attempt}/{attempts})", flush=True)
+                with urllib.request.urlopen(request, timeout=120) as response:
+                    with temp_path.open("wb") as handle:
+                        shutil.copyfileobj(response, handle)
+                break
+            except (URLError, TimeoutError, OSError) as error:
+                if attempt == attempts:
+                    raise
+                print(
+                    f"{dataset}: download attempt {attempt} failed: {error}; retrying after backoff",
+                    flush=True,
+                )
+                time.sleep(3 * attempt)
         actual = sha256_file(temp_path)
         if actual != expected_sha:
             raise SystemExit(
@@ -257,22 +276,6 @@ def extract_bearings_raw_summary(force_regenerate: bool) -> None:
     archive_path = maybe_download_archive(dataset, force_download=False)
     _ims_7z, first_test_rar = ensure_bearing_intermediate_archives(archive_path)
 
-    listing = run_command(["7z", "l", "-ba", str(first_test_rar)])
-    files = []
-    for line in listing.splitlines():
-        if not line.strip() or " D...A " in line:
-            continue
-        parts = line.split()
-        if not parts:
-            continue
-        relative_path = parts[-1]
-        if relative_path.startswith("1st_test/"):
-            files.append(relative_path)
-    files = sorted(files)
-    selected = files[-64:]
-    if len(selected) != 64:
-        raise SystemExit(f"{dataset}: expected 64 selected files, got {len(selected)}")
-
     rows = []
     with tempfile.TemporaryDirectory(prefix="dsfb-nasa-bearings-") as temp_dir:
         temp_root = Path(temp_dir)
@@ -283,11 +286,21 @@ def extract_bearings_raw_summary(force_regenerate: bool) -> None:
                 "-y",
                 f"-o{temp_root}",
                 str(first_test_rar),
-                *selected,
             ],
             check=True,
             stdout=subprocess.DEVNULL,
         )
+        extracted_root = temp_root / "1st_test"
+        if not extracted_root.is_dir():
+            raise SystemExit(f"{dataset}: expected extracted directory {extracted_root}")
+        extracted_files = sorted(
+            path.relative_to(temp_root).as_posix()
+            for path in extracted_root.rglob("*")
+            if path.is_file()
+        )
+        selected = extracted_files[-64:]
+        if len(selected) != 64:
+            raise SystemExit(f"{dataset}: expected 64 selected files, got {len(selected)}")
         first_time = None
         for index, relative_path in enumerate(selected):
             timestamp_label = Path(relative_path).name
@@ -336,7 +349,7 @@ def extract_bearings_raw_summary(force_regenerate: bool) -> None:
             ),
         )
     )
-    print(f"{dataset}: wrote raw summary {raw_summary}")
+    print(f"{dataset}: wrote raw summary {raw_summary}", flush=True)
 
 
 def fetch_dataset(dataset: str, force_download: bool, force_regenerate: bool) -> None:
@@ -350,7 +363,7 @@ def fetch_dataset(dataset: str, force_download: bool, force_regenerate: bool) ->
                 raise SystemExit(
                     f"{dataset}: source archive checksum mismatch: expected {expected}, got {actual}"
                 )
-        print(f"{dataset}: using existing checked-in raw summary cache at {raw_summary}")
+        print(f"{dataset}: using existing checked-in raw summary cache at {raw_summary}", flush=True)
         return
 
     maybe_download_archive(dataset, force_download=force_download)
