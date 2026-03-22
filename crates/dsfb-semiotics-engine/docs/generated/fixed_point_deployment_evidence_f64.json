@@ -1,0 +1,67 @@
+{
+  "schema_version": "dsfb-semiotics-fixed-point-deployment-evidence/v1",
+  "numeric_mode": "f64",
+  "supported_scope": [
+    "bounded live OnlineStructuralEngine path",
+    "scalar push_residual_sample and batch push_residual_sample_batch",
+    "syntax / grammar / semantic status emitted by the live engine"
+  ],
+  "unsupported_scope": [
+    "full offline artifact pipeline",
+    "paper/report generation under numeric-fixed",
+    "whole-crate no_std or hardware qualification claims"
+  ],
+  "precision_note": "Equivalence is assessed conservatively at the live-status level: syntax label, grammar state/reason, semantic disposition, selected heuristic IDs, and trust-scalar drift within a small numeric tolerance. The current evidence is intentionally scoped to the bounded live path.",
+  "scenario_summaries": [
+    {
+      "scenario_id": "imu_thermal_drift_gps_denied",
+      "channel_count": 3,
+      "steps_processed": 96,
+      "final_syntax_label": "curvature-rich-transition",
+      "final_grammar_state": "Boundary",
+      "final_grammar_reason_code": "RecurrentBoundaryGrazing",
+      "final_semantic_disposition": "Unknown",
+      "final_semantic_disposition_code": 3,
+      "selected_heuristic_ids": [],
+      "min_trust_scalar": 0.6307757766102287,
+      "final_trust_scalar": 0.6307757766102287,
+      "max_residual_norm": 0.010126459570605708,
+      "note": "Generated from the bounded live path using the scenario residual sequence replayed sample-by-sample under the current numeric backend."
+    },
+    {
+      "scenario_id": "regime_switch",
+      "channel_count": 3,
+      "steps_processed": 96,
+      "final_syntax_label": "discrete-event-like",
+      "final_grammar_state": "Boundary",
+      "final_grammar_reason_code": "Boundary",
+      "final_semantic_disposition": "Match",
+      "final_semantic_disposition_code": 0,
+      "selected_heuristic_ids": [
+        "H-CURVATURE-RICH-TRANSITION"
+      ],
+      "min_trust_scalar": 0.7966308150667488,
+      "final_trust_scalar": 0.7966308150667488,
+      "max_residual_norm": 0.24189844931553367,
+      "note": "Generated from the bounded live path using the scenario residual sequence replayed sample-by-sample under the current numeric backend."
+    },
+    {
+      "scenario_id": "abrupt_event",
+      "channel_count": 3,
+      "steps_processed": 96,
+      "final_syntax_label": "mixed-structured",
+      "final_grammar_state": "Admissible",
+      "final_grammar_reason_code": "Admissible",
+      "final_semantic_disposition": "Match",
+      "final_semantic_disposition_code": 0,
+      "selected_heuristic_ids": [
+        "H-CURVATURE-RICH-TRANSITION"
+      ],
+      "min_trust_scalar": 1.0,
+      "final_trust_scalar": 1.0,
+      "max_residual_norm": 0.0359951747539052,
+      "note": "Generated from the bounded live path using the scenario residual sequence replayed sample-by-sample under the current numeric backend."
+    }
+  ],
+  "note": "This report is generated separately for each numeric backend. Deployment evidence is limited to the tested bounded live path and does not broaden into full-crate embedded readiness claims."
+}

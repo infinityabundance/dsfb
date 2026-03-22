@@ -102,7 +102,9 @@ fn last_error_slot() -> &'static Mutex<String> {
 }
 
 fn set_last_error(message: impl Into<String>) {
-    let mut slot = last_error_slot().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut slot = last_error_slot()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     *slot = message.into();
 }
 
@@ -410,7 +412,10 @@ pub unsafe extern "C" fn dsfb_semiotics_engine_push_sample_batch(
         .iter()
         .map(|value| to_real(*value))
         .collect::<Vec<Real>>();
-    match handle.engine.push_residual_sample_batch(times, &real_values) {
+    match handle
+        .engine
+        .push_residual_sample_batch(times, &real_values)
+    {
         Ok(status) => {
             if let Some(status) = status {
                 handle.latest_status = Some(status);
@@ -618,9 +623,7 @@ pub unsafe extern "C" fn dsfb_semiotics_engine_copy_last_error(
 /// `handle` must be a valid mutable pointer returned by
 /// `dsfb_semiotics_engine_create` and not yet destroyed.
 #[no_mangle]
-pub unsafe extern "C" fn dsfb_semiotics_engine_reset(
-    handle: *mut EngineHandle,
-) -> DsfbFfiResult {
+pub unsafe extern "C" fn dsfb_semiotics_engine_reset(handle: *mut EngineHandle) -> DsfbFfiResult {
     let Some(handle) = (unsafe { handle.as_mut() }) else {
         set_last_error("null engine handle");
         return DsfbFfiResult::NullHandle;
@@ -845,12 +848,7 @@ mod tests {
                 DsfbFfiResult::Ok
             );
             assert_eq!(
-                dsfb_semiotics_engine_push_sample_batch(
-                    handle,
-                    times.as_ptr(),
-                    values.as_ptr(),
-                    1,
-                ),
+                dsfb_semiotics_engine_push_sample_batch(handle, times.as_ptr(), values.as_ptr(), 1,),
                 DsfbFfiResult::Ok
             );
             dsfb_semiotics_engine_destroy(handle);
