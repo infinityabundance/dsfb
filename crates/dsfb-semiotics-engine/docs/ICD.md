@@ -7,7 +7,9 @@ This document defines the software interface boundary for the `dsfb-semiotics-en
 Transition-critical companion references:
 
 - [`REAL_TIME_CONTRACT.md`](REAL_TIME_CONTRACT.md)
+- [`FLIGHT_LOOP_TRUST_POSITION.md`](FLIGHT_LOOP_TRUST_POSITION.md)
 - [`TIMING_DETERMINISM_REPORT.md`](TIMING_DETERMINISM_REPORT.md)
+- [`TARGET_FACING_TIMING_DEMO.md`](TARGET_FACING_TIMING_DEMO.md)
 - [`generated/real_time_contract_summary.json`](generated/real_time_contract_summary.json)
 
 This ICD is written for systems engineers, flight-software engineers, and integration teams who require:
@@ -17,6 +19,7 @@ This ICD is written for systems engineers, flight-software engineers, and integr
 - and auditable ownership / lifecycle rules.
 
 This document does **not** claim certification, field validation, or formal platform approval. It specifies the current interface contract of the software artifact.
+It also distinguishes bounded advisory use from stronger trusted flight-critical roles.
 
 ---
 
@@ -39,7 +42,10 @@ The deployment boundary exposed through the FFI layer is intentionally narrower 
 ## 3. Integration Model
 
 ### 3.1 External inputs
-The engine accepts time-ordered residual-like or measurement-derived inputs through a stepwise push interface.
+The engine accepts time-ordered residual-like or measurement-derived inputs through:
+
+- a stepwise push interface
+- a first-class batch-ingestion path for high-rate or multi-axis integration
 
 ### 3.2 External outputs
 The engine exposes, at minimum:
@@ -117,6 +123,14 @@ For any error that returns to the caller:
 
 This matters more than the code number itself.
 
+### 5.3 Advisory versus trusted role distinction
+
+Current ICD posture:
+
+- advisory / monitor integration: supported under the documented timing, memory, and error-handling assumptions
+- direct flight-loop experiments: reasonable only when the integration owner accepts the explicit evidence and gaps
+- stronger trusted flight-critical role: not justified by this ICD alone
+
 ---
 
 ## 6. Timing Behavior
@@ -141,6 +155,8 @@ Observed-vs-certified rule:
 - the ICD may cite observed timing
 - the ICD does not claim certified WCET
 - target-hardware timing must be remeasured on the target
+- the crate now also carries a distinct constrained-profile timing note in
+  [`TARGET_FACING_TIMING_DEMO.md`](TARGET_FACING_TIMING_DEMO.md), but that remains observed timing rather than certification evidence
 
 ---
 

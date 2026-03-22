@@ -46,6 +46,8 @@ The crate now carries:
 - a C ABI and C++ wrapper
 - a Python binding
 - a real-time contract and timing report
+- a target-facing constrained-profile timing demo
+- fixed-point evidence for the tested bounded live subset
 
 ## One Concrete Number
 
@@ -53,3 +55,11 @@ On the documented Linux x86_64 host, observed worst-case bounded `push_sample` l
 timing determinism report was `992276 ns` for the scalar path under the current measurement setup.
 
 This is an observed host-side number only. It is not a certified WCET claim.
+
+Under the separate constrained-profile target-facing timing demo, the observed worst-case 3-axis
+IMU-style batch step stayed below `616028 ns` on the measured host. That is still an observed
+demonstration, not a target certification result.
+
+The current transition posture is therefore: bounded, inspectable, integration-oriented component
+under stated assumptions; not merely an interesting framework, and not a certified flight
+component.

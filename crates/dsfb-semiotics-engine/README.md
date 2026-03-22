@@ -36,22 +36,29 @@ This crate is still conservative research software, but it now carries explicit 
 surfaces for bounded integration under stated assumptions:
 
 - [Real-Time Contract](docs/REAL_TIME_CONTRACT.md)
+- [Flight-Loop Trust Position](docs/FLIGHT_LOOP_TRUST_POSITION.md)
 - [Timing Determinism Report](docs/TIMING_DETERMINISM_REPORT.md)
+- [Target-Facing Timing Demo](docs/TARGET_FACING_TIMING_DEMO.md)
+- [Fixed-Point Deployment Evidence](docs/FIXED_POINT_DEPLOYMENT_EVIDENCE.md)
 - [A-PNT Technical Brief](docs/briefs/dsfb_apnt_brief.md)
 - [IMU GPS-Denied Scenario](docs/examples/imu_thermal_drift_gps_denied.md)
 - [Decision-Grade Demo](docs/examples/decision_grade_demo.md)
+- [What Changes Operationally](docs/examples/what_changes_operationally.md)
+- [Visual Argument Map](docs/examples/visual_argument_map.md)
 - [Paper Synthetic Figures 9 / 12 / 13](docs/examples/paper_synthetic_figures_09_12_13.md)
 - [Paper Milling Figures 9 / 12 / 13](docs/examples/paper_milling_figures_09_12_13.md)
 - [Paper Bearings Figures 9 / 12 / 13](docs/examples/paper_bearings_figures_09_12_13.md)
+- [Final Transition Gap Report](docs/FINAL_TRANSITION_GAP_REPORT.md)
 - [Docs Index](docs/INDEX.md)
 
 Conservative framing:
 
 - observed timing is documented as observed host-side timing, not certified WCET
+- a separate target-facing constrained-profile timing demo now exists alongside the broader host timing report
 - the bounded live path has an explicit allocation audit; no-allocation-after-init is not yet
   claimed globally
 - batch ingestion is the primary ingestion style for multi-axis or IMU-class data
-- the `numeric-fixed` path is documented as a tested subset, not a blanket embedded-readiness claim
+- the `numeric-fixed` path is now evidenced for the bounded live subset only, not as a blanket embedded-readiness claim
 
 ## Why This Crate Exists
 
@@ -208,6 +215,22 @@ For multi-axis sensors, batch ingestion is the primary integration path.
 
 This keeps IMU-style or replay-style ingestion deterministic while reducing FFI call overhead
 relative to repeated scalar pushes.
+
+## Transition Position
+
+The current transition posture is explicit:
+
+- pilot evaluation: yes
+- bounded advisory / monitor integration under stated assumptions: yes
+- direct flight-loop experiments behind an owned integration boundary: reasonable
+- blind flight-critical trust or certification claims: no
+
+The authoritative positioning docs are:
+
+- [Flight-Loop Trust Position](docs/FLIGHT_LOOP_TRUST_POSITION.md)
+- [Real-Time Contract](docs/REAL_TIME_CONTRACT.md)
+- [Target-Facing Timing Demo](docs/TARGET_FACING_TIMING_DEMO.md)
+- [Final Transition Gap Report](docs/FINAL_TRANSITION_GAP_REPORT.md)
 
 ## Paper Figure Workflow
 
@@ -577,7 +600,7 @@ The crate currently ships additive Cargo feature flags:
 
 - `external-bank` (enabled by default): enables external heuristic-bank JSON loading alongside the builtin fallback
 - `numeric-f32`: narrows the bounded live-engine ingestion surface to `f32` while the internal deterministic math remains explicitly widened for conservative reproducibility; manifests record the selected numeric mode
-- `numeric-fixed`: enables the experimental bounded-live `q16.16` fixed-point ingress path for embedded-oriented evaluation; its supported scope and quantization tradeoffs are documented in [`docs/high_assurance_embedded.md`](docs/high_assurance_embedded.md)
+- `numeric-fixed`: enables the experimental bounded-live `q16.16` fixed-point ingress path for embedded-oriented evaluation; this is not a blanket embedded-readiness claim, and its supported scope plus quantization tradeoffs are documented in [`docs/FIXED_POINT_DEPLOYMENT_EVIDENCE.md`](docs/FIXED_POINT_DEPLOYMENT_EVIDENCE.md) and [`docs/high_assurance_embedded.md`](docs/high_assurance_embedded.md)
 
 Check the crate in `numeric-f32` mode:
 
