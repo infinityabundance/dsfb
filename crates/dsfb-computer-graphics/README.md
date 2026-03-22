@@ -17,6 +17,7 @@ This crate is intentionally standalone inside `crates/dsfb-computer-graphics`.
 - A deterministic canonical 2D scene with a moving opaque object, thin geometry, and disocclusion.
 - A baseline fixed-alpha TAA pipeline.
 - A DSFB-gated TAA pipeline that only changes the blending-control path.
+- A second fixed-budget adaptive-sampling Demo B that reallocates samples using the DSFB trust field on the reveal frame.
 - Metric computation for temporal error, trust evolution, residual magnitude, and ghost persistence.
 - Deterministic figure generation and markdown report assembly.
 - Crate-local documentation for GPU realization considerations without fabricated timings.
@@ -28,6 +29,13 @@ Run the full demo and generate artifacts:
 ```bash
 cd crates/dsfb-computer-graphics
 cargo run -- run-demo-a
+```
+
+Run the fixed-budget adaptive-sampling demo:
+
+```bash
+cd crates/dsfb-computer-graphics
+cargo run -- run-demo-b
 ```
 
 Generate only the canonical scene frames:
@@ -58,6 +66,12 @@ The crate writes deterministic outputs under `generated/`:
 - `generated/figures/fig_trust_vs_error.svg`
 - `generated/metrics.json`
 - `generated/report.md`
+- `generated/demo_b/images/reference.png`
+- `generated/demo_b/images/uniform.png`
+- `generated/demo_b/images/guided.png`
+- `generated/demo_b/figures/fig_demo_b_sampling.svg`
+- `generated/demo_b/metrics.json`
+- `generated/demo_b/report.md`
 
 ## GPU Implementation Considerations
 
@@ -76,13 +90,13 @@ See [`docs/gpu_implementation.md`](docs/gpu_implementation.md). That document us
 - The renderer is a bounded synthetic 2D study rather than a full 3D engine integration.
 - The DSFB supervisory grammar is hand-specified for interpretability, not learned or tuned for optimality.
 - The baseline is a serious but minimal fixed-alpha TAA reference, not a full production anti-ghosting stack.
-- Demo B adaptive sampling is documented as future work unless explicitly implemented by the crate artifacts.
+- Demo B is a static reveal-frame fixed-budget study rather than a full temporal SAR controller.
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
 
 ## Future Extensions
 
-- Add a rigorously evaluated adaptive-sampling demo surface that uses the same trust signal at fixed sample budget.
+- Extend Demo B from a static reveal-frame study to a temporal adaptive-sampling controller.
 - Replace nearest-neighbor reprojection with subpixel jitter and resolve filters.
 - Add comparative baselines such as variance clipping or neighborhood clamping.
 - Export richer per-frame diagnostics for external plotting or notebook analysis.

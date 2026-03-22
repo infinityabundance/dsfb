@@ -9,15 +9,25 @@ use crate::error::Result;
 use crate::frame::save_scalar_field_png;
 use crate::metrics::{analyze_demo_a, DemoAAnalysis, MetricsReport};
 use crate::plots::{
-    write_before_after_figure, write_system_diagram, write_trust_map_figure,
-    write_trust_vs_error_figure,
+    write_before_after_figure, write_demo_b_sampling_figure, write_system_diagram,
+    write_trust_map_figure, write_trust_vs_error_figure, DemoBFigureInputs,
 };
-use crate::report::write_report;
+use crate::report::{write_demo_b_report, write_report};
+use crate::sampling::{run_demo_b as run_demo_b_core, DemoBMetrics, DemoBRun};
 use crate::scene::{build_manifest, generate_sequence, SceneManifest, SceneSequence};
 use crate::taa::{run_fixed_alpha, TaaRun};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct DemoAArtifacts {
+    pub output_dir: PathBuf,
+    pub metrics_path: PathBuf,
+    pub report_path: PathBuf,
+    pub figure_paths: Vec<PathBuf>,
+    pub scene_manifest_path: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DemoBArtifacts {
     pub output_dir: PathBuf,
     pub metrics_path: PathBuf,
     pub report_path: PathBuf,
@@ -65,6 +75,38 @@ pub fn run_demo_a(config: &DemoConfig, output_dir: &Path) -> Result<DemoAArtifac
 
     Ok(DemoAArtifacts {
         output_dir: output_dir.to_path_buf(),
+        metrics_path,
+        report_path,
+        figure_paths,
+        scene_manifest_path,
+    })
+}
+
+pub fn run_demo_b(config: &DemoConfig, output_root: &Path) -> Result<DemoBArtifacts> {
+    let output_dir = output_root.join("demo_b");
+    fs::create_dir_all(&output_dir)?;
+
+    let sequence = generate_sequence(&config.scene);
+    let baseline = run_fixed_alpha(&sequence, config.baseline_alpha);
+    let dsfb = run_gated_taa(&sequence, config.dsfb_alpha_min, config.dsfb_alpha_max);
+    let analysis = analyze_demo_a(
+        &sequence,
+        &baseline,
+        &dsfb,
+        config.trust_map_frame_offset,
+        config.comparison_frame_offset,
+    )?;
+    let demo_b = run_demo_b_core(config, &sequence, &dsfb, &analysis)?;
+
+    let scene_manifest_path = write_scene_manifest(&output_dir, &sequence)?;
+    let metrics_path = write_demo_b_metrics_json(&output_dir, &demo_b.metrics)?;
+    write_demo_b_images(&output_dir, &demo_b)?;
+    let figure_paths = write_demo_b_figures(&output_dir, &demo_b)?;
+    let report_path = output_dir.join("report.md");
+    write_demo_b_report(&report_path, config, &demo_b.metrics)?;
+
+    Ok(DemoBArtifacts {
+        output_dir,
         metrics_path,
         report_path,
         figure_paths,
@@ -132,6 +174,12 @@ fn write_metrics_json(output_dir: &Path, report: &MetricsReport) -> Result<PathB
     Ok(path)
 }
 
+fn write_demo_b_metrics_json(output_dir: &Path, report: &DemoBMetrics) -> Result<PathBuf> {
+    let path = output_dir.join("metrics.json");
+    fs::write(&path, serde_json::to_string_pretty(report)?)?;
+    Ok(path)
+}
+
 fn write_figures(
     output_dir: &Path,
     sequence: &SceneSequence,
@@ -168,4 +216,83 @@ fn write_figures(
         before_after,
         trust_vs_error,
     ])
+}
+
+fn write_demo_b_images(output_dir: &Path, run: &DemoBRun) -> Result<()> {
+    let images_dir = output_dir.join("images");
+    fs::create_dir_all(&images_dir)?;
+    run.reference_frame
+        .save_png(&images_dir.join("reference.png"))?;
+    run.uniform_frame
+        .save_png(&images_dir.join("uniform.png"))?;
+    run.guided_frame.save_png(&images_dir.join("guided.png"))?;
+    save_scalar_field_png(
+        &run.uniform_error,
+        &images_dir.join("uniform_error.png"),
+        |value| {
+            let normalized = (value / 0.20).clamp(0.0, 1.0);
+            [
+                (normalized * 255.0).round() as u8,
+                (normalized * 210.0).round() as u8,
+                (20.0 * (1.0 - normalized)).round() as u8,
+                255,
+            ]
+        },
+    )?;
+    save_scalar_field_png(
+        &run.guided_error,
+        &images_dir.join("guided_error.png"),
+        |value| {
+            let normalized = (value / 0.20).clamp(0.0, 1.0);
+            [
+                (normalized * 255.0).round() as u8,
+                (normalized * 210.0).round() as u8,
+                (20.0 * (1.0 - normalized)).round() as u8,
+                255,
+            ]
+        },
+    )?;
+    save_scalar_field_png(
+        &run.guided_spp,
+        &images_dir.join("guided_spp.png"),
+        |value| {
+            let normalized = (value / run.metrics.guided_max_spp.max(1) as f32).clamp(0.0, 1.0);
+            [
+                (25.0 + 220.0 * normalized).round() as u8,
+                (50.0 + 100.0 * (1.0 - normalized)).round() as u8,
+                (75.0 + 140.0 * normalized).round() as u8,
+                255,
+            ]
+        },
+    )?;
+    save_scalar_field_png(&run.trust, &images_dir.join("trust.png"), |value| {
+        let hazard = (1.0 - value).clamp(0.0, 1.0);
+        [
+            (hazard * 255.0).round() as u8,
+            (hazard * 165.0).round() as u8,
+            0,
+            255,
+        ]
+    })?;
+    Ok(())
+}
+
+fn write_demo_b_figures(output_dir: &Path, run: &DemoBRun) -> Result<Vec<PathBuf>> {
+    let figures_dir = output_dir.join("figures");
+    fs::create_dir_all(&figures_dir)?;
+    let sampling_figure = figures_dir.join("fig_demo_b_sampling.svg");
+    write_demo_b_sampling_figure(
+        &DemoBFigureInputs {
+            reference: &run.reference_frame,
+            uniform: &run.uniform_frame,
+            guided: &run.guided_frame,
+            uniform_error: &run.uniform_error,
+            guided_error: &run.guided_error,
+            guided_spp: &run.guided_spp,
+            focus_bbox: run.focus_bbox,
+            metrics: &run.metrics,
+        },
+        &sampling_figure,
+    )?;
+    Ok(vec![sampling_figure])
 }

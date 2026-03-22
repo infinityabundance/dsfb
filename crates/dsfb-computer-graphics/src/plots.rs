@@ -5,6 +5,18 @@ use std::path::Path;
 use crate::error::Result;
 use crate::frame::{BoundingBox, Color, ImageFrame, ScalarField};
 use crate::metrics::MetricsReport;
+use crate::sampling::DemoBMetrics;
+
+pub struct DemoBFigureInputs<'a> {
+    pub reference: &'a ImageFrame,
+    pub uniform: &'a ImageFrame,
+    pub guided: &'a ImageFrame,
+    pub uniform_error: &'a ScalarField,
+    pub guided_error: &'a ScalarField,
+    pub guided_spp: &'a ScalarField,
+    pub focus_bbox: BoundingBox,
+    pub metrics: &'a DemoBMetrics,
+}
 
 pub fn write_system_diagram(path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
@@ -298,6 +310,75 @@ pub fn write_trust_vs_error_figure(metrics: &MetricsReport, path: &Path) -> Resu
     Ok(())
 }
 
+pub fn write_demo_b_sampling_figure(inputs: &DemoBFigureInputs<'_>, path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let reference_png = png_data_uri(&inputs.reference.encode_png()?);
+    let uniform_png = png_data_uri(&inputs.uniform.encode_png()?);
+    let guided_png = png_data_uri(&inputs.guided.encode_png()?);
+    let uniform_error_png =
+        png_data_uri(&field_to_image(inputs.uniform_error, error_palette).encode_png()?);
+    let guided_error_png =
+        png_data_uri(&field_to_image(inputs.guided_error, error_palette).encode_png()?);
+    let guided_spp_png = png_data_uri(
+        &field_to_image(inputs.guided_spp, |value| {
+            allocation_palette(value, inputs.metrics.guided_max_spp as f32)
+        })
+        .encode_png()?,
+    );
+
+    let box_x = inputs.focus_bbox.min_x as f32 * 2.0 + 32.0;
+    let box_y = inputs.focus_bbox.min_y as f32 * 2.0 + 90.0;
+    let box_w = inputs.focus_bbox.width() as f32 * 2.0;
+    let box_h = inputs.focus_bbox.height() as f32 * 2.0;
+
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="860" viewBox="0 0 1040 860">
+<rect width="1040" height="860" fill="#0b1320"/>
+<text x="28" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Demo B. Fixed-Budget Adaptive Sampling on the Reveal Frame</text>
+<text x="28" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Top row: reference, uniform allocation, DSFB-guided allocation. Bottom row: uniform error, DSFB error, guided sample density.</text>
+<text x="72" y="86" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Reference ({reference_spp} spp)</text>
+<text x="392" y="86" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Uniform budget ({uniform_spp} spp/pixel)</text>
+<text x="724" y="86" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB-guided fixed budget</text>
+<image href="{reference_png}" x="32" y="90" width="320" height="192" preserveAspectRatio="none"/>
+<image href="{uniform_png}" x="360" y="90" width="320" height="192" preserveAspectRatio="none"/>
+<image href="{guided_png}" x="688" y="90" width="320" height="192" preserveAspectRatio="none"/>
+<rect x="{box_x}" y="{box_y}" width="{box_w}" height="{box_h}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<rect x="{uniform_box_x}" y="{box_y}" width="{box_w}" height="{box_h}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<rect x="{guided_box_x}" y="{box_y}" width="{box_w}" height="{box_h}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="78" y="326" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Uniform absolute error</text>
+<text x="403" y="326" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB-guided absolute error</text>
+<text x="735" y="326" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Guided samples per pixel</text>
+<image href="{uniform_error_png}" x="32" y="330" width="320" height="192" preserveAspectRatio="none"/>
+<image href="{guided_error_png}" x="360" y="330" width="320" height="192" preserveAspectRatio="none"/>
+<image href="{guided_spp_png}" x="688" y="330" width="320" height="192" preserveAspectRatio="none"/>
+<text x="32" y="572" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Measured outcome</text>
+<text x="32" y="604" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Uniform MAE: {uniform_mae:.5}</text>
+<text x="32" y="628" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Guided MAE: {guided_mae:.5}</text>
+<text x="32" y="652" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Uniform ROI MAE: {uniform_roi_mae:.5}</text>
+<text x="32" y="676" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Guided ROI MAE: {guided_roi_mae:.5}</text>
+<text x="32" y="700" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">ROI mean spp: uniform {uniform_spp:.2}, guided {guided_roi_spp:.2}</text>
+<text x="32" y="724" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Guided max spp: {max_guided_spp}</text>
+<text x="32" y="764" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.</text>
+</svg>"##,
+        reference_spp = inputs.metrics.reference_spp,
+        uniform_spp = inputs.metrics.uniform_spp,
+        uniform_mae = inputs.metrics.uniform_mae,
+        guided_mae = inputs.metrics.guided_mae,
+        uniform_roi_mae = inputs.metrics.uniform_roi_mae,
+        guided_roi_mae = inputs.metrics.guided_roi_mae,
+        guided_roi_spp = inputs.metrics.roi_mean_guided_spp,
+        max_guided_spp = inputs.metrics.max_guided_spp,
+        uniform_box_x = box_x + 328.0,
+        guided_box_x = box_x + 656.0,
+    );
+
+    fs::write(path, svg)?;
+    Ok(())
+}
+
 fn trust_overlay_image(trust: &ScalarField) -> ImageFrame {
     let mut frame = ImageFrame::new(trust.width(), trust.height());
     for y in 0..trust.height() {
@@ -324,6 +405,38 @@ fn color_ramp_svg(x: f32, y: f32, width: f32, height: f32) -> String {
   </linearGradient>
 </defs>
 <rect x="{x}" y="{y}" width="{width}" height="{height}" rx="12" fill="url(#trustRamp)" stroke="#f4f7fb" stroke-width="1.5"/>"##
+    )
+}
+
+fn field_to_image(field: &ScalarField, mapper: impl Fn(f32) -> Color) -> ImageFrame {
+    let mut frame = ImageFrame::new(field.width(), field.height());
+    for y in 0..field.height() {
+        for x in 0..field.width() {
+            frame.set(x, y, mapper(field.get(x, y)));
+        }
+    }
+    frame
+}
+
+fn error_palette(value: f32) -> Color {
+    let normalized = (value / 0.20).clamp(0.0, 1.0);
+    Color::rgb(
+        0.12 + 0.88 * normalized,
+        0.08 + 0.75 * normalized.powf(0.6),
+        0.16 * (1.0 - normalized),
+    )
+}
+
+fn allocation_palette(value: f32, max_value: f32) -> Color {
+    let normalized = if max_value <= f32::EPSILON {
+        0.0
+    } else {
+        (value / max_value).clamp(0.0, 1.0)
+    };
+    Color::rgb(
+        0.10 + 0.88 * normalized,
+        0.20 + 0.55 * (1.0 - normalized),
+        0.30 + 0.50 * normalized,
     )
 }
 

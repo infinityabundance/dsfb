@@ -47,3 +47,38 @@ fn cli_demo_a_completes_and_writes_required_artifacts() {
         );
     }
 }
+
+#[test]
+fn cli_demo_b_completes_and_writes_required_artifacts() {
+    let output_dir = unique_output_dir("cli_demo_b");
+    let binary = env!("CARGO_BIN_EXE_dsfb-computer-graphics");
+    let status = Command::new(binary)
+        .arg("run-demo-b")
+        .arg("--output")
+        .arg(&output_dir)
+        .status()
+        .expect("binary should execute");
+    assert!(status.success(), "demo command should succeed");
+
+    for relative in [
+        "demo_b/metrics.json",
+        "demo_b/report.md",
+        "demo_b/scene_manifest.json",
+        "demo_b/images/reference.png",
+        "demo_b/images/uniform.png",
+        "demo_b/images/guided.png",
+        "demo_b/images/uniform_error.png",
+        "demo_b/images/guided_error.png",
+        "demo_b/images/guided_spp.png",
+        "demo_b/figures/fig_demo_b_sampling.svg",
+    ] {
+        let path = output_dir.join(relative);
+        assert!(path.exists(), "expected artifact {}", path.display());
+        let metadata = fs::metadata(&path).expect("artifact metadata should exist");
+        assert!(
+            metadata.len() > 0,
+            "artifact {} should be non-empty",
+            path.display()
+        );
+    }
+}

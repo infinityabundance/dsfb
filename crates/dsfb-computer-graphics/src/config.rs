@@ -39,6 +39,10 @@ pub struct DemoConfig {
     pub dsfb_alpha_max: f32,
     pub trust_map_frame_offset: usize,
     pub comparison_frame_offset: usize,
+    pub demo_b_reference_spp: usize,
+    pub demo_b_uniform_spp: usize,
+    pub demo_b_min_spp: usize,
+    pub demo_b_max_spp: usize,
 }
 
 impl Default for DemoConfig {
@@ -50,6 +54,10 @@ impl Default for DemoConfig {
             dsfb_alpha_max: 0.96,
             trust_map_frame_offset: 0,
             comparison_frame_offset: 2,
+            demo_b_reference_spp: 64,
+            demo_b_uniform_spp: 2,
+            demo_b_min_spp: 1,
+            demo_b_max_spp: 12,
         }
     }
 }
