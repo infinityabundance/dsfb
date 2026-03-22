@@ -10,6 +10,7 @@ This crate was implemented under an explicit boundary: only files inside `crates
 - Baseline fixed-alpha TAA and DSFB-gated TAA using the same reprojection path.
 - Metric computation for residual magnitude, trust evolution, temporal error, and ghost persistence.
 - Crate-generated artifact outputs showing baseline ghost persistence of 12 frames versus 0 frames for the DSFB-gated path on the fixed reveal mask.
+- Demo B fixed-budget adaptive sampling on the reveal frame, including deterministic sample allocation, images, metrics, and report artifacts.
 - Deterministic figure generation and report assembly.
 - Crate-local documentation including GPU realization considerations.
 
@@ -18,11 +19,11 @@ This crate was implemented under an explicit boundary: only files inside `crates
 - A production 3D engine integration.
 - Fabricated GPU benchmark numbers.
 - Claims of optimality or universal superiority.
-- A partial or placeholder adaptive-sampling demo that would dilute Demo A rigor.
+- A temporal adaptive-sampling controller beyond the reveal-frame Demo B surface.
 
 ## Future Work
 
-- Add a fixed-budget adaptive-sampling surface once it can be demonstrated with the same level of rigor as Demo A.
+- Extend Demo B from its current static reveal-frame study into a temporal controller.
 - Add stronger baselines such as neighborhood-clamped or variance-guided temporal reuse.
 - Extend the synthetic renderer toward richer geometry and depth complexity while preserving determinism.
 

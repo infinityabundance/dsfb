@@ -7,9 +7,12 @@ pub mod metrics;
 pub mod pipeline;
 pub mod plots;
 pub mod report;
+pub mod sampling;
 pub mod scene;
 pub mod taa;
 
 pub use config::{DemoConfig, SceneConfig};
 pub use error::{Error, Result};
-pub use pipeline::{generate_scene_artifacts, run_demo_a, DemoAArtifacts};
+pub use pipeline::{
+    generate_scene_artifacts, run_demo_a, run_demo_b, DemoAArtifacts, DemoBArtifacts,
+};

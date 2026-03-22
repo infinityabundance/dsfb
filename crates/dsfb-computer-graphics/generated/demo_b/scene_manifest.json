@@ -1,0 +1,16 @@
+{
+  "config": {
+    "width": 160,
+    "height": 96,
+    "frame_count": 18,
+    "object_width": 38,
+    "object_height": 44,
+    "object_start_x": 24,
+    "object_stop_x": 58,
+    "object_top_y": 26,
+    "move_frames": 6,
+    "thin_vertical_x": 54
+  },
+  "frame_count": 18,
+  "reveal_frame_guess": 6
+}

@@ -5,7 +5,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use dsfb_computer_graphics::config::DemoConfig;
 use dsfb_computer_graphics::dsfb::run_gated_taa;
 use dsfb_computer_graphics::metrics::analyze_demo_a;
-use dsfb_computer_graphics::pipeline::run_demo_a;
+use dsfb_computer_graphics::pipeline::{run_demo_a, run_demo_b};
+use dsfb_computer_graphics::sampling::run_demo_b as run_demo_b_core;
 use dsfb_computer_graphics::scene::generate_sequence;
 use dsfb_computer_graphics::taa::run_fixed_alpha;
 
@@ -155,12 +156,59 @@ fn library_demo_writes_figures_metrics_and_report() {
 }
 
 #[test]
+fn demo_b_improves_roi_error_at_fixed_budget_and_writes_artifacts() {
+    let config = DemoConfig::default();
+    let sequence = generate_sequence(&config.scene);
+    let baseline = run_fixed_alpha(&sequence, config.baseline_alpha);
+    let dsfb = run_gated_taa(&sequence, config.dsfb_alpha_min, config.dsfb_alpha_max);
+    let analysis = analyze_demo_a(
+        &sequence,
+        &baseline,
+        &dsfb,
+        config.trust_map_frame_offset,
+        config.comparison_frame_offset,
+    )
+    .expect("analysis should succeed");
+    let run = run_demo_b_core(&config, &sequence, &dsfb, &analysis).expect("demo b should run");
+
+    assert_eq!(
+        run.metrics.uniform_total_samples, run.metrics.guided_total_samples,
+        "guided sampling must preserve total budget"
+    );
+    assert!(
+        run.metrics.guided_roi_mae < run.metrics.uniform_roi_mae,
+        "guided sampling should reduce ROI MAE"
+    );
+    assert!(
+        run.metrics.roi_mean_guided_spp > run.metrics.uniform_spp as f32,
+        "guided sampling should spend more samples inside the ROI"
+    );
+
+    let output_dir = unique_output_dir("library_demo_b");
+    let artifacts = run_demo_b(&config, &output_dir).expect("demo b artifacts should be written");
+    for path in [
+        artifacts.metrics_path.as_path(),
+        artifacts.report_path.as_path(),
+        artifacts.scene_manifest_path.as_path(),
+    ] {
+        let metadata = fs::metadata(path).expect("artifact metadata should exist");
+        assert!(
+            metadata.len() > 0,
+            "artifact {} should be non-empty",
+            path.display()
+        );
+    }
+}
+
+#[test]
 fn required_exact_sentences_are_present_in_generated_report_and_docs() {
     let config = DemoConfig::default();
     let output_dir = unique_output_dir("sentence_check");
     let artifacts = run_demo_a(&config, &output_dir).expect("demo should succeed");
+    let demo_b_artifacts = run_demo_b(&config, &output_dir).expect("demo b should succeed");
 
     let report = read(&artifacts.report_path);
+    let demo_b_report = read(&demo_b_artifacts.report_path);
     let readme = read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("README.md"));
     let gpu_doc = read(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -175,6 +223,7 @@ fn required_exact_sentences_are_present_in_generated_report_and_docs() {
         "“The framework is compatible with tiled and asynchronous GPU execution.”";
 
     assert!(report.contains(experiment_sentence));
+    assert!(demo_b_report.contains(experiment_sentence));
     assert!(report.contains(cost_sentence));
     assert!(report.contains(compatibility_sentence));
     assert!(readme.contains(experiment_sentence));
