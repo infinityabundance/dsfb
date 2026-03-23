@@ -1,0 +1,24 @@
+{
+  "scenario_id": "thin_reveal",
+  "scenario_title": "Thin-Structure Reveal",
+  "scenario_description": "Moving occluder reveals thin vertical and diagonal structure on a deterministic patterned background.",
+  "expectation": "BenefitExpected",
+  "support_category": "PointLikeRoi",
+  "roi_note": "Canonical reveal ROI collapses to a single disoccluded thin-structure pixel at the default resolution. It remains mechanically relevant but statistically weak and must be reported as point-like evidence.",
+  "sampling_taxonomy": "coverage-dominated point reveal",
+  "target_label": "revealed thin structure",
+  "config": {
+    "width": 160,
+    "height": 96,
+    "frame_count": 18,
+    "object_width": 38,
+    "object_height": 44,
+    "object_start_x": 24,
+    "object_stop_x": 58,
+    "object_top_y": 26,
+    "move_frames": 6,
+    "thin_vertical_x": 54
+  },
+  "frame_count": 18,
+  "onset_frame": 6
+}

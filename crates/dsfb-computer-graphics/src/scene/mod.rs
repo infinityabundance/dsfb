@@ -8,6 +8,8 @@ pub enum ScenarioId {
     ThinReveal,
     FastPan,
     DiagonalReveal,
+    RevealBand,
+    MotionBiasBand,
     ContrastPulse,
     StabilityHoldout,
 }
@@ -18,6 +20,8 @@ impl ScenarioId {
             Self::ThinReveal => "thin_reveal",
             Self::FastPan => "fast_pan",
             Self::DiagonalReveal => "diagonal_reveal",
+            Self::RevealBand => "reveal_band",
+            Self::MotionBiasBand => "motion_bias_band",
             Self::ContrastPulse => "contrast_pulse",
             Self::StabilityHoldout => "stability_holdout",
         }
@@ -28,6 +32,8 @@ impl ScenarioId {
             Self::ThinReveal => "Thin-Structure Reveal",
             Self::FastPan => "Fast Lateral Reveal",
             Self::DiagonalReveal => "Diagonal Subpixel Reveal",
+            Self::RevealBand => "Textured Reveal Band",
+            Self::MotionBiasBand => "Motion-Bias Reveal Band",
             Self::ContrastPulse => "Contrast Pulse Stress",
             Self::StabilityHoldout => "Stability Holdout",
         }
@@ -41,16 +47,23 @@ pub enum ScenarioExpectation {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum ScenarioSupportCategory {
+    PointLikeRoi,
+    RegionRoi,
+    NegativeControl,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum SurfaceTag {
     Background,
     ThinStructure,
     ForegroundObject,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 pub struct MotionVector {
-    pub to_prev_x: i32,
-    pub to_prev_y: i32,
+    pub to_prev_x: f32,
+    pub to_prev_y: f32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -110,6 +123,9 @@ pub struct SceneSequence {
     pub scenario_title: String,
     pub scenario_description: String,
     pub expectation: ScenarioExpectation,
+    pub support_category: ScenarioSupportCategory,
+    pub roi_note: String,
+    pub sampling_taxonomy: String,
     pub onset_frame: usize,
     pub target_label: String,
     pub target_mask: Vec<bool>,
@@ -122,6 +138,9 @@ pub struct SceneManifest {
     pub scenario_title: String,
     pub scenario_description: String,
     pub expectation: ScenarioExpectation,
+    pub support_category: ScenarioSupportCategory,
+    pub roi_note: String,
+    pub sampling_taxonomy: String,
     pub target_label: String,
     pub config: SceneConfig,
     pub frame_count: usize,
@@ -134,6 +153,9 @@ pub struct ScenarioDefinition {
     pub title: &'static str,
     pub description: &'static str,
     pub expectation: ScenarioExpectation,
+    pub support_category: ScenarioSupportCategory,
+    pub roi_note: &'static str,
+    pub sampling_taxonomy: &'static str,
     pub target_label: &'static str,
     pub scene: SceneConfig,
     pub onset_frame: usize,
@@ -151,6 +173,8 @@ enum BackgroundStyle {
 enum ThinStyle {
     VerticalAndDiagonal,
     DiagonalOnly,
+    MixedWidthBand,
+    MixedWidthBandBiased,
     None,
 }
 
@@ -174,6 +198,9 @@ struct InternalScenarioSpec {
     title: &'static str,
     description: &'static str,
     expectation: ScenarioExpectation,
+    support_category: ScenarioSupportCategory,
+    roi_note: &'static str,
+    sampling_taxonomy: &'static str,
     target_label: &'static str,
     scene: SceneConfig,
     onset_frame: usize,
@@ -190,6 +217,9 @@ pub fn canonical_scenario(config: &SceneConfig) -> ScenarioDefinition {
         title: spec.title,
         description: spec.description,
         expectation: spec.expectation,
+        support_category: spec.support_category,
+        roi_note: spec.roi_note,
+        sampling_taxonomy: spec.sampling_taxonomy,
         target_label: spec.target_label,
         scene: spec.scene,
         onset_frame: spec.onset_frame,
@@ -204,6 +234,9 @@ pub fn scenario_suite(config: &SceneConfig) -> Vec<ScenarioDefinition> {
             title: spec.title,
             description: spec.description,
             expectation: spec.expectation,
+            support_category: spec.support_category,
+            roi_note: spec.roi_note,
+            sampling_taxonomy: spec.sampling_taxonomy,
             target_label: spec.target_label,
             scene: spec.scene,
             onset_frame: spec.onset_frame,
@@ -220,6 +253,9 @@ pub fn scenario_by_id(config: &SceneConfig, scenario_id: ScenarioId) -> Option<S
             title: spec.title,
             description: spec.description,
             expectation: spec.expectation,
+            support_category: spec.support_category,
+            roi_note: spec.roi_note,
+            sampling_taxonomy: spec.sampling_taxonomy,
             target_label: spec.target_label,
             scene: spec.scene,
             onset_frame: spec.onset_frame,
@@ -239,6 +275,9 @@ pub fn generate_sequence_for_definition(definition: &ScenarioDefinition) -> Scen
             title: definition.title,
             description: definition.description,
             expectation: definition.expectation,
+            support_category: definition.support_category,
+            roi_note: definition.roi_note,
+            sampling_taxonomy: definition.sampling_taxonomy,
             target_label: definition.target_label,
             scene: definition.scene.clone(),
             onset_frame: definition.onset_frame,
@@ -256,6 +295,9 @@ pub fn build_manifest(sequence: &SceneSequence) -> SceneManifest {
         scenario_title: sequence.scenario_title.clone(),
         scenario_description: sequence.scenario_description.clone(),
         expectation: sequence.expectation,
+        support_category: sequence.support_category,
+        roi_note: sequence.roi_note.clone(),
+        sampling_taxonomy: sequence.sampling_taxonomy.clone(),
         target_label: sequence.target_label.clone(),
         config: sequence.config.clone(),
         frame_count: sequence.frames.len(),
@@ -285,8 +327,8 @@ fn generate_sequence_for_scenario(spec: &InternalScenarioSpec) -> SceneSequence 
         let mut layers = vec![SurfaceTag::Background; spec.scene.width * spec.scene.height];
         let mut motion = vec![
             MotionVector {
-                to_prev_x: 0,
-                to_prev_y: 0,
+                to_prev_x: 0.0,
+                to_prev_y: 0.0,
             };
             spec.scene.width * spec.scene.height
         ];
@@ -332,11 +374,22 @@ fn generate_sequence_for_scenario(spec: &InternalScenarioSpec) -> SceneSequence 
                 normals[pixel_index] = normal_value.normalized();
                 if matches!(layer, SurfaceTag::ForegroundObject) {
                     motion[pixel_index] = MotionVector {
-                        to_prev_x: -object_dx,
-                        to_prev_y: 0,
+                        to_prev_x: -(object_dx as f32),
+                        to_prev_y: 0.0,
                     };
                 }
             }
+        }
+
+        if matches!(spec.id, ScenarioId::MotionBiasBand) {
+            apply_motion_bias_band(
+                frame_index,
+                spec,
+                &mut motion,
+                &mut depth,
+                &mut normals,
+                &layers,
+            );
         }
 
         let disocclusion_mask = if frame_index == 0 {
@@ -348,10 +401,10 @@ fn generate_sequence_for_scenario(spec: &InternalScenarioSpec) -> SceneSequence 
                 for x in 0..spec.scene.width {
                     let index = y * spec.scene.width + x;
                     let motion_vector = motion[index];
-                    let prev_x = (x as i32 + motion_vector.to_prev_x)
+                    let prev_x = ((x as f32 + motion_vector.to_prev_x).round() as i32)
                         .clamp(0, spec.scene.width as i32 - 1)
                         as usize;
-                    let prev_y = (y as i32 + motion_vector.to_prev_y)
+                    let prev_y = ((y as f32 + motion_vector.to_prev_y).round() as i32)
                         .clamp(0, spec.scene.height as i32 - 1)
                         as usize;
                     let previous_layer = previous_layers[prev_y * spec.scene.width + prev_x];
@@ -382,6 +435,9 @@ fn generate_sequence_for_scenario(spec: &InternalScenarioSpec) -> SceneSequence 
         scenario_title: spec.title.to_string(),
         scenario_description: spec.description.to_string(),
         expectation: spec.expectation,
+        support_category: spec.support_category,
+        roi_note: spec.roi_note.to_string(),
+        sampling_taxonomy: spec.sampling_taxonomy.to_string(),
         onset_frame: spec.onset_frame,
         target_label: spec.target_label.to_string(),
         target_mask,
@@ -395,12 +451,41 @@ fn build_target_mask(spec: &InternalScenarioSpec, frames: &[SceneFrame]) -> Vec<
     let frame = &frames[spec.onset_frame.min(frames.len().saturating_sub(1))];
 
     match spec.id {
-        ScenarioId::ThinReveal | ScenarioId::FastPan | ScenarioId::DiagonalReveal => frame
+        ScenarioId::ThinReveal | ScenarioId::DiagonalReveal => frame
             .layers
             .iter()
             .zip(frame.disocclusion_mask.iter().copied())
             .map(|(layer, disoccluded)| disoccluded && matches!(*layer, SurfaceTag::ThinStructure))
             .collect(),
+        ScenarioId::FastPan => frame
+            .layers
+            .iter()
+            .zip(frame.disocclusion_mask.iter().copied())
+            .map(|(layer, disoccluded)| {
+                disoccluded && matches!(*layer, SurfaceTag::ThinStructure | SurfaceTag::Background)
+            })
+            .collect(),
+        ScenarioId::RevealBand | ScenarioId::MotionBiasBand => {
+            let mut mask = vec![false; width * height];
+            let band = Rect {
+                x: 28,
+                y: 20,
+                width: (width as i32 - 56).max(24),
+                height: (height as i32 - 40).max(18),
+            };
+            for y in 0..height {
+                for x in 0..width {
+                    let index = y * width + x;
+                    if frame.disocclusion_mask[index]
+                        && band.contains(x as i32, y as i32)
+                        && !matches!(frame.layers[index], SurfaceTag::ForegroundObject)
+                    {
+                        mask[index] = true;
+                    }
+                }
+            }
+            mask
+        }
         ScenarioId::ContrastPulse => {
             let pulse = spec
                 .pulse
@@ -449,6 +534,9 @@ fn internal_canonical_spec(config: &SceneConfig) -> InternalScenarioSpec {
         title: ScenarioId::ThinReveal.title(),
         description: "Moving occluder reveals thin vertical and diagonal structure on a deterministic patterned background.",
         expectation: ScenarioExpectation::BenefitExpected,
+        support_category: ScenarioSupportCategory::PointLikeRoi,
+        roi_note: "Canonical reveal ROI collapses to a single disoccluded thin-structure pixel at the default resolution. It remains mechanically relevant but statistically weak and must be reported as point-like evidence.",
+        sampling_taxonomy: "coverage-dominated point reveal",
         target_label: "revealed thin structure",
         scene: config.clone(),
         onset_frame: config.move_frames.min(config.frame_count.saturating_sub(2)),
@@ -477,6 +565,21 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
     diagonal_scene.move_frames = 5;
     diagonal_scene.thin_vertical_x = 70;
 
+    let mut reveal_band_scene = config.clone();
+    reveal_band_scene.object_width = 28;
+    reveal_band_scene.object_height = 52;
+    reveal_band_scene.object_start_x = 12;
+    reveal_band_scene.object_stop_x = 88;
+    reveal_band_scene.object_top_y = 22;
+    reveal_band_scene.move_frames = 5;
+    reveal_band_scene.thin_vertical_x = 40;
+
+    let mut motion_bias_scene = reveal_band_scene.clone();
+    motion_bias_scene.object_width = 24;
+    motion_bias_scene.object_start_x = 18;
+    motion_bias_scene.object_stop_x = 84;
+    motion_bias_scene.move_frames = 6;
+
     let mut contrast_scene = config.clone();
     contrast_scene.object_start_x = 20;
     contrast_scene.object_stop_x = 20;
@@ -494,6 +597,9 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             title: ScenarioId::FastPan.title(),
             description: "Faster occluder motion over a textured backdrop stresses motion disagreement, depth rejection, and neighborhood stability.",
             expectation: ScenarioExpectation::BenefitExpected,
+            support_category: ScenarioSupportCategory::RegionRoi,
+            roi_note: "The ROI is a small but regional disocclusion strip rather than a single point. It is still sparse and should not be mixed with large-band ROI results without disclosure.",
+            sampling_taxonomy: "thin-band reveal with textured background",
             target_label: "fast-pan reveal region",
             scene: fast_pan_scene.clone(),
             onset_frame: fast_pan_scene.move_frames.min(fast_pan_scene.frame_count.saturating_sub(2)),
@@ -507,6 +613,9 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             title: ScenarioId::DiagonalReveal.title(),
             description: "Diagonal subpixel structure on a high-contrast background stresses neighborhood clamping and thin-structure proxies.",
             expectation: ScenarioExpectation::BenefitExpected,
+            support_category: ScenarioSupportCategory::PointLikeRoi,
+            roi_note: "At default resolution the diagonal reveal also reduces to point-like support. It is useful for aliasing behavior, but not as a region-sized aggregate claim.",
+            sampling_taxonomy: "subpixel diagonal coverage case",
             target_label: "diagonal thin reveal",
             scene: diagonal_scene.clone(),
             onset_frame: diagonal_scene.move_frames.min(diagonal_scene.frame_count.saturating_sub(2)),
@@ -516,10 +625,45 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             pulse: None,
         },
         InternalScenarioSpec {
+            id: ScenarioId::RevealBand,
+            title: ScenarioId::RevealBand.title(),
+            description: "Mixed-width slats and textured disocclusion band reveal a materially larger ROI and reduce the canonical point-measurement weakness.",
+            expectation: ScenarioExpectation::BenefitExpected,
+            support_category: ScenarioSupportCategory::RegionRoi,
+            roi_note: "This scenario is intentionally region-sized so cumulative ROI metrics are not driven by a single pixel.",
+            sampling_taxonomy: "mixed-width reveal band with aliasing and texture",
+            target_label: "textured reveal band",
+            scene: reveal_band_scene.clone(),
+            onset_frame: reveal_band_scene.move_frames.min(reveal_band_scene.frame_count.saturating_sub(2)),
+            background_style: BackgroundStyle::Textured,
+            thin_style: ThinStyle::MixedWidthBand,
+            motion_profile: MotionProfile::EaseOut,
+            pulse: None,
+        },
+        InternalScenarioSpec {
+            id: ScenarioId::MotionBiasBand,
+            title: ScenarioId::MotionBiasBand.title(),
+            description: "A region-sized reveal with biased background motion and reprojection mismatch stresses whether motion disagreement contributes beyond residual and neighborhood cues.",
+            expectation: ScenarioExpectation::BenefitExpected,
+            support_category: ScenarioSupportCategory::RegionRoi,
+            roi_note: "This is a region ROI with deliberately imperfect motion information. It is the main scenario used to decide whether motion disagreement belongs in the minimum path.",
+            sampling_taxonomy: "motion-mismatch reveal band",
+            target_label: "motion-bias reveal band",
+            scene: motion_bias_scene.clone(),
+            onset_frame: motion_bias_scene.move_frames.min(motion_bias_scene.frame_count.saturating_sub(2)),
+            background_style: BackgroundStyle::Textured,
+            thin_style: ThinStyle::MixedWidthBandBiased,
+            motion_profile: MotionProfile::FastPan,
+            pulse: None,
+        },
+        InternalScenarioSpec {
             id: ScenarioId::ContrastPulse,
             title: ScenarioId::ContrastPulse.title(),
             description: "A bounded lighting change with no geometry reveal stresses false positives and is intended as a low-benefit honesty case rather than a DSFB win scenario.",
             expectation: ScenarioExpectation::NeutralExpected,
+            support_category: ScenarioSupportCategory::NegativeControl,
+            roi_note: "This negative control uses a large ROI on purpose, but it is not a benefit-expected disocclusion case.",
+            sampling_taxonomy: "negative control",
             target_label: "pulse region",
             scene: contrast_scene.clone(),
             onset_frame: base_onset,
@@ -542,6 +686,9 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             title: ScenarioId::StabilityHoldout.title(),
             description: "Static holdout case with no reveal event. Useful for verifying low false-positive intervention and bounded neutral behavior.",
             expectation: ScenarioExpectation::NeutralExpected,
+            support_category: ScenarioSupportCategory::NegativeControl,
+            roi_note: "This is a negative-control background patch used to bound non-ROI damage and false-positive intervention.",
+            sampling_taxonomy: "negative control",
             target_label: "holdout background patch",
             scene: holdout_scene,
             onset_frame: base_onset,
@@ -649,9 +796,20 @@ fn is_thin_structure(x: i32, y: i32, config: &SceneConfig, style: ThinStyle) -> 
         let diagonal = 0.58 * x as f32 + 10.0;
         (y as f32 - diagonal).abs() <= 0.55 && (28..=118).contains(&x)
     };
+    let mixed_width_band = {
+        let in_band = (18..=(config.height as i32 - 18)).contains(&y)
+            && (26..=(config.width as i32 - 24)).contains(&x);
+        let thin_slats = (x - 28).rem_euclid(11) == 0;
+        let medium_slats = (x - 34).rem_euclid(19) <= 1;
+        let wide_slats = (x - 48).rem_euclid(29) <= 2;
+        let diagonal = (y as f32 - (0.44 * x as f32 + 12.0)).abs() <= 1.15
+            && (38..=(config.width as i32 - 32)).contains(&x);
+        in_band && (thin_slats || medium_slats || wide_slats || diagonal)
+    };
     match style {
         ThinStyle::VerticalAndDiagonal => vertical || diagonal_line,
         ThinStyle::DiagonalOnly => diagonal_line,
+        ThinStyle::MixedWidthBand | ThinStyle::MixedWidthBandBiased => mixed_width_band,
         ThinStyle::None => false,
     }
 }
@@ -664,6 +822,22 @@ fn thin_structure_color(x: i32, y: i32, config: &SceneConfig, style: ThinStyle) 
         }
         ThinStyle::DiagonalOnly => Color::rgb(0.24, 0.29, 0.35),
         ThinStyle::VerticalAndDiagonal => Color::rgb(0.64, 0.90, 0.96),
+        ThinStyle::MixedWidthBand => {
+            let phase = ((x + 2 * y) % 9) as f32 / 8.0;
+            Color::rgb(
+                0.22 + 0.48 * phase,
+                0.58 + 0.26 * phase,
+                0.84 + 0.12 * (1.0 - phase),
+            )
+        }
+        ThinStyle::MixedWidthBandBiased => {
+            let phase = ((2 * x + y) % 13) as f32 / 12.0;
+            Color::rgb(
+                0.78 + 0.16 * phase,
+                0.74 + 0.10 * (1.0 - phase),
+                0.26 + 0.18 * phase,
+            )
+        }
         ThinStyle::None => Color::rgb(0.0, 0.0, 0.0),
     }
 }
@@ -673,6 +847,8 @@ fn thin_structure_depth(x: i32, _y: i32, config: &SceneConfig, style: ThinStyle)
         ThinStyle::VerticalAndDiagonal if x == config.thin_vertical_x => 0.70,
         ThinStyle::DiagonalOnly => 0.68,
         ThinStyle::VerticalAndDiagonal => 0.72,
+        ThinStyle::MixedWidthBand => 0.69,
+        ThinStyle::MixedWidthBandBiased => 0.67,
         ThinStyle::None => 0.80,
     }
 }
@@ -684,6 +860,14 @@ fn thin_structure_normal(x: i32, _y: i32, config: &SceneConfig, style: ThinStyle
         }
         ThinStyle::DiagonalOnly => Normal3::new(0.24, -0.08, 0.96).normalized(),
         ThinStyle::VerticalAndDiagonal => Normal3::new(0.16, -0.06, 0.98).normalized(),
+        ThinStyle::MixedWidthBand => Normal3::new(0.18, -0.04, 0.98).normalized(),
+        ThinStyle::MixedWidthBandBiased => {
+            if (x - 48).rem_euclid(29) <= 2 {
+                Normal3::new(0.30, -0.10, 0.95).normalized()
+            } else {
+                Normal3::new(0.18, -0.04, 0.98).normalized()
+            }
+        }
         ThinStyle::None => Normal3::new(0.0, 0.0, 1.0),
     }
 }
@@ -743,4 +927,43 @@ fn apply_pulse(
         color.b * pulse.intensity,
     )
     .clamp01()
+}
+
+fn apply_motion_bias_band(
+    frame_index: usize,
+    spec: &InternalScenarioSpec,
+    motion: &mut [MotionVector],
+    depth: &mut [f32],
+    normals: &mut [Normal3],
+    layers: &[SurfaceTag],
+) {
+    let width = spec.scene.width;
+    let height = spec.scene.height;
+    for y in 0..height {
+        for x in 0..width {
+            let index = y * width + x;
+            if matches!(layers[index], SurfaceTag::ForegroundObject) {
+                continue;
+            }
+            let in_band = (20..=(height.saturating_sub(20))).contains(&y)
+                && (24..=(width.saturating_sub(24))).contains(&x);
+            if !in_band {
+                continue;
+            }
+            let jitter_seed = ((x * 13 + y * 7 + frame_index * 11) % 17) as f32 / 16.0;
+            let x_bias = -0.45 + 0.20 * (jitter_seed - 0.5);
+            let y_bias = 0.08 * (((x + frame_index) % 5) as f32 - 2.0) / 2.0;
+            motion[index] = MotionVector {
+                to_prev_x: x_bias,
+                to_prev_y: y_bias,
+            };
+            depth[index] += 0.006 * (jitter_seed - 0.5);
+            normals[index] = Normal3::new(
+                normals[index].x + 0.05 * (jitter_seed - 0.5),
+                normals[index].y - 0.03 * (jitter_seed - 0.5),
+                normals[index].z,
+            )
+            .normalized();
+        }
+    }
 }

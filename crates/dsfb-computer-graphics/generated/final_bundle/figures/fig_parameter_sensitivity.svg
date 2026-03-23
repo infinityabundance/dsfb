@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420">
+<rect width="960" height="420" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Parameter Sensitivity Corridor</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Blue sweep points stay within the report's robustness corridor. Red points are fragile.</text>
+<line x1="44" y1="340" x2="920" y2="340" stroke="#f4f7fb" stroke-width="2"/>
+<rect x="56" y="122.063416" width="28" height="217.93658" rx="4" fill="#ef476f"/>
+<text x="54" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 54 362)">depth_weight</text><rect x="102" y="159.26495" width="28" height="180.73505" rx="4" fill="#ef476f"/>
+<text x="100" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 100 362)">thin_weight</text><rect x="148" y="120" width="28" height="220" rx="4" fill="#ef476f"/>
+<text x="146" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 146 362)">grammar_weight</text><rect x="194" y="217.39017" width="28" height="122.60983" rx="4" fill="#4cc9f0"/>
+<text x="192" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 192 362)">residual_threshold_scale</text><rect x="240" y="211.25279" width="28" height="128.74721" rx="4" fill="#4cc9f0"/>
+<text x="238" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 238 362)">motion_weight</text><rect x="286" y="166.1232" width="28" height="173.8768" rx="4" fill="#ef476f"/>
+<text x="284" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 284 362)">depth_weight</text><rect x="332" y="181.38477" width="28" height="158.61523" rx="4" fill="#4cc9f0"/>
+<text x="330" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 330 362)">thin_weight</text><rect x="378" y="165.31702" width="28" height="174.68298" rx="4" fill="#ef476f"/>
+<text x="376" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 376 362)">grammar_weight</text><rect x="424" y="212.39917" width="28" height="127.60082" rx="4" fill="#4cc9f0"/>
+<text x="422" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 422 362)">residual_threshold_scale</text><rect x="470" y="213.94083" width="28" height="126.059166" rx="4" fill="#4cc9f0"/>
+<text x="468" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 468 362)">motion_weight</text><rect x="516" y="201.65793" width="28" height="138.34207" rx="4" fill="#4cc9f0"/>
+<text x="514" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 514 362)">depth_weight</text><rect x="562" y="201.65793" width="28" height="138.34207" rx="4" fill="#4cc9f0"/>
+<text x="560" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 560 362)">thin_weight</text><rect x="608" y="201.65793" width="28" height="138.34207" rx="4" fill="#4cc9f0"/>
+<text x="606" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 606 362)">grammar_weight</text><rect x="654" y="201.65793" width="28" height="138.34207" rx="4" fill="#4cc9f0"/>
+<text x="652" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 652 362)">residual_threshold_scale</text><rect x="700" y="214.98192" width="28" height="125.01808" rx="4" fill="#4cc9f0"/>
+<text x="698" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 698 362)">motion_weight</text><rect x="746" y="228.28711" width="28" height="111.7129" rx="4" fill="#4cc9f0"/>
+<text x="744" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 744 362)">depth_weight</text><rect x="792" y="219.73468" width="28" height="120.26532" rx="4" fill="#4cc9f0"/>
+<text x="790" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 790 362)">thin_weight</text><rect x="838" y="228.89786" width="28" height="111.102135" rx="4" fill="#4cc9f0"/>
+<text x="836" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 836 362)">grammar_weight</text>
+</svg>

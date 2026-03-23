@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+<rect width="960" height="540" fill="#0b1320"/>
+<text x="36" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Canonical ROI Error vs Trust</text>
+<text x="36" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">x-axis = frame index, left y-axis = ROI MAE, right y-axis = host-realistic trust.</text>
+<line x1="88" y1="78" x2="88" y2="460" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="88" y1="460" x2="820" y2="460" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="820" y1="78" x2="820" y2="460" stroke="#f4f7fb" stroke-width="2"/>
+<path d="M88.00,460.00 L131.06,460.00 L174.12,460.00 L217.18,460.00 L260.24,460.00 L303.29,460.00 L346.35,78.00 L389.41,123.84 L432.47,164.18 L475.53,199.68 L518.59,230.92 L561.65,258.41 L604.71,282.60 L647.76,303.89 L690.82,322.62 L733.88,339.11 L776.94,353.61 L820.00,366.38" fill="none" stroke="#ef476f" stroke-width="3.5"/>
+<path d="M88.00,460.00 L131.06,460.00 L174.12,460.00 L217.18,460.00 L260.24,460.00 L303.29,460.00 L346.35,417.77 L389.41,422.15 L432.47,425.96 L475.53,429.32 L518.59,432.29 L561.65,434.94 L604.71,437.32 L647.76,439.45 L690.82,441.38 L733.88,443.12 L776.94,444.70 L820.00,446.12" fill="none" stroke="#4cc9f0" stroke-width="3.5"/>
+<path d="M88.00,78.00 L131.06,78.00 L174.12,83.70 L217.18,78.00 L260.24,78.00 L303.29,83.70 L346.35,435.13 L389.41,88.35 L432.47,86.99 L475.53,86.02 L518.59,85.32 L561.65,84.81 L604.71,84.44 L647.76,84.17 L690.82,83.98 L733.88,83.86 L776.94,83.77 L820.00,83.72" fill="none" stroke="#8bd450" stroke-width="3.5" stroke-dasharray="10 8"/>
+<line x1="346.35294" y1="78" x2="346.35294" y2="460" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="560" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Fixed alpha ROI error</text>
+<line x1="500" y1="104" x2="548" y2="104" stroke="#ef476f" stroke-width="3.5"/>
+<text x="560" y="138" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Host-realistic DSFB ROI error</text>
+<line x1="500" y1="132" x2="548" y2="132" stroke="#4cc9f0" stroke-width="3.5"/>
+<text x="560" y="166" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Host-realistic trust</text>
+<line x1="500" y1="160" x2="548" y2="160" stroke="#8bd450" stroke-width="3.5" stroke-dasharray="10 8"/>
+<text x="36" y="515" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">frame index</text>
+<text x="18" y="88" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">error</text>
+<text x="840" y="88" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">trust</text>
+<text x="500" y="236" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">onset frame: 6</text>
+<text x="500" y="260" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">host vs fixed cumulative ROI gain: 2.49573</text>
+</svg>

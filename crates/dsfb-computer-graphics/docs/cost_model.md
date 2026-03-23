@@ -1,116 +1,89 @@
 # Cost Model
 
-This note documents the analytical cost accounting used by the crate-local cost report.
+This document describes the analytical cost and memory model used by the crate reports.
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
 
 ## Scope
 
-The cost model in this crate is architectural, not benchmark-driven. It is intended to remove ambiguity about buffer count, per-stage work, and likely integration burden without inventing GPU timings.
+The cost model in this crate is architectural. It is not a measured GPU benchmark. Its job is to make the integration burden explicit enough for diligence:
 
-It supports three modes:
+- which buffers exist
+- which stages are local
+- what the approximate read/write pressure looks like
+- what changes between minimum, host-realistic, and research/debug modes
 
-- minimal
-- host-realistic
-- full research/debug
-
-These are implemented in `src/cost.rs` and emitted as `generated/cost_report.md` by the pipeline.
-
-## Mode Definitions
+## Modes
 
 ### Minimal
 
-The minimal mode corresponds to a stripped supervisory path:
+Smallest decision-facing path:
 
-- residual-like cue
-- response field
+- residual-like local discrepancy
+- trust / intervention proxy
 - alpha modulation
 
-This is the lowest-burden integration sketch and is useful for answering whether a small supervisory layer is plausible at all.
+This corresponds to the lowest-burden attachment path and is used in the timing report as the minimum cost reference.
 
-### Host-realistic
+### Host-Realistic
 
-The host-realistic mode is the serious attachability target for this crate:
+Current minimum serious path:
 
 - residual
 - depth disagreement
 - normal disagreement
-- motion disagreement
 - neighborhood inconsistency
-- trust
-- alpha
-- intervention
-
-This mode excludes the synthetic visibility hint.
-
-### Full research/debug
-
-The full research/debug mode keeps additional cue exports and debug surfaces:
-
-- visibility hint for explicit comparison
 - thin proxy
-- history instability proxy
-- state labels
+- history instability
+- grammar/state contribution
+- trust, intervention, alpha
 
-This mode is intended for ablation and report generation, not as a production-cost claim.
+Important current decision:
 
-## Core Cost Statement
+- motion disagreement is not part of the minimum path anymore
+- it remains available as an optional motion-augmented extension
+
+That change is deliberate. The current suite does not justify treating motion disagreement as mandatory in the minimum path.
+
+### Full Research / Debug
+
+Comparison-only path:
+
+- synthetic visibility hint
+- optional motion disagreement
+- thin proxy exports
+- history instability exports
+- structural-state exports
+
+This mode exists for ablation, trust diagnostics, and report generation. It is not a deployment claim.
+
+## Current Trust and Cost Interaction
+
+The current trust behavior is near-binary / gate-like in this crate. That matters for cost because it makes two reduction ideas more credible:
+
+- half-resolution trust or intervention
+- per-tile trust aggregation followed by alpha upsampling
+
+The crate does not claim these are already tuned on hardware. It only shows that the dataflow is compatible with them.
+
+## Core Statements
 
 “The DSFB supervisory layer can be implemented with local operations and limited temporal memory, with expected cost scaling linearly with pixel count and amenable to reduced-resolution evaluation.”
 
-This is an architectural statement, not a measured production benchmark.
-
-## Compatibility Statement
-
 “The framework is compatible with tiled and asynchronous GPU execution.”
 
-Again, this crate does not claim measured scheduling wins. It only claims architectural compatibility.
+These are architecture statements, not measured deployment claims.
 
-## Buffer Accounting
+## What The Cost Model Helps Decide
 
-The crate cost model makes buffer questions explicit:
+- whether the supervision is local enough to be a realistic GPU pass candidate
+- whether the minimum path is materially smaller than the debug path
+- what the memory scaling looks like at larger resolutions
+- which buffers are plausibly droppable outside analysis mode
 
-- which buffers are required in each mode
-- bytes per pixel for each additional field
-- which fields can be fused or omitted
-- how footprints scale from 720p to 4K
+## What The Cost Model Does Not Prove
 
-This matters because one of the main blockers for systems reviewers is uncertainty about hidden memory or bandwidth burden.
-
-## Stage Accounting
-
-The model also exposes approximate stage groups:
-
-- residual evaluation
-- structural disagreement synthesis
-- trust / grammar update
-- alpha modulation
-- optional debug writes
-
-The reported counts are approximate arithmetic / read / write groups. They are not cycle-accurate.
-
-## Reduction Opportunities
-
-The crate explicitly documents three reduction strategies:
-
-- half-resolution trust
-- tile aggregation
-- temporal reuse of proxy
-
-These reductions are discussed because they are the most plausible first-step controls for a real implementation burden.
-
-## What This Model Helps Decide
-
-This model is intended to answer:
-
-- what extra buffers are actually needed
-- whether the extra work is local or globally coupled
-- what the likely resolution scaling is
-- which research/debug surfaces are optional in a deployment path
-
-## What This Model Does Not Prove
-
-- real GPU milliseconds on any hardware target
-- final memory-system behavior on shipping architectures
-- fusion decisions inside a specific commercial engine
-- production-optimal pass scheduling
+- real GPU milliseconds
+- cache behavior on NVIDIA, AMD, or Intel hardware
+- production pass scheduling quality
+- shipping-engine memory-system efficiency

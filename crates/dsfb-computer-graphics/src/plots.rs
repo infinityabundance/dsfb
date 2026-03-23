@@ -4,8 +4,11 @@ use std::path::Path;
 
 use crate::error::Result;
 use crate::frame::{BoundingBox, Color, ImageFrame, ScalarField};
-use crate::metrics::{AblationEntry, AggregateRunScore, ScenarioReport};
+use crate::metrics::{AblationEntry, AggregateRunScore, DemoASuiteMetrics, ScenarioReport};
+use crate::report::TrustDiagnostics;
 use crate::sampling::{BudgetCurve, DemoBScenarioReport, DemoBScenarioRun};
+use crate::scaling::ResolutionScalingMetrics;
+use crate::sensitivity::ParameterSensitivityMetrics;
 
 pub struct ScenarioMosaicEntry<'a> {
     pub scenario_title: &'a str,
@@ -678,6 +681,264 @@ pub fn write_demo_b_budget_efficiency_figure(curves: &[BudgetCurve], path: &Path
 <line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
 <line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
 {paths}
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+pub fn write_trust_histogram_figure(diagnostics: &TrustDiagnostics, path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let entry = diagnostics
+        .scenarios
+        .iter()
+        .find(|entry| {
+            entry.scenario_id == "motion_bias_band" && entry.run_id == "dsfb_host_realistic"
+        })
+        .or_else(|| diagnostics.scenarios.first())
+        .expect("trust diagnostics required");
+    let max_count = entry
+        .histogram
+        .iter()
+        .map(|bin| bin.sample_count)
+        .max()
+        .unwrap_or(1) as f32;
+    let mut bars = String::new();
+    for (index, bin) in entry.histogram.iter().enumerate() {
+        let x = 70.0 + index as f32 * 52.0;
+        let height = 220.0 * (bin.sample_count as f32 / max_count.max(1.0));
+        let y = 340.0 - height;
+        let _ = write!(
+            bars,
+            r##"<rect x="{x}" y="{y}" width="34" height="{height}" rx="4" fill="#4cc9f0"/>
+<text x="{label_x}" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{lower:.1}</text>"##,
+            label_x = x - 2.0,
+            lower = bin.lower,
+        );
+    }
+    let mut calibration = String::new();
+    for (index, bin) in entry.calibration_bins.iter().enumerate() {
+        let x = 650.0 + index as f32 * 60.0;
+        let error_height = 120.0 * (bin.mean_error / 0.25).clamp(0.0, 1.0);
+        let y = 320.0 - error_height;
+        let _ = write!(
+            calibration,
+            r##"<rect x="{x}" y="{y}" width="28" height="{error_height}" rx="4" fill="#ffd166"/>
+<text x="{label_x}" y="342" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{trust:.2}</text>"##,
+            label_x = x - 6.0,
+            trust = bin.mean_trust,
+        );
+    }
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="980" height="420" viewBox="0 0 980 420">
+<rect width="980" height="420" fill="#0b1320"/>
+<text x="28" y="36" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Trust Histogram and Calibration Bins</text>
+<text x="28" y="60" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{scenario} / {run}</text>
+<text x="70" y="94" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Histogram</text>
+<line x1="60" y1="340" x2="590" y2="340" stroke="#f4f7fb" stroke-width="2"/>
+{bars}
+<text x="650" y="94" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Calibration bins</text>
+<line x1="640" y1="320" x2="940" y2="320" stroke="#f4f7fb" stroke-width="2"/>
+{calibration}
+<text x="650" y="374" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Degenerate correlation hidden from headlines when bin occupancy is weak.</text>
+</svg>"##,
+        scenario = entry.scenario_id,
+        run = entry.run_id,
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+pub fn write_roi_taxonomy_figure(demo_a: &DemoASuiteMetrics, path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let max_pixels = demo_a
+        .scenarios
+        .iter()
+        .map(|scenario| scenario.target_pixels)
+        .max()
+        .unwrap_or(1) as f32;
+    let mut rows = String::new();
+    for (index, scenario) in demo_a.scenarios.iter().enumerate() {
+        let y = 96.0 + index as f32 * 44.0;
+        let width = 420.0 * (scenario.target_pixels as f32 / max_pixels.max(1.0));
+        let color = match scenario.support_category {
+            crate::scene::ScenarioSupportCategory::PointLikeRoi => "#ef476f",
+            crate::scene::ScenarioSupportCategory::RegionRoi => "#4cc9f0",
+            crate::scene::ScenarioSupportCategory::NegativeControl => "#8bd450",
+        };
+        let _ = write!(
+            rows,
+            r##"<text x="24" y="{y}" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">{label}</text>
+<rect x="320" y="{bar_y}" width="{width}" height="20" rx="6" fill="{color}"/>
+<text x="{value_x}" y="{y}" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{pixels}</text>"##,
+            label = scenario.scenario_id,
+            bar_y = y - 14.0,
+            value_x = 750.0,
+            pixels = scenario.target_pixels,
+        );
+    }
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="900" height="460" viewBox="0 0 900 460">
+<rect width="900" height="460" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">ROI Size and Scenario Taxonomy</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Point-like ROI, region ROI, and negative-control scenarios are separated explicitly.</text>
+{rows}
+<text x="24" y="420" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Red = point-like ROI, blue = region ROI, green = negative control.</text>
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+pub fn write_parameter_sensitivity_figure(
+    sensitivity: &ParameterSensitivityMetrics,
+    path: &Path,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let points = sensitivity.sweep_points.iter().take(18).collect::<Vec<_>>();
+    let max_value = points
+        .iter()
+        .map(|point| point.region_mean_cumulative_roi_mae)
+        .fold(0.01f32, f32::max);
+    let mut bars = String::new();
+    for (index, point) in points.iter().enumerate() {
+        let x = 56.0 + index as f32 * 46.0;
+        let height = 220.0 * (point.region_mean_cumulative_roi_mae / max_value);
+        let y = 340.0 - height;
+        let fill = if point.robust_corridor_member {
+            "#4cc9f0"
+        } else {
+            "#ef476f"
+        };
+        let _ = write!(
+            bars,
+            r##"<rect x="{x}" y="{y}" width="28" height="{height}" rx="4" fill="{fill}"/>
+<text x="{label_x}" y="362" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 {label_x} 362)">{label}</text>"##,
+            label_x = x - 2.0,
+            label = point.parameter_id,
+        );
+    }
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420">
+<rect width="960" height="420" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Parameter Sensitivity Corridor</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Blue sweep points stay within the report's robustness corridor. Red points are fragile.</text>
+<line x1="44" y1="340" x2="920" y2="340" stroke="#f4f7fb" stroke-width="2"/>
+{bars}
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+pub fn write_resolution_scaling_figure(
+    scaling: &ResolutionScalingMetrics,
+    path: &Path,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let relevant = scaling
+        .entries
+        .iter()
+        .filter(|entry| {
+            matches!(
+                entry.scenario_id.as_str(),
+                "thin_reveal" | "reveal_band" | "motion_bias_band"
+            )
+        })
+        .collect::<Vec<_>>();
+    let max_gain = relevant
+        .iter()
+        .map(|entry| entry.host_realistic_vs_fixed_alpha_gain.abs())
+        .fold(0.01f32, f32::max);
+    let mut bars = String::new();
+    for (index, entry) in relevant.iter().enumerate() {
+        let x = 52.0 + index as f32 * 58.0;
+        let height = 190.0 * (entry.host_realistic_vs_fixed_alpha_gain.abs() / max_gain);
+        let y = if entry.host_realistic_vs_fixed_alpha_gain >= 0.0 {
+            250.0 - height
+        } else {
+            250.0
+        };
+        let fill = if entry.host_realistic_vs_fixed_alpha_gain >= 0.0 {
+            "#4cc9f0"
+        } else {
+            "#ef476f"
+        };
+        let _ = write!(
+            bars,
+            r##"<rect x="{x}" y="{y}" width="32" height="{height}" rx="4" fill="{fill}"/>
+<text x="{label_x}" y="388" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 {label_x} 388)">{label}</text>"##,
+            label_x = x - 8.0,
+            label = format!("{}@{}x{}", entry.scenario_id, entry.width, entry.height),
+        );
+    }
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="980" height="440" viewBox="0 0 980 440">
+<rect width="980" height="440" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Resolution Scaling Gain</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Positive bars mean host-realistic DSFB beats fixed alpha on cumulative ROI MAE.</text>
+<line x1="40" y1="250" x2="944" y2="250" stroke="#f4f7fb" stroke-width="2"/>
+{bars}
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+pub fn write_motion_relevance_figure(demo_a: &DemoASuiteMetrics, path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let scenarios = demo_a
+        .scenarios
+        .iter()
+        .filter(|scenario| {
+            matches!(
+                scenario.scenario_id.as_str(),
+                "fast_pan" | "motion_bias_band" | "reveal_band"
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut bars = String::new();
+    for (index, scenario) in scenarios.iter().enumerate() {
+        let host = scenario
+            .runs
+            .iter()
+            .find(|run| run.summary.run_id == "dsfb_host_realistic")
+            .expect("host run required");
+        let motion = scenario
+            .runs
+            .iter()
+            .find(|run| run.summary.run_id == "dsfb_motion_augmented")
+            .expect("motion run required");
+        let gain = host.summary.cumulative_roi_mae - motion.summary.cumulative_roi_mae;
+        let height = 160.0 * (gain.abs() / 0.5).clamp(0.0, 1.0);
+        let x = 120.0 + index as f32 * 220.0;
+        let y = if gain >= 0.0 { 270.0 - height } else { 270.0 };
+        let color = if gain >= 0.0 { "#4cc9f0" } else { "#ef476f" };
+        let _ = write!(
+            bars,
+            r##"<rect x="{x}" y="{y}" width="68" height="{height}" rx="6" fill="{color}"/>
+<text x="{text_x}" y="320" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">{label}</text>"##,
+            text_x = x - 10.0,
+            label = scenario.scenario_id,
+        );
+    }
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="860" height="380" viewBox="0 0 860 380">
+<rect width="860" height="380" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Motion Relevance</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Positive bars mean the optional motion-augmented path improved over the minimum host path.</text>
+<line x1="70" y1="270" x2="810" y2="270" stroke="#f4f7fb" stroke-width="2"/>
+{bars}
 </svg>"##
     );
     fs::write(path, svg)?;

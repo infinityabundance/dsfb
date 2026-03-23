@@ -1,0 +1,180 @@
+{
+  "measurement_kind": "cpu_only_proxy",
+  "actual_gpu_timing": false,
+  "entries": [
+    {
+      "label": "minimum_host_path_default_res",
+      "measurement_kind": "cpu_only_proxy",
+      "actual_gpu_timing": false,
+      "mode": "minimal",
+      "scenario_id": "thin_reveal",
+      "width": 160,
+      "height": 96,
+      "frame_count": 18,
+      "iterations": 6,
+      "build_profile": "release",
+      "stages": [
+        {
+          "stage": "reproject",
+          "total_ms": 37.626485,
+          "ms_per_frame": 0.3688871078431373,
+          "ns_per_pixel": 24.01608775020425
+        },
+        {
+          "stage": "supervise",
+          "total_ms": 97.268193,
+          "ms_per_frame": 0.9536097352941176,
+          "ns_per_pixel": 62.083967141544115
+        },
+        {
+          "stage": "resolve",
+          "total_ms": 4.084154000000001,
+          "ms_per_frame": 0.040040725490196084,
+          "ns_per_pixel": 2.6068180657679743
+        }
+      ],
+      "total_ms": 139.112098,
+      "ms_per_frame": 1.363844098039216,
+      "estimated_ops_per_pixel": 20,
+      "estimated_reads_per_pixel": 6,
+      "estimated_writes_per_pixel": 3,
+      "estimated_memory_traffic_megabytes": 53.7890625,
+      "likely_optimization_levers": [
+        "Fuse alpha modulation into the temporal resolve.",
+        "Compute trust/intervention at half resolution if only gating is needed."
+      ]
+    },
+    {
+      "label": "motion_augmented_region_mid_res",
+      "measurement_kind": "cpu_only_proxy",
+      "actual_gpu_timing": false,
+      "mode": "host_realistic",
+      "scenario_id": "motion_bias_band",
+      "width": 640,
+      "height": 360,
+      "frame_count": 18,
+      "iterations": 4,
+      "build_profile": "release",
+      "stages": [
+        {
+          "stage": "reproject",
+          "total_ms": 450.457609,
+          "ms_per_frame": 6.624376602941176,
+          "ns_per_pixel": 28.751634561376633
+        },
+        {
+          "stage": "supervise",
+          "total_ms": 1462.584713,
+          "ms_per_frame": 21.508598720588235,
+          "ns_per_pixel": 93.35329305810866
+        },
+        {
+          "stage": "resolve",
+          "total_ms": 43.0701,
+          "ms_per_frame": 0.6333838235294117,
+          "ns_per_pixel": 2.7490617340686274
+        }
+      ],
+      "total_ms": 1958.343347,
+      "ms_per_frame": 28.79916686764706,
+      "estimated_ops_per_pixel": 60,
+      "estimated_reads_per_pixel": 22,
+      "estimated_writes_per_pixel": 9,
+      "estimated_memory_traffic_megabytes": 1852.734375,
+      "likely_optimization_levers": [
+        "Fuse reprojection fetches across color, depth, and normal buffers.",
+        "Evaluate trust at half resolution or per tile, then upsample alpha.",
+        "Keep motion disagreement optional; the minimum path no longer pays for it when scenario evidence is weak."
+      ]
+    },
+    {
+      "label": "full_debug_region_mid_res",
+      "measurement_kind": "cpu_only_proxy",
+      "actual_gpu_timing": false,
+      "mode": "full_research_debug",
+      "scenario_id": "reveal_band",
+      "width": 640,
+      "height": 360,
+      "frame_count": 18,
+      "iterations": 4,
+      "build_profile": "release",
+      "stages": [
+        {
+          "stage": "reproject",
+          "total_ms": 392.829785,
+          "ms_per_frame": 5.776908602941177,
+          "ns_per_pixel": 25.073388033598857
+        },
+        {
+          "stage": "supervise",
+          "total_ms": 1451.992612,
+          "ms_per_frame": 21.352832529411764,
+          "ns_per_pixel": 92.67722452001634
+        },
+        {
+          "stage": "resolve",
+          "total_ms": 42.685480999999996,
+          "ms_per_frame": 0.6277276617647058,
+          "ns_per_pixel": 2.7245124208537583
+        }
+      ],
+      "total_ms": 2086.21407,
+      "ms_per_frame": 30.67961867647059,
+      "estimated_ops_per_pixel": 66,
+      "estimated_reads_per_pixel": 24,
+      "estimated_writes_per_pixel": 16,
+      "estimated_memory_traffic_megabytes": 2390.625,
+      "likely_optimization_levers": [
+        "Drop synthetic visibility and debug exports outside analysis mode.",
+        "Compress trust/alpha/intervention into narrower formats once calibration work stabilizes."
+      ]
+    },
+    {
+      "label": "minimum_host_path_high_res_proxy",
+      "measurement_kind": "cpu_only_proxy",
+      "actual_gpu_timing": false,
+      "mode": "host_realistic",
+      "scenario_id": "reveal_band",
+      "width": 1920,
+      "height": 1080,
+      "frame_count": 18,
+      "iterations": 1,
+      "build_profile": "release",
+      "stages": [
+        {
+          "stage": "reproject",
+          "total_ms": 906.906961,
+          "ms_per_frame": 53.34746829411765,
+          "ns_per_pixel": 25.726981237518157
+        },
+        {
+          "stage": "supervise",
+          "total_ms": 2427.870763,
+          "ms_per_frame": 142.8159272352941,
+          "ns_per_pixel": 68.87342169911946
+        },
+        {
+          "stage": "resolve",
+          "total_ms": 73.830855,
+          "ms_per_frame": 4.3429914705882355,
+          "ns_per_pixel": 2.094421040985839
+        }
+      ],
+      "total_ms": 3411.7309250000003,
+      "ms_per_frame": 200.69005441176472,
+      "estimated_ops_per_pixel": 60,
+      "estimated_reads_per_pixel": 22,
+      "estimated_writes_per_pixel": 9,
+      "estimated_memory_traffic_megabytes": 4168.65234375,
+      "likely_optimization_levers": [
+        "Fuse reprojection fetches across color, depth, and normal buffers.",
+        "Evaluate trust at half resolution or per tile, then upsample alpha.",
+        "Keep motion disagreement optional; the minimum path no longer pays for it when scenario evidence is weak."
+      ]
+    }
+  ],
+  "notes": [
+    "No actual GPU timing was measured in this environment. These timings are CPU-side proxy measurements of the same per-pixel supervisory structure and are paired with analytical op and memory estimates.",
+    "The highest-resolution entry is a selected-scenario host-realistic proxy, not a full-suite production benchmark."
+  ]
+}

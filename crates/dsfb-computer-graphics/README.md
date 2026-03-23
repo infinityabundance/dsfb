@@ -1,315 +1,249 @@
 # dsfb-computer-graphics
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-computer-graphics/colab/dsfb_computer_graphics_demo.ipynb)
-
-Colab badge note: if the repository owner, repository name, branch, or notebook path changes, update the badge URL to the new GitHub location.
-
-`dsfb-computer-graphics` is a crate-local Rust evaluation artifact for DSFB supervision in temporal reuse and bounded fixed-budget sampling control. The upgraded crate is designed to remove concrete reviewer blockers rather than rely on vague polish:
-
-- host-realistic DSFB mode separated from visibility-assisted research mode
-- stronger Demo A baselines, not only fixed alpha
-- deterministic multi-scenario suite instead of a single favorable reveal
-- explicit ablations showing which cues matter and which are expendable
-- fixed-budget Demo B policies compared against nontrivial cheap alternatives
-- attachability and cost surfaces documented as real interfaces, not hand-wavy prose
-- blocker-oriented reports, reviewer bundle generation, and hard validation gates
+`dsfb-computer-graphics` is a self-contained Rust artifact for evaluating DSFB-style supervision in temporal reuse and fixed-budget sampling. The crate is designed to be decision-clean rather than cosmetically polished: it exposes point-ROI caveats, mixed outcomes, gate-like trust behavior, CPU-only timing limits, and validation failures instead of hiding them.
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
 
-## Scope Boundary
+## What This Crate Proves
 
-This crate is intentionally self-contained inside `crates/dsfb-computer-graphics`.
+- A host-realistic minimum supervisory path exists and produces a real effect without relying on privileged visibility hints.
+- Point-like ROI evidence and region-ROI evidence are separated explicitly in reports and validation.
+- The current trust signal is described honestly as gate-like / weakly graded rather than advertised as smoothly calibrated.
+- Motion disagreement is no longer hidden inside the minimum path; it is treated as an optional extension and reported separately.
+- Demo B no longer depends only on the original thin sub-pixel line case.
+- Hazard weights are centralized and sensitivity-vetted inside this crate.
+- A hardware-facing timing path exists as a CPU-only proxy with analytical traffic and op estimates.
 
-- Only files inside this crate are required for scene generation, Demo A, Demo B, metrics, figures, reports, notebook orchestration, and validation.
-- The crate declares its own nested `[workspace]` so validation can be run from this directory without modifying the workspace root.
-- If a broader workspace integration would normally be useful, that limitation is documented here rather than solved by editing outside the crate.
+## What This Crate Does Not Prove
 
-## Colab Notebook
+- It does not prove production-scene generalization.
+- It does not prove measured GPU wins on real hardware.
+- It does not prove deployment readiness or engine integration completeness.
+- It does not prove globally calibrated trust or globally optimal parameter settings.
 
-The crate includes a real Google Colab notebook at `colab/dsfb_computer_graphics_demo.ipynb`.
-
-The notebook:
-
-- installs Rust and the small runtime dependencies it needs
-- clones the repository and builds the crate
-- creates a timestamped crate-local run directory under `output-dsfb-computer-graphics/`
-- runs `cargo run -- run-all --output <run-dir>`
-- generates a real PDF reviewer bundle and ZIP archive
-- displays the major figures inline
-- exposes `Download PDF` and `Download ZIP` controls for the current run
-
-For notebook details and assumptions, see `docs/colab_notebook.md`.
-
-## What This Crate Does
+## Core Evidence Shape
 
 ### Demo A
 
-Demo A studies temporal reuse supervision. The crate runs:
+Temporal reuse study with:
 
-- fixed-alpha baseline
-- residual-threshold baseline
-- neighborhood-clamped baseline
-- depth/normal rejection baseline
+- fixed alpha
+- residual threshold
+- neighborhood clamp
+- depth/normal rejection
 - reactive-mask-style baseline
 - strong heuristic baseline
-- DSFB visibility-assisted research mode
-- DSFB host-realistic mode
-- DSFB ablations: no visibility, no thin proxy, no motion disagreement, no grammar, residual-only, and trust-without-alpha-modulation
+- DSFB visibility-assisted reference
+- DSFB host-realistic minimum
+- DSFB gated reference
+- DSFB motion-augmented extension
+- DSFB ablations
 
-The scenario suite contains:
+Scenario suite:
 
 - `thin_reveal`
 - `fast_pan`
 - `diagonal_reveal`
+- `reveal_band`
+- `motion_bias_band`
 - `contrast_pulse`
 - `stability_holdout`
 
 ### Demo B
 
-Demo B is a fixed-budget allocation study. At equal total sample budget, the crate compares:
+Fixed-budget allocation study with:
 
-- uniform allocation
-- edge-guided allocation
-- residual-guided allocation
-- contrast-guided allocation
-- variance-guided allocation
-- combined-heuristic allocation
-- imported-trust allocation
-- hybrid trust-plus-variance allocation
+- uniform
+- edge-guided
+- residual-guided
+- contrast-guided
+- variance-guided
+- combined heuristic
+- native trust
+- imported trust
+- hybrid trust + variance
 
-## Quickstart
+## Recommended Commands
 
-Run the full reviewer package:
-
-```bash
-cd crates/dsfb-computer-graphics
-cargo run -- run-all --output generated
-```
-
-Run only Demo A across the full scenario suite:
+Use release mode for serious artifact generation:
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run -- run-demo-a --output generated
+cargo run --release -- run-all --output generated/final_bundle
 ```
 
-Run Demo A on one scenario only:
+Run one scenario through the full bundle:
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run -- run-demo-a --scenario thin_reveal --output generated/single_scenario
+cargo run --release -- run-scenario reveal_band --output generated/single_scenario
 ```
 
-Run the canonical ablation package:
+Run the canonical ablation slice:
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run -- run-ablations --output generated/ablations
+cargo run --release -- run-ablations --output generated/ablations
 ```
 
-Run only Demo B:
+Generate the timing path only:
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run -- run-demo-b --output generated
+cargo run --release -- run-timing --output generated/timing_only
 ```
 
-Validate a generated artifact directory:
+Generate the resolution study only:
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run -- validate-artifacts --output generated
+cargo run --release -- run-resolution-scaling --output generated/scaling_only
 ```
 
-Run crate-scoped validation:
+Generate the sensitivity sweep only:
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo fmt
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-features
+cargo run --release -- run-sensitivity --output generated/sensitivity_only
 ```
 
-## Output Structure
+Generate Demo B only:
 
-Running `run-all` writes a reviewer-oriented bundle like this:
-
-```text
-generated/
-  artifact_manifest.json
-  scene_manifest.json
-  scenario_suite_manifest.json
-  metrics.json
-  report.md
-  reviewer_summary.md
-  five_mentor_audit.md
-  check_signing_blockers.md
-  ablation_report.md
-  cost_report.md
-  demo_b_decision_report.md
-  completion_note.md
-  figures/
-  scenarios/
-  demo_b/
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- run-demo-b --output generated/demo_b_only
 ```
 
-The Colab notebook writes the same structure under a timestamped run directory inside `output-dsfb-computer-graphics/` and then adds:
+Generate the Demo B efficiency package:
 
-- `artifacts_bundle.pdf`
-- `output-dsfb-computer-graphics-YYYYMMDD-HHMMSS.zip`
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- run-demo-b-efficiency --output generated/demo_b_efficiency_only
+```
 
-The timestamped layout prevents accidental overwrite.
+Export the small operator-facing summary:
 
-## Exact Numeric Demo Summary
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- export-minimal-report --output generated/minimal
+```
 
-For the current deterministic default run:
+Validate an artifact directory:
 
-- On the canonical `thin_reveal` scenario, host-realistic DSFB reduced cumulative ROI MAE from `2.84366` for fixed alpha and `0.49435` for the strong heuristic baseline to `0.31904`.
-- On the same scenario, ghost persistence fell from `12` frames for fixed alpha and `1` frame for the strong heuristic baseline to `0` frames for host-realistic DSFB.
-- Across the five-scenario suite, host-realistic DSFB beat fixed alpha on `3` scenarios and beat the strong heuristic baseline on `3` scenarios, while `contrast_pulse` and `stability_holdout` are surfaced explicitly as bounded / neutral cases.
-- For Demo B on the canonical `thin_reveal` sampling case, imported trust reduced ROI MAE from `0.17226` for uniform allocation to `0.03184` at the same total budget, versus `0.04977` for the combined-heuristic allocator.
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- validate --output generated/final_bundle
+```
 
-Canonical Demo A table:
+## Output Contract
 
-| Metric | Fixed alpha | Strong heuristic | Host-realistic DSFB |
-| --- | ---: | ---: | ---: |
-| Ghost persistence frames | 12 | 1 | 0 |
-| Peak ROI error | 0.43507 | 0.13843 | 0.07198 |
-| Cumulative ROI error | 2.84366 | 0.49435 | 0.31904 |
-| Average non-ROI MAE | 0.01244 | 0.00062 | 0.00219 |
+`run-all` writes the full bundle under the chosen output directory, including:
 
-Canonical Demo B table:
+- `report.md`
+- `reviewer_summary.md`
+- `five_mentor_audit.md`
+- `check_signing_blockers.md`
+- `trust_diagnostics.md`
+- `trust_diagnostics.json`
+- `timing_report.md`
+- `timing_metrics.json`
+- `resolution_scaling_report.md`
+- `resolution_scaling_metrics.json`
+- `parameter_sensitivity_report.md`
+- `parameter_sensitivity_metrics.json`
+- `demo_b_decision_report.md`
+- `demo_b_efficiency_report.md`
+- `demo_b_metrics.json`
+- `metrics.json`
+- `figures/*.svg`
+- `demo_b/*`
 
-| Metric | Uniform | Combined heuristic | Imported trust |
-| --- | ---: | ---: | ---: |
-| ROI MAE | 0.17226 | 0.04977 | 0.03184 |
-| ROI RMSE | 0.17226 | 0.04977 | 0.03184 |
-| ROI mean spp | 2.00 | 10.00 | 12.00 |
+The validator fails if required files are missing, if point-ROI disclosure disappears, if degenerate trust rank correlation is presented as a headline claim, or if the timing report stops declaring that it is a CPU-only proxy.
+
+## Key Current Readout
+
+From the current default release bundle:
+
+- Canonical `thin_reveal` ROI size is `1` pixel.
+- `diagonal_reveal` ROI size is also `1` pixel.
+- `reveal_band` and `motion_bias_band` provide the larger region-ROI evidence path.
+- The current host-realistic trust behavior is reported as near-binary / gate-like.
+- Actual GPU timing is not measured; the timing path is explicitly labeled `cpu_only_proxy`.
+
+## Minimum Viable Integration Surface
+
+The minimum host-realistic path consumes:
+
+- current color
+- reprojected history
+- motion vectors
+- current and reprojected depth
+- current and reprojected normals
+
+It produces:
+
+- trust
+- intervention
+- alpha
+- debug proxy fields
+
+The minimum path no longer includes motion disagreement by default. That cue is kept as an optional extension and is reported separately.
+
+For details:
+
+- `docs/integration_surface.md`
+- `docs/cost_model.md`
+- `docs/gpu_path.md`
+- `docs/validation_contract.md`
 
 ## DSFB Integration into Temporal Reuse
 
-Baseline temporal blend equation:
+Baseline resolve:
 
 ```text
 C_t(u) = alpha * C_t_current(u) + (1 - alpha) * C_{t-1}_reproj(u)
 ```
 
-DSFB trust-modulated blend equation:
+Supervised resolve:
 
 ```text
 C_t(u) = alpha_t(u) * C_t_current(u) + (1 - alpha_t(u)) * C_{t-1}_reproj(u)
 alpha_t(u) = alpha_min + (alpha_max - alpha_min) * (1 - T_t(u))
 ```
 
-High trust keeps the resolve closer to history preservation. Low trust pushes the resolve toward current-frame replacement. The underlying estimator is unchanged.
-
-This crate demonstrates a supervisory blend modulation layer. It does not require replacing the underlying renderer or estimator.
-
-For the explicit typed input/output surface, see `docs/integration_surface.md`.
+The current crate demonstrates supervisory modulation of temporal reuse, not a replacement renderer.
 
 ## GPU Implementation Considerations
 
-Execution model:
+The crate now exposes a timing path, but the report states explicitly that it is a CPU-only proxy in the current environment. The timing bundle still provides:
 
-- per-pixel local supervision
-- optional per-tile aggregation for reduced overhead
-- async-compute-compatible decomposition
+- per-stage timing
+- op and traffic estimates
+- minimum, host-realistic, and research/debug timing modes
+- a higher-resolution selected-scenario proxy
 
-Memory layout:
-
-- residual buffer
-- trust buffer
-- alpha buffer
-- intervention buffer
-- optional depth / normal / motion disagreement buffers
-- optional tile summaries
-
-Optimization strategies:
-
-- half resolution trust
-- tile aggregation
-- temporal reuse of proxy
-
-Approximate cost table:
-
-| Operation group | Per-pixel / per-tile character | Memory footprint class | Reduction strategy |
-| --- | --- | --- | --- |
-| Residual evaluation | per-pixel local arithmetic | one scalar buffer | fuse with resolve where practical |
-| Structural disagreement synthesis | per-pixel with neighborhood reads | several scalar buffers | tile aggregation |
-| Trust and alpha update | per-pixel or per-tile | trust plus alpha | half-resolution trust |
-| Debug / export surfaces | optional | debug-only expansion | disable in deployment path |
-
-“The DSFB supervisory layer can be implemented with local operations and limited temporal memory, with expected cost scaling linearly with pixel count and amenable to reduced-resolution evaluation.”
-
-“The framework is compatible with tiled and asynchronous GPU execution.”
-
-All cost claims in this crate are architectural or approximate. They are not measured production benchmarks.
-
-For the full analytical model, see `docs/cost_model.md`.
+For details, see `docs/gpu_path.md`.
 
 ## Mission and Transition Relevance
 
-This crate is relevant to reliability and assurance in visual pipelines because it exposes replayable supervisory evidence instead of only a final image. That makes it relevant to:
+The artifact is useful when reviewers need:
 
-- early detection of estimator failure
-- auditable temporal-reuse behavior
-- safety-adjacent or mission-adjacent visual stacks where bounded replay matters
-- transition diligence where reviewers need to inspect evidence rather than trust claims
+- a replayable temporal-reuse failure story
+- explicit blocker disclosure
+- a path from synthetic evidence to engine-adjacent evaluation
+- a diligence package that says where DSFB is neutral or worse
 
-The crate is a synthetic feasibility artifact. It is not a fielded mission system.
+It remains a synthetic evaluation artifact rather than a fielded mission system.
 
 ## Product Framing and Integration Surfaces
 
-In product terms, this crate demonstrates the shape of an attachable supervisory trust layer:
+The current strongest honest framing is:
 
-- temporal reuse supervision
-- adaptive routing / fixed-budget allocation surface
-- logging and traceability surface
-- attachable middleware concept rather than renderer replacement
+- evaluation-ready for serious internal review
+- not yet backed by real GPU measurements
+- not yet backed by external engine validation
+- suitable for diligence conversations because the weak points are surfaced, not hidden
 
-| Surface | Current crate coverage | Future extension |
-| --- | --- | --- |
-| TAA / temporal reuse | implemented in Demo A | connect to engine traces and reprojection buffers |
-| adaptive sampling / SAR | implemented as bounded Demo B fixed-budget study | extend to temporal controllers and richer sample policies |
-| logging / QA | metrics, figures, reports, manifests | engine-integrated trace and regression pipeline |
-| adaptive compute routing | trust / intervention / allocation difficulty surfaces | cross-pass scheduling and runtime policy |
+## Scope Boundary
 
-## Validation and Reviewer Reports
-
-The main reviewer-facing outputs are:
-
-- `generated/report.md`
-- `generated/reviewer_summary.md`
-- `generated/five_mentor_audit.md`
-- `generated/check_signing_blockers.md`
-- `generated/ablation_report.md`
-- `generated/demo_b_decision_report.md`
-- `generated/cost_report.md`
-
-The strict artifact check is:
-
-```bash
-cargo run -- validate-artifacts --output generated
-```
-
-## What this crate does not claim
-
-- It does not claim production readiness.
-- It does not claim measured GPU benchmark wins.
-- It does not claim superiority over every strong heuristic on every scenario.
-- It does not claim field validation, engine deployment, or licensing closure.
-- It does not claim that the synthetic visibility-assisted mode is a deployable cue source.
-
-## Limitations
-
-- The suite is still synthetic and deterministic rather than engine-captured or field-recorded.
-- The strong heuristic baseline remains competitive on some scenarios; the crate surfaces that explicitly.
-- The cost model is architectural, not hardware-profiled.
-- Demo B is a bounded fixed-budget controller study, not a full temporal sampling policy.
-
-## Future Work
-
-- Run the same supervisory layer against richer external scene corpora or engine trace captures.
-- Profile real GPU implementations and label those results explicitly as measured hardware data.
-- Test half-resolution trust and tile aggregation on actual hardware.
-- Package the host interface into an engine-adjacent prototype for transition diligence.
+This crate is intentionally self-contained. All code, docs, metrics, reports, and generated outputs needed for the artifact live under `crates/dsfb-computer-graphics`.

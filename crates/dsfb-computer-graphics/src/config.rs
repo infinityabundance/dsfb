@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::parameters::{
+    baseline_parameters, host_realistic_parameters, AlphaRange, BaselineParameters,
+};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SceneConfig {
     pub width: usize,
@@ -34,12 +38,8 @@ impl Default for SceneConfig {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DemoConfig {
     pub scene: SceneConfig,
-    pub baseline_alpha: f32,
-    pub residual_baseline_alpha_high: f32,
-    pub residual_baseline_threshold_low: f32,
-    pub residual_baseline_threshold_high: f32,
-    pub dsfb_alpha_min: f32,
-    pub dsfb_alpha_max: f32,
+    pub baseline: BaselineParameters,
+    pub dsfb_alpha_range: AlphaRange,
     pub trust_map_frame_offset: usize,
     pub comparison_frame_offset: usize,
     pub demo_b_reference_spp: usize,
@@ -50,14 +50,11 @@ pub struct DemoConfig {
 
 impl Default for DemoConfig {
     fn default() -> Self {
+        let host = host_realistic_parameters();
         Self {
             scene: SceneConfig::default(),
-            baseline_alpha: 0.12,
-            residual_baseline_alpha_high: 0.72,
-            residual_baseline_threshold_low: 0.08,
-            residual_baseline_threshold_high: 0.18,
-            dsfb_alpha_min: 0.08,
-            dsfb_alpha_max: 0.96,
+            baseline: baseline_parameters(),
+            dsfb_alpha_range: host.alpha_range,
             trust_map_frame_offset: 0,
             comparison_frame_offset: 2,
             demo_b_reference_spp: 64,

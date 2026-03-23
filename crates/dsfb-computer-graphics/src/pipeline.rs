@@ -18,25 +18,34 @@ use crate::outputs::{
 use crate::plots::{
     write_ablation_bar_figure, write_before_after_figure, write_demo_b_budget_efficiency_figure,
     write_demo_b_sampling_figure, write_intervention_alpha_figure, write_leaderboard_figure,
-    write_roi_nonroi_error_figure, write_scenario_mosaic_figure, write_system_diagram,
+    write_motion_relevance_figure, write_parameter_sensitivity_figure,
+    write_resolution_scaling_figure, write_roi_nonroi_error_figure, write_roi_taxonomy_figure,
+    write_scenario_mosaic_figure, write_system_diagram, write_trust_histogram_figure,
     write_trust_map_figure, write_trust_vs_error_figure, ScenarioMosaicEntry,
 };
 use crate::report::{
-    write_ablation_report, write_check_signing_blockers, write_completion_note, write_cost_report,
-    write_demo_b_decision_report, write_five_mentor_audit, write_report, write_reviewer_summary,
-    CompletionNoteStatus, COMPATIBILITY_SENTENCE, COST_SENTENCE, EXPERIMENT_SENTENCE,
+    build_trust_diagnostics, write_ablation_report, write_completion_note, write_cost_report,
+    write_demo_b_decision_report, write_demo_b_efficiency_report,
+    write_full_check_signing_blockers, write_full_five_mentor_audit, write_full_report,
+    write_full_reviewer_summary, write_parameter_sensitivity_report, write_report,
+    write_resolution_scaling_report, write_reviewer_summary, write_timing_report,
+    write_trust_diagnostics_report, CompletionNoteStatus, COMPATIBILITY_SENTENCE, COST_SENTENCE,
+    EXPERIMENT_SENTENCE,
 };
 use crate::sampling::{run_demo_b_suite, AllocationPolicyId, DemoBScenarioRun, DemoBSuiteMetrics};
+use crate::scaling::run_resolution_scaling_study;
 use crate::scene::{
     build_manifest, generate_sequence, generate_sequence_for_definition, scenario_by_id,
     scenario_suite, ScenarioDefinition, ScenarioExpectation, ScenarioId, SceneManifest,
     SceneSequence,
 };
+use crate::sensitivity::run_parameter_sensitivity_study;
 use crate::taa::{
     run_depth_normal_rejection_baseline, run_fixed_alpha_baseline, run_neighborhood_clamp_baseline,
     run_reactive_mask_baseline, run_residual_threshold_baseline, run_strong_heuristic_baseline,
     HeuristicRun,
 };
+use crate::timing::run_timing_study;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct DemoAArtifacts {
@@ -69,6 +78,16 @@ pub struct RunAllArtifacts {
     pub manifest_path: PathBuf,
     pub demo_a: DemoAArtifacts,
     pub demo_b: DemoBArtifacts,
+    pub trust_diagnostics_path: PathBuf,
+    pub trust_diagnostics_json_path: PathBuf,
+    pub timing_report_path: PathBuf,
+    pub timing_metrics_path: PathBuf,
+    pub resolution_scaling_report_path: PathBuf,
+    pub resolution_scaling_metrics_path: PathBuf,
+    pub parameter_sensitivity_report_path: PathBuf,
+    pub parameter_sensitivity_metrics_path: PathBuf,
+    pub demo_b_efficiency_report_path: PathBuf,
+    pub demo_b_metrics_path: PathBuf,
     pub five_mentor_audit_path: PathBuf,
     pub blocker_report_path: PathBuf,
     pub demo_b_decision_report_path: PathBuf,
@@ -292,6 +311,112 @@ pub fn run_demo_b_filtered(
     Ok(artifacts)
 }
 
+pub fn run_timing_only(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(output_dir)?;
+    let timing_metrics = run_timing_study(config)?;
+    let metrics_path = output_dir.join("timing_metrics.json");
+    fs::write(
+        &metrics_path,
+        serde_json::to_string_pretty(&timing_metrics)?,
+    )?;
+    let report_path = output_dir.join("timing_report.md");
+    write_timing_report(&report_path, &timing_metrics)?;
+    Ok(report_path)
+}
+
+pub fn run_resolution_scaling_only(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(output_dir)?;
+    let scaling_metrics = run_resolution_scaling_study(config)?;
+    let metrics_path = output_dir.join("resolution_scaling_metrics.json");
+    fs::write(
+        &metrics_path,
+        serde_json::to_string_pretty(&scaling_metrics)?,
+    )?;
+    let report_path = output_dir.join("resolution_scaling_report.md");
+    write_resolution_scaling_report(&report_path, &scaling_metrics)?;
+    Ok(report_path)
+}
+
+pub fn run_sensitivity_only(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(output_dir)?;
+    let sensitivity_metrics = run_parameter_sensitivity_study(config)?;
+    let metrics_path = output_dir.join("parameter_sensitivity_metrics.json");
+    fs::write(
+        &metrics_path,
+        serde_json::to_string_pretty(&sensitivity_metrics)?,
+    )?;
+    let report_path = output_dir.join("parameter_sensitivity_report.md");
+    write_parameter_sensitivity_report(&report_path, &sensitivity_metrics)?;
+    Ok(report_path)
+}
+
+pub fn run_demo_b_efficiency_only(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(output_dir)?;
+    let definitions = scenario_suite(&config.scene);
+    let host_sequences = execute_host_realistic_suite(config, &definitions)?;
+    let (demo_b_metrics, demo_b_runs) = run_demo_b_suite(config, &host_sequences)?;
+    let metrics_path = output_dir.join("demo_b_metrics.json");
+    fs::write(
+        &metrics_path,
+        serde_json::to_string_pretty(&demo_b_metrics)?,
+    )?;
+    let report_path = output_dir.join("demo_b_efficiency_report.md");
+    write_demo_b_efficiency_report(&report_path, &demo_b_metrics)?;
+    let figures_dir = output_dir.join("figures");
+    fs::create_dir_all(&figures_dir)?;
+    write_demo_b_budget_efficiency_figure(
+        &demo_b_metrics.budget_efficiency_curves,
+        &figures_dir.join("fig_demo_b_budget_efficiency.svg"),
+    )?;
+    let canonical_report = demo_b_metrics
+        .scenarios
+        .iter()
+        .find(|scenario| scenario.scenario_id == ScenarioId::ThinReveal.as_str())
+        .or_else(|| demo_b_metrics.scenarios.first())
+        .ok_or_else(|| Error::Message("Demo B had no scenarios".to_string()))?;
+    let canonical_run = demo_b_runs
+        .iter()
+        .find(|(scenario_id, _)| scenario_id == canonical_report.scenario_id.as_str())
+        .map(|(_, run)| run)
+        .ok_or_else(|| Error::Message("Demo B canonical run missing".to_string()))?;
+    write_demo_b_sampling_figure(
+        canonical_report,
+        canonical_run,
+        &figures_dir.join("fig_demo_b_sampling.svg"),
+    )?;
+    Ok(report_path)
+}
+
+pub fn export_minimal_report(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(output_dir)?;
+    let definitions = scenario_suite(&config.scene);
+    let executions = execute_demo_a_suite(config, &definitions)?;
+    let analysis_inputs = build_demo_a_analysis_inputs(&executions);
+    let demo_a_metrics = analyze_demo_a_suite(&analysis_inputs)?;
+    let trust_diagnostics = build_trust_diagnostics(&demo_a_metrics);
+    let path = output_dir.join("minimal_report.md");
+    let point_like = demo_a_metrics
+        .scenarios
+        .iter()
+        .filter(|scenario| {
+            matches!(
+                scenario.support_category,
+                crate::scene::ScenarioSupportCategory::PointLikeRoi
+            )
+        })
+        .map(|scenario| format!("{}={} px", scenario.scenario_id, scenario.target_pixels))
+        .collect::<Vec<_>>()
+        .join(", ");
+    fs::write(
+        &path,
+        format!(
+            "# Minimal Report\n\n{}\n\nPoint-like ROI disclosure: {}.\n\nTrust conclusion: {}\n\n## What Is Not Proven\n\n- No actual GPU timing is included in this minimal report.\n- This file does not prove production readiness.\n\n## Remaining Blockers\n\n- real GPU measurements\n- external engine validation\n",
+            demo_a_metrics.summary.primary_behavioral_result, point_like, trust_diagnostics.conclusion
+        ),
+    )?;
+    Ok(path)
+}
+
 pub fn run_all(config: &DemoConfig, output_dir: &Path) -> Result<RunAllArtifacts> {
     run_all_filtered(config, output_dir, None)
 }
@@ -321,7 +446,7 @@ pub fn run_all_filtered(
     let (demo_b_metrics, demo_b_runs) = run_demo_b_suite(config, &host_sequences)?;
     validate_demo_b_metrics(&demo_b_metrics)?;
 
-    let demo_a = write_demo_a_artifacts(
+    let mut demo_a = write_demo_a_artifacts(
         output_dir,
         config,
         &executions,
@@ -335,18 +460,103 @@ pub fn run_all_filtered(
         &demo_b_runs,
     )?;
 
+    let trust_diagnostics = build_trust_diagnostics(&demo_a_metrics);
+    let trust_diagnostics_path = output_dir.join("trust_diagnostics.md");
+    write_trust_diagnostics_report(&trust_diagnostics_path, &trust_diagnostics)?;
+    let trust_diagnostics_json_path = output_dir.join("trust_diagnostics.json");
+    fs::write(
+        &trust_diagnostics_json_path,
+        serde_json::to_string_pretty(&trust_diagnostics)?,
+    )?;
+
+    let timing_metrics = run_timing_study(config)?;
+    let timing_report_path = output_dir.join("timing_report.md");
+    write_timing_report(&timing_report_path, &timing_metrics)?;
+    let timing_metrics_path = output_dir.join("timing_metrics.json");
+    fs::write(
+        &timing_metrics_path,
+        serde_json::to_string_pretty(&timing_metrics)?,
+    )?;
+
+    let resolution_scaling_metrics = run_resolution_scaling_study(config)?;
+    let resolution_scaling_report_path = output_dir.join("resolution_scaling_report.md");
+    write_resolution_scaling_report(&resolution_scaling_report_path, &resolution_scaling_metrics)?;
+    let resolution_scaling_metrics_path = output_dir.join("resolution_scaling_metrics.json");
+    fs::write(
+        &resolution_scaling_metrics_path,
+        serde_json::to_string_pretty(&resolution_scaling_metrics)?,
+    )?;
+
+    let parameter_sensitivity_metrics = run_parameter_sensitivity_study(config)?;
+    let parameter_sensitivity_report_path = output_dir.join("parameter_sensitivity_report.md");
+    write_parameter_sensitivity_report(
+        &parameter_sensitivity_report_path,
+        &parameter_sensitivity_metrics,
+    )?;
+    let parameter_sensitivity_metrics_path = output_dir.join("parameter_sensitivity_metrics.json");
+    fs::write(
+        &parameter_sensitivity_metrics_path,
+        serde_json::to_string_pretty(&parameter_sensitivity_metrics)?,
+    )?;
+
+    let demo_b_metrics_path = output_dir.join("demo_b_metrics.json");
+    fs::write(
+        &demo_b_metrics_path,
+        serde_json::to_string_pretty(&demo_b_metrics)?,
+    )?;
+    let demo_b_efficiency_report_path = output_dir.join("demo_b_efficiency_report.md");
+    write_demo_b_efficiency_report(&demo_b_efficiency_report_path, &demo_b_metrics)?;
+
+    let cost_report = build_cost_report(CostMode::HostRealistic);
+    write_full_report(
+        &demo_a.report_path,
+        &demo_a_metrics,
+        &demo_b_metrics,
+        &cost_report,
+        &trust_diagnostics,
+        &timing_metrics,
+        &resolution_scaling_metrics,
+        &parameter_sensitivity_metrics,
+    )?;
+    write_full_reviewer_summary(
+        &demo_a.reviewer_summary_path,
+        &demo_a_metrics,
+        &demo_b_metrics,
+        &trust_diagnostics,
+        &timing_metrics,
+    )?;
+
     let five_mentor_audit_path = output_dir.join("five_mentor_audit.md");
-    write_five_mentor_audit(&five_mentor_audit_path, &demo_a_metrics, &demo_b_metrics)?;
+    write_full_five_mentor_audit(
+        &five_mentor_audit_path,
+        &demo_a_metrics,
+        &demo_b_metrics,
+        &timing_metrics,
+    )?;
     let blocker_report_path = output_dir.join("check_signing_blockers.md");
-    write_check_signing_blockers(&blocker_report_path, &demo_a_metrics)?;
+    write_full_check_signing_blockers(&blocker_report_path, &demo_a_metrics, &timing_metrics)?;
     let demo_b_decision_report_path = output_dir.join("demo_b_decision_report.md");
     write_demo_b_decision_report(&demo_b_decision_report_path, &demo_b_metrics)?;
+
+    let additional_figure_paths = write_additional_figures(
+        output_dir,
+        &demo_a_metrics,
+        &trust_diagnostics,
+        &resolution_scaling_metrics,
+        &parameter_sensitivity_metrics,
+    )?;
+    demo_a.figure_paths.extend(additional_figure_paths);
 
     let manifest_path = write_notebook_artifact_manifest(
         output_dir,
         &demo_a,
         &demo_b,
         &[
+            &trust_diagnostics_path,
+            &timing_report_path,
+            &resolution_scaling_report_path,
+            &parameter_sensitivity_report_path,
+            &demo_b_efficiency_report_path,
             &five_mentor_audit_path,
             &blocker_report_path,
             &demo_b_decision_report_path,
@@ -359,6 +569,11 @@ pub fn run_all_filtered(
         output_dir,
         &manifest_path,
         &[
+            &trust_diagnostics_path,
+            &timing_report_path,
+            &resolution_scaling_report_path,
+            &parameter_sensitivity_report_path,
+            &demo_b_efficiency_report_path,
             &five_mentor_audit_path,
             &blocker_report_path,
             &demo_b_decision_report_path,
@@ -370,6 +585,16 @@ pub fn run_all_filtered(
         manifest_path,
         demo_a,
         demo_b,
+        trust_diagnostics_path,
+        trust_diagnostics_json_path,
+        timing_report_path,
+        timing_metrics_path,
+        resolution_scaling_report_path,
+        resolution_scaling_metrics_path,
+        parameter_sensitivity_report_path,
+        parameter_sensitivity_metrics_path,
+        demo_b_efficiency_report_path,
+        demo_b_metrics_path,
         five_mentor_audit_path,
         blocker_report_path,
         demo_b_decision_report_path,
@@ -392,6 +617,16 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
         output_dir.join("ablation_report.md"),
         output_dir.join("cost_report.md"),
         output_dir.join("completion_note.md"),
+        output_dir.join("trust_diagnostics.md"),
+        output_dir.join("trust_diagnostics.json"),
+        output_dir.join("timing_report.md"),
+        output_dir.join("timing_metrics.json"),
+        output_dir.join("resolution_scaling_report.md"),
+        output_dir.join("resolution_scaling_metrics.json"),
+        output_dir.join("parameter_sensitivity_report.md"),
+        output_dir.join("parameter_sensitivity_metrics.json"),
+        output_dir.join("demo_b_metrics.json"),
+        output_dir.join("demo_b_efficiency_report.md"),
         output_dir.join("five_mentor_audit.md"),
         output_dir.join("check_signing_blockers.md"),
         output_dir.join("demo_b_decision_report.md"),
@@ -406,6 +641,15 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
         output_dir.join("figures").join("fig_roi_nonroi_error.svg"),
         output_dir.join("figures").join("fig_leaderboard.svg"),
         output_dir.join("figures").join("fig_scenario_mosaic.svg"),
+        output_dir.join("figures").join("fig_trust_histogram.svg"),
+        output_dir.join("figures").join("fig_roi_taxonomy.svg"),
+        output_dir
+            .join("figures")
+            .join("fig_parameter_sensitivity.svg"),
+        output_dir
+            .join("figures")
+            .join("fig_resolution_scaling.svg"),
+        output_dir.join("figures").join("fig_motion_relevance.svg"),
         output_dir.join("demo_b").join("metrics.json"),
         output_dir.join("demo_b").join("report.md"),
         output_dir
@@ -435,6 +679,37 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
             "main report is missing required honesty or compatibility sentences".to_string(),
         ));
     }
+    if !report.contains("## ROI Disclosure") {
+        return Err(Error::Message(
+            "main report is missing explicit ROI disclosure".to_string(),
+        ));
+    }
+    if report.contains("production-ready") || report.contains("state-of-the-art") {
+        return Err(Error::Message(
+            "main report contains unsupported claim language".to_string(),
+        ));
+    }
+
+    let timing_report = fs::read_to_string(output_dir.join("timing_report.md"))?;
+    if !timing_report.contains("Measurement classification")
+        || !timing_report.contains("Actual GPU timing measured")
+    {
+        return Err(Error::Message(
+            "timing report is missing measurement-kind disclosure".to_string(),
+        ));
+    }
+    if !timing_report.contains("cpu_only_proxy") {
+        return Err(Error::Message(
+            "timing report must state when timing is CPU-only proxy".to_string(),
+        ));
+    }
+
+    let trust_report = fs::read_to_string(output_dir.join("trust_diagnostics.md"))?;
+    if !trust_report.contains("degenerate, not decision-facing") {
+        return Err(Error::Message(
+            "trust diagnostics must explicitly quarantine degenerate rank correlation".to_string(),
+        ));
+    }
 
     Ok(())
 }
@@ -447,36 +722,20 @@ fn execute_demo_a_suite(
     for definition in definitions {
         let sequence = generate_sequence_for_definition(definition);
         let heuristic_runs = vec![
-            run_fixed_alpha_baseline(&sequence, config.baseline_alpha),
+            run_fixed_alpha_baseline(&sequence, config.baseline.fixed_alpha),
             run_residual_threshold_baseline(
                 &sequence,
-                config.baseline_alpha,
-                config.residual_baseline_alpha_high,
-                config.residual_baseline_threshold_low,
-                config.residual_baseline_threshold_high,
+                config.baseline.residual_alpha_range.min,
+                config.baseline.residual_alpha_range.max,
+                config.baseline.residual_threshold.low,
+                config.baseline.residual_threshold.high,
             ),
-            run_neighborhood_clamp_baseline(
-                &sequence,
-                config.baseline_alpha,
-                config.residual_baseline_alpha_high,
-            ),
-            run_depth_normal_rejection_baseline(
-                &sequence,
-                config.baseline_alpha,
-                config.residual_baseline_alpha_high,
-            ),
-            run_reactive_mask_baseline(
-                &sequence,
-                config.baseline_alpha,
-                config.residual_baseline_alpha_high,
-            ),
-            run_strong_heuristic_baseline(
-                &sequence,
-                config.baseline_alpha,
-                config.residual_baseline_alpha_high,
-            ),
+            run_neighborhood_clamp_baseline(&sequence, &config.baseline),
+            run_depth_normal_rejection_baseline(&sequence, &config.baseline),
+            run_reactive_mask_baseline(&sequence, &config.baseline),
+            run_strong_heuristic_baseline(&sequence, &config.baseline),
         ];
-        let dsfb_runs = ablation_profiles(config.dsfb_alpha_min, config.dsfb_alpha_max)
+        let dsfb_runs = ablation_profiles(config.dsfb_alpha_range.min, config.dsfb_alpha_range.max)
             .into_iter()
             .map(|profile| DsfbVariantRun::new(run_profiled_taa(&sequence, &profile)))
             .collect();
@@ -494,7 +753,8 @@ fn execute_host_realistic_suite(
     config: &DemoConfig,
     definitions: &[ScenarioDefinition],
 ) -> Result<Vec<(SceneSequence, DsfbRun)>> {
-    let profile = default_host_realistic_profile(config.dsfb_alpha_min, config.dsfb_alpha_max);
+    let profile =
+        default_host_realistic_profile(config.dsfb_alpha_range.min, config.dsfb_alpha_range.max);
     definitions
         .iter()
         .map(|definition| {
@@ -518,6 +778,7 @@ fn build_demo_a_analysis_inputs(
                     label: &run.label,
                     category: "baseline",
                     resolved_frames: &run.taa.resolved_frames,
+                    reprojected_history_frames: &run.taa.reprojected_history_frames,
                     alpha_frames: &run.alpha_frames,
                     response_frames: &run.response_frames,
                     trust_frames: None,
@@ -537,6 +798,7 @@ fn build_demo_a_analysis_inputs(
                     label: &run.run.profile.label,
                     category,
                     resolved_frames: &run.run.resolved_frames,
+                    reprojected_history_frames: &run.run.reprojected_history_frames,
                     alpha_frames: &run.alpha_frames,
                     response_frames: &run.response_frames,
                     trust_frames: Some(&run.trust_frames),
@@ -1088,6 +1350,40 @@ fn write_demo_b_images(
     ])
 }
 
+fn write_additional_figures(
+    output_dir: &Path,
+    demo_a_metrics: &DemoASuiteMetrics,
+    trust_diagnostics: &crate::report::TrustDiagnostics,
+    resolution_scaling_metrics: &crate::scaling::ResolutionScalingMetrics,
+    parameter_sensitivity_metrics: &crate::sensitivity::ParameterSensitivityMetrics,
+) -> Result<Vec<PathBuf>> {
+    let figures_dir = output_dir.join("figures");
+    fs::create_dir_all(&figures_dir)?;
+
+    let trust_histogram = figures_dir.join("fig_trust_histogram.svg");
+    write_trust_histogram_figure(trust_diagnostics, &trust_histogram)?;
+
+    let roi_taxonomy = figures_dir.join("fig_roi_taxonomy.svg");
+    write_roi_taxonomy_figure(demo_a_metrics, &roi_taxonomy)?;
+
+    let parameter_sensitivity = figures_dir.join("fig_parameter_sensitivity.svg");
+    write_parameter_sensitivity_figure(parameter_sensitivity_metrics, &parameter_sensitivity)?;
+
+    let resolution_scaling = figures_dir.join("fig_resolution_scaling.svg");
+    write_resolution_scaling_figure(resolution_scaling_metrics, &resolution_scaling)?;
+
+    let motion_relevance = figures_dir.join("fig_motion_relevance.svg");
+    write_motion_relevance_figure(demo_a_metrics, &motion_relevance)?;
+
+    Ok(vec![
+        trust_histogram,
+        roi_taxonomy,
+        parameter_sensitivity,
+        resolution_scaling,
+        motion_relevance,
+    ])
+}
+
 fn write_notebook_artifact_manifest(
     output_dir: &Path,
     demo_a: &DemoAArtifacts,
@@ -1163,6 +1459,8 @@ fn validate_demo_a_metrics(demo_a_metrics: &DemoASuiteMetrics) -> Result<()> {
         "thin_reveal",
         "fast_pan",
         "diagonal_reveal",
+        "reveal_band",
+        "motion_bias_band",
         "contrast_pulse",
         "stability_holdout",
     ];
@@ -1177,6 +1475,8 @@ fn validate_demo_a_metrics(demo_a_metrics: &DemoASuiteMetrics) -> Result<()> {
     let expected_ablations = [
         "dsfb_synthetic_visibility",
         "dsfb_host_realistic",
+        "dsfb_host_gated_reference",
+        "dsfb_motion_augmented",
         "dsfb_no_visibility",
         "dsfb_no_thin",
         "dsfb_no_motion_edge",
@@ -1267,6 +1567,13 @@ fn validate_demo_a_metrics(demo_a_metrics: &DemoASuiteMetrics) -> Result<()> {
                 "Demo A is missing a mixed or neutral surfaced outcome".to_string(),
             ));
         }
+        if demo_a_metrics.summary.point_roi_scenarios.is_empty()
+            || demo_a_metrics.summary.region_roi_scenarios.is_empty()
+        {
+            return Err(Error::Message(
+                "Demo A must surface both point-like and region ROI scenario groups".to_string(),
+            ));
+        }
     }
 
     if full_suite
@@ -1280,6 +1587,20 @@ fn validate_demo_a_metrics(demo_a_metrics: &DemoASuiteMetrics) -> Result<()> {
                 .to_string(),
         ));
     }
+    for scenario in &demo_a_metrics.scenarios {
+        if scenario.target_pixels == 0 {
+            return Err(Error::Message(format!(
+                "scenario {} reported zero ROI pixels",
+                scenario.scenario_id
+            )));
+        }
+        if scenario.roi_note.trim().is_empty() {
+            return Err(Error::Message(format!(
+                "scenario {} is missing ROI disclosure text",
+                scenario.scenario_id
+            )));
+        }
+    }
 
     Ok(())
 }
@@ -1292,6 +1613,7 @@ fn validate_demo_b_metrics(demo_b_metrics: &DemoBSuiteMetrics) -> Result<()> {
         "contrast_guided",
         "variance_guided",
         "combined_heuristic",
+        "native_trust",
         "imported_trust",
         "hybrid_trust_variance",
     ];
@@ -1448,7 +1770,35 @@ fn validate_full_artifacts(
     for path in reviewer_report_paths {
         require_file(path)?;
     }
-    validate_artifact_bundle(output_dir)
+    validate_artifact_bundle(output_dir).and_then(|_| validate_decision_reports(output_dir))
+}
+
+fn validate_decision_reports(output_dir: &Path) -> Result<()> {
+    for file_name in [
+        "report.md",
+        "reviewer_summary.md",
+        "five_mentor_audit.md",
+        "check_signing_blockers.md",
+        "trust_diagnostics.md",
+        "timing_report.md",
+        "resolution_scaling_report.md",
+        "parameter_sensitivity_report.md",
+        "demo_b_decision_report.md",
+        "demo_b_efficiency_report.md",
+    ] {
+        let text = fs::read_to_string(output_dir.join(file_name))?;
+        if !text.contains("What Is Not Proven") && !text.contains("What is not proven") {
+            return Err(Error::Message(format!(
+                "{file_name} is missing a what-is-not-proven section"
+            )));
+        }
+        if !text.contains("Remaining Blockers") {
+            return Err(Error::Message(format!(
+                "{file_name} is missing a remaining blockers section"
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn require_file(path: &Path) -> Result<()> {
@@ -1616,10 +1966,12 @@ pub fn parse_scenario_id(value: &str) -> Result<ScenarioId> {
         "thin_reveal" => Ok(ScenarioId::ThinReveal),
         "fast_pan" => Ok(ScenarioId::FastPan),
         "diagonal_reveal" => Ok(ScenarioId::DiagonalReveal),
+        "reveal_band" => Ok(ScenarioId::RevealBand),
+        "motion_bias_band" => Ok(ScenarioId::MotionBiasBand),
         "contrast_pulse" => Ok(ScenarioId::ContrastPulse),
         "stability_holdout" => Ok(ScenarioId::StabilityHoldout),
         _ => Err(Error::Message(format!(
-            "unknown scenario id `{value}`; expected one of thin_reveal, fast_pan, diagonal_reveal, contrast_pulse, stability_holdout"
+            "unknown scenario id `{value}`; expected one of thin_reveal, fast_pan, diagonal_reveal, reveal_band, motion_bias_band, contrast_pulse, stability_holdout"
         ))),
     }
 }

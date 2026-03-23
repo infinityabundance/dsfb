@@ -7,12 +7,16 @@ pub mod frame;
 pub mod host;
 pub mod metrics;
 pub mod outputs;
+pub mod parameters;
 pub mod pipeline;
 pub mod plots;
 pub mod report;
 pub mod sampling;
+pub mod scaling;
 pub mod scene;
+pub mod sensitivity;
 pub mod taa;
+pub mod timing;
 
 pub use config::{DemoConfig, SceneConfig};
 pub use error::{Error, Result};
@@ -22,7 +26,9 @@ pub use outputs::{
     ARTIFACT_MANIFEST_FILE_NAME, NOTEBOOK_OUTPUT_ROOT_NAME, PDF_BUNDLE_FILE_NAME,
 };
 pub use pipeline::{
-    generate_scene_artifacts, parse_scenario_id, run_all, run_all_filtered, run_demo_a,
-    run_demo_a_filtered, run_demo_b, run_demo_b_filtered, scenario_definitions_for_filter,
-    validate_artifact_bundle, DemoAArtifacts, DemoBArtifacts, RunAllArtifacts,
+    export_minimal_report, generate_scene_artifacts, parse_scenario_id, run_all, run_all_filtered,
+    run_demo_a, run_demo_a_filtered, run_demo_b, run_demo_b_efficiency_only, run_demo_b_filtered,
+    run_resolution_scaling_only, run_sensitivity_only, run_timing_only,
+    scenario_definitions_for_filter, validate_artifact_bundle, DemoAArtifacts, DemoBArtifacts,
+    RunAllArtifacts,
 };

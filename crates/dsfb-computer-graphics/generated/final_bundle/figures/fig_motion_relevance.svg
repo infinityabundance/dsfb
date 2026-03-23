@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="380" viewBox="0 0 860 380">
+<rect width="860" height="380" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Motion Relevance</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Positive bars mean the optional motion-augmented path improved over the minimum host path.</text>
+<line x1="70" y1="270" x2="810" y2="270" stroke="#f4f7fb" stroke-width="2"/>
+<rect x="120" y="266.2808" width="68" height="3.7192202" rx="6" fill="#4cc9f0"/>
+<text x="110" y="320" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">fast_pan</text><rect x="340" y="252.76938" width="68" height="17.230623" rx="6" fill="#4cc9f0"/>
+<text x="330" y="320" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">reveal_band</text><rect x="560" y="268.76392" width="68" height="1.2360859" rx="6" fill="#4cc9f0"/>
+<text x="550" y="320" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">motion_bias_band</text>
+</svg>

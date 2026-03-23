@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::error::{Error, Result};
 use crate::frame::{mean_abs_error, mean_abs_error_over_mask, ImageFrame, ScalarField};
-use crate::scene::{ScenarioExpectation, SceneSequence};
+use crate::scene::{ScenarioExpectation, ScenarioSupportCategory, SceneSequence};
 
 const LOW_RESPONSE_THRESHOLD: f32 = 0.50;
 
@@ -12,6 +12,7 @@ pub struct RunAnalysisInput<'a> {
     pub label: &'a str,
     pub category: &'a str,
     pub resolved_frames: &'a [ImageFrame],
+    pub reprojected_history_frames: &'a [ImageFrame],
     pub alpha_frames: &'a [ScalarField],
     pub response_frames: &'a [ScalarField],
     pub trust_frames: Option<&'a [ScalarField]>,
@@ -24,6 +25,20 @@ pub struct CalibrationBin {
     pub sample_count: usize,
     pub mean_trust: f32,
     pub mean_error: f32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct HistogramBin {
+    pub lower: f32,
+    pub upper: f32,
+    pub sample_count: usize,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+pub enum TrustOperatingMode {
+    NearBinaryGate,
+    WeaklyGraded,
+    StronglyGraded,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -67,9 +82,18 @@ pub struct RunSummary {
     pub mean_alpha: f32,
     pub onset_alpha_p90: f32,
     pub onset_alpha_max: f32,
+    pub alpha_temporal_delta_mean: f32,
+    pub response_temporal_delta_mean: f32,
     pub temporal_variance_non_roi: f32,
     pub trust_error_rank_correlation: Option<f32>,
+    pub trust_rank_correlation_is_degenerate: bool,
     pub trust_calibration_bins: Vec<CalibrationBin>,
+    pub trust_histogram: Vec<HistogramBin>,
+    pub trust_occupied_bin_count: usize,
+    pub trust_entropy_bits: Option<f32>,
+    pub trust_discreteness_score: Option<f32>,
+    pub trust_effective_level_count: Option<usize>,
+    pub trust_operating_mode: Option<TrustOperatingMode>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -84,9 +108,13 @@ pub struct ScenarioReport {
     pub scenario_title: String,
     pub scenario_description: String,
     pub expectation: ScenarioExpectation,
+    pub support_category: ScenarioSupportCategory,
+    pub roi_note: String,
+    pub sampling_taxonomy: String,
     pub target_label: String,
     pub onset_frame: usize,
     pub target_pixels: usize,
+    pub target_area_fraction: f32,
     pub persistence_threshold: f32,
     pub runs: Vec<ScenarioRunReport>,
     pub headline: String,
@@ -94,6 +122,11 @@ pub struct ScenarioReport {
     pub host_realistic_vs_fixed_alpha_cumulative_roi_gain: f32,
     pub host_realistic_vs_strong_heuristic_cumulative_roi_gain: f32,
     pub host_realistic_non_roi_penalty_vs_fixed_alpha: f32,
+    pub host_realistic_non_roi_penalty_vs_strong_heuristic: f32,
+    pub host_realistic_non_roi_penalty_ratio_vs_strong_heuristic: f32,
+    pub neighborhood_clamp_roi_trigger_mean: f32,
+    pub neighborhood_clamp_roi_silent_fraction: f32,
+    pub neighborhood_clamp_history_inside_hull_fraction: f32,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -122,6 +155,9 @@ pub struct AggregateRunScore {
 pub struct DemoASuiteSummary {
     pub canonical_scenario_id: String,
     pub scenario_ids: Vec<String>,
+    pub point_roi_scenarios: Vec<String>,
+    pub region_roi_scenarios: Vec<String>,
+    pub negative_control_scenarios: Vec<String>,
     pub baseline_ids: Vec<String>,
     pub dsfb_ids: Vec<String>,
     pub ablation_ids: Vec<String>,
@@ -232,6 +268,8 @@ pub fn analyze_demo_a_suite(
     let ablation_ids = vec![
         "dsfb_synthetic_visibility".to_string(),
         "dsfb_host_realistic".to_string(),
+        "dsfb_host_gated_reference".to_string(),
+        "dsfb_motion_augmented".to_string(),
         "dsfb_no_visibility".to_string(),
         "dsfb_no_thin".to_string(),
         "dsfb_no_motion_edge".to_string(),
@@ -278,12 +316,44 @@ pub fn analyze_demo_a_suite(
         .collect::<Vec<_>>();
 
     let aggregate_leaderboard = aggregate_leaderboard(&scenarios);
+    let point_roi_scenarios = scenarios
+        .iter()
+        .filter(|scenario| {
+            matches!(
+                scenario.support_category,
+                ScenarioSupportCategory::PointLikeRoi
+            )
+        })
+        .map(|scenario| scenario.scenario_id.clone())
+        .collect::<Vec<_>>();
+    let region_roi_scenarios = scenarios
+        .iter()
+        .filter(|scenario| {
+            matches!(
+                scenario.support_category,
+                ScenarioSupportCategory::RegionRoi
+            )
+        })
+        .map(|scenario| scenario.scenario_id.clone())
+        .collect::<Vec<_>>();
+    let negative_control_scenarios = scenarios
+        .iter()
+        .filter(|scenario| {
+            matches!(
+                scenario.support_category,
+                ScenarioSupportCategory::NegativeControl
+            )
+        })
+        .map(|scenario| scenario.scenario_id.clone())
+        .collect::<Vec<_>>();
     let remaining_blockers = vec![
         "The scenario suite is still synthetic and does not prove production-scene generalization."
             .to_string(),
         "The strong heuristic baseline remains competitive on some cases, so the crate supports evaluation diligence rather than universal win claims."
             .to_string(),
         "Cost accounting is architectural and CPU-side within the crate; it is not a measured GPU benchmark."
+            .to_string(),
+        "Point-like ROI scenarios remain mechanically useful but statistically weak, so aggregate claims must stay separated from region-ROI evidence."
             .to_string(),
     ];
 
@@ -294,6 +364,9 @@ pub fn analyze_demo_a_suite(
                 .iter()
                 .map(|scenario| scenario.scenario_id.clone())
                 .collect(),
+            point_roi_scenarios,
+            region_roi_scenarios,
+            negative_control_scenarios,
             baseline_ids,
             dsfb_ids,
             ablation_ids,
@@ -387,9 +460,14 @@ fn analyze_scenario(
         scenario_title: sequence.scenario_title.clone(),
         scenario_description: sequence.scenario_description.clone(),
         expectation: sequence.expectation,
+        support_category: sequence.support_category,
+        roi_note: sequence.roi_note.clone(),
+        sampling_taxonomy: sequence.sampling_taxonomy.clone(),
         target_label: sequence.target_label.clone(),
         onset_frame: sequence.onset_frame,
         target_pixels: sequence.target_mask.iter().filter(|value| **value).count(),
+        target_area_fraction: sequence.target_mask.iter().filter(|value| **value).count() as f32
+            / (sequence.config.width * sequence.config.height).max(1) as f32,
         persistence_threshold: threshold,
         headline,
         bounded_or_neutral_note,
@@ -401,6 +479,49 @@ fn analyze_scenario(
             - host_realistic.summary.cumulative_roi_mae,
         host_realistic_non_roi_penalty_vs_fixed_alpha: host_realistic.summary.average_non_roi_mae
             - fixed_alpha.summary.average_non_roi_mae,
+        host_realistic_non_roi_penalty_vs_strong_heuristic: host_realistic
+            .summary
+            .average_non_roi_mae
+            - strong_heuristic.summary.average_non_roi_mae,
+        host_realistic_non_roi_penalty_ratio_vs_strong_heuristic: ratio_or_identity(
+            host_realistic.summary.average_non_roi_mae,
+            strong_heuristic.summary.average_non_roi_mae,
+        ),
+        neighborhood_clamp_roi_trigger_mean: runs
+            .iter()
+            .find(|run| run.id == "neighborhood_clamp")
+            .map(|run| {
+                mean_field_over_mask_range(
+                    run.response_frames,
+                    &sequence.target_mask,
+                    sequence.onset_frame,
+                )
+            })
+            .unwrap_or(0.0),
+        neighborhood_clamp_roi_silent_fraction: runs
+            .iter()
+            .find(|run| run.id == "neighborhood_clamp")
+            .map(|run| {
+                fraction_field_values_below_range(
+                    run.response_frames,
+                    &sequence.target_mask,
+                    sequence.onset_frame,
+                    LOW_RESPONSE_THRESHOLD,
+                )
+            })
+            .unwrap_or(0.0),
+        neighborhood_clamp_history_inside_hull_fraction: runs
+            .iter()
+            .find(|run| run.id == "neighborhood_clamp")
+            .map(|run| {
+                fraction_field_values_below_range(
+                    run.response_frames,
+                    &sequence.target_mask,
+                    sequence.onset_frame,
+                    1.0e-4,
+                )
+            })
+            .unwrap_or(0.0),
         runs: reports,
     })
 }
@@ -505,19 +626,61 @@ fn analyze_run(
     let onset_alpha_max = onset_alpha_values.iter().copied().fold(0.0f32, f32::max);
     let temporal_variance_non_roi =
         temporal_variance_non_roi(sequence, run.resolved_frames, non_roi_mask);
-    let trust_error_rank_correlation = run
-        .trust_frames
-        .map(|fields| frame_spearman_correlation(fields, &frame_metrics, onset));
-    let trust_calibration_bins = run
-        .trust_frames
-        .map(|fields| {
+    let alpha_temporal_delta_mean = temporal_scalar_delta_mean(run.alpha_frames);
+    let response_temporal_delta_mean = temporal_scalar_delta_mean(run.response_frames);
+    let (
+        trust_error_rank_correlation,
+        trust_rank_correlation_is_degenerate,
+        trust_calibration_bins,
+        trust_histogram,
+        trust_occupied_bin_count,
+        trust_entropy_bits,
+        trust_discreteness_score,
+        trust_effective_level_count,
+        trust_operating_mode,
+    ) = if let Some(fields) = run.trust_frames {
+        let histogram = histogram_bins(&fields[onset], 10);
+        let occupied_bin_count = histogram.iter().filter(|bin| bin.sample_count > 0).count();
+        let entropy_bits = histogram_entropy_bits(&histogram);
+        let discreteness_score =
+            entropy_bits.map(|entropy| trust_discreteness_score(histogram.len(), entropy));
+        let effective_level_count = entropy_bits.map(|entropy| {
+            2.0f32
+                .powf(entropy)
+                .round()
+                .clamp(1.0, histogram.len() as f32) as usize
+        });
+        let correlation = frame_spearman_correlation(fields, &frame_metrics, onset);
+        let correlation_degenerate =
+            trust_rank_correlation_is_degenerate(fields, onset, occupied_bin_count, entropy_bits);
+        (
+            Some(correlation),
+            correlation_degenerate,
             calibration_bins(
                 &fields[onset],
                 &run.resolved_frames[onset],
                 &sequence.frames[onset].ground_truth,
-            )
-        })
-        .unwrap_or_default();
+            ),
+            histogram.clone(),
+            occupied_bin_count,
+            entropy_bits,
+            discreteness_score,
+            effective_level_count,
+            classify_trust_operating_mode(occupied_bin_count, entropy_bits, discreteness_score),
+        )
+    } else {
+        (
+            None,
+            false,
+            Vec::new(),
+            Vec::new(),
+            0,
+            None,
+            None,
+            None,
+            None,
+        )
+    };
 
     ScenarioRunReport {
         summary: RunSummary {
@@ -540,9 +703,18 @@ fn analyze_run(
             mean_alpha: run.alpha_frames.iter().map(ScalarField::mean).sum::<f32>() / frame_count,
             onset_alpha_p90,
             onset_alpha_max,
+            alpha_temporal_delta_mean,
+            response_temporal_delta_mean,
             temporal_variance_non_roi,
             trust_error_rank_correlation,
+            trust_rank_correlation_is_degenerate,
             trust_calibration_bins,
+            trust_histogram,
+            trust_occupied_bin_count,
+            trust_entropy_bits,
+            trust_discreteness_score,
+            trust_effective_level_count,
+            trust_operating_mode,
         },
         frame_metrics,
     }
@@ -659,6 +831,29 @@ fn temporal_variance_non_roi(
     }
 }
 
+fn temporal_scalar_delta_mean(fields: &[ScalarField]) -> f32 {
+    if fields.len() < 2 {
+        return 0.0;
+    }
+    let mut total = 0.0;
+    for window in fields.windows(2) {
+        total += mean_abs_scalar_delta(&window[0], &window[1]);
+    }
+    total / (fields.len() - 1) as f32
+}
+
+fn mean_abs_scalar_delta(left: &ScalarField, right: &ScalarField) -> f32 {
+    if left.values().is_empty() || right.values().is_empty() {
+        return 0.0;
+    }
+    left.values()
+        .iter()
+        .zip(right.values().iter())
+        .map(|(left, right)| (left - right).abs())
+        .sum::<f32>()
+        / left.values().len().min(right.values().len()).max(1) as f32
+}
+
 fn frame_spearman_correlation(
     trust_frames: &[ScalarField],
     frame_metrics: &[RunFrameMetrics],
@@ -675,6 +870,85 @@ fn frame_spearman_correlation(
         .map(|frame| frame.roi_mae)
         .collect::<Vec<_>>();
     spearman(&trust_values, &error_values)
+}
+
+fn histogram_bins(field: &ScalarField, bin_count: usize) -> Vec<HistogramBin> {
+    let safe_bin_count = bin_count.max(1);
+    let mut counts = vec![0usize; safe_bin_count];
+    for value in field.values().iter().copied() {
+        let index = ((value.clamp(0.0, 1.0) * safe_bin_count as f32).floor() as usize)
+            .min(safe_bin_count - 1);
+        counts[index] += 1;
+    }
+    counts
+        .into_iter()
+        .enumerate()
+        .map(|(index, sample_count)| HistogramBin {
+            lower: index as f32 / safe_bin_count as f32,
+            upper: (index + 1) as f32 / safe_bin_count as f32,
+            sample_count,
+        })
+        .collect()
+}
+
+fn histogram_entropy_bits(histogram: &[HistogramBin]) -> Option<f32> {
+    let total = histogram.iter().map(|bin| bin.sample_count).sum::<usize>();
+    if total == 0 {
+        return None;
+    }
+    let total_f = total as f32;
+    Some(
+        histogram
+            .iter()
+            .filter(|bin| bin.sample_count > 0)
+            .map(|bin| {
+                let p = bin.sample_count as f32 / total_f;
+                -p * p.log2()
+            })
+            .sum::<f32>(),
+    )
+}
+
+fn trust_discreteness_score(bin_count: usize, entropy_bits: f32) -> f32 {
+    let max_entropy = (bin_count.max(2) as f32).log2().max(f32::EPSILON);
+    (1.0 - entropy_bits / max_entropy).clamp(0.0, 1.0)
+}
+
+fn trust_rank_correlation_is_degenerate(
+    trust_frames: &[ScalarField],
+    onset: usize,
+    occupied_bin_count: usize,
+    entropy_bits: Option<f32>,
+) -> bool {
+    let Some(onset_field) = trust_frames.get(onset) else {
+        return true;
+    };
+    let (min_value, max_value) = onset_field.values().iter().copied().fold(
+        (f32::INFINITY, f32::NEG_INFINITY),
+        |(min_value, max_value), value| (min_value.min(value), max_value.max(value)),
+    );
+    let entropy_low = entropy_bits.unwrap_or(0.0) < 1.0;
+    let near_flat = (max_value - min_value).abs() < 0.15;
+    let too_few_post_onset_frames = trust_frames.len().saturating_sub(onset) < 4;
+    occupied_bin_count < 4 || entropy_low || near_flat || too_few_post_onset_frames
+}
+
+fn classify_trust_operating_mode(
+    occupied_bin_count: usize,
+    entropy_bits: Option<f32>,
+    discreteness_score: Option<f32>,
+) -> Option<TrustOperatingMode> {
+    let entropy_bits = entropy_bits?;
+    let discreteness_score = discreteness_score?;
+    Some(
+        if occupied_bin_count <= 3 || discreteness_score >= 0.72 || entropy_bits < 1.0 {
+            TrustOperatingMode::NearBinaryGate
+        } else if occupied_bin_count <= 5 || discreteness_score >= 0.42 || entropy_bits < 1.8 {
+            TrustOperatingMode::WeaklyGraded
+        } else {
+            TrustOperatingMode::StronglyGraded
+        },
+    )
 }
 
 fn calibration_bins(
@@ -768,6 +1042,59 @@ fn count_field_above(field: &ScalarField, threshold: f32) -> usize {
         .iter()
         .filter(|value| **value >= threshold)
         .count()
+}
+
+fn mean_field_over_mask_range(fields: &[ScalarField], mask: &[bool], start: usize) -> f32 {
+    if fields.is_empty() || start >= fields.len() {
+        return 0.0;
+    }
+    fields
+        .iter()
+        .skip(start)
+        .map(|field| field.mean_over_mask(mask))
+        .sum::<f32>()
+        / fields.len().saturating_sub(start).max(1) as f32
+}
+
+fn fraction_field_values_below_range(
+    fields: &[ScalarField],
+    mask: &[bool],
+    start: usize,
+    threshold: f32,
+) -> f32 {
+    if fields.is_empty() || start >= fields.len() {
+        return 0.0;
+    }
+    let mut total = 0usize;
+    let mut hits = 0usize;
+    for field in fields.iter().skip(start) {
+        for (value, include) in field.values().iter().zip(mask.iter().copied()) {
+            if !include {
+                continue;
+            }
+            total += 1;
+            if *value <= threshold {
+                hits += 1;
+            }
+        }
+    }
+    if total == 0 {
+        0.0
+    } else {
+        hits as f32 / total as f32
+    }
+}
+
+fn ratio_or_identity(numerator: f32, denominator: f32) -> f32 {
+    if denominator.abs() <= f32::EPSILON {
+        if numerator.abs() <= f32::EPSILON {
+            1.0
+        } else {
+            numerator
+        }
+    } else {
+        numerator / denominator
+    }
 }
 
 fn aggregate_leaderboard(scenarios: &[ScenarioReport]) -> Vec<AggregateRunScore> {

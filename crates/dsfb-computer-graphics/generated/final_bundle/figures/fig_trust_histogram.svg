@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="420" viewBox="0 0 980 420">
+<rect width="980" height="420" fill="#0b1320"/>
+<text x="28" y="36" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Trust Histogram and Calibration Bins</text>
+<text x="28" y="60" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">motion_bias_band / dsfb_host_realistic</text>
+<text x="70" y="94" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Histogram</text>
+<line x1="60" y1="340" x2="590" y2="340" stroke="#f4f7fb" stroke-width="2"/>
+<rect x="70" y="320.00745" width="34" height="19.992558" rx="4" fill="#4cc9f0"/>
+<text x="68" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.0</text><rect x="122" y="331.68204" width="34" height="8.317952" rx="4" fill="#4cc9f0"/>
+<text x="120" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.1</text><rect x="174" y="339.1813" width="34" height="0.818696" rx="4" fill="#4cc9f0"/>
+<text x="172" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.2</text><rect x="226" y="339.4269" width="34" height="0.5730872" rx="4" fill="#4cc9f0"/>
+<text x="224" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.3</text><rect x="278" y="339.86902" width="34" height="0.13099137" rx="4" fill="#4cc9f0"/>
+<text x="276" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.4</text><rect x="330" y="340" width="34" height="0" rx="4" fill="#4cc9f0"/>
+<text x="328" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.5</text><rect x="382" y="340" width="34" height="0" rx="4" fill="#4cc9f0"/>
+<text x="380" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.6</text><rect x="434" y="339.85263" width="34" height="0.14736529" rx="4" fill="#4cc9f0"/>
+<text x="432" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.7</text><rect x="486" y="338.47723" width="34" height="1.5227747" rx="4" fill="#4cc9f0"/>
+<text x="484" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.8</text><rect x="538" y="120" width="34" height="220" rx="4" fill="#4cc9f0"/>
+<text x="536" y="362" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.9</text>
+<text x="650" y="94" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Calibration bins</text>
+<line x1="640" y1="320" x2="940" y2="320" stroke="#f4f7fb" stroke-width="2"/>
+<rect x="650" y="307.9047" width="28" height="12.095297" rx="4" fill="#ffd166"/>
+<text x="644" y="342" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.09</text><rect x="710" y="297.07312" width="28" height="22.926865" rx="4" fill="#ffd166"/>
+<text x="704" y="342" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.27</text><rect x="770" y="287.68085" width="28" height="32.319145" rx="4" fill="#ffd166"/>
+<text x="764" y="342" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.42</text><rect x="830" y="283.9896" width="28" height="36.01041" rx="4" fill="#ffd166"/>
+<text x="824" y="342" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.79</text><rect x="890" y="316.835" width="28" height="3.165008" rx="4" fill="#ffd166"/>
+<text x="884" y="342" font-size="12" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">1.00</text>
+<text x="650" y="374" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Degenerate correlation hidden from headlines when bin occupancy is weak.</text>
+</svg>
