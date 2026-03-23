@@ -3,13 +3,17 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 use crate::config::DemoConfig;
+use crate::datasets::{
+    prepare_davis_dataset, prepare_sintel_dataset, validate_standard_external_package,
+};
 use crate::error::Result;
+use crate::external_validation::probe_external_gpu_only;
 use crate::pipeline::{
     export_evaluator_handoff, export_minimal_report, generate_scene_artifacts, run_all,
     run_all_filtered, run_demo_a, run_demo_a_filtered, run_demo_b, run_demo_b_efficiency_only,
     run_demo_b_filtered, run_external_replay_only, run_gpu_path_only, run_realism_bridge_only,
-    run_resolution_scaling_only, run_sensitivity_only, run_timing_only,
-    validate_artifact_bundle, validate_final_bundle,
+    run_resolution_scaling_only, run_sensitivity_only, run_timing_only, validate_artifact_bundle,
+    validate_final_bundle,
 };
 
 #[derive(Debug, Parser)]
@@ -25,6 +29,14 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    PrepareDavis {
+        #[arg(long, default_value = "data/external/davis")]
+        output: PathBuf,
+    },
+    PrepareSintel {
+        #[arg(long, default_value = "data/external/sintel")]
+        output: PathBuf,
+    },
     GenerateScene {
         #[arg(long, default_value = "generated")]
         output: PathBuf,
@@ -110,11 +122,27 @@ pub enum Command {
         #[arg(long, default_value = "generated")]
         output: PathBuf,
     },
+    /// Internal: run GPU probe in an isolated subprocess (used by run-external-replay)
+    #[command(hide = true)]
+    ProbeExternalGpu {
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long, default_value = "generated")]
+        output: PathBuf,
+    },
 }
 
 pub fn run(cli: Cli) -> Result<()> {
     let config = DemoConfig::default();
     match cli.command {
+        Command::PrepareDavis { output } => {
+            let manifest = prepare_davis_dataset(&output)?;
+            println!("DAVIS manifest: {}", manifest.display());
+        }
+        Command::PrepareSintel { output } => {
+            let manifest = prepare_sintel_dataset(&output)?;
+            println!("Sintel manifest: {}", manifest.display());
+        }
         Command::GenerateScene { output, .. } => {
             let manifest = generate_scene_artifacts(&config, &output)?;
             println!(
@@ -204,12 +232,15 @@ pub fn run(cli: Cli) -> Result<()> {
             println!("evaluator handoff: {}", report.display());
         }
         Command::Validate { output } => {
-            validate_final_bundle(&output)?;
-            println!("validated final artifact bundle at {}", output.display());
+            validate_standard_external_package(&output)?;
+            println!(
+                "validated standard external package at {}",
+                output.display()
+            );
         }
         Command::ValidateFinal { output } => {
             validate_final_bundle(&output)?;
-            println!("validated artifact bundle at {}", output.display());
+            println!("validated final bundle at {}", output.display());
         }
         Command::ValidateArtifacts { output } => {
             validate_artifact_bundle(&output)?;
@@ -218,6 +249,10 @@ pub fn run(cli: Cli) -> Result<()> {
         Command::ExportMinimalReport { output } => {
             let report = export_minimal_report(&config, &output)?;
             println!("minimal report: {}", report.display());
+        }
+        Command::ProbeExternalGpu { manifest, output } => {
+            let metrics_path = probe_external_gpu_only(&config, &manifest, &output)?;
+            println!("gpu probe metrics: {}", metrics_path.display());
         }
     }
     Ok(())

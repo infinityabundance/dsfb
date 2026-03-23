@@ -1,0 +1,127 @@
+{
+  "dataset_id": "davis",
+  "dataset_name": "DAVIS 2017",
+  "why_chosen": "DAVIS is a standard, immediately recognizable real-video benchmark with dense segmentation masks. It anchors the external replay path in real image content instead of only synthetic scenes.",
+  "prepared_output_dir": "/home/one/dsfb/crates/dsfb-computer-graphics/data/external/davis",
+  "manifest_path": "/home/one/dsfb/crates/dsfb-computer-graphics/examples/davis_external_manifest.json",
+  "dsfb_mode": "host_minimum_with_native_color_and_roi_plus_derived_motion_depth_normal_proxies",
+  "demo_a_metric_mode": "proxy_only_without_renderer_ground_truth",
+  "demo_b_mode": "fixed_budget_allocation_proxy_with_native_roi_masks",
+  "reference_strategy": "no reference frame; current-vs-history proxy metrics only",
+  "official_urls": [
+    "https://data.vision.ee.ethz.ch/csergi/share/davis/DAVIS-2017-trainval-480p.zip"
+  ],
+  "native_buffers": [
+    "current_color",
+    "history_color",
+    "roi_mask"
+  ],
+  "derived_buffers": [
+    "motion_vectors",
+    "current_depth",
+    "history_depth",
+    "current_normals",
+    "history_normals"
+  ],
+  "unsupported_buffers": [
+    "ground_truth_reference"
+  ],
+  "fields": [
+    {
+      "field_id": "current_color",
+      "quality": "native",
+      "source": "official DAVIS RGB frame",
+      "disclosure": "native DAVIS image"
+    },
+    {
+      "field_id": "history_color",
+      "quality": "native",
+      "source": "adjacent DAVIS RGB frame reprojected to the current frame using the derived motion field",
+      "disclosure": "native frames; reprojection uses the derived motion proxy"
+    },
+    {
+      "field_id": "motion_vectors",
+      "quality": "derived_low_confidence",
+      "source": "deterministic block-matching optical-flow proxy",
+      "disclosure": "derived from adjacent DAVIS frames; not native optical flow"
+    },
+    {
+      "field_id": "current_depth",
+      "quality": "derived_low_confidence",
+      "source": "segmentation-guided relative-depth proxy",
+      "disclosure": "foreground/background relative-depth proxy only; not metric depth"
+    },
+    {
+      "field_id": "history_depth",
+      "quality": "derived_low_confidence",
+      "source": "previous-frame relative depth warped into current frame",
+      "disclosure": "derived from previous DAVIS mask/image and the motion proxy"
+    },
+    {
+      "field_id": "current_normals",
+      "quality": "derived_low_confidence",
+      "source": "depth-gradient normals",
+      "disclosure": "derived from the relative-depth proxy"
+    },
+    {
+      "field_id": "history_normals",
+      "quality": "derived_low_confidence",
+      "source": "previous depth-gradient normals warped into current frame",
+      "disclosure": "derived from the previous relative-depth proxy"
+    },
+    {
+      "field_id": "roi_mask",
+      "quality": "native",
+      "source": "official DAVIS segmentation annotation",
+      "disclosure": "native binary ROI support after unioning non-zero objects"
+    },
+    {
+      "field_id": "reference",
+      "quality": "unavailable",
+      "source": "not provided by DAVIS in this mapping",
+      "disclosure": "no renderer-quality temporal ground truth is available in the mapped path"
+    }
+  ],
+  "captures": [
+    {
+      "label": "dance-twirl_frame_0079",
+      "sequence_id": "dance-twirl",
+      "frame_index": 79,
+      "roi_kind": "native_region_roi",
+      "case_tags": [
+        "realism_stress_case",
+        "larger_roi_case",
+        "mixed_regime_candidate"
+      ]
+    },
+    {
+      "label": "soapbox_frame_0069",
+      "sequence_id": "soapbox",
+      "frame_index": 69,
+      "roi_kind": "native_region_roi",
+      "case_tags": [
+        "realism_stress_case",
+        "larger_roi_case",
+        "mixed_regime_candidate"
+      ]
+    },
+    {
+      "label": "camel_frame_0020",
+      "sequence_id": "camel",
+      "frame_index": 20,
+      "roi_kind": "native_region_roi",
+      "case_tags": [
+        "realism_stress_case",
+        "larger_roi_case",
+        "mixed_regime_candidate"
+      ]
+    }
+  ],
+  "blockers": [],
+  "notes": [
+    "DAVIS mapping report: /home/one/dsfb/crates/dsfb-computer-graphics/generated/davis_mapping_report.md",
+    "DAVIS summary JSON: /home/one/dsfb/crates/dsfb-computer-graphics/generated/davis_mapping_summary.json",
+    "Derived fields are labeled derived-low-confidence in both the reports and the manifests.",
+    "No derived-high-confidence fields exist for this dataset: DAVIS does not provide native optical flow, metric depth, or renderer-origin outputs, so all derived buffers are explicitly labeled derived-low-confidence rather than derived-high-confidence."
+  ]
+}

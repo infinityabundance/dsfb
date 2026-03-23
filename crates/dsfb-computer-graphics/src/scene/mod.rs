@@ -426,7 +426,10 @@ fn generate_sequence_for_scenario(spec: &InternalScenarioSpec) -> SceneSequence 
             }
         }
 
-        if matches!(spec.id, ScenarioId::MotionBiasBand | ScenarioId::NoisyReprojection) {
+        if matches!(
+            spec.id,
+            ScenarioId::MotionBiasBand | ScenarioId::NoisyReprojection
+        ) {
             apply_motion_bias_band(
                 frame_index,
                 spec,

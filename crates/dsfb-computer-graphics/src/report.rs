@@ -1457,8 +1457,14 @@ pub fn write_full_reviewer_summary(
         "- Demo B includes region and mixed-width evidence"
     );
     let _ = writeln!(markdown, "- weights are centralized and sensitivity-vetted");
-    let _ = writeln!(markdown, "- a real GPU-executable kernel exists in the crate");
-    let _ = writeln!(markdown, "- external buffers can be imported through a stable manifest");
+    let _ = writeln!(
+        markdown,
+        "- a real GPU-executable kernel exists in the crate"
+    );
+    let _ = writeln!(
+        markdown,
+        "- external buffers can be imported through a stable manifest"
+    );
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## What Is Not Proven");
     let _ = writeln!(markdown);
@@ -1699,10 +1705,7 @@ pub fn write_realism_suite_report(path: &Path, demo_a: &DemoASuiteMetrics) -> Re
         markdown,
         "| Scenario | Support | Tags | ROI pixels | ROI fraction | Host vs fixed ROI gain | Host vs strong ROI gain |"
     );
-    let _ = writeln!(
-        markdown,
-        "| --- | --- | --- | ---: | ---: | ---: | ---: |"
-    );
+    let _ = writeln!(markdown, "| --- | --- | --- | ---: | ---: | ---: | ---: |");
     for scenario in &demo_a.scenarios {
         let _ = writeln!(
             markdown,
@@ -1773,18 +1776,9 @@ pub fn write_realism_bridge_report(path: &Path, demo_a: &DemoASuiteMetrics) -> R
         "Region-ROI evidence, realism-stress probes, competitive-baseline cases, and bounded-neutral controls now carry the main empirical load instead of leaving the story concentrated in point-ROI stress tests."
     );
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "- Point-ROI scenarios: `{point_roi}`"
-    );
-    let _ = writeln!(
-        markdown,
-        "- Region-ROI scenarios: `{region_roi}`"
-    );
-    let _ = writeln!(
-        markdown,
-        "- Realism-stress scenarios: `{realism_stress}`"
-    );
+    let _ = writeln!(markdown, "- Point-ROI scenarios: `{point_roi}`");
+    let _ = writeln!(markdown, "- Region-ROI scenarios: `{region_roi}`");
+    let _ = writeln!(markdown, "- Realism-stress scenarios: `{realism_stress}`");
     let _ = writeln!(
         markdown,
         "- Strong-heuristic-competitive scenarios: `{competitive}`"
@@ -1798,10 +1792,7 @@ pub fn write_realism_bridge_report(path: &Path, demo_a: &DemoASuiteMetrics) -> R
         markdown,
         "| Scenario | Support | Tags | ROI pixels | Host vs fixed ROI gain | Host vs strong ROI gain | Bounded note |"
     );
-    let _ = writeln!(
-        markdown,
-        "| --- | --- | --- | ---: | ---: | ---: | --- |"
-    );
+    let _ = writeln!(markdown, "| --- | --- | --- | ---: | ---: | ---: | --- |");
     for scenario in &demo_a.scenarios {
         let _ = writeln!(
             markdown,
@@ -1883,10 +1874,7 @@ pub fn write_trust_mode_report(path: &Path, diagnostics: &TrustDiagnostics) -> R
         markdown,
         "| Region-ROI scenario | Occupied bins | Effective levels | Entropy (bits) | Discreteness | Mode | Correlation note |"
     );
-    let _ = writeln!(
-        markdown,
-        "| --- | ---: | ---: | ---: | ---: | --- | --- |"
-    );
+    let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | ---: | --- | --- |");
     for entry in region_entries {
         let _ = writeln!(
             markdown,
@@ -1944,11 +1932,18 @@ pub fn write_competitive_baseline_analysis(path: &Path, demo_a: &DemoASuiteMetri
         fs::create_dir_all(parent)?;
     }
     let mut markdown = String::new();
-    let host_beats_strong = demo_a.summary.host_realistic_beats_strong_heuristic_scenarios;
+    let host_beats_strong = demo_a
+        .summary
+        .host_realistic_beats_strong_heuristic_scenarios;
     let benefit_count = demo_a
         .scenarios
         .iter()
-        .filter(|scenario| matches!(scenario.expectation, crate::scene::ScenarioExpectation::BenefitExpected))
+        .filter(|scenario| {
+            matches!(
+                scenario.expectation,
+                crate::scene::ScenarioExpectation::BenefitExpected
+            )
+        })
         .count();
     let framing = if host_beats_strong == benefit_count {
         "broader supervisory replacement candidate"
@@ -1965,18 +1960,20 @@ pub fn write_competitive_baseline_analysis(path: &Path, demo_a: &DemoASuiteMetri
         markdown,
         "| Scenario | Competitive baseline case | Host vs strong ROI gain | Non-ROI penalty ratio vs strong | Interpretation |"
     );
-    let _ = writeln!(
-        markdown,
-        "| --- | --- | ---: | ---: | --- |"
-    );
+    let _ = writeln!(markdown, "| --- | --- | ---: | ---: | --- |");
     for scenario in &demo_a.scenarios {
-        let interpretation = if scenario.host_realistic_vs_strong_heuristic_cumulative_roi_gain > 0.0 {
-            "DSFB wins in the targeted instability region."
-        } else if scenario.host_realistic_vs_strong_heuristic_cumulative_roi_gain.abs() < 1e-4 {
-            "Tie or effectively neutral."
-        } else {
-            "Strong heuristic remains competitive or better here."
-        };
+        let interpretation =
+            if scenario.host_realistic_vs_strong_heuristic_cumulative_roi_gain > 0.0 {
+                "DSFB wins in the targeted instability region."
+            } else if scenario
+                .host_realistic_vs_strong_heuristic_cumulative_roi_gain
+                .abs()
+                < 1e-4
+            {
+                "Tie or effectively neutral."
+            } else {
+                "Strong heuristic remains competitive or better here."
+            };
         let _ = writeln!(
             markdown,
             "| {} | {} | {:.5} | {:.5} | {} |",
@@ -2022,7 +2019,10 @@ pub fn write_product_positioning_report(path: &Path, demo_a: &DemoASuiteMetrics)
         .scenarios
         .iter()
         .filter(|scenario| {
-            scenario.host_realistic_vs_strong_heuristic_cumulative_roi_gain.abs() <= 1.0e-4
+            scenario
+                .host_realistic_vs_strong_heuristic_cumulative_roi_gain
+                .abs()
+                <= 1.0e-4
         })
         .count();
     let losses = demo_a.scenarios.len().saturating_sub(wins + ties);
@@ -2090,10 +2090,7 @@ pub fn write_non_roi_penalty_report(path: &Path, demo_a: &DemoASuiteMetrics) -> 
         markdown,
         "| Scenario | Host non-ROI MAE penalty vs fixed | Host non-ROI MAE penalty vs strong | Penalty ratio vs strong | Note |"
     );
-    let _ = writeln!(
-        markdown,
-        "| --- | ---: | ---: | ---: | --- |"
-    );
+    let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | --- |");
     for scenario in &demo_a.scenarios {
         let _ = writeln!(
             markdown,
@@ -2144,10 +2141,7 @@ pub fn write_demo_b_competitive_baselines_report(
         markdown,
         "| Scenario | Taxonomy | Best heuristic baseline | Best heuristic ROI MAE | Imported trust ROI MAE | Hybrid ROI MAE | Interpretation |"
     );
-    let _ = writeln!(
-        markdown,
-        "| --- | --- | --- | ---: | ---: | ---: | --- |"
-    );
+    let _ = writeln!(markdown, "| --- | --- | --- | ---: | ---: | ---: | --- |");
     for scenario in &demo_b.scenarios {
         let heuristic_ids = [
             "edge_guided",
@@ -2215,10 +2209,7 @@ pub fn write_demo_b_aliasing_vs_variance_report(
         markdown,
         "| Scenario | Demo B taxonomy | Imported trust ROI MAE | Uniform ROI MAE | Combined heuristic ROI MAE |"
     );
-    let _ = writeln!(
-        markdown,
-        "| --- | --- | ---: | ---: | ---: |"
-    );
+    let _ = writeln!(markdown, "| --- | --- | ---: | ---: | ---: |");
     for scenario in &demo_b.scenarios {
         let imported = find_policy(scenario, "imported_trust").expect("imported trust policy");
         let uniform = find_policy(scenario, "uniform").expect("uniform policy");
@@ -2289,10 +2280,7 @@ pub fn write_operating_band_report(
         markdown,
         "| Parameter | Robust values | Moderately sensitive values | Fragile values | First tuning priority |"
     );
-    let _ = writeln!(
-        markdown,
-        "| --- | --- | --- | --- | --- |"
-    );
+    let _ = writeln!(markdown, "| --- | --- | --- | --- | --- |");
     for (parameter_id, points) in grouped {
         let robust = band_values(&points, "robust");
         let moderate = band_values(&points, "moderately_sensitive");
@@ -2308,7 +2296,11 @@ pub fn write_operating_band_report(
             markdown,
             "| {} | {} | {} | {} | {} |",
             parameter_id,
-            if robust.is_empty() { "none".to_string() } else { robust.join(", ") },
+            if robust.is_empty() {
+                "none".to_string()
+            } else {
+                robust.join(", ")
+            },
             if moderate.is_empty() {
                 "none".to_string()
             } else {
@@ -2367,7 +2359,10 @@ pub fn write_production_eval_checklist(
     let _ = writeln!(markdown, "Requires external validation:");
     let _ = writeln!(markdown, "- real engine buffer export into the schema");
     let _ = writeln!(markdown, "- GPU profiling on imported captures");
-    let _ = writeln!(markdown, "- fair in-engine comparison against strong heuristics");
+    let _ = writeln!(
+        markdown,
+        "- fair in-engine comparison against strong heuristics"
+    );
     let _ = writeln!(markdown, "- non-ROI penalty behavior on production scenes");
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "Status:");
@@ -2398,7 +2393,10 @@ pub fn write_production_eval_checklist(
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "- real engine validation");
     if !gpu.actual_gpu_timing_measured {
-        let _ = writeln!(markdown, "- measured GPU timing on the evaluator's hardware");
+        let _ = writeln!(
+            markdown,
+            "- measured GPU timing on the evaluator's hardware"
+        );
     }
     fs::write(path, markdown)?;
     Ok(())
@@ -2418,10 +2416,19 @@ pub fn write_evaluator_handoff(
     let _ = writeln!(markdown, "# Evaluator Handoff");
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "Run first:");
-    let _ = writeln!(markdown, "- `cargo run --release -- run-all --output generated/final_bundle`");
-    let _ = writeln!(markdown, "- `cargo run --release -- validate-final --output generated/final_bundle`");
-    let _ = writeln!(markdown, "- `cargo run --release -- run-gpu-path --output generated/gpu_path`");
-    let _ = writeln!(markdown, "- `cargo run --release -- run-external-replay --manifest examples/external_capture_manifest.json --output generated/external_demo`");
+    let _ = writeln!(
+        markdown,
+        "- `cargo run --release -- run-all --output generated/final_bundle`"
+    );
+    let _ = writeln!(
+        markdown,
+        "- `cargo run --release -- validate-final --output generated/final_bundle`"
+    );
+    let _ = writeln!(
+        markdown,
+        "- `cargo run --release -- run-gpu-path --output generated/gpu_path`"
+    );
+    let _ = writeln!(markdown, "- `cargo run --release -- run-external-replay --manifest examples/external_capture_manifest.json --output generated/external_real`");
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "Strongest current evidence:");
     let _ = writeln!(markdown, "- {}", demo_a.summary.primary_behavioral_result);
@@ -2432,9 +2439,15 @@ pub fn write_evaluator_handoff(
         let _ = writeln!(markdown, "- no in-environment measured GPU timing");
     }
     if !external.externally_validated {
-        let _ = writeln!(markdown, "- no real external engine capture has been validated");
+        let _ = writeln!(
+            markdown,
+            "- no real external engine capture has been validated"
+        );
     }
-    let _ = writeln!(markdown, "- strong heuristic remains competitive on some scenarios");
+    let _ = writeln!(
+        markdown,
+        "- strong heuristic remains competitive on some scenarios"
+    );
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "Single highest-value next GPU experiment:");
     let _ = writeln!(
@@ -2442,7 +2455,10 @@ pub fn write_evaluator_handoff(
         "- Run the measured `wgpu` minimum kernel on the target evaluator GPU and compare numeric deltas against the CPU reference on one region-ROI case and one realism-stress case."
     );
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "Single highest-value next external replay experiment:");
+    let _ = writeln!(
+        markdown,
+        "Single highest-value next external replay experiment:"
+    );
     let _ = writeln!(
         markdown,
         "- Export one real frame pair from an engine into the external schema, replay it through DSFB host-realistic, and compare fixed alpha, strong heuristic, and DSFB on the same capture."
@@ -2451,7 +2467,19 @@ pub fn write_evaluator_handoff(
     let _ = writeln!(markdown, "Engine-side baselines to keep:");
     let _ = writeln!(markdown, "- fixed alpha");
     let _ = writeln!(markdown, "- strong heuristic");
-    let _ = writeln!(markdown, "- imported-trust or native-trust sampling policy where relevant");
+    let _ = writeln!(
+        markdown,
+        "- imported-trust or native-trust sampling policy where relevant"
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## External Validation");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "- exact command: `cargo run --release -- run-external-replay --manifest <manifest> --output generated/external_real`");
+    let _ = writeln!(markdown, "- required data format: `current_color`, `reprojected_history`, `motion_vectors`, `current_depth`, `reprojected_depth`, `current_normals`, `reprojected_normals`, plus optional `mask`, `ground_truth`, and `variance`.");
+    let _ = writeln!(markdown, "- expected outputs: `external_validation_report.md`, `gpu_external_report.md`, `gpu_external_metrics.json`, `demo_a_external_report.md`, `demo_b_external_report.md`, `demo_b_external_metrics.json`, `scaling_report.md`, `scaling_metrics.json`, `memory_bandwidth_report.md`, `integration_scaling_report.md`, and `figures/`.");
+    let _ = writeln!(markdown, "- success looks like: the imported capture runs through the DSFB host-minimum path, GPU status is explicit, ROI vs non-ROI is separated, fixed-budget Demo B compares DSFB against stronger heuristics, and the scaling package says whether 1080p/4K, readback, and async insertion are viable.");
+    let _ = writeln!(markdown, "- failure looks like: malformed schema, missing required buffers, no measured-vs-unmeasured GPU disclosure, no 1080p attempt or unavailable classification, budget mismatch, or reports that hide proxy-vs-real metric status.");
+    let _ = writeln!(markdown, "- interpretation: ties against strong heuristics mean DSFB is behaving like a targeted supervisory overlay rather than a blanket replacement; losses plus higher non-ROI penalty should trigger engine-side tuning before any broader claim.");
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## What Is Not Proven");
     let _ = writeln!(markdown);
@@ -2478,16 +2506,28 @@ pub fn write_minimum_external_validation_plan(path: &Path) -> Result<()> {
     let _ = writeln!(markdown, "1. Export one frame pair with current color, reprojected history, motion, depth, and normals.");
     let _ = writeln!(markdown, "2. Run `import-external` on that manifest.");
     let _ = writeln!(markdown, "3. Run `run-gpu-path` on the same machine.");
-    let _ = writeln!(markdown, "4. Compare strong heuristic, fixed alpha, and DSFB host-realistic results.");
-    let _ = writeln!(markdown, "5. Record ROI behavior, non-ROI penalty, and GPU timing.");
+    let _ = writeln!(
+        markdown,
+        "4. Compare strong heuristic, fixed alpha, and DSFB host-realistic results."
+    );
+    let _ = writeln!(
+        markdown,
+        "5. Record ROI behavior, non-ROI penalty, and GPU timing."
+    );
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## What Is Not Proven");
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "- This plan does not imply the result will be positive.");
+    let _ = writeln!(
+        markdown,
+        "- This plan does not imply the result will be positive."
+    );
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## Remaining Blockers");
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "- actual external captures still need to be exported");
+    let _ = writeln!(
+        markdown,
+        "- actual external captures still need to be exported"
+    );
     fs::write(path, markdown)?;
     Ok(())
 }
@@ -2503,7 +2543,10 @@ pub fn write_next_step_matrix(
     let mut markdown = String::new();
     let _ = writeln!(markdown, "# Next Step Matrix");
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "| Area | Current status | Next action | Negative outcome to watch |");
+    let _ = writeln!(
+        markdown,
+        "| Area | Current status | Next action | Negative outcome to watch |"
+    );
     let _ = writeln!(markdown, "| --- | --- | --- | --- |");
     let _ = writeln!(
         markdown,
@@ -2522,11 +2565,17 @@ pub fn write_next_step_matrix(
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## What Is Not Proven");
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "- This matrix does not claim any of the next actions will succeed.");
+    let _ = writeln!(
+        markdown,
+        "- This matrix does not claim any of the next actions will succeed."
+    );
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## Remaining Blockers");
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "- external evaluator execution still needs to happen");
+    let _ = writeln!(
+        markdown,
+        "- external evaluator execution still needs to happen"
+    );
     fs::write(path, markdown)?;
     Ok(())
 }
@@ -2569,9 +2618,7 @@ pub fn write_check_signing_readiness(
     let _ = writeln!(
         markdown,
         "| Immediate sign-off | {} | external validation=`{}`, measured GPU timing=`{}` |",
-        sign_off_status,
-        external.externally_validated,
-        gpu.actual_gpu_timing_measured
+        sign_off_status, external.externally_validated, gpu.actual_gpu_timing_measured
     );
     let _ = writeln!(
         markdown,

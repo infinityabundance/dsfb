@@ -1,0 +1,205 @@
+{
+  "real_external_data_provided": true,
+  "no_real_external_data_provided": false,
+  "captures": [
+    {
+      "capture_label": "ambush_5_mixed_frame_0047",
+      "roi_source": "manifest_mask",
+      "roi_pixels": 44646,
+      "ground_truth_available": true,
+      "metric_source": "real_reference",
+      "methods": [
+        {
+          "method_id": "fixed_alpha",
+          "label": "Fixed alpha baseline",
+          "metric_source": "real_reference",
+          "overall_mae": 0.15606134,
+          "roi_mae": 0.08241147,
+          "non_roi_mae": 0.1642453,
+          "temporal_error_accumulation": 0.15606134,
+          "intervention_rate": 0.0
+        },
+        {
+          "method_id": "strong_heuristic",
+          "label": "Strong heuristic",
+          "metric_source": "real_reference",
+          "overall_mae": 0.12921728,
+          "roi_mae": 0.06025247,
+          "non_roi_mae": 0.1368794,
+          "temporal_error_accumulation": 0.12921728,
+          "intervention_rate": 0.599882
+        },
+        {
+          "method_id": "dsfb_host_minimum",
+          "label": "DSFB host minimum",
+          "metric_source": "real_reference",
+          "overall_mae": 0.13048635,
+          "roi_mae": 0.06301733,
+          "non_roi_mae": 0.13798435,
+          "temporal_error_accumulation": 0.13048635,
+          "intervention_rate": 0.3343947
+        }
+      ]
+    },
+    {
+      "capture_label": "ambush_5_point_frame_0047",
+      "roi_source": "manifest_mask",
+      "roi_pixels": 13394,
+      "ground_truth_available": true,
+      "metric_source": "real_reference",
+      "methods": [
+        {
+          "method_id": "fixed_alpha",
+          "label": "Fixed alpha baseline",
+          "metric_source": "real_reference",
+          "overall_mae": 0.15606134,
+          "roi_mae": 0.0765435,
+          "non_roi_mae": 0.15852116,
+          "temporal_error_accumulation": 0.15606134,
+          "intervention_rate": 0.0
+        },
+        {
+          "method_id": "strong_heuristic",
+          "label": "Strong heuristic",
+          "metric_source": "real_reference",
+          "overall_mae": 0.12921728,
+          "roi_mae": 0.07062181,
+          "non_roi_mae": 0.13102928,
+          "temporal_error_accumulation": 0.12921728,
+          "intervention_rate": 0.599882
+        },
+        {
+          "method_id": "dsfb_host_minimum",
+          "label": "DSFB host minimum",
+          "metric_source": "real_reference",
+          "overall_mae": 0.13048635,
+          "roi_mae": 0.07078615,
+          "non_roi_mae": 0.1323336,
+          "temporal_error_accumulation": 0.13048635,
+          "intervention_rate": 0.3343947
+        }
+      ]
+    },
+    {
+      "capture_label": "ambush_5_region_frame_0047",
+      "roi_source": "manifest_mask",
+      "roi_pixels": 80364,
+      "ground_truth_available": true,
+      "metric_source": "real_reference",
+      "methods": [
+        {
+          "method_id": "fixed_alpha",
+          "label": "Fixed alpha baseline",
+          "metric_source": "real_reference",
+          "overall_mae": 0.15606134,
+          "roi_mae": 0.07576551,
+          "non_roi_mae": 0.17368859,
+          "temporal_error_accumulation": 0.15606134,
+          "intervention_rate": 0.0
+        },
+        {
+          "method_id": "strong_heuristic",
+          "label": "Strong heuristic",
+          "metric_source": "real_reference",
+          "overall_mae": 0.12921728,
+          "roi_mae": 0.053552438,
+          "non_roi_mae": 0.14582223,
+          "temporal_error_accumulation": 0.12921728,
+          "intervention_rate": 0.599882
+        },
+        {
+          "method_id": "dsfb_host_minimum",
+          "label": "DSFB host minimum",
+          "metric_source": "real_reference",
+          "overall_mae": 0.13048635,
+          "roi_mae": 0.059900943,
+          "non_roi_mae": 0.14598238,
+          "temporal_error_accumulation": 0.13048635,
+          "intervention_rate": 0.3343947
+        }
+      ]
+    },
+    {
+      "capture_label": "market_6_mixed_frame_0008",
+      "roi_source": "manifest_mask",
+      "roi_pixels": 44646,
+      "ground_truth_available": true,
+      "metric_source": "real_reference",
+      "methods": [
+        {
+          "method_id": "fixed_alpha",
+          "label": "Fixed alpha baseline",
+          "metric_source": "real_reference",
+          "overall_mae": 0.06676341,
+          "roi_mae": 0.048566498,
+          "non_roi_mae": 0.068785734,
+          "temporal_error_accumulation": 0.06676341,
+          "intervention_rate": 0.0
+        },
+        {
+          "method_id": "strong_heuristic",
+          "label": "Strong heuristic",
+          "metric_source": "real_reference",
+          "overall_mae": 0.059572168,
+          "roi_mae": 0.05466622,
+          "non_roi_mae": 0.06011528,
+          "temporal_error_accumulation": 0.059572168,
+          "intervention_rate": 0.94746894
+        },
+        {
+          "method_id": "dsfb_host_minimum",
+          "label": "DSFB host minimum",
+          "metric_source": "real_reference",
+          "overall_mae": 0.059212152,
+          "roi_mae": 0.04988064,
+          "non_roi_mae": 0.060249597,
+          "temporal_error_accumulation": 0.059212152,
+          "intervention_rate": 0.3231473
+        }
+      ]
+    },
+    {
+      "capture_label": "market_6_region_frame_0008",
+      "roi_source": "manifest_mask",
+      "roi_pixels": 66970,
+      "ground_truth_available": true,
+      "metric_source": "real_reference",
+      "methods": [
+        {
+          "method_id": "fixed_alpha",
+          "label": "Fixed alpha baseline",
+          "metric_source": "real_reference",
+          "overall_mae": 0.06676341,
+          "roi_mae": 0.046945903,
+          "non_roi_mae": 0.0702621,
+          "temporal_error_accumulation": 0.06676341,
+          "intervention_rate": 0.0
+        },
+        {
+          "method_id": "strong_heuristic",
+          "label": "Strong heuristic",
+          "metric_source": "real_reference",
+          "overall_mae": 0.059572168,
+          "roi_mae": 0.05216795,
+          "non_roi_mae": 0.060875133,
+          "temporal_error_accumulation": 0.059572168,
+          "intervention_rate": 0.94746894
+        },
+        {
+          "method_id": "dsfb_host_minimum",
+          "label": "DSFB host minimum",
+          "metric_source": "real_reference",
+          "overall_mae": 0.059212152,
+          "roi_mae": 0.04783552,
+          "non_roi_mae": 0.061220843,
+          "temporal_error_accumulation": 0.059212152,
+          "intervention_rate": 0.3231473
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Demo A external replay uses the same host-minimum supervisory logic as the internal suite.",
+    "If no optional reference frame is supplied, ROI error becomes a lag proxy against current color and non-ROI error becomes a history-deviation proxy."
+  ]
+}

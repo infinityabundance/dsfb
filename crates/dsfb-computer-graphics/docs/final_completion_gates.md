@@ -20,6 +20,11 @@ cargo run --release -- validate-final --output generated/final_bundle
 - `examples/external_buffer_schema.json` and `examples/external_capture_manifest.json` must exist.
 - The CLI must support `run-external-replay` and `replay-external` aliases.
 - `generated/external_replay_report.md` must exist and must distinguish external-capable from externally validated.
+- `generated/external_real/external_validation_report.md`, `generated/external_real/gpu_external_report.md`, `generated/external_real/demo_a_external_report.md`, and `generated/external_real/demo_b_external_report.md` must exist.
+- `generated/external_real/scaling_report.md`, `generated/external_real/scaling_metrics.json`, `generated/external_real/memory_bandwidth_report.md`, and `generated/external_real/integration_scaling_report.md` must exist.
+- The external scaling package must explicitly attempt 1080p and state whether 4K was measured or unavailable.
+- The external reports must explicitly state whether readback is required in production and whether async-compute insertion is plausible.
+- The external validation package must explicitly label coverage for `realism_stress_case`, `larger_roi_case`, and `mixed_regime_case`, with partial coverage called out when any class is missing.
 
 ## Realism Bridge
 

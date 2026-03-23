@@ -1,0 +1,49 @@
+{
+  "measurement_kind": "external_buffer_import_real",
+  "external_capable": true,
+  "externally_validated": true,
+  "real_external_data_provided": true,
+  "no_real_external_data_provided": false,
+  "source_kind": "davis_2017_real_video",
+  "scenario_id": null,
+  "frame_index": 79,
+  "history_frame_index": 78,
+  "width": 854,
+  "height": 480,
+  "capture_count": 3,
+  "imported_formats": [
+    "png_rgb8",
+    "png_rgb8",
+    "json_vec2_f32",
+    "json_scalar_f32",
+    "json_vec3_f32"
+  ],
+  "required_buffers": [
+    "current_color",
+    "reprojected_history",
+    "motion_vectors",
+    "current_depth",
+    "reprojected_depth",
+    "current_normals",
+    "reprojected_normals"
+  ],
+  "normalization_notes": [
+    "sRGB frames converted to normalized RGB in [0,1]",
+    "deterministic block-matching proxy in pixel offsets to the previous frame; derived-low-confidence",
+    "segmentation-guided relative-depth proxy in [0,1]; derived-low-confidence and explicitly non-metric",
+    "normals derived from the relative-depth proxy; derived-low-confidence"
+  ],
+  "roi_source": "manifest_mask",
+  "ground_truth_available": false,
+  "variance_available": false,
+  "mean_trust": 0.858281,
+  "mean_alpha": 0.2044073,
+  "intervention_rate": 0.14197974,
+  "notes": [
+    "sequence_id=dance-twirl",
+    "ROI comes from the official DAVIS annotation after unioning non-zero object ids.",
+    "Motion vectors use deterministic block matching on adjacent frames and remain derived-low-confidence.",
+    "Depth is a segmentation-guided relative-depth proxy, not metric depth.",
+    "Normals are derived from the relative-depth proxy."
+  ]
+}

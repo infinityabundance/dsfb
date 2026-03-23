@@ -1,0 +1,74 @@
+{
+  "measurement_kind": "measured_gpu",
+  "kernel": "dsfb_host_minimum",
+  "native_capture_label": "dance-twirl_frame_0079",
+  "native_resolution": [
+    854,
+    480
+  ],
+  "attempted_1080p": true,
+  "attempted_4k": true,
+  "entries": [
+    {
+      "label": "native_imported",
+      "source": "native_imported",
+      "width": 854,
+      "height": 480,
+      "attempted": true,
+      "measured_gpu": true,
+      "total_ms": 4.665960999999999,
+      "dispatch_ms": 3.506065,
+      "readback_ms": 1.158232,
+      "ms_per_megapixel": 11.382613680718187,
+      "scaling_ratio_vs_native": null,
+      "pixel_ratio_vs_native": 1.0,
+      "approximately_linear": null,
+      "unavailable_reason": null
+    },
+    {
+      "label": "scaled_1080p",
+      "source": "scaled_external_ready",
+      "width": 1920,
+      "height": 1080,
+      "attempted": true,
+      "measured_gpu": true,
+      "total_ms": 18.357581,
+      "dispatch_ms": 12.625029,
+      "readback_ms": 5.730729,
+      "ms_per_megapixel": 8.853000096450618,
+      "scaling_ratio_vs_native": 3.9343622889261187,
+      "pixel_ratio_vs_native": 5.058548009367682,
+      "approximately_linear": false,
+      "unavailable_reason": null
+    },
+    {
+      "label": "scaled_4k",
+      "source": "scaled_external_ready",
+      "width": 3840,
+      "height": 2160,
+      "attempted": true,
+      "measured_gpu": false,
+      "total_ms": null,
+      "dispatch_ms": null,
+      "readback_ms": null,
+      "ms_per_megapixel": null,
+      "scaling_ratio_vs_native": null,
+      "pixel_ratio_vs_native": 20.234192037470727,
+      "approximately_linear": null,
+      "unavailable_reason": "GPU scaling attempt failed at runtime: wgpu error: Validation Error\n\nCaused by:\n    In Device::create_bind_group\n      note: label = `dsfb-host-minimum-bind-group`\n    Buffer binding 4 range 265420800 exceeds `max_*_buffer_binding_size` limit 134217728\n\n"
+    }
+  ],
+  "coverage": {
+    "realism_stress_case": true,
+    "larger_roi_case": true,
+    "mixed_regime_case": false,
+    "coverage_status": "partial",
+    "missing": [
+      "mixed_regime_case"
+    ]
+  },
+  "notes": [
+    "Scaling runs use the same imported or scaled external-ready buffers and the same minimum host-realistic GPU kernel.",
+    "Readback is used here for validation and numeric comparison, not because the production path requires CPU readback."
+  ]
+}

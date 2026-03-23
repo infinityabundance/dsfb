@@ -3,37 +3,37 @@
   "required_buffers": [
     {
       "name": "current_color",
-      "format": "png_rgb8 | json_rgb_f32",
+      "format": "png_rgb8 | json_rgb_f32 | exr_rgb32f | raw_rgb32f",
       "semantic": "current color in linear RGB"
     },
     {
       "name": "reprojected_history",
-      "format": "png_rgb8 | json_rgb_f32",
+      "format": "png_rgb8 | json_rgb_f32 | exr_rgb32f | raw_rgb32f",
       "semantic": "history color reprojected into the current frame"
     },
     {
       "name": "motion_vectors",
-      "format": "json_vec2_f32",
+      "format": "json_vec2_f32 | exr_rg32f | raw_rg32f",
       "semantic": "per-pixel motion vectors in pixel units to the previous frame"
     },
     {
       "name": "current_depth",
-      "format": "json_scalar_f32",
+      "format": "json_scalar_f32 | exr_r32f | raw_r32f",
       "semantic": "current frame depth"
     },
     {
       "name": "reprojected_depth",
-      "format": "json_scalar_f32",
+      "format": "json_scalar_f32 | exr_r32f | raw_r32f",
       "semantic": "previous-frame depth reprojected into the current frame"
     },
     {
       "name": "current_normals",
-      "format": "json_vec3_f32",
+      "format": "json_vec3_f32 | exr_rgb32f | raw_rgb32f",
       "semantic": "current frame normals in a consistent view-space basis"
     },
     {
       "name": "reprojected_normals",
-      "format": "json_vec3_f32",
+      "format": "json_vec3_f32 | exr_rgb32f | raw_rgb32f",
       "semantic": "previous-frame normals reprojected into the current frame"
     },
     {
@@ -45,13 +45,28 @@
   "optional_buffers": [
     {
       "name": "optional_mask",
-      "format": "json_mask_bool",
+      "format": "json_mask_bool | raw_mask_u8",
       "semantic": "debug mask or ROI-like disclosure mask"
     },
     {
       "name": "optional_reference",
-      "format": "png_rgb8 | json_rgb_f32",
+      "format": "png_rgb8 | json_rgb_f32 | exr_rgb32f | raw_rgb32f",
       "semantic": "optional reference or ground-truth frame for external evaluator comparisons"
+    },
+    {
+      "name": "optional_ground_truth",
+      "format": "png_rgb8 | json_rgb_f32 | exr_rgb32f | raw_rgb32f",
+      "semantic": "optional explicit ground-truth frame if the exporter uses a separate field name"
+    },
+    {
+      "name": "optional_variance",
+      "format": "json_scalar_f32 | exr_r32f | raw_r32f",
+      "semantic": "optional variance estimate to support imported adaptive-sampling proxy analysis"
     }
-  ]
+  ],
+  "raw_buffer_requirements": {
+    "width": "required inline for raw buffers unless the loader receives matching metadata dimensions",
+    "height": "required inline for raw buffers unless the loader receives matching metadata dimensions",
+    "channels": "required inline for raw buffers; color/normals >= 3, motion >= 2, scalar/mask = 1"
+  }
 }

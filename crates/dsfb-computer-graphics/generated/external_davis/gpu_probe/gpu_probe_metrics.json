@@ -1,0 +1,72 @@
+{
+  "measurement_kind": "measured_gpu",
+  "measured_gpu": true,
+  "actual_real_external_data": true,
+  "kernel": "dsfb_host_minimum",
+  "captures": [
+    {
+      "capture_label": "dance-twirl_frame_0079",
+      "measured_gpu": true,
+      "adapter": "NVIDIA GeForce RTX 4080 SUPER",
+      "backend": "Vulkan",
+      "resolution": [
+        854,
+        480
+      ],
+      "kernel": "dsfb_host_minimum",
+      "total_ms": 4.554583,
+      "dispatch_ms": 3.446133,
+      "readback_ms": 1.106786,
+      "mean_abs_trust_delta_vs_cpu": 1.0780077e-8,
+      "mean_abs_alpha_delta_vs_cpu": 1.0965814e-8,
+      "mean_abs_intervention_delta_vs_cpu": 1.0726342e-8,
+      "notes": [
+        "Measured on imported external buffers using the same minimum host-realistic kernel as the synthetic GPU study."
+      ]
+    },
+    {
+      "capture_label": "soapbox_frame_0069",
+      "measured_gpu": true,
+      "adapter": "NVIDIA GeForce RTX 4080 SUPER",
+      "backend": "Vulkan",
+      "resolution": [
+        854,
+        480
+      ],
+      "kernel": "dsfb_host_minimum",
+      "total_ms": 4.078143,
+      "dispatch_ms": 3.522145,
+      "readback_ms": 0.553864,
+      "mean_abs_trust_delta_vs_cpu": 1.2426359e-8,
+      "mean_abs_alpha_delta_vs_cpu": 1.3176178e-8,
+      "mean_abs_intervention_delta_vs_cpu": 1.23978525e-8,
+      "notes": [
+        "Measured on imported external buffers using the same minimum host-realistic kernel as the synthetic GPU study."
+      ]
+    },
+    {
+      "capture_label": "camel_frame_0020",
+      "measured_gpu": true,
+      "adapter": "NVIDIA GeForce RTX 4080 SUPER",
+      "backend": "Vulkan",
+      "resolution": [
+        854,
+        480
+      ],
+      "kernel": "dsfb_host_minimum",
+      "total_ms": 4.019534,
+      "dispatch_ms": 3.453548,
+      "readback_ms": 0.564163,
+      "mean_abs_trust_delta_vs_cpu": 6.6943264e-9,
+      "mean_abs_alpha_delta_vs_cpu": 6.61937e-9,
+      "mean_abs_intervention_delta_vs_cpu": 6.626286e-9,
+      "notes": [
+        "Measured on imported external buffers using the same minimum host-realistic kernel as the synthetic GPU study."
+      ]
+    }
+  ],
+  "notes": [
+    "This report covers imported external buffers rather than the synthetic internal suite.",
+    "Real external data was supplied through the file schema."
+  ]
+}

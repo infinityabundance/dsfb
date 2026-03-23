@@ -1,0 +1,105 @@
+{
+  "format_version": "dsfb_external_capture_v1",
+  "description": "Synthetic compatibility example that can be replaced by real engine-exported buffers without changing the schema.",
+  "source": {
+    "kind": "synthetic_compat",
+    "scenario_id": "motion_bias_band",
+    "frame_index": null
+  },
+  "buffers": {
+    "current_color": {
+      "path": "external_capture/current_color.png",
+      "format": "png_rgb8",
+      "semantic": "current color, normalized [0,1] RGB",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "history_color": {
+      "path": "external_capture/reprojected_history.png",
+      "format": "png_rgb8",
+      "semantic": "reprojected history color, normalized [0,1] RGB",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "motion_vectors": {
+      "path": "external_capture/motion_vectors.json",
+      "format": "json_vec2_f32",
+      "semantic": "per-pixel motion vector to previous frame in pixel units",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "current_depth": {
+      "path": "external_capture/current_depth.json",
+      "format": "json_scalar_f32",
+      "semantic": "current frame depth",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "history_depth": {
+      "path": "external_capture/reprojected_depth.json",
+      "format": "json_scalar_f32",
+      "semantic": "reprojected depth from previous frame",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "current_normals": {
+      "path": "external_capture/current_normals.json",
+      "format": "json_vec3_f32",
+      "semantic": "current frame normals in view space, unit length",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "history_normals": {
+      "path": "external_capture/reprojected_normals.json",
+      "format": "json_vec3_f32",
+      "semantic": "reprojected normals from previous frame",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "metadata": {
+      "path": "external_capture/metadata.json",
+      "format": "json_metadata",
+      "semantic": "capture metadata and provenance",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "optional_mask": {
+      "path": "external_capture/optional_mask.json",
+      "format": "json_mask_bool",
+      "semantic": "optional ROI-like disclosure or debug mask",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "optional_reference": {
+      "path": "external_capture/optional_reference.png",
+      "format": "png_rgb8",
+      "semantic": "optional reference frame for evaluator-side error checks; synthetic in the bundled example",
+      "width": null,
+      "height": null,
+      "channels": null
+    },
+    "optional_ground_truth": null,
+    "optional_variance": null
+  },
+  "captures": [],
+  "normalization": {
+    "color": "linear RGB in [0,1]",
+    "motion_vectors": "pixel offsets to the previous frame",
+    "depth": "monotonic depth with larger disagreement indicating less trust",
+    "normals": "unit vectors in a consistent view-space basis"
+  },
+  "notes": [
+    "Switch source.kind from synthetic_compat to files when real engine exports are available.",
+    "This example is external-capable but not externally validated.",
+    "NO REAL EXTERNAL DATA PROVIDED"
+  ]
+}
