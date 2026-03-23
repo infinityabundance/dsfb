@@ -74,6 +74,7 @@ pub struct ExternalBufferSet {
     pub reprojected_normals: BufferReference,
     pub metadata: BufferReference,
     pub optional_mask: Option<BufferReference>,
+    pub optional_reference: Option<BufferReference>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -232,6 +233,7 @@ pub fn example_manifest() -> ExternalCaptureManifest {
                 format: "json_mask_bool".to_string(),
                 semantic: "optional ROI-like disclosure or debug mask".to_string(),
             }),
+            optional_reference: None,
         },
         normalization: ExternalNormalization {
             color: "linear RGB in [0,1]".to_string(),
@@ -303,6 +305,15 @@ pub fn run_external_import_from_manifest(
 
     let (resolved_manifest, inputs, metadata) =
         resolve_manifest_and_load_inputs(config, manifest_path, output_dir, manifest)?;
+    if metadata.width != inputs.width() || metadata.height != inputs.height() {
+        return Err(Error::Message(format!(
+            "metadata extent {}x{} did not match imported buffers {}x{}",
+            metadata.width,
+            metadata.height,
+            inputs.width(),
+            inputs.height()
+        )));
+    }
     let resolved_manifest_path = output_dir.join("resolved_external_capture_manifest.json");
     fs::write(
         &resolved_manifest_path,
@@ -352,8 +363,10 @@ pub fn run_external_import_from_manifest(
         notes: metadata.notes.clone(),
     };
 
-    let report_path = output_dir.join("external_handoff_report.md");
-    write_external_handoff_report(&report_path, &metrics, &resolved_manifest)?;
+    let report_path = output_dir.join("external_replay_report.md");
+    let handoff_alias_path = output_dir.join("external_handoff_report.md");
+    write_external_replay_report(&report_path, &metrics, &resolved_manifest)?;
+    fs::copy(&report_path, &handoff_alias_path)?;
 
     Ok(ExternalImportArtifacts {
         report_path,
@@ -519,16 +532,16 @@ fn write_external_outputs(
     Ok(())
 }
 
-fn write_external_handoff_report(
+fn write_external_replay_report(
     path: &Path,
     metrics: &ExternalHandoffMetrics,
     manifest: &ExternalCaptureManifest,
 ) -> Result<()> {
     let mut markdown = String::new();
-    markdown.push_str("# External Handoff Report\n\n");
+    markdown.push_str("# External Replay Report\n\n");
     markdown.push_str(EXPERIMENT_SENTENCE);
     markdown.push_str("\n\n");
-    markdown.push_str("This report covers the file-based external buffer import path. It demonstrates that the crate is external-capable, not externally validated.\n\n");
+    markdown.push_str("This report covers the file-based external buffer replay path. It demonstrates that the crate is external-capable, not externally validated.\n\n");
     markdown.push_str(&format!(
         "Source kind: `{}`. Externally validated: `{}`.\n\n",
         metrics.source_kind, metrics.externally_validated
@@ -563,7 +576,8 @@ fn write_external_handoff_report(
     markdown.push_str("\n## How An Engine Team Would Use This\n\n");
     markdown.push_str("- Export one frame pair using the buffer names and normalization described in the manifest.\n");
     markdown.push_str("- Set `source.kind` to `files` and point the buffer paths at the exported assets.\n");
-    markdown.push_str("- Run `cargo run --release -- import-external --manifest <manifest> --output <dir>`.\n");
+    markdown.push_str("- Run `cargo run --release -- run-external-replay --manifest <manifest> --output <dir>`.\n");
+    markdown.push_str("- Alias: `cargo run --release -- replay-external --manifest <manifest> --output <dir>`.\n");
     markdown.push_str("- Inspect `external_trust.png`, `external_alpha.png`, and `external_intervention.png` plus the generated report.\n\n");
     markdown.push_str("## What Is Not Proven\n\n");
     markdown.push_str("- This report does not claim any real engine capture has been validated unless the metadata says so.\n");
@@ -583,26 +597,91 @@ fn write_external_handoff_report(
 fn load_owned_inputs(manifest: &ExternalCaptureManifest, base_dir: &Path) -> Result<OwnedHostTemporalInputs> {
     let current_color = load_color_buffer(base_dir, &manifest.buffers.current_color)?;
     let reprojected_history = load_color_buffer(base_dir, &manifest.buffers.reprojected_history)?;
+    let width = current_color.width();
+    let height = current_color.height();
     let motion_vectors = load_vec2_buffer(base_dir, &manifest.buffers.motion_vectors)?;
+    validate_buffer_extent(
+        "motion_vectors",
+        motion_vectors.width,
+        motion_vectors.height,
+        width,
+        height,
+    )?;
     let current_depth = load_scalar_buffer(base_dir, &manifest.buffers.current_depth)?;
+    validate_buffer_extent(
+        "current_depth",
+        current_depth.width,
+        current_depth.height,
+        width,
+        height,
+    )?;
     let reprojected_depth = load_scalar_buffer(base_dir, &manifest.buffers.reprojected_depth)?;
+    validate_buffer_extent(
+        "reprojected_depth",
+        reprojected_depth.width,
+        reprojected_depth.height,
+        width,
+        height,
+    )?;
     let current_normals = load_vec3_buffer(base_dir, &manifest.buffers.current_normals)?;
+    validate_buffer_extent(
+        "current_normals",
+        current_normals.width,
+        current_normals.height,
+        width,
+        height,
+    )?;
     let reprojected_normals = load_vec3_buffer(base_dir, &manifest.buffers.reprojected_normals)?;
+    validate_buffer_extent(
+        "reprojected_normals",
+        reprojected_normals.width,
+        reprojected_normals.height,
+        width,
+        height,
+    )?;
     let optional_mask = manifest
         .buffers
         .optional_mask
         .as_ref()
         .map(|reference| load_bool_buffer(base_dir, reference))
         .transpose()?;
+    if let Some(mask) = &optional_mask {
+        validate_buffer_extent("optional_mask", mask.width, mask.height, width, height)?;
+    }
+    if let Some(reference) = &manifest.buffers.optional_reference {
+        let optional_reference = load_color_buffer(base_dir, reference)?;
+        validate_buffer_extent(
+            "optional_reference",
+            optional_reference.width(),
+            optional_reference.height(),
+            width,
+            height,
+        )?;
+    }
     Ok(OwnedHostTemporalInputs {
         current_color,
         reprojected_history,
-        motion_vectors,
-        current_depth,
-        reprojected_depth,
-        current_normals,
-        reprojected_normals,
-        visibility_hint: optional_mask,
+        motion_vectors: motion_vectors
+            .data
+            .into_iter()
+            .map(|value| MotionVector {
+                to_prev_x: value[0],
+                to_prev_y: value[1],
+            })
+            .collect(),
+        current_depth: current_depth.data,
+        reprojected_depth: reprojected_depth.data,
+        current_normals: current_normals
+            .data
+            .into_iter()
+            .map(|value| Normal3::new(value[0], value[1], value[2]).normalized())
+            .collect(),
+        reprojected_normals: reprojected_normals
+            .data
+            .into_iter()
+            .map(|value| Normal3::new(value[0], value[1], value[2]).normalized())
+            .collect(),
+        visibility_hint: optional_mask.map(|mask| mask.data),
         thin_hint: None,
     })
 }
@@ -640,39 +719,57 @@ fn load_color_buffer(base_dir: &Path, reference: &BufferReference) -> Result<Ima
     }
 }
 
-fn load_scalar_buffer(base_dir: &Path, reference: &BufferReference) -> Result<Vec<f32>> {
+fn load_scalar_buffer(base_dir: &Path, reference: &BufferReference) -> Result<ScalarBufferFile> {
     let path = base_dir.join(&reference.path);
     let file: ScalarBufferFile = serde_json::from_str(&fs::read_to_string(path)?)?;
-    Ok(file.data)
+    validate_element_count("scalar_buffer", file.width, file.height, file.data.len())?;
+    Ok(file)
 }
 
-fn load_vec2_buffer(base_dir: &Path, reference: &BufferReference) -> Result<Vec<MotionVector>> {
+fn load_vec2_buffer(base_dir: &Path, reference: &BufferReference) -> Result<Vec2BufferFile> {
     let path = base_dir.join(&reference.path);
     let file: Vec2BufferFile = serde_json::from_str(&fs::read_to_string(path)?)?;
-    Ok(file
-        .data
-        .into_iter()
-        .map(|value| MotionVector {
-            to_prev_x: value[0],
-            to_prev_y: value[1],
-        })
-        .collect())
+    validate_element_count("motion_vectors", file.width, file.height, file.data.len())?;
+    Ok(file)
 }
 
-fn load_vec3_buffer(base_dir: &Path, reference: &BufferReference) -> Result<Vec<Normal3>> {
+fn load_vec3_buffer(base_dir: &Path, reference: &BufferReference) -> Result<Vec3BufferFile> {
     let path = base_dir.join(&reference.path);
     let file: Vec3BufferFile = serde_json::from_str(&fs::read_to_string(path)?)?;
-    Ok(file
-        .data
-        .into_iter()
-        .map(|value| Normal3::new(value[0], value[1], value[2]).normalized())
-        .collect())
+    validate_element_count("normal_buffer", file.width, file.height, file.data.len())?;
+    Ok(file)
 }
 
-fn load_bool_buffer(base_dir: &Path, reference: &BufferReference) -> Result<Vec<bool>> {
+fn load_bool_buffer(base_dir: &Path, reference: &BufferReference) -> Result<BoolBufferFile> {
     let path = base_dir.join(&reference.path);
     let file: BoolBufferFile = serde_json::from_str(&fs::read_to_string(path)?)?;
-    Ok(file.data)
+    validate_element_count("optional_mask", file.width, file.height, file.data.len())?;
+    Ok(file)
+}
+
+fn validate_buffer_extent(
+    label: &str,
+    width: usize,
+    height: usize,
+    expected_width: usize,
+    expected_height: usize,
+) -> Result<()> {
+    if width != expected_width || height != expected_height {
+        return Err(Error::Message(format!(
+            "{label} extent {width}x{height} did not match expected {expected_width}x{expected_height}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_element_count(label: &str, width: usize, height: usize, count: usize) -> Result<()> {
+    let expected = width.saturating_mul(height);
+    if count != expected {
+        return Err(Error::Message(format!(
+            "{label} had {count} elements but expected {expected} for {width}x{height}"
+        )));
+    }
+    Ok(())
 }
 
 fn write_color_buffer(base_dir: &Path, reference: &BufferReference, frame: &ImageFrame) -> Result<()> {

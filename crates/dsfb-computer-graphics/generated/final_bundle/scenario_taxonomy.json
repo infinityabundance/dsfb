@@ -3,6 +3,10 @@
     "scenario_id": "thin_reveal",
     "support_category": "PointLikeRoi",
     "expectation": "BenefitExpected",
+    "labels": [
+      "point_roi",
+      "aliasing_limited"
+    ],
     "sampling_taxonomy": "coverage-dominated point reveal",
     "realism_stress": false,
     "competitive_baseline_case": false,
@@ -13,6 +17,12 @@
     "scenario_id": "fast_pan",
     "support_category": "RegionRoi",
     "expectation": "BenefitExpected",
+    "labels": [
+      "region_roi",
+      "strong_heuristic_competitive",
+      "motion_relevance_probe",
+      "mixed_regime"
+    ],
     "sampling_taxonomy": "thin-band reveal with textured background",
     "realism_stress": false,
     "competitive_baseline_case": true,
@@ -23,6 +33,10 @@
     "scenario_id": "diagonal_reveal",
     "support_category": "PointLikeRoi",
     "expectation": "BenefitExpected",
+    "labels": [
+      "point_roi",
+      "aliasing_limited"
+    ],
     "sampling_taxonomy": "subpixel diagonal coverage case",
     "realism_stress": false,
     "competitive_baseline_case": false,
@@ -33,6 +47,10 @@
     "scenario_id": "reveal_band",
     "support_category": "RegionRoi",
     "expectation": "BenefitExpected",
+    "labels": [
+      "region_roi",
+      "mixed_regime"
+    ],
     "sampling_taxonomy": "mixed-width reveal band with aliasing and texture",
     "realism_stress": false,
     "competitive_baseline_case": false,
@@ -43,6 +61,12 @@
     "scenario_id": "motion_bias_band",
     "support_category": "RegionRoi",
     "expectation": "BenefitExpected",
+    "labels": [
+      "region_roi",
+      "realism_stress",
+      "motion_relevance_probe",
+      "mixed_regime"
+    ],
     "sampling_taxonomy": "motion-mismatch reveal band",
     "realism_stress": true,
     "competitive_baseline_case": false,
@@ -53,6 +77,10 @@
     "scenario_id": "layered_slats",
     "support_category": "RegionRoi",
     "expectation": "BenefitExpected",
+    "labels": [
+      "region_roi",
+      "mixed_regime"
+    ],
     "sampling_taxonomy": "layered slat reveal with mixed stable and unstable zones",
     "realism_stress": false,
     "competitive_baseline_case": false,
@@ -63,6 +91,11 @@
     "scenario_id": "noisy_reprojection",
     "support_category": "RegionRoi",
     "expectation": "BenefitExpected",
+    "labels": [
+      "region_roi",
+      "realism_stress",
+      "variance_limited"
+    ],
     "sampling_taxonomy": "realism-stress reveal with noisy reprojection",
     "realism_stress": true,
     "competitive_baseline_case": false,
@@ -73,6 +106,11 @@
     "scenario_id": "heuristic_friendly_pan",
     "support_category": "RegionRoi",
     "expectation": "BenefitExpected",
+    "labels": [
+      "region_roi",
+      "strong_heuristic_competitive",
+      "mixed_regime"
+    ],
     "sampling_taxonomy": "competitive baseline reveal",
     "realism_stress": false,
     "competitive_baseline_case": true,
@@ -83,6 +121,11 @@
     "scenario_id": "contrast_pulse",
     "support_category": "NegativeControl",
     "expectation": "NeutralExpected",
+    "labels": [
+      "negative_control",
+      "bounded_neutral",
+      "variance_limited"
+    ],
     "sampling_taxonomy": "negative control",
     "realism_stress": false,
     "competitive_baseline_case": false,
@@ -93,6 +136,11 @@
     "scenario_id": "stability_holdout",
     "support_category": "NegativeControl",
     "expectation": "NeutralExpected",
+    "labels": [
+      "negative_control",
+      "bounded_neutral",
+      "variance_limited"
+    ],
     "sampling_taxonomy": "negative control",
     "realism_stress": false,
     "competitive_baseline_case": false,

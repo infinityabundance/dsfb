@@ -5,11 +5,11 @@ use clap::{Parser, Subcommand};
 use crate::config::DemoConfig;
 use crate::error::Result;
 use crate::pipeline::{
-    export_evaluator_handoff, export_minimal_report, generate_scene_artifacts,
-    import_external_buffers, run_all, run_all_filtered, run_demo_a, run_demo_a_filtered,
-    run_demo_b, run_demo_b_efficiency_only, run_demo_b_filtered, run_gpu_path_only,
-    run_realism_suite_only, run_resolution_scaling_only, run_sensitivity_only, run_timing_only,
-    validate_artifact_bundle,
+    export_evaluator_handoff, export_minimal_report, generate_scene_artifacts, run_all,
+    run_all_filtered, run_demo_a, run_demo_a_filtered, run_demo_b, run_demo_b_efficiency_only,
+    run_demo_b_filtered, run_external_replay_only, run_gpu_path_only, run_realism_bridge_only,
+    run_resolution_scaling_only, run_sensitivity_only, run_timing_only,
+    validate_artifact_bundle, validate_final_bundle,
 };
 
 #[derive(Debug, Parser)]
@@ -78,12 +78,14 @@ pub enum Command {
         #[arg(long, default_value = "generated")]
         output: PathBuf,
     },
+    #[command(visible_aliases = ["run-external-replay", "replay-external"])]
     ImportExternal {
         #[arg(long)]
         manifest: PathBuf,
         #[arg(long, default_value = "generated")]
         output: PathBuf,
     },
+    #[command(visible_alias = "run-realism-bridge")]
     RunRealismSuite {
         #[arg(long, default_value = "generated")]
         output: PathBuf,
@@ -93,6 +95,10 @@ pub enum Command {
         output: PathBuf,
     },
     Validate {
+        #[arg(long, default_value = "generated")]
+        output: PathBuf,
+    },
+    ValidateFinal {
         #[arg(long, default_value = "generated")]
         output: PathBuf,
     },
@@ -186,19 +192,23 @@ pub fn run(cli: Cli) -> Result<()> {
             println!("gpu execution report: {}", report.display());
         }
         Command::ImportExternal { manifest, output } => {
-            let report = import_external_buffers(&config, &manifest, &output)?;
-            println!("external handoff report: {}", report.display());
+            let report = run_external_replay_only(&config, &manifest, &output)?;
+            println!("external replay report: {}", report.display());
         }
         Command::RunRealismSuite { output } => {
-            let report = run_realism_suite_only(&config, &output)?;
-            println!("realism suite report: {}", report.display());
+            let report = run_realism_bridge_only(&config, &output)?;
+            println!("realism bridge report: {}", report.display());
         }
         Command::ExportEvaluatorHandoff { output } => {
             let report = export_evaluator_handoff(&config, &output)?;
             println!("evaluator handoff: {}", report.display());
         }
         Command::Validate { output } => {
-            validate_artifact_bundle(&output)?;
+            validate_final_bundle(&output)?;
+            println!("validated final artifact bundle at {}", output.display());
+        }
+        Command::ValidateFinal { output } => {
+            validate_final_bundle(&output)?;
             println!("validated artifact bundle at {}", output.display());
         }
         Command::ValidateArtifacts { output } => {

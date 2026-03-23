@@ -32,12 +32,12 @@ fn cli_run_all_and_validate_artifacts_succeed() {
     assert!(status.success(), "run-all command should succeed");
 
     let validate = Command::new(binary)
-        .arg("validate-artifacts")
+        .arg("validate-final")
         .arg("--output")
         .arg(&output_dir)
         .status()
         .expect("binary should execute");
-    assert!(validate.success(), "validate-artifacts should succeed");
+    assert!(validate.success(), "validate-final should succeed");
 
     for relative in [
         "artifact_manifest.json",
@@ -45,19 +45,26 @@ fn cli_run_all_and_validate_artifacts_succeed() {
         "report.md",
         "five_mentor_audit.md",
         "check_signing_blockers.md",
+        "trust_mode_report.md",
         "gpu_execution_report.md",
         "gpu_execution_metrics.json",
+        "external_replay_report.md",
         "external_handoff_report.md",
         "realism_suite_report.md",
+        "realism_bridge_report.md",
         "scenario_taxonomy.json",
         "competitive_baseline_analysis.md",
         "non_roi_penalty_report.md",
+        "product_positioning_report.md",
+        "operating_band_report.md",
         "demo_b_decision_report.md",
+        "demo_b_competitive_baselines_report.md",
         "demo_b_aliasing_vs_variance_report.md",
         "production_eval_checklist.md",
         "evaluator_handoff.md",
         "minimum_external_validation_plan.md",
         "next_step_matrix.md",
+        "check_signing_readiness.md",
         "demo_b/metrics.json",
         "demo_b/report.md",
         "external_demo/resolved_external_capture_manifest.json",
@@ -162,13 +169,14 @@ fn cli_gpu_external_realism_and_handoff_commands_succeed() {
 
     let realism_dir = unique_output_dir("cli_realism_suite");
     let realism_status = Command::new(binary)
-        .arg("run-realism-suite")
+        .arg("run-realism-bridge")
         .arg("--output")
         .arg(&realism_dir)
         .status()
         .expect("binary should execute");
-    assert!(realism_status.success(), "run-realism-suite should succeed");
+    assert!(realism_status.success(), "run-realism-bridge should succeed");
     assert!(realism_dir.join("realism_suite_report.md").exists());
+    assert!(realism_dir.join("realism_bridge_report.md").exists());
     assert!(realism_dir.join("scenario_taxonomy.json").exists());
 
     let external_dir = unique_output_dir("cli_external_import");
@@ -176,14 +184,15 @@ fn cli_gpu_external_realism_and_handoff_commands_succeed() {
         .join("examples")
         .join("external_capture_manifest.json");
     let external_status = Command::new(binary)
-        .arg("import-external")
+        .arg("run-external-replay")
         .arg("--manifest")
         .arg(&manifest)
         .arg("--output")
         .arg(&external_dir)
         .status()
         .expect("binary should execute");
-    assert!(external_status.success(), "import-external should succeed");
+    assert!(external_status.success(), "run-external-replay should succeed");
+    assert!(external_dir.join("external_replay_report.md").exists());
     assert!(external_dir.join("external_handoff_report.md").exists());
     assert!(
         external_dir

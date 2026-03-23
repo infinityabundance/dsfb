@@ -11,10 +11,10 @@ Actual GPU timing measured: `false`.
 
 | Label | Mode | Scenario | Resolution | Build | Total ms | ms / frame | Ops / px | Traffic MB |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
-| minimum_host_path_default_res | minimal | thin_reveal | 160x96 | release | 133.609 | 1.310 | 20 | 53.79 |
-| motion_augmented_region_mid_res | host_realistic | motion_bias_band | 640x360 | release | 1862.457 | 27.389 | 60 | 1852.73 |
-| full_debug_region_mid_res | full_research_debug | reveal_band | 640x360 | release | 1998.859 | 29.395 | 66 | 2390.62 |
-| minimum_host_path_high_res_proxy | host_realistic | reveal_band | 1920x1080 | release | 3199.774 | 188.222 | 60 | 4168.65 |
+| minimum_host_path_default_res | minimal | thin_reveal | 160x96 | release | 140.409 | 1.377 | 20 | 53.79 |
+| motion_augmented_region_mid_res | host_realistic | motion_bias_band | 640x360 | release | 1929.906 | 28.381 | 60 | 1852.73 |
+| full_debug_region_mid_res | full_research_debug | reveal_band | 640x360 | release | 2081.778 | 30.614 | 66 | 2390.62 |
+| minimum_host_path_high_res_proxy | host_realistic | reveal_band | 1920x1080 | release | 3251.485 | 191.264 | 60 | 4168.65 |
 
 ## Per-Stage Breakdown
 
@@ -22,9 +22,9 @@ Actual GPU timing measured: `false`.
 
 | Stage | Total ms | ms / frame | ns / pixel |
 | --- | ---: | ---: | ---: |
-| reproject | 36.812 | 0.361 | 23.496 |
-| supervise | 95.205 | 0.933 | 60.767 |
-| resolve | 1.503 | 0.015 | 0.959 |
+| reproject | 38.544 | 0.378 | 24.602 |
+| supervise | 99.401 | 0.975 | 63.446 |
+| resolve | 2.391 | 0.023 | 1.526 |
 
 Likely optimization levers:
 - Fuse alpha modulation into the temporal resolve.
@@ -34,9 +34,9 @@ Likely optimization levers:
 
 | Stage | Total ms | ms / frame | ns / pixel |
 | --- | ---: | ---: | ---: |
-| reproject | 420.985 | 6.191 | 26.870 |
-| supervise | 1409.102 | 20.722 | 89.940 |
-| resolve | 31.030 | 0.456 | 1.981 |
+| reproject | 433.501 | 6.375 | 27.669 |
+| supervise | 1454.746 | 21.393 | 92.853 |
+| resolve | 40.285 | 0.592 | 2.571 |
 
 Likely optimization levers:
 - Fuse reprojection fetches across color, depth, and normal buffers.
@@ -47,9 +47,9 @@ Likely optimization levers:
 
 | Stage | Total ms | ms / frame | ns / pixel |
 | --- | ---: | ---: | ---: |
-| reproject | 369.840 | 5.439 | 23.606 |
-| supervise | 1405.738 | 20.673 | 89.725 |
-| resolve | 31.504 | 0.463 | 2.011 |
+| reproject | 383.413 | 5.638 | 24.472 |
+| supervise | 1449.797 | 21.321 | 92.537 |
+| resolve | 39.995 | 0.588 | 2.553 |
 
 Likely optimization levers:
 - Drop synthetic visibility and debug exports outside analysis mode.
@@ -59,9 +59,9 @@ Likely optimization levers:
 
 | Stage | Total ms | ms / frame | ns / pixel |
 | --- | ---: | ---: | ---: |
-| reproject | 857.550 | 50.444 | 24.327 |
-| supervise | 2277.593 | 133.976 | 64.610 |
-| resolve | 61.295 | 3.606 | 1.739 |
+| reproject | 858.319 | 50.489 | 24.349 |
+| supervise | 2320.287 | 136.487 | 65.822 |
+| resolve | 69.937 | 4.114 | 1.984 |
 
 Likely optimization levers:
 - Fuse reprojection fetches across color, depth, and normal buffers.

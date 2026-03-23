@@ -21,6 +21,20 @@
 - It does not prove universal engine integration success or externally validated production behavior.
 - It does not prove globally calibrated trust or globally optimal parameter settings.
 
+## Strongest Current Evidence
+
+- Host-realistic DSFB still shows a real supervisory effect on explicit region-ROI cases rather than only point-ROI stress tests.
+- The crate contains a real GPU-executable minimum kernel with measured-vs-unmeasured disclosure.
+- The crate contains a real external replay path that can ingest a stable manifest without re-architecting the evaluator.
+- Demo B now compares imported trust against edge/gradient, residual, contrast, variance, combined heuristic, native trust, and hybrid trust/variance policies.
+
+## Biggest Remaining Blockers
+
+- Real external engine captures are still required.
+- Imported-capture GPU profiling is still required.
+- The realism bridge is broader, but it is still synthetic.
+- Strong heuristics still tie or win on some scenarios, so the correct framing remains targeted supervision rather than blanket replacement.
+
 ## Core Evidence Shape
 
 ### Demo A
@@ -110,6 +124,13 @@ cd crates/dsfb-computer-graphics
 cargo run --release -- import-external --manifest examples/external_capture_manifest.json --output generated/external_demo
 ```
 
+Run the same path through the evaluator-facing alias:
+
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- run-external-replay --manifest examples/external_capture_manifest.json --output generated/external_replay
+```
+
 Generate the resolution study only:
 
 ```bash
@@ -122,6 +143,13 @@ Generate the realism and taxonomy package only:
 ```bash
 cd crates/dsfb-computer-graphics
 cargo run --release -- run-realism-suite --output generated/realism_only
+```
+
+Evaluator-facing alias:
+
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- run-realism-bridge --output generated/realism_bridge
 ```
 
 Generate the sensitivity sweep only:
@@ -166,6 +194,13 @@ cd crates/dsfb-computer-graphics
 cargo run --release -- validate --output generated/final_bundle
 ```
 
+Final-gate alias:
+
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- validate-final --output generated/final_bundle
+```
+
 ## Output Contract
 
 `run-all` writes the full bundle under the chosen output directory, including:
@@ -184,19 +219,26 @@ cargo run --release -- validate --output generated/final_bundle
 - `parameter_sensitivity_metrics.json`
 - `gpu_execution_report.md`
 - `gpu_execution_metrics.json`
+- `external_replay_report.md`
 - `external_handoff_report.md`
 - `realism_suite_report.md`
+- `realism_bridge_report.md`
 - `scenario_taxonomy.json`
+- `trust_mode_report.md`
 - `competitive_baseline_analysis.md`
 - `non_roi_penalty_report.md`
+- `product_positioning_report.md`
 - `demo_b_decision_report.md`
 - `demo_b_efficiency_report.md`
+- `demo_b_competitive_baselines_report.md`
 - `demo_b_aliasing_vs_variance_report.md`
 - `demo_b_scene_taxonomy.json`
+- `operating_band_report.md`
 - `production_eval_checklist.md`
 - `evaluator_handoff.md`
 - `minimum_external_validation_plan.md`
 - `next_step_matrix.md`
+- `check_signing_readiness.md`
 - `demo_b_metrics.json`
 - `metrics.json`
 - `figures/*.svg`
