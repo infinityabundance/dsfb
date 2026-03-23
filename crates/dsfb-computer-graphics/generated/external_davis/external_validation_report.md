@@ -95,3 +95,38 @@
 ## Next Required Experiment
 
 Export one real frame pair plus an ROI/mask disclosure from an engine into the external schema, run `run-external-replay` on the target GPU, and compare fixed alpha, strong heuristic, and DSFB on the same imported capture.
+
+## Signal Quality Assessment
+
+This section documents the confidence level of each structural signal used in the DAVIS external replay.
+
+| Signal | Source in DAVIS replay | Confidence | Notes |
+|--------|----------------------|------------|-------|
+| current_color | Extracted from DAVIS frame directly | High | Real video pixels; no derivation |
+| reprojected_history | Bilinear warp of previous frame using derived motion | Medium | Warp uses derived motion; real history buffer would differ |
+| motion_vectors | Block-matching optical flow (ECC + Lucas-Kanade) | Low-Medium | Not real renderer motion vectors; subpixel precision limited |
+| depth (current) | Relative depth from edge/gradient proxy | Low | Not real depth buffer; edge magnitude used as proxy |
+| depth (reprojected) | Derived from previous-frame depth proxy | Low | Doubly-derived; not real reprojected depth buffer |
+| normal (current) | Computed from depth proxy gradient | Low | Derived from low-confidence depth; not real GBuffer normals |
+| normal (reprojected) | Computed from reprojected depth proxy gradient | Very Low | Doubly-derived from two low-confidence sources |
+
+**Summary:** DAVIS provides real video content (high confidence) and bilinear reprojection (medium confidence), but structural signals (depth, normals) are derived proxies with low confidence. The depth and normal gates in the DSFB minimum kernel operate on these proxies rather than real GBuffer buffers.
+
+**Implication for gate accuracy:** The depth_gate and normal_gate computations in the minimum kernel receive low-confidence inputs on DAVIS captures. This means the structural disagreement gate may fire on spurious depth/normal mismatches from derivation error rather than real geometry discontinuities. Results should be interpreted as "proxy-validated" rather than "structurally validated."
+
+## What Sintel Closes vs What Engine Capture Closes
+
+| Signal gap | Sintel closes? | Engine capture closes? |
+|------------|---------------|----------------------|
+| Real video content | No (synthetic renderer) | Yes |
+| Ground-truth depth | Yes (MPI-Sintel ground truth) | Yes |
+| Ground-truth normals | Yes (MPI-Sintel ground truth) | Yes |
+| Ground-truth motion vectors | Yes (MPI-Sintel ground truth) | Yes |
+| Real TAA history buffer | No (warped from ground-truth) | Yes |
+| Real specular BRDF | No (Blender materials) | Yes |
+| Real subpixel TAA jitter | No (not present in Sintel) | Yes |
+| Real reprojection noise | No (clean warp) | Yes |
+| Real disocclusion events | Partial (depth-change events) | Yes |
+| Real engine scheduler context | No | Yes |
+
+Sintel narrows the structural signal gap (depth, normals, motion vectors) relative to DAVIS, but does not close the real-engine gap for history buffer, specular structure, TAA jitter, or reprojection noise. The engine-realistic synthetic bridge (see `generated/engine_realistic/`) further narrows the TAA jitter and reprojection noise gap synthetically.

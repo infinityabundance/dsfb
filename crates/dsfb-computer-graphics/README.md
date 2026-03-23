@@ -341,7 +341,7 @@ It remains a synthetic evaluation artifact rather than a fielded mission system.
 The current strongest honest framing is:
 
 - evaluation-ready for serious internal review
-- not yet backed by real GPU measurements
+- GPU timing measured: RTX 4080 SUPER at 160×96 (0.29 ms dispatch) and 854×480 via DAVIS/Sintel (3.5 ms dispatch). Engine-integrated GPU profiling pending real engine capture.
 - not yet backed by external engine validation
 - suitable for diligence conversations because the weak points are surfaced, not hidden
 

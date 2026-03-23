@@ -1,3 +1,5 @@
+pub mod engine_realistic;
+
 use serde::Serialize;
 
 use crate::config::SceneConfig;

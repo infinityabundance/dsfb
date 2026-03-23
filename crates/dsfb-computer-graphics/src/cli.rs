@@ -12,8 +12,9 @@ use crate::external_validation::probe_external_gpu_only;
 use crate::mixed_regime::confirm_mixed_regime;
 use crate::pipeline::{
     export_evaluator_handoff, export_minimal_report, generate_scene_artifacts, run_all,
-    run_all_filtered, run_demo_a, run_demo_a_filtered, run_demo_b, run_demo_b_efficiency_only,
-    run_demo_b_filtered, run_external_replay_only, run_gpu_path_only, run_realism_bridge_only,
+    run_all_filtered, run_check_signing, run_demo_a, run_demo_a_filtered, run_demo_b,
+    run_demo_b_efficiency_only, run_demo_b_filtered, run_engine_realistic_bridge,
+    run_external_replay_only, run_gpu_path_only, run_realism_bridge_only,
     run_resolution_scaling_only, run_sensitivity_only, run_timing_only, validate_artifact_bundle,
     validate_engine_native_gates, validate_final_bundle,
 };
@@ -156,6 +157,16 @@ pub enum Command {
         #[arg(long)]
         manifest: PathBuf,
         #[arg(long, default_value = "generated")]
+        output: PathBuf,
+    },
+    /// Generate the engine-realistic synthetic 1080p bridge and run the full external validation bundle on it.
+    RunEngineRealisticBridge {
+        #[arg(long, default_value = "generated/engine_realistic")]
+        output: PathBuf,
+    },
+    /// Generate the check-signing evidence report answering all panel objections.
+    RunCheckSigning {
+        #[arg(long, default_value = "generated/final_bundle")]
         output: PathBuf,
     },
 }
@@ -309,6 +320,14 @@ pub fn run(cli: Cli) -> Result<()> {
         Command::ProbeExternalGpu { manifest, output } => {
             let metrics_path = probe_external_gpu_only(&config, &manifest, &output)?;
             println!("gpu probe metrics: {}", metrics_path.display());
+        }
+        Command::RunEngineRealisticBridge { output } => {
+            let report = run_engine_realistic_bridge(&config, &output)?;
+            println!("engine-realistic bridge report: {}", report.display());
+        }
+        Command::RunCheckSigning { output } => {
+            let report = run_check_signing(&config, &output)?;
+            println!("check-signing report: {}", report.display());
         }
     }
     Ok(())
