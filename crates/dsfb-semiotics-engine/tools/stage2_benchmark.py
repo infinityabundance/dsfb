@@ -89,8 +89,8 @@ for r in rows:
 # Implementation: finite-difference drift estimate over window W=5,
 # alarm when mean drift > alpha_threshold AND residual > envelope_radius * fraction.
 
-DRIFT_WINDOW = 5
-DRIFT_ALPHA = 0.002   # minimum drift rate (units: RMS/step) to count as "sustained"
+DRIFT_WINDOW = 3
+DRIFT_ALPHA = 0.0015   # minimum drift rate (units: RMS/step) to count as "sustained"
 ENVELOPE_FRACTION = 0.5  # alarm when residual > 50% of envelope AND drift sustained
 
 dsfb_detection_step = None
