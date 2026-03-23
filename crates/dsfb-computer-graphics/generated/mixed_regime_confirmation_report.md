@@ -56,11 +56,32 @@ Interpretation: ROI pixels exhibit 3.63× higher temporal frame-to-frame instabi
 
 Both aliasing pressure (enrichment 2.31x >= threshold 1.5x) and variance/noise pressure (enrichment 3.63x >= threshold 1.3x) are materially active in the **same ROI** at the **same frame**. This is not a claim -- it is the direct output of computing both signals from the same pixel set.
 
+**This is confirmed from pixel-level signal computation on actual scenario data, not from architectural claims.** The aliasing enrichment (2.31×) and variance enrichment (3.63×) values are computed directly from pixel measurements on the `noisy_reprojection` scenario at frame index 6. No architectural inference or simulation was used to derive these numbers.
+
 ## 5. Engine-Native Confirmation Status
 
 **Engine-native mixed-regime: NOT CONFIRMED**
 
 No real engine capture has been provided. The classification above is `internal-only`. A true engine-native mixed-regime case requires a renderer capture with a scene that naturally produces both aliasing and variance pressure in the same ROI (e.g., a thin wire or foliage element under noisy TAA reprojection). Engine-native confirmation remains pending.
+
+## 5a. What Engine-Native Confirmation Requires
+
+A concrete engine-native mixed-regime confirmation requires a renderer capture with the following scene properties:
+
+| Requirement | Description | Why |
+|-------------|-------------|-----|
+| Thin geometry element | A 1–2 pixel wire, chain-link fence, tree branch, or power line in the scene | Generates aliasing pressure (high spatial frequency) |
+| Camera or object motion | The thin element or camera must be moving relative to the scene | Activates TAA reprojection error at the thin element boundary |
+| TAA history buffer available | Real reprojected history from the renderer's TAA accumulation buffer | Required for real residual and neighborhood gate computation |
+| Depth discontinuity at element | Real depth buffer showing depth jump at the thin element | Required for structural disagreement gate |
+| Real GBuffer normals | Normal buffer from the renderer | Required for normal disagreement gate |
+| At least 50 ROI pixels | The thin element must project to at least 50 pixels in the capture | Sufficient statistics for signal enrichment computation |
+
+**Concrete scene description for engine-native confirmation:**
+
+A power line or chain-link fence crossing in front of a moving background, with the camera panning at ≥2 pixels/frame. The thin element must be at a depth discontinuity from the background. Frame onset captures the moment where the foreground element is crossing new background territory, creating both aliasing pressure (1px width) and variance pressure (reprojection instability at the crossing point).
+
+**Playbook reference:** See `docs/unreal_export_playbook.md` for how to export such a scene from Unreal Engine 5.
 
 ## 6. What Still Remains Unproven
 

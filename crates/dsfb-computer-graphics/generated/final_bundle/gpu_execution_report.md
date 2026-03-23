@@ -8,10 +8,11 @@ Actual GPU timing measured: `true`.
 
 Kernel: `dsfb_host_minimum` in `wgsl`.
 
-| Label | Scenario | Resolution | Measured | Adapter | Total ms | Dispatch ms | Readback ms | Trust delta vs CPU |
-| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
-| gpu_host_minimum_reveal_band | reveal_band | 160x96 | true | NVIDIA GeForce RTX 4080 SUPER | 0.331 | 0.291 | 0.039 | 0.000000 |
-| gpu_host_minimum_motion_bias_band | motion_bias_band | 160x96 | true | NVIDIA GeForce RTX 4080 SUPER | 0.330 | 0.296 | 0.032 | 0.000000 |
+| Label | Scenario | Resolution | Tier | Measured | Adapter | Total ms | Dispatch ms | Readback ms | Trust delta vs CPU |
+| --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| gpu_host_minimum_reveal_band | reveal_band | 160x96 | native | true | NVIDIA GeForce RTX 4080 SUPER | 0.315 | 0.272 | 0.042 | 0.000000 |
+| gpu_host_minimum_motion_bias_band | motion_bias_band | 160x96 | native | true | NVIDIA GeForce RTX 4080 SUPER | 0.299 | 0.262 | 0.036 | 0.000000 |
+| gpu_4k_synthetic_probe | synthetic_4k | 3840x2160 | 4k_probe | true | NVIDIA GeForce RTX 4080 SUPER | 76.274 | 52.856 | 23.415 | n/a |
 
 ## GPU Path Status
 

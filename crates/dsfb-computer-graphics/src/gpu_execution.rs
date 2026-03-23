@@ -31,6 +31,7 @@ pub struct GpuExecutionEntry {
     pub mean_abs_alpha_delta_vs_cpu: Option<f32>,
     pub mean_abs_intervention_delta_vs_cpu: Option<f32>,
     pub workgroup_size: [u32; 3],
+    pub resolution_tier: Option<String>,
     pub notes: Vec<String>,
 }
 
@@ -100,6 +101,7 @@ pub fn run_gpu_execution_study(config: &DemoConfig) -> Result<GpuExecutionMetric
                         &gpu.intervention,
                     )),
                     workgroup_size: [gpu.workgroup_size.0, gpu.workgroup_size.1, gpu.workgroup_size.2],
+                    resolution_tier: Some("native".to_string()),
                     notes: vec![
                         "Measured on the current environment because a usable wgpu adapter was available.".to_string(),
                         "The kernel implements the current minimum host-realistic path, which excludes motion disagreement by design.".to_string(),
@@ -124,12 +126,144 @@ pub fn run_gpu_execution_study(config: &DemoConfig) -> Result<GpuExecutionMetric
                     mean_abs_alpha_delta_vs_cpu: None,
                     mean_abs_intervention_delta_vs_cpu: None,
                     workgroup_size: [8, 8, 1],
+                    resolution_tier: Some("native".to_string()),
                     notes: vec![
                         "The wgpu compute path is compiled into the crate, but no usable GPU adapter was available in the current environment.".to_string(),
                         "Run `cargo run --release -- run-gpu-path --output <dir>` on a GPU host to measure this kernel without changing code.".to_string(),
                     ],
                 });
             }
+        }
+    }
+
+    // 4K synthetic probe - zero-filled buffers, tests dispatch feasibility at 3840x2160
+    let probe_4k_result = std::panic::catch_unwind(|| {
+        let w4k = 3840usize;
+        let h4k = 2160usize;
+        let n4k = w4k * h4k;
+        let inputs_4k = crate::external::OwnedHostTemporalInputs {
+            current_color: crate::frame::ImageFrame::new(w4k, h4k),
+            reprojected_history: crate::frame::ImageFrame::new(w4k, h4k),
+            motion_vectors: vec![crate::scene::MotionVector { to_prev_x: 0.0, to_prev_y: 0.0 }; n4k],
+            current_depth: vec![1.0f32; n4k],
+            reprojected_depth: vec![1.0f32; n4k],
+            current_normals: vec![crate::scene::Normal3 { x: 0.0, y: 0.0, z: -1.0 }; n4k],
+            reprojected_normals: vec![crate::scene::Normal3 { x: 0.0, y: 0.0, z: -1.0 }; n4k],
+            visibility_hint: None,
+            thin_hint: None,
+        };
+        let profile = default_host_realistic_profile(
+            config.dsfb_alpha_range.min,
+            config.dsfb_alpha_range.max,
+        );
+        try_execute_host_minimum_kernel(&inputs_4k, profile.parameters)
+    });
+
+    match probe_4k_result {
+        Ok(Ok(Some(gpu))) => {
+            any_measured = true;
+            entries.push(GpuExecutionEntry {
+                label: "gpu_4k_synthetic_probe".to_string(),
+                scenario_id: "synthetic_4k".to_string(),
+                width: 3840,
+                height: 2160,
+                frame_index: 0,
+                gpu_path_available: true,
+                actual_gpu_timing_measured: true,
+                adapter_name: Some(gpu.adapter_name),
+                backend: Some(gpu.backend),
+                total_ms: Some(gpu.total_ms),
+                dispatch_ms: Some(gpu.dispatch_ms),
+                readback_ms: Some(gpu.readback_ms),
+                mean_abs_trust_delta_vs_cpu: None,
+                mean_abs_alpha_delta_vs_cpu: None,
+                mean_abs_intervention_delta_vs_cpu: None,
+                workgroup_size: [8, 8, 1],
+                resolution_tier: Some("4k_probe".to_string()),
+                notes: vec![
+                    "Synthetic zero-filled 4K dispatch. Tests wgpu binding limit raise.".to_string(),
+                    "No CPU parity check performed (would require 4K CPU reference run).".to_string(),
+                ],
+            });
+        }
+        Ok(Ok(None)) => {
+            entries.push(GpuExecutionEntry {
+                label: "gpu_4k_synthetic_probe".to_string(),
+                scenario_id: "synthetic_4k".to_string(),
+                width: 3840,
+                height: 2160,
+                frame_index: 0,
+                gpu_path_available: false,
+                actual_gpu_timing_measured: false,
+                adapter_name: None,
+                backend: None,
+                total_ms: None,
+                dispatch_ms: None,
+                readback_ms: None,
+                mean_abs_trust_delta_vs_cpu: None,
+                mean_abs_alpha_delta_vs_cpu: None,
+                mean_abs_intervention_delta_vs_cpu: None,
+                workgroup_size: [8, 8, 1],
+                resolution_tier: Some("4k_probe".to_string()),
+                notes: vec![
+                    "4K synthetic probe: no wgpu adapter available.".to_string(),
+                ],
+            });
+        }
+        Ok(Err(e)) => {
+            entries.push(GpuExecutionEntry {
+                label: "gpu_4k_synthetic_probe".to_string(),
+                scenario_id: "synthetic_4k".to_string(),
+                width: 3840,
+                height: 2160,
+                frame_index: 0,
+                gpu_path_available: true,
+                actual_gpu_timing_measured: false,
+                adapter_name: None,
+                backend: None,
+                total_ms: None,
+                dispatch_ms: None,
+                readback_ms: None,
+                mean_abs_trust_delta_vs_cpu: None,
+                mean_abs_alpha_delta_vs_cpu: None,
+                mean_abs_intervention_delta_vs_cpu: None,
+                workgroup_size: [8, 8, 1],
+                resolution_tier: Some("4k_probe".to_string()),
+                notes: vec![
+                    format!("4K synthetic probe failed with error: {e}"),
+                    "Binding limit raise may be insufficient for this adapter.".to_string(),
+                ],
+            });
+        }
+        Err(panic_val) => {
+            let msg = panic_val
+                .downcast_ref::<String>()
+                .map(|s| s.as_str())
+                .or_else(|| panic_val.downcast_ref::<&str>().copied())
+                .unwrap_or("unknown panic");
+            entries.push(GpuExecutionEntry {
+                label: "gpu_4k_synthetic_probe".to_string(),
+                scenario_id: "synthetic_4k".to_string(),
+                width: 3840,
+                height: 2160,
+                frame_index: 0,
+                gpu_path_available: true,
+                actual_gpu_timing_measured: false,
+                adapter_name: None,
+                backend: None,
+                total_ms: None,
+                dispatch_ms: None,
+                readback_ms: None,
+                mean_abs_trust_delta_vs_cpu: None,
+                mean_abs_alpha_delta_vs_cpu: None,
+                mean_abs_intervention_delta_vs_cpu: None,
+                workgroup_size: [8, 8, 1],
+                resolution_tier: Some("4k_probe".to_string()),
+                notes: vec![
+                    format!("4K synthetic probe panicked: {msg}"),
+                    "OOM or driver limit exceeded despite binding limit raise.".to_string(),
+                ],
+            });
         }
     }
 
@@ -180,20 +314,21 @@ pub fn write_gpu_execution_report(path: &Path, metrics: &GpuExecutionMetrics) ->
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "| Label | Scenario | Resolution | Measured | Adapter | Total ms | Dispatch ms | Readback ms | Trust delta vs CPU |"
+        "| Label | Scenario | Resolution | Tier | Measured | Adapter | Total ms | Dispatch ms | Readback ms | Trust delta vs CPU |"
     );
     let _ = writeln!(
         markdown,
-        "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
+        "| --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |"
     );
     for entry in &metrics.entries {
         let _ = writeln!(
             markdown,
-            "| {} | {} | {}x{} | {} | {} | {} | {} | {} | {} |",
+            "| {} | {} | {}x{} | {} | {} | {} | {} | {} | {} | {} |",
             entry.label,
             entry.scenario_id,
             entry.width,
             entry.height,
+            entry.resolution_tier.as_deref().unwrap_or("native"),
             entry.actual_gpu_timing_measured,
             entry.adapter_name.as_deref().unwrap_or("unavailable"),
             format_f64(entry.total_ms),

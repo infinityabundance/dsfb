@@ -14,9 +14,9 @@
       "actual_gpu_timing_measured": true,
       "adapter_name": "NVIDIA GeForce RTX 4080 SUPER",
       "backend": "Vulkan",
-      "total_ms": 0.330786,
-      "dispatch_ms": 0.291202,
-      "readback_ms": 0.038552,
+      "total_ms": 0.315006,
+      "dispatch_ms": 0.27153499999999997,
+      "readback_ms": 0.042288,
       "mean_abs_trust_delta_vs_cpu": 3.5390257e-9,
       "mean_abs_alpha_delta_vs_cpu": 4.5382573e-9,
       "mean_abs_intervention_delta_vs_cpu": 3.5540708e-9,
@@ -25,6 +25,7 @@
         8,
         1
       ],
+      "resolution_tier": "native",
       "notes": [
         "Measured on the current environment because a usable wgpu adapter was available.",
         "The kernel implements the current minimum host-realistic path, which excludes motion disagreement by design."
@@ -40,9 +41,9 @@
       "actual_gpu_timing_measured": true,
       "adapter_name": "NVIDIA GeForce RTX 4080 SUPER",
       "backend": "Vulkan",
-      "total_ms": 0.329503,
-      "dispatch_ms": 0.296392,
-      "readback_ms": 0.03206,
+      "total_ms": 0.298606,
+      "dispatch_ms": 0.26171799999999995,
+      "readback_ms": 0.035787,
       "mean_abs_trust_delta_vs_cpu": 7.1828254e-9,
       "mean_abs_alpha_delta_vs_cpu": 9.112894e-9,
       "mean_abs_intervention_delta_vs_cpu": 7.2020074e-9,
@@ -51,9 +52,37 @@
         8,
         1
       ],
+      "resolution_tier": "native",
       "notes": [
         "Measured on the current environment because a usable wgpu adapter was available.",
         "The kernel implements the current minimum host-realistic path, which excludes motion disagreement by design."
+      ]
+    },
+    {
+      "label": "gpu_4k_synthetic_probe",
+      "scenario_id": "synthetic_4k",
+      "width": 3840,
+      "height": 2160,
+      "frame_index": 0,
+      "gpu_path_available": true,
+      "actual_gpu_timing_measured": true,
+      "adapter_name": "NVIDIA GeForce RTX 4080 SUPER",
+      "backend": "Vulkan",
+      "total_ms": 76.27397099999999,
+      "dispatch_ms": 52.856358,
+      "readback_ms": 23.414616,
+      "mean_abs_trust_delta_vs_cpu": null,
+      "mean_abs_alpha_delta_vs_cpu": null,
+      "mean_abs_intervention_delta_vs_cpu": null,
+      "workgroup_size": [
+        8,
+        8,
+        1
+      ],
+      "resolution_tier": "4k_probe",
+      "notes": [
+        "Synthetic zero-filled 4K dispatch. Tests wgpu binding limit raise.",
+        "No CPU parity check performed (would require 4K CPU reference run)."
       ]
     }
   ],

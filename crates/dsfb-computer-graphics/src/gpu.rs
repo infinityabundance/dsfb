@@ -47,12 +47,6 @@ struct GpuColor {
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
-struct GpuVec2 {
-    value: [f32; 2],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
 struct GpuDepthPair {
     value: [f32; 2],
 }
@@ -89,19 +83,18 @@ struct Params {
 
 @group(0) @binding(0) var<storage, read> current_color: array<vec4<f32>>;
 @group(0) @binding(1) var<storage, read> reprojected_history: array<vec4<f32>>;
-@group(0) @binding(2) var<storage, read> motion_vectors: array<vec2<f32>>;
-@group(0) @binding(3) var<storage, read> depth_pairs: array<vec2<f32>>;
+@group(0) @binding(2) var<storage, read> depth_pairs: array<vec2<f32>>;
 
 struct NormalPair {
     current: vec4<f32>,
     history: vec4<f32>,
 }
 
-@group(0) @binding(4) var<storage, read> normal_pairs: array<NormalPair>;
-@group(0) @binding(5) var<uniform> params: Params;
-@group(0) @binding(6) var<storage, read_write> trust_out: array<f32>;
-@group(0) @binding(7) var<storage, read_write> alpha_out: array<f32>;
-@group(0) @binding(8) var<storage, read_write> intervention_out: array<f32>;
+@group(0) @binding(3) var<storage, read> normal_pairs: array<NormalPair>;
+@group(0) @binding(4) var<uniform> params: Params;
+@group(0) @binding(5) var<storage, read_write> trust_out: array<f32>;
+@group(0) @binding(6) var<storage, read_write> alpha_out: array<f32>;
+@group(0) @binding(7) var<storage, read_write> intervention_out: array<f32>;
 
 fn index_of(x: u32, y: u32) -> u32 {
     return y * params.size.x + x;
@@ -126,15 +119,21 @@ fn color_at(x: i32, y: i32) -> vec3<f32> {
     return current_color[idx].xyz;
 }
 
-fn local_contrast_gate(x: i32, y: i32) -> f32 {
-    let center = luma(color_at(x, y));
+var<workgroup> tile: array<f32, 100>;
+
+fn tile_luma(tx: i32, ty: i32) -> f32 {
+    return tile[u32(ty * 10 + tx)];
+}
+
+fn local_contrast_gate_tile(tile_cx: i32, tile_cy: i32) -> f32 {
+    let center = tile_luma(tile_cx, tile_cy);
     var strongest = 0.0;
     for (var oy: i32 = -1; oy <= 1; oy = oy + 1) {
         for (var ox: i32 = -1; ox <= 1; ox = ox + 1) {
             if (ox == 0 && oy == 0) {
                 continue;
             }
-            strongest = max(strongest, abs(center - luma(color_at(x + ox, y + oy))));
+            strongest = max(strongest, abs(center - tile_luma(tile_cx + ox, tile_cy + oy)));
         }
     }
     return smoothstep_threshold(
@@ -144,14 +143,14 @@ fn local_contrast_gate(x: i32, y: i32) -> f32 {
     );
 }
 
-fn neighborhood_gate(x: i32, y: i32, history_luma: f32) -> f32 {
+fn neighborhood_gate_tile(tile_cx: i32, tile_cy: i32, history_luma: f32) -> f32 {
     var min_luma = 1e9;
     var max_luma = -1e9;
     for (var oy: i32 = -1; oy <= 1; oy = oy + 1) {
         for (var ox: i32 = -1; ox <= 1; ox = ox + 1) {
-            let sample_luma = luma(color_at(x + ox, y + oy));
-            min_luma = min(min_luma, sample_luma);
-            max_luma = max(max_luma, sample_luma);
+            let sample = tile_luma(tile_cx + ox, tile_cy + oy);
+            min_luma = min(min_luma, sample);
+            max_luma = max(max_luma, sample);
         }
     }
     var distance = 0.0;
@@ -168,7 +167,30 @@ fn neighborhood_gate(x: i32, y: i32, history_luma: f32) -> f32 {
 }
 
 @compute @workgroup_size(8, 8, 1)
-fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+fn main(
+    @builtin(global_invocation_id) gid: vec3<u32>,
+    @builtin(local_invocation_id) lid: vec3<u32>,
+    @builtin(workgroup_id) wgid: vec3<u32>,
+) {
+    let wg_origin_x = i32(wgid.x * 8u);
+    let wg_origin_y = i32(wgid.y * 8u);
+    let lid_flat = lid.y * 8u + lid.x;
+
+    // Cooperative tile load: thread lid_flat loads tile[lid_flat] and possibly tile[lid_flat+64]
+    {
+        let k0 = lid_flat;
+        let tx0 = i32(k0 % 10u);
+        let ty0 = i32(k0 / 10u);
+        tile[k0] = luma(color_at(wg_origin_x - 1 + tx0, wg_origin_y - 1 + ty0));
+    }
+    if (lid_flat < 36u) {
+        let k1 = lid_flat + 64u;
+        let tx1 = i32(k1 % 10u);
+        let ty1 = i32(k1 / 10u);
+        tile[k1] = luma(color_at(wg_origin_x - 1 + tx1, wg_origin_y - 1 + ty1));
+    }
+    workgroupBarrier();
+
     if (gid.x >= params.size.x || gid.y >= params.size.y) {
         return;
     }
@@ -192,8 +214,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         1.0 - clamp(dot(n0, n1), -1.0, 1.0)
     );
     let history_luma = luma(history);
-    let neighbor_gate = neighborhood_gate(i32(gid.x), i32(gid.y), history_luma);
-    let thin_gate = local_contrast_gate(i32(gid.x), i32(gid.y));
+    let tile_cx = i32(lid.x) + 1;
+    let tile_cy = i32(lid.y) + 1;
+    let neighbor_gate = neighborhood_gate_tile(tile_cx, tile_cy, history_luma);
+    let thin_gate = local_contrast_gate_tile(tile_cx, tile_cy);
     let history_instability = clamp(
         params.history_instability_mix.x * residual_gate +
         params.history_instability_mix.y * neighbor_gate,
@@ -225,8 +249,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     trust_out[idx] = 1.0 - hazard;
     alpha_out[idx] = params.alpha_range.x + (params.alpha_range.y - params.alpha_range.x) * hazard;
     intervention_out[idx] = hazard;
-
-    let _unused_motion = motion_vectors[idx];
 }
 "#;
 
@@ -255,12 +277,17 @@ async fn try_execute_host_minimum_kernel_async(
     };
 
     let adapter_info = adapter.get_info();
+    let adapter_limits = adapter.limits();
     let (device, queue) = adapter
         .request_device(
             &wgpu::DeviceDescriptor {
                 label: Some("dsfb-computer-graphics-gpu-path"),
                 required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
+                required_limits: wgpu::Limits {
+                    max_storage_buffer_binding_size: adapter_limits.max_storage_buffer_binding_size,
+                    max_buffer_size: adapter_limits.max_buffer_size,
+                    ..wgpu::Limits::default()
+                },
             },
             None,
         )
@@ -270,7 +297,6 @@ async fn try_execute_host_minimum_kernel_async(
     let pixel_count = inputs.width() * inputs.height();
     let color_current = pack_colors(&inputs.current_color);
     let color_history = pack_colors(&inputs.reprojected_history);
-    let motion = pack_motion(&inputs.motion_vectors);
     let depth_pairs = pack_depth_pairs(&inputs.current_depth, &inputs.reprojected_depth);
     let normal_pairs = pack_normal_pairs(&inputs.current_normals, &inputs.reprojected_normals);
     let params = pack_params(inputs.width(), inputs.height(), parameters);
@@ -283,11 +309,6 @@ async fn try_execute_host_minimum_kernel_async(
     let history_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("reprojected-history"),
         contents: bytemuck::cast_slice(&color_history),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-    let motion_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("motion-vectors"),
-        contents: bytemuck::cast_slice(&motion),
         usage: wgpu::BufferUsages::STORAGE,
     });
     let depth_pairs_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -341,11 +362,10 @@ async fn try_execute_host_minimum_kernel_async(
             storage_layout_entry(1, true),
             storage_layout_entry(2, true),
             storage_layout_entry(3, true),
-            storage_layout_entry(4, true),
-            uniform_layout_entry(5),
+            uniform_layout_entry(4),
+            storage_layout_entry(5, false),
             storage_layout_entry(6, false),
             storage_layout_entry(7, false),
-            storage_layout_entry(8, false),
         ],
     });
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -365,13 +385,12 @@ async fn try_execute_host_minimum_kernel_async(
         entries: &[
             storage_binding(0, &current_buffer),
             storage_binding(1, &history_buffer),
-            storage_binding(2, &motion_buffer),
-            storage_binding(3, &depth_pairs_buffer),
-            storage_binding(4, &normal_pairs_buffer),
-            uniform_binding(5, &params_buffer),
-            storage_binding(6, &trust_buffer),
-            storage_binding(7, &alpha_buffer),
-            storage_binding(8, &intervention_buffer),
+            storage_binding(2, &depth_pairs_buffer),
+            storage_binding(3, &normal_pairs_buffer),
+            uniform_binding(4, &params_buffer),
+            storage_binding(5, &trust_buffer),
+            storage_binding(6, &alpha_buffer),
+            storage_binding(7, &intervention_buffer),
         ],
     });
 
@@ -462,15 +481,6 @@ fn pack_colors(frame: &crate::frame::ImageFrame) -> Vec<GpuColor> {
         .iter()
         .map(|pixel| GpuColor {
             value: [pixel.r, pixel.g, pixel.b, 1.0],
-        })
-        .collect()
-}
-
-fn pack_motion(values: &[crate::scene::MotionVector]) -> Vec<GpuVec2> {
-    values
-        .iter()
-        .map(|value| GpuVec2 {
-            value: [value.to_prev_x, value.to_prev_y],
         })
         .collect()
 }
