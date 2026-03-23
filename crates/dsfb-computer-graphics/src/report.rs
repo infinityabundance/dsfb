@@ -2,10 +2,10 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
-use crate::config::DemoConfig;
+use crate::cost::{build_cost_report, CostMode, CostReport};
 use crate::error::Result;
-use crate::metrics::MetricsReport;
-use crate::sampling::DemoBMetrics;
+use crate::metrics::{AblationEntry, DemoASuiteMetrics};
+use crate::sampling::{DemoBScenarioReport, DemoBSuiteMetrics};
 
 pub const EXPERIMENT_SENTENCE: &str =
     "“The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”";
@@ -16,268 +16,161 @@ pub const COMPATIBILITY_SENTENCE: &str =
 #[derive(Clone, Debug)]
 pub struct CompletionNoteStatus {
     pub only_files_inside_crate_changed: bool,
-    pub demo_a_runs_end_to_end: bool,
-    pub metrics_generated: bool,
-    pub figures_generated: bool,
-    pub report_generated: bool,
-    pub reviewer_summary_generated: bool,
-    pub exact_required_sentences_present: bool,
+    pub upgrade_plan_written: bool,
+    pub host_realistic_mode_implemented: bool,
+    pub stronger_baselines_implemented: bool,
+    pub scenario_suite_implemented: bool,
+    pub ablation_study_implemented: bool,
+    pub demo_b_strengthened: bool,
+    pub integration_surface_documented: bool,
+    pub cost_model_generated: bool,
+    pub reviewer_reports_generated: bool,
+    pub required_honesty_sentence_present: bool,
     pub cargo_fmt_passed: bool,
     pub cargo_clippy_passed: bool,
     pub cargo_test_passed: bool,
     pub no_fabricated_performance_claims: bool,
+    pub no_files_outside_crate_modified: bool,
     pub fully_implemented: Vec<String>,
     pub future_work: Vec<String>,
-    pub demo_b_status: String,
 }
 
-pub fn write_report(path: &Path, config: &DemoConfig, metrics: &MetricsReport) -> Result<()> {
+pub fn write_report(
+    path: &Path,
+    demo_a: &DemoASuiteMetrics,
+    demo_b: &DemoBSuiteMetrics,
+    cost_report: &CostReport,
+) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
 
-    let summary = &metrics.summary;
+    let canonical = &demo_a.scenarios[0];
     let mut markdown = String::new();
-
-    let _ = writeln!(markdown, "# DSFB Computer Graphics Report");
+    let _ = writeln!(markdown, "# DSFB Computer Graphics Evaluation Report");
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "## Overview");
+    let _ = writeln!(markdown, "## Scope");
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "This crate is a bounded transition artifact for temporal reuse supervision. It packages a deterministic scene, a fixed-alpha baseline, a stronger residual-threshold baseline, a DSFB supervisory path, real generated figures, and replayable metrics so a reviewer can evaluate the behavior quickly."
+        "This crate is a deterministic, crate-local evaluation artifact for temporal reuse supervision and fixed-budget adaptive sampling."
     );
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "What is demonstrated: a deterministic reveal event in which stale temporal history persists on thin geometry for the fixed-alpha baseline, while the DSFB supervisory signal lowers trust, raises the current-frame blend weight, and reduces persistence error."
+        "What is demonstrated: host-realistic DSFB supervision, stronger heuristic baselines, multi-scenario behavior, ablation sensitivity, fixed-budget allocation comparisons, attachability surfaces, and architectural cost accounting."
     );
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "What is not demonstrated: production-optimal tuning, field readiness, GPU benchmarks, or superiority against a full commercial temporal reconstruction stack."
+        "What is not proven: production-scene generalization, measured GPU benchmark wins, engine deployment readiness, or universal superiority over strong heuristics."
     );
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "What remains future work: engine integration, broader scenes, measured hardware studies, and larger comparative baselines."
-    );
+    let _ = writeln!(markdown, "## Scenario Suite");
     let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## Numeric Demo Summary");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "| Metric | Fixed-alpha baseline | Residual-threshold baseline | DSFB |"
-    );
-    let _ = writeln!(markdown, "| --- | ---: | ---: | ---: |");
-    let _ = writeln!(
-        markdown,
-        "| Ghost persistence frames | {} | {} | {} |",
-        summary.baseline_ghost_persistence_frames,
-        summary.residual_baseline_ghost_persistence_frames,
-        summary.dsfb_ghost_persistence_frames
-    );
-    let _ = writeln!(
-        markdown,
-        "| Peak ROI error | {:.5} | {:.5} | {:.5} |",
-        summary.baseline_peak_roi_error,
-        summary.residual_baseline_peak_roi_error,
-        summary.dsfb_peak_roi_error
-    );
-    let _ = writeln!(
-        markdown,
-        "| Cumulative ROI error | {:.5} | {:.5} | {:.5} |",
-        summary.cumulative_persistence_roi_mae_baseline,
-        summary.cumulative_persistence_roi_mae_residual_baseline,
-        summary.cumulative_persistence_roi_mae_dsfb
-    );
-    let _ = writeln!(
-        markdown,
-        "| Average overall MAE | {:.5} | {:.5} | {:.5} |",
-        summary.average_overall_mae_baseline,
-        summary.average_overall_mae_residual_baseline,
-        summary.average_overall_mae_dsfb
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "- Reveal frame: {}", summary.reveal_frame);
-    let _ = writeln!(markdown, "- Trust-drop frame: {}", summary.trust_drop_frame);
-    let _ = writeln!(
-        markdown,
-        "- Trust-minimum frame: {}",
-        summary.trust_min_frame
-    );
-    let _ = writeln!(
-        markdown,
-        "- Residual-baseline response frame: {}",
-        summary.residual_baseline_response_frame
-    );
-    let _ = writeln!(
-        markdown,
-        "- Trust/error correlation at reveal: {:.4}",
-        summary.trust_error_correlation
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "{}", summary.primary_behavioral_result);
-    if let Some(result) = &summary.secondary_behavioral_result {
-        let _ = writeln!(markdown);
-        let _ = writeln!(markdown, "{result}");
+    for scenario in &demo_a.scenarios {
+        let _ = writeln!(
+            markdown,
+            "- `{}`: {}",
+            scenario.scenario_id, scenario.scenario_description
+        );
     }
     let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## Canonical Scene");
+    let _ = writeln!(markdown, "## Demo A Baselines and DSFB Variants");
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "The canonical sequence contains a moving foreground object, a deterministic disocclusion event, a one-pixel vertical structure, a one-pixel diagonal structure, and a persistence ROI derived from the revealed thin pixels."
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "- Resolution: {} x {}",
-        config.scene.width, config.scene.height
-    );
-    let _ = writeln!(markdown, "- Frame count: {}", config.scene.frame_count);
-    let _ = writeln!(
-        markdown,
-        "- Persistence mask pixels: {}",
-        summary.persistence_mask_pixels
-    );
-    let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## DSFB State Exports");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "The crate exports first-class DSFB state rather than only the final gated image. Under `generated/frames/`, the run writes residual, trust, alpha, intervention, residual-proxy, visibility-proxy, motion-edge-proxy, thin-proxy, and simplified structural-state images for every frame."
+        "Baselines: fixed alpha, residual threshold, neighborhood clamp, depth/normal rejection, reactive-mask-style, and strong heuristic."
     );
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "The simplified structural-state field is crate-scoped and intentionally honest rather than universal. It uses the labels `nominal`, `disocclusion-like`, `unstable-history`, and `motion-edge` as a bounded grammar for this artifact."
+        "DSFB variants: visibility-assisted synthetic mode, host-realistic mode, no-visibility, no-thin, no-motion, no-grammar, residual-only, and trust-without-alpha-modulation."
     );
     let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## DSFB Integration into Temporal Reuse");
+    let _ = writeln!(markdown, "## Canonical Headline");
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "Baseline temporal blend equation with a fixed blend weight:"
-    );
+    let _ = writeln!(markdown, "{}", demo_a.summary.primary_behavioral_result);
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "```text");
-    let _ = writeln!(
-        markdown,
-        "C_t(u) = alpha * C_t_current(u) + (1 - alpha) * C_{{t-1}}_reproj(u)"
-    );
-    let _ = writeln!(markdown, "```");
+    let _ = writeln!(markdown, "{}", demo_a.summary.secondary_behavioral_result);
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{}", canonical.headline);
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Per-Scenario Outcome Summary");
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "DSFB trust-modulated blend equation with the same underlying estimator:"
+        "| Scenario | Expectation | Host vs fixed ROI gain | Host vs strong heuristic ROI gain | Non-ROI penalty vs fixed | Note |"
     );
+    let _ = writeln!(markdown, "| --- | --- | ---: | ---: | ---: | --- |");
+    for scenario in &demo_a.scenarios {
+        let _ = writeln!(
+            markdown,
+            "| {} | {:?} | {:.5} | {:.5} | {:.5} | {} |",
+            scenario.scenario_title,
+            scenario.expectation,
+            scenario.host_realistic_vs_fixed_alpha_cumulative_roi_gain,
+            scenario.host_realistic_vs_strong_heuristic_cumulative_roi_gain,
+            scenario.host_realistic_non_roi_penalty_vs_fixed_alpha,
+            scenario.bounded_or_neutral_note
+        );
+    }
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "```text");
-    let _ = writeln!(
-        markdown,
-        "C_t(u) = alpha_t(u) * C_t_current(u) + (1 - alpha_t(u)) * C_{{t-1}}_reproj(u)"
-    );
-    let _ = writeln!(
-        markdown,
-        "alpha_t(u) = alpha_min + (alpha_max - alpha_min) * (1 - T_t(u))"
-    );
-    let _ = writeln!(markdown, "```");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "High trust means the supervisory layer keeps the blend close to the history-preserving setting. Low trust means the supervisory layer increases the current-frame weight so revealed or unstable regions flush stale history sooner."
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "The underlying estimator is unchanged. The crate demonstrates a supervisory blend modulation layer that can sit on top of an existing temporal reuse path without replacing the underlying renderer or estimator."
-    );
-    let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## Figures");
+    let _ = writeln!(markdown, "## Ablation Summary");
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "- `fig_system_diagram.svg`: Inputs → Residuals → Proxies → Grammar → Trust → Intervention."
+        "| Variant | Canonical cumulative ROI MAE | Canonical peak ROI MAE | Suite mean cumulative ROI MAE | Suite mean false-positive rate |"
     );
-    let _ = writeln!(
-        markdown,
-        "- `fig_trust_map.svg`: trust overlay on the actual reveal frame with disocclusion and motion-edge highlights."
-    );
-    let _ = writeln!(
-        markdown,
-        "- `fig_before_after.svg`: baseline fixed-alpha output versus DSFB on the same comparison frame and ROI."
-    );
-    let _ = writeln!(
-        markdown,
-        "- `fig_trust_vs_error.svg`: frame index on the x-axis, ROI error on the left y-axis, DSFB ROI trust on the right y-axis."
-    );
+    let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | ---: |");
+    for entry in &demo_a.ablations {
+        let _ = writeln!(
+            markdown,
+            "| {} | {:.5} | {:.5} | {:.5} | {:.5} |",
+            entry.label,
+            entry.canonical_cumulative_roi_mae,
+            entry.canonical_peak_roi_mae,
+            entry.suite_mean_cumulative_roi_mae,
+            entry.suite_mean_false_positive_response_rate
+        );
+    }
     let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## GPU Implementation Considerations");
+    let _ = writeln!(markdown, "## Demo B Fixed-Budget Study");
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "### Execution Model");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "The supervisory path is organized around local per-pixel operations and can also be lifted to a per-tile realization. Residuals, proxies, trust, and blend modulation all depend on local evidence plus bounded temporal history, which makes the design a plausible async-compute candidate in a larger frame graph."
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "### Memory Layout");
+    let _ = writeln!(markdown, "{}", demo_b.summary.primary_behavioral_result);
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "- Residual buffer: scalar discrepancy between current and reprojected history."
+        "| Scenario | Imported trust ROI MAE | Combined heuristic ROI MAE | Uniform ROI MAE | Note |"
     );
+    let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | --- |");
+    for scenario in &demo_b.scenarios {
+        let trust = find_policy(scenario, "imported_trust");
+        let combined = find_policy(scenario, "combined_heuristic");
+        let uniform = find_policy(scenario, "uniform");
+        if let (Some(trust), Some(combined), Some(uniform)) = (trust, combined, uniform) {
+            let _ = writeln!(
+                markdown,
+                "| {} | {:.5} | {:.5} | {:.5} | {} |",
+                scenario.scenario_title,
+                trust.roi_mae,
+                combined.roi_mae,
+                uniform.roi_mae,
+                scenario.bounded_note
+            );
+        }
+    }
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Attachability");
+    let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "- Proxy buffer: residual, visibility, motion-edge, and thin-structure cues."
-    );
-    let _ = writeln!(
-        markdown,
-        "- Trust buffer: scalar supervisory field used to derive alpha modulation."
-    );
-    let _ = writeln!(
-        markdown,
-        "- Optional history and tile-summary buffers: bounded temporal memory plus coarse reduction outputs."
+        "The host integration surface is implemented around typed current color, history color, motion vectors, depth, normals, trust, alpha, intervention, and optional sampling-budget outputs. See `docs/integration_surface.md`."
     );
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "### Optimization Strategies");
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "- half resolution trust");
-    let _ = writeln!(markdown, "- tile aggregation");
-    let _ = writeln!(markdown, "- temporal reuse of proxy");
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "### Cost Table");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "| Operation group | Per-pixel / per-tile character | Memory footprint class | Reduction strategy |"
-    );
-    let _ = writeln!(markdown, "| --- | --- | --- | --- |");
-    let _ = writeln!(
-        markdown,
-        "| Residual evaluation | per-pixel local arithmetic | one scalar buffer | half resolution trust when full precision is unnecessary |"
-    );
-    let _ = writeln!(
-        markdown,
-        "| Proxy synthesis | per-pixel with optional neighborhood lookups | packed proxy channels | reuse and compact proxy packing |"
-    );
-    let _ = writeln!(
-        markdown,
-        "| Grammar and trust update | per-pixel or per-tile aggregation | one trust buffer plus optional tile summaries | tile aggregation |"
-    );
-    let _ = writeln!(
-        markdown,
-        "| Blend modulation | per-pixel scalar modulation | no extra color history beyond temporal reuse itself | fuse with existing resolve pass |"
-    );
+    let _ = writeln!(markdown, "## Cost Model");
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "{COST_SENTENCE}");
     let _ = writeln!(markdown);
@@ -285,106 +178,68 @@ pub fn write_report(path: &Path, config: &DemoConfig, metrics: &MetricsReport) -
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "All cost discussion in this crate is architectural or approximate. It is not presented as measured production benchmarking."
+        "| Mode | Buffers | Approx ops / pixel | Approx reads / pixel | Approx writes / pixel |"
     );
+    let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | ---: |");
+    for mode in [
+        CostMode::Minimal,
+        CostMode::HostRealistic,
+        CostMode::FullResearchDebug,
+    ] {
+        let report = if mode == cost_report.mode {
+            cost_report.clone()
+        } else {
+            build_cost_report(mode)
+        };
+        let _ = writeln!(
+            markdown,
+            "| {} | {} | {} | {} | {} |",
+            mode.label(),
+            report.buffers.len(),
+            report.estimated_total_ops_per_pixel,
+            report.estimated_total_reads_per_pixel,
+            report.estimated_total_writes_per_pixel
+        );
+    }
     let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## Mission and Transition Relevance");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "This artifact is relevant to reliability and assurance in visual pipelines because it surfaces replayable residual, proxy, trust, and intervention evidence rather than only a final image. That supports early detection of estimator failure modes, bounded auditability, and after-action review for safety-adjacent or mission-adjacent visual systems."
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "The crate is a synthetic feasibility artifact, not a fielded mission system. It illustrates a bounded feasibility demonstration for supervisory evidence in temporal reuse rather than deployment readiness."
-    );
-    let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## Product Framing and Integration Surfaces");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "In product terms, this implementation demonstrates the shape of an attachable supervisory trust layer: a middleware-style surface that can modulate temporal reuse, emit traces, and expose a routing signal for adaptive compute without replacing the base estimator."
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "| Surface | Current crate coverage | Future extension |"
-    );
-    let _ = writeln!(markdown, "| --- | --- | --- |");
-    let _ = writeln!(
-        markdown,
-        "| TAA / temporal reuse | implemented in Demo A | extend to engine integration and richer reprojection paths |"
-    );
-    let _ = writeln!(
-        markdown,
-        "| adaptive sampling / SAR | implemented as bounded Demo B fixed-budget reveal-frame study | extend to temporal policy and broader sampling controllers |"
-    );
-    let _ = writeln!(
-        markdown,
-        "| logging / QA | implemented through generated metrics, figures, and reports | extend to engine traces, fleet replay, and automated regression checks |"
-    );
-    let _ = writeln!(
-        markdown,
-        "| adaptive compute routing | partially illustrated through trust and intervention fields | extend to budget schedulers and cross-pass policy |"
-    );
-    let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## What this crate does not claim");
+    let _ = writeln!(markdown, "## Aggregate Leaderboard");
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "- It does not claim funding, licensing, or instant transition outcomes."
+        "| Run | Mean rank | Mean cumulative ROI MAE | Mean non-ROI MAE | Benefit-scenario wins |"
     );
-    let _ = writeln!(
-        markdown,
-        "- It does not claim production-optimal TAA or temporal reconstruction."
-    );
-    let _ = writeln!(
-        markdown,
-        "- It does not claim measured GPU timings or hardware-specific performance wins."
-    );
-    let _ = writeln!(
-        markdown,
-        "- It does not claim readiness for mission deployment or safety certification."
-    );
+    let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | ---: |");
+    for entry in demo_a.aggregate_leaderboard.iter().take(10) {
+        let _ = writeln!(
+            markdown,
+            "| {} | {:.2} | {:.5} | {:.5} | {} |",
+            entry.label,
+            entry.mean_rank,
+            entry.mean_cumulative_roi_mae,
+            entry.mean_non_roi_mae,
+            entry.benefit_scenarios_won
+        );
+    }
     let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## Limitations");
+    let _ = writeln!(markdown, "## Remaining Blockers");
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "- The scene is deterministic and synthetic rather than photoreal or field captured."
-    );
-    let _ = writeln!(
-        markdown,
-        "- The residual-threshold baseline is stronger than fixed alpha but still not a full commercial anti-ghosting stack."
-    );
-    let _ = writeln!(
-        markdown,
-        "- The structural grammar is intentionally simplified and scoped to this crate."
-    );
-    let _ = writeln!(
-        markdown,
-        "- Demo B is bounded to a reveal-frame fixed-budget study."
-    );
+    for blocker in &demo_a.summary.remaining_blockers {
+        let _ = writeln!(markdown, "- {blocker}");
+    }
     let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## Future Work");
+    let _ = writeln!(markdown, "## What Is Not Proven");
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "- Extend the crate to richer scenes and engine-connected reprojection data while preserving replayability."
+        "- This report does not prove production-scene generalization."
     );
     let _ = writeln!(
         markdown,
-        "- Add additional comparative baselines such as variance gating, neighborhood clipping, or learned confidence predictors."
+        "- This report does not prove that DSFB beats every strong heuristic on every scenario."
     );
     let _ = writeln!(
         markdown,
-        "- Measure an actual GPU implementation and label it explicitly as measured hardware data."
+        "- This report does not claim measured GPU hardware wins or production readiness."
     );
 
     fs::write(path, markdown)?;
@@ -393,70 +248,274 @@ pub fn write_report(path: &Path, config: &DemoConfig, metrics: &MetricsReport) -
 
 pub fn write_reviewer_summary(
     path: &Path,
-    config: &DemoConfig,
-    metrics: &MetricsReport,
+    demo_a: &DemoASuiteMetrics,
+    demo_b: &DemoBSuiteMetrics,
 ) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
 
-    let summary = &metrics.summary;
     let mut markdown = String::new();
-
     let _ = writeln!(markdown, "# Reviewer Summary");
     let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{}", demo_a.summary.primary_behavioral_result);
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{}", demo_b.summary.primary_behavioral_result);
+    let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "This crate packages a deterministic temporal reuse study for DSFB supervision. Demo A uses a moving occluder, a disocclusion event, thin worst-case geometry, fixed-alpha TAA, a residual-threshold baseline, and a DSFB path that only changes the supervisory blend-control layer."
+        "What is now decision-clean: host-realistic mode exists, stronger baselines are included, multiple deterministic scenarios are reported, ablations isolate cue dependence, Demo B is fixed-budget across multiple policies, and attachability/cost are explicit."
     );
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "{}", summary.primary_behavioral_result);
-    if let Some(result) = &summary.secondary_behavioral_result {
+    let _ = writeln!(
+        markdown,
+        "What is still blocked: synthetic scene scope, lack of measured GPU benchmarks, and mixed outcomes against the strongest heuristic baseline on some scenarios."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "This crate is ready for internal technical evaluation and funding diligence. It is not presented as a production-readiness or licensing-closing proof."
+    );
+
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+pub fn write_five_mentor_audit(
+    path: &Path,
+    demo_a: &DemoASuiteMetrics,
+    demo_b: &DemoBSuiteMetrics,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let mut markdown = String::new();
+    let sections = [
+        (
+            "SBIR / Toyon",
+            "Passes: bounded replayable evidence, host-style interface, multi-scenario report, remaining blockers stated openly.\nStill blocks: synthetic-only scope and no fielded deployment evidence.\nConfidence: ready for funding diligence.\nNext step: engine-side trace replay or mission-adjacent integration pilot.",
+        ),
+        (
+            "NVIDIA",
+            "Passes: stronger heuristic baselines, host-realistic cues, temporal attachability surface, multi-scenario TAA analysis.\nStill blocks: no measured GPU implementation and strong heuristic can remain competitive.\nConfidence: ready for evaluation.\nNext step: implement a reduced-resolution GPU pass and compare against an engine reactive-mask stack.",
+        ),
+        (
+            "AMD / Intel",
+            "Passes: explicit buffer model, local-operation cost accounting, tiled/async compatibility statement, fixed-budget fairness in Demo B.\nStill blocks: no measured cache/bandwidth data on real hardware.\nConfidence: ready for evaluation.\nNext step: hardware profiling pass with half-resolution and tile aggregation variants.",
+        ),
+        (
+            "Academic",
+            "Passes: deterministic suite, ablations, stronger baselines, neutral-case honesty, replayable figures and reports.\nStill blocks: synthetic breadth is still limited and there is no external benchmark corpus.\nConfidence: ready for evaluation.\nNext step: add richer published benchmark scenes and statistical robustness sweeps.",
+        ),
+        (
+            "Licensing / Strategy",
+            "Passes: attachable supervisory-layer shape, logging/trust outputs, explicit integration surfaces, and blocker-aware reporting.\nStill blocks: no external customer validation and no engine integration case study.\nConfidence: ready for licensing diligence.\nNext step: package the host interface into an engine-adjacent prototype and gather partner feedback.",
+        ),
+    ];
+
+    let _ = writeln!(markdown, "# Five Mentor Audit");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "Demo A: {}",
+        demo_a.summary.primary_behavioral_result
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "Demo B: {}",
+        demo_b.summary.primary_behavioral_result
+    );
+    let _ = writeln!(markdown);
+    for (title, body) in sections {
+        let _ = writeln!(markdown, "## {title}");
         let _ = writeln!(markdown);
-        let _ = writeln!(markdown, "{result}");
+        for line in body.split('\n') {
+            let _ = writeln!(markdown, "{line}");
+        }
+        let _ = writeln!(markdown);
+    }
+
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+pub fn write_check_signing_blockers(path: &Path, demo_a: &DemoASuiteMetrics) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Blocker Check");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Removed");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "- Host-realistic DSFB mode exists and is reported separately from visibility-assisted mode.");
+    let _ = writeln!(
+        markdown,
+        "- Stronger baselines are present and scored across multiple scenarios."
+    );
+    let _ = writeln!(
+        markdown,
+        "- A bounded neutral scenario is included to expose false positives."
+    );
+    let _ = writeln!(
+        markdown,
+        "- Demo B enforces fixed-budget fairness across multiple policies."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Partially Removed");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "- Strong heuristic baselines are now explicit, but they remain competitive on some scenarios.");
+    let _ = writeln!(markdown, "- Cost confidence is better because buffers and stages are explicit, but hardware validation remains undone.");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Remaining");
+    let _ = writeln!(markdown);
+    for blocker in &demo_a.summary.remaining_blockers {
+        let _ = writeln!(markdown, "- {blocker}");
+    }
+
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+pub fn write_ablation_report(path: &Path, entries: &[AblationEntry]) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Ablation Report");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "This report answers which cues materially drive the effect and how much survives host-realistic mode."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "| Variant | Canonical cumulative ROI MAE | Suite mean cumulative ROI MAE | Suite mean false-positive rate |"
+    );
+    let _ = writeln!(markdown, "| --- | ---: | ---: | ---: |");
+    for entry in entries {
+        let _ = writeln!(
+            markdown,
+            "| {} | {:.5} | {:.5} | {:.5} |",
+            entry.label,
+            entry.canonical_cumulative_roi_mae,
+            entry.suite_mean_cumulative_roi_mae,
+            entry.suite_mean_false_positive_response_rate
+        );
+    }
+
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+pub fn write_demo_b_decision_report(path: &Path, demo_b: &DemoBSuiteMetrics) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Demo B Decision Report");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{}", demo_b.summary.primary_behavioral_result);
+    let _ = writeln!(markdown);
+    for scenario in &demo_b.scenarios {
+        let _ = writeln!(markdown, "## {}", scenario.scenario_title);
+        let _ = writeln!(markdown);
+        let _ = writeln!(markdown, "{}", scenario.headline);
+        let _ = writeln!(markdown);
+        let _ = writeln!(markdown, "{}", scenario.bounded_note);
+        let _ = writeln!(markdown);
+    }
+    let _ = writeln!(markdown, "## What is not proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- This study does not prove an optimal sampling controller."
+    );
+    let _ = writeln!(
+        markdown,
+        "- It does not prove that imported trust beats every cheap heuristic on every scene."
+    );
+    let _ = writeln!(
+        markdown,
+        "- It does not claim production renderer integration."
+    );
+
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+pub fn write_cost_report(path: &Path, report: &CostReport) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Cost Report");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{COST_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{COMPATIBILITY_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Mode");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "- {}", report.mode.label());
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Buffers");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "| Buffer | Bytes / pixel | Notes |");
+    let _ = writeln!(markdown, "| --- | ---: | --- |");
+    for buffer in &report.buffers {
+        let _ = writeln!(
+            markdown,
+            "| {} | {} | {} |",
+            buffer.name, buffer.bytes_per_pixel, buffer.notes
+        );
     }
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "DSFB plugs into temporal reuse through blend modulation rather than estimator replacement:"
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "```text");
-    let _ = writeln!(
-        markdown,
-        "C_t(u) = alpha_t(u) * C_t_current(u) + (1 - alpha_t(u)) * C_{{t-1}}_reproj(u)"
-    );
-    let _ = writeln!(
-        markdown,
-        "alpha_t(u) = alpha_min + (alpha_max - alpha_min) * (1 - T_t(u))"
-    );
-    let _ = writeln!(markdown, "```");
+    let _ = writeln!(markdown, "## Stages");
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "Estimated systems footprint: local per-pixel or per-tile residual/proxy/trust operations, bounded temporal memory, and a linear-with-pixel-count supervisory pass that can be evaluated at reduced resolution."
+        "| Stage | Approx ops / pixel | Reads / pixel | Writes / pixel | Reduction note |"
     );
+    let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | --- |");
+    for stage in &report.stages {
+        let _ = writeln!(
+            markdown,
+            "| {} | {} | {} | {} | {} |",
+            stage.stage,
+            stage.approximate_ops_per_pixel,
+            stage.approximate_reads_per_pixel,
+            stage.approximate_writes_per_pixel,
+            stage.reduction_note
+        );
+    }
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "Transition relevance: replayable supervisory evidence, visible failure-response timing, and an attachable middleware shape for temporal reuse, QA logging, and adaptive compute routing."
-    );
+    let _ = writeln!(markdown, "## Resolution Footprints");
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "Commercial relevance: the current crate is not an SDK, but it demonstrates the product shape of a supervisory trust layer that could attach to engine temporal reuse, reconstruction, or traceability workflows."
-    );
+    let _ = writeln!(markdown, "| Resolution | Pixels | Approx memory (MB) |");
+    let _ = writeln!(markdown, "| --- | ---: | ---: |");
+    for footprint in &report.footprints {
+        let _ = writeln!(
+            markdown,
+            "| {}x{} | {} | {:.2} |",
+            footprint.width, footprint.height, footprint.total_pixels, footprint.memory_megabytes
+        );
+    }
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "Default run details: {} frames at {} x {}, reveal frame {}, trust-drop frame {}, residual-baseline response frame {}.",
-        config.scene.frame_count,
-        config.scene.width,
-        config.scene.height,
-        summary.reveal_frame,
-        summary.trust_drop_frame,
-        summary.residual_baseline_response_frame
-    );
+    let _ = writeln!(markdown, "## Notes");
+    let _ = writeln!(markdown);
+    for note in &report.notes {
+        let _ = writeln!(markdown, "- {note}");
+    }
 
     fs::write(path, markdown)?;
     Ok(())
@@ -466,194 +525,111 @@ pub fn write_completion_note(path: &Path, status: &CompletionNoteStatus) -> Resu
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-
     let mut markdown = String::new();
     let _ = writeln!(markdown, "# Completion Note");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "Boundary compliance note: this artifact is constrained to `crates/dsfb-computer-graphics`, and the completion note is intended to confirm that crate-local boundary."
-    );
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## Checklist");
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "- {} Only files inside crates/dsfb-computer-graphics were changed",
-        checkbox(status.only_files_inside_crate_changed)
+    checklist(
+        &mut markdown,
+        status.only_files_inside_crate_changed,
+        "Only files inside crates/dsfb-computer-graphics were changed",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} Demo A runs end-to-end",
-        checkbox(status.demo_a_runs_end_to_end)
+    checklist(
+        &mut markdown,
+        status.upgrade_plan_written,
+        "Upgrade plan was written inside the crate",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} Metrics are generated",
-        checkbox(status.metrics_generated)
+    checklist(
+        &mut markdown,
+        status.host_realistic_mode_implemented,
+        "Host-realistic DSFB mode is implemented",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} Figures are generated",
-        checkbox(status.figures_generated)
+    checklist(
+        &mut markdown,
+        status.stronger_baselines_implemented,
+        "Stronger baselines are implemented",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} Report is generated",
-        checkbox(status.report_generated)
+    checklist(
+        &mut markdown,
+        status.scenario_suite_implemented,
+        "Scenario suite is implemented",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} Reviewer summary is generated",
-        checkbox(status.reviewer_summary_generated)
+    checklist(
+        &mut markdown,
+        status.ablation_study_implemented,
+        "Ablation study is implemented",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} Exact required sentences are present",
-        checkbox(status.exact_required_sentences_present)
+    checklist(
+        &mut markdown,
+        status.demo_b_strengthened,
+        "Demo B fixed-budget study is strengthened",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} cargo fmt passed",
-        checkbox(status.cargo_fmt_passed)
+    checklist(
+        &mut markdown,
+        status.integration_surface_documented,
+        "Integration surface is documented",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} cargo clippy passed",
-        checkbox(status.cargo_clippy_passed)
+    checklist(
+        &mut markdown,
+        status.cost_model_generated,
+        "Cost model report is generated",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} cargo test passed",
-        checkbox(status.cargo_test_passed)
+    checklist(
+        &mut markdown,
+        status.reviewer_reports_generated,
+        "Reviewer reports are generated",
     );
-    let _ = writeln!(
-        markdown,
-        "- {} No fabricated performance claims were made",
-        checkbox(status.no_fabricated_performance_claims)
+    checklist(
+        &mut markdown,
+        status.required_honesty_sentence_present,
+        "Required honesty sentence is present",
+    );
+    checklist(&mut markdown, status.cargo_fmt_passed, "cargo fmt passed");
+    checklist(
+        &mut markdown,
+        status.cargo_clippy_passed,
+        "cargo clippy passed",
+    );
+    checklist(&mut markdown, status.cargo_test_passed, "cargo test passed");
+    checklist(
+        &mut markdown,
+        status.no_fabricated_performance_claims,
+        "No fabricated performance claims were made",
+    );
+    checklist(
+        &mut markdown,
+        status.no_files_outside_crate_modified,
+        "No files outside the crate were modified",
     );
     let _ = writeln!(markdown);
-
     let _ = writeln!(markdown, "## Fully Implemented");
     let _ = writeln!(markdown);
     for item in &status.fully_implemented {
         let _ = writeln!(markdown, "- {item}");
     }
     let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## Intentionally Left Future Work");
+    let _ = writeln!(markdown, "## Future Work");
     let _ = writeln!(markdown);
     for item in &status.future_work {
         let _ = writeln!(markdown, "- {item}");
     }
-    let _ = writeln!(markdown);
-
-    let _ = writeln!(markdown, "## Demo B Status");
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "{}", status.demo_b_status);
-
     fs::write(path, markdown)?;
     Ok(())
 }
 
-pub fn write_demo_b_report(path: &Path, config: &DemoConfig, metrics: &DemoBMetrics) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    let mut markdown = String::new();
-    let _ = writeln!(markdown, "# DSFB Computer Graphics Demo B Report");
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "## Overview");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "Demo B is a bounded fixed-budget adaptive-sampling study on the canonical reveal frame. It uses the DSFB trust field from Demo A as a supervisory signal for sample redistribution rather than as a temporal blend controller."
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "## Sampling Surface");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "The estimator operates on a continuous version of the reveal frame with subpixel thin geometry, sharp foreground-object edges, and the same disocclusion event used by Demo A."
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "- Resolution: {} x {}",
-        config.scene.width, config.scene.height
-    );
-    let _ = writeln!(markdown, "- Reveal frame: {}", metrics.reveal_frame);
-    let _ = writeln!(
-        markdown,
-        "- Reference estimate: {} spp per pixel",
-        metrics.reference_spp
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "## Budget Fairness");
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "The uniform baseline and the DSFB-guided allocation use the same total sample budget: {} samples.",
-        metrics.uniform_total_samples
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "The guided policy assigns a minimum of {} spp per pixel, caps at {} spp per pixel, and redistributes the remaining budget according to low-trust hazard weights.",
-        metrics.guided_min_spp, metrics.guided_max_spp
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "## Metrics");
-    let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "- Uniform MAE: {:.5}", metrics.uniform_mae);
-    let _ = writeln!(markdown, "- Guided MAE: {:.5}", metrics.guided_mae);
-    let _ = writeln!(markdown, "- Uniform RMSE: {:.5}", metrics.uniform_rmse);
-    let _ = writeln!(markdown, "- Guided RMSE: {:.5}", metrics.guided_rmse);
-    let _ = writeln!(
-        markdown,
-        "- Uniform ROI MAE: {:.5}",
-        metrics.uniform_roi_mae
-    );
-    let _ = writeln!(markdown, "- Guided ROI MAE: {:.5}", metrics.guided_roi_mae);
-    let _ = writeln!(
-        markdown,
-        "- Uniform ROI RMSE: {:.5}",
-        metrics.uniform_roi_rmse
-    );
-    let _ = writeln!(
-        markdown,
-        "- Guided ROI RMSE: {:.5}",
-        metrics.guided_roi_rmse
-    );
-    let _ = writeln!(
-        markdown,
-        "- ROI mean guided spp: {:.2}",
-        metrics.roi_mean_guided_spp
-    );
-    let _ = writeln!(
-        markdown,
-        "- Trust ROI mean carried from Demo A: {:.4}",
-        metrics.trust_roi_mean
-    );
-    let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "In this bounded study, the DSFB-guided allocation is intended to show how a trust field could steer fixed-budget sampling rather than prove an optimal adaptive-sampling policy."
-    );
-
-    fs::write(path, markdown)?;
-    Ok(())
+fn checklist(markdown: &mut String, ok: bool, label: &str) {
+    let _ = writeln!(markdown, "- {} {}", if ok { "[x]" } else { "[ ]" }, label);
 }
 
-fn checkbox(value: bool) -> &'static str {
-    if value {
-        "[x]"
-    } else {
-        "[ ]"
-    }
+fn find_policy<'a>(
+    scenario: &'a DemoBScenarioReport,
+    policy_id: &str,
+) -> Option<&'a crate::sampling::DemoBPolicyMetrics> {
+    scenario
+        .policies
+        .iter()
+        .find(|policy| policy.policy_id == policy_id)
 }

@@ -1,15 +1,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use dsfb_computer_graphics::config::DemoConfig;
 use dsfb_computer_graphics::dsfb::run_gated_taa;
-use dsfb_computer_graphics::metrics::analyze_demo_a;
-use dsfb_computer_graphics::pipeline::{run_demo_a, run_demo_b};
+use dsfb_computer_graphics::pipeline::run_all;
 use dsfb_computer_graphics::report::{COMPATIBILITY_SENTENCE, COST_SENTENCE, EXPERIMENT_SENTENCE};
-use dsfb_computer_graphics::sampling::run_demo_b as run_demo_b_core;
-use dsfb_computer_graphics::scene::generate_sequence;
-use dsfb_computer_graphics::taa::{run_fixed_alpha, run_residual_threshold};
+use dsfb_computer_graphics::scene::{generate_sequence_for_definition, scenario_suite};
+use serde_json::Value;
 
 fn unique_output_dir(name: &str) -> PathBuf {
     let stamp = SystemTime::now()
@@ -28,104 +27,64 @@ fn read(path: impl AsRef<Path>) -> String {
     fs::read_to_string(path).expect("text file should be readable")
 }
 
-fn analyze_default_demo() -> dsfb_computer_graphics::metrics::DemoAAnalysis {
-    let config = DemoConfig::default();
-    let sequence = generate_sequence(&config.scene);
-    let baseline = run_fixed_alpha(&sequence, config.baseline_alpha);
-    let residual_baseline = run_residual_threshold(
-        &sequence,
-        config.baseline_alpha,
-        config.residual_baseline_alpha_high,
-        config.residual_baseline_threshold_low,
-        config.residual_baseline_threshold_high,
-    );
-    let dsfb = run_gated_taa(&sequence, config.dsfb_alpha_min, config.dsfb_alpha_max);
-    analyze_demo_a(
-        &sequence,
-        &baseline,
-        &residual_baseline,
-        &dsfb,
-        config.trust_map_frame_offset,
-        config.comparison_frame_offset,
-    )
-    .expect("analysis should succeed")
+fn read_json(path: impl AsRef<Path>) -> Value {
+    serde_json::from_str(&read(path)).expect("json should parse")
+}
+
+fn full_suite_dir() -> &'static PathBuf {
+    static RUN_DIR: OnceLock<PathBuf> = OnceLock::new();
+    RUN_DIR.get_or_init(|| {
+        let output_dir = unique_output_dir("full_suite");
+        run_all(&DemoConfig::default(), &output_dir).expect("run-all should succeed");
+        output_dir
+    })
+}
+
+fn demo_a_metrics() -> Value {
+    read_json(full_suite_dir().join("metrics.json"))
+}
+
+fn demo_b_metrics() -> Value {
+    read_json(full_suite_dir().join("demo_b").join("metrics.json"))
 }
 
 #[test]
-fn scene_generation_is_deterministic() {
+fn scene_generation_is_deterministic_across_the_suite() {
     let config = DemoConfig::default();
-    let sequence_a = generate_sequence(&config.scene);
-    let sequence_b = generate_sequence(&config.scene);
+    for definition in scenario_suite(&config.scene) {
+        let sequence_a = generate_sequence_for_definition(&definition);
+        let sequence_b = generate_sequence_for_definition(&definition);
 
-    assert_eq!(sequence_a.frames.len(), sequence_b.frames.len());
-    for (frame_a, frame_b) in sequence_a.frames.iter().zip(sequence_b.frames.iter()) {
-        assert_eq!(frame_a.layers, frame_b.layers);
-        assert_eq!(frame_a.motion, frame_b.motion);
-        assert_eq!(frame_a.disocclusion_mask, frame_b.disocclusion_mask);
-        assert_eq!(
-            frame_a
-                .ground_truth
-                .encode_png()
-                .expect("frame_a should encode"),
-            frame_b
-                .ground_truth
-                .encode_png()
-                .expect("frame_b should encode")
-        );
+        assert_eq!(sequence_a.target_mask, sequence_b.target_mask);
+        assert_eq!(sequence_a.frames.len(), sequence_b.frames.len());
+        for (frame_a, frame_b) in sequence_a.frames.iter().zip(sequence_b.frames.iter()) {
+            assert_eq!(frame_a.layers, frame_b.layers);
+            assert_eq!(frame_a.motion, frame_b.motion);
+            assert_eq!(frame_a.disocclusion_mask, frame_b.disocclusion_mask);
+            assert_eq!(frame_a.depth, frame_b.depth);
+            assert_eq!(frame_a.normals, frame_b.normals);
+            assert_eq!(
+                frame_a
+                    .ground_truth
+                    .encode_png()
+                    .expect("frame_a should encode"),
+                frame_b
+                    .ground_truth
+                    .encode_png()
+                    .expect("frame_b should encode")
+            );
+        }
     }
 }
 
 #[test]
-fn baseline_residual_baseline_and_dsfb_outputs_have_matching_shapes() {
+fn host_realistic_trust_values_remain_in_unit_interval() {
     let config = DemoConfig::default();
-    let sequence = generate_sequence(&config.scene);
-    let baseline = run_fixed_alpha(&sequence, config.baseline_alpha);
-    let residual_baseline = run_residual_threshold(
-        &sequence,
-        config.baseline_alpha,
-        config.residual_baseline_alpha_high,
-        config.residual_baseline_threshold_low,
-        config.residual_baseline_threshold_high,
-    );
-    let dsfb = run_gated_taa(&sequence, config.dsfb_alpha_min, config.dsfb_alpha_max);
-
-    assert_eq!(baseline.resolved_frames.len(), sequence.frames.len());
-    assert_eq!(
-        residual_baseline.taa.resolved_frames.len(),
-        sequence.frames.len()
-    );
-    assert_eq!(dsfb.resolved_frames.len(), sequence.frames.len());
-    assert_eq!(
-        baseline.reprojected_history_frames.len(),
-        sequence.frames.len()
-    );
-    assert_eq!(
-        residual_baseline.taa.reprojected_history_frames.len(),
-        sequence.frames.len()
-    );
-    assert_eq!(dsfb.reprojected_history_frames.len(), sequence.frames.len());
-
-    for frame_index in 0..sequence.frames.len() {
-        let gt = &sequence.frames[frame_index].ground_truth;
-        assert_eq!(baseline.resolved_frames[frame_index].width(), gt.width());
-        assert_eq!(baseline.resolved_frames[frame_index].height(), gt.height());
-        assert_eq!(
-            residual_baseline.taa.resolved_frames[frame_index].width(),
-            gt.width()
-        );
-        assert_eq!(
-            residual_baseline.taa.resolved_frames[frame_index].height(),
-            gt.height()
-        );
-        assert_eq!(dsfb.resolved_frames[frame_index].width(), gt.width());
-        assert_eq!(dsfb.resolved_frames[frame_index].height(), gt.height());
-    }
-}
-
-#[test]
-fn trust_values_remain_in_unit_interval() {
-    let config = DemoConfig::default();
-    let sequence = generate_sequence(&config.scene);
+    let definition = scenario_suite(&config.scene)
+        .into_iter()
+        .find(|definition| definition.id.as_str() == "thin_reveal")
+        .expect("canonical scenario should exist");
+    let sequence = generate_sequence_for_definition(&definition);
     let dsfb = run_gated_taa(&sequence, config.dsfb_alpha_min, config.dsfb_alpha_max);
 
     for supervision in &dsfb.supervision_frames {
@@ -139,130 +98,40 @@ fn trust_values_remain_in_unit_interval() {
 }
 
 #[test]
-fn metrics_show_behavioral_separation_without_overclaiming() {
-    let analysis = analyze_default_demo();
-    let summary = &analysis.report.summary;
-
-    assert!(summary.reveal_frame > 0);
-    assert!(summary.persistence_mask_pixels >= 10);
-    assert!(summary.baseline_ghost_persistence_frames > summary.dsfb_ghost_persistence_frames);
-    assert!(summary.baseline_peak_roi_error > summary.dsfb_peak_roi_error);
-    assert!(
-        summary.cumulative_persistence_roi_mae_baseline
-            > summary.cumulative_persistence_roi_mae_dsfb
-    );
-    assert!(
-        summary.trust_error_correlation > 0.5,
-        "correlation should remain meaningfully positive"
-    );
-    assert!(
-        summary
-            .primary_behavioral_result
-            .contains("In this bounded synthetic setting"),
-        "primary result should remain an empirical summary"
-    );
-}
-
-#[test]
-fn library_demo_writes_figures_metrics_report_summary_note_and_state_exports() {
-    let config = DemoConfig::default();
-    let output_dir = unique_output_dir("library_demo");
-    let artifacts = run_demo_a(&config, &output_dir).expect("demo should succeed");
-
-    for path in [
-        artifacts.metrics_path.as_path(),
-        artifacts.report_path.as_path(),
-        artifacts.reviewer_summary_path.as_path(),
-        artifacts.completion_note_path.as_path(),
-        artifacts.scene_manifest_path.as_path(),
-    ] {
-        let metadata = fs::metadata(path).expect("artifact metadata should exist");
-        assert!(
-            metadata.len() > 0,
-            "artifact {} should be non-empty",
-            path.display()
-        );
-    }
-
-    assert_eq!(artifacts.figure_paths.len(), 4);
-    for figure in &artifacts.figure_paths {
-        let metadata = fs::metadata(figure).expect("figure metadata should exist");
-        assert!(
-            metadata.len() > 0,
-            "figure {} should be non-empty",
-            figure.display()
-        );
-    }
+fn run_all_generates_required_artifacts() {
+    let output_dir = full_suite_dir();
 
     for relative in [
-        "frames/residual/frame_06.png",
-        "frames/trust/frame_06.png",
-        "frames/alpha/frame_06.png",
-        "frames/intervention/frame_06.png",
-        "frames/proxy_residual/frame_06.png",
-        "frames/proxy_visibility/frame_06.png",
-        "frames/proxy_motion_edge/frame_06.png",
-        "frames/proxy_thin/frame_06.png",
-        "frames/state/frame_06.png",
-        "frames/residual_baseline/frame_06.png",
-        "frames/residual_baseline_trigger/frame_06.png",
-        "frames/residual_baseline_alpha/frame_06.png",
+        "artifact_manifest.json",
+        "metrics.json",
+        "report.md",
+        "reviewer_summary.md",
+        "ablation_report.md",
+        "cost_report.md",
+        "completion_note.md",
+        "five_mentor_audit.md",
+        "check_signing_blockers.md",
+        "demo_b_decision_report.md",
+        "figures/fig_system_diagram.svg",
+        "figures/fig_trust_map.svg",
+        "figures/fig_before_after.svg",
+        "figures/fig_trust_vs_error.svg",
+        "figures/fig_intervention_alpha.svg",
+        "figures/fig_ablation.svg",
+        "figures/fig_roi_nonroi_error.svg",
+        "figures/fig_leaderboard.svg",
+        "figures/fig_scenario_mosaic.svg",
+        "demo_b/metrics.json",
+        "demo_b/report.md",
+        "demo_b/figures/fig_demo_b_sampling.svg",
+        "demo_b/figures/fig_demo_b_budget_efficiency.svg",
+        "docs_placeholder",
     ] {
+        if relative == "docs_placeholder" {
+            continue;
+        }
         let path = output_dir.join(relative);
-        let metadata = fs::metadata(&path).expect("debug artifact metadata should exist");
-        assert!(
-            metadata.len() > 0,
-            "debug artifact {} should be non-empty",
-            path.display()
-        );
-    }
-}
-
-#[test]
-fn demo_b_improves_roi_error_at_fixed_budget_and_writes_artifacts() {
-    let config = DemoConfig::default();
-    let sequence = generate_sequence(&config.scene);
-    let baseline = run_fixed_alpha(&sequence, config.baseline_alpha);
-    let residual_baseline = run_residual_threshold(
-        &sequence,
-        config.baseline_alpha,
-        config.residual_baseline_alpha_high,
-        config.residual_baseline_threshold_low,
-        config.residual_baseline_threshold_high,
-    );
-    let dsfb = run_gated_taa(&sequence, config.dsfb_alpha_min, config.dsfb_alpha_max);
-    let analysis = analyze_demo_a(
-        &sequence,
-        &baseline,
-        &residual_baseline,
-        &dsfb,
-        config.trust_map_frame_offset,
-        config.comparison_frame_offset,
-    )
-    .expect("analysis should succeed");
-    let run = run_demo_b_core(&config, &sequence, &dsfb, &analysis).expect("demo b should run");
-
-    assert_eq!(
-        run.metrics.uniform_total_samples, run.metrics.guided_total_samples,
-        "guided sampling must preserve total budget"
-    );
-    assert!(
-        run.metrics.guided_roi_mae < run.metrics.uniform_roi_mae,
-        "guided sampling should reduce ROI MAE"
-    );
-    assert!(
-        run.metrics.roi_mean_guided_spp > run.metrics.uniform_spp as f32,
-        "guided sampling should spend more samples inside the ROI"
-    );
-
-    let output_dir = unique_output_dir("library_demo_b");
-    let artifacts = run_demo_b(&config, &output_dir).expect("demo b artifacts should be written");
-    for path in [
-        artifacts.metrics_path.as_path(),
-        artifacts.report_path.as_path(),
-        artifacts.scene_manifest_path.as_path(),
-    ] {
-        let metadata = fs::metadata(path).expect("artifact metadata should exist");
+        let metadata = fs::metadata(&path).expect("artifact metadata should exist");
         assert!(
             metadata.len() > 0,
             "artifact {} should be non-empty",
@@ -272,99 +141,240 @@ fn demo_b_improves_roi_error_at_fixed_budget_and_writes_artifacts() {
 }
 
 #[test]
-fn required_exact_sentences_are_present_in_generated_report_and_docs() {
-    let config = DemoConfig::default();
-    let output_dir = unique_output_dir("sentence_check");
-    let artifacts = run_demo_a(&config, &output_dir).expect("demo should succeed");
-    let demo_b_artifacts = run_demo_b(&config, &output_dir).expect("demo b should succeed");
+fn demo_a_metrics_include_required_suite_baselines_ablations_and_behavioral_gates() {
+    let metrics = demo_a_metrics();
+    let summary = &metrics["summary"];
+    let scenario_ids = summary["scenario_ids"]
+        .as_array()
+        .expect("scenario ids should be an array");
+    let baseline_ids = summary["baseline_ids"]
+        .as_array()
+        .expect("baseline ids should be an array");
+    let ablation_ids = summary["ablation_ids"]
+        .as_array()
+        .expect("ablation ids should be an array");
 
-    let report = read(&artifacts.report_path);
-    let demo_b_report = read(&demo_b_artifacts.report_path);
-    let readme = read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("README.md"));
-    let gpu_doc = read(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("docs")
-            .join("gpu_implementation.md"),
-    );
-
-    assert!(report.contains(EXPERIMENT_SENTENCE));
-    assert!(demo_b_report.contains(EXPERIMENT_SENTENCE));
-    assert!(report.contains(COST_SENTENCE));
-    assert!(report.contains(COMPATIBILITY_SENTENCE));
-    assert!(readme.contains(EXPERIMENT_SENTENCE));
-    assert!(gpu_doc.contains("GPU Implementation Considerations"));
-    assert!(gpu_doc.contains(EXPERIMENT_SENTENCE));
-    assert!(gpu_doc.contains(COST_SENTENCE));
-    assert!(gpu_doc.contains(COMPATIBILITY_SENTENCE));
-}
-
-#[test]
-fn readme_and_report_include_required_sections_and_default_numeric_summary() {
-    let analysis = analyze_default_demo();
-    let summary = &analysis.report.summary;
-    let readme = read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("README.md"));
-
-    for section in [
-        "## DSFB Integration into Temporal Reuse",
-        "## GPU Implementation Considerations",
-        "## Mission and Transition Relevance",
-        "## Product Framing and Integration Surfaces",
-        "## What this crate does not claim",
-        "## Limitations",
-        "## Future Work",
+    for expected in [
+        "thin_reveal",
+        "fast_pan",
+        "diagonal_reveal",
+        "contrast_pulse",
+        "stability_holdout",
     ] {
-        assert!(readme.contains(section), "README missing section {section}");
-    }
-
-    assert!(
-        readme.contains(&summary.primary_behavioral_result),
-        "README should contain the default-run primary numeric summary"
-    );
-    if let Some(result) = &summary.secondary_behavioral_result {
         assert!(
-            readme.contains(result),
-            "README should contain the default-run secondary numeric summary"
+            scenario_ids
+                .iter()
+                .any(|value| value.as_str() == Some(expected)),
+            "missing scenario {expected}"
         );
     }
 
-    let output_dir = unique_output_dir("report_sections");
-    let artifacts = run_demo_a(&DemoConfig::default(), &output_dir).expect("demo should succeed");
-    let report = read(&artifacts.report_path);
-
-    for section in [
-        "## Numeric Demo Summary",
-        "## DSFB State Exports",
-        "## DSFB Integration into Temporal Reuse",
-        "## GPU Implementation Considerations",
-        "## Mission and Transition Relevance",
-        "## Product Framing and Integration Surfaces",
-        "## What this crate does not claim",
+    for expected in [
+        "fixed_alpha",
+        "residual_threshold",
+        "neighborhood_clamp",
+        "depth_normal_reject",
+        "reactive_mask",
+        "strong_heuristic",
     ] {
-        assert!(report.contains(section), "report missing section {section}");
+        assert!(
+            baseline_ids
+                .iter()
+                .any(|value| value.as_str() == Some(expected)),
+            "missing baseline {expected}"
+        );
     }
-    assert!(report.contains(&summary.primary_behavioral_result));
+
+    for expected in [
+        "dsfb_synthetic_visibility",
+        "dsfb_host_realistic",
+        "dsfb_no_visibility",
+        "dsfb_no_thin",
+        "dsfb_no_motion_edge",
+        "dsfb_no_grammar",
+        "dsfb_residual_only",
+        "dsfb_trust_no_alpha",
+    ] {
+        assert!(
+            ablation_ids
+                .iter()
+                .any(|value| value.as_str() == Some(expected)),
+            "missing ablation {expected}"
+        );
+    }
+
+    assert!(
+        summary["primary_behavioral_result"]
+            .as_str()
+            .expect("primary result should exist")
+            .contains("host-realistic DSFB"),
+        "primary result should explicitly mention host-realistic DSFB"
+    );
+    assert!(
+        !summary["mixed_or_neutral_scenarios"]
+            .as_array()
+            .expect("mixed / neutral scenarios should be an array")
+            .is_empty(),
+        "at least one neutral or mixed scenario must be surfaced"
+    );
+
+    let canonical = metrics["scenarios"]
+        .as_array()
+        .expect("scenarios should be an array")
+        .iter()
+        .find(|scenario| scenario["scenario_id"].as_str() == Some("thin_reveal"))
+        .expect("canonical scenario should exist");
+    let runs = canonical["runs"]
+        .as_array()
+        .expect("runs should be an array");
+    let fixed = runs
+        .iter()
+        .find(|run| run["summary"]["run_id"].as_str() == Some("fixed_alpha"))
+        .expect("fixed alpha should exist");
+    let host = runs
+        .iter()
+        .find(|run| run["summary"]["run_id"].as_str() == Some("dsfb_host_realistic"))
+        .expect("host-realistic should exist");
+    let strong = runs
+        .iter()
+        .find(|run| run["summary"]["run_id"].as_str() == Some("strong_heuristic"))
+        .expect("strong heuristic should exist");
+
+    assert!(
+        host["summary"]["cumulative_roi_mae"]
+            .as_f64()
+            .expect("host cumulative ROI MAE should exist")
+            < fixed["summary"]["cumulative_roi_mae"]
+                .as_f64()
+                .expect("fixed cumulative ROI MAE should exist")
+    );
+    assert!(
+        host["summary"]["cumulative_roi_mae"]
+            .as_f64()
+            .expect("host cumulative ROI MAE should exist")
+            < strong["summary"]["cumulative_roi_mae"]
+                .as_f64()
+                .expect("strong cumulative ROI MAE should exist"),
+        "host-realistic should remain competitive against the strongest heuristic on the canonical case"
+    );
 }
 
 #[test]
-fn completion_note_contains_required_checklist_entries() {
-    let config = DemoConfig::default();
-    let output_dir = unique_output_dir("completion_note");
-    let artifacts = run_demo_a(&config, &output_dir).expect("demo should succeed");
-    let note = read(&artifacts.completion_note_path);
+fn demo_b_metrics_preserve_budget_and_surface_nontrivial_competition() {
+    let metrics = demo_b_metrics();
+    let summary = &metrics["summary"];
 
-    for line in [
-        "Only files inside crates/dsfb-computer-graphics were changed",
-        "Demo A runs end-to-end",
-        "Metrics are generated",
-        "Figures are generated",
-        "Report is generated",
-        "Reviewer summary is generated",
-        "Exact required sentences are present",
-        "cargo fmt passed",
-        "cargo clippy passed",
-        "cargo test passed",
-        "No fabricated performance claims were made",
-    ] {
-        assert!(note.contains(line), "completion note missing line {line}");
+    assert!(
+        summary["imported_trust_beats_uniform_scenarios"]
+            .as_u64()
+            .expect("imported-trust win count should exist")
+            >= 1
+    );
+    assert!(!summary["neutral_or_mixed_scenarios"]
+        .as_array()
+        .expect("neutral or mixed scenarios should be an array")
+        .is_empty());
+
+    for scenario in metrics["scenarios"]
+        .as_array()
+        .expect("Demo B scenarios should be an array")
+    {
+        let policies = scenario["policies"]
+            .as_array()
+            .expect("Demo B policies should be an array");
+        let expected_total = policies[0]["total_samples"]
+            .as_u64()
+            .expect("policy total sample count should exist");
+        for policy in policies {
+            assert_eq!(
+                policy["total_samples"]
+                    .as_u64()
+                    .expect("policy total sample count should exist"),
+                expected_total,
+                "all policies must preserve the same total budget"
+            );
+        }
     }
+
+    let canonical = metrics["scenarios"]
+        .as_array()
+        .expect("Demo B scenarios should be an array")
+        .iter()
+        .find(|scenario| scenario["scenario_id"].as_str() == Some("thin_reveal"))
+        .expect("canonical Demo B scenario should exist");
+    let policies = canonical["policies"]
+        .as_array()
+        .expect("canonical policies should be an array");
+    let uniform = policies
+        .iter()
+        .find(|policy| policy["policy_id"].as_str() == Some("uniform"))
+        .expect("uniform policy should exist");
+    let imported = policies
+        .iter()
+        .find(|policy| policy["policy_id"].as_str() == Some("imported_trust"))
+        .expect("imported trust policy should exist");
+    let combined = policies
+        .iter()
+        .find(|policy| policy["policy_id"].as_str() == Some("combined_heuristic"))
+        .expect("combined heuristic should exist");
+
+    assert!(
+        imported["roi_mae"]
+            .as_f64()
+            .expect("imported trust ROI MAE should exist")
+            < uniform["roi_mae"]
+                .as_f64()
+                .expect("uniform ROI MAE should exist")
+    );
+    assert!(
+        imported["roi_mae"]
+            .as_f64()
+            .expect("imported trust ROI MAE should exist")
+            < combined["roi_mae"]
+                .as_f64()
+                .expect("combined heuristic ROI MAE should exist"),
+        "imported trust should remain competitive with the stronger heuristic allocator on the canonical case"
+    );
+}
+
+#[test]
+fn reports_and_docs_contain_required_honesty_and_blocker_language() {
+    let output_dir = full_suite_dir();
+
+    let report = read(output_dir.join("report.md"));
+    let reviewer_summary = read(output_dir.join("reviewer_summary.md"));
+    let blocker_report = read(output_dir.join("check_signing_blockers.md"));
+    let demo_b_report = read(output_dir.join("demo_b_decision_report.md"));
+    let readme = read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("README.md"));
+    let integration_doc = read(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("docs")
+            .join("integration_surface.md"),
+    );
+    let cost_doc = read(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("docs")
+            .join("cost_model.md"),
+    );
+
+    for text in [
+        &report,
+        &demo_b_report,
+        &readme,
+        &integration_doc,
+        &cost_doc,
+    ] {
+        assert!(text.contains(EXPERIMENT_SENTENCE));
+    }
+    assert!(report.contains("## Remaining Blockers"));
+    assert!(report.contains("## What Is Not Proven"));
+    assert!(demo_b_report.contains("## What is not proven"));
+    assert!(blocker_report.contains("## Remaining"));
+    assert!(reviewer_summary.contains("What is still blocked"));
+    assert!(readme.contains("## DSFB Integration into Temporal Reuse"));
+    assert!(readme.contains("## GPU Implementation Considerations"));
+    assert!(readme.contains("## Mission and Transition Relevance"));
+    assert!(readme.contains("## Product Framing and Integration Surfaces"));
+    assert!(cost_doc.contains(COST_SENTENCE));
+    assert!(cost_doc.contains(COMPATIBILITY_SENTENCE));
 }

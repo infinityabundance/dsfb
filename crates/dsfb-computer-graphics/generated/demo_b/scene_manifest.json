@@ -1,4 +1,9 @@
 {
+  "scenario_id": "thin_reveal",
+  "scenario_title": "Thin-Structure Reveal",
+  "scenario_description": "Moving occluder reveals thin vertical and diagonal structure on a deterministic patterned background.",
+  "expectation": "BenefitExpected",
+  "target_label": "revealed thin structure",
   "config": {
     "width": 160,
     "height": 96,
@@ -12,5 +17,5 @@
     "thin_vertical_x": 54
   },
   "frame_count": 18,
-  "reveal_frame_guess": 6
+  "onset_frame": 6
 }

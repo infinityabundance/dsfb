@@ -1,0 +1,23 @@
+{
+  "reveal_frame": 6,
+  "reference_spp": 64,
+  "uniform_spp": 2,
+  "guided_min_spp": 1,
+  "guided_max_spp": 12,
+  "total_pixels": 15360,
+  "uniform_total_samples": 30720,
+  "guided_total_samples": 30720,
+  "uniform_mae": 0.0028855454,
+  "guided_mae": 0.0025007853,
+  "uniform_rmse": 0.018690385,
+  "guided_rmse": 0.015039112,
+  "uniform_roi_mae": 0.17347774,
+  "guided_roi_mae": 0.03713522,
+  "uniform_roi_rmse": 0.19957109,
+  "guided_roi_rmse": 0.043557905,
+  "roi_pixels": 50,
+  "mean_guided_spp": 2.0,
+  "roi_mean_guided_spp": 12.0,
+  "max_guided_spp": 12,
+  "trust_roi_mean": 0.11999992
+}

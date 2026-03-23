@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520">
+<rect width="960" height="520" fill="#0b1320"/>
+<text x="28" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Demo B Budget Efficiency</text>
+<text x="28" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Canonical scenario. x-axis = mean spp, y-axis = ROI MAE.</text>
+<line x1="90" y1="80" x2="90" y2="430" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="90" y1="430" x2="860" y2="430" stroke="#f4f7fb" stroke-width="2"/>
+<path d="M282.50,80.00 L475.00,80.33 L860.00,80.74" fill="none" stroke="#ef476f" stroke-width="3.5"/>
+<line x1="620" y1="118" x2="664" y2="118" stroke="#ef476f" stroke-width="3.5"/>
+<text x="674" y="123" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">uniform</text><path d="M282.50,80.00 L475.00,328.97 L860.00,365.36" fill="none" stroke="#ffd166" stroke-width="3.5"/>
+<line x1="620" y1="146" x2="664" y2="146" stroke="#ffd166" stroke-width="3.5"/>
+<text x="674" y="151" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">combined_heuristic</text><path d="M282.50,80.00 L475.00,365.36 L860.00,365.36" fill="none" stroke="#4cc9f0" stroke-width="3.5"/>
+<line x1="620" y1="174" x2="664" y2="174" stroke="#4cc9f0" stroke-width="3.5"/>
+<text x="674" y="179" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">imported_trust</text><path d="M282.50,80.00 L475.00,80.86 L860.00,365.36" fill="none" stroke="#8bd450" stroke-width="3.5"/>
+<line x1="620" y1="202" x2="664" y2="202" stroke="#8bd450" stroke-width="3.5"/>
+<text x="674" y="207" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">hybrid_trust_variance</text>
+</svg>

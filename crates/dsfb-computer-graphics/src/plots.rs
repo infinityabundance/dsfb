@@ -4,29 +4,15 @@ use std::path::Path;
 
 use crate::error::Result;
 use crate::frame::{BoundingBox, Color, ImageFrame, ScalarField};
-use crate::metrics::MetricsReport;
-use crate::sampling::DemoBMetrics;
+use crate::metrics::{AblationEntry, AggregateRunScore, ScenarioReport};
+use crate::sampling::{BudgetCurve, DemoBScenarioReport, DemoBScenarioRun};
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct TrustErrorPlotDiagnostics {
-    pub max_error: f32,
-    pub top_trust_label: f32,
-    pub bottom_trust_label: f32,
-    pub reveal_frame: usize,
-    pub trust_min_frame: usize,
-    pub peak_baseline_error_frame: usize,
-    pub peak_dsfb_error_frame: usize,
-}
-
-pub struct DemoBFigureInputs<'a> {
-    pub reference: &'a ImageFrame,
-    pub uniform: &'a ImageFrame,
-    pub guided: &'a ImageFrame,
-    pub uniform_error: &'a ScalarField,
-    pub guided_error: &'a ScalarField,
-    pub guided_spp: &'a ScalarField,
+pub struct ScenarioMosaicEntry<'a> {
+    pub scenario_title: &'a str,
+    pub baseline: &'a ImageFrame,
+    pub heuristic: &'a ImageFrame,
+    pub host_realistic: &'a ImageFrame,
     pub focus_bbox: BoundingBox,
-    pub metrics: &'a DemoBMetrics,
 }
 
 pub fn write_system_diagram(path: &Path) -> Result<()> {
@@ -35,20 +21,19 @@ pub fn write_system_diagram(path: &Path) -> Result<()> {
     }
 
     let labels = [
-        "Inputs",
+        "Host Buffers",
         "Residuals",
         "Proxies",
-        "Grammar",
+        "State / Grammar",
         "Trust",
-        "Intervention",
+        "Alpha / Budget",
     ];
     let fills = [
         "#11324d", "#204a68", "#2f5d7c", "#457b9d", "#4d9078", "#a44a3f",
     ];
     let mut boxes = String::new();
-
     for (index, (label, fill)) in labels.iter().zip(fills.iter()).enumerate() {
-        let x = 40 + index as i32 * 170;
+        let x = 40 + index as i32 * 172;
         let arrow_x = x + 134;
         let _ = write!(
             boxes,
@@ -56,28 +41,28 @@ pub fn write_system_diagram(path: &Path) -> Result<()> {
         );
         let _ = write!(
             boxes,
-            r##"<text x="{}" y="130" text-anchor="middle" font-size="26" font-family="Arial, Helvetica, sans-serif" fill="#f8fbff">{label}</text>"##,
+            r##"<text x="{}" y="130" text-anchor="middle" font-size="24" font-family="Arial, Helvetica, sans-serif" fill="#f8fbff">{label}</text>"##,
             x + 67
         );
         if index + 1 < labels.len() {
             let _ = write!(
                 boxes,
                 r##"<line x1="{arrow_x}" y1="122" x2="{}" y2="122" stroke="#f4f7fb" stroke-width="4" marker-end="url(#arrow)"/>"##,
-                x + 170
+                x + 172
             );
         }
     }
 
     let svg = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="240" viewBox="0 0 1080 240">
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1110" height="240" viewBox="0 0 1110 240">
 <defs>
   <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
     <path d="M0,0 L12,6 L0,12 z" fill="#f4f7fb"/>
   </marker>
 </defs>
-<rect width="1080" height="240" fill="#0b1320"/>
-<text x="40" y="42" font-size="32" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB Supervisory Flow for Temporal Accumulation</text>
-<text x="40" y="68" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#b9c6d3">Inputs → Residuals → Proxies → Grammar → Trust → Intervention</text>
+<rect width="1110" height="240" fill="#0b1320"/>
+<text x="40" y="42" font-size="32" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB Supervisory Flow and Integration Surface</text>
+<text x="40" y="68" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#b9c6d3">Inputs → Residuals → Proxies → Grammar → Trust → Intervention / Modulation</text>
 {boxes}
 </svg>"##
     );
@@ -90,7 +75,6 @@ pub fn write_trust_map_figure(
     current_frame: &ImageFrame,
     trust: &ScalarField,
     focus_bbox: BoundingBox,
-    motion_edge_bbox: BoundingBox,
     path: &Path,
 ) -> Result<()> {
     if let Some(parent) = path.parent() {
@@ -103,44 +87,30 @@ pub fn write_trust_map_figure(
     let y = focus_bbox.min_y as f32 * 4.0 + 72.0;
     let width = focus_bbox.width() as f32 * 4.0;
     let height = focus_bbox.height() as f32 * 4.0;
-    let motion_x = motion_edge_bbox.min_x as f32 * 4.0 + 36.0;
-    let motion_y = motion_edge_bbox.min_y as f32 * 4.0 + 72.0;
-    let motion_width = motion_edge_bbox.width() as f32 * 4.0;
-    let motion_height = motion_edge_bbox.height() as f32 * 4.0;
-    let legend = color_ramp_svg(760.0, 120.0, 36.0, 240.0);
 
     let svg = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520">
-<rect width="980" height="520" fill="#0b1320"/>
-<text x="36" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Figure 2. Trust Map on the Canonical Reveal Frame</text>
-<text x="36" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Red encodes low trust; the white box marks disocclusion and the teal box marks motion-edge supervision.</text>
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500">
+<rect width="960" height="500" fill="#0b1320"/>
+<text x="36" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Canonical Trust Map</text>
+<text x="36" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Low trust is overlaid on the actual host-realistic reveal frame.</text>
 <image href="{base_png}" x="36" y="72" width="640" height="384" preserveAspectRatio="none"/>
-<image href="{overlay_png}" x="36" y="72" width="640" height="384" opacity="0.74" preserveAspectRatio="none"/>
+<image href="{overlay_png}" x="36" y="72" width="640" height="384" opacity="0.72" preserveAspectRatio="none"/>
 <rect x="{x}" y="{y}" width="{width}" height="{height}" fill="none" stroke="#f4f7fb" stroke-width="2.5" stroke-dasharray="10 7"/>
-<rect x="{motion_x}" y="{motion_y}" width="{motion_width}" height="{motion_height}" fill="none" stroke="#53d1c8" stroke-width="2.5" stroke-dasharray="12 8"/>
-<text x="{x}" y="{label_y}" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">thin-geometry disocclusion</text>
-<line x1="{line_x1}" y1="{line_y1}" x2="{line_x2}" y2="{line_y2}" stroke="#f4f7fb" stroke-width="2"/>
-<text x="{motion_label_x}" y="{motion_label_y}" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#53d1c8">motion-edge supervision</text>
-<line x1="{motion_line_x1}" y1="{motion_line_y1}" x2="{motion_line_x2}" y2="{motion_line_y2}" stroke="#53d1c8" stroke-width="2"/>
-<text x="722" y="102" font-size="22" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Trust Legend</text>
-{legend}
-<text x="806" y="386" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">low trust</text>
-<text x="806" y="148" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">high trust</text>
-<text x="722" y="430" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">The experiment is intended to demonstrate</text>
-<text x="722" y="452" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">behavioral differences rather than establish</text>
-<text x="722" y="474" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">optimal performance.</text>
-</svg>"##,
-        label_y = y - 12.0,
-        line_x1 = x + width,
-        line_y1 = y + 8.0,
-        line_x2 = x + width + 42.0,
-        line_y2 = y - 8.0,
-        motion_label_x = (motion_x + motion_width + 14.0).min(650.0),
-        motion_label_y = (motion_y + motion_height + 26.0).min(442.0),
-        motion_line_x1 = motion_x + motion_width,
-        motion_line_y1 = motion_y + motion_height * 0.5,
-        motion_line_x2 = (motion_x + motion_width + 24.0).min(680.0),
-        motion_line_y2 = (motion_y + motion_height + 14.0).min(452.0),
+<text x="720" y="112" font-size="22" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Legend</text>
+<rect x="720" y="138" width="28" height="220" rx="10" fill="url(#trustRamp)" stroke="#f4f7fb" stroke-width="1.5"/>
+<defs>
+  <linearGradient id="trustRamp" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#0d1b2a"/>
+    <stop offset="40%" stop-color="#ffb703"/>
+    <stop offset="100%" stop-color="#ef476f"/>
+  </linearGradient>
+</defs>
+<text x="760" y="156" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">high trust</text>
+<text x="760" y="354" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">low trust</text>
+<text x="720" y="406" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">The experiment is intended to demonstrate</text>
+<text x="720" y="428" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">behavioral differences rather than establish</text>
+<text x="720" y="450" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">optimal performance.</text>
+</svg>"##
     );
 
     fs::write(path, svg)?;
@@ -149,7 +119,8 @@ pub fn write_trust_map_figure(
 
 pub fn write_before_after_figure(
     baseline_frame: &ImageFrame,
-    dsfb_frame: &ImageFrame,
+    strong_heuristic_frame: &ImageFrame,
+    host_realistic_frame: &ImageFrame,
     focus_bbox: BoundingBox,
     path: &Path,
 ) -> Result<()> {
@@ -158,49 +129,65 @@ pub fn write_before_after_figure(
     }
 
     let baseline_png = png_data_uri(&baseline_frame.encode_png()?);
-    let dsfb_png = png_data_uri(&dsfb_frame.encode_png()?);
+    let strong_png = png_data_uri(&strong_heuristic_frame.encode_png()?);
+    let host_png = png_data_uri(&host_realistic_frame.encode_png()?);
     let crop = focus_bbox.expand(baseline_frame.width(), baseline_frame.height(), 2);
     let baseline_crop = png_data_uri(&baseline_frame.crop(crop).encode_png()?);
-    let dsfb_crop = png_data_uri(&dsfb_frame.crop(crop).encode_png()?);
-
-    let baseline_box_x = crop.min_x as f32 * 3.2 + 36.0;
-    let baseline_box_y = crop.min_y as f32 * 3.2 + 78.0;
-    let baseline_box_w = crop.width() as f32 * 3.2;
-    let baseline_box_h = crop.height() as f32 * 3.2;
-    let dsfb_box_x = baseline_box_x + 420.0;
+    let strong_crop = png_data_uri(&strong_heuristic_frame.crop(crop).encode_png()?);
+    let host_crop = png_data_uri(&host_realistic_frame.crop(crop).encode_png()?);
+    let box_x = crop.min_x as f32 * 2.2 + 30.0;
+    let box_y = crop.min_y as f32 * 2.2 + 90.0;
+    let box_w = crop.width() as f32 * 2.2;
+    let box_h = crop.height() as f32 * 2.2;
 
     let svg = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1140" height="700" viewBox="0 0 1140 700">
-<rect width="1140" height="700" fill="#0b1320"/>
-<text x="36" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Figure 3. Baseline Ghosting vs DSFB-Gated Response</text>
-<text x="36" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Both panels use the same deterministic frame. The dashed box isolates the persistence ROI.</text>
-<text x="200" y="98" font-size="22" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Baseline fixed-alpha TAA</text>
-<text x="646" y="98" font-size="22" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB-gated TAA</text>
-<image href="{baseline_png}" x="36" y="112" width="420" height="268" preserveAspectRatio="none"/>
-<image href="{dsfb_png}" x="492" y="112" width="420" height="268" preserveAspectRatio="none"/>
-<rect x="{baseline_box_x}" y="{baseline_box_y}" width="{baseline_box_w}" height="{baseline_box_h}" fill="none" stroke="#f4f7fb" stroke-width="2.5" stroke-dasharray="10 7"/>
-<rect x="{dsfb_box_x}" y="{baseline_box_y}" width="{baseline_box_w}" height="{baseline_box_h}" fill="none" stroke="#f4f7fb" stroke-width="2.5" stroke-dasharray="10 7"/>
-<text x="36" y="430" font-size="20" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">ROI zoom</text>
-<image href="{baseline_crop}" x="36" y="452" width="420" height="210" preserveAspectRatio="none"/>
-<image href="{dsfb_crop}" x="492" y="452" width="420" height="210" preserveAspectRatio="none"/>
-<text x="940" y="168" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Interpretation</text>
-<text x="940" y="198" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Left: stale history remains on the revealed thin line.</text>
-<text x="940" y="222" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Right: low trust raises the current-frame weight earlier.</text>
-<text x="940" y="278" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">The experiment is intended to demonstrate</text>
-<text x="940" y="300" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">behavioral differences rather than establish</text>
-<text x="940" y="322" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">optimal performance.</text>
-</svg>"##
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1340" height="760" viewBox="0 0 1340 760">
+<rect width="1340" height="760" fill="#0b1320"/>
+<text x="30" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Canonical Baseline Comparison</text>
+<text x="30" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Fixed alpha, strong heuristic, and host-realistic DSFB on the same deterministic frame.</text>
+<text x="110" y="88" font-size="20" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Fixed alpha</text>
+<text x="520" y="88" font-size="20" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Strong heuristic</text>
+<text x="936" y="88" font-size="20" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Host-realistic DSFB</text>
+<image href="{baseline_png}" x="30" y="96" width="360" height="220" preserveAspectRatio="none"/>
+<image href="{strong_png}" x="450" y="96" width="360" height="220" preserveAspectRatio="none"/>
+<image href="{host_png}" x="870" y="96" width="360" height="220" preserveAspectRatio="none"/>
+<rect x="{box_x}" y="{box_y}" width="{box_w}" height="{box_h}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<rect x="{box_x2}" y="{box_y}" width="{box_w}" height="{box_h}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<rect x="{box_x3}" y="{box_y}" width="{box_w}" height="{box_h}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="32" y="360" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">ROI zooms</text>
+<image href="{baseline_crop}" x="30" y="382" width="360" height="180" preserveAspectRatio="none"/>
+<image href="{strong_crop}" x="450" y="382" width="360" height="180" preserveAspectRatio="none"/>
+<image href="{host_crop}" x="870" y="382" width="360" height="180" preserveAspectRatio="none"/>
+<text x="30" y="626" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.</text>
+</svg>"##,
+        box_x2 = box_x + 420.0,
+        box_x3 = box_x + 840.0,
     );
 
     fs::write(path, svg)?;
     Ok(())
 }
 
-pub fn write_trust_vs_error_figure(metrics: &MetricsReport, path: &Path) -> Result<()> {
+pub fn write_trust_vs_error_figure(scenario: &ScenarioReport, path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
 
+    let fixed = scenario
+        .runs
+        .iter()
+        .find(|run| run.summary.run_id == "fixed_alpha")
+        .expect("fixed_alpha run required");
+    let host = scenario
+        .runs
+        .iter()
+        .find(|run| run.summary.run_id == "dsfb_host_realistic")
+        .expect("dsfb_host_realistic run required");
+    let trust_values = host
+        .frame_metrics
+        .iter()
+        .map(|frame| frame.trust_roi_mean.unwrap_or(1.0))
+        .collect::<Vec<_>>();
     let width = 960.0f32;
     let height = 540.0f32;
     let left = 88.0f32;
@@ -209,235 +196,490 @@ pub fn write_trust_vs_error_figure(metrics: &MetricsReport, path: &Path) -> Resu
     let bottom = 460.0f32;
     let inner_width = right - left;
     let inner_height = bottom - top;
-
-    let diagnostics = trust_error_plot_diagnostics(metrics);
-    let max_error = diagnostics.max_error;
-    let frame_count = metrics.frame_metrics.len().max(2);
+    let max_error = fixed
+        .frame_metrics
+        .iter()
+        .chain(host.frame_metrics.iter())
+        .map(|frame| frame.roi_mae)
+        .fold(0.05f32, f32::max);
+    let frame_count = fixed.frame_metrics.len().max(2);
     let x_scale = inner_width / (frame_count.saturating_sub(1)) as f32;
 
-    let baseline_path = polyline(
-        &metrics
+    let fixed_path = polyline(
+        &fixed
             .frame_metrics
             .iter()
             .enumerate()
             .map(|(index, frame)| {
                 (
                     left + index as f32 * x_scale,
-                    bottom - (frame.persistence_roi_mae_baseline / max_error) * inner_height,
+                    bottom - (frame.roi_mae / max_error) * inner_height,
                 )
             })
             .collect::<Vec<_>>(),
     );
-    let dsfb_path = polyline(
-        &metrics
+    let host_path = polyline(
+        &host
             .frame_metrics
             .iter()
             .enumerate()
             .map(|(index, frame)| {
                 (
                     left + index as f32 * x_scale,
-                    bottom - (frame.persistence_roi_mae_dsfb / max_error) * inner_height,
+                    bottom - (frame.roi_mae / max_error) * inner_height,
                 )
             })
             .collect::<Vec<_>>(),
     );
     let trust_path = polyline(
-        &metrics
-            .frame_metrics
+        &trust_values
             .iter()
             .enumerate()
-            .map(|(index, frame)| {
+            .map(|(index, trust)| {
                 (
                     left + index as f32 * x_scale,
-                    y_for_trust(bottom, inner_height, frame.persistence_roi_trust),
+                    bottom - trust.clamp(0.0, 1.0) * inner_height,
                 )
             })
             .collect::<Vec<_>>(),
     );
-    let reveal_x = left + metrics.summary.reveal_frame as f32 * x_scale;
-    let trust_min_x = left + metrics.summary.trust_min_frame as f32 * x_scale;
-    let threshold_y = y_for_error(
-        bottom,
-        inner_height,
-        max_error,
-        metrics.summary.persistence_threshold,
-    );
-
-    let mut y_grid = String::new();
-    for tick in 0..=5 {
-        let y = top + inner_height * tick as f32 / 5.0;
-        let value = max_error * (5 - tick) as f32 / 5.0;
-        let _ = write!(
-            y_grid,
-            r##"<line x1="{left}" y1="{y}" x2="{right}" y2="{y}" stroke="#324253" stroke-width="1"/>"##
-        );
-        let _ = write!(
-            y_grid,
-            r##"<text x="28" y="{}" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{value:.3}</text>"##,
-            y + 5.0
-        );
-        let trust_label = diagnostics.top_trust_label
-            - (diagnostics.top_trust_label - diagnostics.bottom_trust_label) * tick as f32 / 5.0;
-        let _ = write!(
-            y_grid,
-            r##"<text x="842" y="{}" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{trust_label:.2}</text>"##,
-            y + 5.0
-        );
-    }
-
-    let mut x_grid = String::new();
-    for tick in 0..frame_count {
-        let x = left + tick as f32 * x_scale;
-        let _ = write!(
-            x_grid,
-            r##"<line x1="{x}" y1="{top}" x2="{x}" y2="{bottom}" stroke="#1d2833" stroke-width="1"/>"##
-        );
-        let _ = write!(
-            x_grid,
-            r##"<text x="{}" y="486" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{tick}</text>"##,
-            x - 6.0
-        );
-    }
 
     let svg = format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
 <rect width="{width}" height="{height}" fill="#0b1320"/>
-<text x="36" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Figure 4. Trust and Error Through Failure Onset</text>
-<text x="36" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">ROI error uses the revealed thin-geometry mask; trust uses the DSFB trust field on that same mask.</text>
-{y_grid}
-{x_grid}
+<text x="36" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Canonical ROI Error vs Trust</text>
+<text x="36" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">x-axis = frame index, left y-axis = ROI MAE, right y-axis = host-realistic trust.</text>
 <line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
 <line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
 <line x1="{right}" y1="{top}" x2="{right}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
-<line x1="{left}" y1="{threshold_y}" x2="{right}" y2="{threshold_y}" stroke="#ffd166" stroke-width="2" stroke-dasharray="8 6"/>
-<path d="{baseline_path}" fill="none" stroke="#ef476f" stroke-width="3.5"/>
-<path d="{dsfb_path}" fill="none" stroke="#4cc9f0" stroke-width="3.5"/>
-<path d="{trust_path}" fill="none" stroke="#8bd450" stroke-width="3.5" stroke-dasharray="12 8"/>
-<line x1="{reveal_x}" y1="{top}" x2="{reveal_x}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="9 7"/>
-<line x1="{trust_min_x}" y1="{top}" x2="{trust_min_x}" y2="{bottom}" stroke="#53d1c8" stroke-width="2" stroke-dasharray="6 6"/>
-<text x="{reveal_label_x}" y="104" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">reveal onset</text>
-<text x="{trust_min_label_x}" y="126" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#53d1c8">trust minimum</text>
-<text x="98" y="520" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">frame index</text>
-<text x="18" y="86" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">error</text>
-<text x="834" y="86" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">trust</text>
-<line x1="560" y1="88" x2="606" y2="88" stroke="#ef476f" stroke-width="3.5"/>
-<text x="614" y="93" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">baseline ROI error</text>
-<line x1="560" y1="116" x2="606" y2="116" stroke="#4cc9f0" stroke-width="3.5"/>
-<text x="614" y="121" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB ROI error</text>
-<line x1="560" y1="144" x2="606" y2="144" stroke="#8bd450" stroke-width="3.5" stroke-dasharray="12 8"/>
-<text x="614" y="149" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB ROI trust</text>
-<line x1="560" y1="172" x2="606" y2="172" stroke="#ffd166" stroke-width="2" stroke-dasharray="8 6"/>
-<text x="614" y="177" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">ghost-persistence threshold</text>
-<text x="560" y="272" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Summary</text>
-<text x="560" y="298" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">reveal frame: {reveal_frame}</text>
-<text x="560" y="322" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">trust minimum frame: {trust_min_frame}</text>
-<text x="560" y="346" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">peak baseline error frame: {baseline_peak_frame}</text>
-<text x="560" y="370" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">peak DSFB error frame: {dsfb_peak_frame}</text>
-<text x="560" y="198" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">The experiment is intended to demonstrate</text>
-<text x="560" y="220" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">behavioral differences rather than establish</text>
-<text x="560" y="242" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">optimal performance.</text>
+<path d="{fixed_path}" fill="none" stroke="#ef476f" stroke-width="3.5"/>
+<path d="{host_path}" fill="none" stroke="#4cc9f0" stroke-width="3.5"/>
+<path d="{trust_path}" fill="none" stroke="#8bd450" stroke-width="3.5" stroke-dasharray="10 8"/>
+<line x1="{onset_x}" y1="{top}" x2="{onset_x}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="560" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Fixed alpha ROI error</text>
+<line x1="500" y1="104" x2="548" y2="104" stroke="#ef476f" stroke-width="3.5"/>
+<text x="560" y="138" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Host-realistic DSFB ROI error</text>
+<line x1="500" y1="132" x2="548" y2="132" stroke="#4cc9f0" stroke-width="3.5"/>
+<text x="560" y="166" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Host-realistic trust</text>
+<line x1="500" y1="160" x2="548" y2="160" stroke="#8bd450" stroke-width="3.5" stroke-dasharray="10 8"/>
+<text x="36" y="515" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">frame index</text>
+<text x="18" y="88" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">error</text>
+<text x="840" y="88" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">trust</text>
+<text x="500" y="236" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">onset frame: {onset_frame}</text>
+<text x="500" y="260" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">host vs fixed cumulative ROI gain: {roi_gain:.5}</text>
 </svg>"##,
-        reveal_label_x = (reveal_x + 10.0).min(right - 90.0),
-        trust_min_label_x = (trust_min_x + 10.0).min(right - 110.0),
-        reveal_frame = diagnostics.reveal_frame,
-        trust_min_frame = diagnostics.trust_min_frame,
-        baseline_peak_frame = diagnostics.peak_baseline_error_frame,
-        dsfb_peak_frame = diagnostics.peak_dsfb_error_frame,
+        onset_x = left + scenario.onset_frame as f32 * x_scale,
+        onset_frame = scenario.onset_frame,
+        roi_gain = scenario.host_realistic_vs_fixed_alpha_cumulative_roi_gain,
     );
 
     fs::write(path, svg)?;
     Ok(())
 }
 
-pub fn trust_error_plot_diagnostics(metrics: &MetricsReport) -> TrustErrorPlotDiagnostics {
-    let max_error = metrics
-        .frame_metrics
-        .iter()
-        .map(|frame| {
-            frame
-                .persistence_roi_mae_baseline
-                .max(frame.persistence_roi_mae_dsfb)
-        })
-        .fold(0.0f32, f32::max)
-        .max(metrics.summary.persistence_threshold)
-        .max(0.05);
-
-    TrustErrorPlotDiagnostics {
-        max_error,
-        top_trust_label: 1.0,
-        bottom_trust_label: 0.0,
-        reveal_frame: metrics.summary.reveal_frame,
-        trust_min_frame: metrics.summary.trust_min_frame,
-        peak_baseline_error_frame: metrics.summary.baseline_peak_roi_error_frame,
-        peak_dsfb_error_frame: metrics.summary.dsfb_peak_roi_error_frame,
+pub fn write_intervention_alpha_figure(
+    current_frame: &ImageFrame,
+    intervention: &ScalarField,
+    alpha: &ScalarField,
+    focus_bbox: BoundingBox,
+    path: &Path,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
     }
+    let base_png = png_data_uri(&current_frame.encode_png()?);
+    let intervention_png =
+        png_data_uri(&field_to_image(intervention, intervention_palette).encode_png()?);
+    let alpha_png = png_data_uri(&field_to_image(alpha, alpha_palette).encode_png()?);
+    let x = focus_bbox.min_x as f32 * 2.4 + 30.0;
+    let y = focus_bbox.min_y as f32 * 2.4 + 86.0;
+    let width = focus_bbox.width() as f32 * 2.4;
+    let height = focus_bbox.height() as f32 * 2.4;
+
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="560" viewBox="0 0 1040 560">
+<rect width="1040" height="560" fill="#0b1320"/>
+<text x="30" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Intervention and Alpha Maps</text>
+<text x="30" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Current frame, intervention field, and alpha field for the canonical host-realistic onset frame.</text>
+<text x="112" y="86" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Current frame</text>
+<text x="454" y="86" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Intervention</text>
+<text x="790" y="86" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Alpha</text>
+<image href="{base_png}" x="30" y="94" width="300" height="180" preserveAspectRatio="none"/>
+<image href="{intervention_png}" x="370" y="94" width="300" height="180" preserveAspectRatio="none"/>
+<image href="{alpha_png}" x="710" y="94" width="300" height="180" preserveAspectRatio="none"/>
+<rect x="{x}" y="{y}" width="{width}" height="{height}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<rect x="{x2}" y="{y}" width="{width}" height="{height}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+<rect x="{x3}" y="{y}" width="{width}" height="{height}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
+</svg>"##,
+        x2 = x + 340.0,
+        x3 = x + 680.0,
+    );
+
+    fs::write(path, svg)?;
+    Ok(())
 }
 
-pub fn write_demo_b_sampling_figure(inputs: &DemoBFigureInputs<'_>, path: &Path) -> Result<()> {
+pub fn write_ablation_bar_figure(entries: &[AblationEntry], path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let width = 980.0;
+    let height = 520.0;
+    let left = 210.0;
+    let top = 84.0;
+    let bar_height = 28.0;
+    let row_gap = 18.0;
+    let max_value = entries
+        .iter()
+        .map(|entry| entry.canonical_cumulative_roi_mae)
+        .fold(0.01f32, f32::max);
+    let mut rows = String::new();
+    for (index, entry) in entries.iter().enumerate() {
+        let y = top + index as f32 * (bar_height + row_gap);
+        let width_px = 620.0 * (entry.canonical_cumulative_roi_mae / max_value);
+        let _ = write!(
+            rows,
+            r##"<text x="18" y="{}" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">{}</text>
+<rect x="{left}" y="{y}" width="{width_px}" height="{bar_height}" rx="8" fill="#4cc9f0"/>
+<text x="{}" y="{}" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{:.5}</text>"##,
+            y + 20.0,
+            entry.label,
+            left + width_px + 10.0,
+            y + 19.0,
+            entry.canonical_cumulative_roi_mae
+        );
+    }
+
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+<rect width="{width}" height="{height}" fill="#0b1320"/>
+<text x="18" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Canonical Ablation Comparison</text>
+<text x="18" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Bar length = cumulative ROI MAE on the canonical scenario. Lower is better.</text>
+{rows}
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+pub fn write_roi_nonroi_error_figure(scenario: &ScenarioReport, path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let fixed = scenario
+        .runs
+        .iter()
+        .find(|run| run.summary.run_id == "fixed_alpha")
+        .expect("fixed_alpha run required");
+    let host = scenario
+        .runs
+        .iter()
+        .find(|run| run.summary.run_id == "dsfb_host_realistic")
+        .expect("dsfb_host_realistic run required");
+    let width = 960.0f32;
+    let height = 520.0f32;
+    let left = 80.0f32;
+    let right = 860.0f32;
+    let top = 80.0f32;
+    let bottom = 440.0f32;
+    let inner_width = right - left;
+    let inner_height = bottom - top;
+    let max_value = fixed
+        .frame_metrics
+        .iter()
+        .chain(host.frame_metrics.iter())
+        .map(|frame| frame.roi_mae.max(frame.non_roi_mae))
+        .fold(0.05f32, f32::max);
+    let frame_count = fixed.frame_metrics.len().max(2);
+    let x_scale = inner_width / (frame_count.saturating_sub(1)) as f32;
+    let fixed_roi = polyline(
+        &fixed
+            .frame_metrics
+            .iter()
+            .enumerate()
+            .map(|(index, frame)| {
+                (
+                    left + index as f32 * x_scale,
+                    bottom - (frame.roi_mae / max_value) * inner_height,
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+    let host_roi = polyline(
+        &host
+            .frame_metrics
+            .iter()
+            .enumerate()
+            .map(|(index, frame)| {
+                (
+                    left + index as f32 * x_scale,
+                    bottom - (frame.roi_mae / max_value) * inner_height,
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+    let host_non_roi = polyline(
+        &host
+            .frame_metrics
+            .iter()
+            .enumerate()
+            .map(|(index, frame)| {
+                (
+                    left + index as f32 * x_scale,
+                    bottom - (frame.non_roi_mae / max_value) * inner_height,
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+<rect width="{width}" height="{height}" fill="#0b1320"/>
+<text x="28" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">ROI vs Non-ROI Error</text>
+<text x="28" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Canonical scenario. This makes the non-target stability tradeoff visible.</text>
+<line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
+<path d="{fixed_roi}" fill="none" stroke="#ef476f" stroke-width="3.5"/>
+<path d="{host_roi}" fill="none" stroke="#4cc9f0" stroke-width="3.5"/>
+<path d="{host_non_roi}" fill="none" stroke="#ffd166" stroke-width="3.5" stroke-dasharray="10 8"/>
+<text x="540" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Fixed alpha ROI</text>
+<line x1="484" y1="104" x2="530" y2="104" stroke="#ef476f" stroke-width="3.5"/>
+<text x="540" y="138" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Host-realistic ROI</text>
+<line x1="484" y1="132" x2="530" y2="132" stroke="#4cc9f0" stroke-width="3.5"/>
+<text x="540" y="166" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Host-realistic non-ROI</text>
+<line x1="484" y1="160" x2="530" y2="160" stroke="#ffd166" stroke-width="3.5" stroke-dasharray="10 8"/>
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+pub fn write_leaderboard_figure(entries: &[AggregateRunScore], path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut rows = String::new();
+    let mut y = 110.0f32;
+    for (rank, entry) in entries.iter().take(10).enumerate() {
+        let _ = write!(
+            rows,
+            r##"<text x="24" y="{y}" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">{rank_label}</text>
+<text x="80" y="{y}" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">{label}</text>
+<text x="420" y="{y}" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{mean_rank:.2}</text>
+<text x="560" y="{y}" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{roi_mae:.5}</text>
+<text x="720" y="{y}" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{non_roi_mae:.5}</text>
+<text x="870" y="{y}" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{wins}</text>"##,
+            rank_label = rank + 1,
+            label = entry.label,
+            mean_rank = entry.mean_rank,
+            roi_mae = entry.mean_cumulative_roi_mae,
+            non_roi_mae = entry.mean_non_roi_mae,
+            wins = entry.benefit_scenarios_won,
+        );
+        y += 34.0;
+    }
+
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520">
+<rect width="980" height="520" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Aggregate Scenario Leaderboard</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Mean rank uses scenario-appropriate primary metrics. Lower is better.</text>
+<text x="24" y="94" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Rank</text>
+<text x="80" y="94" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Run</text>
+<text x="420" y="94" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Mean rank</text>
+<text x="560" y="94" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Mean ROI MAE</text>
+<text x="720" y="94" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Mean non-ROI MAE</text>
+<text x="870" y="94" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Wins</text>
+{rows}
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+pub fn write_scenario_mosaic_figure(
+    entries: &[ScenarioMosaicEntry<'_>],
+    path: &Path,
+) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
 
-    let reference_png = png_data_uri(&inputs.reference.encode_png()?);
-    let uniform_png = png_data_uri(&inputs.uniform.encode_png()?);
-    let guided_png = png_data_uri(&inputs.guided.encode_png()?);
-    let uniform_error_png =
-        png_data_uri(&field_to_image(inputs.uniform_error, error_palette).encode_png()?);
-    let guided_error_png =
-        png_data_uri(&field_to_image(inputs.guided_error, error_palette).encode_png()?);
-    let guided_spp_png = png_data_uri(
-        &field_to_image(inputs.guided_spp, |value| {
-            allocation_palette(value, inputs.metrics.guided_max_spp as f32)
+    let mut body = String::new();
+    let tile_width = 300.0;
+    let tile_height = 180.0;
+    let row_height = 245.0;
+    for (row, entry) in entries.iter().enumerate() {
+        let y = 92.0 + row as f32 * row_height;
+        let baseline_png = png_data_uri(&entry.baseline.encode_png()?);
+        let heuristic_png = png_data_uri(&entry.heuristic.encode_png()?);
+        let host_png = png_data_uri(&entry.host_realistic.encode_png()?);
+        let _ = write!(
+            body,
+            r##"<text x="24" y="{}" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">{}</text>
+<image href="{baseline_png}" x="24" y="{}" width="{tile_width}" height="{tile_height}" preserveAspectRatio="none"/>
+<image href="{heuristic_png}" x="348" y="{}" width="{tile_width}" height="{tile_height}" preserveAspectRatio="none"/>
+<image href="{host_png}" x="672" y="{}" width="{tile_width}" height="{tile_height}" preserveAspectRatio="none"/>"##,
+            y - 10.0,
+            entry.scenario_title,
+            y,
+            y,
+            y,
+        );
+    }
+
+    let height = 100.0 + entries.len() as f32 * row_height;
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="{height}" viewBox="0 0 1000 {height}">
+<rect width="1000" height="{height}" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Per-Scenario Comparison Mosaic</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Each row shows fixed alpha, strong heuristic, and host-realistic DSFB on a different scenario.</text>
+<text x="120" y="88" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Fixed alpha</text>
+<text x="430" y="88" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Strong heuristic</text>
+<text x="746" y="88" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Host-realistic DSFB</text>
+{body}
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+pub fn write_demo_b_sampling_figure(
+    scenario_report: &DemoBScenarioReport,
+    scenario_run: &DemoBScenarioRun,
+    path: &Path,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let uniform = scenario_run
+        .policy_runs
+        .iter()
+        .find(|run| run.policy_id == crate::sampling::AllocationPolicyId::Uniform)
+        .expect("uniform run required");
+    let imported = scenario_run
+        .policy_runs
+        .iter()
+        .find(|run| run.policy_id == crate::sampling::AllocationPolicyId::ImportedTrust)
+        .expect("imported trust run required");
+    let combined = scenario_run
+        .policy_runs
+        .iter()
+        .find(|run| run.policy_id == crate::sampling::AllocationPolicyId::CombinedHeuristic)
+        .expect("combined heuristic run required");
+    let reference_png = png_data_uri(&scenario_run.reference_frame.encode_png()?);
+    let uniform_png = png_data_uri(&uniform.frame.encode_png()?);
+    let combined_png = png_data_uri(&combined.frame.encode_png()?);
+    let imported_png = png_data_uri(&imported.frame.encode_png()?);
+    let combined_spp = png_data_uri(
+        &field_to_image(&combined.spp, |value| {
+            allocation_palette(value, combined.metrics.max_spp as f32)
+        })
+        .encode_png()?,
+    );
+    let imported_spp = png_data_uri(
+        &field_to_image(&imported.spp, |value| {
+            allocation_palette(value, imported.metrics.max_spp as f32)
         })
         .encode_png()?,
     );
 
-    let box_x = inputs.focus_bbox.min_x as f32 * 2.0 + 32.0;
-    let box_y = inputs.focus_bbox.min_y as f32 * 2.0 + 90.0;
-    let box_w = inputs.focus_bbox.width() as f32 * 2.0;
-    let box_h = inputs.focus_bbox.height() as f32 * 2.0;
-
     let svg = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="860" viewBox="0 0 1040 860">
-<rect width="1040" height="860" fill="#0b1320"/>
-<text x="28" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Demo B. Fixed-Budget Adaptive Sampling on the Reveal Frame</text>
-<text x="28" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Top row: reference, uniform allocation, DSFB-guided allocation. Bottom row: uniform error, DSFB error, guided sample density.</text>
-<text x="72" y="86" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Reference ({reference_spp} spp)</text>
-<text x="392" y="86" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Uniform budget ({uniform_spp} spp/pixel)</text>
-<text x="724" y="86" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB-guided fixed budget</text>
-<image href="{reference_png}" x="32" y="90" width="320" height="192" preserveAspectRatio="none"/>
-<image href="{uniform_png}" x="360" y="90" width="320" height="192" preserveAspectRatio="none"/>
-<image href="{guided_png}" x="688" y="90" width="320" height="192" preserveAspectRatio="none"/>
-<rect x="{box_x}" y="{box_y}" width="{box_w}" height="{box_h}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
-<rect x="{uniform_box_x}" y="{box_y}" width="{box_w}" height="{box_h}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
-<rect x="{guided_box_x}" y="{box_y}" width="{box_w}" height="{box_h}" fill="none" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="8 6"/>
-<text x="78" y="326" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Uniform absolute error</text>
-<text x="403" y="326" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB-guided absolute error</text>
-<text x="735" y="326" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Guided samples per pixel</text>
-<image href="{uniform_error_png}" x="32" y="330" width="320" height="192" preserveAspectRatio="none"/>
-<image href="{guided_error_png}" x="360" y="330" width="320" height="192" preserveAspectRatio="none"/>
-<image href="{guided_spp_png}" x="688" y="330" width="320" height="192" preserveAspectRatio="none"/>
-<text x="32" y="572" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Measured outcome</text>
-<text x="32" y="604" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Uniform MAE: {uniform_mae:.5}</text>
-<text x="32" y="628" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Guided MAE: {guided_mae:.5}</text>
-<text x="32" y="652" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Uniform ROI MAE: {uniform_roi_mae:.5}</text>
-<text x="32" y="676" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Guided ROI MAE: {guided_roi_mae:.5}</text>
-<text x="32" y="700" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">ROI mean spp: uniform {uniform_spp:.2}, guided {guided_roi_spp:.2}</text>
-<text x="32" y="724" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Guided max spp: {max_guided_spp}</text>
-<text x="32" y="764" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.</text>
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="760" viewBox="0 0 1180 760">
+<rect width="1180" height="760" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Demo B Policy Comparison</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{}</text>
+<text x="60" y="94" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Reference</text>
+<text x="346" y="94" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Uniform</text>
+<text x="628" y="94" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Combined heuristic</text>
+<text x="896" y="94" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Imported trust</text>
+<image href="{reference_png}" x="24" y="102" width="260" height="156" preserveAspectRatio="none"/>
+<image href="{uniform_png}" x="308" y="102" width="260" height="156" preserveAspectRatio="none"/>
+<image href="{combined_png}" x="592" y="102" width="260" height="156" preserveAspectRatio="none"/>
+<image href="{imported_png}" x="876" y="102" width="260" height="156" preserveAspectRatio="none"/>
+<text x="320" y="306" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Combined heuristic spp</text>
+<text x="888" y="306" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Imported trust spp</text>
+<image href="{combined_spp}" x="308" y="314" width="260" height="156" preserveAspectRatio="none"/>
+<image href="{imported_spp}" x="876" y="314" width="260" height="156" preserveAspectRatio="none"/>
+<text x="24" y="536" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Uniform ROI MAE: {uniform_roi:.5}</text>
+<text x="24" y="560" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Combined ROI MAE: {combined_roi:.5}</text>
+<text x="24" y="584" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Imported trust ROI MAE: {imported_roi:.5}</text>
 </svg>"##,
-        reference_spp = inputs.metrics.reference_spp,
-        uniform_spp = inputs.metrics.uniform_spp,
-        uniform_mae = inputs.metrics.uniform_mae,
-        guided_mae = inputs.metrics.guided_mae,
-        uniform_roi_mae = inputs.metrics.uniform_roi_mae,
-        guided_roi_mae = inputs.metrics.guided_roi_mae,
-        guided_roi_spp = inputs.metrics.roi_mean_guided_spp,
-        max_guided_spp = inputs.metrics.max_guided_spp,
-        uniform_box_x = box_x + 328.0,
-        guided_box_x = box_x + 656.0,
+        scenario_report.headline,
+        uniform_roi = uniform.metrics.roi_mae,
+        combined_roi = combined.metrics.roi_mae,
+        imported_roi = imported.metrics.roi_mae,
     );
+    fs::write(path, svg)?;
+    Ok(())
+}
 
+pub fn write_demo_b_budget_efficiency_figure(curves: &[BudgetCurve], path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let relevant = curves
+        .iter()
+        .filter(|curve| curve.scenario_id == "thin_reveal")
+        .collect::<Vec<_>>();
+    let width = 960.0;
+    let height = 520.0;
+    let left = 90.0;
+    let right = 860.0;
+    let top = 80.0;
+    let bottom = 430.0;
+    let inner_width = right - left;
+    let inner_height = bottom - top;
+    let max_x = relevant
+        .iter()
+        .flat_map(|curve| curve.points.iter().map(|point| point.average_spp))
+        .fold(1.0f32, f32::max);
+    let max_y = relevant
+        .iter()
+        .flat_map(|curve| curve.points.iter().map(|point| point.roi_mae))
+        .fold(0.05f32, f32::max);
+    let colors = [
+        ("uniform", "#ef476f"),
+        ("combined_heuristic", "#ffd166"),
+        ("imported_trust", "#4cc9f0"),
+        ("hybrid_trust_variance", "#8bd450"),
+    ];
+    let mut paths = String::new();
+    let mut legend_y = 118.0;
+    for (policy_id, color) in colors {
+        if let Some(curve) = relevant.iter().find(|curve| curve.policy_id == policy_id) {
+            let polyline_path = polyline(
+                &curve
+                    .points
+                    .iter()
+                    .map(|point| {
+                        (
+                            left + (point.average_spp / max_x) * inner_width,
+                            bottom - (point.roi_mae / max_y) * inner_height,
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            );
+            let _ = write!(
+                paths,
+                r##"<path d="{polyline_path}" fill="none" stroke="{color}" stroke-width="3.5"/>
+<line x1="620" y1="{legend_y}" x2="664" y2="{legend_y}" stroke="{color}" stroke-width="3.5"/>
+<text x="674" y="{}" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">{policy_id}</text>"##,
+                legend_y + 5.0
+            );
+            legend_y += 28.0;
+        }
+    }
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+<rect width="{width}" height="{height}" fill="#0b1320"/>
+<text x="28" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Demo B Budget Efficiency</text>
+<text x="28" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Canonical scenario. x-axis = mean spp, y-axis = ROI MAE.</text>
+<line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
+{paths}
+</svg>"##
+    );
     fs::write(path, svg)?;
     Ok(())
 }
@@ -447,28 +689,18 @@ fn trust_overlay_image(trust: &ScalarField) -> ImageFrame {
     for y in 0..trust.height() {
         for x in 0..trust.width() {
             let hazard = (1.0 - trust.get(x, y)).clamp(0.0, 1.0);
-            let color = if hazard <= 0.02 {
-                Color::rgb(0.0, 0.0, 0.0)
-            } else {
-                Color::rgb(0.95 * hazard, 0.15 + 0.65 * hazard, 0.10 * hazard)
-            };
-            frame.set(x, y, color);
+            frame.set(
+                x,
+                y,
+                if hazard <= 0.02 {
+                    Color::rgb(0.0, 0.0, 0.0)
+                } else {
+                    Color::rgb(0.95 * hazard, 0.15 + 0.65 * hazard, 0.10 * hazard)
+                },
+            );
         }
     }
     frame
-}
-
-fn color_ramp_svg(x: f32, y: f32, width: f32, height: f32) -> String {
-    format!(
-        r##"<defs>
-  <linearGradient id="trustRamp" x1="0%" y1="0%" x2="0%" y2="100%">
-    <stop offset="0%" stop-color="#15202b"/>
-    <stop offset="40%" stop-color="#ffb703"/>
-    <stop offset="100%" stop-color="#ef476f"/>
-  </linearGradient>
-</defs>
-<rect x="{x}" y="{y}" width="{width}" height="{height}" rx="12" fill="url(#trustRamp)" stroke="#f4f7fb" stroke-width="1.5"/>"##
-    )
 }
 
 fn field_to_image(field: &ScalarField, mapper: impl Fn(f32) -> Color) -> ImageFrame {
@@ -481,12 +713,21 @@ fn field_to_image(field: &ScalarField, mapper: impl Fn(f32) -> Color) -> ImageFr
     frame
 }
 
-fn error_palette(value: f32) -> Color {
-    let normalized = (value / 0.20).clamp(0.0, 1.0);
+fn intervention_palette(value: f32) -> Color {
+    let normalized = value.clamp(0.0, 1.0);
     Color::rgb(
-        0.12 + 0.88 * normalized,
-        0.08 + 0.75 * normalized.powf(0.6),
-        0.16 * (1.0 - normalized),
+        0.12 + 0.86 * normalized,
+        0.18 + 0.55 * (1.0 - normalized),
+        0.12,
+    )
+}
+
+fn alpha_palette(value: f32) -> Color {
+    let normalized = value.clamp(0.0, 1.0);
+    Color::rgb(
+        0.20 + 0.72 * normalized,
+        0.16 + 0.22 * normalized,
+        0.34 + 0.40 * (1.0 - normalized),
     )
 }
 
@@ -512,19 +753,6 @@ fn polyline(points: &[(f32, f32)]) -> String {
         let _ = write!(path, " L{x:.2},{y:.2}");
     }
     path
-}
-
-fn y_for_error(bottom: f32, inner_height: f32, max_error: f32, value: f32) -> f32 {
-    let normalized = if max_error <= f32::EPSILON {
-        0.0
-    } else {
-        (value / max_error).clamp(0.0, 1.0)
-    };
-    bottom - normalized * inner_height
-}
-
-fn y_for_trust(bottom: f32, inner_height: f32, trust: f32) -> f32 {
-    bottom - trust.clamp(0.0, 1.0) * inner_height
 }
 
 fn png_data_uri(bytes: &[u8]) -> String {
@@ -561,75 +789,4 @@ fn base64_encode(bytes: &[u8]) -> String {
     }
 
     output
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{trust_error_plot_diagnostics, y_for_error, y_for_trust};
-    use crate::config::DemoConfig;
-    use crate::dsfb::run_gated_taa;
-    use crate::metrics::analyze_demo_a;
-    use crate::scene::generate_sequence;
-    use crate::taa::{run_fixed_alpha, run_residual_threshold};
-
-    fn demo_metrics() -> crate::metrics::MetricsReport {
-        let config = DemoConfig::default();
-        let sequence = generate_sequence(&config.scene);
-        let baseline = run_fixed_alpha(&sequence, config.baseline_alpha);
-        let residual_baseline = run_residual_threshold(
-            &sequence,
-            config.baseline_alpha,
-            config.residual_baseline_alpha_high,
-            config.residual_baseline_threshold_low,
-            config.residual_baseline_threshold_high,
-        );
-        let dsfb = run_gated_taa(&sequence, config.dsfb_alpha_min, config.dsfb_alpha_max);
-        analyze_demo_a(
-            &sequence,
-            &baseline,
-            &residual_baseline,
-            &dsfb,
-            config.trust_map_frame_offset,
-            config.comparison_frame_offset,
-        )
-        .expect("analysis should succeed")
-        .report
-    }
-
-    #[test]
-    fn trust_plot_diagnostics_match_metric_summary() {
-        let metrics = demo_metrics();
-        let diagnostics = trust_error_plot_diagnostics(&metrics);
-
-        assert_eq!(diagnostics.top_trust_label, 1.0);
-        assert_eq!(diagnostics.bottom_trust_label, 0.0);
-        assert_eq!(diagnostics.reveal_frame, metrics.summary.reveal_frame);
-        assert_eq!(diagnostics.trust_min_frame, metrics.summary.trust_min_frame);
-        assert_eq!(
-            diagnostics.peak_baseline_error_frame,
-            metrics.summary.baseline_peak_roi_error_frame
-        );
-        assert_eq!(
-            diagnostics.peak_dsfb_error_frame,
-            metrics.summary.dsfb_peak_roi_error_frame
-        );
-    }
-
-    #[test]
-    fn trust_and_error_axes_have_correct_orientation() {
-        let bottom = 460.0;
-        let inner_height = 382.0;
-        let max_error = 0.4;
-
-        assert!(y_for_trust(bottom, inner_height, 1.0) < y_for_trust(bottom, inner_height, 0.0));
-        assert!(
-            y_for_error(bottom, inner_height, max_error, max_error * 0.9)
-                < y_for_error(bottom, inner_height, max_error, max_error * 0.1)
-        );
-        assert_eq!(y_for_trust(bottom, inner_height, 0.0), bottom);
-        assert_eq!(
-            y_for_trust(bottom, inner_height, 1.0),
-            bottom - inner_height
-        );
-    }
 }
