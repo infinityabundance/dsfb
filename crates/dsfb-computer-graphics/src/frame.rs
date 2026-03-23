@@ -94,6 +94,24 @@ impl ImageFrame {
         self.get(clamped_x, clamped_y)
     }
 
+    pub fn sample_bilinear_clamped(&self, x: f32, y: f32) -> Color {
+        let x0 = x.floor();
+        let y0 = y.floor();
+        let x1 = x0 + 1.0;
+        let y1 = y0 + 1.0;
+        let tx = (x - x0).clamp(0.0, 1.0);
+        let ty = (y - y0).clamp(0.0, 1.0);
+
+        let c00 = self.sample_clamped(x0 as i32, y0 as i32);
+        let c10 = self.sample_clamped(x1 as i32, y0 as i32);
+        let c01 = self.sample_clamped(x0 as i32, y1 as i32);
+        let c11 = self.sample_clamped(x1 as i32, y1 as i32);
+
+        let top = c00.lerp(c10, tx);
+        let bottom = c01.lerp(c11, tx);
+        top.lerp(bottom, ty)
+    }
+
     pub fn to_rgba_image(&self) -> RgbaImage {
         let width = self.width as u32;
         let height = self.height as u32;

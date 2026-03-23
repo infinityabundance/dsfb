@@ -14,6 +14,7 @@ pub enum AllocationPolicyId {
     ContrastGuided,
     VarianceGuided,
     CombinedHeuristic,
+    NativeTrust,
     ImportedTrust,
     HybridTrustVariance,
 }
@@ -27,6 +28,7 @@ impl AllocationPolicyId {
             Self::ContrastGuided => "contrast_guided",
             Self::VarianceGuided => "variance_guided",
             Self::CombinedHeuristic => "combined_heuristic",
+            Self::NativeTrust => "native_trust",
             Self::ImportedTrust => "imported_trust",
             Self::HybridTrustVariance => "hybrid_trust_variance",
         }
@@ -40,6 +42,7 @@ impl AllocationPolicyId {
             Self::ContrastGuided => "Contrast-guided",
             Self::VarianceGuided => "Variance-guided",
             Self::CombinedHeuristic => "Combined heuristic",
+            Self::NativeTrust => "Native trust",
             Self::ImportedTrust => "Imported trust",
             Self::HybridTrustVariance => "Hybrid trust + variance",
         }
@@ -226,6 +229,7 @@ pub fn run_demo_b_suite(
                     AllocationPolicyId::ContrastGuided,
                     AllocationPolicyId::VarianceGuided,
                     AllocationPolicyId::CombinedHeuristic,
+                    AllocationPolicyId::NativeTrust,
                     AllocationPolicyId::ImportedTrust,
                     AllocationPolicyId::HybridTrustVariance,
                 ]
@@ -292,6 +296,16 @@ fn run_demo_b_scenario(
         width,
         height,
     );
+    let native_trust_difficulty = combine_fields(
+        &[
+            (&edge_difficulty, 0.18),
+            (&residual_difficulty, 0.28),
+            (&contrast_difficulty, 0.24),
+            (&variance_difficulty, 0.30),
+        ],
+        width,
+        height,
+    );
     let hybrid_difficulty = combine_fields(
         &[(&imported_trust, 0.55), (&variance_difficulty, 0.45)],
         width,
@@ -316,6 +330,10 @@ fn run_demo_b_scenario(
         (
             AllocationPolicyId::CombinedHeuristic,
             Some(&combined_difficulty),
+        ),
+        (
+            AllocationPolicyId::NativeTrust,
+            Some(&native_trust_difficulty),
         ),
         (AllocationPolicyId::ImportedTrust, Some(&imported_trust)),
         (
@@ -390,11 +408,12 @@ fn run_demo_b_scenario(
         }
     }
 
-    let budget_levels = [1.0f32, config.demo_b_uniform_spp as f32, 4.0f32];
+    let budget_levels = [1.0f32, config.demo_b_uniform_spp as f32, 4.0f32, 8.0f32];
     let mut curves = Vec::new();
     for policy_id in [
         AllocationPolicyId::Uniform,
         AllocationPolicyId::CombinedHeuristic,
+        AllocationPolicyId::NativeTrust,
         AllocationPolicyId::ImportedTrust,
         AllocationPolicyId::HybridTrustVariance,
     ] {
@@ -407,6 +426,12 @@ fn run_demo_b_scenario(
                 }
                 AllocationPolicyId::CombinedHeuristic => guided_allocation(
                     &combined_difficulty,
+                    total_samples,
+                    1,
+                    config.demo_b_max_spp,
+                )?,
+                AllocationPolicyId::NativeTrust => guided_allocation(
+                    &native_trust_difficulty,
                     total_samples,
                     1,
                     config.demo_b_max_spp,
@@ -669,6 +694,22 @@ fn background_color_continuous(
             (0.08 + 0.18 * stripes + 0.07 * yf) * vignette,
             (0.12 + 0.25 * (1.0 - checker) + 0.04 * xf) * vignette,
         ),
+        ScenarioId::RevealBand | ScenarioId::MotionBiasBand => {
+            let micro = ((sample_x * 0.83 + sample_y * 1.91).sin() * 0.5 + 0.5)
+                * ((sample_x * 1.37 - sample_y * 0.71).cos() * 0.5 + 0.5);
+            let band = if (18.0..=(config.height as f32 - 18.0)).contains(&sample_y)
+                && (26.0..=(config.width as f32 - 24.0)).contains(&sample_x)
+            {
+                1.0
+            } else {
+                0.0
+            };
+            Color::rgb(
+                (0.10 + 0.14 * xf + 0.05 * checker + 0.10 * micro * band) * vignette,
+                (0.12 + 0.13 * yf + 0.06 * diagonal + 0.08 * micro * band) * vignette,
+                (0.16 + 0.18 * (1.0 - xf) + 0.07 * stripes + 0.12 * micro * band) * vignette,
+            )
+        }
         ScenarioId::ContrastPulse => {
             Color::rgb(0.18 + 0.06 * xf, 0.18 + 0.05 * yf, 0.24 + 0.06 * (1.0 - xf))
         }
@@ -690,8 +731,19 @@ fn is_thin_structure_continuous(
         && sample_y <= config.height as f32 - 14.0;
     let diagonal_line =
         (sample_y - (0.58 * sample_x + 10.5)).abs() <= 0.20 && (28.0..=118.0).contains(&sample_x);
+    let mixed_width_band = {
+        let in_band = (18.0..=(config.height as f32 - 18.0)).contains(&sample_y)
+            && (26.0..=(config.width as f32 - 24.0)).contains(&sample_x);
+        let thin_slats = (sample_x - 28.0).rem_euclid(11.0) < 0.18;
+        let medium_slats = (sample_x - 34.0).rem_euclid(19.0) < 1.10;
+        let wide_slats = (sample_x - 48.0).rem_euclid(29.0) < 2.15;
+        let diagonal = (sample_y - (0.44 * sample_x + 12.0)).abs() <= 1.15
+            && (38.0..=(config.width as f32 - 32.0)).contains(&sample_x);
+        in_band && (thin_slats || medium_slats || wide_slats || diagonal)
+    };
     match scenario_id {
         ScenarioId::DiagonalReveal => diagonal_line,
+        ScenarioId::RevealBand | ScenarioId::MotionBiasBand => mixed_width_band,
         _ => vertical || diagonal_line,
     }
 }
@@ -715,6 +767,20 @@ fn thin_structure_color_continuous(
     }
     if matches!(scenario_id, ScenarioId::DiagonalReveal) {
         Color::rgb(0.24, 0.29, 0.35)
+    } else if matches!(scenario_id, ScenarioId::RevealBand) {
+        let phase = ((sample_x + 2.0 * sample_y).rem_euclid(9.0)) / 8.0;
+        Color::rgb(
+            0.22 + 0.48 * phase,
+            0.58 + 0.26 * phase,
+            0.84 + 0.12 * (1.0 - phase),
+        )
+    } else if matches!(scenario_id, ScenarioId::MotionBiasBand) {
+        let phase = ((2.0 * sample_x + sample_y).rem_euclid(13.0)) / 12.0;
+        Color::rgb(
+            0.78 + 0.16 * phase,
+            0.74 + 0.10 * (1.0 - phase),
+            0.26 + 0.18 * phase,
+        )
     } else {
         Color::rgb(0.64, 0.90, 0.96)
     }

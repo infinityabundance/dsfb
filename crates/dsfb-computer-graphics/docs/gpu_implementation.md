@@ -6,6 +6,7 @@ The detailed updated documents are now:
 
 - `docs/integration_surface.md`
 - `docs/cost_model.md`
+- `docs/gpu_path.md`
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
 

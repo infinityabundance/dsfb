@@ -85,7 +85,11 @@ fn host_realistic_trust_values_remain_in_unit_interval() {
         .find(|definition| definition.id.as_str() == "thin_reveal")
         .expect("canonical scenario should exist");
     let sequence = generate_sequence_for_definition(&definition);
-    let dsfb = run_gated_taa(&sequence, config.dsfb_alpha_min, config.dsfb_alpha_max);
+    let dsfb = run_gated_taa(
+        &sequence,
+        config.dsfb_alpha_range.min,
+        config.dsfb_alpha_range.max,
+    );
 
     for supervision in &dsfb.supervision_frames {
         for trust in supervision.trust.values() {

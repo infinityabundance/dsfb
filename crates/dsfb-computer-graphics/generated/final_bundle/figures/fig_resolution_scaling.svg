@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="440" viewBox="0 0 980 440">
+<rect width="980" height="440" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Resolution Scaling Gain</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Positive bars mean host-realistic DSFB beats fixed alpha on cumulative ROI MAE.</text>
+<line x1="40" y1="250" x2="944" y2="250" stroke="#f4f7fb" stroke-width="2"/>
+<rect x="52" y="114.997986" width="32" height="135.00201" rx="4" fill="#4cc9f0"/>
+<text x="44" y="388" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 44 388)">thin_reveal@160x96</text><rect x="110" y="150.62051" width="32" height="99.37948" rx="4" fill="#4cc9f0"/>
+<text x="102" y="388" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 102 388)">reveal_band@160x96</text><rect x="168" y="113.48599" width="32" height="136.514" rx="4" fill="#4cc9f0"/>
+<text x="160" y="388" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 160 388)">motion_bias_band@160x96</text><rect x="226" y="132.98022" width="32" height="117.01978" rx="4" fill="#4cc9f0"/>
+<text x="218" y="388" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 218 388)">reveal_band@640x360</text><rect x="284" y="61.237762" width="32" height="188.76224" rx="4" fill="#4cc9f0"/>
+<text x="276" y="388" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 276 388)">motion_bias_band@640x360</text><rect x="342" y="131.5382" width="32" height="118.46181" rx="4" fill="#4cc9f0"/>
+<text x="334" y="388" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 334 388)">reveal_band@960x540</text><rect x="400" y="60" width="32" height="190" rx="4" fill="#4cc9f0"/>
+<text x="392" y="388" font-size="10" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd" transform="rotate(45 392 388)">motion_bias_band@960x540</text>
+</svg>

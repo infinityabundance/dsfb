@@ -2,10 +2,11 @@ use serde::Serialize;
 
 use crate::frame::{ImageFrame, ScalarField};
 use crate::host::{
-    default_host_realistic_profile, profile_residual_only, profile_without_alpha_modulation,
-    profile_without_grammar, profile_without_motion, profile_without_thin,
-    profile_without_visibility, supervise_temporal_reuse, synthetic_visibility_profile,
-    HostSupervisionProfile, HostTemporalInputs,
+    default_host_realistic_profile, gated_reference_profile, motion_augmented_profile,
+    profile_residual_only, profile_without_alpha_modulation, profile_without_grammar,
+    profile_without_motion, profile_without_thin, profile_without_visibility,
+    supervise_temporal_reuse, synthetic_visibility_profile, HostSupervisionProfile,
+    HostTemporalInputs,
 };
 use crate::scene::{MotionVector, Normal3, SceneFrame, SceneSequence};
 
@@ -116,10 +117,7 @@ pub struct DsfbRun {
 }
 
 pub fn run_gated_taa(sequence: &SceneSequence, alpha_min: f32, alpha_max: f32) -> DsfbRun {
-    run_profiled_taa(
-        sequence,
-        &default_host_realistic_profile(alpha_min, alpha_max),
-    )
+    run_profiled_taa(sequence, &gated_reference_profile(alpha_min, alpha_max))
 }
 
 pub fn run_visibility_assisted_taa(
@@ -137,6 +135,8 @@ pub fn ablation_profiles(alpha_min: f32, alpha_max: f32) -> Vec<HostSupervisionP
     vec![
         synthetic_visibility_profile(alpha_min, alpha_max),
         default_host_realistic_profile(alpha_min, alpha_max),
+        gated_reference_profile(alpha_min, alpha_max),
+        motion_augmented_profile(alpha_min, alpha_max),
         profile_without_visibility(alpha_min, alpha_max),
         profile_without_thin(alpha_min, alpha_max),
         profile_without_motion(alpha_min, alpha_max),
@@ -157,7 +157,12 @@ pub fn run_profiled_taa(sequence: &SceneSequence, profile: &HostSupervisionProfi
         if frame_index == 0 {
             resolved_frames.push(scene_frame.ground_truth.clone());
             reprojected_history_frames.push(scene_frame.ground_truth.clone());
-            supervision_frames.push(empty_supervision(width, height, 1.0, profile.alpha_min));
+            supervision_frames.push(empty_supervision(
+                width,
+                height,
+                1.0,
+                profile.parameters.alpha_range.min,
+            ));
             continue;
         }
 
@@ -246,8 +251,10 @@ fn reproject_frame(previous_resolved: &ImageFrame, scene_frame: &SceneFrame) -> 
             reprojected.set(
                 x,
                 y,
-                previous_resolved
-                    .sample_clamped(x as i32 + motion.to_prev_x, y as i32 + motion.to_prev_y),
+                previous_resolved.sample_bilinear_clamped(
+                    x as f32 + motion.to_prev_x,
+                    y as f32 + motion.to_prev_y,
+                ),
             );
         }
     }
@@ -271,9 +278,13 @@ fn reproject_normals(previous_scene_frame: &SceneFrame, scene_frame: &SceneFrame
         for x in 0..width {
             let index = y * width + x;
             let motion = scene_frame.motion[index];
-            let prev_x = (x as i32 + motion.to_prev_x).clamp(0, width as i32 - 1) as usize;
-            let prev_y = (y as i32 + motion.to_prev_y).clamp(0, height as i32 - 1) as usize;
-            reprojected[index] = previous_scene_frame.normals[prev_y * width + prev_x];
+            reprojected[index] = sample_normal_bilinear_clamped(
+                &previous_scene_frame.normals,
+                width,
+                height,
+                x as f32 + motion.to_prev_x,
+                y as f32 + motion.to_prev_y,
+            );
         }
     }
     reprojected
@@ -290,9 +301,13 @@ fn reproject_scalar_buffer(
         for x in 0..width {
             let index = y * width + x;
             let vector = motion[index];
-            let prev_x = (x as i32 + vector.to_prev_x).clamp(0, width as i32 - 1) as usize;
-            let prev_y = (y as i32 + vector.to_prev_y).clamp(0, height as i32 - 1) as usize;
-            reprojected[index] = previous_values[prev_y * width + prev_x];
+            reprojected[index] = sample_scalar_bilinear_clamped(
+                previous_values,
+                width,
+                height,
+                x as f32 + vector.to_prev_x,
+                y as f32 + vector.to_prev_y,
+            );
         }
     }
     reprojected
@@ -372,4 +387,61 @@ fn neighbors(x: usize, y: usize, width: usize, height: usize) -> Vec<(usize, usi
         }
     }
     values
+}
+
+fn sample_scalar_bilinear_clamped(
+    values: &[f32],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+) -> f32 {
+    let x0 = x.floor();
+    let y0 = y.floor();
+    let x1 = x0 + 1.0;
+    let y1 = y0 + 1.0;
+    let tx = (x - x0).clamp(0.0, 1.0);
+    let ty = (y - y0).clamp(0.0, 1.0);
+
+    let sample = |sample_x: f32, sample_y: f32| {
+        let sx = sample_x.clamp(0.0, width.saturating_sub(1) as f32) as usize;
+        let sy = sample_y.clamp(0.0, height.saturating_sub(1) as f32) as usize;
+        values[sy * width + sx]
+    };
+
+    let top = sample(x0, y0) * (1.0 - tx) + sample(x1, y0) * tx;
+    let bottom = sample(x0, y1) * (1.0 - tx) + sample(x1, y1) * tx;
+    top * (1.0 - ty) + bottom * ty
+}
+
+fn sample_normal_bilinear_clamped(
+    values: &[Normal3],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+) -> Normal3 {
+    let x0 = x.floor();
+    let y0 = y.floor();
+    let x1 = x0 + 1.0;
+    let y1 = y0 + 1.0;
+    let tx = (x - x0).clamp(0.0, 1.0);
+    let ty = (y - y0).clamp(0.0, 1.0);
+
+    let sample = |sample_x: f32, sample_y: f32| {
+        let sx = sample_x.clamp(0.0, width.saturating_sub(1) as f32) as usize;
+        let sy = sample_y.clamp(0.0, height.saturating_sub(1) as f32) as usize;
+        values[sy * width + sx]
+    };
+
+    let c00 = sample(x0, y0);
+    let c10 = sample(x1, y0);
+    let c01 = sample(x0, y1);
+    let c11 = sample(x1, y1);
+    Normal3::new(
+        (c00.x * (1.0 - tx) + c10.x * tx) * (1.0 - ty) + (c01.x * (1.0 - tx) + c11.x * tx) * ty,
+        (c00.y * (1.0 - tx) + c10.y * tx) * (1.0 - ty) + (c01.y * (1.0 - tx) + c11.y * tx) * ty,
+        (c00.z * (1.0 - tx) + c10.z * tx) * (1.0 - ty) + (c01.z * (1.0 - tx) + c11.z * tx) * ty,
+    )
+    .normalized()
 }

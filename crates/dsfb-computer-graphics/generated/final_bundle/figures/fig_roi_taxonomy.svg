@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="460" viewBox="0 0 900 460">
+<rect width="900" height="460" fill="#0b1320"/>
+<text x="24" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">ROI Size and Scenario Taxonomy</text>
+<text x="24" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Point-like ROI, region ROI, and negative-control scenarios are separated explicitly.</text>
+<text x="24" y="96" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">thin_reveal</text>
+<rect x="320" y="82" width="0.22435899" height="20" rx="6" fill="#ef476f"/>
+<text x="750" y="96" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">1</text><text x="24" y="140" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">fast_pan</text>
+<rect x="320" y="126" width="144.48718" height="20" rx="6" fill="#4cc9f0"/>
+<text x="750" y="140" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">644</text><text x="24" y="184" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">diagonal_reveal</text>
+<rect x="320" y="170" width="0.22435899" height="20" rx="6" fill="#ef476f"/>
+<text x="750" y="184" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">1</text><text x="24" y="228" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">reveal_band</text>
+<rect x="320" y="214" width="35" height="20" rx="6" fill="#4cc9f0"/>
+<text x="750" y="228" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">156</text><text x="24" y="272" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">motion_bias_band</text>
+<rect x="320" y="258" width="160.1923" height="20" rx="6" fill="#4cc9f0"/>
+<text x="750" y="272" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">714</text><text x="24" y="316" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">contrast_pulse</text>
+<rect x="320" y="302" width="420" height="20" rx="6" fill="#8bd450"/>
+<text x="750" y="316" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">1872</text><text x="24" y="360" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">stability_holdout</text>
+<rect x="320" y="346" width="226.15385" height="20" rx="6" fill="#8bd450"/>
+<text x="750" y="360" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">1008</text>
+<text x="24" y="420" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Red = point-like ROI, blue = region ROI, green = negative control.</text>
+</svg>

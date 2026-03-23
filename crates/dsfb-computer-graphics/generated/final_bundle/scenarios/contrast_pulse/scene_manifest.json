@@ -1,0 +1,24 @@
+{
+  "scenario_id": "contrast_pulse",
+  "scenario_title": "Contrast Pulse Stress",
+  "scenario_description": "A bounded lighting change with no geometry reveal stresses false positives and is intended as a low-benefit honesty case rather than a DSFB win scenario.",
+  "expectation": "NeutralExpected",
+  "support_category": "NegativeControl",
+  "roi_note": "This negative control uses a large ROI on purpose, but it is not a benefit-expected disocclusion case.",
+  "sampling_taxonomy": "negative control",
+  "target_label": "pulse region",
+  "config": {
+    "width": 160,
+    "height": 96,
+    "frame_count": 18,
+    "object_width": 38,
+    "object_height": 44,
+    "object_start_x": 20,
+    "object_stop_x": 20,
+    "object_top_y": 26,
+    "move_frames": 0,
+    "thin_vertical_x": 54
+  },
+  "frame_count": 18,
+  "onset_frame": 0
+}

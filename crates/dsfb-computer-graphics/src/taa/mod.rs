@@ -1,4 +1,5 @@
 use crate::frame::{Color, ImageFrame, ScalarField};
+use crate::parameters::{BaselineParameters, SmoothstepThreshold};
 use crate::scene::{Normal3, SceneSequence};
 
 #[derive(Clone, Debug)]
@@ -52,7 +53,10 @@ pub fn run_residual_threshold(
         "Per-pixel alpha increases when current vs history residual exceeds a threshold.",
         move |context| {
             let residual = context.current.abs_diff(context.history);
-            let trigger = smoothstep(threshold_low, threshold_high, residual);
+            let trigger = smoothstep_threshold(
+                SmoothstepThreshold::new(threshold_low, threshold_high),
+                residual,
+            );
             let alpha = alpha_low + (alpha_high - alpha_low) * trigger;
             (context.history, alpha, trigger)
         },
@@ -79,7 +83,10 @@ pub fn run_residual_threshold_baseline(
         "Per-pixel alpha increases when current vs history residual exceeds a threshold.",
         move |context| {
             let residual = context.current.abs_diff(context.history);
-            let trigger = smoothstep(threshold_low, threshold_high, residual);
+            let trigger = smoothstep_threshold(
+                SmoothstepThreshold::new(threshold_low, threshold_high),
+                residual,
+            );
             let alpha = alpha_low + (alpha_high - alpha_low) * trigger;
             (context.history, alpha, trigger)
         },
@@ -88,8 +95,7 @@ pub fn run_residual_threshold_baseline(
 
 pub fn run_neighborhood_clamp_baseline(
     sequence: &SceneSequence,
-    alpha_low: f32,
-    alpha_high: f32,
+    parameters: &BaselineParameters,
 ) -> HeuristicRun {
     run_heuristic_baseline(
         sequence,
@@ -99,8 +105,10 @@ pub fn run_neighborhood_clamp_baseline(
         move |context| {
             let clamped = clamp_to_current_neighborhood(context.scene_frame, context.history, context.x, context.y);
             let clamp_distance = clamped.abs_diff(context.history);
-            let trigger = smoothstep(0.008, 0.10, clamp_distance);
-            let alpha = alpha_low + (alpha_high - alpha_low) * trigger;
+            let trigger = smoothstep_threshold(parameters.clamp_distance, clamp_distance);
+            let alpha = parameters.residual_alpha_range.min
+                + (parameters.residual_alpha_range.max - parameters.residual_alpha_range.min)
+                    * trigger;
             (clamped, alpha, trigger)
         },
     )
@@ -108,8 +116,7 @@ pub fn run_neighborhood_clamp_baseline(
 
 pub fn run_depth_normal_rejection_baseline(
     sequence: &SceneSequence,
-    alpha_low: f32,
-    alpha_high: f32,
+    parameters: &BaselineParameters,
 ) -> HeuristicRun {
     run_heuristic_baseline(
         sequence,
@@ -117,21 +124,21 @@ pub fn run_depth_normal_rejection_baseline(
         "Depth/normal rejection baseline",
         "Alpha rises with reprojected depth or normal disagreement.",
         move |context| {
-            let depth_gate = smoothstep(
-                0.01,
-                0.08,
+            let depth_gate = smoothstep_threshold(
+                parameters.depth_disagreement,
                 (context.current_depth - context.reprojected_depth).abs(),
             );
-            let normal_gate = smoothstep(
-                0.01,
-                0.16,
+            let normal_gate = smoothstep_threshold(
+                parameters.normal_disagreement,
                 1.0 - context
                     .current_normal
                     .dot(context.reprojected_normal)
                     .clamp(-1.0, 1.0),
             );
             let trigger = depth_gate.max(normal_gate);
-            let alpha = alpha_low + (alpha_high - alpha_low) * trigger;
+            let alpha = parameters.residual_alpha_range.min
+                + (parameters.residual_alpha_range.max - parameters.residual_alpha_range.min)
+                    * trigger;
             (context.history, alpha, trigger)
         },
     )
@@ -139,8 +146,7 @@ pub fn run_depth_normal_rejection_baseline(
 
 pub fn run_reactive_mask_baseline(
     sequence: &SceneSequence,
-    alpha_low: f32,
-    alpha_high: f32,
+    parameters: &BaselineParameters,
 ) -> HeuristicRun {
     run_heuristic_baseline(
         sequence,
@@ -148,19 +154,22 @@ pub fn run_reactive_mask_baseline(
         "Reactive-mask-style baseline",
         "Residual, depth, and neighborhood disagreement combine into a reactive alpha increase.",
         move |context| {
-            let residual_gate = smoothstep(0.015, 0.22, context.current.abs_diff(context.history));
-            let depth_gate = smoothstep(
-                0.01,
-                0.08,
+            let residual_gate = smoothstep_threshold(
+                parameters.residual_threshold,
+                context.current.abs_diff(context.history),
+            );
+            let depth_gate = smoothstep_threshold(
+                parameters.depth_disagreement,
                 (context.current_depth - context.reprojected_depth).abs(),
             );
-            let neighborhood_gate = smoothstep(
-                0.01,
-                0.14,
+            let neighborhood_gate = smoothstep_threshold(
+                parameters.neighborhood_distance,
                 neighborhood_distance(context.scene_frame, context.history, context.x, context.y),
             );
             let trigger = residual_gate.max(depth_gate).max(neighborhood_gate);
-            let alpha = alpha_low + (alpha_high - alpha_low) * trigger;
+            let alpha = parameters.residual_alpha_range.min
+                + (parameters.residual_alpha_range.max - parameters.residual_alpha_range.min)
+                    * trigger;
             (context.history, alpha, trigger)
         },
     )
@@ -168,8 +177,7 @@ pub fn run_reactive_mask_baseline(
 
 pub fn run_strong_heuristic_baseline(
     sequence: &SceneSequence,
-    alpha_low: f32,
-    alpha_high: f32,
+    parameters: &BaselineParameters,
 ) -> HeuristicRun {
     run_heuristic_baseline(
         sequence,
@@ -184,26 +192,30 @@ pub fn run_strong_heuristic_baseline(
                 context.y,
             );
             let clamp_distance = clamped.abs_diff(context.history);
-            let residual_gate = smoothstep(0.015, 0.22, context.current.abs_diff(clamped));
-            let depth_gate = smoothstep(
-                0.01,
-                0.08,
+            let residual_gate = smoothstep_threshold(
+                parameters.residual_threshold,
+                context.current.abs_diff(clamped),
+            );
+            let depth_gate = smoothstep_threshold(
+                parameters.depth_disagreement,
                 (context.current_depth - context.reprojected_depth).abs(),
             );
-            let normal_gate = smoothstep(
-                0.01,
-                0.16,
+            let normal_gate = smoothstep_threshold(
+                parameters.normal_disagreement,
                 1.0 - context
                     .current_normal
                     .dot(context.reprojected_normal)
                     .clamp(-1.0, 1.0),
             );
-            let neighborhood_gate = smoothstep(0.01, 0.14, clamp_distance);
+            let neighborhood_gate =
+                smoothstep_threshold(parameters.neighborhood_distance, clamp_distance);
             let trigger = residual_gate
                 .max(depth_gate)
                 .max(normal_gate)
                 .max(neighborhood_gate);
-            let alpha = alpha_low + (alpha_high - alpha_low) * trigger;
+            let alpha = parameters.residual_alpha_range.min
+                + (parameters.residual_alpha_range.max - parameters.residual_alpha_range.min)
+                    * trigger;
             (clamped, alpha, trigger)
         },
     )
@@ -255,18 +267,30 @@ fn run_heuristic_baseline(
         for y in 0..height {
             for x in 0..width {
                 let motion = scene_frame.motion[y * width + x];
-                let prev_x = (x as i32 + motion.to_prev_x).clamp(0, width as i32 - 1) as usize;
-                let prev_y = (y as i32 + motion.to_prev_y).clamp(0, height as i32 - 1) as usize;
-                let history = previous_resolved.get(prev_x, prev_y);
+                let prev_x = x as f32 + motion.to_prev_x;
+                let prev_y = y as f32 + motion.to_prev_y;
+                let history = previous_resolved.sample_bilinear_clamped(prev_x, prev_y);
                 let current = scene_frame.ground_truth.get(x, y);
                 let context = PixelContext {
                     scene_frame,
                     current,
                     history,
                     current_depth: scene_frame.depth[y * width + x],
-                    reprojected_depth: previous_scene.depth[prev_y * width + prev_x],
+                    reprojected_depth: sample_scalar_bilinear_clamped(
+                        &previous_scene.depth,
+                        width,
+                        height,
+                        prev_x,
+                        prev_y,
+                    ),
                     current_normal: scene_frame.normals[y * width + x],
-                    reprojected_normal: previous_scene.normals[prev_y * width + prev_x],
+                    reprojected_normal: sample_normal_bilinear_clamped(
+                        &previous_scene.normals,
+                        width,
+                        height,
+                        prev_x,
+                        prev_y,
+                    ),
                     x,
                     y,
                 };
@@ -359,9 +383,67 @@ fn fill_scalar(width: usize, height: usize, value: f32) -> ScalarField {
     field
 }
 
-fn smoothstep(edge0: f32, edge1: f32, value: f32) -> f32 {
-    let t = ((value - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
+fn smoothstep_threshold(threshold: SmoothstepThreshold, value: f32) -> f32 {
+    let span = (threshold.high - threshold.low).max(f32::EPSILON);
+    let t = ((value - threshold.low) / span).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
+}
+
+fn sample_scalar_bilinear_clamped(
+    values: &[f32],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+) -> f32 {
+    let x0 = x.floor();
+    let y0 = y.floor();
+    let x1 = x0 + 1.0;
+    let y1 = y0 + 1.0;
+    let tx = (x - x0).clamp(0.0, 1.0);
+    let ty = (y - y0).clamp(0.0, 1.0);
+
+    let sample = |sample_x: f32, sample_y: f32| {
+        let sx = sample_x.clamp(0.0, width.saturating_sub(1) as f32) as usize;
+        let sy = sample_y.clamp(0.0, height.saturating_sub(1) as f32) as usize;
+        values[sy * width + sx]
+    };
+
+    let top = sample(x0, y0) * (1.0 - tx) + sample(x1, y0) * tx;
+    let bottom = sample(x0, y1) * (1.0 - tx) + sample(x1, y1) * tx;
+    top * (1.0 - ty) + bottom * ty
+}
+
+fn sample_normal_bilinear_clamped(
+    values: &[Normal3],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+) -> Normal3 {
+    let x0 = x.floor();
+    let y0 = y.floor();
+    let x1 = x0 + 1.0;
+    let y1 = y0 + 1.0;
+    let tx = (x - x0).clamp(0.0, 1.0);
+    let ty = (y - y0).clamp(0.0, 1.0);
+
+    let sample = |sample_x: f32, sample_y: f32| {
+        let sx = sample_x.clamp(0.0, width.saturating_sub(1) as f32) as usize;
+        let sy = sample_y.clamp(0.0, height.saturating_sub(1) as f32) as usize;
+        values[sy * width + sx]
+    };
+
+    let c00 = sample(x0, y0);
+    let c10 = sample(x1, y0);
+    let c01 = sample(x0, y1);
+    let c11 = sample(x1, y1);
+    Normal3::new(
+        (c00.x * (1.0 - tx) + c10.x * tx) * (1.0 - ty) + (c01.x * (1.0 - tx) + c11.x * tx) * ty,
+        (c00.y * (1.0 - tx) + c10.y * tx) * (1.0 - ty) + (c01.y * (1.0 - tx) + c11.y * tx) * ty,
+        (c00.z * (1.0 - tx) + c10.z * tx) * (1.0 - ty) + (c01.z * (1.0 - tx) + c11.z * tx) * ty,
+    )
+    .normalized()
 }
 
 fn neighbors(x: usize, y: usize, width: usize, height: usize) -> Vec<(usize, usize)> {

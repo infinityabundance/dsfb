@@ -1,0 +1,2189 @@
+{
+  "conclusion": "The current host-realistic implementation behaves as a near-binary gate rather than a smoothly calibrated continuous supervisor.",
+  "scenarios": [
+    {
+      "scenario_id": "thin_reveal",
+      "scenario_title": "Thin-Structure Reveal",
+      "support_category": "PointLikeRoi",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 1,
+      "occupied_bin_count": 2,
+      "entropy_bits": 0.02832527,
+      "discreteness_score": 0.99147326,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 44
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15316
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 44,
+          "mean_trust": 0.07750595,
+          "mean_error": 0.041248735
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15316,
+          "mean_trust": 0.99907064,
+          "mean_error": 0.0015697704
+        }
+      ]
+    },
+    {
+      "scenario_id": "thin_reveal",
+      "scenario_title": "Thin-Structure Reveal",
+      "support_category": "PointLikeRoi",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 1,
+      "occupied_bin_count": 4,
+      "entropy_bits": 0.08594397,
+      "discreteness_score": 0.9741283,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 44
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 1
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 100
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15215
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 44,
+          "mean_trust": 0.11999993,
+          "mean_error": 0.055542503
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 1,
+          "mean_trust": 0.68,
+          "mean_error": 0.045708437
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15315,
+          "mean_trust": 0.992703,
+          "mean_error": 0.0032691574
+        }
+      ]
+    },
+    {
+      "scenario_id": "thin_reveal",
+      "scenario_title": "Thin-Structure Reveal",
+      "support_category": "PointLikeRoi",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 1,
+      "occupied_bin_count": 3,
+      "entropy_bits": 0.15812868,
+      "discreteness_score": 0.95239854,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 44
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 276
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15040
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 44,
+          "mean_trust": 0.03169357,
+          "mean_error": 0.02587962
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15316,
+          "mean_trust": 0.9973432,
+          "mean_error": 0.0013071208
+        }
+      ]
+    },
+    {
+      "scenario_id": "fast_pan",
+      "scenario_title": "Fast Lateral Reveal",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 644,
+      "occupied_bin_count": 5,
+      "entropy_bits": 0.2827871,
+      "discreteness_score": 0.9148726,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 556
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 15
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 55
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 18
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 14716
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 571,
+          "mean_trust": 0.017831894,
+          "mean_error": 0.01717631
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 73,
+          "mean_trust": 0.2669932,
+          "mean_error": 0.04084576
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14716,
+          "mean_trust": 0.9989768,
+          "mean_error": 0.002954685
+        }
+      ]
+    },
+    {
+      "scenario_id": "fast_pan",
+      "scenario_title": "Fast Lateral Reveal",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 644,
+      "occupied_bin_count": 4,
+      "entropy_bits": 0.4230967,
+      "discreteness_score": 0.8726352,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 644
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 247
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 96
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 14373
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 644,
+          "mean_trust": 0.120000176,
+          "mean_error": 0.04324074
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 247,
+          "mean_trust": 0.67999846,
+          "mean_error": 0.0009719711
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14469,
+          "mean_trust": 0.98445916,
+          "mean_error": 0.0066149416
+        }
+      ]
+    },
+    {
+      "scenario_id": "fast_pan",
+      "scenario_title": "Fast Lateral Reveal",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 644,
+      "occupied_bin_count": 6,
+      "entropy_bits": 0.39869818,
+      "discreteness_score": 0.8799799,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 556
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 15
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 55
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 18
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 242
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 14474
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 571,
+          "mean_trust": 0.011566466,
+          "mean_error": 0.015519613
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 73,
+          "mean_trust": 0.2669932,
+          "mean_error": 0.04084576
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 242,
+          "mean_trust": 0.77081716,
+          "mean_error": 3.5918775e-9
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14474,
+          "mean_trust": 0.99921584,
+          "mean_error": 0.0028225083
+        }
+      ]
+    },
+    {
+      "scenario_id": "diagonal_reveal",
+      "scenario_title": "Diagonal Subpixel Reveal",
+      "support_category": "PointLikeRoi",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 1,
+      "occupied_bin_count": 2,
+      "entropy_bits": 0.02722149,
+      "discreteness_score": 0.9918055,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 42
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15318
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 42,
+          "mean_trust": 0.076995,
+          "mean_error": 0.04060247
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15318,
+          "mean_trust": 0.99724495,
+          "mean_error": 0.0009519439
+        }
+      ]
+    },
+    {
+      "scenario_id": "diagonal_reveal",
+      "scenario_title": "Diagonal Subpixel Reveal",
+      "support_category": "PointLikeRoi",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 1,
+      "occupied_bin_count": 3,
+      "entropy_bits": 0.059866205,
+      "discreteness_score": 0.9819785,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 42
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 52
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15266
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 42,
+          "mean_trust": 0.11999993,
+          "mean_error": 0.054830074
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15318,
+          "mean_trust": 0.96216416,
+          "mean_error": 0.0022589788
+        }
+      ]
+    },
+    {
+      "scenario_id": "diagonal_reveal",
+      "scenario_title": "Diagonal Subpixel Reveal",
+      "support_category": "PointLikeRoi",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 1,
+      "occupied_bin_count": 3,
+      "entropy_bits": 0.13581185,
+      "discreteness_score": 0.9591166,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 42
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 221
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15097
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 42,
+          "mean_trust": 0.031392884,
+          "mean_error": 0.025481116
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15318,
+          "mean_trust": 0.9958972,
+          "mean_error": 0.00075226015
+        }
+      ]
+    },
+    {
+      "scenario_id": "reveal_band",
+      "scenario_title": "Textured Reveal Band",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 156,
+      "occupied_bin_count": 2,
+      "entropy_bits": 0.08182724,
+      "discreteness_score": 0.97536755,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 156
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15204
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 156,
+          "mean_trust": 0.03080584,
+          "mean_error": 0.022302013
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15204,
+          "mean_trust": 0.99590683,
+          "mean_error": 0.005304591
+        }
+      ]
+    },
+    {
+      "scenario_id": "reveal_band",
+      "scenario_title": "Textured Reveal Band",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 156,
+      "occupied_bin_count": 4,
+      "entropy_bits": 0.40640876,
+      "discreteness_score": 0.8776588,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 156
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 349
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 387
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 14468
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 156,
+          "mean_trust": 0.120000035,
+          "mean_error": 0.04933165
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 349,
+          "mean_trust": 0.6799968,
+          "mean_error": 0.011062207
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14855,
+          "mean_trust": 0.97236955,
+          "mean_error": 0.008316112
+        }
+      ]
+    },
+    {
+      "scenario_id": "reveal_band",
+      "scenario_title": "Textured Reveal Band",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 156,
+      "occupied_bin_count": 4,
+      "entropy_bits": 0.21303126,
+      "discreteness_score": 0.9358712,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 156
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 256
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 12
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 14936
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 156,
+          "mean_trust": 0.005031199,
+          "mean_error": 0.015243235
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 256,
+          "mean_trust": 0.77123684,
+          "mean_error": 9.0318855e-9
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14948,
+          "mean_trust": 0.9959802,
+          "mean_error": 0.005154377
+        }
+      ]
+    },
+    {
+      "scenario_id": "motion_bias_band",
+      "scenario_title": "Motion-Bias Reveal Band",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 714,
+      "occupied_bin_count": 8,
+      "entropy_bits": 0.72541785,
+      "discreteness_score": 0.7816275,
+      "effective_level_count": 2,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -0.15384616,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 1221
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 508
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 50
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 35
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 8
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 9
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 93
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 13436
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 1729,
+          "mean_trust": 0.09104104,
+          "mean_error": 0.025198534
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 85,
+          "mean_trust": 0.27371806,
+          "mean_error": 0.0477643
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 8,
+          "mean_trust": 0.42411014,
+          "mean_error": 0.06733155
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 9,
+          "mean_trust": 0.7912054,
+          "mean_error": 0.07502169
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 13529,
+          "mean_trust": 0.99628896,
+          "mean_error": 0.0065937666
+        }
+      ]
+    },
+    {
+      "scenario_id": "motion_bias_band",
+      "scenario_title": "Motion-Bias Reveal Band",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 714,
+      "occupied_bin_count": 7,
+      "entropy_bits": 0.79680544,
+      "discreteness_score": 0.7601377,
+      "effective_level_count": 2,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": 0.11188811,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 1746
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 1
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 23
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 52
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 327
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 187
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 13024
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 1746,
+          "mean_trust": 0.119998835,
+          "mean_error": 0.031351827
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 1,
+          "mean_trust": 0.3495896,
+          "mean_error": 0.09080851
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 75,
+          "mean_trust": 0.5139397,
+          "mean_error": 0.09003226
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 327,
+          "mean_trust": 0.6799786,
+          "mean_error": 0.02105833
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 13211,
+          "mean_trust": 0.9790754,
+          "mean_error": 0.007727305
+        }
+      ]
+    },
+    {
+      "scenario_id": "motion_bias_band",
+      "scenario_title": "Motion-Bias Reveal Band",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 714,
+      "occupied_bin_count": 10,
+      "entropy_bits": 0.83110195,
+      "discreteness_score": 0.7498134,
+      "effective_level_count": 2,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -0.15384616,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 1245
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 484
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 49
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 36
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 8
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 3
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 12
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 231
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 79
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 13213
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 1729,
+          "mean_trust": 0.0873665,
+          "mean_error": 0.024564585
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 85,
+          "mean_trust": 0.27449468,
+          "mean_error": 0.04774413
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 11,
+          "mean_trust": 0.4636842,
+          "mean_error": 0.062406637
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 243,
+          "mean_trust": 0.7592875,
+          "mean_error": 0.0118166525
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 13292,
+          "mean_trust": 0.9966437,
+          "mean_error": 0.006344359
+        }
+      ]
+    },
+    {
+      "scenario_id": "contrast_pulse",
+      "scenario_title": "Contrast Pulse Stress",
+      "support_category": "NegativeControl",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 1872,
+      "occupied_bin_count": 1,
+      "entropy_bits": -0.0,
+      "discreteness_score": 1.0,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": 1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15360
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15360,
+          "mean_trust": 1.0,
+          "mean_error": 0.0
+        }
+      ]
+    },
+    {
+      "scenario_id": "contrast_pulse",
+      "scenario_title": "Contrast Pulse Stress",
+      "support_category": "NegativeControl",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 1872,
+      "occupied_bin_count": 1,
+      "entropy_bits": -0.0,
+      "discreteness_score": 1.0,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": 0.68421054,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15360
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15360,
+          "mean_trust": 1.0,
+          "mean_error": 0.0
+        }
+      ]
+    },
+    {
+      "scenario_id": "contrast_pulse",
+      "scenario_title": "Contrast Pulse Stress",
+      "support_category": "NegativeControl",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 1872,
+      "occupied_bin_count": 1,
+      "entropy_bits": -0.0,
+      "discreteness_score": 1.0,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": 1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15360
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15360,
+          "mean_trust": 1.0,
+          "mean_error": 0.0
+        }
+      ]
+    },
+    {
+      "scenario_id": "stability_holdout",
+      "scenario_title": "Stability Holdout",
+      "support_category": "NegativeControl",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 1008,
+      "occupied_bin_count": 1,
+      "entropy_bits": -0.0,
+      "discreteness_score": 1.0,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": 0.68421054,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15360
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15360,
+          "mean_trust": 1.0,
+          "mean_error": 0.0
+        }
+      ]
+    },
+    {
+      "scenario_id": "stability_holdout",
+      "scenario_title": "Stability Holdout",
+      "support_category": "NegativeControl",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 1008,
+      "occupied_bin_count": 1,
+      "entropy_bits": -0.0,
+      "discreteness_score": 1.0,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": 0.68421054,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15360
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15360,
+          "mean_trust": 1.0,
+          "mean_error": 0.0
+        }
+      ]
+    },
+    {
+      "scenario_id": "stability_holdout",
+      "scenario_title": "Stability Holdout",
+      "support_category": "NegativeControl",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 1008,
+      "occupied_bin_count": 1,
+      "entropy_bits": -0.0,
+      "discreteness_score": 1.0,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": 0.68421054,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15360
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15360,
+          "mean_trust": 1.0,
+          "mean_error": 0.0
+        }
+      ]
+    }
+  ]
+}

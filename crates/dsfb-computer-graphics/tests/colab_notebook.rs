@@ -64,7 +64,11 @@ fn timestamped_output_layout_helpers_create_expected_paths() {
 #[test]
 fn run_all_writes_notebook_manifest_with_relative_paths() {
     let output_dir = unique_output_dir("run_all_manifest");
-    let artifacts = run_all(&DemoConfig::default(), &output_dir).expect("run-all should succeed");
+    let mut config = DemoConfig::default();
+    config.scene.frame_count = 12;
+    config.scene.move_frames = 4;
+    config.demo_b_reference_spp = 24;
+    let artifacts = run_all(&config, &output_dir).expect("run-all should succeed");
     let manifest_text = read(&artifacts.manifest_path);
     let manifest: Value =
         serde_json::from_str(&manifest_text).expect("manifest should be valid json");

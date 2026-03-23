@@ -1,0 +1,24 @@
+{
+  "scenario_id": "stability_holdout",
+  "scenario_title": "Stability Holdout",
+  "scenario_description": "Static holdout case with no reveal event. Useful for verifying low false-positive intervention and bounded neutral behavior.",
+  "expectation": "NeutralExpected",
+  "support_category": "NegativeControl",
+  "roi_note": "This is a negative-control background patch used to bound non-ROI damage and false-positive intervention.",
+  "sampling_taxonomy": "negative control",
+  "target_label": "holdout background patch",
+  "config": {
+    "width": 160,
+    "height": 96,
+    "frame_count": 18,
+    "object_width": 38,
+    "object_height": 44,
+    "object_start_x": 8,
+    "object_stop_x": 8,
+    "object_top_y": 26,
+    "move_frames": 0,
+    "thin_vertical_x": 54
+  },
+  "frame_count": 18,
+  "onset_frame": 0
+}
