@@ -107,6 +107,19 @@ pub enum ExternalCaptureSource {
         scenario_id: String,
         frame_index: Option<usize>,
     },
+    /// First-class engine-native capture path.
+    /// engine_type: "unreal" | "unity" | "custom" | "pending"
+    /// When engine_type == "pending" or buffer files are absent,
+    /// all downstream reports carry ENGINE_NATIVE_CAPTURE_MISSING=true.
+    EngineNative {
+        engine_type: String,
+        #[serde(default)]
+        engine_version: Option<String>,
+        #[serde(default)]
+        capture_tool: Option<String>,
+        #[serde(default)]
+        capture_note: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -539,6 +552,8 @@ pub fn load_external_capture_bundle(
                 Some(&inputs.current_color),
             )?
         }
+        // Engine-native captures use real file-based buffers — treat like Files.
+        ExternalCaptureSource::EngineNative { .. } => manifest.clone(),
     };
 
     let captures = load_capture_entries(&resolved_manifest, manifest_path, output_dir)?;
@@ -664,6 +679,18 @@ fn load_capture_entries(
                 load_single_capture(synthetic_base_dir, label, buffers, &manifest.normalization)
             })
             .collect(),
+        // Engine-native: load from manifest file's parent directory (same as Files).
+        ExternalCaptureSource::EngineNative { .. } => {
+            let base_dir = manifest_path.parent().ok_or_else(|| {
+                Error::Message("manifest path had no parent directory".to_string())
+            })?;
+            entries
+                .iter()
+                .map(|(label, buffers)| {
+                    load_single_capture(base_dir, label, buffers, &manifest.normalization)
+                })
+                .collect()
+        }
     }
 }
 

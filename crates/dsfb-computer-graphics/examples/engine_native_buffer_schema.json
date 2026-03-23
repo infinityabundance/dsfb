@@ -1,0 +1,178 @@
+{
+  "schema_version": "engine_native_buffer_schema_v1",
+  "description": "Buffer schema for engine-native temporal buffer captures exported from real-time renderers (Unreal Engine, Unity, custom renderers).",
+  "required_buffers": [
+    {
+      "name": "current_color",
+      "semantic": "current_color",
+      "description": "Current frame pre-tonemapped linear RGB color. Captured after TAA input, before TAA resolve.",
+      "required": true,
+      "capture_point": "after_shading_before_taa",
+      "accepted_formats": ["exr_rgb32f", "png_rgb8", "json_rgb_f32", "raw_rgb32f"],
+      "preferred_format": "exr_rgb32f",
+      "recommended_bit_depth": "32-bit float per channel",
+      "channels": 3,
+      "channel_convention": "R, G, B in linear light (not gamma-corrected)",
+      "range": "[0, ∞) — HDR content may exceed 1.0",
+      "engine_specific": {
+        "unreal": "SceneColor after deferred shading, before r.TemporalAA",
+        "unity": "ColorTexture at BeforeTransparent injection point, before TemporalAA pass",
+        "custom": "Linear HDR color buffer at TAA input stage"
+      }
+    },
+    {
+      "name": "history_color",
+      "semantic": "history_color",
+      "description": "Previous resolved frame color, reprojected to current frame coordinates using motion vectors. This is the temporal history input to TAA.",
+      "required": true,
+      "capture_point": "taa_history_input",
+      "accepted_formats": ["exr_rgb32f", "png_rgb8", "json_rgb_f32", "raw_rgb32f"],
+      "preferred_format": "exr_rgb32f",
+      "recommended_bit_depth": "32-bit float per channel",
+      "channels": 3,
+      "channel_convention": "R, G, B reprojected to current frame coordinates",
+      "range": "[0, ∞)",
+      "engine_specific": {
+        "unreal": "HistoryColor buffer from TemporalAA pass inputs",
+        "unity": "TAA history buffer sampled at reprojected UV",
+        "custom": "Reprojected previous frame using supplied motion vectors"
+      }
+    },
+    {
+      "name": "motion_vectors",
+      "semantic": "motion_vectors",
+      "description": "Per-pixel motion vectors in screen-space pixel offset units. Each vector points from current pixel to corresponding pixel in the previous frame.",
+      "required": true,
+      "capture_point": "motion_vector_pass",
+      "accepted_formats": ["json_vec2_f32", "exr_rg32f", "raw_rg32f"],
+      "preferred_format": "exr_rg32f",
+      "recommended_bit_depth": "32-bit float per channel",
+      "channels": 2,
+      "channel_convention": "X = horizontal pixel offset (positive = samples from right in history), Y = vertical pixel offset (positive = samples from below in history)",
+      "coordinate_convention": "pixel_offset_to_prev",
+      "range": "unbounded; typical range ±resolution pixels for full-motion frames",
+      "note": "Some engines export motion vectors as normalized UV offsets — convert to pixel offsets by multiplying by resolution.",
+      "engine_specific": {
+        "unreal": "r.BasePassOutputsVelocity=1, VelocityBuffer pass — already in pixel offset space",
+        "unity": "MotionVectorTexture from MotionVectors render feature",
+        "custom": "Per-pixel (dx, dy) in pixel units pointing to previous frame position"
+      }
+    },
+    {
+      "name": "current_depth",
+      "semantic": "current_depth",
+      "description": "Per-pixel depth for the current frame. Must be monotonically increasing with distance from camera.",
+      "required": true,
+      "capture_point": "depth_prepass_or_gbuffer",
+      "accepted_formats": ["json_scalar_f32", "exr_r32f", "raw_r32f"],
+      "preferred_format": "exr_r32f",
+      "recommended_bit_depth": "32-bit float",
+      "channels": 1,
+      "depth_convention": "monotonic_larger_is_further",
+      "acceptable_conventions": ["linear_depth_z", "view_space_z", "ndc_depth_converted_to_linear"],
+      "not_acceptable": ["raw_NDC_reversed_Z_without_conversion"],
+      "note": "Reversed-Z NDC depth is NOT directly usable. Convert to linear depth before export.",
+      "engine_specific": {
+        "unreal": "SceneDepth (linear depth) from GBuffer — NOT HZB or reversed-Z NDC",
+        "unity": "CameraDepthTexture converted to linear depth via LinearEyeDepth()",
+        "custom": "Linear depth in world units or normalized linear depth"
+      }
+    },
+    {
+      "name": "current_normals",
+      "semantic": "current_normals",
+      "description": "Per-pixel view-space normals for the current frame. Used for disocclusion detection.",
+      "required": true,
+      "capture_point": "gbuffer",
+      "accepted_formats": ["json_vec3_f32", "exr_rgb32f", "raw_rgb32f"],
+      "preferred_format": "exr_rgb32f",
+      "recommended_bit_depth": "32-bit float per channel",
+      "channels": 3,
+      "normal_convention": "view_space_unit_vectors",
+      "channel_convention": "X, Y, Z unit vector; camera-facing surface has positive Z in view space",
+      "range": "Each component in [-1, 1]; magnitude = 1.0",
+      "engine_specific": {
+        "unreal": "GBufferB.xyz decoded from WorldNormal, transformed to view space",
+        "unity": "NormalTexture from G-buffer decoded, transformed to view space",
+        "custom": "View-space normal vectors, unit length"
+      }
+    }
+  ],
+  "optional_buffers": [
+    {
+      "name": "history_depth",
+      "semantic": "history_depth",
+      "description": "Depth buffer from the previous frame, reprojected to current frame coordinates. If absent, a proxy is derived from the current depth using motion vector extrapolation. Labeled derived-low-confidence when absent.",
+      "required": false,
+      "absence_handling": "derive_from_current_depth_with_motion_extrapolation",
+      "absence_quality_label": "derived-low-confidence",
+      "accepted_formats": ["json_scalar_f32", "exr_r32f", "raw_r32f"]
+    },
+    {
+      "name": "history_normals",
+      "semantic": "history_normals",
+      "description": "Normal buffer from the previous frame, reprojected to current frame coordinates. If absent, history normals are approximated from the current normals. Labeled derived-low-confidence when absent.",
+      "required": false,
+      "absence_handling": "approximate_from_current_normals",
+      "absence_quality_label": "derived-low-confidence",
+      "accepted_formats": ["json_vec3_f32", "exr_rgb32f", "raw_rgb32f"]
+    },
+    {
+      "name": "roi_mask",
+      "semantic": "optional_mask",
+      "description": "Per-pixel ROI mask (1.0 = in ROI, 0.0 = not in ROI). If absent, a derived mask is computed from depth+normal discontinuities. Native mask is preferred for Demo A evaluation.",
+      "required": false,
+      "absence_handling": "derive_from_depth_normal_discontinuities",
+      "absence_quality_label": "derived-low-confidence",
+      "accepted_formats": ["json_scalar_f32", "exr_r32f", "raw_r32f", "png_rgb8_threshold"]
+    },
+    {
+      "name": "jitter",
+      "semantic": "optional_jitter",
+      "description": "Per-frame sub-pixel jitter offset used for TAA. Format: [jitter_x, jitter_y] in pixel units.",
+      "required": false,
+      "accepted_formats": ["json_metadata"]
+    },
+    {
+      "name": "camera_matrices",
+      "semantic": "optional_camera",
+      "description": "Camera view + projection matrices for the current and previous frames. Used for improved reprojection quality validation.",
+      "required": false,
+      "accepted_formats": ["json_metadata"]
+    },
+    {
+      "name": "history_validity_mask",
+      "semantic": "optional_variance",
+      "description": "Per-pixel mask indicating valid history pixels (1.0 = valid history, 0.0 = invalid/disocclusion). If absent, history validity is inferred from motion vector + depth consistency.",
+      "required": false,
+      "absence_handling": "infer_from_motion_depth_consistency",
+      "accepted_formats": ["json_scalar_f32", "exr_r32f"]
+    }
+  ],
+  "metadata_schema": {
+    "format": "json_metadata",
+    "required_fields": [
+      {"name": "frame_index", "type": "integer", "description": "0-based index of current frame"},
+      {"name": "history_frame_index", "type": "integer", "description": "0-based index of previous frame"},
+      {"name": "width", "type": "integer", "description": "Frame width in pixels"},
+      {"name": "height", "type": "integer", "description": "Frame height in pixels"},
+      {"name": "source_kind", "type": "string", "description": "Always 'engine_native'"},
+      {"name": "real_external_data", "type": "boolean", "description": "true for real captures, false for placeholders"}
+    ],
+    "optional_fields": [
+      {"name": "jitter_x", "type": "float", "description": "Sub-pixel jitter X in pixel units"},
+      {"name": "jitter_y", "type": "float", "description": "Sub-pixel jitter Y in pixel units"},
+      {"name": "exposure", "type": "float", "description": "Exposure value used for this frame"},
+      {"name": "scene_name", "type": "string", "description": "Human-readable scene identifier"}
+    ]
+  },
+  "notes": [
+    "All required buffers must match in width and height. Shape mismatch is a hard rejection.",
+    "Color buffers must be in linear light. Gamma-encoded buffers will produce incorrect trust scores.",
+    "Motion vectors must be in pixel offset units. UV offset convention must be converted before import.",
+    "Depth must be monotonically increasing with distance. Reversed-Z NDC must be converted before export.",
+    "Normals must be view-space unit vectors. World-space normals must be transformed before export.",
+    "Optional buffers that are absent are labeled derived-low-confidence in all reports.",
+    "There is no acceptable substitute for real capture data. Do not use placeholder values for required buffers."
+  ]
+}

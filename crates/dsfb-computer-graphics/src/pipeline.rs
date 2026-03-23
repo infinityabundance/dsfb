@@ -520,6 +520,109 @@ pub fn validate_final_bundle(output_dir: &Path) -> Result<()> {
     validate_artifact_bundle(output_dir).and_then(|_| validate_decision_reports(output_dir))
 }
 
+/// Validate the engine-native output bundle.
+///
+/// Hard fails if required engine-native files are missing.
+/// If `allow_pending` is true, passes even when ENGINE_NATIVE_CAPTURE_MISSING=true;
+/// otherwise fails so the caller knows no real engine capture has been provided.
+pub fn validate_engine_native_gates(
+    engine_native_dir: &Path,
+    allow_pending: bool,
+) -> Result<()> {
+    // Required report files
+    let required = [
+        engine_native_dir.join("engine_native_import_report.md"),
+        engine_native_dir.join("resolved_engine_native_manifest.json"),
+        engine_native_dir.join("engine_native_replay_report.md"),
+        engine_native_dir.join("gpu_execution_report.md"),
+        engine_native_dir.join("gpu_execution_metrics.json"),
+        engine_native_dir.join("demo_a_engine_native_report.md"),
+        engine_native_dir.join("demo_b_engine_native_report.md"),
+        engine_native_dir.join("demo_b_engine_native_metrics.json"),
+        engine_native_dir.join("high_res_execution_report.md"),
+        engine_native_dir.join("engine_native_validation_report.md"),
+    ];
+    for path in &required {
+        if !path.exists() {
+            return Err(Error::Message(format!(
+                "engine-native gate: required file missing: {}\n\
+                Run: cargo run --release -- run-engine-native-replay \\\n  \
+                --manifest examples/engine_native_capture_manifest.json \\\n  \
+                --output generated/engine_native",
+                path.display()
+            )));
+        }
+        let meta = fs::metadata(path)?;
+        if meta.len() == 0 {
+            return Err(Error::Message(format!(
+                "engine-native gate: required file is empty: {}",
+                path.display()
+            )));
+        }
+    }
+
+    // Mixed-regime report is one level up from engine_native_dir
+    let mixed_regime_path = engine_native_dir
+        .parent()
+        .unwrap_or(engine_native_dir)
+        .join("mixed_regime_confirmation_report.md");
+    if !mixed_regime_path.exists() {
+        return Err(Error::Message(format!(
+            "engine-native gate: mixed_regime_confirmation_report.md missing at {}\n\
+            Run: cargo run --release -- confirm-mixed-regime --output generated",
+            mixed_regime_path.display()
+        )));
+    }
+
+    // Manual commands doc is one level up
+    let manual_commands_path = engine_native_dir
+        .parent()
+        .unwrap_or(engine_native_dir)
+        .join("manual_engine_native_commands.md");
+    if !manual_commands_path.exists() {
+        return Err(Error::Message(format!(
+            "engine-native gate: manual_engine_native_commands.md missing at {}\n\
+            Run: cargo run --release -- run-engine-native-replay \\\n  \
+            --manifest examples/engine_native_capture_manifest.json \\\n  \
+            --output generated/engine_native",
+            manual_commands_path.display()
+        )));
+    }
+
+    // Check for ENGINE_NATIVE_CAPTURE_MISSING flag
+    if !allow_pending {
+        let validation_report =
+            fs::read_to_string(engine_native_dir.join("engine_native_validation_report.md"))?;
+        if validation_report.contains("ENGINE_NATIVE_CAPTURE_MISSING=true") {
+            return Err(Error::Message(
+                "engine-native gate: ENGINE_NATIVE_CAPTURE_MISSING=true — no real engine capture \
+                has been provided.\n\
+                Options:\n\
+                  1. Provide a real engine capture (see docs/unreal_export_playbook.md)\n\
+                  2. Run with --allow-pending-engine-native to pass despite missing capture\n\
+                \n\
+                This is an EXTERNAL blocker. Internal infrastructure is complete.\n\
+                See generated/engine_native/engine_native_validation_report.md for details."
+                    .to_string(),
+            ));
+        }
+
+        // Check that mixed_regime_confirmed is not falsely claimed
+        let mixed_report = fs::read_to_string(&mixed_regime_path)?;
+        if mixed_report.contains("mixed_regime_confirmed")
+            && !mixed_report.contains("mixed_regime_confirmed_internal")
+            && !mixed_report.contains("NOT CONFIRMED")
+        {
+            return Err(Error::Message(
+                "engine-native gate: mixed_regime_confirmed claimed without evidence or internal label"
+                    .to_string(),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 pub fn export_minimal_report(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
     fs::create_dir_all(output_dir)?;
     let definitions = scenario_suite(&config.scene);

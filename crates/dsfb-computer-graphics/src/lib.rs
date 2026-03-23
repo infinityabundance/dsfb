@@ -3,6 +3,7 @@ pub mod config;
 pub mod cost;
 pub mod datasets;
 pub mod dsfb;
+pub mod engine_native;
 pub mod error;
 pub mod external;
 pub mod external_validation;
@@ -19,6 +20,7 @@ pub mod report;
 pub mod sampling;
 pub mod scaling;
 pub mod scene;
+pub mod mixed_regime;
 pub mod sensitivity;
 pub mod taa;
 pub mod timing;
@@ -36,6 +38,6 @@ pub use pipeline::{
     run_demo_a_filtered, run_demo_b, run_demo_b_efficiency_only, run_demo_b_filtered,
     run_external_replay_only, run_gpu_path_only, run_realism_bridge_only, run_realism_suite_only,
     run_resolution_scaling_only, run_sensitivity_only, run_timing_only,
-    scenario_definitions_for_filter, validate_artifact_bundle, validate_final_bundle,
-    DemoAArtifacts, DemoBArtifacts, RunAllArtifacts,
+    scenario_definitions_for_filter, validate_artifact_bundle, validate_engine_native_gates,
+    validate_final_bundle, DemoAArtifacts, DemoBArtifacts, RunAllArtifacts,
 };
