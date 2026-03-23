@@ -1,9 +1,11 @@
 pub mod cli;
 pub mod config;
 pub mod cost;
+pub mod datasets;
 pub mod dsfb;
 pub mod error;
 pub mod external;
+pub mod external_validation;
 pub mod frame;
 pub mod gpu;
 pub mod gpu_execution;

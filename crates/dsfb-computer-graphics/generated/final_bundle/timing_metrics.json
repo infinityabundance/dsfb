@@ -16,25 +16,25 @@
       "stages": [
         {
           "stage": "reproject",
-          "total_ms": 38.544335,
-          "ms_per_frame": 0.37788563725490193,
-          "ns_per_pixel": 24.60192950878268
+          "total_ms": 36.704082,
+          "ms_per_frame": 0.3598439411764706,
+          "ns_per_pixel": 23.427339920343137
         },
         {
           "stage": "supervise",
-          "total_ms": 99.40145799999999,
-          "ms_per_frame": 0.9745240980392156,
-          "ns_per_pixel": 63.445579299428104
+          "total_ms": 95.752065,
+          "ms_per_frame": 0.9387457352941176,
+          "ns_per_pixel": 61.11625880821079
         },
         {
           "stage": "resolve",
-          "total_ms": 2.391294,
-          "ms_per_frame": 0.02344405882352941,
-          "ns_per_pixel": 1.5263059129901961
+          "total_ms": 2.263967,
+          "ms_per_frame": 0.022195754901960785,
+          "ns_per_pixel": 1.4450361264297387
         }
       ],
-      "total_ms": 140.408936,
-      "ms_per_frame": 1.3765581960784317,
+      "total_ms": 134.789398,
+      "ms_per_frame": 1.3214646862745099,
       "estimated_ops_per_pixel": 20,
       "estimated_reads_per_pixel": 6,
       "estimated_writes_per_pixel": 3,
@@ -58,25 +58,25 @@
       "stages": [
         {
           "stage": "reproject",
-          "total_ms": 433.5014,
-          "ms_per_frame": 6.375020588235294,
-          "ns_per_pixel": 27.669360191993466
+          "total_ms": 419.55053300000003,
+          "ms_per_frame": 6.169860779411765,
+          "ns_per_pixel": 26.778909632863563
         },
         {
           "stage": "supervise",
-          "total_ms": 1454.74636,
-          "ms_per_frame": 21.393328823529412,
-          "ns_per_pixel": 92.85298968545753
+          "total_ms": 1406.400374,
+          "ms_per_frame": 20.682358441176472,
+          "ns_per_pixel": 89.76718073427287
         },
         {
           "stage": "resolve",
-          "total_ms": 40.284507999999995,
-          "ms_per_frame": 0.5924192352941176,
-          "ns_per_pixel": 2.5712640420751636
+          "total_ms": 36.829944000000005,
+          "ms_per_frame": 0.5416168235294119,
+          "ns_per_pixel": 2.350767463235294
         }
       ],
-      "total_ms": 1929.905682,
-      "ms_per_frame": 28.380965911764708,
+      "total_ms": 1864.2205549999999,
+      "ms_per_frame": 27.415008161764703,
       "estimated_ops_per_pixel": 60,
       "estimated_reads_per_pixel": 22,
       "estimated_writes_per_pixel": 9,
@@ -101,25 +101,25 @@
       "stages": [
         {
           "stage": "reproject",
-          "total_ms": 383.41308200000003,
-          "ms_per_frame": 5.638427676470589,
-          "ns_per_pixel": 24.472342345792484
+          "total_ms": 366.638602,
+          "ms_per_frame": 5.391744147058823,
+          "ns_per_pixel": 23.401667304942812
         },
         {
           "stage": "supervise",
-          "total_ms": 1449.797349,
-          "ms_per_frame": 21.32054925,
-          "ns_per_pixel": 92.53710611979167
+          "total_ms": 1388.813298,
+          "ms_per_frame": 20.423724970588236,
+          "ns_per_pixel": 88.64463962928922
         },
         {
           "stage": "resolve",
-          "total_ms": 39.995473,
-          "ms_per_frame": 0.5881687205882352,
-          "ns_per_pixel": 2.5528156275531044
+          "total_ms": 38.476655,
+          "ms_per_frame": 0.5658331617647059,
+          "ns_per_pixel": 2.4558730979370913
         }
       ],
-      "total_ms": 2081.777726,
-      "ms_per_frame": 30.614378323529408,
+      "total_ms": 1997.188114,
+      "ms_per_frame": 29.37041344117647,
       "estimated_ops_per_pixel": 66,
       "estimated_reads_per_pixel": 24,
       "estimated_writes_per_pixel": 16,
@@ -143,25 +143,25 @@
       "stages": [
         {
           "stage": "reproject",
-          "total_ms": 858.319131,
-          "ms_per_frame": 50.489360647058824,
-          "ns_per_pixel": 24.34865000340414
+          "total_ms": 844.80616,
+          "ms_per_frame": 49.69448,
+          "ns_per_pixel": 23.96531635802469
         },
         {
           "stage": "supervise",
-          "total_ms": 2320.287459,
-          "ms_per_frame": 136.4874975882353,
-          "ns_per_pixel": 65.82151696963507
+          "total_ms": 2320.655666,
+          "ms_per_frame": 136.50915682352942,
+          "ns_per_pixel": 65.83196220270516
         },
         {
           "stage": "resolve",
-          "total_ms": 69.937492,
-          "ms_per_frame": 4.113970117647059,
-          "ns_per_pixel": 1.9839747866739288
+          "total_ms": 66.00921199999999,
+          "ms_per_frame": 3.882894823529411,
+          "ns_per_pixel": 1.8725380128903413
         }
       ],
-      "total_ms": 3251.484842,
-      "ms_per_frame": 191.26381423529412,
+      "total_ms": 3234.668002,
+      "ms_per_frame": 190.27458835294118,
       "estimated_ops_per_pixel": 60,
       "estimated_reads_per_pixel": 22,
       "estimated_writes_per_pixel": 9,

@@ -10,8 +10,8 @@ Kernel: `dsfb_host_minimum` in `wgsl`.
 
 | Label | Scenario | Resolution | Measured | Adapter | Total ms | Dispatch ms | Readback ms | Trust delta vs CPU |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |
-| gpu_host_minimum_reveal_band | reveal_band | 160x96 | true | NVIDIA GeForce RTX 4080 SUPER | 0.364 | 0.326 | 0.037 | 0.000000 |
-| gpu_host_minimum_motion_bias_band | motion_bias_band | 160x96 | true | NVIDIA GeForce RTX 4080 SUPER | 0.302 | 0.259 | 0.042 | 0.000000 |
+| gpu_host_minimum_reveal_band | reveal_band | 160x96 | true | NVIDIA GeForce RTX 4080 SUPER | 0.331 | 0.291 | 0.039 | 0.000000 |
+| gpu_host_minimum_motion_bias_band | motion_bias_band | 160x96 | true | NVIDIA GeForce RTX 4080 SUPER | 0.330 | 0.296 | 0.032 | 0.000000 |
 
 ## GPU Path Status
 

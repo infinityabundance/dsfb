@@ -789,7 +789,10 @@ fn thin_structure_color_continuous(
     }
     if matches!(scenario_id, ScenarioId::DiagonalReveal) {
         Color::rgb(0.24, 0.29, 0.35)
-    } else if matches!(scenario_id, ScenarioId::RevealBand | ScenarioId::LayeredSlats) {
+    } else if matches!(
+        scenario_id,
+        ScenarioId::RevealBand | ScenarioId::LayeredSlats
+    ) {
         let phase = ((sample_x + 2.0 * sample_y).rem_euclid(9.0)) / 8.0;
         Color::rgb(
             0.22 + 0.48 * phase,
@@ -855,7 +858,7 @@ fn object_color_continuous(sample_x: f32, sample_y: f32, rect: Rect) -> Color {
     .clamp01()
 }
 
-fn guided_allocation(
+pub(crate) fn guided_allocation(
     difficulty: &ScalarField,
     total_samples: usize,
     min_spp: usize,
@@ -969,7 +972,7 @@ fn build_error_field(frame: &ImageFrame, reference: &ImageFrame) -> ScalarField 
     field
 }
 
-fn build_count_field(counts: &[usize], width: usize, height: usize) -> ScalarField {
+pub(crate) fn build_count_field(counts: &[usize], width: usize, height: usize) -> ScalarField {
     let mut field = ScalarField::new(width, height);
     for y in 0..height {
         for x in 0..width {
@@ -979,7 +982,7 @@ fn build_count_field(counts: &[usize], width: usize, height: usize) -> ScalarFie
     field
 }
 
-fn mean_count_over_mask(counts: &[usize], mask: &[bool]) -> f32 {
+pub(crate) fn mean_count_over_mask(counts: &[usize], mask: &[bool]) -> f32 {
     let mut sum = 0usize;
     let mut count = 0usize;
     for (spp, include) in counts.iter().copied().zip(mask.iter().copied()) {
@@ -1021,7 +1024,7 @@ fn rmse(frame: &ImageFrame, reference: &ImageFrame, mask: Option<&[bool]>) -> f3
     }
 }
 
-fn invert_trust(trust: &ScalarField) -> ScalarField {
+pub(crate) fn invert_trust(trust: &ScalarField) -> ScalarField {
     let mut field = ScalarField::new(trust.width(), trust.height());
     for y in 0..trust.height() {
         for x in 0..trust.width() {
@@ -1031,7 +1034,7 @@ fn invert_trust(trust: &ScalarField) -> ScalarField {
     field
 }
 
-fn gradient_field(frame: &ImageFrame) -> ScalarField {
+pub(crate) fn gradient_field(frame: &ImageFrame) -> ScalarField {
     let mut field = ScalarField::new(frame.width(), frame.height());
     for y in 0..frame.height() {
         for x in 0..frame.width() {
@@ -1062,7 +1065,7 @@ fn residual_proxy_field(frame: &ImageFrame) -> ScalarField {
     field
 }
 
-fn local_contrast_field(frame: &ImageFrame) -> ScalarField {
+pub(crate) fn local_contrast_field(frame: &ImageFrame) -> ScalarField {
     let mut field = ScalarField::new(frame.width(), frame.height());
     for y in 0..frame.height() {
         for x in 0..frame.width() {
@@ -1094,7 +1097,11 @@ fn pilot_variance_field(pilot_a: &ImageFrame, pilot_b: &ImageFrame) -> ScalarFie
     field
 }
 
-fn combine_fields(fields: &[(&ScalarField, f32)], width: usize, height: usize) -> ScalarField {
+pub(crate) fn combine_fields(
+    fields: &[(&ScalarField, f32)],
+    width: usize,
+    height: usize,
+) -> ScalarField {
     let mut field = ScalarField::new(width, height);
     for y in 0..height {
         for x in 0..width {

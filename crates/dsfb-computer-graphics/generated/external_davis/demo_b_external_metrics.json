@@ -1,0 +1,673 @@
+{
+  "real_external_data_provided": true,
+  "no_real_external_data_provided": false,
+  "captures": [
+    {
+      "capture_label": "dance-twirl_frame_0079",
+      "regime": "aliasing_limited",
+      "metric_source": "allocation_proxy_without_reference",
+      "roi_source": "manifest_mask",
+      "roi_pixels": 54219,
+      "ground_truth_available": false,
+      "budget_total_samples": 819840,
+      "fixed_budget_equal": true,
+      "policies": [
+        {
+          "policy_id": "uniform",
+          "label": "Uniform",
+          "total_samples": 819840,
+          "overall_mae": 0.1988853,
+          "overall_rmse": 0.263455,
+          "roi_mae": 0.17678799,
+          "roi_rmse": 0.23811261,
+          "non_roi_mae": 0.20224655,
+          "non_roi_rmse": 0.26711023,
+          "roi_mean_spp": 2.0,
+          "non_roi_mean_spp": 2.0,
+          "max_spp": 2,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": 0.0,
+          "roi_error_reduction_per_extra_roi_sample": 0.0
+        },
+        {
+          "policy_id": "edge_guided",
+          "label": "Gradient magnitude",
+          "total_samples": 819840,
+          "overall_mae": 0.19341879,
+          "overall_rmse": 0.2442919,
+          "roi_mae": 0.17440957,
+          "roi_rmse": 0.22349857,
+          "non_roi_mae": 0.19631329,
+          "non_roi_rmse": 0.2473091,
+          "roi_mean_spp": 1.9696232,
+          "non_roi_mean_spp": 2.0046303,
+          "max_spp": 7,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.030376792,
+          "roi_error_reduction_per_extra_roi_sample": 2378.419
+        },
+        {
+          "policy_id": "contrast_guided",
+          "label": "Contrast-based",
+          "total_samples": 819840,
+          "overall_mae": 0.18889113,
+          "overall_rmse": 0.23553962,
+          "roi_mae": 0.17681812,
+          "roi_rmse": 0.22469877,
+          "non_roi_mae": 0.19073246,
+          "non_roi_rmse": 0.23714983,
+          "roi_mean_spp": 1.8537598,
+          "non_roi_mean_spp": 2.0222912,
+          "max_spp": 5,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.14624023,
+          "roi_error_reduction_per_extra_roi_sample": -30.130148
+        },
+        {
+          "policy_id": "variance_guided",
+          "label": "Variance proxy",
+          "total_samples": 819840,
+          "overall_mae": 0.18521446,
+          "overall_rmse": 0.21825567,
+          "roi_mae": 0.17679745,
+          "roi_rmse": 0.21187684,
+          "non_roi_mae": 0.18649268,
+          "non_roi_rmse": 0.21921775,
+          "roi_mean_spp": 1.7739168,
+          "non_roi_mean_spp": 2.0344615,
+          "max_spp": 6,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.22608316,
+          "roi_error_reduction_per_extra_roi_sample": -9.462237
+        },
+        {
+          "policy_id": "combined_heuristic",
+          "label": "Combined heuristic",
+          "total_samples": 819840,
+          "overall_mae": 0.17977253,
+          "overall_rmse": 0.21308208,
+          "roi_mae": 0.16814724,
+          "roi_rmse": 0.20038222,
+          "non_roi_mae": 0.18154366,
+          "non_roi_rmse": 0.21495585,
+          "roi_mean_spp": 1.8018591,
+          "non_roi_mean_spp": 2.0302024,
+          "max_spp": 7,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.19814086,
+          "roi_error_reduction_per_extra_roi_sample": 8640.751
+        },
+        {
+          "policy_id": "imported_trust",
+          "label": "DSFB imported trust",
+          "total_samples": 819840,
+          "overall_mae": 0.18715699,
+          "overall_rmse": 0.22112407,
+          "roi_mae": 0.17019504,
+          "roi_rmse": 0.20233706,
+          "non_roi_mae": 0.18973944,
+          "non_roi_rmse": 0.22385679,
+          "roi_mean_spp": 1.9011048,
+          "non_roi_mean_spp": 2.0150745,
+          "max_spp": 9,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.09889519,
+          "roi_error_reduction_per_extra_roi_sample": 6592.9443
+        },
+        {
+          "policy_id": "hybrid_trust_variance",
+          "label": "Hybrid trust + variance",
+          "total_samples": 819840,
+          "overall_mae": 0.18769072,
+          "overall_rmse": 0.22147922,
+          "roi_mae": 0.17649306,
+          "roi_rmse": 0.21144637,
+          "non_roi_mae": 0.18939337,
+          "non_roi_rmse": 0.2229753,
+          "roi_mean_spp": 1.8242867,
+          "non_roi_mean_spp": 2.0267837,
+          "max_spp": 8,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.1757133,
+          "roi_error_reduction_per_extra_roi_sample": 294.9238
+        }
+      ],
+      "budget_curves": [
+        {
+          "scenario_id": "dance-twirl_frame_0079",
+          "policy_id": "uniform",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.25001565
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.17678799
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.12500782
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.08839399
+            }
+          ]
+        },
+        {
+          "scenario_id": "dance-twirl_frame_0079",
+          "policy_id": "combined_heuristic",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.25001565
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.16814724
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.118954934
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.08211939
+            }
+          ]
+        },
+        {
+          "scenario_id": "dance-twirl_frame_0079",
+          "policy_id": "imported_trust",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.25001565
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.17019504
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.12087863
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.08457162
+            }
+          ]
+        },
+        {
+          "scenario_id": "dance-twirl_frame_0079",
+          "policy_id": "hybrid_trust_variance",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.25001565
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.17649306
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.12359478
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.084051326
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "capture_label": "soapbox_frame_0069",
+      "regime": "variance_limited",
+      "metric_source": "allocation_proxy_without_reference",
+      "roi_source": "manifest_mask",
+      "roi_pixels": 99358,
+      "ground_truth_available": false,
+      "budget_total_samples": 819840,
+      "fixed_budget_equal": true,
+      "policies": [
+        {
+          "policy_id": "uniform",
+          "label": "Uniform",
+          "total_samples": 819840,
+          "overall_mae": 0.18473718,
+          "overall_rmse": 0.25611848,
+          "roi_mae": 0.17879406,
+          "roi_rmse": 0.2539547,
+          "non_roi_mae": 0.18663852,
+          "non_roi_rmse": 0.25683466,
+          "roi_mean_spp": 2.0,
+          "non_roi_mean_spp": 2.0,
+          "max_spp": 2,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": 0.0,
+          "roi_error_reduction_per_extra_roi_sample": 0.0
+        },
+        {
+          "policy_id": "edge_guided",
+          "label": "Gradient magnitude",
+          "total_samples": 819840,
+          "overall_mae": 0.1810819,
+          "overall_rmse": 0.24326053,
+          "roi_mae": 0.16283529,
+          "roi_rmse": 0.22171427,
+          "non_roi_mae": 0.18692021,
+          "non_roi_rmse": 0.24977493,
+          "roi_mean_spp": 2.241742,
+          "non_roi_mean_spp": 1.9226595,
+          "max_spp": 9,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": 0.2417419,
+          "roi_error_reduction_per_extra_roi_sample": 0.06601574
+        },
+        {
+          "policy_id": "contrast_guided",
+          "label": "Contrast-based",
+          "total_samples": 819840,
+          "overall_mae": 0.1790332,
+          "overall_rmse": 0.23887731,
+          "roi_mae": 0.15759538,
+          "roi_rmse": 0.21190225,
+          "non_roi_mae": 0.18588972,
+          "non_roi_rmse": 0.24690567,
+          "roi_mean_spp": 2.3096178,
+          "non_roi_mean_spp": 1.9009441,
+          "max_spp": 7,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": 0.30961776,
+          "roi_error_reduction_per_extra_roi_sample": 0.068467245
+        },
+        {
+          "policy_id": "variance_guided",
+          "label": "Variance proxy",
+          "total_samples": 819840,
+          "overall_mae": 0.1649521,
+          "overall_rmse": 0.2027365,
+          "roi_mae": 0.16732912,
+          "roi_rmse": 0.21086708,
+          "non_roi_mae": 0.16419436,
+          "non_roi_rmse": 0.20007126,
+          "roi_mean_spp": 1.8320014,
+          "non_roi_mean_spp": 2.0537477,
+          "max_spp": 5,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.16799855,
+          "roi_error_reduction_per_extra_roi_sample": 11464.938
+        },
+        {
+          "policy_id": "combined_heuristic",
+          "label": "Combined heuristic",
+          "total_samples": 819840,
+          "overall_mae": 0.16360708,
+          "overall_rmse": 0.20419617,
+          "roi_mae": 0.15401708,
+          "roi_rmse": 0.19422464,
+          "non_roi_mae": 0.16667356,
+          "non_roi_rmse": 0.20729515,
+          "roi_mean_spp": 2.0614948,
+          "non_roi_mean_spp": 1.9803259,
+          "max_spp": 8,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": 0.061494827,
+          "roi_error_reduction_per_extra_roi_sample": 0.4029116
+        },
+        {
+          "policy_id": "imported_trust",
+          "label": "DSFB imported trust",
+          "total_samples": 819840,
+          "overall_mae": 0.16626626,
+          "overall_rmse": 0.20323083,
+          "roi_mae": 0.16657954,
+          "roi_rmse": 0.20937379,
+          "non_roi_mae": 0.16616167,
+          "non_roi_rmse": 0.20123133,
+          "roi_mean_spp": 1.8460919,
+          "non_roi_mean_spp": 2.0492399,
+          "max_spp": 6,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.15390813,
+          "roi_error_reduction_per_extra_roi_sample": 12214.512
+        },
+        {
+          "policy_id": "hybrid_trust_variance",
+          "label": "Hybrid trust + variance",
+          "total_samples": 819840,
+          "overall_mae": 0.16706248,
+          "overall_rmse": 0.20410559,
+          "roi_mae": 0.16989854,
+          "roi_rmse": 0.2134169,
+          "non_roi_mae": 0.16615206,
+          "non_roi_rmse": 0.20104179,
+          "roi_mean_spp": 1.8175889,
+          "non_roi_mean_spp": 2.0583587,
+          "max_spp": 6,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.18241107,
+          "roi_error_reduction_per_extra_roi_sample": 8895.517
+        }
+      ],
+      "budget_curves": [
+        {
+          "scenario_id": "soapbox_frame_0069",
+          "policy_id": "uniform",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.25285316
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.17879406
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.12642658
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.08939703
+            }
+          ]
+        },
+        {
+          "scenario_id": "soapbox_frame_0069",
+          "policy_id": "combined_heuristic",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.25285316
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.15401708
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.10855443
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.07982674
+            }
+          ]
+        },
+        {
+          "scenario_id": "soapbox_frame_0069",
+          "policy_id": "imported_trust",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.25285316
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.16657954
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.124736294
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.08318032
+            }
+          ]
+        },
+        {
+          "scenario_id": "soapbox_frame_0069",
+          "policy_id": "hybrid_trust_variance",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.25285316
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.16989854
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.12291109
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.08292454
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "capture_label": "camel_frame_0020",
+      "regime": "aliasing_limited",
+      "metric_source": "allocation_proxy_without_reference",
+      "roi_source": "manifest_mask",
+      "roi_pixels": 63015,
+      "ground_truth_available": false,
+      "budget_total_samples": 819840,
+      "fixed_budget_equal": true,
+      "policies": [
+        {
+          "policy_id": "uniform",
+          "label": "Uniform",
+          "total_samples": 819840,
+          "overall_mae": 0.17502093,
+          "overall_rmse": 0.23065911,
+          "roi_mae": 0.10394742,
+          "roi_rmse": 0.15826726,
+          "non_roi_mae": 0.18793179,
+          "non_roi_rmse": 0.2414994,
+          "roi_mean_spp": 2.0,
+          "non_roi_mean_spp": 2.0,
+          "max_spp": 2,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": 0.0,
+          "roi_error_reduction_per_extra_roi_sample": 0.0
+        },
+        {
+          "policy_id": "edge_guided",
+          "label": "Gradient magnitude",
+          "total_samples": 819840,
+          "overall_mae": 0.16566329,
+          "overall_rmse": 0.19852282,
+          "roi_mae": 0.112094335,
+          "roi_rmse": 0.15233116,
+          "non_roi_mae": 0.17539515,
+          "non_roi_rmse": 0.20580596,
+          "roi_mean_spp": 1.447322,
+          "non_roi_mean_spp": 2.1003935,
+          "max_spp": 6,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.552678,
+          "roi_error_reduction_per_extra_roi_sample": -8146.912
+        },
+        {
+          "policy_id": "contrast_guided",
+          "label": "Contrast-based",
+          "total_samples": 819840,
+          "overall_mae": 0.16149986,
+          "overall_rmse": 0.19352695,
+          "roi_mae": 0.10925805,
+          "roi_rmse": 0.14635278,
+          "non_roi_mae": 0.17098936,
+          "non_roi_rmse": 0.20091216,
+          "roi_mean_spp": 1.4694755,
+          "non_roi_mean_spp": 2.0963693,
+          "max_spp": 4,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.5305245,
+          "roi_error_reduction_per_extra_roi_sample": -5310.625
+        },
+        {
+          "policy_id": "variance_guided",
+          "label": "Variance proxy",
+          "total_samples": 819840,
+          "overall_mae": 0.16651312,
+          "overall_rmse": 0.19730823,
+          "roi_mae": 0.11025969,
+          "roi_rmse": 0.14310019,
+          "non_roi_mae": 0.17673135,
+          "non_roi_rmse": 0.20562986,
+          "roi_mean_spp": 1.5079426,
+          "non_roi_mean_spp": 2.089382,
+          "max_spp": 9,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.49205744,
+          "roi_error_reduction_per_extra_roi_sample": -6312.266
+        },
+        {
+          "policy_id": "combined_heuristic",
+          "label": "Combined heuristic",
+          "total_samples": 819840,
+          "overall_mae": 0.15853544,
+          "overall_rmse": 0.184222,
+          "roi_mae": 0.106522135,
+          "roi_rmse": 0.136382,
+          "non_roi_mae": 0.16798306,
+          "non_roi_rmse": 0.19163556,
+          "roi_mean_spp": 1.4752202,
+          "non_roi_mean_spp": 2.0953257,
+          "max_spp": 7,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.5247798,
+          "roi_error_reduction_per_extra_roi_sample": -2574.7122
+        },
+        {
+          "policy_id": "imported_trust",
+          "label": "DSFB imported trust",
+          "total_samples": 819840,
+          "overall_mae": 0.16864802,
+          "overall_rmse": 0.20549208,
+          "roi_mae": 0.097033165,
+          "roi_rmse": 0.13123333,
+          "non_roi_mae": 0.18165708,
+          "non_roi_rmse": 0.21627039,
+          "roi_mean_spp": 2.162628,
+          "non_roi_mean_spp": 1.9704587,
+          "max_spp": 12,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": 0.16262794,
+          "roi_error_reduction_per_extra_roi_sample": 0.042515807
+        },
+        {
+          "policy_id": "hybrid_trust_variance",
+          "label": "Hybrid trust + variance",
+          "total_samples": 819840,
+          "overall_mae": 0.16689241,
+          "overall_rmse": 0.20054331,
+          "roi_mae": 0.1063607,
+          "roi_rmse": 0.13785872,
+          "non_roi_mae": 0.1778883,
+          "non_roi_rmse": 0.20993406,
+          "roi_mean_spp": 1.6334364,
+          "non_roi_mean_spp": 2.066586,
+          "max_spp": 12,
+          "allocation_concentration": 2.0,
+          "extra_roi_samples_vs_uniform": -0.36656356,
+          "roi_error_reduction_per_extra_roi_sample": -2413.2803
+        }
+      ],
+      "budget_curves": [
+        {
+          "scenario_id": "camel_frame_0020",
+          "policy_id": "uniform",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.14700428
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.10394742
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.07350214
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.05197371
+            }
+          ]
+        },
+        {
+          "scenario_id": "camel_frame_0020",
+          "policy_id": "combined_heuristic",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.14700428
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.106522135
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.07705648
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.051590223
+            }
+          ]
+        },
+        {
+          "scenario_id": "camel_frame_0020",
+          "policy_id": "imported_trust",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.14700428
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.097033165
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.071803026
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.050781183
+            }
+          ]
+        },
+        {
+          "scenario_id": "camel_frame_0020",
+          "policy_id": "hybrid_trust_variance",
+          "points": [
+            {
+              "average_spp": 1.0,
+              "roi_mae": 0.14700428
+            },
+            {
+              "average_spp": 2.0,
+              "roi_mae": 0.1063607
+            },
+            {
+              "average_spp": 4.0,
+              "roi_mae": 0.07345726
+            },
+            {
+              "average_spp": 8.0,
+              "roi_mae": 0.051170852
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "External Demo B is an allocation proxy, not a live renderer replay, because imported captures do not contain per-sample shading or multi-budget re-renders.",
+    "The proxy still enforces identical total budgets across all policies and is intended to guide the next engine-side experiment rather than replace it."
+  ]
+}

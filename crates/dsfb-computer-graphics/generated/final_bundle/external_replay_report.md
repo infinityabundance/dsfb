@@ -4,7 +4,9 @@
 
 This report covers the file-based external buffer replay path. It demonstrates that the crate is external-capable, not externally validated.
 
-Source kind: `synthetic_compat`. Externally validated: `false`.
+Source kind: `synthetic_compat`. Externally validated: `false`. Real external data provided: `false`.
+
+NO REAL EXTERNAL DATA PROVIDED
 
 ## Required Buffers
 
@@ -20,10 +22,17 @@ Source kind: `synthetic_compat`. Externally validated: `false`.
 
 - `png_rgb8`
 - `json_rgb_f32`
+- `exr_rgb32f`
 - `json_scalar_f32`
+- `exr_r32f`
+- `raw_r32f` with inline width/height/channels = 1
 - `json_vec2_f32`
+- `exr_rg32f`
+- `raw_rg32f` with inline width/height/channels >= 2
 - `json_vec3_f32`
+- `raw_rgb32f` with inline width/height/channels >= 3
 - `json_mask_bool`
+- `raw_mask_u8` with inline width/height/channels = 1
 - `json_metadata`
 
 ## Normalization Conventions
@@ -59,9 +68,10 @@ Source kind: `synthetic_compat`. Externally validated: `false`.
 
 - A real renderer still needs to export buffers into this schema.
 - Real production captures and engine motion vectors are still required for external validation.
-- GPU measurements on imported captures remain future work.
+- If the GPU external report is unmeasured on the evaluator machine, imported-capture GPU timing still remains future work there.
 
 ## Manifest Notes
 
 - Switch source.kind from synthetic_compat to files when real engine exports are available.
 - This example is external-capable but not externally validated.
+- NO REAL EXTERNAL DATA PROVIDED

@@ -123,14 +123,14 @@ Import an external or synthetic-compat capture through the stable handoff schema
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run --release -- import-external --manifest examples/external_capture_manifest.json --output generated/external_demo
+cargo run --release -- import-external --manifest examples/external_capture_manifest.json --output generated/external_real
 ```
 
 Run the same path through the evaluator-facing alias:
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run --release -- run-external-replay --manifest examples/external_capture_manifest.json --output generated/external_replay
+cargo run --release -- run-external-replay --manifest examples/external_capture_manifest.json --output generated/external_real
 ```
 
 Generate the resolution study only:
@@ -215,6 +215,13 @@ cargo run --release -- validate-final --output generated/final_bundle
 - `trust_diagnostics.json`
 - `timing_report.md`
 - `timing_metrics.json`
+- `external_real/external_validation_report.md`
+- `external_real/gpu_external_report.md`
+- `external_real/demo_a_external_report.md`
+- `external_real/demo_b_external_report.md`
+- `external_real/scaling_report.md`
+- `external_real/memory_bandwidth_report.md`
+- `external_real/integration_scaling_report.md`
 - `resolution_scaling_report.md`
 - `resolution_scaling_metrics.json`
 - `parameter_sensitivity_report.md`

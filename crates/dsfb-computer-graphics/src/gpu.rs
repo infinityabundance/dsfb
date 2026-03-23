@@ -328,8 +328,7 @@ async fn try_execute_host_minimum_kernel_async(
 
     let trust_staging = create_staging_buffer(&device, output_size, "trust-staging");
     let alpha_staging = create_staging_buffer(&device, output_size, "alpha-staging");
-    let intervention_staging =
-        create_staging_buffer(&device, output_size, "intervention-staging");
+    let intervention_staging = create_staging_buffer(&device, output_size, "intervention-staging");
 
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("dsfb-host-minimum-wgsl"),
@@ -433,11 +432,7 @@ fn create_staging_buffer(device: &wgpu::Device, size: u64, label: &str) -> wgpu:
     })
 }
 
-fn read_f32_buffer(
-    device: &wgpu::Device,
-    buffer: &wgpu::Buffer,
-    count: usize,
-) -> Result<Vec<f32>> {
+fn read_f32_buffer(device: &wgpu::Device, buffer: &wgpu::Buffer, count: usize) -> Result<Vec<f32>> {
     let slice = buffer.slice(..);
     let (sender, receiver) = mpsc::channel();
     slice.map_async(wgpu::MapMode::Read, move |result| {
@@ -462,7 +457,8 @@ fn read_f32_buffer(
 }
 
 fn pack_colors(frame: &crate::frame::ImageFrame) -> Vec<GpuColor> {
-    frame.pixels()
+    frame
+        .pixels()
         .iter()
         .map(|pixel| GpuColor {
             value: [pixel.r, pixel.g, pixel.b, 1.0],
@@ -506,7 +502,12 @@ fn pack_normal_pairs(
 fn pack_params(width: usize, height: usize, parameters: HostSupervisionParameters) -> GpuParams {
     GpuParams {
         size: [width as u32, height as u32, 0, 0],
-        alpha_range: [parameters.alpha_range.min, parameters.alpha_range.max, 0.0, 0.0],
+        alpha_range: [
+            parameters.alpha_range.min,
+            parameters.alpha_range.max,
+            0.0,
+            0.0,
+        ],
         residual_threshold: [
             parameters.thresholds.residual.low,
             parameters.thresholds.residual.high,

@@ -64,8 +64,10 @@ pub fn run_gpu_execution_study(config: &DemoConfig) -> Result<GpuExecutionMetric
         let fixed_alpha = run_fixed_alpha_baseline(&sequence, config.baseline.fixed_alpha);
         let previous_history = fixed_alpha.taa.resolved_frames.get(frame_index - 1);
         let inputs = build_owned_inputs_from_sequence(&sequence, frame_index, previous_history)?;
-        let profile =
-            default_host_realistic_profile(config.dsfb_alpha_range.min, config.dsfb_alpha_range.max);
+        let profile = default_host_realistic_profile(
+            config.dsfb_alpha_range.min,
+            config.dsfb_alpha_range.max,
+        );
         let cpu_outputs = supervise_temporal_reuse(&inputs.borrow(), &profile);
 
         let maybe_gpu = try_execute_host_minimum_kernel(&inputs, profile.parameters)?;

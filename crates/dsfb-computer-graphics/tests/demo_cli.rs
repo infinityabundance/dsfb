@@ -32,12 +32,12 @@ fn cli_run_all_and_validate_artifacts_succeed() {
     assert!(status.success(), "run-all command should succeed");
 
     let validate = Command::new(binary)
-        .arg("validate-final")
+        .arg("validate-artifacts")
         .arg("--output")
         .arg(&output_dir)
         .status()
         .expect("binary should execute");
-    assert!(validate.success(), "validate-final should succeed");
+    assert!(validate.success(), "validate-artifacts should succeed");
 
     for relative in [
         "artifact_manifest.json",
@@ -50,6 +50,16 @@ fn cli_run_all_and_validate_artifacts_succeed() {
         "gpu_execution_metrics.json",
         "external_replay_report.md",
         "external_handoff_report.md",
+        "external_real/gpu_external_report.md",
+        "external_real/gpu_external_metrics.json",
+        "external_real/demo_a_external_report.md",
+        "external_real/demo_b_external_report.md",
+        "external_real/demo_b_external_metrics.json",
+        "external_real/external_validation_report.md",
+        "external_real/scaling_report.md",
+        "external_real/scaling_metrics.json",
+        "external_real/memory_bandwidth_report.md",
+        "external_real/integration_scaling_report.md",
         "realism_suite_report.md",
         "realism_bridge_report.md",
         "scenario_taxonomy.json",
@@ -67,7 +77,7 @@ fn cli_run_all_and_validate_artifacts_succeed() {
         "check_signing_readiness.md",
         "demo_b/metrics.json",
         "demo_b/report.md",
-        "external_demo/resolved_external_capture_manifest.json",
+        "external_real/resolved_external_capture_manifest.json",
     ] {
         assert!(
             output_dir.join(relative).exists(),
@@ -174,7 +184,10 @@ fn cli_gpu_external_realism_and_handoff_commands_succeed() {
         .arg(&realism_dir)
         .status()
         .expect("binary should execute");
-    assert!(realism_status.success(), "run-realism-bridge should succeed");
+    assert!(
+        realism_status.success(),
+        "run-realism-bridge should succeed"
+    );
     assert!(realism_dir.join("realism_suite_report.md").exists());
     assert!(realism_dir.join("realism_bridge_report.md").exists());
     assert!(realism_dir.join("scenario_taxonomy.json").exists());
@@ -191,14 +204,29 @@ fn cli_gpu_external_realism_and_handoff_commands_succeed() {
         .arg(&external_dir)
         .status()
         .expect("binary should execute");
-    assert!(external_status.success(), "run-external-replay should succeed");
+    assert!(
+        external_status.success(),
+        "run-external-replay should succeed"
+    );
     assert!(external_dir.join("external_replay_report.md").exists());
     assert!(external_dir.join("external_handoff_report.md").exists());
-    assert!(
-        external_dir
-            .join("resolved_external_capture_manifest.json")
-            .exists()
-    );
+    assert!(external_dir.join("external_validation_report.md").exists());
+    assert!(external_dir.join("replay_metrics.json").exists());
+    assert!(external_dir.join("gpu_execution_report.md").exists());
+    assert!(external_dir.join("gpu_execution_metrics.json").exists());
+    assert!(external_dir.join("gpu_external_report.md").exists());
+    assert!(external_dir.join("gpu_external_metrics.json").exists());
+    assert!(external_dir.join("demo_a_external_report.md").exists());
+    assert!(external_dir.join("demo_a_external_metrics.json").exists());
+    assert!(external_dir.join("demo_b_external_report.md").exists());
+    assert!(external_dir.join("demo_b_external_metrics.json").exists());
+    assert!(external_dir.join("scaling_report.md").exists());
+    assert!(external_dir.join("scaling_metrics.json").exists());
+    assert!(external_dir.join("memory_bandwidth_report.md").exists());
+    assert!(external_dir.join("integration_scaling_report.md").exists());
+    assert!(external_dir
+        .join("resolved_external_capture_manifest.json")
+        .exists());
 
     let handoff_dir = unique_output_dir("cli_evaluator_handoff");
     let handoff_status = Command::new(binary)

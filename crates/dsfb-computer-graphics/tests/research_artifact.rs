@@ -117,6 +117,13 @@ fn run_all_generates_required_artifacts() {
         "check_signing_blockers.md",
         "trust_mode_report.md",
         "external_replay_report.md",
+        "external_real/external_validation_report.md",
+        "external_real/gpu_external_report.md",
+        "external_real/demo_a_external_report.md",
+        "external_real/demo_b_external_report.md",
+        "external_real/scaling_report.md",
+        "external_real/memory_bandwidth_report.md",
+        "external_real/integration_scaling_report.md",
         "realism_bridge_report.md",
         "product_positioning_report.md",
         "operating_band_report.md",
@@ -373,14 +380,44 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
     let trust_mode_report = read(output_dir.join("trust_mode_report.md"));
     let external_replay_report = read(output_dir.join("external_replay_report.md"));
     let external_report = read(output_dir.join("external_handoff_report.md"));
+    let external_validation_report = read(
+        output_dir
+            .join("external_real")
+            .join("external_validation_report.md"),
+    );
+    let gpu_external_report = read(
+        output_dir
+            .join("external_real")
+            .join("gpu_external_report.md"),
+    );
+    let demo_a_external_report = read(
+        output_dir
+            .join("external_real")
+            .join("demo_a_external_report.md"),
+    );
+    let demo_b_external_report = read(
+        output_dir
+            .join("external_real")
+            .join("demo_b_external_report.md"),
+    );
+    let scaling_report = read(output_dir.join("external_real").join("scaling_report.md"));
+    let memory_bandwidth_report = read(
+        output_dir
+            .join("external_real")
+            .join("memory_bandwidth_report.md"),
+    );
+    let integration_scaling_report = read(
+        output_dir
+            .join("external_real")
+            .join("integration_scaling_report.md"),
+    );
     let realism_report = read(output_dir.join("realism_suite_report.md"));
     let realism_bridge_report = read(output_dir.join("realism_bridge_report.md"));
     let competitive_report = read(output_dir.join("competitive_baseline_analysis.md"));
     let non_roi_report = read(output_dir.join("non_roi_penalty_report.md"));
     let product_positioning_report = read(output_dir.join("product_positioning_report.md"));
     let operating_band_report = read(output_dir.join("operating_band_report.md"));
-    let demo_b_competitive_report =
-        read(output_dir.join("demo_b_competitive_baselines_report.md"));
+    let demo_b_competitive_report = read(output_dir.join("demo_b_competitive_baselines_report.md"));
     let readiness_report = read(output_dir.join("check_signing_readiness.md"));
     let readme = read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("README.md"));
     let integration_doc = read(
@@ -401,6 +438,13 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
         &trust_mode_report,
         &external_replay_report,
         &external_report,
+        &external_validation_report,
+        &gpu_external_report,
+        &demo_a_external_report,
+        &demo_b_external_report,
+        &scaling_report,
+        &memory_bandwidth_report,
+        &integration_scaling_report,
         &realism_report,
         &realism_bridge_report,
         &competitive_report,
@@ -420,9 +464,20 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
     assert!(demo_b_report.contains("## What is not proven"));
     assert!(gpu_report.contains("Actual GPU timing measured"));
     assert!(gpu_report.contains("## Remaining Blockers"));
-    assert!(trust_mode_report.contains("near-binary") || trust_mode_report.contains("WeaklyGraded"));
+    assert!(
+        trust_mode_report.contains("near-binary") || trust_mode_report.contains("WeaklyGraded")
+    );
     assert!(external_replay_report.contains("external-capable"));
     assert!(external_report.contains("external-capable"));
+    assert!(external_validation_report.contains("NO REAL EXTERNAL DATA PROVIDED"));
+    assert!(external_validation_report.contains("## Next Required Experiment"));
+    assert!(gpu_external_report.contains("measured_gpu"));
+    assert!(demo_a_external_report.contains("metric_source"));
+    assert!(demo_b_external_report.contains("fixed_budget_equal"));
+    assert!(scaling_report.contains("scaled_1080p"));
+    assert!(scaling_report.contains("mixed_regime_case"));
+    assert!(memory_bandwidth_report.contains("Readback required in production: `false`"));
+    assert!(integration_scaling_report.contains("Async-Compute Feasibility"));
     assert!(realism_report.contains("realism-stress"));
     assert!(realism_bridge_report.contains("Region-ROI evidence"));
     assert!(competitive_report.contains("targeted supervisory overlay"));

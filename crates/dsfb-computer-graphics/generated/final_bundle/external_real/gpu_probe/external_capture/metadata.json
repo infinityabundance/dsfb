@@ -1,0 +1,16 @@
+{
+  "scenario_id": "motion_bias_band",
+  "frame_index": 6,
+  "history_frame_index": 5,
+  "width": 160,
+  "height": 96,
+  "source_kind": "synthetic_compat",
+  "externally_validated": false,
+  "real_external_data": false,
+  "data_description": "Deterministic synthetic compatibility export generated inside the crate",
+  "notes": [
+    "The example external capture was generated from the crate's deterministic synthetic suite.",
+    "Replace source.kind with files and point the buffer paths at real engine exports to move beyond synthetic compatibility.",
+    "NO REAL EXTERNAL DATA PROVIDED"
+  ]
+}

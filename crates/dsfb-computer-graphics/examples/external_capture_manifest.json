@@ -52,7 +52,13 @@
       "format": "json_mask_bool",
       "semantic": "optional ROI-like disclosure or debug mask"
     },
-    "optional_reference": null
+    "optional_reference": {
+      "path": "external_capture/optional_reference.png",
+      "format": "png_rgb8",
+      "semantic": "optional reference frame for evaluator-side error checks; synthetic in the bundled example"
+    },
+    "optional_ground_truth": null,
+    "optional_variance": null
   },
   "normalization": {
     "color": "linear RGB in [0,1]",
@@ -62,6 +68,7 @@
   },
   "notes": [
     "Switch source.kind from synthetic_compat to files when real engine exports are available.",
-    "This example is external-capable but not externally validated."
+    "This example is external-capable but not externally validated.",
+    "NO REAL EXTERNAL DATA PROVIDED"
   ]
 }
