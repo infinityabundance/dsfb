@@ -1,6 +1,6 @@
 # dsfb-computer-graphics
 
-`dsfb-computer-graphics` is a self-contained Rust artifact for evaluating DSFB-style supervision in temporal reuse and fixed-budget sampling. The crate is designed to be decision-clean rather than cosmetically polished: it exposes point-ROI caveats, mixed outcomes, gate-like trust behavior, CPU-only timing limits, and validation failures instead of hiding them.
+`dsfb-computer-graphics` is a self-contained Rust artifact for evaluating DSFB-style supervision in temporal reuse and fixed-budget sampling. The crate is designed to be decision-clean rather than cosmetically polished: it exposes point-ROI caveats, mixed outcomes, gate-like trust behavior, external-validation gaps, and validation failures instead of hiding them.
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
 
@@ -12,13 +12,13 @@
 - Motion disagreement is no longer hidden inside the minimum path; it is treated as an optional extension and reported separately.
 - Demo B no longer depends only on the original thin sub-pixel line case.
 - Hazard weights are centralized and sensitivity-vetted inside this crate.
-- A hardware-facing timing path exists as a CPU-only proxy with analytical traffic and op estimates.
+- A GPU-executable minimum kernel now exists alongside the CPU proxy timing path.
+- A stable external buffer import path exists for engine handoff without re-architecting the crate.
 
 ## What This Crate Does Not Prove
 
 - It does not prove production-scene generalization.
-- It does not prove measured GPU wins on real hardware.
-- It does not prove deployment readiness or engine integration completeness.
+- It does not prove universal engine integration success or externally validated production behavior.
 - It does not prove globally calibrated trust or globally optimal parameter settings.
 
 ## Core Evidence Shape
@@ -46,6 +46,9 @@ Scenario suite:
 - `diagonal_reveal`
 - `reveal_band`
 - `motion_bias_band`
+- `layered_slats`
+- `noisy_reprojection`
+- `heuristic_friendly_pan`
 - `contrast_pulse`
 - `stability_holdout`
 
@@ -93,11 +96,32 @@ cd crates/dsfb-computer-graphics
 cargo run --release -- run-timing --output generated/timing_only
 ```
 
+Generate the GPU execution path only:
+
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- run-gpu-path --output generated/gpu_path
+```
+
+Import an external or synthetic-compat capture through the stable handoff schema:
+
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- import-external --manifest examples/external_capture_manifest.json --output generated/external_demo
+```
+
 Generate the resolution study only:
 
 ```bash
 cd crates/dsfb-computer-graphics
 cargo run --release -- run-resolution-scaling --output generated/scaling_only
+```
+
+Generate the realism and taxonomy package only:
+
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- run-realism-suite --output generated/realism_only
 ```
 
 Generate the sensitivity sweep only:
@@ -128,6 +152,13 @@ cd crates/dsfb-computer-graphics
 cargo run --release -- export-minimal-report --output generated/minimal
 ```
 
+Export the external evaluator handoff package:
+
+```bash
+cd crates/dsfb-computer-graphics
+cargo run --release -- export-evaluator-handoff --output generated/evaluator_handoff
+```
+
 Validate an artifact directory:
 
 ```bash
@@ -151,14 +182,27 @@ cargo run --release -- validate --output generated/final_bundle
 - `resolution_scaling_metrics.json`
 - `parameter_sensitivity_report.md`
 - `parameter_sensitivity_metrics.json`
+- `gpu_execution_report.md`
+- `gpu_execution_metrics.json`
+- `external_handoff_report.md`
+- `realism_suite_report.md`
+- `scenario_taxonomy.json`
+- `competitive_baseline_analysis.md`
+- `non_roi_penalty_report.md`
 - `demo_b_decision_report.md`
 - `demo_b_efficiency_report.md`
+- `demo_b_aliasing_vs_variance_report.md`
+- `demo_b_scene_taxonomy.json`
+- `production_eval_checklist.md`
+- `evaluator_handoff.md`
+- `minimum_external_validation_plan.md`
+- `next_step_matrix.md`
 - `demo_b_metrics.json`
 - `metrics.json`
 - `figures/*.svg`
 - `demo_b/*`
 
-The validator fails if required files are missing, if point-ROI disclosure disappears, if degenerate trust rank correlation is presented as a headline claim, or if the timing report stops declaring that it is a CPU-only proxy.
+The validator fails if required files are missing, if point-ROI disclosure disappears, if degenerate trust rank correlation is presented as a headline claim, if external-validation needs disappear from decision-facing reports, or if the timing and GPU reports stop declaring measured vs unmeasured status.
 
 ## Key Current Readout
 
@@ -166,9 +210,10 @@ From the current default release bundle:
 
 - Canonical `thin_reveal` ROI size is `1` pixel.
 - `diagonal_reveal` ROI size is also `1` pixel.
-- `reveal_band` and `motion_bias_band` provide the larger region-ROI evidence path.
+- `reveal_band`, `layered_slats`, `motion_bias_band`, and `noisy_reprojection` provide the larger region-ROI evidence path.
 - The current host-realistic trust behavior is reported as near-binary / gate-like.
-- Actual GPU timing is not measured; the timing path is explicitly labeled `cpu_only_proxy`.
+- The CPU timing report remains explicitly labeled `cpu_only_proxy`.
+- The GPU execution bundle reports measured-vs-unmeasured status separately; on hosts with a usable adapter it records actual GPU timings.
 
 ## Minimum Viable Integration Surface
 
@@ -194,7 +239,12 @@ For details:
 - `docs/integration_surface.md`
 - `docs/cost_model.md`
 - `docs/gpu_path.md`
+- `docs/gpu_execution_path.md`
+- `docs/external_handoff.md`
+- `docs/engine_integration_playbook.md`
+- `docs/production_eval_bridge.md`
 - `docs/validation_contract.md`
+- `docs/completion_gates.md`
 
 ## DSFB Integration into Temporal Reuse
 
@@ -215,7 +265,7 @@ The current crate demonstrates supervisory modulation of temporal reuse, not a r
 
 ## GPU Implementation Considerations
 
-The crate now exposes a timing path, but the report states explicitly that it is a CPU-only proxy in the current environment. The timing bundle still provides:
+The crate now exposes both a CPU proxy timing path and a GPU execution path. The timing report remains CPU-side by design, while `run-gpu-path` records actual GPU execution when a usable adapter is present and explicitly reports when no measurement was possible. The timing bundle still provides:
 
 - per-stage timing
 - op and traffic estimates

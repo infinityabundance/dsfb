@@ -10,53 +10,53 @@
 <text x="870" y="94" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Wins</text>
 <text x="24" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">1</text>
 <text x="80" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB visibility-assisted</text>
-<text x="420" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">3.00</text>
-<text x="560" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.18370</text>
-<text x="720" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00242</text>
-<text x="870" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">2</text><text x="24" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">2</text>
+<text x="420" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">2.10</text>
+<text x="560" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.19921</text>
+<text x="720" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00321</text>
+<text x="870" y="110" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">5</text><text x="24" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">2</text>
 <text x="80" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB motion-augmented</text>
-<text x="420" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">3.43</text>
-<text x="560" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.15012</text>
-<text x="720" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00199</text>
+<text x="420" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">2.70</text>
+<text x="560" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.19947</text>
+<text x="720" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00304</text>
 <text x="870" y="144" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">2</text><text x="24" y="178" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">3</text>
 <text x="80" y="178" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB host-realistic minimum</text>
-<text x="420" y="178" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">4.14</text>
-<text x="560" y="178" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.18891</text>
-<text x="720" y="178" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00208</text>
+<text x="420" y="178" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">3.50</text>
+<text x="560" y="178" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.23780</text>
+<text x="720" y="178" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00317</text>
 <text x="870" y="178" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0</text><text x="24" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">4</text>
-<text x="80" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Strong heuristic baseline</text>
-<text x="420" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">5.29</text>
-<text x="560" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.33231</text>
-<text x="720" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00233</text>
-<text x="870" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">1</text><text x="24" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">5</text>
-<text x="80" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB without motion disagreement</text>
-<text x="420" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">5.71</text>
-<text x="560" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.18891</text>
-<text x="720" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00208</text>
-<text x="870" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0</text><text x="24" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">6</text>
-<text x="80" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Residual-threshold baseline</text>
-<text x="420" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">6.14</text>
-<text x="560" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.46103</text>
-<text x="720" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00506</text>
+<text x="80" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB without motion disagreement</text>
+<text x="420" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">4.90</text>
+<text x="560" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.23780</text>
+<text x="720" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00317</text>
+<text x="870" y="212" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0</text><text x="24" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">5</text>
+<text x="80" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Strong heuristic baseline</text>
+<text x="420" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">5.30</text>
+<text x="560" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.43532</text>
+<text x="720" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00332</text>
+<text x="870" y="246" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">1</text><text x="24" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">6</text>
+<text x="80" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB without thin proxy</text>
+<text x="420" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">6.10</text>
+<text x="560" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.43526</text>
+<text x="720" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00472</text>
 <text x="870" y="280" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0</text><text x="24" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">7</text>
-<text x="80" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB without thin proxy</text>
-<text x="420" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">6.29</text>
-<text x="560" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.34419</text>
-<text x="720" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00313</text>
+<text x="80" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB gated reference</text>
+<text x="420" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">6.40</text>
+<text x="560" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.31149</text>
+<text x="720" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00415</text>
 <text x="870" y="314" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0</text><text x="24" y="348" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">8</text>
 <text x="80" y="348" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Reactive-mask-style baseline</text>
-<text x="420" y="348" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">6.57</text>
-<text x="560" y="348" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.42264</text>
-<text x="720" y="348" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00419</text>
+<text x="420" y="348" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">6.80</text>
+<text x="560" y="348" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.54079</text>
+<text x="720" y="348" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00577</text>
 <text x="870" y="348" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0</text><text x="24" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">9</text>
-<text x="80" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB gated reference</text>
-<text x="420" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">7.43</text>
-<text x="560" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.24558</text>
-<text x="720" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00299</text>
+<text x="80" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Residual-threshold baseline</text>
+<text x="420" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">7.10</text>
+<text x="560" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.58085</text>
+<text x="720" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00689</text>
 <text x="870" y="382" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0</text><text x="24" y="416" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">10</text>
 <text x="80" y="416" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Depth/normal rejection baseline</text>
-<text x="420" y="416" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">8.43</text>
-<text x="560" y="416" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.52852</text>
-<text x="720" y="416" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00551</text>
+<text x="420" y="416" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">9.10</text>
+<text x="560" y="416" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.65275</text>
+<text x="720" y="416" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0.00757</text>
 <text x="870" y="416" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">0</text>
 </svg>

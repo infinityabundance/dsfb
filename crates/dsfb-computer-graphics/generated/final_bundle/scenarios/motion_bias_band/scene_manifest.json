@@ -6,6 +6,10 @@
   "support_category": "RegionRoi",
   "roi_note": "This is a region ROI with deliberately imperfect motion information. It is the main scenario used to decide whether motion disagreement belongs in the minimum path.",
   "sampling_taxonomy": "motion-mismatch reveal band",
+  "realism_stress": true,
+  "competitive_baseline_case": false,
+  "bounded_loss_disclosure": false,
+  "demo_b_taxonomy": "mixed",
   "target_label": "motion-bias reveal band",
   "config": {
     "width": 160,

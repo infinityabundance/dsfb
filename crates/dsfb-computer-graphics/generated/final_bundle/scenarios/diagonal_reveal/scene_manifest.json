@@ -6,6 +6,10 @@
   "support_category": "PointLikeRoi",
   "roi_note": "At default resolution the diagonal reveal also reduces to point-like support. It is useful for aliasing behavior, but not as a region-sized aggregate claim.",
   "sampling_taxonomy": "subpixel diagonal coverage case",
+  "realism_stress": false,
+  "competitive_baseline_case": false,
+  "bounded_loss_disclosure": false,
+  "demo_b_taxonomy": "aliasing_limited",
   "target_label": "diagonal thin reveal",
   "config": {
     "width": 160,

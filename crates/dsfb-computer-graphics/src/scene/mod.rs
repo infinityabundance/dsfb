@@ -10,6 +10,9 @@ pub enum ScenarioId {
     DiagonalReveal,
     RevealBand,
     MotionBiasBand,
+    LayeredSlats,
+    NoisyReprojection,
+    HeuristicFriendlyPan,
     ContrastPulse,
     StabilityHoldout,
 }
@@ -22,6 +25,9 @@ impl ScenarioId {
             Self::DiagonalReveal => "diagonal_reveal",
             Self::RevealBand => "reveal_band",
             Self::MotionBiasBand => "motion_bias_band",
+            Self::LayeredSlats => "layered_slats",
+            Self::NoisyReprojection => "noisy_reprojection",
+            Self::HeuristicFriendlyPan => "heuristic_friendly_pan",
             Self::ContrastPulse => "contrast_pulse",
             Self::StabilityHoldout => "stability_holdout",
         }
@@ -34,6 +40,9 @@ impl ScenarioId {
             Self::DiagonalReveal => "Diagonal Subpixel Reveal",
             Self::RevealBand => "Textured Reveal Band",
             Self::MotionBiasBand => "Motion-Bias Reveal Band",
+            Self::LayeredSlats => "Layered Slat Reveal",
+            Self::NoisyReprojection => "Noisy Reprojection Reveal",
+            Self::HeuristicFriendlyPan => "Heuristic-Friendly Pan",
             Self::ContrastPulse => "Contrast Pulse Stress",
             Self::StabilityHoldout => "Stability Holdout",
         }
@@ -126,6 +135,10 @@ pub struct SceneSequence {
     pub support_category: ScenarioSupportCategory,
     pub roi_note: String,
     pub sampling_taxonomy: String,
+    pub realism_stress: bool,
+    pub competitive_baseline_case: bool,
+    pub bounded_loss_disclosure: bool,
+    pub demo_b_taxonomy: String,
     pub onset_frame: usize,
     pub target_label: String,
     pub target_mask: Vec<bool>,
@@ -141,6 +154,10 @@ pub struct SceneManifest {
     pub support_category: ScenarioSupportCategory,
     pub roi_note: String,
     pub sampling_taxonomy: String,
+    pub realism_stress: bool,
+    pub competitive_baseline_case: bool,
+    pub bounded_loss_disclosure: bool,
+    pub demo_b_taxonomy: String,
     pub target_label: String,
     pub config: SceneConfig,
     pub frame_count: usize,
@@ -156,6 +173,10 @@ pub struct ScenarioDefinition {
     pub support_category: ScenarioSupportCategory,
     pub roi_note: &'static str,
     pub sampling_taxonomy: &'static str,
+    pub realism_stress: bool,
+    pub competitive_baseline_case: bool,
+    pub bounded_loss_disclosure: bool,
+    pub demo_b_taxonomy: &'static str,
     pub target_label: &'static str,
     pub scene: SceneConfig,
     pub onset_frame: usize,
@@ -201,6 +222,10 @@ struct InternalScenarioSpec {
     support_category: ScenarioSupportCategory,
     roi_note: &'static str,
     sampling_taxonomy: &'static str,
+    realism_stress: bool,
+    competitive_baseline_case: bool,
+    bounded_loss_disclosure: bool,
+    demo_b_taxonomy: &'static str,
     target_label: &'static str,
     scene: SceneConfig,
     onset_frame: usize,
@@ -220,6 +245,10 @@ pub fn canonical_scenario(config: &SceneConfig) -> ScenarioDefinition {
         support_category: spec.support_category,
         roi_note: spec.roi_note,
         sampling_taxonomy: spec.sampling_taxonomy,
+        realism_stress: spec.realism_stress,
+        competitive_baseline_case: spec.competitive_baseline_case,
+        bounded_loss_disclosure: spec.bounded_loss_disclosure,
+        demo_b_taxonomy: spec.demo_b_taxonomy,
         target_label: spec.target_label,
         scene: spec.scene,
         onset_frame: spec.onset_frame,
@@ -237,6 +266,10 @@ pub fn scenario_suite(config: &SceneConfig) -> Vec<ScenarioDefinition> {
             support_category: spec.support_category,
             roi_note: spec.roi_note,
             sampling_taxonomy: spec.sampling_taxonomy,
+            realism_stress: spec.realism_stress,
+            competitive_baseline_case: spec.competitive_baseline_case,
+            bounded_loss_disclosure: spec.bounded_loss_disclosure,
+            demo_b_taxonomy: spec.demo_b_taxonomy,
             target_label: spec.target_label,
             scene: spec.scene,
             onset_frame: spec.onset_frame,
@@ -256,6 +289,10 @@ pub fn scenario_by_id(config: &SceneConfig, scenario_id: ScenarioId) -> Option<S
             support_category: spec.support_category,
             roi_note: spec.roi_note,
             sampling_taxonomy: spec.sampling_taxonomy,
+            realism_stress: spec.realism_stress,
+            competitive_baseline_case: spec.competitive_baseline_case,
+            bounded_loss_disclosure: spec.bounded_loss_disclosure,
+            demo_b_taxonomy: spec.demo_b_taxonomy,
             target_label: spec.target_label,
             scene: spec.scene,
             onset_frame: spec.onset_frame,
@@ -278,6 +315,10 @@ pub fn generate_sequence_for_definition(definition: &ScenarioDefinition) -> Scen
             support_category: definition.support_category,
             roi_note: definition.roi_note,
             sampling_taxonomy: definition.sampling_taxonomy,
+            realism_stress: definition.realism_stress,
+            competitive_baseline_case: definition.competitive_baseline_case,
+            bounded_loss_disclosure: definition.bounded_loss_disclosure,
+            demo_b_taxonomy: definition.demo_b_taxonomy,
             target_label: definition.target_label,
             scene: definition.scene.clone(),
             onset_frame: definition.onset_frame,
@@ -298,6 +339,10 @@ pub fn build_manifest(sequence: &SceneSequence) -> SceneManifest {
         support_category: sequence.support_category,
         roi_note: sequence.roi_note.clone(),
         sampling_taxonomy: sequence.sampling_taxonomy.clone(),
+        realism_stress: sequence.realism_stress,
+        competitive_baseline_case: sequence.competitive_baseline_case,
+        bounded_loss_disclosure: sequence.bounded_loss_disclosure,
+        demo_b_taxonomy: sequence.demo_b_taxonomy.clone(),
         target_label: sequence.target_label.clone(),
         config: sequence.config.clone(),
         frame_count: sequence.frames.len(),
@@ -381,8 +426,18 @@ fn generate_sequence_for_scenario(spec: &InternalScenarioSpec) -> SceneSequence 
             }
         }
 
-        if matches!(spec.id, ScenarioId::MotionBiasBand) {
+        if matches!(spec.id, ScenarioId::MotionBiasBand | ScenarioId::NoisyReprojection) {
             apply_motion_bias_band(
+                frame_index,
+                spec,
+                &mut motion,
+                &mut depth,
+                &mut normals,
+                &layers,
+            );
+        }
+        if matches!(spec.id, ScenarioId::NoisyReprojection) {
+            apply_noisy_reprojection(
                 frame_index,
                 spec,
                 &mut motion,
@@ -438,6 +493,10 @@ fn generate_sequence_for_scenario(spec: &InternalScenarioSpec) -> SceneSequence 
         support_category: spec.support_category,
         roi_note: spec.roi_note.to_string(),
         sampling_taxonomy: spec.sampling_taxonomy.to_string(),
+        realism_stress: spec.realism_stress,
+        competitive_baseline_case: spec.competitive_baseline_case,
+        bounded_loss_disclosure: spec.bounded_loss_disclosure,
+        demo_b_taxonomy: spec.demo_b_taxonomy.to_string(),
         onset_frame: spec.onset_frame,
         target_label: spec.target_label.to_string(),
         target_mask,
@@ -465,7 +524,11 @@ fn build_target_mask(spec: &InternalScenarioSpec, frames: &[SceneFrame]) -> Vec<
                 disoccluded && matches!(*layer, SurfaceTag::ThinStructure | SurfaceTag::Background)
             })
             .collect(),
-        ScenarioId::RevealBand | ScenarioId::MotionBiasBand => {
+        ScenarioId::RevealBand
+        | ScenarioId::MotionBiasBand
+        | ScenarioId::LayeredSlats
+        | ScenarioId::NoisyReprojection
+        | ScenarioId::HeuristicFriendlyPan => {
             let mut mask = vec![false; width * height];
             let band = Rect {
                 x: 28,
@@ -537,6 +600,10 @@ fn internal_canonical_spec(config: &SceneConfig) -> InternalScenarioSpec {
         support_category: ScenarioSupportCategory::PointLikeRoi,
         roi_note: "Canonical reveal ROI collapses to a single disoccluded thin-structure pixel at the default resolution. It remains mechanically relevant but statistically weak and must be reported as point-like evidence.",
         sampling_taxonomy: "coverage-dominated point reveal",
+        realism_stress: false,
+        competitive_baseline_case: false,
+        bounded_loss_disclosure: false,
+        demo_b_taxonomy: "aliasing_limited",
         target_label: "revealed thin structure",
         scene: config.clone(),
         onset_frame: config.move_frames.min(config.frame_count.saturating_sub(2)),
@@ -580,6 +647,27 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
     motion_bias_scene.object_stop_x = 84;
     motion_bias_scene.move_frames = 6;
 
+    let mut layered_slats_scene = reveal_band_scene.clone();
+    layered_slats_scene.object_width = 34;
+    layered_slats_scene.object_height = 56;
+    layered_slats_scene.object_start_x = 10;
+    layered_slats_scene.object_stop_x = 92;
+    layered_slats_scene.move_frames = 5;
+
+    let mut noisy_reprojection_scene = reveal_band_scene.clone();
+    noisy_reprojection_scene.object_width = 26;
+    noisy_reprojection_scene.object_height = 54;
+    noisy_reprojection_scene.object_start_x = 16;
+    noisy_reprojection_scene.object_stop_x = 86;
+    noisy_reprojection_scene.move_frames = 6;
+
+    let mut heuristic_friendly_scene = reveal_band_scene.clone();
+    heuristic_friendly_scene.object_width = 30;
+    heuristic_friendly_scene.object_height = 48;
+    heuristic_friendly_scene.object_start_x = 18;
+    heuristic_friendly_scene.object_stop_x = 78;
+    heuristic_friendly_scene.move_frames = 4;
+
     let mut contrast_scene = config.clone();
     contrast_scene.object_start_x = 20;
     contrast_scene.object_stop_x = 20;
@@ -600,6 +688,10 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             support_category: ScenarioSupportCategory::RegionRoi,
             roi_note: "The ROI is a small but regional disocclusion strip rather than a single point. It is still sparse and should not be mixed with large-band ROI results without disclosure.",
             sampling_taxonomy: "thin-band reveal with textured background",
+            realism_stress: false,
+            competitive_baseline_case: true,
+            bounded_loss_disclosure: false,
+            demo_b_taxonomy: "mixed",
             target_label: "fast-pan reveal region",
             scene: fast_pan_scene.clone(),
             onset_frame: fast_pan_scene.move_frames.min(fast_pan_scene.frame_count.saturating_sub(2)),
@@ -616,6 +708,10 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             support_category: ScenarioSupportCategory::PointLikeRoi,
             roi_note: "At default resolution the diagonal reveal also reduces to point-like support. It is useful for aliasing behavior, but not as a region-sized aggregate claim.",
             sampling_taxonomy: "subpixel diagonal coverage case",
+            realism_stress: false,
+            competitive_baseline_case: false,
+            bounded_loss_disclosure: false,
+            demo_b_taxonomy: "aliasing_limited",
             target_label: "diagonal thin reveal",
             scene: diagonal_scene.clone(),
             onset_frame: diagonal_scene.move_frames.min(diagonal_scene.frame_count.saturating_sub(2)),
@@ -632,6 +728,10 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             support_category: ScenarioSupportCategory::RegionRoi,
             roi_note: "This scenario is intentionally region-sized so cumulative ROI metrics are not driven by a single pixel.",
             sampling_taxonomy: "mixed-width reveal band with aliasing and texture",
+            realism_stress: false,
+            competitive_baseline_case: false,
+            bounded_loss_disclosure: false,
+            demo_b_taxonomy: "mixed",
             target_label: "textured reveal band",
             scene: reveal_band_scene.clone(),
             onset_frame: reveal_band_scene.move_frames.min(reveal_band_scene.frame_count.saturating_sub(2)),
@@ -648,11 +748,81 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             support_category: ScenarioSupportCategory::RegionRoi,
             roi_note: "This is a region ROI with deliberately imperfect motion information. It is the main scenario used to decide whether motion disagreement belongs in the minimum path.",
             sampling_taxonomy: "motion-mismatch reveal band",
+            realism_stress: true,
+            competitive_baseline_case: false,
+            bounded_loss_disclosure: false,
+            demo_b_taxonomy: "mixed",
             target_label: "motion-bias reveal band",
             scene: motion_bias_scene.clone(),
             onset_frame: motion_bias_scene.move_frames.min(motion_bias_scene.frame_count.saturating_sub(2)),
             background_style: BackgroundStyle::Textured,
             thin_style: ThinStyle::MixedWidthBandBiased,
+            motion_profile: MotionProfile::FastPan,
+            pulse: None,
+        },
+        InternalScenarioSpec {
+            id: ScenarioId::LayeredSlats,
+            title: ScenarioId::LayeredSlats.title(),
+            description: "A broader layered-slat reveal mixes thin, medium, and wide structures across a larger ROI so the suite includes a second materially sized benefit-expected region case.",
+            expectation: ScenarioExpectation::BenefitExpected,
+            support_category: ScenarioSupportCategory::RegionRoi,
+            roi_note: "This region ROI is intentionally wider than the canonical band so cumulative claims are not dominated by sparse support.",
+            sampling_taxonomy: "layered slat reveal with mixed stable and unstable zones",
+            realism_stress: false,
+            competitive_baseline_case: false,
+            bounded_loss_disclosure: false,
+            demo_b_taxonomy: "mixed",
+            target_label: "layered slat reveal",
+            scene: layered_slats_scene.clone(),
+            onset_frame: layered_slats_scene
+                .move_frames
+                .min(layered_slats_scene.frame_count.saturating_sub(2)),
+            background_style: BackgroundStyle::Textured,
+            thin_style: ThinStyle::MixedWidthBand,
+            motion_profile: MotionProfile::EaseOut,
+            pulse: None,
+        },
+        InternalScenarioSpec {
+            id: ScenarioId::NoisyReprojection,
+            title: ScenarioId::NoisyReprojection.title(),
+            description: "A region reveal with subpixel-biased motion, reprojection noise, and depth-boundary disagreement makes the suite more engine-adjacent without pretending to be a real capture.",
+            expectation: ScenarioExpectation::BenefitExpected,
+            support_category: ScenarioSupportCategory::RegionRoi,
+            roi_note: "This is a realism-stress region ROI with deliberately imperfect reprojection cues.",
+            sampling_taxonomy: "realism-stress reveal with noisy reprojection",
+            realism_stress: true,
+            competitive_baseline_case: false,
+            bounded_loss_disclosure: false,
+            demo_b_taxonomy: "variance_limited",
+            target_label: "noisy reprojection reveal",
+            scene: noisy_reprojection_scene.clone(),
+            onset_frame: noisy_reprojection_scene
+                .move_frames
+                .min(noisy_reprojection_scene.frame_count.saturating_sub(2)),
+            background_style: BackgroundStyle::Textured,
+            thin_style: ThinStyle::MixedWidthBandBiased,
+            motion_profile: MotionProfile::FastPan,
+            pulse: None,
+        },
+        InternalScenarioSpec {
+            id: ScenarioId::HeuristicFriendlyPan,
+            title: ScenarioId::HeuristicFriendlyPan.title(),
+            description: "A cleaner, wider reveal pan is included specifically as a competitive-baseline case where strong heuristic guidance should remain competitive rather than being treated as an embarrassment.",
+            expectation: ScenarioExpectation::BenefitExpected,
+            support_category: ScenarioSupportCategory::RegionRoi,
+            roi_note: "This case is reported explicitly as a competitive-baseline disclosure rather than a universal-win setup.",
+            sampling_taxonomy: "competitive baseline reveal",
+            realism_stress: false,
+            competitive_baseline_case: true,
+            bounded_loss_disclosure: false,
+            demo_b_taxonomy: "edge_trap",
+            target_label: "heuristic-friendly reveal",
+            scene: heuristic_friendly_scene.clone(),
+            onset_frame: heuristic_friendly_scene
+                .move_frames
+                .min(heuristic_friendly_scene.frame_count.saturating_sub(2)),
+            background_style: BackgroundStyle::HighContrast,
+            thin_style: ThinStyle::MixedWidthBand,
             motion_profile: MotionProfile::FastPan,
             pulse: None,
         },
@@ -664,6 +834,10 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             support_category: ScenarioSupportCategory::NegativeControl,
             roi_note: "This negative control uses a large ROI on purpose, but it is not a benefit-expected disocclusion case.",
             sampling_taxonomy: "negative control",
+            realism_stress: false,
+            competitive_baseline_case: false,
+            bounded_loss_disclosure: true,
+            demo_b_taxonomy: "variance_limited",
             target_label: "pulse region",
             scene: contrast_scene.clone(),
             onset_frame: base_onset,
@@ -689,6 +863,10 @@ fn internal_scenario_suite(config: &SceneConfig) -> Vec<InternalScenarioSpec> {
             support_category: ScenarioSupportCategory::NegativeControl,
             roi_note: "This is a negative-control background patch used to bound non-ROI damage and false-positive intervention.",
             sampling_taxonomy: "negative control",
+            realism_stress: false,
+            competitive_baseline_case: false,
+            bounded_loss_disclosure: true,
+            demo_b_taxonomy: "variance_limited",
             target_label: "holdout background patch",
             scene: holdout_scene,
             onset_frame: base_onset,
@@ -962,6 +1140,45 @@ fn apply_motion_bias_band(
                 normals[index].x + 0.05 * (jitter_seed - 0.5),
                 normals[index].y - 0.03 * (jitter_seed - 0.5),
                 normals[index].z,
+            )
+            .normalized();
+        }
+    }
+}
+
+fn apply_noisy_reprojection(
+    frame_index: usize,
+    spec: &InternalScenarioSpec,
+    motion: &mut [MotionVector],
+    depth: &mut [f32],
+    normals: &mut [Normal3],
+    layers: &[SurfaceTag],
+) {
+    let width = spec.scene.width;
+    let height = spec.scene.height;
+    for y in 0..height {
+        for x in 0..width {
+            let index = y * width + x;
+            if matches!(layers[index], SurfaceTag::ForegroundObject) {
+                continue;
+            }
+            let in_band = (16..=(height.saturating_sub(16))).contains(&y)
+                && (18..=(width.saturating_sub(18))).contains(&x);
+            if !in_band {
+                continue;
+            }
+            let seed = ((x * 19 + y * 23 + frame_index * 29) % 37) as f32 / 36.0;
+            let subpixel_x = -0.65 + 0.55 * seed;
+            let subpixel_y = 0.22 * (((2 * x + y + frame_index) % 9) as f32 - 4.0) / 4.0;
+            motion[index] = MotionVector {
+                to_prev_x: motion[index].to_prev_x + subpixel_x,
+                to_prev_y: motion[index].to_prev_y + subpixel_y,
+            };
+            depth[index] += 0.014 * (seed - 0.5);
+            normals[index] = Normal3::new(
+                normals[index].x + 0.08 * (seed - 0.5),
+                normals[index].y + 0.05 * (0.5 - seed),
+                normals[index].z - 0.03 * (seed - 0.5).abs(),
             )
             .normalized();
         }

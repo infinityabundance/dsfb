@@ -58,11 +58,21 @@
   "reviewer_report_paths": [
     "trust_diagnostics.md",
     "timing_report.md",
+    "gpu_execution_report.md",
+    "external_handoff_report.md",
     "resolution_scaling_report.md",
+    "realism_suite_report.md",
     "parameter_sensitivity_report.md",
+    "competitive_baseline_analysis.md",
+    "non_roi_penalty_report.md",
     "demo_b_efficiency_report.md",
+    "demo_b_aliasing_vs_variance_report.md",
     "five_mentor_audit.md",
     "check_signing_blockers.md",
-    "demo_b_decision_report.md"
+    "demo_b_decision_report.md",
+    "production_eval_checklist.md",
+    "evaluator_handoff.md",
+    "minimum_external_validation_plan.md",
+    "next_step_matrix.md"
   ]
 }

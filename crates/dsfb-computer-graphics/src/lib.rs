@@ -3,7 +3,10 @@ pub mod config;
 pub mod cost;
 pub mod dsfb;
 pub mod error;
+pub mod external;
 pub mod frame;
+pub mod gpu;
+pub mod gpu_execution;
 pub mod host;
 pub mod metrics;
 pub mod outputs;
@@ -26,9 +29,10 @@ pub use outputs::{
     ARTIFACT_MANIFEST_FILE_NAME, NOTEBOOK_OUTPUT_ROOT_NAME, PDF_BUNDLE_FILE_NAME,
 };
 pub use pipeline::{
-    export_minimal_report, generate_scene_artifacts, parse_scenario_id, run_all, run_all_filtered,
-    run_demo_a, run_demo_a_filtered, run_demo_b, run_demo_b_efficiency_only, run_demo_b_filtered,
-    run_resolution_scaling_only, run_sensitivity_only, run_timing_only,
-    scenario_definitions_for_filter, validate_artifact_bundle, DemoAArtifacts, DemoBArtifacts,
-    RunAllArtifacts,
+    export_evaluator_handoff, export_minimal_report, generate_scene_artifacts,
+    import_external_buffers, parse_scenario_id, run_all, run_all_filtered, run_demo_a,
+    run_demo_a_filtered, run_demo_b, run_demo_b_efficiency_only, run_demo_b_filtered,
+    run_gpu_path_only, run_realism_suite_only, run_resolution_scaling_only,
+    run_sensitivity_only, run_timing_only, scenario_definitions_for_filter,
+    validate_artifact_bundle, DemoAArtifacts, DemoBArtifacts, RunAllArtifacts,
 };

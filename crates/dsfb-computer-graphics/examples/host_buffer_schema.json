@@ -1,0 +1,52 @@
+{
+  "format_version": "dsfb_external_capture_v1",
+  "required_buffers": [
+    {
+      "name": "current_color",
+      "format": "png_rgb8 | json_rgb_f32",
+      "semantic": "current color in linear RGB"
+    },
+    {
+      "name": "reprojected_history",
+      "format": "png_rgb8 | json_rgb_f32",
+      "semantic": "history color reprojected into the current frame"
+    },
+    {
+      "name": "motion_vectors",
+      "format": "json_vec2_f32",
+      "semantic": "per-pixel motion vectors in pixel units to the previous frame"
+    },
+    {
+      "name": "current_depth",
+      "format": "json_scalar_f32",
+      "semantic": "current frame depth"
+    },
+    {
+      "name": "reprojected_depth",
+      "format": "json_scalar_f32",
+      "semantic": "previous-frame depth reprojected into the current frame"
+    },
+    {
+      "name": "current_normals",
+      "format": "json_vec3_f32",
+      "semantic": "current frame normals in a consistent view-space basis"
+    },
+    {
+      "name": "reprojected_normals",
+      "format": "json_vec3_f32",
+      "semantic": "previous-frame normals reprojected into the current frame"
+    },
+    {
+      "name": "metadata",
+      "format": "json_metadata",
+      "semantic": "capture provenance and disclosure fields"
+    }
+  ],
+  "optional_buffers": [
+    {
+      "name": "optional_mask",
+      "format": "json_mask_bool",
+      "semantic": "debug mask or ROI-like disclosure mask"
+    }
+  ]
+}
