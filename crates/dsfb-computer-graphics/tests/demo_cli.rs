@@ -31,6 +31,8 @@ fn cli_demo_a_completes_and_writes_required_artifacts() {
     for relative in [
         "metrics.json",
         "report.md",
+        "reviewer_summary.md",
+        "completion_note.md",
         "scene_manifest.json",
         "figures/fig_system_diagram.svg",
         "figures/fig_trust_map.svg",

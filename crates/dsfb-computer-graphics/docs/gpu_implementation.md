@@ -1,39 +1,46 @@
 # GPU Implementation Considerations
 
-This section is architectural rather than benchmark-driven. It describes a plausible realization path for the supervisory layer used in the synthetic artifact.
+This document is architectural rather than benchmark-driven. It describes a plausible realization path for the DSFB supervisory layer used in the synthetic artifact.
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
 
 ## Execution Model
 
-The current artifact is structured around per-pixel local supervision. Each pixel consumes a current color sample, a reprojected history sample, compact proxy fields, and a trust output that modulates temporal blending. This organization is directly compatible with a future per-pixel GPU pass and can also be lifted to a per-tile execution model for cache locality and reduced scheduling overhead.
+The current artifact is structured around local supervision. Each pixel consumes a current sample, a reprojected history sample, proxy cues, and a trust output that modulates temporal blending. This maps naturally to a per-pixel GPU pass and can also be lifted to a per-tile realization for cache locality and reduced scheduling overhead.
 
-Because the supervisory path is local and bounded, the trust computation is also compatible with asynchronous compute scheduling when integrated into a larger graphics frame graph. The computation does not require global synchronization beyond the standard history-buffer handoff already present in temporal pipelines.
+Because the supervisory path is local and bounded, it is also compatible with asynchronous compute scheduling inside a larger graphics frame graph.
 
 ## Memory Layout
 
-Concrete buffer layout for a future GPU implementation:
+Concrete buffers for a future GPU implementation:
 
-- Residual buffer: one scalar per pixel encoding current-versus-history discrepancy.
-- Proxy buffer: packed local cues such as visibility change, edge proximity, and thin-structure support.
-- Trust buffer: one scalar per pixel used to select the effective temporal blend factor.
-- History buffer: temporal color history required by the baseline and DSFB-gated paths.
-- ROI mask buffer: optional debug or evaluation-only buffer for disocclusion studies.
-- Tile summary buffer: optional reduced-resolution buffer for coarse trust summaries or adaptive policy decisions.
+- residual buffer: scalar discrepancy between current and history
+- proxy buffer: residual, visibility, motion-edge, and thin-structure cues
+- trust buffer: scalar supervisory field used to derive alpha modulation
+- optional history and tile-summary buffers: bounded temporal memory and coarse reductions
 
 ## Optimization Strategies
 
-The minimal artifact does not measure these optimizations, but it is organized so they can be explored honestly in future GPU work:
+The crate does not measure these optimizations, but it is organized so they can be explored honestly:
 
 - half resolution trust
 - tile aggregation
 - temporal reuse of proxy
 
+## Cost Table
+
+| Operation group | Per-pixel / per-tile character | Memory footprint class | Reduction strategy |
+| --- | --- | --- | --- |
+| Residual evaluation | per-pixel local arithmetic | one scalar buffer | half resolution trust |
+| Proxy synthesis | per-pixel with optional neighborhood lookups | packed proxy channels | compact packing and reuse |
+| Grammar and trust update | per-pixel or per-tile aggregation | one trust buffer plus optional tile summaries | tile aggregation |
+| Blend modulation | per-pixel scalar modulation | no extra color history beyond temporal reuse itself | fuse with existing resolve pass |
+
 ## Cost Statement
 
 “The DSFB supervisory layer can be implemented with local operations and limited temporal memory, with expected cost scaling linearly with pixel count and amenable to reduced-resolution evaluation.”
 
-This is an approximate architectural statement, not a measured benchmark claim. The crate does not report hardware timings.
+This is an approximate architectural statement, not a measured benchmark claim.
 
 ## Compatibility Statement
 

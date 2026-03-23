@@ -59,6 +59,14 @@ pub fn run(cli: Cli) -> Result<()> {
             println!("demo output: {}", artifacts.output_dir.display());
             println!("metrics: {}", artifacts.metrics_path.display());
             println!("report: {}", artifacts.report_path.display());
+            println!(
+                "reviewer summary: {}",
+                artifacts.reviewer_summary_path.display()
+            );
+            println!(
+                "completion note: {}",
+                artifacts.completion_note_path.display()
+            );
             for figure in artifacts.figure_paths {
                 println!("figure: {}", figure.display());
             }

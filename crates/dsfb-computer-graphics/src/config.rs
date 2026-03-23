@@ -35,6 +35,9 @@ impl Default for SceneConfig {
 pub struct DemoConfig {
     pub scene: SceneConfig,
     pub baseline_alpha: f32,
+    pub residual_baseline_alpha_high: f32,
+    pub residual_baseline_threshold_low: f32,
+    pub residual_baseline_threshold_high: f32,
     pub dsfb_alpha_min: f32,
     pub dsfb_alpha_max: f32,
     pub trust_map_frame_offset: usize,
@@ -50,6 +53,9 @@ impl Default for DemoConfig {
         Self {
             scene: SceneConfig::default(),
             baseline_alpha: 0.12,
+            residual_baseline_alpha_high: 0.72,
+            residual_baseline_threshold_low: 0.08,
+            residual_baseline_threshold_high: 0.18,
             dsfb_alpha_min: 0.08,
             dsfb_alpha_max: 0.96,
             trust_map_frame_offset: 0,
