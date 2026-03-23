@@ -8,6 +8,24 @@
 
 The crate is intentionally conservative. It does not claim field validation, universal diagnosis, certification, or complete inverse recovery. It implements a reproducible computational companion that turns the paper’s layered objects into explicit Rust types, deterministic scenario generators, deterministic CSV ingestion, tabular artifacts, figures, a PDF report, and a zipped bundle that can be rerun from scratch locally or in Colab.
 
+## Citation
+
+If you cite this crate or the associated artifact, use:
+
+de Beer, R. (2026). *DSFB Structural Semiotics Engine for General Systems: A Deterministic Endoduction Framework for Residual-Based Meaning Extraction* (v1.0). Zenodo. https://doi.org/10.5281/zenodo.19176473
+
+## 1 IP Notice
+
+This paper is published under CC BY 4.0. The CC BY 4.0 license applies to the text and figures of this paper as a written work and to all prior and subsequent papers in the DSFB series published by the same author; it does not constitute a license to the theoretical framework, formal constructions, or methods described herein.
+
+Reference implementations, Rust crates, Colab notebooks, and all associated code artifacts are released under the Apache 2.0 license. The Apache 2.0 license applies solely to those software artifacts as executable and distributable works; it does not constitute a license to the underlying theoretical framework, mathematical architecture, formal constructions, or supervisory methods from which those artifacts derive.
+
+The theoretical framework, formal constructions, mathematical architecture, and supervisory methods described in this paper and in all papers in the DSFB series constitute proprietary Background IP of Invariant Forge LLC (Delaware LLC No. 10529072), with prior art established by this publication and by earlier Zenodo DOI publications by the same author predating this paper.
+
+Commercial deployment, integration, sublicensing, or derivative use of the framework — including re-derivation by abstraction, equivalent reformulation, notation substitution, or domain translation — requires a separate written license from Invariant Forge LLC.
+
+Licensing inquiries: predictiverendezvous@proton.me
+
 ## Visual Logic
 
 ```mermaid
