@@ -4,4 +4,6 @@ default-harnesses = [
   "proof_trust_scalar_in_unit_interval",
   "proof_trust_scalar_not_nan",
   "proof_grammar_reason_enum_is_closed",
+  "proof_theorem1_exit_bound_is_finite_and_positive",
+  "proof_theorem2_inward_drift_preserves_admissibility",
 ]
