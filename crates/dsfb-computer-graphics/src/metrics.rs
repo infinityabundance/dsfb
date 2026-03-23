@@ -111,6 +111,10 @@ pub struct ScenarioReport {
     pub support_category: ScenarioSupportCategory,
     pub roi_note: String,
     pub sampling_taxonomy: String,
+    pub realism_stress: bool,
+    pub competitive_baseline_case: bool,
+    pub bounded_loss_disclosure: bool,
+    pub demo_b_taxonomy: String,
     pub target_label: String,
     pub onset_frame: usize,
     pub target_pixels: usize,
@@ -349,7 +353,7 @@ pub fn analyze_demo_a_suite(
     let remaining_blockers = vec![
         "The scenario suite is still synthetic and does not prove production-scene generalization."
             .to_string(),
-        "The strong heuristic baseline remains competitive on some cases, so the crate supports evaluation diligence rather than universal win claims."
+        "The strong heuristic baseline remains competitive on some cases, so the crate supports evaluation diligence rather than blanket win claims."
             .to_string(),
         "Cost accounting is architectural and CPU-side within the crate; it is not a measured GPU benchmark."
             .to_string(),
@@ -463,6 +467,10 @@ fn analyze_scenario(
         support_category: sequence.support_category,
         roi_note: sequence.roi_note.clone(),
         sampling_taxonomy: sequence.sampling_taxonomy.clone(),
+        realism_stress: sequence.realism_stress,
+        competitive_baseline_case: sequence.competitive_baseline_case,
+        bounded_loss_disclosure: sequence.bounded_loss_disclosure,
+        demo_b_taxonomy: sequence.demo_b_taxonomy.clone(),
         target_label: sequence.target_label.clone(),
         onset_frame: sequence.onset_frame,
         target_pixels: sequence.target_mask.iter().filter(|value| **value).count(),

@@ -6,6 +6,10 @@
   "support_category": "RegionRoi",
   "roi_note": "The ROI is a small but regional disocclusion strip rather than a single point. It is still sparse and should not be mixed with large-band ROI results without disclosure.",
   "sampling_taxonomy": "thin-band reveal with textured background",
+  "realism_stress": false,
+  "competitive_baseline_case": true,
+  "bounded_loss_disclosure": false,
+  "demo_b_taxonomy": "mixed",
   "target_label": "fast-pan reveal region",
   "config": {
     "width": 160,

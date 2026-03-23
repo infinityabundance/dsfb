@@ -60,6 +60,15 @@ impl ImageFrame {
         }
     }
 
+    pub fn from_pixels(width: usize, height: usize, pixels: Vec<Color>) -> Self {
+        assert_eq!(pixels.len(), width * height);
+        Self {
+            width,
+            height,
+            pixels,
+        }
+    }
+
     pub fn width(&self) -> usize {
         self.width
     }
@@ -141,6 +150,23 @@ impl ImageFrame {
         Ok(())
     }
 
+    pub fn load_png(path: &Path) -> Result<Self> {
+        let image = image::open(path)?.to_rgba8();
+        let width = image.width() as usize;
+        let height = image.height() as usize;
+        let pixels = image
+            .pixels()
+            .map(|pixel| {
+                Color::rgb(
+                    pixel[0] as f32 / 255.0,
+                    pixel[1] as f32 / 255.0,
+                    pixel[2] as f32 / 255.0,
+                )
+            })
+            .collect();
+        Ok(Self::from_pixels(width, height, pixels))
+    }
+
     pub fn crop(&self, bbox: BoundingBox) -> Self {
         let mut cropped = ImageFrame::new(bbox.width(), bbox.height());
         for y in 0..bbox.height() {
@@ -168,6 +194,15 @@ impl ScalarField {
         }
     }
 
+    pub fn from_values(width: usize, height: usize, values: Vec<f32>) -> Self {
+        assert_eq!(values.len(), width * height);
+        Self {
+            width,
+            height,
+            values,
+        }
+    }
+
     pub fn width(&self) -> usize {
         self.width
     }
@@ -178,6 +213,10 @@ impl ScalarField {
 
     pub fn values(&self) -> &[f32] {
         &self.values
+    }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
     }
 
     pub fn get(&self, x: usize, y: usize) -> f32 {

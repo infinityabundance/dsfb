@@ -162,6 +162,11 @@ fn demo_a_metrics_include_required_suite_baselines_ablations_and_behavioral_gate
         "thin_reveal",
         "fast_pan",
         "diagonal_reveal",
+        "reveal_band",
+        "motion_bias_band",
+        "layered_slats",
+        "noisy_reprojection",
+        "heuristic_friendly_pan",
         "contrast_pulse",
         "stability_holdout",
     ] {
@@ -220,6 +225,14 @@ fn demo_a_metrics_include_required_suite_baselines_ablations_and_behavioral_gate
             .expect("mixed / neutral scenarios should be an array")
             .is_empty(),
         "at least one neutral or mixed scenario must be surfaced"
+    );
+    assert!(
+        summary["scenario_ids"]
+            .as_array()
+            .expect("scenario ids should be an array")
+            .len()
+            >= 8,
+        "the realism-expanded suite should include the broader scenario taxonomy"
     );
 
     let canonical = metrics["scenarios"]
@@ -349,6 +362,11 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
     let reviewer_summary = read(output_dir.join("reviewer_summary.md"));
     let blocker_report = read(output_dir.join("check_signing_blockers.md"));
     let demo_b_report = read(output_dir.join("demo_b_decision_report.md"));
+    let gpu_report = read(output_dir.join("gpu_execution_report.md"));
+    let external_report = read(output_dir.join("external_handoff_report.md"));
+    let realism_report = read(output_dir.join("realism_suite_report.md"));
+    let competitive_report = read(output_dir.join("competitive_baseline_analysis.md"));
+    let non_roi_report = read(output_dir.join("non_roi_penalty_report.md"));
     let readme = read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("README.md"));
     let integration_doc = read(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -364,6 +382,11 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
     for text in [
         &report,
         &demo_b_report,
+        &gpu_report,
+        &external_report,
+        &realism_report,
+        &competitive_report,
+        &non_roi_report,
         &readme,
         &integration_doc,
         &cost_doc,
@@ -373,6 +396,12 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
     assert!(report.contains("## Remaining Blockers"));
     assert!(report.contains("## What Is Not Proven"));
     assert!(demo_b_report.contains("## What is not proven"));
+    assert!(gpu_report.contains("Actual GPU timing measured"));
+    assert!(gpu_report.contains("## Remaining Blockers"));
+    assert!(external_report.contains("external-capable"));
+    assert!(realism_report.contains("realism-stress"));
+    assert!(competitive_report.contains("targeted supervisory overlay"));
+    assert!(non_roi_report.contains("non-ROI penalty"));
     assert!(blocker_report.contains("## Remaining"));
     assert!(reviewer_summary.contains("What is still blocked"));
     assert!(readme.contains("## DSFB Integration into Temporal Reuse"));

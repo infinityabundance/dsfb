@@ -12,7 +12,8 @@
       "region_mean_cumulative_roi_mae": 0.47196078,
       "motion_bias_cumulative_roi_mae": 0.65085,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": false
+      "robust_corridor_member": false,
+      "robustness_class": "fragile"
     },
     {
       "parameter_id": "thin_weight",
@@ -25,7 +26,8 @@
       "region_mean_cumulative_roi_mae": 0.3913976,
       "motion_bias_cumulative_roi_mae": 0.5532252,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": false
+      "robust_corridor_member": false,
+      "robustness_class": "moderately_sensitive"
     },
     {
       "parameter_id": "grammar_weight",
@@ -38,7 +40,8 @@
       "region_mean_cumulative_roi_mae": 0.47642928,
       "motion_bias_cumulative_roi_mae": 0.65965605,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": false
+      "robust_corridor_member": false,
+      "robustness_class": "fragile"
     },
     {
       "parameter_id": "residual_threshold_scale",
@@ -51,7 +54,8 @@
       "region_mean_cumulative_roi_mae": 0.26552236,
       "motion_bias_cumulative_roi_mae": 0.36627182,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "motion_weight",
@@ -64,7 +68,8 @@
       "region_mean_cumulative_roi_mae": 0.27881336,
       "motion_bias_cumulative_roi_mae": 0.42081338,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "depth_weight",
@@ -77,7 +82,8 @@
       "region_mean_cumulative_roi_mae": 0.37654543,
       "motion_bias_cumulative_roi_mae": 0.5275613,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": false
+      "robust_corridor_member": false,
+      "robustness_class": "moderately_sensitive"
     },
     {
       "parameter_id": "thin_weight",
@@ -90,7 +96,8 @@
       "region_mean_cumulative_roi_mae": 0.3434952,
       "motion_bias_cumulative_roi_mae": 0.48498365,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "grammar_weight",
@@ -103,7 +110,8 @@
       "region_mean_cumulative_roi_mae": 0.3782913,
       "motion_bias_cumulative_roi_mae": 0.5315436,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": false
+      "robust_corridor_member": false,
+      "robustness_class": "moderately_sensitive"
     },
     {
       "parameter_id": "residual_threshold_scale",
@@ -116,7 +124,8 @@
       "region_mean_cumulative_roi_mae": 0.27633077,
       "motion_bias_cumulative_roi_mae": 0.37850666,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "motion_weight",
@@ -129,7 +138,8 @@
       "region_mean_cumulative_roi_mae": 0.27299216,
       "motion_bias_cumulative_roi_mae": 0.4199809,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "depth_weight",
@@ -142,7 +152,8 @@
       "region_mean_cumulative_roi_mae": 0.29959187,
       "motion_bias_cumulative_roi_mae": 0.42328522,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "thin_weight",
@@ -155,7 +166,8 @@
       "region_mean_cumulative_roi_mae": 0.29959187,
       "motion_bias_cumulative_roi_mae": 0.42328522,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "grammar_weight",
@@ -168,7 +180,8 @@
       "region_mean_cumulative_roi_mae": 0.29959187,
       "motion_bias_cumulative_roi_mae": 0.42328522,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "residual_threshold_scale",
@@ -181,7 +194,8 @@
       "region_mean_cumulative_roi_mae": 0.29959187,
       "motion_bias_cumulative_roi_mae": 0.42328522,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "motion_weight",
@@ -194,7 +208,8 @@
       "region_mean_cumulative_roi_mae": 0.27073762,
       "motion_bias_cumulative_roi_mae": 0.41942245,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "depth_weight",
@@ -207,7 +222,8 @@
       "region_mean_cumulative_roi_mae": 0.24192408,
       "motion_bias_cumulative_roi_mae": 0.33961052,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "thin_weight",
@@ -220,7 +236,8 @@
       "region_mean_cumulative_roi_mae": 0.2604451,
       "motion_bias_cumulative_roi_mae": 0.3682314,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "grammar_weight",
@@ -233,7 +250,8 @@
       "region_mean_cumulative_roi_mae": 0.24060142,
       "motion_bias_cumulative_roi_mae": 0.33669934,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "residual_threshold_scale",
@@ -246,7 +264,8 @@
       "region_mean_cumulative_roi_mae": 0.360579,
       "motion_bias_cumulative_roi_mae": 0.5444679,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": false
+      "robust_corridor_member": false,
+      "robustness_class": "moderately_sensitive"
     },
     {
       "parameter_id": "motion_weight",
@@ -259,7 +278,8 @@
       "region_mean_cumulative_roi_mae": 0.27056107,
       "motion_bias_cumulative_roi_mae": 0.4190809,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "depth_weight",
@@ -272,7 +292,8 @@
       "region_mean_cumulative_roi_mae": 0.1993446,
       "motion_bias_cumulative_roi_mae": 0.2763482,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "thin_weight",
@@ -285,7 +306,8 @@
       "region_mean_cumulative_roi_mae": 0.22652316,
       "motion_bias_cumulative_roi_mae": 0.3200603,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "grammar_weight",
@@ -298,7 +320,8 @@
       "region_mean_cumulative_roi_mae": 0.197134,
       "motion_bias_cumulative_roi_mae": 0.27158567,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "residual_threshold_scale",
@@ -311,7 +334,8 @@
       "region_mean_cumulative_roi_mae": 0.4425155,
       "motion_bias_cumulative_roi_mae": 0.70169395,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": false
+      "robust_corridor_member": false,
+      "robustness_class": "fragile"
     },
     {
       "parameter_id": "motion_weight",
@@ -324,7 +348,8 @@
       "region_mean_cumulative_roi_mae": 0.27042562,
       "motion_bias_cumulative_roi_mae": 0.41881004,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "alpha_min",
@@ -337,7 +362,8 @@
       "region_mean_cumulative_roi_mae": 0.3338077,
       "motion_bias_cumulative_roi_mae": 0.44674134,
       "neutral_non_roi_mae": 1.6671827e-8,
-      "robust_corridor_member": false
+      "robust_corridor_member": false,
+      "robustness_class": "fragile"
     },
     {
       "parameter_id": "alpha_min",
@@ -350,7 +376,8 @@
       "region_mean_cumulative_roi_mae": 0.29959187,
       "motion_bias_cumulative_roi_mae": 0.42328522,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "alpha_min",
@@ -363,7 +390,8 @@
       "region_mean_cumulative_roi_mae": 0.27158582,
       "motion_bias_cumulative_roi_mae": 0.4011542,
       "neutral_non_roi_mae": 1.4287679e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "alpha_max",
@@ -376,7 +404,8 @@
       "region_mean_cumulative_roi_mae": 0.5934788,
       "motion_bias_cumulative_roi_mae": 0.7164947,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": false
+      "robust_corridor_member": false,
+      "robustness_class": "fragile"
     },
     {
       "parameter_id": "alpha_max",
@@ -389,7 +418,8 @@
       "region_mean_cumulative_roi_mae": 0.29959187,
       "motion_bias_cumulative_roi_mae": 0.42328522,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     },
     {
       "parameter_id": "alpha_max",
@@ -402,7 +432,8 @@
       "region_mean_cumulative_roi_mae": 0.22585624,
       "motion_bias_cumulative_roi_mae": 0.35481176,
       "neutral_non_roi_mae": 3.654238e-9,
-      "robust_corridor_member": true
+      "robust_corridor_member": true,
+      "robustness_class": "robust"
     }
   ],
   "notes": [

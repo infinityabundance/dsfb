@@ -45,9 +45,22 @@ fn cli_run_all_and_validate_artifacts_succeed() {
         "report.md",
         "five_mentor_audit.md",
         "check_signing_blockers.md",
+        "gpu_execution_report.md",
+        "gpu_execution_metrics.json",
+        "external_handoff_report.md",
+        "realism_suite_report.md",
+        "scenario_taxonomy.json",
+        "competitive_baseline_analysis.md",
+        "non_roi_penalty_report.md",
         "demo_b_decision_report.md",
+        "demo_b_aliasing_vs_variance_report.md",
+        "production_eval_checklist.md",
+        "evaluator_handoff.md",
+        "minimum_external_validation_plan.md",
+        "next_step_matrix.md",
         "demo_b/metrics.json",
         "demo_b/report.md",
+        "external_demo/resolved_external_capture_manifest.json",
     ] {
         assert!(
             output_dir.join(relative).exists(),
@@ -130,4 +143,66 @@ fn cli_run_demo_b_single_scenario_succeeds() {
             output_dir.join(relative).display()
         );
     }
+}
+
+#[test]
+fn cli_gpu_external_realism_and_handoff_commands_succeed() {
+    let binary = env!("CARGO_BIN_EXE_dsfb-computer-graphics");
+
+    let gpu_dir = unique_output_dir("cli_gpu_path");
+    let gpu_status = Command::new(binary)
+        .arg("run-gpu-path")
+        .arg("--output")
+        .arg(&gpu_dir)
+        .status()
+        .expect("binary should execute");
+    assert!(gpu_status.success(), "run-gpu-path should succeed");
+    assert!(gpu_dir.join("gpu_execution_report.md").exists());
+    assert!(gpu_dir.join("gpu_execution_metrics.json").exists());
+
+    let realism_dir = unique_output_dir("cli_realism_suite");
+    let realism_status = Command::new(binary)
+        .arg("run-realism-suite")
+        .arg("--output")
+        .arg(&realism_dir)
+        .status()
+        .expect("binary should execute");
+    assert!(realism_status.success(), "run-realism-suite should succeed");
+    assert!(realism_dir.join("realism_suite_report.md").exists());
+    assert!(realism_dir.join("scenario_taxonomy.json").exists());
+
+    let external_dir = unique_output_dir("cli_external_import");
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("examples")
+        .join("external_capture_manifest.json");
+    let external_status = Command::new(binary)
+        .arg("import-external")
+        .arg("--manifest")
+        .arg(&manifest)
+        .arg("--output")
+        .arg(&external_dir)
+        .status()
+        .expect("binary should execute");
+    assert!(external_status.success(), "import-external should succeed");
+    assert!(external_dir.join("external_handoff_report.md").exists());
+    assert!(
+        external_dir
+            .join("resolved_external_capture_manifest.json")
+            .exists()
+    );
+
+    let handoff_dir = unique_output_dir("cli_evaluator_handoff");
+    let handoff_status = Command::new(binary)
+        .arg("export-evaluator-handoff")
+        .arg("--output")
+        .arg(&handoff_dir)
+        .status()
+        .expect("binary should execute");
+    assert!(
+        handoff_status.success(),
+        "export-evaluator-handoff should succeed"
+    );
+    assert!(handoff_dir.join("evaluator_handoff.md").exists());
+    assert!(handoff_dir.join("production_eval_checklist.md").exists());
+    assert!(handoff_dir.join("next_step_matrix.md").exists());
 }

@@ -2,7 +2,7 @@
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
 
-This report separates aliasing-sensitive thin-point cases from larger mixed-width and motion-biased region cases so fixed-budget wins are not attributed only to sub-pixel line recovery.
+This report separates aliasing-limited thin-point cases from variance-limited and mixed-width region cases so fixed-budget wins are not attributed only to sub-pixel line recovery.
 
 | Scenario | Policy | Mean spp | ROI MAE |
 | --- | --- | ---: | ---: |
@@ -106,6 +106,66 @@ This report separates aliasing-sensitive thin-point cases from larger mixed-widt
 | motion_bias_band | hybrid_trust_variance | 2.0 | 0.01498 |
 | motion_bias_band | hybrid_trust_variance | 4.0 | 0.00712 |
 | motion_bias_band | hybrid_trust_variance | 8.0 | 0.00695 |
+| layered_slats | uniform | 1.0 | 0.02711 |
+| layered_slats | uniform | 2.0 | 0.01985 |
+| layered_slats | uniform | 4.0 | 0.01050 |
+| layered_slats | uniform | 8.0 | 0.00526 |
+| layered_slats | combined_heuristic | 1.0 | 0.02711 |
+| layered_slats | combined_heuristic | 2.0 | 0.00881 |
+| layered_slats | combined_heuristic | 4.0 | 0.00472 |
+| layered_slats | combined_heuristic | 8.0 | 0.00381 |
+| layered_slats | native_trust | 1.0 | 0.02711 |
+| layered_slats | native_trust | 2.0 | 0.01018 |
+| layered_slats | native_trust | 4.0 | 0.00486 |
+| layered_slats | native_trust | 8.0 | 0.00390 |
+| layered_slats | imported_trust | 1.0 | 0.02711 |
+| layered_slats | imported_trust | 2.0 | 0.00353 |
+| layered_slats | imported_trust | 4.0 | 0.00353 |
+| layered_slats | imported_trust | 8.0 | 0.00353 |
+| layered_slats | hybrid_trust_variance | 1.0 | 0.02711 |
+| layered_slats | hybrid_trust_variance | 2.0 | 0.00763 |
+| layered_slats | hybrid_trust_variance | 4.0 | 0.00353 |
+| layered_slats | hybrid_trust_variance | 8.0 | 0.00353 |
+| noisy_reprojection | uniform | 1.0 | 0.04592 |
+| noisy_reprojection | uniform | 2.0 | 0.03290 |
+| noisy_reprojection | uniform | 4.0 | 0.01811 |
+| noisy_reprojection | uniform | 8.0 | 0.00879 |
+| noisy_reprojection | combined_heuristic | 1.0 | 0.04592 |
+| noisy_reprojection | combined_heuristic | 2.0 | 0.02067 |
+| noisy_reprojection | combined_heuristic | 4.0 | 0.01380 |
+| noisy_reprojection | combined_heuristic | 8.0 | 0.00740 |
+| noisy_reprojection | native_trust | 1.0 | 0.04592 |
+| noisy_reprojection | native_trust | 2.0 | 0.02149 |
+| noisy_reprojection | native_trust | 4.0 | 0.01332 |
+| noisy_reprojection | native_trust | 8.0 | 0.00742 |
+| noisy_reprojection | imported_trust | 1.0 | 0.04592 |
+| noisy_reprojection | imported_trust | 2.0 | 0.01056 |
+| noisy_reprojection | imported_trust | 4.0 | 0.00703 |
+| noisy_reprojection | imported_trust | 8.0 | 0.00702 |
+| noisy_reprojection | hybrid_trust_variance | 1.0 | 0.04592 |
+| noisy_reprojection | hybrid_trust_variance | 2.0 | 0.01499 |
+| noisy_reprojection | hybrid_trust_variance | 4.0 | 0.00726 |
+| noisy_reprojection | hybrid_trust_variance | 8.0 | 0.00702 |
+| heuristic_friendly_pan | uniform | 1.0 | 0.01549 |
+| heuristic_friendly_pan | uniform | 2.0 | 0.01030 |
+| heuristic_friendly_pan | uniform | 4.0 | 0.00662 |
+| heuristic_friendly_pan | uniform | 8.0 | 0.00297 |
+| heuristic_friendly_pan | combined_heuristic | 1.0 | 0.01549 |
+| heuristic_friendly_pan | combined_heuristic | 2.0 | 0.00692 |
+| heuristic_friendly_pan | combined_heuristic | 4.0 | 0.00394 |
+| heuristic_friendly_pan | combined_heuristic | 8.0 | 0.00265 |
+| heuristic_friendly_pan | native_trust | 1.0 | 0.01549 |
+| heuristic_friendly_pan | native_trust | 2.0 | 0.00711 |
+| heuristic_friendly_pan | native_trust | 4.0 | 0.00396 |
+| heuristic_friendly_pan | native_trust | 8.0 | 0.00274 |
+| heuristic_friendly_pan | imported_trust | 1.0 | 0.01549 |
+| heuristic_friendly_pan | imported_trust | 2.0 | 0.00252 |
+| heuristic_friendly_pan | imported_trust | 4.0 | 0.00241 |
+| heuristic_friendly_pan | imported_trust | 8.0 | 0.00241 |
+| heuristic_friendly_pan | hybrid_trust_variance | 1.0 | 0.01549 |
+| heuristic_friendly_pan | hybrid_trust_variance | 2.0 | 0.00475 |
+| heuristic_friendly_pan | hybrid_trust_variance | 4.0 | 0.00241 |
+| heuristic_friendly_pan | hybrid_trust_variance | 8.0 | 0.00241 |
 | contrast_pulse | uniform | 1.0 | 0.00013 |
 | contrast_pulse | uniform | 2.0 | 0.00008 |
 | contrast_pulse | uniform | 4.0 | 0.00004 |
@@ -147,10 +207,25 @@ This report separates aliasing-sensitive thin-point cases from larger mixed-widt
 | stability_holdout | hybrid_trust_variance | 4.0 | 0.00406 |
 | stability_holdout | hybrid_trust_variance | 8.0 | 0.00266 |
 
+## Scenario Taxonomy
+
+- `thin_reveal`: taxonomy=`aliasing_limited`, sampling_taxonomy=`coverage-dominated point reveal`
+- `fast_pan`: taxonomy=`mixed`, sampling_taxonomy=`thin-band reveal with textured background`
+- `diagonal_reveal`: taxonomy=`aliasing_limited`, sampling_taxonomy=`subpixel diagonal coverage case`
+- `reveal_band`: taxonomy=`mixed`, sampling_taxonomy=`mixed-width reveal band with aliasing and texture`
+- `motion_bias_band`: taxonomy=`mixed`, sampling_taxonomy=`motion-mismatch reveal band`
+- `layered_slats`: taxonomy=`mixed`, sampling_taxonomy=`layered slat reveal with mixed stable and unstable zones`
+- `noisy_reprojection`: taxonomy=`variance_limited`, sampling_taxonomy=`realism-stress reveal with noisy reprojection`
+- `heuristic_friendly_pan`: taxonomy=`edge_trap`, sampling_taxonomy=`competitive baseline reveal`
+- `contrast_pulse`: taxonomy=`variance_limited`, sampling_taxonomy=`negative control`
+- `stability_holdout`: taxonomy=`variance_limited`, sampling_taxonomy=`negative control`
+
 ## What Is Not Proven
 
 - This study does not prove an optimal sampling controller or general renderer superiority.
+- External validation is still required on real renderer noise and imported engine buffers.
 
 ## Remaining Blockers
 
 - Demo B remains synthetic and still needs real-engine noise and shading complexity for full production confidence.
+- External handoff exists for Demo A style supervision, but Demo B still lacks an external renderer allocation trace.

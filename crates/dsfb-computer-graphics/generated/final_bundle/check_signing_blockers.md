@@ -9,19 +9,20 @@ Point-like ROI disclosure: thin_reveal=1 px, diagonal_reveal=1 px. These cases a
 - Motion disagreement is not hidden in the minimum host-realistic path.
 - Hazard weights are centralized and sensitivity-vetted.
 - Demo B includes mixed-width region cases and equal-budget efficiency curves.
+- An external buffer schema and file-based import path now exist.
 
 ## Partially Removed
 
-- GPU timing is addressed by a CPU proxy timing path and hardware-model estimates, but actual GPU measurements are still missing: `false`.
+- GPU timing is addressed by a GPU-executable kernel and an honest measured-vs-unmeasured path, but actual GPU measurements are still missing here: `true`.
 - Trust behavior is now described honestly, but broad calibration claims still remain blocked by limited scene diversity.
+- The crate is external-capable, but externally validated remains `false`.
 
 ## Remaining
 
 - The scenario suite is still synthetic and does not prove production-scene generalization.
-- The strong heuristic baseline remains competitive on some cases, so the crate supports evaluation diligence rather than universal win claims.
+- The strong heuristic baseline remains competitive on some cases, so the crate supports evaluation diligence rather than blanket win claims.
 - Cost accounting is architectural and CPU-side within the crate; it is not a measured GPU benchmark.
 - Point-like ROI scenarios remain mechanically useful but statistically weak, so aggregate claims must stay separated from region-ROI evidence.
-- Actual GPU execution measurements.
 
 ## What Is Not Proven
 

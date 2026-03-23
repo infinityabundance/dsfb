@@ -1,15 +1,19 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::config::DemoConfig;
 use crate::cost::{build_cost_report, CostMode};
 use crate::dsfb::{ablation_profiles, run_profiled_taa, DsfbRun, StructuralState};
 use crate::error::{Error, Result};
+use crate::external::{
+    build_example_external_capture, run_external_import_from_manifest, write_example_manifest,
+};
 use crate::frame::{
     bounding_box_from_mask, save_scalar_field_png, BoundingBox, Color, ImageFrame, ScalarField,
 };
+use crate::gpu_execution::{run_gpu_execution_study, write_gpu_execution_report};
 use crate::host::default_host_realistic_profile;
 use crate::metrics::{analyze_demo_a_suite, DemoASuiteMetrics, RunAnalysisInput};
 use crate::outputs::{
@@ -25,9 +29,17 @@ use crate::plots::{
 };
 use crate::report::{
     build_trust_diagnostics, write_ablation_report, write_completion_note, write_cost_report,
+    write_competitive_baseline_analysis,
+    write_demo_b_aliasing_vs_variance_report,
     write_demo_b_decision_report, write_demo_b_efficiency_report,
+    write_evaluator_handoff,
     write_full_check_signing_blockers, write_full_five_mentor_audit, write_full_report,
     write_full_reviewer_summary, write_parameter_sensitivity_report, write_report,
+    write_minimum_external_validation_plan,
+    write_next_step_matrix,
+    write_non_roi_penalty_report,
+    write_production_eval_checklist,
+    write_realism_suite_report,
     write_resolution_scaling_report, write_reviewer_summary, write_timing_report,
     write_trust_diagnostics_report, CompletionNoteStatus, COMPATIBILITY_SENTENCE, COST_SENTENCE,
     EXPERIMENT_SENTENCE,
@@ -131,6 +143,18 @@ struct NotebookDemoBArtifacts {
 #[derive(Clone, Debug, Serialize)]
 struct ScenarioSuiteManifest {
     scenarios: Vec<SceneManifest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ScenarioTaxonomyEntry {
+    scenario_id: String,
+    support_category: String,
+    expectation: String,
+    sampling_taxonomy: String,
+    realism_stress: bool,
+    competitive_baseline_case: bool,
+    bounded_loss_disclosure: bool,
+    demo_b_taxonomy: String,
 }
 
 #[derive(Clone, Debug)]
@@ -387,6 +411,73 @@ pub fn run_demo_b_efficiency_only(config: &DemoConfig, output_dir: &Path) -> Res
     Ok(report_path)
 }
 
+pub fn run_gpu_path_only(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(output_dir)?;
+    let gpu_metrics = run_gpu_execution_study(config)?;
+    let metrics_path = output_dir.join("gpu_execution_metrics.json");
+    fs::write(&metrics_path, serde_json::to_string_pretty(&gpu_metrics)?)?;
+    let report_path = output_dir.join("gpu_execution_report.md");
+    write_gpu_execution_report(&report_path, &gpu_metrics)?;
+    Ok(report_path)
+}
+
+pub fn import_external_buffers(
+    config: &DemoConfig,
+    manifest_path: &Path,
+    output_dir: &Path,
+) -> Result<PathBuf> {
+    let artifacts = run_external_import_from_manifest(config, manifest_path, output_dir)?;
+    Ok(artifacts.report_path)
+}
+
+pub fn run_realism_suite_only(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(output_dir)?;
+    let definitions = scenario_suite(&config.scene);
+    let executions = execute_demo_a_suite(config, &definitions)?;
+    let analysis_inputs = build_demo_a_analysis_inputs(&executions);
+    let demo_a_metrics = analyze_demo_a_suite(&analysis_inputs)?;
+    let taxonomy_path = output_dir.join("scenario_taxonomy.json");
+    write_scenario_taxonomy_json(&taxonomy_path, &executions)?;
+    let report_path = output_dir.join("realism_suite_report.md");
+    write_realism_suite_report(&report_path, &demo_a_metrics)?;
+    Ok(report_path)
+}
+
+pub fn export_evaluator_handoff(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
+    fs::create_dir_all(output_dir)?;
+    let definitions = scenario_suite(&config.scene);
+    let executions = execute_demo_a_suite(config, &definitions)?;
+    let analysis_inputs = build_demo_a_analysis_inputs(&executions);
+    let demo_a_metrics = analyze_demo_a_suite(&analysis_inputs)?;
+    let host_sequences = executions
+        .iter()
+        .map(|execution| {
+            Ok((
+                execution.sequence.clone(),
+                execution.dsfb("dsfb_host_realistic")?.run.clone(),
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let (demo_b_metrics, _) = run_demo_b_suite(config, &host_sequences)?;
+    let gpu_metrics = run_gpu_execution_study(config)?;
+    let external_artifacts = build_example_external_capture(config, &output_dir.join("external"))?;
+    let handoff_path = output_dir.join("evaluator_handoff.md");
+    write_evaluator_handoff(
+        &handoff_path,
+        &demo_a_metrics,
+        &demo_b_metrics,
+        &gpu_metrics,
+        &external_artifacts.metrics,
+    )?;
+    let checklist_path = output_dir.join("production_eval_checklist.md");
+    write_production_eval_checklist(&checklist_path, &gpu_metrics, &external_artifacts.metrics)?;
+    let next_steps_path = output_dir.join("next_step_matrix.md");
+    write_next_step_matrix(&next_steps_path, &gpu_metrics, &external_artifacts.metrics)?;
+    let external_plan_path = output_dir.join("minimum_external_validation_plan.md");
+    write_minimum_external_validation_plan(&external_plan_path)?;
+    Ok(handoff_path)
+}
+
 pub fn export_minimal_report(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
     fs::create_dir_all(output_dir)?;
     let definitions = scenario_suite(&config.scene);
@@ -478,6 +569,25 @@ pub fn run_all_filtered(
         serde_json::to_string_pretty(&timing_metrics)?,
     )?;
 
+    let gpu_execution_metrics = run_gpu_execution_study(config)?;
+    let gpu_execution_report_path = output_dir.join("gpu_execution_report.md");
+    write_gpu_execution_report(&gpu_execution_report_path, &gpu_execution_metrics)?;
+    let gpu_execution_metrics_path = output_dir.join("gpu_execution_metrics.json");
+    fs::write(
+        &gpu_execution_metrics_path,
+        serde_json::to_string_pretty(&gpu_execution_metrics)?,
+    )?;
+
+    let examples_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples");
+    let example_manifest_path = examples_dir.join("external_capture_manifest.json");
+    if !example_manifest_path.exists() {
+        write_example_manifest(&example_manifest_path)?;
+    }
+    let external_artifacts =
+        run_external_import_from_manifest(config, &example_manifest_path, &output_dir.join("external_demo"))?;
+    let external_handoff_report_path = output_dir.join("external_handoff_report.md");
+    fs::copy(&external_artifacts.report_path, &external_handoff_report_path)?;
+
     let resolution_scaling_metrics = run_resolution_scaling_study(config)?;
     let resolution_scaling_report_path = output_dir.join("resolution_scaling_report.md");
     write_resolution_scaling_report(&resolution_scaling_report_path, &resolution_scaling_metrics)?;
@@ -506,6 +616,20 @@ pub fn run_all_filtered(
     )?;
     let demo_b_efficiency_report_path = output_dir.join("demo_b_efficiency_report.md");
     write_demo_b_efficiency_report(&demo_b_efficiency_report_path, &demo_b_metrics)?;
+    let demo_b_aliasing_report_path = output_dir.join("demo_b_aliasing_vs_variance_report.md");
+    write_demo_b_aliasing_vs_variance_report(&demo_b_aliasing_report_path, &demo_b_metrics)?;
+
+    let scenario_taxonomy_path = output_dir.join("scenario_taxonomy.json");
+    write_scenario_taxonomy_json(&scenario_taxonomy_path, &executions)?;
+    let realism_suite_report_path = output_dir.join("realism_suite_report.md");
+    write_realism_suite_report(&realism_suite_report_path, &demo_a_metrics)?;
+    let demo_b_scene_taxonomy_path = output_dir.join("demo_b_scene_taxonomy.json");
+    write_demo_b_scene_taxonomy_json(&demo_b_scene_taxonomy_path, &demo_b_metrics)?;
+    let competitive_baseline_analysis_path =
+        output_dir.join("competitive_baseline_analysis.md");
+    write_competitive_baseline_analysis(&competitive_baseline_analysis_path, &demo_a_metrics)?;
+    let non_roi_penalty_report_path = output_dir.join("non_roi_penalty_report.md");
+    write_non_roi_penalty_report(&non_roi_penalty_report_path, &demo_a_metrics)?;
 
     let cost_report = build_cost_report(CostMode::HostRealistic);
     write_full_report(
@@ -515,6 +639,8 @@ pub fn run_all_filtered(
         &cost_report,
         &trust_diagnostics,
         &timing_metrics,
+        &gpu_execution_metrics,
+        &external_artifacts.metrics,
         &resolution_scaling_metrics,
         &parameter_sensitivity_metrics,
     )?;
@@ -524,6 +650,8 @@ pub fn run_all_filtered(
         &demo_b_metrics,
         &trust_diagnostics,
         &timing_metrics,
+        &gpu_execution_metrics,
+        &external_artifacts.metrics,
     )?;
 
     let five_mentor_audit_path = output_dir.join("five_mentor_audit.md");
@@ -532,11 +660,42 @@ pub fn run_all_filtered(
         &demo_a_metrics,
         &demo_b_metrics,
         &timing_metrics,
+        &gpu_execution_metrics,
+        &external_artifacts.metrics,
     )?;
     let blocker_report_path = output_dir.join("check_signing_blockers.md");
-    write_full_check_signing_blockers(&blocker_report_path, &demo_a_metrics, &timing_metrics)?;
+    write_full_check_signing_blockers(
+        &blocker_report_path,
+        &demo_a_metrics,
+        &timing_metrics,
+        &gpu_execution_metrics,
+        &external_artifacts.metrics,
+    )?;
     let demo_b_decision_report_path = output_dir.join("demo_b_decision_report.md");
     write_demo_b_decision_report(&demo_b_decision_report_path, &demo_b_metrics)?;
+    let production_eval_checklist_path = output_dir.join("production_eval_checklist.md");
+    write_production_eval_checklist(
+        &production_eval_checklist_path,
+        &gpu_execution_metrics,
+        &external_artifacts.metrics,
+    )?;
+    let evaluator_handoff_path = output_dir.join("evaluator_handoff.md");
+    write_evaluator_handoff(
+        &evaluator_handoff_path,
+        &demo_a_metrics,
+        &demo_b_metrics,
+        &gpu_execution_metrics,
+        &external_artifacts.metrics,
+    )?;
+    let minimum_external_validation_plan_path =
+        output_dir.join("minimum_external_validation_plan.md");
+    write_minimum_external_validation_plan(&minimum_external_validation_plan_path)?;
+    let next_step_matrix_path = output_dir.join("next_step_matrix.md");
+    write_next_step_matrix(
+        &next_step_matrix_path,
+        &gpu_execution_metrics,
+        &external_artifacts.metrics,
+    )?;
 
     let additional_figure_paths = write_additional_figures(
         output_dir,
@@ -554,12 +713,22 @@ pub fn run_all_filtered(
         &[
             &trust_diagnostics_path,
             &timing_report_path,
+            &gpu_execution_report_path,
+            &external_handoff_report_path,
             &resolution_scaling_report_path,
+            &realism_suite_report_path,
             &parameter_sensitivity_report_path,
+            &competitive_baseline_analysis_path,
+            &non_roi_penalty_report_path,
             &demo_b_efficiency_report_path,
+            &demo_b_aliasing_report_path,
             &five_mentor_audit_path,
             &blocker_report_path,
             &demo_b_decision_report_path,
+            &production_eval_checklist_path,
+            &evaluator_handoff_path,
+            &minimum_external_validation_plan_path,
+            &next_step_matrix_path,
         ],
     )?;
 
@@ -571,12 +740,22 @@ pub fn run_all_filtered(
         &[
             &trust_diagnostics_path,
             &timing_report_path,
+            &gpu_execution_report_path,
+            &external_handoff_report_path,
             &resolution_scaling_report_path,
+            &realism_suite_report_path,
             &parameter_sensitivity_report_path,
+            &competitive_baseline_analysis_path,
+            &non_roi_penalty_report_path,
             &demo_b_efficiency_report_path,
+            &demo_b_aliasing_report_path,
             &five_mentor_audit_path,
             &blocker_report_path,
             &demo_b_decision_report_path,
+            &production_eval_checklist_path,
+            &evaluator_handoff_path,
+            &minimum_external_validation_plan_path,
+            &next_step_matrix_path,
         ],
     )?;
 
@@ -621,15 +800,28 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
         output_dir.join("trust_diagnostics.json"),
         output_dir.join("timing_report.md"),
         output_dir.join("timing_metrics.json"),
+        output_dir.join("gpu_execution_report.md"),
+        output_dir.join("gpu_execution_metrics.json"),
+        output_dir.join("external_handoff_report.md"),
         output_dir.join("resolution_scaling_report.md"),
         output_dir.join("resolution_scaling_metrics.json"),
+        output_dir.join("realism_suite_report.md"),
+        output_dir.join("scenario_taxonomy.json"),
         output_dir.join("parameter_sensitivity_report.md"),
         output_dir.join("parameter_sensitivity_metrics.json"),
+        output_dir.join("competitive_baseline_analysis.md"),
+        output_dir.join("non_roi_penalty_report.md"),
         output_dir.join("demo_b_metrics.json"),
+        output_dir.join("demo_b_scene_taxonomy.json"),
+        output_dir.join("demo_b_aliasing_vs_variance_report.md"),
         output_dir.join("demo_b_efficiency_report.md"),
         output_dir.join("five_mentor_audit.md"),
         output_dir.join("check_signing_blockers.md"),
         output_dir.join("demo_b_decision_report.md"),
+        output_dir.join("production_eval_checklist.md"),
+        output_dir.join("evaluator_handoff.md"),
+        output_dir.join("minimum_external_validation_plan.md"),
+        output_dir.join("next_step_matrix.md"),
         output_dir.join("figures").join("fig_system_diagram.svg"),
         output_dir.join("figures").join("fig_trust_map.svg"),
         output_dir.join("figures").join("fig_before_after.svg"),
@@ -660,6 +852,9 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
             .join("demo_b")
             .join("figures")
             .join("fig_demo_b_budget_efficiency.svg"),
+        output_dir
+            .join("external_demo")
+            .join("resolved_external_capture_manifest.json"),
     ];
     for path in required {
         require_file(&path)?;
@@ -704,11 +899,83 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
         ));
     }
 
+    let gpu_report = fs::read_to_string(output_dir.join("gpu_execution_report.md"))?;
+    if !gpu_report.contains("Measurement classification")
+        || !gpu_report.contains("Actual GPU timing measured")
+    {
+        return Err(Error::Message(
+            "GPU execution report is missing measured-vs-unmeasured disclosure".to_string(),
+        ));
+    }
+
+    let external_report = fs::read_to_string(output_dir.join("external_handoff_report.md"))?;
+    if !external_report.contains("external-capable")
+        && !external_report.contains("external-capable =")
+    {
+        return Err(Error::Message(
+            "external handoff report must distinguish external-capable from externally validated"
+                .to_string(),
+        ));
+    }
+
+    let scenario_taxonomy: Vec<ScenarioTaxonomyEntry> =
+        serde_json::from_str(&fs::read_to_string(output_dir.join("scenario_taxonomy.json"))?)?;
+    if !scenario_taxonomy.iter().any(|entry| entry.realism_stress) {
+        return Err(Error::Message(
+            "scenario taxonomy must include at least one realism-stress case".to_string(),
+        ));
+    }
+    if !scenario_taxonomy
+        .iter()
+        .any(|entry| entry.competitive_baseline_case)
+    {
+        return Err(Error::Message(
+            "scenario taxonomy must include at least one competitive-baseline case".to_string(),
+        ));
+    }
+    if !scenario_taxonomy
+        .iter()
+        .any(|entry| entry.bounded_loss_disclosure)
+    {
+        return Err(Error::Message(
+            "scenario taxonomy must include at least one bounded-neutral or bounded-loss case"
+                .to_string(),
+        ));
+    }
+
+    let demo_b_aliasing = fs::read_to_string(output_dir.join("demo_b_aliasing_vs_variance_report.md"))?;
+    if !demo_b_aliasing.contains("variance") || !demo_b_aliasing.contains("aliasing") {
+        return Err(Error::Message(
+            "Demo B aliasing-vs-variance report is missing the required distinction".to_string(),
+        ));
+    }
+
+    let competitive = fs::read_to_string(output_dir.join("competitive_baseline_analysis.md"))?;
+    if !competitive.contains("targeted supervisory overlay")
+        && !competitive.contains("instability-focused specialist")
+    {
+        return Err(Error::Message(
+            "competitive baseline analysis must frame DSFB as a targeted supervisory layer unless broader evidence exists".to_string(),
+        ));
+    }
+
     let trust_report = fs::read_to_string(output_dir.join("trust_diagnostics.md"))?;
     if !trust_report.contains("degenerate, not decision-facing") {
         return Err(Error::Message(
             "trust diagnostics must explicitly quarantine degenerate rank correlation".to_string(),
         ));
+    }
+
+    for doc_path in [
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/completion_gates.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/gpu_execution_path.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/external_handoff.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/engine_integration_playbook.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/production_eval_bridge.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/host_buffer_schema.json"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/external_capture_manifest.json"),
+    ] {
+        require_file(&doc_path)?;
     }
 
     Ok(())
@@ -929,6 +1196,43 @@ fn write_suite_manifest(
     };
     fs::write(&path, serde_json::to_string_pretty(&manifest)?)?;
     Ok(path)
+}
+
+fn write_scenario_taxonomy_json(output_path: &Path, executions: &[ScenarioExecution]) -> Result<()> {
+    let entries = executions
+        .iter()
+        .map(|execution| ScenarioTaxonomyEntry {
+            scenario_id: execution.sequence.scenario_id.as_str().to_string(),
+            support_category: format!("{:?}", execution.sequence.support_category),
+            expectation: format!("{:?}", execution.sequence.expectation),
+            sampling_taxonomy: execution.sequence.sampling_taxonomy.clone(),
+            realism_stress: execution.sequence.realism_stress,
+            competitive_baseline_case: execution.sequence.competitive_baseline_case,
+            bounded_loss_disclosure: execution.sequence.bounded_loss_disclosure,
+            demo_b_taxonomy: execution.sequence.demo_b_taxonomy.clone(),
+        })
+        .collect::<Vec<_>>();
+    fs::write(output_path, serde_json::to_string_pretty(&entries)?)?;
+    Ok(())
+}
+
+fn write_demo_b_scene_taxonomy_json(output_path: &Path, demo_b: &DemoBSuiteMetrics) -> Result<()> {
+    let entries = demo_b
+        .scenarios
+        .iter()
+        .map(|scenario| ScenarioTaxonomyEntry {
+            scenario_id: scenario.scenario_id.clone(),
+            support_category: format!("{:?}", scenario.support_category),
+            expectation: format!("{:?}", scenario.expectation),
+            sampling_taxonomy: scenario.sampling_taxonomy.clone(),
+            realism_stress: false,
+            competitive_baseline_case: false,
+            bounded_loss_disclosure: false,
+            demo_b_taxonomy: scenario.demo_b_taxonomy.clone(),
+        })
+        .collect::<Vec<_>>();
+    fs::write(output_path, serde_json::to_string_pretty(&entries)?)?;
+    Ok(())
 }
 
 fn write_scenario_debug_artifacts(
@@ -1461,6 +1765,9 @@ fn validate_demo_a_metrics(demo_a_metrics: &DemoASuiteMetrics) -> Result<()> {
         "diagonal_reveal",
         "reveal_band",
         "motion_bias_band",
+        "layered_slats",
+        "noisy_reprojection",
+        "heuristic_friendly_pan",
         "contrast_pulse",
         "stability_holdout",
     ];
@@ -1572,6 +1879,30 @@ fn validate_demo_a_metrics(demo_a_metrics: &DemoASuiteMetrics) -> Result<()> {
         {
             return Err(Error::Message(
                 "Demo A must surface both point-like and region ROI scenario groups".to_string(),
+            ));
+        }
+        if !demo_a_metrics.scenarios.iter().any(|scenario| scenario.realism_stress) {
+            return Err(Error::Message(
+                "Demo A must surface at least one realism-stress scenario".to_string(),
+            ));
+        }
+        if !demo_a_metrics
+            .scenarios
+            .iter()
+            .any(|scenario| scenario.competitive_baseline_case)
+        {
+            return Err(Error::Message(
+                "Demo A must surface at least one competitive-baseline scenario".to_string(),
+            ));
+        }
+        if !demo_a_metrics
+            .scenarios
+            .iter()
+            .any(|scenario| scenario.bounded_loss_disclosure)
+        {
+            return Err(Error::Message(
+                "Demo A must surface at least one bounded-neutral or bounded-loss disclosure"
+                    .to_string(),
             ));
         }
     }
@@ -1781,20 +2112,44 @@ fn validate_decision_reports(output_dir: &Path) -> Result<()> {
         "check_signing_blockers.md",
         "trust_diagnostics.md",
         "timing_report.md",
+        "gpu_execution_report.md",
+        "external_handoff_report.md",
         "resolution_scaling_report.md",
+        "realism_suite_report.md",
         "parameter_sensitivity_report.md",
+        "competitive_baseline_analysis.md",
+        "non_roi_penalty_report.md",
         "demo_b_decision_report.md",
         "demo_b_efficiency_report.md",
+        "demo_b_aliasing_vs_variance_report.md",
+        "production_eval_checklist.md",
+        "evaluator_handoff.md",
+        "minimum_external_validation_plan.md",
+        "next_step_matrix.md",
     ] {
         let text = fs::read_to_string(output_dir.join(file_name))?;
-        if !text.contains("What Is Not Proven") && !text.contains("What is not proven") {
+        let normalized = text.to_ascii_lowercase();
+        if !normalized.contains("what is not proven") {
             return Err(Error::Message(format!(
                 "{file_name} is missing a what-is-not-proven section"
             )));
         }
-        if !text.contains("Remaining Blockers") {
+        if !normalized.contains("remaining blockers") {
             return Err(Error::Message(format!(
                 "{file_name} is missing a remaining blockers section"
+            )));
+        }
+        if !normalized.contains("external") && !matches!(file_name, "trust_diagnostics.md") {
+            return Err(Error::Message(format!(
+                "{file_name} must mention external validation or external handoff needs"
+            )));
+        }
+        if normalized.contains("universal replacement")
+            || normalized.contains("universal win")
+            || normalized.contains("production-ready")
+        {
+            return Err(Error::Message(format!(
+                "{file_name} contains unsupported universal or production-ready language"
             )));
         }
     }
@@ -1968,10 +2323,13 @@ pub fn parse_scenario_id(value: &str) -> Result<ScenarioId> {
         "diagonal_reveal" => Ok(ScenarioId::DiagonalReveal),
         "reveal_band" => Ok(ScenarioId::RevealBand),
         "motion_bias_band" => Ok(ScenarioId::MotionBiasBand),
+        "layered_slats" => Ok(ScenarioId::LayeredSlats),
+        "noisy_reprojection" => Ok(ScenarioId::NoisyReprojection),
+        "heuristic_friendly_pan" => Ok(ScenarioId::HeuristicFriendlyPan),
         "contrast_pulse" => Ok(ScenarioId::ContrastPulse),
         "stability_holdout" => Ok(ScenarioId::StabilityHoldout),
         _ => Err(Error::Message(format!(
-            "unknown scenario id `{value}`; expected one of thin_reveal, fast_pan, diagonal_reveal, reveal_band, motion_bias_band, contrast_pulse, stability_holdout"
+            "unknown scenario id `{value}`; expected one of thin_reveal, fast_pan, diagonal_reveal, reveal_band, motion_bias_band, layered_slats, noisy_reprojection, heuristic_friendly_pan, contrast_pulse, stability_holdout"
         ))),
     }
 }

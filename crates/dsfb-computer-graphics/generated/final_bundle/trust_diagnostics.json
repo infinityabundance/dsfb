@@ -1562,6 +1562,942 @@
       ]
     },
     {
+      "scenario_id": "layered_slats",
+      "scenario_title": "Layered Slat Reveal",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 162,
+      "occupied_bin_count": 2,
+      "entropy_bits": 0.086946025,
+      "discreteness_score": 0.97382665,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 168
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 15192
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 168,
+          "mean_trust": 0.04973089,
+          "mean_error": 0.033190593
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 15192,
+          "mean_trust": 0.99602175,
+          "mean_error": 0.0060519255
+        }
+      ]
+    },
+    {
+      "scenario_id": "layered_slats",
+      "scenario_title": "Layered Slat Reveal",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 162,
+      "occupied_bin_count": 4,
+      "entropy_bits": 0.40878475,
+      "discreteness_score": 0.8769435,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 168
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 356
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 372
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 14464
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 168,
+          "mean_trust": 0.12000009,
+          "mean_error": 0.056590166
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 356,
+          "mean_trust": 0.6799967,
+          "mean_error": 0.0069722016
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14836,
+          "mean_trust": 0.972771,
+          "mean_error": 0.00965825
+        }
+      ]
+    },
+    {
+      "scenario_id": "layered_slats",
+      "scenario_title": "Layered Slat Reveal",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 162,
+      "occupied_bin_count": 4,
+      "entropy_bits": 0.2296681,
+      "discreteness_score": 0.930863,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 168
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 298
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 6
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 14888
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 168,
+          "mean_trust": 0.028121391,
+          "mean_error": 0.024253087
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 298,
+          "mean_trust": 0.7710658,
+          "mean_error": 5.5337654e-9
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14894,
+          "mean_trust": 0.99622875,
+          "mean_error": 0.0058757854
+        }
+      ]
+    },
+    {
+      "scenario_id": "noisy_reprojection",
+      "scenario_title": "Noisy Reprojection Reveal",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 1658,
+      "occupied_bin_count": 10,
+      "entropy_bits": 0.78851205,
+      "discreteness_score": 0.7626342,
+      "effective_level_count": 2,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": 0.5104895,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 1805
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 65
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 7
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 25
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 29
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 22
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 35
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 89
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 199
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 13084
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 1870,
+          "mean_trust": 0.07150385,
+          "mean_error": 0.032514967
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 32,
+          "mean_trust": 0.33248344,
+          "mean_error": 0.071404174
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 51,
+          "mean_trust": 0.49415827,
+          "mean_error": 0.07242281
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 124,
+          "mean_trust": 0.72960013,
+          "mean_error": 0.07409198
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 13283,
+          "mean_trust": 0.99482495,
+          "mean_error": 0.010514177
+        }
+      ]
+    },
+    {
+      "scenario_id": "noisy_reprojection",
+      "scenario_title": "Noisy Reprojection Reveal",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 1658,
+      "occupied_bin_count": 8,
+      "entropy_bits": 1.0404574,
+      "discreteness_score": 0.6867911,
+      "effective_level_count": 2,
+      "operating_mode": "WeaklyGraded",
+      "trust_error_rank_correlation": 0.57342654,
+      "trust_rank_correlation_is_degenerate": false,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 1880
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 22
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 10
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 34
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 516
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 9
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 667
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 12222
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 1880,
+          "mean_trust": 0.11997127,
+          "mean_error": 0.045609597
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 22,
+          "mean_trust": 0.38000008,
+          "mean_error": 0.04426432
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 44,
+          "mean_trust": 0.5312283,
+          "mean_error": 0.115478136
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 525,
+          "mean_trust": 0.6793559,
+          "mean_error": 0.040622346
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 12889,
+          "mean_trust": 0.9762609,
+          "mean_error": 0.011228927
+        }
+      ]
+    },
+    {
+      "scenario_id": "noisy_reprojection",
+      "scenario_title": "Noisy Reprojection Reveal",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 1658,
+      "occupied_bin_count": 10,
+      "entropy_bits": 0.8589927,
+      "discreteness_score": 0.7414174,
+      "effective_level_count": 2,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": 0.33566433,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 1823
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 51
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 12
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 27
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 22
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 28
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 43
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 273
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 177
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 12904
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 1874,
+          "mean_trust": 0.06311403,
+          "mean_error": 0.030254342
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 39,
+          "mean_trust": 0.3251021,
+          "mean_error": 0.06732048
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 50,
+          "mean_trust": 0.5077126,
+          "mean_error": 0.06841824
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 316,
+          "mean_trust": 0.749153,
+          "mean_error": 0.03220575
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 13081,
+          "mean_trust": 0.99483955,
+          "mean_error": 0.010225965
+        }
+      ]
+    },
+    {
+      "scenario_id": "heuristic_friendly_pan",
+      "scenario_title": "Heuristic-Friendly Pan",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_realistic",
+      "label": "DSFB host-realistic minimum",
+      "roi_pixels": 576,
+      "occupied_bin_count": 3,
+      "entropy_bits": 0.23247246,
+      "discreteness_score": 0.9300188,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 573
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 3
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 14784
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 576,
+          "mean_trust": 0.041750178,
+          "mean_error": 0.029661814
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14784,
+          "mean_trust": 0.99482983,
+          "mean_error": 0.0035215446
+        }
+      ]
+    },
+    {
+      "scenario_id": "heuristic_friendly_pan",
+      "scenario_title": "Heuristic-Friendly Pan",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_host_gated_reference",
+      "label": "DSFB gated reference",
+      "roi_pixels": 576,
+      "occupied_bin_count": 4,
+      "entropy_bits": 0.56973636,
+      "discreteness_score": 0.8284923,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 576
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 305
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 485
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 13994
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 576,
+          "mean_trust": 0.11999987,
+          "mean_error": 0.055037364
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 305,
+          "mean_trust": 0.6799974,
+          "mean_error": 0.0064287367
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14479,
+          "mean_trust": 0.9553913,
+          "mean_error": 0.005382679
+        }
+      ]
+    },
+    {
+      "scenario_id": "heuristic_friendly_pan",
+      "scenario_title": "Heuristic-Friendly Pan",
+      "support_category": "RegionRoi",
+      "run_id": "dsfb_motion_augmented",
+      "label": "DSFB motion-augmented",
+      "roi_pixels": 576,
+      "occupied_bin_count": 5,
+      "entropy_bits": 0.36252916,
+      "discreteness_score": 0.8908678,
+      "effective_level_count": 1,
+      "operating_mode": "NearBinaryGate",
+      "trust_error_rank_correlation": -1.0,
+      "trust_rank_correlation_is_degenerate": true,
+      "histogram": [
+        {
+          "lower": 0.0,
+          "upper": 0.1,
+          "sample_count": 573
+        },
+        {
+          "lower": 0.1,
+          "upper": 0.2,
+          "sample_count": 3
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.3,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.3,
+          "upper": 0.4,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.5,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.5,
+          "upper": 0.6,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.7,
+          "sample_count": 0
+        },
+        {
+          "lower": 0.7,
+          "upper": 0.8,
+          "sample_count": 248
+        },
+        {
+          "lower": 0.8,
+          "upper": 0.9,
+          "sample_count": 16
+        },
+        {
+          "lower": 0.9,
+          "upper": 1.0,
+          "sample_count": 14520
+        }
+      ],
+      "calibration_bins": [
+        {
+          "lower": 0.0,
+          "upper": 0.2,
+          "sample_count": 576,
+          "mean_trust": 0.03552361,
+          "mean_error": 0.02712708
+        },
+        {
+          "lower": 0.2,
+          "upper": 0.4,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.4,
+          "upper": 0.6,
+          "sample_count": 0,
+          "mean_trust": 0.0,
+          "mean_error": 0.0
+        },
+        {
+          "lower": 0.6,
+          "upper": 0.8,
+          "sample_count": 248,
+          "mean_trust": 0.77149826,
+          "mean_error": 1.0014228e-8
+        },
+        {
+          "lower": 0.8,
+          "upper": 1.0,
+          "sample_count": 14536,
+          "mean_trust": 0.9948452,
+          "mean_error": 0.00339538
+        }
+      ]
+    },
+    {
       "scenario_id": "contrast_pulse",
       "scenario_title": "Contrast Pulse Stress",
       "support_category": "NegativeControl",

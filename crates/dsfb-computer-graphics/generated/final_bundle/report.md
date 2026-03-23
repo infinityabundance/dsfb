@@ -15,6 +15,9 @@ This artifact is a deterministic crate-local evaluation package for temporal-reu
 | diagonal_reveal | PointLikeRoi | 1 | 0.00007 | At default resolution the diagonal reveal also reduces to point-like support. It is useful for aliasing behavior, but not as a region-sized aggregate claim. |
 | reveal_band | RegionRoi | 156 | 0.01016 | This scenario is intentionally region-sized so cumulative ROI metrics are not driven by a single pixel. |
 | motion_bias_band | RegionRoi | 714 | 0.04648 | This is a region ROI with deliberately imperfect motion information. It is the main scenario used to decide whether motion disagreement belongs in the minimum path. |
+| layered_slats | RegionRoi | 162 | 0.01055 | This region ROI is intentionally wider than the canonical band so cumulative claims are not dominated by sparse support. |
+| noisy_reprojection | RegionRoi | 1658 | 0.10794 | This is a realism-stress region ROI with deliberately imperfect reprojection cues. |
+| heuristic_friendly_pan | RegionRoi | 576 | 0.03750 | This case is reported explicitly as a competitive-baseline disclosure rather than a universal-win setup. |
 | contrast_pulse | NegativeControl | 1872 | 0.12188 | This negative control uses a large ROI on purpose, but it is not a benefit-expected disocclusion case. |
 | stability_holdout | NegativeControl | 1008 | 0.06562 | This is a negative-control background patch used to bound non-ROI damage and false-positive intervention. |
 
@@ -22,15 +25,18 @@ Point-like ROI scenarios are kept because they remain mechanically relevant, but
 
 ## Scenario Outcomes
 
-| Scenario | Expectation | Host vs fixed ROI gain | Host vs strong ROI gain | Non-ROI penalty vs strong | Clamp trigger mean | Note |
-| --- | --- | ---: | ---: | ---: | ---: | --- |
-| thin_reveal | BenefitExpected | 2.49573 | 0.23014 | 0.00028 | 0.00000 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
-| fast_pan | BenefitExpected | 1.64723 | -0.04395 | 0.00058 | 0.06582 | Strong heuristic remains better on this scenario; the report surfaces that rather than hiding it. |
-| diagonal_reveal | BenefitExpected | 1.82760 | 0.41377 | -0.00005 | 0.00000 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
-| reveal_band | BenefitExpected | 1.83719 | 0.06868 | -0.00077 | 0.05128 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
-| motion_bias_band | BenefitExpected | 2.52368 | 0.33513 | -0.00174 | 0.12020 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
-| contrast_pulse | NeutralExpected | -0.00000 | -0.00000 | 0.00000 | 0.00000 | This is the honesty scenario: aggressive trust collapse is not expected to help, so false-positive response and non-ROI stability are the main evaluation criteria. |
-| stability_holdout | NeutralExpected | -0.00000 | -0.00000 | 0.00000 | 0.00000 | This is the honesty scenario: aggressive trust collapse is not expected to help, so false-positive response and non-ROI stability are the main evaluation criteria. |
+| Scenario | Expectation | Tags | Host vs fixed ROI gain | Host vs strong ROI gain | Non-ROI penalty vs strong | Clamp trigger mean | Note |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| thin_reveal | BenefitExpected | point_roi | 2.49573 | 0.23014 | 0.00028 | 0.00000 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
+| fast_pan | BenefitExpected | competitive_baseline, region_roi | 1.64723 | -0.04395 | 0.00058 | 0.06582 | Strong heuristic remains better on this scenario; the report surfaces that rather than hiding it. |
+| diagonal_reveal | BenefitExpected | point_roi | 1.82760 | 0.41377 | -0.00005 | 0.00000 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
+| reveal_band | BenefitExpected | region_roi | 1.83719 | 0.06868 | -0.00077 | 0.05128 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
+| motion_bias_band | BenefitExpected | realism_stress, region_roi | 2.52368 | 0.33513 | -0.00174 | 0.12020 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
+| layered_slats | BenefitExpected | region_roi | 2.05428 | 0.11961 | -0.00058 | 0.05101 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
+| noisy_reprojection | BenefitExpected | realism_stress, region_roi | 2.97736 | 0.74017 | 0.00146 | 0.06634 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
+| heuristic_friendly_pan | BenefitExpected | competitive_baseline, region_roi | 2.07274 | 0.11158 | -0.00073 | 0.06133 | Host-realistic DSFB remains competitive without privileged visibility hints on this scenario. |
+| contrast_pulse | NeutralExpected | bounded_neutral_or_loss | -0.00000 | -0.00000 | 0.00000 | 0.00000 | This is the honesty scenario: aggressive trust collapse is not expected to help, so false-positive response and non-ROI stability are the main evaluation criteria. |
+| stability_holdout | NeutralExpected | bounded_neutral_or_loss | -0.00000 | -0.00000 | 0.00000 | 0.00000 | This is the honesty scenario: aggressive trust collapse is not expected to help, so false-positive response and non-ROI stability are the main evaluation criteria. |
 
 ## Trust Diagnostics
 
@@ -46,7 +52,13 @@ The minimum host-realistic path excludes motion disagreement. On `motion_bias_ba
 
 On the canonical sampling scenario, imported trust reduced ROI MAE from 0.17226 for uniform allocation to 0.03184 under the same total budget.
 
-Demo B now includes mixed-width and textured region scenarios alongside the original thin-point case, and reports equal-budget curves at 1, 2, 4, and 8 mean spp. The goal is to separate aliasing recovery from structurally better allocation.
+Demo B now includes aliasing-limited, variance-limited, edge-trap, and mixed-width region cases alongside the original thin-point case, and reports equal-budget curves at 1, 2, 4, and 8 mean spp. The goal is to separate aliasing recovery from structurally better allocation.
+
+## External Handoff Bridge
+
+External import status: external-capable = `true`, externally validated = `false`. Source kind used in the generated handoff example: `synthetic_compat`.
+
+The crate can now import current color, reprojected history, motion vectors, depth, and normals through a stable manifest/schema without re-architecting the evaluator.
 
 ## Resolution Scaling
 
@@ -57,6 +69,12 @@ Demo B now includes mixed-width and textured region scenarios alongside the orig
 ## Timing Path
 
 Timing classification: `cpu_only_proxy`. Actual GPU timing measured: `false`.
+
+## GPU Execution Path
+
+GPU execution classification: `actual_gpu_timing_measured`. Actual GPU timing measured: `true`.
+
+A real `wgpu` compute kernel for the minimum host-realistic supervisory path is now in the crate. If no adapter is present, the generated GPU report states that explicitly instead of implying measurement.
 
 ## Cost Model
 
@@ -80,18 +98,21 @@ Centralized hazard weights are still hand-set, but they are now sensitivity-vett
 - Point-like ROI evidence and region-ROI evidence are now reported separately.
 - Motion disagreement is no longer treated as mandatory in the minimum path.
 - Demo B no longer relies only on the original thin sub-pixel case.
+- A file-based external buffer handoff path now exists for engine-adjacent evaluation.
+- A GPU-executable minimum kernel now exists even when the current environment cannot measure it.
 
 ## What Is Not Proven
 
 - This artifact does not prove production-scene generalization.
 - It does not prove measured GPU wins or production deployment performance.
 - It does not prove globally calibrated trust or globally optimal parameter settings.
+- It does not prove external engine validation merely because the import schema now exists.
 
 ## Remaining Blockers
 
 - The scenario suite is still synthetic and does not prove production-scene generalization.
-- The strong heuristic baseline remains competitive on some cases, so the crate supports evaluation diligence rather than universal win claims.
+- The strong heuristic baseline remains competitive on some cases, so the crate supports evaluation diligence rather than blanket win claims.
 - Cost accounting is architectural and CPU-side within the crate; it is not a measured GPU benchmark.
 - Point-like ROI scenarios remain mechanically useful but statistically weak, so aggregate claims must stay separated from region-ROI evidence.
-- Real GPU execution data remains outstanding.
 - External engine traces and broader scene diversity remain future work.
+- Strong heuristic baselines remain competitive on some scenarios, so the correct framing remains a targeted supervisory overlay rather than a general-purpose replacement.

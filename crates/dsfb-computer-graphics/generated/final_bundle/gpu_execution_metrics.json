@@ -1,0 +1,64 @@
+{
+  "measurement_kind": "actual_gpu_timing_measured",
+  "actual_gpu_timing_measured": true,
+  "shader_language": "wgsl",
+  "kernel_name": "dsfb_host_minimum",
+  "entries": [
+    {
+      "label": "gpu_host_minimum_reveal_band",
+      "scenario_id": "reveal_band",
+      "width": 160,
+      "height": 96,
+      "frame_index": 5,
+      "gpu_path_available": true,
+      "actual_gpu_timing_measured": true,
+      "adapter_name": "NVIDIA GeForce RTX 4080 SUPER",
+      "backend": "Vulkan",
+      "total_ms": 0.382894,
+      "dispatch_ms": 0.341877,
+      "readback_ms": 0.039844,
+      "mean_abs_trust_delta_vs_cpu": 3.5390257e-9,
+      "mean_abs_alpha_delta_vs_cpu": 4.5382573e-9,
+      "mean_abs_intervention_delta_vs_cpu": 3.5540708e-9,
+      "workgroup_size": [
+        8,
+        8,
+        1
+      ],
+      "notes": [
+        "Measured on the current environment because a usable wgpu adapter was available.",
+        "The kernel implements the current minimum host-realistic path, which excludes motion disagreement by design."
+      ]
+    },
+    {
+      "label": "gpu_host_minimum_motion_bias_band",
+      "scenario_id": "motion_bias_band",
+      "width": 160,
+      "height": 96,
+      "frame_index": 6,
+      "gpu_path_available": true,
+      "actual_gpu_timing_measured": true,
+      "adapter_name": "NVIDIA GeForce RTX 4080 SUPER",
+      "backend": "Vulkan",
+      "total_ms": 0.358128,
+      "dispatch_ms": 0.32242099999999996,
+      "readback_ms": 0.034695,
+      "mean_abs_trust_delta_vs_cpu": 7.1828254e-9,
+      "mean_abs_alpha_delta_vs_cpu": 9.112894e-9,
+      "mean_abs_intervention_delta_vs_cpu": 7.2020074e-9,
+      "workgroup_size": [
+        8,
+        8,
+        1
+      ],
+      "notes": [
+        "Measured on the current environment because a usable wgpu adapter was available.",
+        "The kernel implements the current minimum host-realistic path, which excludes motion disagreement by design."
+      ]
+    }
+  ],
+  "notes": [
+    "This path is intended to remove the 'CPU-only timing proxy' blocker by providing a real GPU-executable kernel and an honest measured-vs-unmeasured disclosure.",
+    "The current kernel covers the minimum host-realistic supervisory path. Motion disagreement remains an optional extension and is not part of the minimum kernel."
+  ]
+}

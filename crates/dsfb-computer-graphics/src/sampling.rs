@@ -4,7 +4,9 @@ use crate::config::DemoConfig;
 use crate::dsfb::DsfbRun;
 use crate::error::{Error, Result};
 use crate::frame::{mean_abs_error, Color, ImageFrame, ScalarField};
-use crate::scene::{Rect, ScenarioExpectation, ScenarioId, SceneFrame, SceneSequence};
+use crate::scene::{
+    Rect, ScenarioExpectation, ScenarioId, ScenarioSupportCategory, SceneFrame, SceneSequence,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 pub enum AllocationPolicyId {
@@ -86,6 +88,9 @@ pub struct DemoBScenarioReport {
     pub scenario_id: String,
     pub scenario_title: String,
     pub expectation: ScenarioExpectation,
+    pub support_category: ScenarioSupportCategory,
+    pub sampling_taxonomy: String,
+    pub demo_b_taxonomy: String,
     pub onset_frame: usize,
     pub target_label: String,
     pub target_pixels: usize,
@@ -493,6 +498,9 @@ fn run_demo_b_scenario(
             scenario_id: sequence.scenario_id.as_str().to_string(),
             scenario_title: sequence.scenario_title.clone(),
             expectation: sequence.expectation,
+            support_category: sequence.support_category,
+            sampling_taxonomy: sequence.sampling_taxonomy.clone(),
+            demo_b_taxonomy: sequence.demo_b_taxonomy.clone(),
             onset_frame: onset,
             target_label: sequence.target_label.clone(),
             target_pixels: sequence.target_mask.iter().filter(|value| **value).count(),
@@ -694,7 +702,11 @@ fn background_color_continuous(
             (0.08 + 0.18 * stripes + 0.07 * yf) * vignette,
             (0.12 + 0.25 * (1.0 - checker) + 0.04 * xf) * vignette,
         ),
-        ScenarioId::RevealBand | ScenarioId::MotionBiasBand => {
+        ScenarioId::RevealBand
+        | ScenarioId::MotionBiasBand
+        | ScenarioId::LayeredSlats
+        | ScenarioId::NoisyReprojection
+        | ScenarioId::HeuristicFriendlyPan => {
             let micro = ((sample_x * 0.83 + sample_y * 1.91).sin() * 0.5 + 0.5)
                 * ((sample_x * 1.37 - sample_y * 0.71).cos() * 0.5 + 0.5);
             let band = if (18.0..=(config.height as f32 - 18.0)).contains(&sample_y)
@@ -704,8 +716,14 @@ fn background_color_continuous(
             } else {
                 0.0
             };
+            let micro_gain = match scenario_id {
+                ScenarioId::LayeredSlats => 0.13,
+                ScenarioId::NoisyReprojection => 0.16,
+                ScenarioId::HeuristicFriendlyPan => 0.06,
+                _ => 0.10,
+            };
             Color::rgb(
-                (0.10 + 0.14 * xf + 0.05 * checker + 0.10 * micro * band) * vignette,
+                (0.10 + 0.14 * xf + 0.05 * checker + micro_gain * micro * band) * vignette,
                 (0.12 + 0.13 * yf + 0.06 * diagonal + 0.08 * micro * band) * vignette,
                 (0.16 + 0.18 * (1.0 - xf) + 0.07 * stripes + 0.12 * micro * band) * vignette,
             )
@@ -743,7 +761,11 @@ fn is_thin_structure_continuous(
     };
     match scenario_id {
         ScenarioId::DiagonalReveal => diagonal_line,
-        ScenarioId::RevealBand | ScenarioId::MotionBiasBand => mixed_width_band,
+        ScenarioId::RevealBand
+        | ScenarioId::MotionBiasBand
+        | ScenarioId::LayeredSlats
+        | ScenarioId::NoisyReprojection
+        | ScenarioId::HeuristicFriendlyPan => mixed_width_band,
         _ => vertical || diagonal_line,
     }
 }
@@ -767,19 +789,29 @@ fn thin_structure_color_continuous(
     }
     if matches!(scenario_id, ScenarioId::DiagonalReveal) {
         Color::rgb(0.24, 0.29, 0.35)
-    } else if matches!(scenario_id, ScenarioId::RevealBand) {
+    } else if matches!(scenario_id, ScenarioId::RevealBand | ScenarioId::LayeredSlats) {
         let phase = ((sample_x + 2.0 * sample_y).rem_euclid(9.0)) / 8.0;
         Color::rgb(
             0.22 + 0.48 * phase,
             0.58 + 0.26 * phase,
             0.84 + 0.12 * (1.0 - phase),
         )
-    } else if matches!(scenario_id, ScenarioId::MotionBiasBand) {
+    } else if matches!(
+        scenario_id,
+        ScenarioId::MotionBiasBand | ScenarioId::NoisyReprojection
+    ) {
         let phase = ((2.0 * sample_x + sample_y).rem_euclid(13.0)) / 12.0;
         Color::rgb(
             0.78 + 0.16 * phase,
             0.74 + 0.10 * (1.0 - phase),
             0.26 + 0.18 * phase,
+        )
+    } else if matches!(scenario_id, ScenarioId::HeuristicFriendlyPan) {
+        let phase = ((sample_x - 1.5 * sample_y).rem_euclid(15.0)) / 14.0;
+        Color::rgb(
+            0.18 + 0.14 * phase,
+            0.86 - 0.18 * phase,
+            0.28 + 0.10 * (1.0 - phase),
         )
     } else {
         Color::rgb(0.64, 0.90, 0.96)

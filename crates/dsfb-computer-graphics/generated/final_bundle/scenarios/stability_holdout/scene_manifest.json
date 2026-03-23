@@ -6,6 +6,10 @@
   "support_category": "NegativeControl",
   "roi_note": "This is a negative-control background patch used to bound non-ROI damage and false-positive intervention.",
   "sampling_taxonomy": "negative control",
+  "realism_stress": false,
+  "competitive_baseline_case": false,
+  "bounded_loss_disclosure": true,
+  "demo_b_taxonomy": "variance_limited",
   "target_label": "holdout background patch",
   "config": {
     "width": 160,

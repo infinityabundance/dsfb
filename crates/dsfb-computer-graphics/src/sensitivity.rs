@@ -33,6 +33,7 @@ pub struct ParameterSweepPoint {
     pub motion_bias_cumulative_roi_mae: f32,
     pub neutral_non_roi_mae: f32,
     pub robust_corridor_member: bool,
+    pub robustness_class: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -194,6 +195,14 @@ fn build_sweep_point(
         robust_corridor_member: benefit_scenarios_beating_fixed >= 2
             && motion.cumulative_roi_mae <= baseline_motion.cumulative_roi_mae * 1.20
             && neutral.average_non_roi_mae <= baseline_neutral.average_non_roi_mae * 1.25,
+        robustness_class: classify_robustness(
+            benefit_scenarios_beating_fixed,
+            motion.cumulative_roi_mae,
+            baseline_motion.cumulative_roi_mae,
+            neutral.average_non_roi_mae,
+            baseline_neutral.average_non_roi_mae,
+        )
+        .to_string(),
     })
 }
 
@@ -299,5 +308,27 @@ fn mean_region_roi_mae(values: &[(&'static str, ScenarioEval)]) -> f32 {
         0.0
     } else {
         sum / count as f32
+    }
+}
+
+fn classify_robustness(
+    benefit_scenarios_beating_fixed: usize,
+    motion_roi_mae: f32,
+    baseline_motion_roi_mae: f32,
+    neutral_non_roi_mae: f32,
+    baseline_neutral_non_roi_mae: f32,
+) -> &'static str {
+    if benefit_scenarios_beating_fixed >= 2
+        && motion_roi_mae <= baseline_motion_roi_mae * 1.20
+        && neutral_non_roi_mae <= baseline_neutral_non_roi_mae * 1.25
+    {
+        "robust"
+    } else if benefit_scenarios_beating_fixed >= 2
+        && motion_roi_mae <= baseline_motion_roi_mae * 1.35
+        && neutral_non_roi_mae <= baseline_neutral_non_roi_mae * 1.40
+    {
+        "moderately_sensitive"
+    } else {
+        "fragile"
     }
 }

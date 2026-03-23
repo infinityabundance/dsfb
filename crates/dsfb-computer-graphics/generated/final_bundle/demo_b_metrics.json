@@ -6,6 +6,9 @@
       "diagonal_reveal",
       "reveal_band",
       "motion_bias_band",
+      "layered_slats",
+      "noisy_reprojection",
+      "heuristic_friendly_pan",
       "contrast_pulse",
       "stability_holdout"
     ],
@@ -21,8 +24,8 @@
       "hybrid_trust_variance"
     ],
     "primary_behavioral_result": "On the canonical sampling scenario, imported trust reduced ROI MAE from 0.17226 for uniform allocation to 0.03184 under the same total budget.",
-    "imported_trust_beats_uniform_scenarios": 5,
-    "imported_trust_beats_combined_heuristic_scenarios": 5,
+    "imported_trust_beats_uniform_scenarios": 8,
+    "imported_trust_beats_combined_heuristic_scenarios": 8,
     "neutral_or_mixed_scenarios": [
       "contrast_pulse",
       "stability_holdout"
@@ -33,6 +36,9 @@
       "scenario_id": "thin_reveal",
       "scenario_title": "Thin-Structure Reveal",
       "expectation": "BenefitExpected",
+      "support_category": "PointLikeRoi",
+      "sampling_taxonomy": "coverage-dominated point reveal",
+      "demo_b_taxonomy": "aliasing_limited",
       "onset_frame": 6,
       "target_label": "revealed thin structure",
       "target_pixels": 1,
@@ -198,6 +204,9 @@
       "scenario_id": "fast_pan",
       "scenario_title": "Fast Lateral Reveal",
       "expectation": "BenefitExpected",
+      "support_category": "RegionRoi",
+      "sampling_taxonomy": "thin-band reveal with textured background",
+      "demo_b_taxonomy": "mixed",
       "onset_frame": 4,
       "target_label": "fast-pan reveal region",
       "target_pixels": 644,
@@ -363,6 +372,9 @@
       "scenario_id": "diagonal_reveal",
       "scenario_title": "Diagonal Subpixel Reveal",
       "expectation": "BenefitExpected",
+      "support_category": "PointLikeRoi",
+      "sampling_taxonomy": "subpixel diagonal coverage case",
+      "demo_b_taxonomy": "aliasing_limited",
       "onset_frame": 5,
       "target_label": "diagonal thin reveal",
       "target_pixels": 1,
@@ -528,6 +540,9 @@
       "scenario_id": "reveal_band",
       "scenario_title": "Textured Reveal Band",
       "expectation": "BenefitExpected",
+      "support_category": "RegionRoi",
+      "sampling_taxonomy": "mixed-width reveal band with aliasing and texture",
+      "demo_b_taxonomy": "mixed",
       "onset_frame": 5,
       "target_label": "textured reveal band",
       "target_pixels": 156,
@@ -693,6 +708,9 @@
       "scenario_id": "motion_bias_band",
       "scenario_title": "Motion-Bias Reveal Band",
       "expectation": "BenefitExpected",
+      "support_category": "RegionRoi",
+      "sampling_taxonomy": "motion-mismatch reveal band",
+      "demo_b_taxonomy": "mixed",
       "onset_frame": 6,
       "target_label": "motion-bias reveal band",
       "target_pixels": 714,
@@ -855,9 +873,516 @@
       "bounded_note": "Imported trust remains competitive under equal budget on this scenario."
     },
     {
+      "scenario_id": "layered_slats",
+      "scenario_title": "Layered Slat Reveal",
+      "expectation": "BenefitExpected",
+      "support_category": "RegionRoi",
+      "sampling_taxonomy": "layered slat reveal with mixed stable and unstable zones",
+      "demo_b_taxonomy": "mixed",
+      "onset_frame": 5,
+      "target_label": "layered slat reveal",
+      "target_pixels": 162,
+      "policies": [
+        {
+          "policy_id": "uniform",
+          "label": "Uniform",
+          "total_samples": 30720,
+          "overall_mae": 0.009732364,
+          "overall_rmse": 0.027715582,
+          "roi_mae": 0.019847455,
+          "roi_rmse": 0.042561185,
+          "non_roi_mae": 0.009624544,
+          "non_roi_rmse": 0.027514232,
+          "roi_mean_spp": 2.0,
+          "non_roi_mean_spp": 2.0,
+          "max_spp": 2,
+          "allocation_concentration": 1.0,
+          "extra_roi_samples_vs_uniform": 0.0,
+          "roi_error_reduction_per_extra_roi_sample": 0.0
+        },
+        {
+          "policy_id": "edge_guided",
+          "label": "Edge-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.00707087,
+          "overall_rmse": 0.016754318,
+          "roi_mae": 0.00958756,
+          "roi_rmse": 0.01785354,
+          "non_roi_mae": 0.0070440467,
+          "non_roi_rmse": 0.016742218,
+          "roi_mean_spp": 4.648148,
+          "non_roi_mean_spp": 1.9717726,
+          "max_spp": 6,
+          "allocation_concentration": 2.3573449,
+          "extra_roi_samples_vs_uniform": 2.648148,
+          "roi_error_reduction_per_extra_roi_sample": 0.003874366
+        },
+        {
+          "policy_id": "residual_guided",
+          "label": "Residual-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.0073866546,
+          "overall_rmse": 0.018361023,
+          "roi_mae": 0.010367473,
+          "roi_rmse": 0.019426363,
+          "non_roi_mae": 0.007354878,
+          "non_roi_rmse": 0.018349335,
+          "roi_mean_spp": 4.5246916,
+          "non_roi_mean_spp": 1.9730886,
+          "max_spp": 9,
+          "allocation_concentration": 2.2932024,
+          "extra_roi_samples_vs_uniform": 2.5246916,
+          "roi_error_reduction_per_extra_roi_sample": 0.0037549068
+        },
+        {
+          "policy_id": "contrast_guided",
+          "label": "Contrast-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.0070707495,
+          "overall_rmse": 0.01733359,
+          "roi_mae": 0.009950254,
+          "roi_rmse": 0.020127594,
+          "non_roi_mae": 0.007040059,
+          "non_roi_rmse": 0.017301382,
+          "roi_mean_spp": 4.080247,
+          "non_roi_mean_spp": 1.977826,
+          "max_spp": 5,
+          "allocation_concentration": 2.062996,
+          "extra_roi_samples_vs_uniform": 2.080247,
+          "roi_error_reduction_per_extra_roi_sample": 0.0047577047
+        },
+        {
+          "policy_id": "variance_guided",
+          "label": "Variance-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.007928443,
+          "overall_rmse": 0.020998163,
+          "roi_mae": 0.016817346,
+          "roi_rmse": 0.03674163,
+          "non_roi_mae": 0.007833693,
+          "non_roi_rmse": 0.020766154,
+          "roi_mean_spp": 2.3580246,
+          "non_roi_mean_spp": 1.9961838,
+          "max_spp": 12,
+          "allocation_concentration": 1.1812663,
+          "extra_roi_samples_vs_uniform": 0.3580246,
+          "roi_error_reduction_per_extra_roi_sample": 0.008463408
+        },
+        {
+          "policy_id": "combined_heuristic",
+          "label": "Combined heuristic",
+          "total_samples": 30720,
+          "overall_mae": 0.0069223046,
+          "overall_rmse": 0.016815796,
+          "roi_mae": 0.008812139,
+          "roi_rmse": 0.01602421,
+          "non_roi_mae": 0.0069021652,
+          "non_roi_rmse": 0.016824037,
+          "roi_mean_spp": 4.339506,
+          "non_roi_mean_spp": 1.9750625,
+          "max_spp": 8,
+          "allocation_concentration": 2.1971488,
+          "extra_roi_samples_vs_uniform": 2.3395061,
+          "roi_error_reduction_per_extra_roi_sample": 0.0047169426
+        },
+        {
+          "policy_id": "native_trust",
+          "label": "Native trust",
+          "total_samples": 30720,
+          "overall_mae": 0.007035849,
+          "overall_rmse": 0.017518803,
+          "roi_mae": 0.010175551,
+          "roi_rmse": 0.021932108,
+          "non_roi_mae": 0.00700238,
+          "non_roi_rmse": 0.017465752,
+          "roi_mean_spp": 3.9444444,
+          "non_roi_mean_spp": 1.9792736,
+          "max_spp": 10,
+          "allocation_concentration": 1.9928749,
+          "extra_roi_samples_vs_uniform": 1.9444444,
+          "roi_error_reduction_per_extra_roi_sample": 0.0049741217
+        },
+        {
+          "policy_id": "imported_trust",
+          "label": "Imported trust",
+          "total_samples": 30720,
+          "overall_mae": 0.009672378,
+          "overall_rmse": 0.027414657,
+          "roi_mae": 0.0035278392,
+          "roi_rmse": 0.008651957,
+          "non_roi_mae": 0.009737871,
+          "non_roi_rmse": 0.027545903,
+          "roi_mean_spp": 12.0,
+          "non_roi_mean_spp": 1.893407,
+          "max_spp": 12,
+          "allocation_concentration": 6.3377814,
+          "extra_roi_samples_vs_uniform": 10.0,
+          "roi_error_reduction_per_extra_roi_sample": 0.0016319616
+        },
+        {
+          "policy_id": "hybrid_trust_variance",
+          "label": "Hybrid trust + variance",
+          "total_samples": 30720,
+          "overall_mae": 0.008410004,
+          "overall_rmse": 0.022263901,
+          "roi_mae": 0.007625702,
+          "roi_rmse": 0.018620735,
+          "non_roi_mae": 0.00841835,
+          "non_roi_rmse": 0.02229953,
+          "roi_mean_spp": 6.111111,
+          "non_roi_mean_spp": 1.9561784,
+          "max_spp": 12,
+          "allocation_concentration": 3.124005,
+          "extra_roi_samples_vs_uniform": 4.111111,
+          "roi_error_reduction_per_extra_roi_sample": 0.0029728587
+        }
+      ],
+      "headline": "Layered Slat Reveal: imported-trust ROI MAE 0.00353, combined-heuristic ROI MAE 0.00881, uniform ROI MAE 0.01985.",
+      "bounded_note": "Imported trust remains competitive under equal budget on this scenario."
+    },
+    {
+      "scenario_id": "noisy_reprojection",
+      "scenario_title": "Noisy Reprojection Reveal",
+      "expectation": "BenefitExpected",
+      "support_category": "RegionRoi",
+      "sampling_taxonomy": "realism-stress reveal with noisy reprojection",
+      "demo_b_taxonomy": "variance_limited",
+      "onset_frame": 6,
+      "target_label": "noisy reprojection reveal",
+      "target_pixels": 1658,
+      "policies": [
+        {
+          "policy_id": "uniform",
+          "label": "Uniform",
+          "total_samples": 30720,
+          "overall_mae": 0.009424537,
+          "overall_rmse": 0.026225172,
+          "roi_mae": 0.03289715,
+          "roi_rmse": 0.056972872,
+          "non_roi_mae": 0.00658423,
+          "non_roi_rmse": 0.019447815,
+          "roi_mean_spp": 2.0,
+          "non_roi_mean_spp": 2.0,
+          "max_spp": 2,
+          "allocation_concentration": 1.0,
+          "extra_roi_samples_vs_uniform": 0.0,
+          "roi_error_reduction_per_extra_roi_sample": 0.0
+        },
+        {
+          "policy_id": "edge_guided",
+          "label": "Edge-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.0071613295,
+          "overall_rmse": 0.01635494,
+          "roi_mae": 0.020666149,
+          "roi_rmse": 0.03786961,
+          "non_roi_mae": 0.0055272123,
+          "non_roi_rmse": 0.011239504,
+          "roi_mean_spp": 4.00965,
+          "non_roi_mean_spp": 1.7568238,
+          "max_spp": 6,
+          "allocation_concentration": 2.2823293,
+          "extra_roi_samples_vs_uniform": 2.0096502,
+          "roi_error_reduction_per_extra_roi_sample": 0.0060861334
+        },
+        {
+          "policy_id": "residual_guided",
+          "label": "Residual-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.007233794,
+          "overall_rmse": 0.017139282,
+          "roi_mae": 0.022310998,
+          "roi_rmse": 0.04028462,
+          "non_roi_mae": 0.005409402,
+          "non_roi_rmse": 0.011529847,
+          "roi_mean_spp": 3.8799758,
+          "non_roi_mean_spp": 1.7725149,
+          "max_spp": 8,
+          "allocation_concentration": 2.1889665,
+          "extra_roi_samples_vs_uniform": 1.8799758,
+          "roi_error_reduction_per_extra_roi_sample": 0.0056310035
+        },
+        {
+          "policy_id": "contrast_guided",
+          "label": "Contrast-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.0071405396,
+          "overall_rmse": 0.016893908,
+          "roi_mae": 0.019924378,
+          "roi_rmse": 0.03827624,
+          "non_roi_mae": 0.005593663,
+          "non_roi_rmse": 0.0119443955,
+          "roi_mean_spp": 3.9173703,
+          "non_roi_mean_spp": 1.7679901,
+          "max_spp": 5,
+          "allocation_concentration": 2.2157197,
+          "extra_roi_samples_vs_uniform": 1.9173703,
+          "roi_error_reduction_per_extra_roi_sample": 0.006765918
+        },
+        {
+          "policy_id": "variance_guided",
+          "label": "Variance-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.0077034435,
+          "overall_rmse": 0.019935794,
+          "roi_mae": 0.024089385,
+          "roi_rmse": 0.04346564,
+          "non_roi_mae": 0.005720671,
+          "non_roi_rmse": 0.014728317,
+          "roi_mean_spp": 2.8835948,
+          "non_roi_mean_spp": 1.8930813,
+          "max_spp": 12,
+          "allocation_concentration": 1.5232282,
+          "extra_roi_samples_vs_uniform": 0.88359475,
+          "roi_error_reduction_per_extra_roi_sample": 0.009968103
+        },
+        {
+          "policy_id": "combined_heuristic",
+          "label": "Combined heuristic",
+          "total_samples": 30720,
+          "overall_mae": 0.006949845,
+          "overall_rmse": 0.016237207,
+          "roi_mae": 0.02066805,
+          "roi_rmse": 0.03796535,
+          "non_roi_mae": 0.005289913,
+          "non_roi_rmse": 0.011006601,
+          "roi_mean_spp": 3.876357,
+          "non_roi_mean_spp": 1.7729528,
+          "max_spp": 8,
+          "allocation_concentration": 2.186385,
+          "extra_roi_samples_vs_uniform": 1.8763571,
+          "roi_error_reduction_per_extra_roi_sample": 0.0065174685
+        },
+        {
+          "policy_id": "native_trust",
+          "label": "Native trust",
+          "total_samples": 30720,
+          "overall_mae": 0.007011652,
+          "overall_rmse": 0.016729234,
+          "roi_mae": 0.021494558,
+          "roi_rmse": 0.038817845,
+          "non_roi_mae": 0.0052591874,
+          "non_roi_rmse": 0.011463364,
+          "roi_mean_spp": 3.601327,
+          "non_roi_mean_spp": 1.8062327,
+          "max_spp": 9,
+          "allocation_concentration": 1.9938333,
+          "extra_roi_samples_vs_uniform": 1.601327,
+          "roi_error_reduction_per_extra_roi_sample": 0.0071207136
+        },
+        {
+          "policy_id": "imported_trust",
+          "label": "Imported trust",
+          "total_samples": 30720,
+          "overall_mae": 0.007821716,
+          "overall_rmse": 0.019544724,
+          "roi_mae": 0.010562399,
+          "roi_rmse": 0.020832058,
+          "non_roi_mae": 0.007490069,
+          "non_roi_rmse": 0.019383196,
+          "roi_mean_spp": 7.027141,
+          "non_roi_mean_spp": 1.3916947,
+          "max_spp": 8,
+          "allocation_concentration": 5.049341,
+          "extra_roi_samples_vs_uniform": 5.027141,
+          "roi_error_reduction_per_extra_roi_sample": 0.004442833
+        },
+        {
+          "policy_id": "hybrid_trust_variance",
+          "label": "Hybrid trust + variance",
+          "total_samples": 30720,
+          "overall_mae": 0.007026409,
+          "overall_rmse": 0.017580751,
+          "roi_mae": 0.01499264,
+          "roi_rmse": 0.030081114,
+          "non_roi_mae": 0.0060624504,
+          "non_roi_rmse": 0.01539463,
+          "roi_mean_spp": 4.779252,
+          "non_roi_mean_spp": 1.6636987,
+          "max_spp": 12,
+          "allocation_concentration": 2.8726668,
+          "extra_roi_samples_vs_uniform": 2.779252,
+          "roi_error_reduction_per_extra_roi_sample": 0.006442204
+        }
+      ],
+      "headline": "Noisy Reprojection Reveal: imported-trust ROI MAE 0.01056, combined-heuristic ROI MAE 0.02067, uniform ROI MAE 0.03290.",
+      "bounded_note": "Imported trust remains competitive under equal budget on this scenario."
+    },
+    {
+      "scenario_id": "heuristic_friendly_pan",
+      "scenario_title": "Heuristic-Friendly Pan",
+      "expectation": "BenefitExpected",
+      "support_category": "RegionRoi",
+      "sampling_taxonomy": "competitive baseline reveal",
+      "demo_b_taxonomy": "edge_trap",
+      "onset_frame": 4,
+      "target_label": "heuristic-friendly reveal",
+      "target_pixels": 576,
+      "policies": [
+        {
+          "policy_id": "uniform",
+          "label": "Uniform",
+          "total_samples": 30720,
+          "overall_mae": 0.006489886,
+          "overall_rmse": 0.015525697,
+          "roi_mae": 0.0102981515,
+          "roi_rmse": 0.018510709,
+          "non_roi_mae": 0.006341508,
+          "non_roi_rmse": 0.015397695,
+          "roi_mean_spp": 2.0,
+          "non_roi_mean_spp": 2.0,
+          "max_spp": 2,
+          "allocation_concentration": 1.0,
+          "extra_roi_samples_vs_uniform": 0.0,
+          "roi_error_reduction_per_extra_roi_sample": 0.0
+        },
+        {
+          "policy_id": "edge_guided",
+          "label": "Edge-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.0053066527,
+          "overall_rmse": 0.010151311,
+          "roi_mae": 0.0070037353,
+          "roi_rmse": 0.009859078,
+          "non_roi_mae": 0.005240536,
+          "non_roi_rmse": 0.010162525,
+          "roi_mean_spp": 3.703125,
+          "non_roi_mean_spp": 1.9336445,
+          "max_spp": 6,
+          "allocation_concentration": 1.9151012,
+          "extra_roi_samples_vs_uniform": 1.703125,
+          "roi_error_reduction_per_extra_roi_sample": 0.0019343361
+        },
+        {
+          "policy_id": "residual_guided",
+          "label": "Residual-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.0055203247,
+          "overall_rmse": 0.011033349,
+          "roi_mae": 0.0073533,
+          "roi_rmse": 0.010719466,
+          "non_roi_mae": 0.005448911,
+          "non_roi_rmse": 0.011045399,
+          "roi_mean_spp": 3.5329862,
+          "non_roi_mean_spp": 1.9402733,
+          "max_spp": 9,
+          "allocation_concentration": 1.8208704,
+          "extra_roi_samples_vs_uniform": 1.5329862,
+          "roi_error_reduction_per_extra_roi_sample": 0.0019209902
+        },
+        {
+          "policy_id": "contrast_guided",
+          "label": "Contrast-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.0052872403,
+          "overall_rmse": 0.010421414,
+          "roi_mae": 0.007278959,
+          "roi_rmse": 0.010826499,
+          "non_roi_mae": 0.0052096397,
+          "non_roi_rmse": 0.010405311,
+          "roi_mean_spp": 3.4184027,
+          "non_roi_mean_spp": 1.9447376,
+          "max_spp": 5,
+          "allocation_concentration": 1.7577707,
+          "extra_roi_samples_vs_uniform": 1.4184027,
+          "roi_error_reduction_per_extra_roi_sample": 0.0021285864
+        },
+        {
+          "policy_id": "variance_guided",
+          "label": "Variance-guided",
+          "total_samples": 30720,
+          "overall_mae": 0.0055280444,
+          "overall_rmse": 0.012075172,
+          "roi_mae": 0.008754189,
+          "roi_rmse": 0.014351064,
+          "non_roi_mae": 0.005402355,
+          "non_roi_rmse": 0.011977757,
+          "roi_mean_spp": 2.3229167,
+          "non_roi_mean_spp": 1.9874189,
+          "max_spp": 12,
+          "allocation_concentration": 1.1688108,
+          "extra_roi_samples_vs_uniform": 0.32291675,
+          "roi_error_reduction_per_extra_roi_sample": 0.0047813016
+        },
+        {
+          "policy_id": "combined_heuristic",
+          "label": "Combined heuristic",
+          "total_samples": 30720,
+          "overall_mae": 0.0051547694,
+          "overall_rmse": 0.010126305,
+          "roi_mae": 0.00691609,
+          "roi_rmse": 0.010047597,
+          "non_roi_mae": 0.0050861486,
+          "non_roi_rmse": 0.010129358,
+          "roi_mean_spp": 3.5434027,
+          "non_roi_mean_spp": 1.9398674,
+          "max_spp": 8,
+          "allocation_concentration": 1.826621,
+          "extra_roi_samples_vs_uniform": 1.5434027,
+          "roi_error_reduction_per_extra_roi_sample": 0.0021913021
+        },
+        {
+          "policy_id": "native_trust",
+          "label": "Native trust",
+          "total_samples": 30720,
+          "overall_mae": 0.0051950756,
+          "overall_rmse": 0.010348762,
+          "roi_mae": 0.007112995,
+          "roi_rmse": 0.010544254,
+          "non_roi_mae": 0.005120349,
+          "non_roi_rmse": 0.01034107,
+          "roi_mean_spp": 3.2743056,
+          "non_roi_mean_spp": 1.9503517,
+          "max_spp": 10,
+          "allocation_concentration": 1.6788282,
+          "extra_roi_samples_vs_uniform": 1.2743056,
+          "roi_error_reduction_per_extra_roi_sample": 0.0024995236
+        },
+        {
+          "policy_id": "imported_trust",
+          "label": "Imported trust",
+          "total_samples": 30720,
+          "overall_mae": 0.0066374904,
+          "overall_rmse": 0.015451209,
+          "roi_mae": 0.0025213864,
+          "roi_rmse": 0.0050600283,
+          "non_roi_mae": 0.0067978553,
+          "non_roi_rmse": 0.015717633,
+          "roi_mean_spp": 11.439236,
+          "non_roi_mean_spp": 1.6322376,
+          "max_spp": 12,
+          "allocation_concentration": 7.0083156,
+          "extra_roi_samples_vs_uniform": 9.439236,
+          "roi_error_reduction_per_extra_roi_sample": 0.0008238766
+        },
+        {
+          "policy_id": "hybrid_trust_variance",
+          "label": "Hybrid trust + variance",
+          "total_samples": 30720,
+          "overall_mae": 0.0056750868,
+          "overall_rmse": 0.012493149,
+          "roi_mae": 0.0047482587,
+          "roi_rmse": 0.008198086,
+          "non_roi_mae": 0.0057111946,
+          "non_roi_rmse": 0.012630964,
+          "roi_mean_spp": 5.517361,
+          "non_roi_mean_spp": 1.86296,
+          "max_spp": 12,
+          "allocation_concentration": 2.96161,
+          "extra_roi_samples_vs_uniform": 3.5173612,
+          "roi_error_reduction_per_extra_roi_sample": 0.001577857
+        }
+      ],
+      "headline": "Heuristic-Friendly Pan: imported-trust ROI MAE 0.00252, combined-heuristic ROI MAE 0.00692, uniform ROI MAE 0.01030.",
+      "bounded_note": "Imported trust remains competitive under equal budget on this scenario."
+    },
+    {
       "scenario_id": "contrast_pulse",
       "scenario_title": "Contrast Pulse Stress",
       "expectation": "NeutralExpected",
+      "support_category": "NegativeControl",
+      "sampling_taxonomy": "negative control",
+      "demo_b_taxonomy": "variance_limited",
       "onset_frame": 0,
       "target_label": "pulse region",
       "target_pixels": 1872,
@@ -1023,6 +1548,9 @@
       "scenario_id": "stability_holdout",
       "scenario_title": "Stability Holdout",
       "expectation": "NeutralExpected",
+      "support_category": "NegativeControl",
+      "sampling_taxonomy": "negative control",
+      "demo_b_taxonomy": "variance_limited",
       "onset_frame": 0,
       "target_label": "holdout background patch",
       "target_pixels": 1008,
@@ -1733,6 +2261,336 @@
         {
           "average_spp": 8.0,
           "roi_mae": 0.0069536394
+        }
+      ]
+    },
+    {
+      "scenario_id": "layered_slats",
+      "policy_id": "uniform",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.027107112
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.019847455
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.010498001
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.00526003
+        }
+      ]
+    },
+    {
+      "scenario_id": "layered_slats",
+      "policy_id": "combined_heuristic",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.027107112
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.008812139
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.004718381
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.0038092118
+        }
+      ]
+    },
+    {
+      "scenario_id": "layered_slats",
+      "policy_id": "native_trust",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.027107112
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.010175551
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.0048602857
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.003903457
+        }
+      ]
+    },
+    {
+      "scenario_id": "layered_slats",
+      "policy_id": "imported_trust",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.027107112
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.0035278392
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.0035278392
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.0035278392
+        }
+      ]
+    },
+    {
+      "scenario_id": "layered_slats",
+      "policy_id": "hybrid_trust_variance",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.027107112
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.007625702
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.0035278392
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.0035278392
+        }
+      ]
+    },
+    {
+      "scenario_id": "noisy_reprojection",
+      "policy_id": "uniform",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.045915745
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.03289715
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.01810506
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.008787018
+        }
+      ]
+    },
+    {
+      "scenario_id": "noisy_reprojection",
+      "policy_id": "combined_heuristic",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.045915745
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.02066805
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.013801436
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.007403635
+        }
+      ]
+    },
+    {
+      "scenario_id": "noisy_reprojection",
+      "policy_id": "native_trust",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.045915745
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.021494558
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.013324728
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.007420146
+        }
+      ]
+    },
+    {
+      "scenario_id": "noisy_reprojection",
+      "policy_id": "imported_trust",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.045915745
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.010562399
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.0070287
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.00702353
+        }
+      ]
+    },
+    {
+      "scenario_id": "noisy_reprojection",
+      "policy_id": "hybrid_trust_variance",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.045915745
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.01499264
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.0072596762
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.00702353
+        }
+      ]
+    },
+    {
+      "scenario_id": "heuristic_friendly_pan",
+      "policy_id": "uniform",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.0154890455
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.0102981515
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.006617162
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.002968713
+        }
+      ]
+    },
+    {
+      "scenario_id": "heuristic_friendly_pan",
+      "policy_id": "combined_heuristic",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.0154890455
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.00691609
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.003944732
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.0026507778
+        }
+      ]
+    },
+    {
+      "scenario_id": "heuristic_friendly_pan",
+      "policy_id": "native_trust",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.0154890455
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.007112995
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.003963914
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.0027448258
+        }
+      ]
+    },
+    {
+      "scenario_id": "heuristic_friendly_pan",
+      "policy_id": "imported_trust",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.0154890455
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.0025213864
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.0024097362
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.0024097362
+        }
+      ]
+    },
+    {
+      "scenario_id": "heuristic_friendly_pan",
+      "policy_id": "hybrid_trust_variance",
+      "points": [
+        {
+          "average_spp": 1.0,
+          "roi_mae": 0.0154890455
+        },
+        {
+          "average_spp": 2.0,
+          "roi_mae": 0.0047482587
+        },
+        {
+          "average_spp": 4.0,
+          "roi_mae": 0.0024097362
+        },
+        {
+          "average_spp": 8.0,
+          "roi_mae": 0.0024097362
         }
       ]
     },

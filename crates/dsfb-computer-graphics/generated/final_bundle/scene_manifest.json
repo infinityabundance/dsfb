@@ -6,6 +6,10 @@
   "support_category": "PointLikeRoi",
   "roi_note": "Canonical reveal ROI collapses to a single disoccluded thin-structure pixel at the default resolution. It remains mechanically relevant but statistically weak and must be reported as point-like evidence.",
   "sampling_taxonomy": "coverage-dominated point reveal",
+  "realism_stress": false,
+  "competitive_baseline_case": false,
+  "bounded_loss_disclosure": false,
+  "demo_b_taxonomy": "aliasing_limited",
   "target_label": "revealed thin structure",
   "config": {
     "width": 160,

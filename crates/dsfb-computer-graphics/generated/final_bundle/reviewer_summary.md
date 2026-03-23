@@ -10,9 +10,13 @@ Trust conclusion: The current host-realistic implementation behaves as a near-bi
 
 Timing conclusion: `cpu_only_proxy` with actual GPU timing measured = `false`.
 
+GPU bridge conclusion: `actual_gpu_timing_measured` with actual GPU timing measured = `true`.
+
+External bridge conclusion: external-capable = `true`, externally validated = `false`.
+
 What is still blocked:
-- real GPU execution measurements
 - broader external scene validation
+- engine-side GPU profiling on imported captures
 
 What is now decision-clean:
 - host-realistic minimum path is explicit
@@ -20,13 +24,14 @@ What is now decision-clean:
 - motion disagreement is optional rather than hidden in the minimum path
 - Demo B includes region and mixed-width evidence
 - weights are centralized and sensitivity-vetted
+- a real GPU-executable kernel exists in the crate
+- external buffers can be imported through a stable manifest
 
 ## What Is Not Proven
 
-- no actual GPU timing in this environment
 - no production-scene or engine deployment proof
 
 ## Remaining Blockers
 
-- real GPU execution measurements
 - broader external scene validation
+- engine-side GPU profiling on imported captures

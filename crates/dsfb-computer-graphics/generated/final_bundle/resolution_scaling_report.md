@@ -22,7 +22,9 @@
 ## What Is Not Proven
 
 - This report is a structural scaling study, not a production-scene benchmark.
+- External validation is still required to show that the same scaling behavior survives real engine-exported buffers.
 
 ## Remaining Blockers
 
 - A full 1080p or 4K full-suite run with real hardware timing remains future work.
+- External handoff exists, but no externally validated scaling study is included here.
