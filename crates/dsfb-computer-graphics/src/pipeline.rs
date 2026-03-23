@@ -4,21 +4,39 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::config::DemoConfig;
-use crate::dsfb::{DsfbRun, StructuralState};
-use crate::error::Result;
-use crate::frame::{save_scalar_field_png, Color, ScalarField};
-use crate::metrics::{analyze_demo_a, DemoAAnalysis, MetricsReport};
+use crate::cost::{build_cost_report, CostMode};
+use crate::dsfb::{ablation_profiles, run_profiled_taa, DsfbRun, StructuralState};
+use crate::error::{Error, Result};
+use crate::frame::{
+    bounding_box_from_mask, save_scalar_field_png, BoundingBox, Color, ImageFrame, ScalarField,
+};
+use crate::host::default_host_realistic_profile;
+use crate::metrics::{analyze_demo_a_suite, DemoASuiteMetrics, RunAnalysisInput};
+use crate::outputs::{
+    format_zip_bundle_name, pdf_bundle_path, ARTIFACT_MANIFEST_FILE_NAME, NOTEBOOK_OUTPUT_ROOT_NAME,
+};
 use crate::plots::{
-    write_before_after_figure, write_demo_b_sampling_figure, write_system_diagram,
-    write_trust_map_figure, write_trust_vs_error_figure, DemoBFigureInputs,
+    write_ablation_bar_figure, write_before_after_figure, write_demo_b_budget_efficiency_figure,
+    write_demo_b_sampling_figure, write_intervention_alpha_figure, write_leaderboard_figure,
+    write_roi_nonroi_error_figure, write_scenario_mosaic_figure, write_system_diagram,
+    write_trust_map_figure, write_trust_vs_error_figure, ScenarioMosaicEntry,
 };
 use crate::report::{
-    write_completion_note, write_demo_b_report, write_report, write_reviewer_summary,
-    CompletionNoteStatus,
+    write_ablation_report, write_check_signing_blockers, write_completion_note, write_cost_report,
+    write_demo_b_decision_report, write_five_mentor_audit, write_report, write_reviewer_summary,
+    CompletionNoteStatus, COMPATIBILITY_SENTENCE, COST_SENTENCE, EXPERIMENT_SENTENCE,
 };
-use crate::sampling::{run_demo_b as run_demo_b_core, DemoBMetrics, DemoBRun};
-use crate::scene::{build_manifest, generate_sequence, SceneManifest, SceneSequence};
-use crate::taa::{run_fixed_alpha, run_residual_threshold, ResidualThresholdRun, TaaRun};
+use crate::sampling::{run_demo_b_suite, AllocationPolicyId, DemoBScenarioRun, DemoBSuiteMetrics};
+use crate::scene::{
+    build_manifest, generate_sequence, generate_sequence_for_definition, scenario_by_id,
+    scenario_suite, ScenarioDefinition, ScenarioExpectation, ScenarioId, SceneManifest,
+    SceneSequence,
+};
+use crate::taa::{
+    run_depth_normal_rejection_baseline, run_fixed_alpha_baseline, run_neighborhood_clamp_baseline,
+    run_reactive_mask_baseline, run_residual_threshold_baseline, run_strong_heuristic_baseline,
+    HeuristicRun,
+};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct DemoAArtifacts {
@@ -27,8 +45,11 @@ pub struct DemoAArtifacts {
     pub report_path: PathBuf,
     pub reviewer_summary_path: PathBuf,
     pub completion_note_path: PathBuf,
+    pub ablation_report_path: PathBuf,
+    pub cost_report_path: PathBuf,
     pub figure_paths: Vec<PathBuf>,
     pub scene_manifest_path: PathBuf,
+    pub scenario_suite_manifest_path: PathBuf,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -37,97 +58,530 @@ pub struct DemoBArtifacts {
     pub metrics_path: PathBuf,
     pub report_path: PathBuf,
     pub figure_paths: Vec<PathBuf>,
+    pub image_paths: Vec<PathBuf>,
     pub scene_manifest_path: PathBuf,
+    pub scenario_suite_manifest_path: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RunAllArtifacts {
+    pub output_dir: PathBuf,
+    pub manifest_path: PathBuf,
+    pub demo_a: DemoAArtifacts,
+    pub demo_b: DemoBArtifacts,
+    pub five_mentor_audit_path: PathBuf,
+    pub blocker_report_path: PathBuf,
+    pub demo_b_decision_report_path: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct NotebookArtifactManifest {
+    output_root_name: String,
+    run_name: String,
+    artifact_manifest_file_name: String,
+    pdf_bundle_file_name: String,
+    zip_bundle_file_name: String,
+    demo_a: NotebookDemoAArtifacts,
+    demo_b: NotebookDemoBArtifacts,
+    reviewer_report_paths: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct NotebookDemoAArtifacts {
+    metrics_path: String,
+    report_path: String,
+    reviewer_summary_path: String,
+    completion_note_path: String,
+    scene_manifest_path: String,
+    scenario_suite_manifest_path: String,
+    ablation_report_path: String,
+    cost_report_path: String,
+    figure_paths: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct NotebookDemoBArtifacts {
+    metrics_path: String,
+    report_path: String,
+    scene_manifest_path: String,
+    scenario_suite_manifest_path: String,
+    figure_paths: Vec<String>,
+    image_paths: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ScenarioSuiteManifest {
+    scenarios: Vec<SceneManifest>,
+}
+
+#[derive(Clone, Debug)]
+struct DsfbVariantRun {
+    run: DsfbRun,
+    alpha_frames: Vec<ScalarField>,
+    response_frames: Vec<ScalarField>,
+    trust_frames: Vec<ScalarField>,
+}
+
+#[derive(Clone, Debug)]
+struct ScenarioExecution {
+    sequence: SceneSequence,
+    heuristic_runs: Vec<HeuristicRun>,
+    dsfb_runs: Vec<DsfbVariantRun>,
+}
+
+impl DsfbVariantRun {
+    fn new(run: DsfbRun) -> Self {
+        let alpha_frames = run
+            .supervision_frames
+            .iter()
+            .map(|frame| frame.alpha.clone())
+            .collect();
+        let response_frames = run
+            .supervision_frames
+            .iter()
+            .map(|frame| frame.intervention.clone())
+            .collect();
+        let trust_frames = run
+            .supervision_frames
+            .iter()
+            .map(|frame| frame.trust.clone())
+            .collect();
+        Self {
+            run,
+            alpha_frames,
+            response_frames,
+            trust_frames,
+        }
+    }
+}
+
+impl ScenarioExecution {
+    fn onset_frame(&self) -> usize {
+        self.sequence
+            .onset_frame
+            .min(self.sequence.frames.len().saturating_sub(1))
+    }
+
+    fn comparison_frame(&self, config: &DemoConfig) -> usize {
+        (self.onset_frame() + config.comparison_frame_offset)
+            .min(self.sequence.frames.len().saturating_sub(1))
+    }
+
+    fn focus_bbox(&self) -> Result<BoundingBox> {
+        bounding_box_from_mask(
+            &self.sequence.target_mask,
+            self.sequence.config.width,
+            self.sequence.config.height,
+        )
+        .ok_or_else(|| {
+            Error::Message(format!(
+                "scenario {} had an empty target mask",
+                self.sequence.scenario_id.as_str()
+            ))
+        })
+    }
+
+    fn heuristic(&self, run_id: &str) -> Result<&HeuristicRun> {
+        self.heuristic_runs
+            .iter()
+            .find(|run| run.id == run_id)
+            .ok_or_else(|| {
+                Error::Message(format!(
+                    "scenario {} missing heuristic run {run_id}",
+                    self.sequence.scenario_id.as_str()
+                ))
+            })
+    }
+
+    fn dsfb(&self, run_id: &str) -> Result<&DsfbVariantRun> {
+        self.dsfb_runs
+            .iter()
+            .find(|run| run.run.profile.id == run_id)
+            .ok_or_else(|| {
+                Error::Message(format!(
+                    "scenario {} missing dsfb run {run_id}",
+                    self.sequence.scenario_id.as_str()
+                ))
+            })
+    }
 }
 
 pub fn generate_scene_artifacts(config: &DemoConfig, output_dir: &Path) -> Result<SceneManifest> {
-    let sequence = generate_sequence(&config.scene);
-    let frames_dir = output_dir.join("frames").join("gt");
-    fs::create_dir_all(&frames_dir)?;
-    for frame in &sequence.frames {
-        frame
-            .ground_truth
-            .save_png(&frames_dir.join(format!("frame_{:02}.png", frame.index)))?;
+    fs::create_dir_all(output_dir)?;
+
+    let canonical = generate_sequence(&config.scene);
+    let canonical_manifest = build_manifest(&canonical);
+    fs::write(
+        output_dir.join("scene_manifest.json"),
+        serde_json::to_string_pretty(&canonical_manifest)?,
+    )?;
+
+    let definitions = scenario_suite(&config.scene);
+    let suite = definitions
+        .iter()
+        .map(generate_sequence_for_definition)
+        .collect::<Vec<_>>();
+    write_suite_manifest(output_dir, &suite, "scenario_suite_manifest.json")?;
+
+    for sequence in &suite {
+        let frames_dir = output_dir
+            .join("scenarios")
+            .join(sequence.scenario_id.as_str())
+            .join("frames")
+            .join("gt");
+        fs::create_dir_all(&frames_dir)?;
+        for frame in &sequence.frames {
+            frame
+                .ground_truth
+                .save_png(&frames_dir.join(format!("frame_{:02}.png", frame.index)))?;
+        }
     }
 
-    let manifest = build_manifest(&sequence);
-    let manifest_path = output_dir.join("scene_manifest.json");
-    fs::write(manifest_path, serde_json::to_string_pretty(&manifest)?)?;
-    Ok(manifest)
+    Ok(canonical_manifest)
 }
 
 pub fn run_demo_a(config: &DemoConfig, output_dir: &Path) -> Result<DemoAArtifacts> {
+    run_demo_a_filtered(config, output_dir, None)
+}
+
+pub fn run_demo_a_filtered(
+    config: &DemoConfig,
+    output_dir: &Path,
+    scenario: Option<&str>,
+) -> Result<DemoAArtifacts> {
     fs::create_dir_all(output_dir)?;
 
-    let sequence = generate_sequence(&config.scene);
-    let baseline = run_fixed_alpha(&sequence, config.baseline_alpha);
-    let residual_baseline = run_residual_threshold(
-        &sequence,
-        config.baseline_alpha,
-        config.residual_baseline_alpha_high,
-        config.residual_baseline_threshold_low,
-        config.residual_baseline_threshold_high,
-    );
-    let dsfb = run_gated_demo(&sequence, config);
-    let analysis = analyze_demo_a(
-        &sequence,
-        &baseline,
-        &residual_baseline,
-        &dsfb,
-        config.trust_map_frame_offset,
-        config.comparison_frame_offset,
+    let definitions = scenario_definitions_for_filter(config, scenario)?;
+    let executions = execute_demo_a_suite(config, &definitions)?;
+    let analysis_inputs = build_demo_a_analysis_inputs(&executions);
+    let demo_a_metrics = analyze_demo_a_suite(&analysis_inputs)?;
+    validate_demo_a_metrics(&demo_a_metrics)?;
+
+    let placeholder_demo_b = placeholder_demo_b_metrics();
+    let artifacts = write_demo_a_artifacts(
+        output_dir,
+        config,
+        &executions,
+        &demo_a_metrics,
+        &placeholder_demo_b,
+    )?;
+    validate_demo_a_artifacts(&artifacts, &demo_a_metrics)?;
+    Ok(artifacts)
+}
+
+pub fn run_demo_b(config: &DemoConfig, output_root: &Path) -> Result<DemoBArtifacts> {
+    run_demo_b_filtered(config, output_root, None)
+}
+
+pub fn run_demo_b_filtered(
+    config: &DemoConfig,
+    output_root: &Path,
+    scenario: Option<&str>,
+) -> Result<DemoBArtifacts> {
+    let output_dir = output_root.join("demo_b");
+    fs::create_dir_all(&output_dir)?;
+
+    let definitions = scenario_definitions_for_filter(config, scenario)?;
+    let host_sequences = execute_host_realistic_suite(config, &definitions)?;
+    let (demo_b_metrics, demo_b_runs) = run_demo_b_suite(config, &host_sequences)?;
+    validate_demo_b_metrics(&demo_b_metrics)?;
+
+    let artifacts =
+        write_demo_b_artifacts(&output_dir, &host_sequences, &demo_b_metrics, &demo_b_runs)?;
+    validate_demo_b_artifacts(&artifacts, &demo_b_metrics)?;
+    Ok(artifacts)
+}
+
+pub fn run_all(config: &DemoConfig, output_dir: &Path) -> Result<RunAllArtifacts> {
+    run_all_filtered(config, output_dir, None)
+}
+
+pub fn run_all_filtered(
+    config: &DemoConfig,
+    output_dir: &Path,
+    scenario: Option<&str>,
+) -> Result<RunAllArtifacts> {
+    fs::create_dir_all(output_dir)?;
+
+    let definitions = scenario_definitions_for_filter(config, scenario)?;
+    let executions = execute_demo_a_suite(config, &definitions)?;
+    let analysis_inputs = build_demo_a_analysis_inputs(&executions);
+    let demo_a_metrics = analyze_demo_a_suite(&analysis_inputs)?;
+    validate_demo_a_metrics(&demo_a_metrics)?;
+
+    let host_sequences = executions
+        .iter()
+        .map(|execution| {
+            Ok((
+                execution.sequence.clone(),
+                execution.dsfb("dsfb_host_realistic")?.run.clone(),
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let (demo_b_metrics, demo_b_runs) = run_demo_b_suite(config, &host_sequences)?;
+    validate_demo_b_metrics(&demo_b_metrics)?;
+
+    let demo_a = write_demo_a_artifacts(
+        output_dir,
+        config,
+        &executions,
+        &demo_a_metrics,
+        &demo_b_metrics,
+    )?;
+    let demo_b = write_demo_b_artifacts(
+        &output_dir.join("demo_b"),
+        &host_sequences,
+        &demo_b_metrics,
+        &demo_b_runs,
     )?;
 
-    write_frames(&sequence, &baseline, &residual_baseline, &dsfb, output_dir)?;
-    write_debug_fields(&dsfb, &residual_baseline, output_dir)?;
-    let metrics_path = write_metrics_json(output_dir, &analysis.report)?;
-    let scene_manifest_path = write_scene_manifest(output_dir, &sequence)?;
-    let figure_paths = write_figures(output_dir, &sequence, &baseline, &dsfb, &analysis)?;
+    let five_mentor_audit_path = output_dir.join("five_mentor_audit.md");
+    write_five_mentor_audit(&five_mentor_audit_path, &demo_a_metrics, &demo_b_metrics)?;
+    let blocker_report_path = output_dir.join("check_signing_blockers.md");
+    write_check_signing_blockers(&blocker_report_path, &demo_a_metrics)?;
+    let demo_b_decision_report_path = output_dir.join("demo_b_decision_report.md");
+    write_demo_b_decision_report(&demo_b_decision_report_path, &demo_b_metrics)?;
+
+    let manifest_path = write_notebook_artifact_manifest(
+        output_dir,
+        &demo_a,
+        &demo_b,
+        &[
+            &five_mentor_audit_path,
+            &blocker_report_path,
+            &demo_b_decision_report_path,
+        ],
+    )?;
+
+    validate_demo_a_artifacts(&demo_a, &demo_a_metrics)?;
+    validate_demo_b_artifacts(&demo_b, &demo_b_metrics)?;
+    validate_full_artifacts(
+        output_dir,
+        &manifest_path,
+        &[
+            &five_mentor_audit_path,
+            &blocker_report_path,
+            &demo_b_decision_report_path,
+        ],
+    )?;
+
+    Ok(RunAllArtifacts {
+        output_dir: output_dir.to_path_buf(),
+        manifest_path,
+        demo_a,
+        demo_b,
+        five_mentor_audit_path,
+        blocker_report_path,
+        demo_b_decision_report_path,
+    })
+}
+
+pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
+    let manifest_path = output_dir.join(ARTIFACT_MANIFEST_FILE_NAME);
+    if !manifest_path.exists() {
+        return Err(Error::Message(format!(
+            "artifact manifest missing at {}",
+            manifest_path.display()
+        )));
+    }
+
+    let required = [
+        output_dir.join("metrics.json"),
+        output_dir.join("report.md"),
+        output_dir.join("reviewer_summary.md"),
+        output_dir.join("ablation_report.md"),
+        output_dir.join("cost_report.md"),
+        output_dir.join("completion_note.md"),
+        output_dir.join("five_mentor_audit.md"),
+        output_dir.join("check_signing_blockers.md"),
+        output_dir.join("demo_b_decision_report.md"),
+        output_dir.join("figures").join("fig_system_diagram.svg"),
+        output_dir.join("figures").join("fig_trust_map.svg"),
+        output_dir.join("figures").join("fig_before_after.svg"),
+        output_dir.join("figures").join("fig_trust_vs_error.svg"),
+        output_dir
+            .join("figures")
+            .join("fig_intervention_alpha.svg"),
+        output_dir.join("figures").join("fig_ablation.svg"),
+        output_dir.join("figures").join("fig_roi_nonroi_error.svg"),
+        output_dir.join("figures").join("fig_leaderboard.svg"),
+        output_dir.join("figures").join("fig_scenario_mosaic.svg"),
+        output_dir.join("demo_b").join("metrics.json"),
+        output_dir.join("demo_b").join("report.md"),
+        output_dir
+            .join("demo_b")
+            .join("figures")
+            .join("fig_demo_b_sampling.svg"),
+        output_dir
+            .join("demo_b")
+            .join("figures")
+            .join("fig_demo_b_budget_efficiency.svg"),
+    ];
+    for path in required {
+        require_file(&path)?;
+    }
+
+    let report = fs::read_to_string(output_dir.join("report.md"))?;
+    if !report.contains("## Remaining Blockers") || !report.contains("## What Is Not Proven") {
+        return Err(Error::Message(
+            "main report is missing blocker or non-proof sections".to_string(),
+        ));
+    }
+    if !report.contains(EXPERIMENT_SENTENCE)
+        || !report.contains(COST_SENTENCE)
+        || !report.contains(COMPATIBILITY_SENTENCE)
+    {
+        return Err(Error::Message(
+            "main report is missing required honesty or compatibility sentences".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
+fn execute_demo_a_suite(
+    config: &DemoConfig,
+    definitions: &[ScenarioDefinition],
+) -> Result<Vec<ScenarioExecution>> {
+    let mut executions = Vec::with_capacity(definitions.len());
+    for definition in definitions {
+        let sequence = generate_sequence_for_definition(definition);
+        let heuristic_runs = vec![
+            run_fixed_alpha_baseline(&sequence, config.baseline_alpha),
+            run_residual_threshold_baseline(
+                &sequence,
+                config.baseline_alpha,
+                config.residual_baseline_alpha_high,
+                config.residual_baseline_threshold_low,
+                config.residual_baseline_threshold_high,
+            ),
+            run_neighborhood_clamp_baseline(
+                &sequence,
+                config.baseline_alpha,
+                config.residual_baseline_alpha_high,
+            ),
+            run_depth_normal_rejection_baseline(
+                &sequence,
+                config.baseline_alpha,
+                config.residual_baseline_alpha_high,
+            ),
+            run_reactive_mask_baseline(
+                &sequence,
+                config.baseline_alpha,
+                config.residual_baseline_alpha_high,
+            ),
+            run_strong_heuristic_baseline(
+                &sequence,
+                config.baseline_alpha,
+                config.residual_baseline_alpha_high,
+            ),
+        ];
+        let dsfb_runs = ablation_profiles(config.dsfb_alpha_min, config.dsfb_alpha_max)
+            .into_iter()
+            .map(|profile| DsfbVariantRun::new(run_profiled_taa(&sequence, &profile)))
+            .collect();
+
+        executions.push(ScenarioExecution {
+            sequence,
+            heuristic_runs,
+            dsfb_runs,
+        });
+    }
+    Ok(executions)
+}
+
+fn execute_host_realistic_suite(
+    config: &DemoConfig,
+    definitions: &[ScenarioDefinition],
+) -> Result<Vec<(SceneSequence, DsfbRun)>> {
+    let profile = default_host_realistic_profile(config.dsfb_alpha_min, config.dsfb_alpha_max);
+    definitions
+        .iter()
+        .map(|definition| {
+            let sequence = generate_sequence_for_definition(definition);
+            let run = run_profiled_taa(&sequence, &profile);
+            Ok((sequence, run))
+        })
+        .collect()
+}
+
+fn build_demo_a_analysis_inputs(
+    executions: &[ScenarioExecution],
+) -> Vec<(SceneSequence, Vec<RunAnalysisInput<'_>>)> {
+    executions
+        .iter()
+        .map(|execution| {
+            let mut runs = Vec::new();
+            for run in &execution.heuristic_runs {
+                runs.push(RunAnalysisInput {
+                    id: &run.id,
+                    label: &run.label,
+                    category: "baseline",
+                    resolved_frames: &run.taa.resolved_frames,
+                    alpha_frames: &run.alpha_frames,
+                    response_frames: &run.response_frames,
+                    trust_frames: None,
+                });
+            }
+            for run in &execution.dsfb_runs {
+                let category = if matches!(
+                    run.run.profile.id.as_str(),
+                    "dsfb_synthetic_visibility" | "dsfb_host_realistic"
+                ) {
+                    "dsfb"
+                } else {
+                    "ablation"
+                };
+                runs.push(RunAnalysisInput {
+                    id: &run.run.profile.id,
+                    label: &run.run.profile.label,
+                    category,
+                    resolved_frames: &run.run.resolved_frames,
+                    alpha_frames: &run.alpha_frames,
+                    response_frames: &run.response_frames,
+                    trust_frames: Some(&run.trust_frames),
+                });
+            }
+            (execution.sequence.clone(), runs)
+        })
+        .collect()
+}
+
+fn write_demo_a_artifacts(
+    output_dir: &Path,
+    config: &DemoConfig,
+    executions: &[ScenarioExecution],
+    demo_a_metrics: &DemoASuiteMetrics,
+    demo_b_metrics: &DemoBSuiteMetrics,
+) -> Result<DemoAArtifacts> {
+    fs::create_dir_all(output_dir)?;
+
+    let metrics_path = output_dir.join("metrics.json");
+    fs::write(&metrics_path, serde_json::to_string_pretty(demo_a_metrics)?)?;
+
+    let scene_manifest_path = write_canonical_manifest(output_dir, &executions[0].sequence)?;
+    let scenario_suite_manifest_path = write_suite_manifest_from_executions(
+        output_dir,
+        executions,
+        "scenario_suite_manifest.json",
+    )?;
+    write_scenario_debug_artifacts(output_dir, executions)?;
+
+    let cost_report = build_cost_report(CostMode::HostRealistic);
+    let cost_report_path = output_dir.join("cost_report.md");
+    write_cost_report(&cost_report_path, &cost_report)?;
 
     let report_path = output_dir.join("report.md");
-    write_report(&report_path, config, &analysis.report)?;
-
+    write_report(&report_path, demo_a_metrics, demo_b_metrics, &cost_report)?;
     let reviewer_summary_path = output_dir.join("reviewer_summary.md");
-    write_reviewer_summary(&reviewer_summary_path, config, &analysis.report)?;
+    write_reviewer_summary(&reviewer_summary_path, demo_a_metrics, demo_b_metrics)?;
+    let ablation_report_path = output_dir.join("ablation_report.md");
+    write_ablation_report(&ablation_report_path, &demo_a_metrics.ablations)?;
+
+    let figure_paths = write_demo_a_figures(output_dir, config, executions, demo_a_metrics)?;
 
     let completion_note_path = output_dir.join("completion_note.md");
-    write_completion_note(
-        &completion_note_path,
-        &CompletionNoteStatus {
-            only_files_inside_crate_changed: true,
-            demo_a_runs_end_to_end: true,
-            metrics_generated: true,
-            figures_generated: true,
-            report_generated: true,
-            reviewer_summary_generated: true,
-            exact_required_sentences_present: true,
-            cargo_fmt_passed: false,
-            cargo_clippy_passed: false,
-            cargo_test_passed: false,
-            no_fabricated_performance_claims: true,
-            fully_implemented: vec![
-                "Deterministic Demo A scene generation with moving-object disocclusion, thin geometry, and a reveal ROI."
-                    .to_string(),
-                "Fixed-alpha baseline, residual-threshold baseline, and DSFB trust-gated temporal reuse through one host pipeline."
-                    .to_string(),
-                "Exported DSFB residual, proxy, trust, alpha, intervention, and simplified structural-state buffers."
-                    .to_string(),
-                "Generated figures, metrics, report, and reviewer summary under the crate-local generated/ directory."
-                    .to_string(),
-                "Bounded Demo B fixed-budget adaptive sampling built on the same trust field."
-                    .to_string(),
-            ],
-            future_work: vec![
-                "Production-engine integration, measured GPU benchmarks, and richer real-scene validation remain future work."
-                    .to_string(),
-                "Demo B remains a bounded reveal-frame study rather than a full temporal SAR controller."
-                    .to_string(),
-            ],
-            demo_b_status:
-                "Implemented as a bounded fixed-budget reveal-frame study using the Demo A trust field."
-                    .to_string(),
-        },
-    )?;
+    write_completion_note(&completion_note_path, &default_completion_status())?;
 
     Ok(DemoAArtifacts {
         output_dir: output_dir.to_path_buf(),
@@ -135,183 +589,252 @@ pub fn run_demo_a(config: &DemoConfig, output_dir: &Path) -> Result<DemoAArtifac
         report_path,
         reviewer_summary_path,
         completion_note_path,
+        ablation_report_path,
+        cost_report_path,
         figure_paths,
         scene_manifest_path,
+        scenario_suite_manifest_path,
     })
 }
 
-pub fn run_demo_b(config: &DemoConfig, output_root: &Path) -> Result<DemoBArtifacts> {
-    let output_dir = output_root.join("demo_b");
-    fs::create_dir_all(&output_dir)?;
+fn write_demo_b_artifacts(
+    output_dir: &Path,
+    host_sequences: &[(SceneSequence, DsfbRun)],
+    demo_b_metrics: &DemoBSuiteMetrics,
+    demo_b_runs: &[(String, DemoBScenarioRun)],
+) -> Result<DemoBArtifacts> {
+    fs::create_dir_all(output_dir)?;
 
-    let sequence = generate_sequence(&config.scene);
-    let baseline = run_fixed_alpha(&sequence, config.baseline_alpha);
-    let residual_baseline = run_residual_threshold(
-        &sequence,
-        config.baseline_alpha,
-        config.residual_baseline_alpha_high,
-        config.residual_baseline_threshold_low,
-        config.residual_baseline_threshold_high,
-    );
-    let dsfb = run_gated_demo(&sequence, config);
-    let analysis = analyze_demo_a(
-        &sequence,
-        &baseline,
-        &residual_baseline,
-        &dsfb,
-        config.trust_map_frame_offset,
-        config.comparison_frame_offset,
+    let metrics_path = output_dir.join("metrics.json");
+    fs::write(&metrics_path, serde_json::to_string_pretty(demo_b_metrics)?)?;
+
+    let scene_manifest_path = write_canonical_manifest(output_dir, &host_sequences[0].0)?;
+    let scenario_suite_manifest_path = write_suite_manifest(
+        output_dir,
+        &host_sequences
+            .iter()
+            .map(|(sequence, _)| sequence.clone())
+            .collect::<Vec<_>>(),
+        "scenario_suite_manifest.json",
     )?;
-    let demo_b = run_demo_b_core(config, &sequence, &dsfb, &analysis)?;
 
-    let scene_manifest_path = write_scene_manifest(&output_dir, &sequence)?;
-    let metrics_path = write_demo_b_metrics_json(&output_dir, &demo_b.metrics)?;
-    write_demo_b_images(&output_dir, &demo_b)?;
-    let figure_paths = write_demo_b_figures(&output_dir, &demo_b)?;
     let report_path = output_dir.join("report.md");
-    write_demo_b_report(&report_path, config, &demo_b.metrics)?;
+    write_demo_b_decision_report(&report_path, demo_b_metrics)?;
+    let figure_paths = write_demo_b_figures(output_dir, demo_b_metrics, demo_b_runs)?;
+    let image_paths = write_demo_b_images(output_dir, host_sequences, demo_b_runs)?;
 
     Ok(DemoBArtifacts {
-        output_dir,
+        output_dir: output_dir.to_path_buf(),
         metrics_path,
         report_path,
         figure_paths,
+        image_paths,
         scene_manifest_path,
+        scenario_suite_manifest_path,
     })
 }
 
-fn run_gated_demo(sequence: &SceneSequence, config: &DemoConfig) -> DsfbRun {
-    crate::dsfb::run_gated_taa(sequence, config.dsfb_alpha_min, config.dsfb_alpha_max)
+fn write_canonical_manifest(output_dir: &Path, sequence: &SceneSequence) -> Result<PathBuf> {
+    let path = output_dir.join("scene_manifest.json");
+    let manifest = build_manifest(sequence);
+    fs::write(&path, serde_json::to_string_pretty(&manifest)?)?;
+    Ok(path)
 }
 
-fn write_frames(
-    sequence: &SceneSequence,
-    baseline: &TaaRun,
-    residual_baseline: &ResidualThresholdRun,
-    dsfb: &DsfbRun,
+fn write_suite_manifest_from_executions(
     output_dir: &Path,
-) -> Result<()> {
-    let gt_dir = output_dir.join("frames").join("gt");
-    let baseline_dir = output_dir.join("frames").join("baseline");
-    let residual_baseline_dir = output_dir.join("frames").join("residual_baseline");
-    let dsfb_dir = output_dir.join("frames").join("dsfb");
-    fs::create_dir_all(&gt_dir)?;
-    fs::create_dir_all(&baseline_dir)?;
-    fs::create_dir_all(&residual_baseline_dir)?;
-    fs::create_dir_all(&dsfb_dir)?;
+    executions: &[ScenarioExecution],
+    file_name: &str,
+) -> Result<PathBuf> {
+    write_suite_manifest(
+        output_dir,
+        &executions
+            .iter()
+            .map(|execution| execution.sequence.clone())
+            .collect::<Vec<_>>(),
+        file_name,
+    )
+}
 
-    for frame_index in 0..sequence.frames.len() {
-        sequence.frames[frame_index]
-            .ground_truth
-            .save_png(&gt_dir.join(format!("frame_{frame_index:02}.png")))?;
-        baseline.resolved_frames[frame_index]
-            .save_png(&baseline_dir.join(format!("frame_{frame_index:02}.png")))?;
-        residual_baseline.taa.resolved_frames[frame_index]
-            .save_png(&residual_baseline_dir.join(format!("frame_{frame_index:02}.png")))?;
-        dsfb.resolved_frames[frame_index]
-            .save_png(&dsfb_dir.join(format!("frame_{frame_index:02}.png")))?;
+fn write_suite_manifest(
+    output_dir: &Path,
+    sequences: &[SceneSequence],
+    file_name: &str,
+) -> Result<PathBuf> {
+    let path = output_dir.join(file_name);
+    let manifest = ScenarioSuiteManifest {
+        scenarios: sequences.iter().map(build_manifest).collect(),
+    };
+    fs::write(&path, serde_json::to_string_pretty(&manifest)?)?;
+    Ok(path)
+}
+
+fn write_scenario_debug_artifacts(
+    output_dir: &Path,
+    executions: &[ScenarioExecution],
+) -> Result<()> {
+    let scenarios_dir = output_dir.join("scenarios");
+    fs::create_dir_all(&scenarios_dir)?;
+
+    for execution in executions {
+        let scenario_dir = scenarios_dir.join(execution.sequence.scenario_id.as_str());
+        fs::create_dir_all(&scenario_dir)?;
+        fs::write(
+            scenario_dir.join("scene_manifest.json"),
+            serde_json::to_string_pretty(&build_manifest(&execution.sequence))?,
+        )?;
+
+        write_frame_sequence(
+            &scenario_dir.join("frames").join("gt"),
+            &execution
+                .sequence
+                .frames
+                .iter()
+                .map(|frame| frame.ground_truth.clone())
+                .collect::<Vec<_>>(),
+        )?;
+        write_frame_sequence(
+            &scenario_dir.join("frames").join("fixed_alpha"),
+            &execution.heuristic("fixed_alpha")?.taa.resolved_frames,
+        )?;
+        write_frame_sequence(
+            &scenario_dir.join("frames").join("strong_heuristic"),
+            &execution.heuristic("strong_heuristic")?.taa.resolved_frames,
+        )?;
+        write_frame_sequence(
+            &scenario_dir.join("frames").join("dsfb_host_realistic"),
+            &execution.dsfb("dsfb_host_realistic")?.run.resolved_frames,
+        )?;
+        write_frame_sequence(
+            &scenario_dir.join("frames").join("dsfb_visibility_assisted"),
+            &execution
+                .dsfb("dsfb_synthetic_visibility")?
+                .run
+                .resolved_frames,
+        )?;
+
+        let host = execution.dsfb("dsfb_host_realistic")?;
+        let debug_dir = scenario_dir.join("debug");
+        save_scalar_sequence(
+            &debug_dir.join("residual"),
+            host.run
+                .supervision_frames
+                .iter()
+                .map(|frame| &frame.residual)
+                .collect::<Vec<_>>(),
+            residual_palette,
+        )?;
+        save_scalar_sequence(
+            &debug_dir.join("trust"),
+            host.run
+                .supervision_frames
+                .iter()
+                .map(|frame| &frame.trust)
+                .collect::<Vec<_>>(),
+            trust_palette,
+        )?;
+        save_scalar_sequence(
+            &debug_dir.join("alpha"),
+            host.run
+                .supervision_frames
+                .iter()
+                .map(|frame| &frame.alpha)
+                .collect::<Vec<_>>(),
+            alpha_palette,
+        )?;
+        save_scalar_sequence(
+            &debug_dir.join("intervention"),
+            host.run
+                .supervision_frames
+                .iter()
+                .map(|frame| &frame.intervention)
+                .collect::<Vec<_>>(),
+            intervention_palette,
+        )?;
+        save_scalar_sequence(
+            &debug_dir.join("proxy_residual"),
+            host.run
+                .supervision_frames
+                .iter()
+                .map(|frame| &frame.proxies.residual_proxy)
+                .collect::<Vec<_>>(),
+            proxy_palette,
+        )?;
+        save_scalar_sequence(
+            &debug_dir.join("proxy_visibility"),
+            host.run
+                .supervision_frames
+                .iter()
+                .map(|frame| &frame.proxies.visibility_proxy)
+                .collect::<Vec<_>>(),
+            proxy_palette,
+        )?;
+        save_scalar_sequence(
+            &debug_dir.join("proxy_motion"),
+            host.run
+                .supervision_frames
+                .iter()
+                .map(|frame| &frame.proxies.motion_proxy)
+                .collect::<Vec<_>>(),
+            proxy_palette,
+        )?;
+        save_scalar_sequence(
+            &debug_dir.join("proxy_thin"),
+            host.run
+                .supervision_frames
+                .iter()
+                .map(|frame| &frame.proxies.thin_proxy)
+                .collect::<Vec<_>>(),
+            proxy_palette,
+        )?;
+        save_state_sequence(
+            &debug_dir.join("state"),
+            &host
+                .run
+                .supervision_frames
+                .iter()
+                .map(|frame| &frame.state)
+                .collect::<Vec<_>>(),
+        )?;
     }
 
     Ok(())
 }
 
-fn write_debug_fields(
-    dsfb: &DsfbRun,
-    residual_baseline: &ResidualThresholdRun,
-    output_dir: &Path,
+fn write_frame_sequence(directory: &Path, frames: &[ImageFrame]) -> Result<()> {
+    fs::create_dir_all(directory)?;
+    for (frame_index, frame) in frames.iter().enumerate() {
+        frame.save_png(&directory.join(format!("frame_{frame_index:02}.png")))?;
+    }
+    Ok(())
+}
+
+fn save_scalar_sequence(
+    directory: &Path,
+    fields: Vec<&ScalarField>,
+    palette: impl Fn(f32) -> [u8; 4] + Copy,
 ) -> Result<()> {
-    let residual_dir = output_dir.join("frames").join("residual");
-    let trust_dir = output_dir.join("frames").join("trust");
-    let alpha_dir = output_dir.join("frames").join("alpha");
-    let intervention_dir = output_dir.join("frames").join("intervention");
-    let proxy_residual_dir = output_dir.join("frames").join("proxy_residual");
-    let proxy_visibility_dir = output_dir.join("frames").join("proxy_visibility");
-    let proxy_motion_edge_dir = output_dir.join("frames").join("proxy_motion_edge");
-    let proxy_thin_dir = output_dir.join("frames").join("proxy_thin");
-    let state_dir = output_dir.join("frames").join("state");
-    let residual_baseline_trigger_dir = output_dir.join("frames").join("residual_baseline_trigger");
-    let residual_baseline_alpha_dir = output_dir.join("frames").join("residual_baseline_alpha");
-
-    for dir in [
-        &residual_dir,
-        &trust_dir,
-        &alpha_dir,
-        &intervention_dir,
-        &proxy_residual_dir,
-        &proxy_visibility_dir,
-        &proxy_motion_edge_dir,
-        &proxy_thin_dir,
-        &state_dir,
-        &residual_baseline_trigger_dir,
-        &residual_baseline_alpha_dir,
-    ] {
-        fs::create_dir_all(dir)?;
+    fs::create_dir_all(directory)?;
+    for (frame_index, field) in fields.into_iter().enumerate() {
+        save_scalar_field_png(
+            field,
+            &directory.join(format!("frame_{frame_index:02}.png")),
+            palette,
+        )?;
     }
+    Ok(())
+}
 
-    for (frame_index, supervision) in dsfb.supervision_frames.iter().enumerate() {
-        save_scalar_field_png(
-            &supervision.residual,
-            &residual_dir.join(format!("frame_{frame_index:02}.png")),
-            residual_palette,
-        )?;
-        save_scalar_field_png(
-            &supervision.trust,
-            &trust_dir.join(format!("frame_{frame_index:02}.png")),
-            trust_palette,
-        )?;
-        save_scalar_field_png(
-            &supervision.alpha,
-            &alpha_dir.join(format!("frame_{frame_index:02}.png")),
-            alpha_palette,
-        )?;
-        save_scalar_field_png(
-            &supervision.intervention,
-            &intervention_dir.join(format!("frame_{frame_index:02}.png")),
-            intervention_palette,
-        )?;
-        save_scalar_field_png(
-            &supervision.proxies.residual_proxy,
-            &proxy_residual_dir.join(format!("frame_{frame_index:02}.png")),
-            proxy_palette,
-        )?;
-        save_scalar_field_png(
-            &supervision.proxies.visibility_proxy,
-            &proxy_visibility_dir.join(format!("frame_{frame_index:02}.png")),
-            proxy_palette,
-        )?;
-        save_scalar_field_png(
-            &supervision.proxies.motion_edge_proxy,
-            &proxy_motion_edge_dir.join(format!("frame_{frame_index:02}.png")),
-            proxy_palette,
-        )?;
-        save_scalar_field_png(
-            &supervision.proxies.thin_proxy,
-            &proxy_thin_dir.join(format!("frame_{frame_index:02}.png")),
-            proxy_palette,
-        )?;
+fn save_state_sequence(directory: &Path, states: &[&crate::dsfb::StateField]) -> Result<()> {
+    fs::create_dir_all(directory)?;
+    for (frame_index, state) in states.iter().enumerate() {
         save_state_field_png(
-            supervision.state.values(),
-            supervision.trust.width(),
-            supervision.trust.height(),
-            &state_dir.join(format!("frame_{frame_index:02}.png")),
+            state.values(),
+            state.width(),
+            state.height(),
+            &directory.join(format!("frame_{frame_index:02}.png")),
         )?;
     }
-
-    for (frame_index, trigger) in residual_baseline.trigger_frames.iter().enumerate() {
-        save_scalar_field_png(
-            trigger,
-            &residual_baseline_trigger_dir.join(format!("frame_{frame_index:02}.png")),
-            proxy_palette,
-        )?;
-    }
-    for (frame_index, alpha) in residual_baseline.alpha_frames.iter().enumerate() {
-        save_scalar_field_png(
-            alpha,
-            &residual_baseline_alpha_dir.join(format!("frame_{frame_index:02}.png")),
-            alpha_palette,
-        )?;
-    }
-
     Ok(())
 }
 
@@ -321,7 +844,7 @@ fn save_state_field_png(
     height: usize,
     path: &Path,
 ) -> Result<()> {
-    let mut field = ScalarField::new(width, height);
+    let mut field = ScalarField::new(width.max(1), height.max(1));
     for (index, state) in values.iter().enumerate() {
         let value = match state {
             StructuralState::Nominal => 0.10,
@@ -329,122 +852,671 @@ fn save_state_field_png(
             StructuralState::UnstableHistory => 0.70,
             StructuralState::MotionEdge => 0.45,
         };
-        field.set(index % width, index / width, value);
+        field.set(index % field.width(), index / field.width(), value);
     }
     save_scalar_field_png(&field, path, state_palette)
 }
 
-fn write_scene_manifest(output_dir: &Path, sequence: &SceneSequence) -> Result<PathBuf> {
-    let path = output_dir.join("scene_manifest.json");
-    let manifest = build_manifest(sequence);
-    fs::write(&path, serde_json::to_string_pretty(&manifest)?)?;
-    Ok(path)
-}
-
-fn write_metrics_json(output_dir: &Path, report: &MetricsReport) -> Result<PathBuf> {
-    let path = output_dir.join("metrics.json");
-    fs::write(&path, serde_json::to_string_pretty(report)?)?;
-    Ok(path)
-}
-
-fn write_demo_b_metrics_json(output_dir: &Path, report: &DemoBMetrics) -> Result<PathBuf> {
-    let path = output_dir.join("metrics.json");
-    fs::write(&path, serde_json::to_string_pretty(report)?)?;
-    Ok(path)
-}
-
-fn write_figures(
+fn write_demo_a_figures(
     output_dir: &Path,
-    sequence: &SceneSequence,
-    baseline: &TaaRun,
-    dsfb: &DsfbRun,
-    analysis: &DemoAAnalysis,
+    config: &DemoConfig,
+    executions: &[ScenarioExecution],
+    demo_a_metrics: &DemoASuiteMetrics,
 ) -> Result<Vec<PathBuf>> {
     let figures_dir = output_dir.join("figures");
     fs::create_dir_all(&figures_dir)?;
 
-    let system_diagram = figures_dir.join("fig_system_diagram.svg");
-    let trust_map = figures_dir.join("fig_trust_map.svg");
-    let before_after = figures_dir.join("fig_before_after.svg");
-    let trust_vs_error = figures_dir.join("fig_trust_vs_error.svg");
+    let canonical_execution = &executions[0];
+    let canonical_report = &demo_a_metrics.scenarios[0];
+    let canonical_bbox = canonical_execution.focus_bbox()?;
+    let onset_frame = canonical_execution.onset_frame();
+    let comparison_frame = canonical_execution.comparison_frame(config);
 
+    let system_diagram = figures_dir.join("fig_system_diagram.svg");
     write_system_diagram(&system_diagram)?;
+
+    let trust_map = figures_dir.join("fig_trust_map.svg");
     write_trust_map_figure(
-        &sequence.frames[analysis.trust_map_frame].ground_truth,
-        &dsfb.supervision_frames[analysis.trust_map_frame].trust,
-        analysis.trust_map_bbox,
-        analysis.motion_edge_bbox,
+        &canonical_execution.sequence.frames[onset_frame].ground_truth,
+        &canonical_execution
+            .dsfb("dsfb_host_realistic")?
+            .run
+            .supervision_frames[onset_frame]
+            .trust,
+        canonical_bbox,
         &trust_map,
     )?;
+
+    let before_after = figures_dir.join("fig_before_after.svg");
     write_before_after_figure(
-        &baseline.resolved_frames[analysis.comparison_frame],
-        &dsfb.resolved_frames[analysis.comparison_frame],
-        analysis.persistence_bbox,
+        &canonical_execution
+            .heuristic("fixed_alpha")?
+            .taa
+            .resolved_frames[comparison_frame],
+        &canonical_execution
+            .heuristic("strong_heuristic")?
+            .taa
+            .resolved_frames[comparison_frame],
+        &canonical_execution
+            .dsfb("dsfb_host_realistic")?
+            .run
+            .resolved_frames[comparison_frame],
+        canonical_bbox,
         &before_after,
     )?;
-    write_trust_vs_error_figure(&analysis.report, &trust_vs_error)?;
+
+    let trust_vs_error = figures_dir.join("fig_trust_vs_error.svg");
+    write_trust_vs_error_figure(canonical_report, &trust_vs_error)?;
+
+    let intervention_alpha = figures_dir.join("fig_intervention_alpha.svg");
+    write_intervention_alpha_figure(
+        &canonical_execution.sequence.frames[onset_frame].ground_truth,
+        &canonical_execution
+            .dsfb("dsfb_host_realistic")?
+            .run
+            .supervision_frames[onset_frame]
+            .intervention,
+        &canonical_execution
+            .dsfb("dsfb_host_realistic")?
+            .run
+            .supervision_frames[onset_frame]
+            .alpha,
+        canonical_bbox,
+        &intervention_alpha,
+    )?;
+
+    let ablation = figures_dir.join("fig_ablation.svg");
+    write_ablation_bar_figure(&demo_a_metrics.ablations, &ablation)?;
+
+    let roi_nonroi = figures_dir.join("fig_roi_nonroi_error.svg");
+    write_roi_nonroi_error_figure(canonical_report, &roi_nonroi)?;
+
+    let leaderboard = figures_dir.join("fig_leaderboard.svg");
+    write_leaderboard_figure(&demo_a_metrics.aggregate_leaderboard, &leaderboard)?;
+
+    let mosaic = figures_dir.join("fig_scenario_mosaic.svg");
+    let mut mosaic_entries = Vec::new();
+    for execution in executions {
+        let frame_index = execution.comparison_frame(config);
+        mosaic_entries.push(ScenarioMosaicEntry {
+            scenario_title: &execution.sequence.scenario_title,
+            baseline: &execution.heuristic("fixed_alpha")?.taa.resolved_frames[frame_index],
+            heuristic: &execution.heuristic("strong_heuristic")?.taa.resolved_frames[frame_index],
+            host_realistic: &execution.dsfb("dsfb_host_realistic")?.run.resolved_frames
+                [frame_index],
+            focus_bbox: execution.focus_bbox()?,
+        });
+    }
+    write_scenario_mosaic_figure(&mosaic_entries, &mosaic)?;
 
     Ok(vec![
         system_diagram,
         trust_map,
         before_after,
         trust_vs_error,
+        intervention_alpha,
+        ablation,
+        roi_nonroi,
+        leaderboard,
+        mosaic,
     ])
 }
 
-fn write_demo_b_images(output_dir: &Path, run: &DemoBRun) -> Result<()> {
+fn write_demo_b_figures(
+    output_dir: &Path,
+    demo_b_metrics: &DemoBSuiteMetrics,
+    demo_b_runs: &[(String, DemoBScenarioRun)],
+) -> Result<Vec<PathBuf>> {
+    let figures_dir = output_dir.join("figures");
+    fs::create_dir_all(&figures_dir)?;
+
+    let canonical_report = demo_b_metrics
+        .scenarios
+        .iter()
+        .find(|scenario| scenario.scenario_id == ScenarioId::ThinReveal.as_str())
+        .or_else(|| demo_b_metrics.scenarios.first())
+        .ok_or_else(|| Error::Message("Demo B had no scenarios".to_string()))?;
+    let canonical_run = demo_b_runs
+        .iter()
+        .find(|(scenario_id, _)| scenario_id == canonical_report.scenario_id.as_str())
+        .map(|(_, run)| run)
+        .ok_or_else(|| Error::Message("canonical Demo B run missing".to_string()))?;
+
+    let sampling = figures_dir.join("fig_demo_b_sampling.svg");
+    write_demo_b_sampling_figure(canonical_report, canonical_run, &sampling)?;
+
+    let efficiency = figures_dir.join("fig_demo_b_budget_efficiency.svg");
+    write_demo_b_budget_efficiency_figure(&demo_b_metrics.budget_efficiency_curves, &efficiency)?;
+
+    Ok(vec![sampling, efficiency])
+}
+
+fn write_demo_b_images(
+    output_dir: &Path,
+    host_sequences: &[(SceneSequence, DsfbRun)],
+    demo_b_runs: &[(String, DemoBScenarioRun)],
+) -> Result<Vec<PathBuf>> {
     let images_dir = output_dir.join("images");
     fs::create_dir_all(&images_dir)?;
-    run.reference_frame
-        .save_png(&images_dir.join("reference.png"))?;
-    run.uniform_frame
-        .save_png(&images_dir.join("uniform.png"))?;
-    run.guided_frame.save_png(&images_dir.join("guided.png"))?;
+
+    let canonical_run = demo_b_runs
+        .iter()
+        .find(|(scenario_id, _)| scenario_id == ScenarioId::ThinReveal.as_str())
+        .or_else(|| demo_b_runs.first())
+        .ok_or_else(|| Error::Message("Demo B had no scenario runs".to_string()))?;
+    let canonical_host = host_sequences
+        .iter()
+        .find(|(sequence, _)| sequence.scenario_id.as_str() == canonical_run.0.as_str())
+        .or_else(|| host_sequences.first())
+        .ok_or_else(|| Error::Message("host-realistic sequence missing for Demo B".to_string()))?;
+    let run = &canonical_run.1;
+    let onset = canonical_host
+        .0
+        .onset_frame
+        .min(canonical_host.0.frames.len().saturating_sub(1));
+
+    let uniform = run
+        .policy_runs
+        .iter()
+        .find(|policy| policy.policy_id == AllocationPolicyId::Uniform)
+        .ok_or_else(|| Error::Message("uniform Demo B policy missing".to_string()))?;
+    let combined = run
+        .policy_runs
+        .iter()
+        .find(|policy| policy.policy_id == AllocationPolicyId::CombinedHeuristic)
+        .ok_or_else(|| Error::Message("combined heuristic Demo B policy missing".to_string()))?;
+    let imported = run
+        .policy_runs
+        .iter()
+        .find(|policy| policy.policy_id == AllocationPolicyId::ImportedTrust)
+        .ok_or_else(|| Error::Message("imported trust Demo B policy missing".to_string()))?;
+
+    let reference_path = images_dir.join("reference.png");
+    run.reference_frame.save_png(&reference_path)?;
+    let uniform_path = images_dir.join("uniform.png");
+    uniform.frame.save_png(&uniform_path)?;
+    let combined_path = images_dir.join("combined_heuristic.png");
+    combined.frame.save_png(&combined_path)?;
+    let imported_path = images_dir.join("imported_trust.png");
+    imported.frame.save_png(&imported_path)?;
+    let guided_alias_path = images_dir.join("guided.png");
+    imported.frame.save_png(&guided_alias_path)?;
+
+    let uniform_error_path = images_dir.join("uniform_error.png");
+    save_scalar_field_png(&uniform.error, &uniform_error_path, error_palette)?;
+    let combined_error_path = images_dir.join("combined_heuristic_error.png");
+    save_scalar_field_png(&combined.error, &combined_error_path, error_palette)?;
+    let imported_error_path = images_dir.join("imported_trust_error.png");
+    save_scalar_field_png(&imported.error, &imported_error_path, error_palette)?;
+    let guided_error_alias_path = images_dir.join("guided_error.png");
+    save_scalar_field_png(&imported.error, &guided_error_alias_path, error_palette)?;
+
+    let combined_spp_path = images_dir.join("combined_heuristic_spp.png");
+    save_scalar_field_png(&combined.spp, &combined_spp_path, |value| {
+        allocation_palette(value, combined.metrics.max_spp as f32)
+    })?;
+    let imported_spp_path = images_dir.join("imported_trust_spp.png");
+    save_scalar_field_png(&imported.spp, &imported_spp_path, |value| {
+        allocation_palette(value, imported.metrics.max_spp as f32)
+    })?;
+    let guided_spp_alias_path = images_dir.join("guided_spp.png");
+    save_scalar_field_png(&imported.spp, &guided_spp_alias_path, |value| {
+        allocation_palette(value, imported.metrics.max_spp as f32)
+    })?;
+
+    let trust_path = images_dir.join("trust.png");
     save_scalar_field_png(
-        &run.uniform_error,
-        &images_dir.join("uniform_error.png"),
-        error_palette,
+        &canonical_host.1.supervision_frames[onset].trust,
+        &trust_path,
+        trust_palette,
     )?;
-    save_scalar_field_png(
-        &run.guided_error,
-        &images_dir.join("guided_error.png"),
-        error_palette,
-    )?;
-    save_scalar_field_png(
-        &run.guided_spp,
-        &images_dir.join("guided_spp.png"),
-        |value| {
-            let normalized = (value / run.metrics.guided_max_spp.max(1) as f32).clamp(0.0, 1.0);
-            [
-                (25.0 + 220.0 * normalized).round() as u8,
-                (50.0 + 100.0 * (1.0 - normalized)).round() as u8,
-                (75.0 + 140.0 * normalized).round() as u8,
-                255,
-            ]
+
+    Ok(vec![
+        reference_path,
+        uniform_path,
+        combined_path,
+        imported_path,
+        guided_alias_path,
+        uniform_error_path,
+        combined_error_path,
+        imported_error_path,
+        guided_error_alias_path,
+        combined_spp_path,
+        imported_spp_path,
+        guided_spp_alias_path,
+        trust_path,
+    ])
+}
+
+fn write_notebook_artifact_manifest(
+    output_dir: &Path,
+    demo_a: &DemoAArtifacts,
+    demo_b: &DemoBArtifacts,
+    reviewer_report_paths: &[&Path],
+) -> Result<PathBuf> {
+    let run_name = output_dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("output-dsfb-computer-graphics-run")
+        .to_string();
+
+    let manifest = NotebookArtifactManifest {
+        output_root_name: NOTEBOOK_OUTPUT_ROOT_NAME.to_string(),
+        run_name: run_name.clone(),
+        artifact_manifest_file_name: ARTIFACT_MANIFEST_FILE_NAME.to_string(),
+        pdf_bundle_file_name: pdf_bundle_path(output_dir)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("artifacts_bundle.pdf")
+            .to_string(),
+        zip_bundle_file_name: format_zip_bundle_name(&run_name),
+        demo_a: NotebookDemoAArtifacts {
+            metrics_path: relative_string(&demo_a.metrics_path, output_dir),
+            report_path: relative_string(&demo_a.report_path, output_dir),
+            reviewer_summary_path: relative_string(&demo_a.reviewer_summary_path, output_dir),
+            completion_note_path: relative_string(&demo_a.completion_note_path, output_dir),
+            scene_manifest_path: relative_string(&demo_a.scene_manifest_path, output_dir),
+            scenario_suite_manifest_path: relative_string(
+                &demo_a.scenario_suite_manifest_path,
+                output_dir,
+            ),
+            ablation_report_path: relative_string(&demo_a.ablation_report_path, output_dir),
+            cost_report_path: relative_string(&demo_a.cost_report_path, output_dir),
+            figure_paths: demo_a
+                .figure_paths
+                .iter()
+                .map(|path| relative_string(path, output_dir))
+                .collect(),
         },
-    )?;
-    save_scalar_field_png(&run.trust, &images_dir.join("trust.png"), trust_palette)?;
+        demo_b: NotebookDemoBArtifacts {
+            metrics_path: relative_string(&demo_b.metrics_path, output_dir),
+            report_path: relative_string(&demo_b.report_path, output_dir),
+            scene_manifest_path: relative_string(&demo_b.scene_manifest_path, output_dir),
+            scenario_suite_manifest_path: relative_string(
+                &demo_b.scenario_suite_manifest_path,
+                output_dir,
+            ),
+            figure_paths: demo_b
+                .figure_paths
+                .iter()
+                .map(|path| relative_string(path, output_dir))
+                .collect(),
+            image_paths: demo_b
+                .image_paths
+                .iter()
+                .map(|path| relative_string(path, output_dir))
+                .collect(),
+        },
+        reviewer_report_paths: reviewer_report_paths
+            .iter()
+            .map(|path| relative_string(path, output_dir))
+            .collect(),
+    };
+
+    let path = output_dir.join(ARTIFACT_MANIFEST_FILE_NAME);
+    fs::write(&path, serde_json::to_string_pretty(&manifest)?)?;
+    Ok(path)
+}
+
+fn validate_demo_a_metrics(demo_a_metrics: &DemoASuiteMetrics) -> Result<()> {
+    let expected_scenarios = [
+        "thin_reveal",
+        "fast_pan",
+        "diagonal_reveal",
+        "contrast_pulse",
+        "stability_holdout",
+    ];
+    let expected_baselines = [
+        "fixed_alpha",
+        "residual_threshold",
+        "neighborhood_clamp",
+        "depth_normal_reject",
+        "reactive_mask",
+        "strong_heuristic",
+    ];
+    let expected_ablations = [
+        "dsfb_synthetic_visibility",
+        "dsfb_host_realistic",
+        "dsfb_no_visibility",
+        "dsfb_no_thin",
+        "dsfb_no_motion_edge",
+        "dsfb_no_grammar",
+        "dsfb_residual_only",
+        "dsfb_trust_no_alpha",
+    ];
+
+    let full_suite = demo_a_metrics.summary.scenario_ids.len() > 1;
+    if full_suite {
+        if demo_a_metrics.summary.scenario_ids.len() < expected_scenarios.len() {
+            return Err(Error::Message(
+                "Demo A scenario suite is too small for blocker-clearing evaluation".to_string(),
+            ));
+        }
+        for scenario_id in expected_scenarios {
+            if !demo_a_metrics
+                .summary
+                .scenario_ids
+                .iter()
+                .any(|current| current == scenario_id)
+            {
+                return Err(Error::Message(format!(
+                    "Demo A scenario suite is missing required scenario {scenario_id}"
+                )));
+            }
+        }
+    }
+    for baseline_id in expected_baselines {
+        if !demo_a_metrics
+            .summary
+            .baseline_ids
+            .iter()
+            .any(|current| current == baseline_id)
+        {
+            return Err(Error::Message(format!(
+                "Demo A baseline list is missing {baseline_id}"
+            )));
+        }
+    }
+    for ablation_id in expected_ablations {
+        if !demo_a_metrics
+            .summary
+            .ablation_ids
+            .iter()
+            .any(|current| current == ablation_id)
+        {
+            return Err(Error::Message(format!(
+                "Demo A ablation list is missing {ablation_id}"
+            )));
+        }
+    }
+
+    let canonical = demo_a_metrics
+        .scenarios
+        .iter()
+        .find(|scenario| scenario.scenario_id == "thin_reveal")
+        .or_else(|| demo_a_metrics.scenarios.first())
+        .ok_or_else(|| Error::Message("Demo A produced no scenario reports".to_string()))?;
+    let fixed = canonical
+        .runs
+        .iter()
+        .find(|run| run.summary.run_id == "fixed_alpha")
+        .ok_or_else(|| Error::Message("canonical fixed_alpha run missing".to_string()))?;
+    let host = canonical
+        .runs
+        .iter()
+        .find(|run| run.summary.run_id == "dsfb_host_realistic")
+        .ok_or_else(|| Error::Message("canonical host-realistic run missing".to_string()))?;
+    if host.summary.cumulative_roi_mae + 1e-6 >= fixed.summary.cumulative_roi_mae {
+        return Err(Error::Message(
+            "host-realistic DSFB does not outperform fixed alpha on the canonical scenario"
+                .to_string(),
+        ));
+    }
+    if full_suite {
+        if !demo_a_metrics
+            .scenarios
+            .iter()
+            .any(|scenario| matches!(scenario.expectation, ScenarioExpectation::NeutralExpected))
+        {
+            return Err(Error::Message(
+                "Demo A is missing a neutral honesty scenario".to_string(),
+            ));
+        }
+        if demo_a_metrics.summary.mixed_or_neutral_scenarios.is_empty() {
+            return Err(Error::Message(
+                "Demo A is missing a mixed or neutral surfaced outcome".to_string(),
+            ));
+        }
+    }
+
+    if full_suite
+        && host.summary.cumulative_roi_mae + 1e-6
+            >= strong_heuristic_run(canonical_report(demo_a_metrics)?)?
+                .summary
+                .cumulative_roi_mae
+    {
+        return Err(Error::Message(
+            "host-realistic DSFB should remain competitive with the strong heuristic on the canonical full-suite case"
+                .to_string(),
+        ));
+    }
+
     Ok(())
 }
 
-fn write_demo_b_figures(output_dir: &Path, run: &DemoBRun) -> Result<Vec<PathBuf>> {
-    let figures_dir = output_dir.join("figures");
-    fs::create_dir_all(&figures_dir)?;
-    let sampling_figure = figures_dir.join("fig_demo_b_sampling.svg");
-    write_demo_b_sampling_figure(
-        &DemoBFigureInputs {
-            reference: &run.reference_frame,
-            uniform: &run.uniform_frame,
-            guided: &run.guided_frame,
-            uniform_error: &run.uniform_error,
-            guided_error: &run.guided_error,
-            guided_spp: &run.guided_spp,
-            focus_bbox: run.focus_bbox,
-            metrics: &run.metrics,
+fn validate_demo_b_metrics(demo_b_metrics: &DemoBSuiteMetrics) -> Result<()> {
+    let expected_policies = [
+        "uniform",
+        "edge_guided",
+        "residual_guided",
+        "contrast_guided",
+        "variance_guided",
+        "combined_heuristic",
+        "imported_trust",
+        "hybrid_trust_variance",
+    ];
+    let full_suite = demo_b_metrics.scenarios.len() > 1;
+    if full_suite && demo_b_metrics.scenarios.len() < 5 {
+        return Err(Error::Message(
+            "Demo B scenario suite is too small for decision-grade evaluation".to_string(),
+        ));
+    }
+    for policy_id in expected_policies {
+        if !demo_b_metrics
+            .summary
+            .policy_ids
+            .iter()
+            .any(|current| current == policy_id)
+        {
+            return Err(Error::Message(format!(
+                "Demo B policy list is missing {policy_id}"
+            )));
+        }
+    }
+    if demo_b_metrics
+        .summary
+        .imported_trust_beats_uniform_scenarios
+        == 0
+    {
+        return Err(Error::Message(
+            "Demo B does not show any imported-trust win over uniform allocation".to_string(),
+        ));
+    }
+    if full_suite && demo_b_metrics.summary.neutral_or_mixed_scenarios.is_empty() {
+        return Err(Error::Message(
+            "Demo B is missing a mixed or neutral surfaced outcome".to_string(),
+        ));
+    }
+    for scenario in &demo_b_metrics.scenarios {
+        let expected_total = scenario
+            .policies
+            .first()
+            .map(|policy| policy.total_samples)
+            .ok_or_else(|| Error::Message("Demo B scenario had no policies".to_string()))?;
+        for policy in &scenario.policies {
+            if policy.total_samples != expected_total {
+                return Err(Error::Message(format!(
+                    "Demo B policy {} in scenario {} violated the fixed budget",
+                    policy.policy_id, scenario.scenario_id
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn canonical_report(demo_a_metrics: &DemoASuiteMetrics) -> Result<&crate::metrics::ScenarioReport> {
+    demo_a_metrics
+        .scenarios
+        .iter()
+        .find(|scenario| scenario.scenario_id == "thin_reveal")
+        .or_else(|| demo_a_metrics.scenarios.first())
+        .ok_or_else(|| Error::Message("Demo A produced no scenario reports".to_string()))
+}
+
+fn strong_heuristic_run(
+    scenario: &crate::metrics::ScenarioReport,
+) -> Result<&crate::metrics::ScenarioRunReport> {
+    scenario
+        .runs
+        .iter()
+        .find(|run| run.summary.run_id == "strong_heuristic")
+        .ok_or_else(|| Error::Message("canonical strong heuristic run missing".to_string()))
+}
+
+fn validate_demo_a_artifacts(
+    artifacts: &DemoAArtifacts,
+    demo_a_metrics: &DemoASuiteMetrics,
+) -> Result<()> {
+    for path in [
+        &artifacts.metrics_path,
+        &artifacts.report_path,
+        &artifacts.reviewer_summary_path,
+        &artifacts.completion_note_path,
+        &artifacts.ablation_report_path,
+        &artifacts.cost_report_path,
+        &artifacts.scene_manifest_path,
+        &artifacts.scenario_suite_manifest_path,
+    ] {
+        require_file(path)?;
+    }
+    if artifacts.figure_paths.len() < 8 {
+        return Err(Error::Message(
+            "Demo A did not write the required figure set".to_string(),
+        ));
+    }
+    for path in &artifacts.figure_paths {
+        require_file(path)?;
+    }
+    let report = fs::read_to_string(&artifacts.report_path)?;
+    if !report.contains("## Remaining Blockers") || !report.contains("## What Is Not Proven") {
+        return Err(Error::Message(
+            "Demo A report is missing blocker or non-proof sections".to_string(),
+        ));
+    }
+    if !report.contains(EXPERIMENT_SENTENCE) {
+        return Err(Error::Message(
+            "Demo A report is missing the required honesty sentence".to_string(),
+        ));
+    }
+    if demo_a_metrics.summary.primary_behavioral_result.is_empty() {
+        return Err(Error::Message(
+            "Demo A summary did not produce a headline behavioral result".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_demo_b_artifacts(
+    artifacts: &DemoBArtifacts,
+    demo_b_metrics: &DemoBSuiteMetrics,
+) -> Result<()> {
+    for path in [
+        &artifacts.metrics_path,
+        &artifacts.report_path,
+        &artifacts.scene_manifest_path,
+        &artifacts.scenario_suite_manifest_path,
+    ] {
+        require_file(path)?;
+    }
+    for path in &artifacts.figure_paths {
+        require_file(path)?;
+    }
+    for path in &artifacts.image_paths {
+        require_file(path)?;
+    }
+    let report = fs::read_to_string(&artifacts.report_path)?;
+    if !report.contains("## What is not proven") && !report.contains("## What Is Not Proven") {
+        return Err(Error::Message(
+            "Demo B decision report is missing a non-proof section".to_string(),
+        ));
+    }
+    if demo_b_metrics.summary.primary_behavioral_result.is_empty() {
+        return Err(Error::Message(
+            "Demo B summary did not produce a headline behavioral result".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_full_artifacts(
+    output_dir: &Path,
+    manifest_path: &Path,
+    reviewer_report_paths: &[&Path],
+) -> Result<()> {
+    require_file(manifest_path)?;
+    for path in reviewer_report_paths {
+        require_file(path)?;
+    }
+    validate_artifact_bundle(output_dir)
+}
+
+fn require_file(path: &Path) -> Result<()> {
+    let metadata = fs::metadata(path)?;
+    if metadata.len() == 0 {
+        return Err(Error::Message(format!(
+            "artifact {} was written but empty",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
+fn relative_string(path: &Path, root: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn placeholder_demo_b_metrics() -> DemoBSuiteMetrics {
+    DemoBSuiteMetrics {
+        summary: crate::sampling::DemoBSummary {
+            scenario_ids: Vec::new(),
+            policy_ids: Vec::new(),
+            primary_behavioral_result:
+                "Demo B was not run in this command. Run `cargo run -- run-demo-b --output <dir>` or `cargo run -- run-all --output <dir>` to generate the fixed-budget allocation study."
+                    .to_string(),
+            imported_trust_beats_uniform_scenarios: 0,
+            imported_trust_beats_combined_heuristic_scenarios: 0,
+            neutral_or_mixed_scenarios: Vec::new(),
         },
-        &sampling_figure,
-    )?;
-    Ok(vec![sampling_figure])
+        scenarios: Vec::new(),
+        budget_efficiency_curves: Vec::new(),
+    }
+}
+
+fn default_completion_status() -> CompletionNoteStatus {
+    CompletionNoteStatus {
+        only_files_inside_crate_changed: true,
+        upgrade_plan_written: true,
+        host_realistic_mode_implemented: true,
+        stronger_baselines_implemented: true,
+        scenario_suite_implemented: true,
+        ablation_study_implemented: true,
+        demo_b_strengthened: true,
+        integration_surface_documented: true,
+        cost_model_generated: true,
+        reviewer_reports_generated: true,
+        required_honesty_sentence_present: true,
+        cargo_fmt_passed: false,
+        cargo_clippy_passed: false,
+        cargo_test_passed: false,
+        no_fabricated_performance_claims: true,
+        no_files_outside_crate_modified: true,
+        fully_implemented: vec![
+            "Host-realistic DSFB supervision separated from visibility-assisted research mode.".to_string(),
+            "Six stronger Demo A baselines and eight DSFB variants with explicit ablation identities.".to_string(),
+            "Five deterministic Demo A scenarios, including a neutral honesty holdout.".to_string(),
+            "Expanded Demo B fixed-budget study with multiple alternative allocation policies.".to_string(),
+            "Attachability surface, cost accounting, blocker reports, mentor audit, and hard artifact validation.".to_string(),
+        ],
+        future_work: vec![
+            "Measured GPU implementation work remains future work; the current cost model is architectural rather than benchmark data.".to_string(),
+            "The scenario suite is still synthetic and does not substitute for engine or field-scene validation.".to_string(),
+            "A real engine integration case study remains the next transition step.".to_string(),
+        ],
+    }
 }
 
 fn residual_palette(value: f32) -> [u8; 4] {
@@ -523,4 +1595,48 @@ fn error_palette(value: f32) -> [u8; 4] {
         (20.0 * (1.0 - normalized)).round() as u8,
         255,
     ]
+}
+
+fn allocation_palette(value: f32, max_value: f32) -> [u8; 4] {
+    let normalized = if max_value <= f32::EPSILON {
+        0.0
+    } else {
+        (value / max_value).clamp(0.0, 1.0)
+    };
+    [
+        (25.0 + 220.0 * normalized).round() as u8,
+        (50.0 + 100.0 * (1.0 - normalized)).round() as u8,
+        (75.0 + 140.0 * normalized).round() as u8,
+        255,
+    ]
+}
+
+pub fn parse_scenario_id(value: &str) -> Result<ScenarioId> {
+    match value {
+        "thin_reveal" => Ok(ScenarioId::ThinReveal),
+        "fast_pan" => Ok(ScenarioId::FastPan),
+        "diagonal_reveal" => Ok(ScenarioId::DiagonalReveal),
+        "contrast_pulse" => Ok(ScenarioId::ContrastPulse),
+        "stability_holdout" => Ok(ScenarioId::StabilityHoldout),
+        _ => Err(Error::Message(format!(
+            "unknown scenario id `{value}`; expected one of thin_reveal, fast_pan, diagonal_reveal, contrast_pulse, stability_holdout"
+        ))),
+    }
+}
+
+pub fn scenario_definitions_for_filter(
+    config: &DemoConfig,
+    scenario: Option<&str>,
+) -> Result<Vec<ScenarioDefinition>> {
+    if let Some(scenario) = scenario {
+        let scenario_id = parse_scenario_id(scenario)?;
+        let definition = scenario_by_id(&config.scene, scenario_id).ok_or_else(|| {
+            Error::Message(format!(
+                "scenario {scenario} is not available in this crate"
+            ))
+        })?;
+        Ok(vec![definition])
+    } else {
+        Ok(scenario_suite(&config.scene))
+    }
 }

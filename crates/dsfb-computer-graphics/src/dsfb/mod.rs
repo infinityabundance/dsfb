@@ -1,14 +1,24 @@
 use serde::Serialize;
 
 use crate::frame::{ImageFrame, ScalarField};
-use crate::scene::{SceneFrame, SceneSequence, SurfaceTag};
+use crate::host::{
+    default_host_realistic_profile, profile_residual_only, profile_without_alpha_modulation,
+    profile_without_grammar, profile_without_motion, profile_without_thin,
+    profile_without_visibility, supervise_temporal_reuse, synthetic_visibility_profile,
+    HostSupervisionProfile, HostTemporalInputs,
+};
+use crate::scene::{MotionVector, Normal3, SceneFrame, SceneSequence};
 
 #[derive(Clone, Debug)]
 pub struct ProxyFields {
     pub residual_proxy: ScalarField,
     pub visibility_proxy: ScalarField,
-    pub motion_edge_proxy: ScalarField,
+    pub depth_proxy: ScalarField,
+    pub normal_proxy: ScalarField,
+    pub motion_proxy: ScalarField,
+    pub neighborhood_proxy: ScalarField,
     pub thin_proxy: ScalarField,
+    pub history_instability_proxy: ScalarField,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -41,8 +51,12 @@ impl StateField {
         }
     }
 
-    pub fn get(&self, x: usize, y: usize) -> StructuralState {
-        self.values[y * self.width + x]
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    pub fn height(&self) -> usize {
+        self.values.len() / self.width.max(1)
     }
 
     pub fn set(&mut self, x: usize, y: usize, value: StructuralState) {
@@ -95,12 +109,44 @@ pub struct SupervisionFrame {
 
 #[derive(Clone, Debug)]
 pub struct DsfbRun {
+    pub profile: HostSupervisionProfile,
     pub resolved_frames: Vec<ImageFrame>,
     pub reprojected_history_frames: Vec<ImageFrame>,
     pub supervision_frames: Vec<SupervisionFrame>,
 }
 
 pub fn run_gated_taa(sequence: &SceneSequence, alpha_min: f32, alpha_max: f32) -> DsfbRun {
+    run_profiled_taa(
+        sequence,
+        &default_host_realistic_profile(alpha_min, alpha_max),
+    )
+}
+
+pub fn run_visibility_assisted_taa(
+    sequence: &SceneSequence,
+    alpha_min: f32,
+    alpha_max: f32,
+) -> DsfbRun {
+    run_profiled_taa(
+        sequence,
+        &synthetic_visibility_profile(alpha_min, alpha_max),
+    )
+}
+
+pub fn ablation_profiles(alpha_min: f32, alpha_max: f32) -> Vec<HostSupervisionProfile> {
+    vec![
+        synthetic_visibility_profile(alpha_min, alpha_max),
+        default_host_realistic_profile(alpha_min, alpha_max),
+        profile_without_visibility(alpha_min, alpha_max),
+        profile_without_thin(alpha_min, alpha_max),
+        profile_without_motion(alpha_min, alpha_max),
+        profile_without_grammar(alpha_min, alpha_max),
+        profile_residual_only(alpha_min, alpha_max),
+        profile_without_alpha_modulation(alpha_min, alpha_max),
+    ]
+}
+
+pub fn run_profiled_taa(sequence: &SceneSequence, profile: &HostSupervisionProfile) -> DsfbRun {
     let mut resolved_frames = Vec::with_capacity(sequence.frames.len());
     let mut reprojected_history_frames = Vec::with_capacity(sequence.frames.len());
     let mut supervision_frames = Vec::with_capacity(sequence.frames.len());
@@ -111,147 +157,166 @@ pub fn run_gated_taa(sequence: &SceneSequence, alpha_min: f32, alpha_max: f32) -
         if frame_index == 0 {
             resolved_frames.push(scene_frame.ground_truth.clone());
             reprojected_history_frames.push(scene_frame.ground_truth.clone());
-            supervision_frames.push(empty_supervision(width, height, 1.0, alpha_min));
+            supervision_frames.push(empty_supervision(width, height, 1.0, profile.alpha_min));
             continue;
         }
 
         let previous_resolved = &resolved_frames[frame_index - 1];
         let previous_scene_frame = &sequence.frames[frame_index - 1];
-        let motion_edge_proxy = compute_motion_edge_proxy(scene_frame);
-        let thin_proxy = compute_thin_proxy(scene_frame);
+        let reprojected = reproject_frame(previous_resolved, scene_frame);
+        let reprojected_depth = reproject_depth(previous_scene_frame, scene_frame);
+        let reprojected_normals = reproject_normals(previous_scene_frame, scene_frame);
+        let visibility_hint = profile
+            .use_visibility_hint
+            .then_some(scene_frame.disocclusion_mask.as_slice());
+        let thin_hint_field = profile
+            .use_visibility_hint
+            .then(|| compute_thin_hint(scene_frame));
+        let thin_hint = thin_hint_field.as_ref();
 
-        let mut reprojected = ImageFrame::new(width, height);
-        let mut resolved = ImageFrame::new(width, height);
-        let mut residual = ScalarField::new(width, height);
-        let mut residual_proxy = ScalarField::new(width, height);
-        let mut visibility_proxy = ScalarField::new(width, height);
-        let mut trust = ScalarField::new(width, height);
-        let mut alpha = ScalarField::new(width, height);
-        let mut intervention = ScalarField::new(width, height);
-        let mut state = StateField::new(width, height);
-
-        for y in 0..height {
-            for x in 0..width {
-                let index = y * width + x;
-                let motion = scene_frame.motion[index];
-                let prev_x = (x as i32 + motion.to_prev_x).clamp(0, width as i32 - 1) as usize;
-                let prev_y = (y as i32 + motion.to_prev_y).clamp(0, height as i32 - 1) as usize;
-
-                let history = previous_resolved.get(prev_x, prev_y);
-                let current = scene_frame.ground_truth.get(x, y);
-                let previous_layer = previous_scene_frame.layers[prev_y * width + prev_x];
-                let current_layer = scene_frame.layers[index];
-                let residual_value = (current.luma() - history.luma()).abs();
-                let residual_gate = smoothstep(0.02, 0.28, residual_value);
-                let visibility_gate = if previous_layer != current_layer {
-                    1.0
-                } else {
-                    0.0
-                };
-                let structural_gate =
-                    0.35 * motion_edge_proxy.get(x, y) + 0.25 * thin_proxy.get(x, y);
-                let state_value = classify_state(
-                    residual_gate,
-                    visibility_gate,
-                    motion_edge_proxy.get(x, y),
-                    thin_proxy.get(x, y),
-                );
-                let grammar_gate = grammar_hazard(state_value);
-                let hazard = (0.55 * residual_gate
-                    + 0.15 * structural_gate
-                    + 0.10 * residual_gate * structural_gate)
-                    .max(0.70 * grammar_gate)
-                    .max(0.88 * visibility_gate)
-                    .clamp(0.0, 1.0);
-                let trust_value = 1.0 - hazard;
-                let intervention_value = 1.0 - trust_value;
-                let alpha_value = alpha_min + (alpha_max - alpha_min) * (1.0 - trust_value);
-
-                reprojected.set(x, y, history);
-                residual.set(x, y, residual_value);
-                residual_proxy.set(x, y, residual_gate);
-                visibility_proxy.set(x, y, visibility_gate);
-                trust.set(x, y, trust_value);
-                alpha.set(x, y, alpha_value);
-                intervention.set(x, y, intervention_value);
-                state.set(x, y, state_value);
-                resolved.set(x, y, history.lerp(current, alpha_value));
-            }
-        }
+        let host_inputs = HostTemporalInputs {
+            current_color: &scene_frame.ground_truth,
+            reprojected_history: &reprojected,
+            motion_vectors: &scene_frame.motion,
+            current_depth: &scene_frame.depth,
+            reprojected_depth: &reprojected_depth,
+            current_normals: &scene_frame.normals,
+            reprojected_normals: &reprojected_normals,
+            visibility_hint,
+            thin_hint,
+        };
+        let outputs = supervise_temporal_reuse(&host_inputs, profile);
+        let resolved = resolve_with_alpha(&reprojected, &scene_frame.ground_truth, &outputs.alpha);
 
         reprojected_history_frames.push(reprojected);
         resolved_frames.push(resolved);
         supervision_frames.push(SupervisionFrame {
-            residual,
-            trust,
-            alpha,
-            intervention,
+            residual: outputs.residual,
+            trust: outputs.trust,
+            alpha: outputs.alpha,
+            intervention: outputs.intervention,
             proxies: ProxyFields {
-                residual_proxy,
-                visibility_proxy,
-                motion_edge_proxy,
-                thin_proxy,
+                residual_proxy: outputs.proxies.residual_proxy,
+                visibility_proxy: outputs.proxies.visibility_proxy,
+                depth_proxy: outputs.proxies.depth_proxy,
+                normal_proxy: outputs.proxies.normal_proxy,
+                motion_proxy: outputs.proxies.motion_proxy,
+                neighborhood_proxy: outputs.proxies.neighborhood_proxy,
+                thin_proxy: outputs.proxies.thin_proxy,
+                history_instability_proxy: outputs.proxies.history_instability_proxy,
             },
-            state,
+            state: outputs.state,
         });
     }
 
     DsfbRun {
+        profile: profile.clone(),
         resolved_frames,
         reprojected_history_frames,
         supervision_frames,
     }
 }
 
-fn compute_motion_edge_proxy(scene_frame: &SceneFrame) -> ScalarField {
-    let width = scene_frame.ground_truth.width();
-    let height = scene_frame.ground_truth.height();
-    let mut field = ScalarField::new(width, height);
-
-    for y in 0..height {
-        for x in 0..width {
-            let index = y * width + x;
-            let base_layer = scene_frame.layers[index];
-            let base_motion = scene_frame.motion[index];
-            let mut score = 0.0f32;
-            for (nx, ny) in neighbors(x, y, width, height) {
-                let neighbor_index = ny * width + nx;
-                let neighbor_layer = scene_frame.layers[neighbor_index];
-                let neighbor_motion = scene_frame.motion[neighbor_index];
-                if neighbor_layer != base_layer {
-                    score = 1.0;
-                    break;
-                }
-                let dx = (base_motion.to_prev_x - neighbor_motion.to_prev_x).abs();
-                let dy = (base_motion.to_prev_y - neighbor_motion.to_prev_y).abs();
-                score = score.max(((dx + dy) as f32 / 4.0).clamp(0.0, 1.0));
-            }
-            field.set(x, y, score);
+fn resolve_with_alpha(
+    history: &ImageFrame,
+    current: &ImageFrame,
+    alpha: &ScalarField,
+) -> ImageFrame {
+    let mut resolved = ImageFrame::new(history.width(), history.height());
+    for y in 0..history.height() {
+        for x in 0..history.width() {
+            resolved.set(
+                x,
+                y,
+                history.get(x, y).lerp(current.get(x, y), alpha.get(x, y)),
+            );
         }
     }
-
-    field
+    resolved
 }
 
-fn compute_thin_proxy(scene_frame: &SceneFrame) -> ScalarField {
+fn reproject_frame(previous_resolved: &ImageFrame, scene_frame: &SceneFrame) -> ImageFrame {
+    let mut reprojected = ImageFrame::new(
+        scene_frame.ground_truth.width(),
+        scene_frame.ground_truth.height(),
+    );
+    for y in 0..scene_frame.ground_truth.height() {
+        for x in 0..scene_frame.ground_truth.width() {
+            let motion = scene_frame.motion[y * scene_frame.ground_truth.width() + x];
+            reprojected.set(
+                x,
+                y,
+                previous_resolved
+                    .sample_clamped(x as i32 + motion.to_prev_x, y as i32 + motion.to_prev_y),
+            );
+        }
+    }
+    reprojected
+}
+
+fn reproject_depth(previous_scene_frame: &SceneFrame, scene_frame: &SceneFrame) -> Vec<f32> {
+    reproject_scalar_buffer(
+        &previous_scene_frame.depth,
+        scene_frame.ground_truth.width(),
+        scene_frame.ground_truth.height(),
+        &scene_frame.motion,
+    )
+}
+
+fn reproject_normals(previous_scene_frame: &SceneFrame, scene_frame: &SceneFrame) -> Vec<Normal3> {
     let width = scene_frame.ground_truth.width();
     let height = scene_frame.ground_truth.height();
-    let mut field = ScalarField::new(width, height);
-
+    let mut reprojected = vec![Normal3::new(0.0, 0.0, 1.0); width * height];
     for y in 0..height {
         for x in 0..width {
             let index = y * width + x;
-            let is_thin = matches!(scene_frame.layers[index], SurfaceTag::ThinStructure)
-                || neighbors(x, y, width, height).into_iter().any(|(nx, ny)| {
-                    matches!(
-                        scene_frame.layers[ny * width + nx],
-                        SurfaceTag::ThinStructure
-                    )
-                });
-            field.set(x, y, if is_thin { 1.0 } else { 0.0 });
+            let motion = scene_frame.motion[index];
+            let prev_x = (x as i32 + motion.to_prev_x).clamp(0, width as i32 - 1) as usize;
+            let prev_y = (y as i32 + motion.to_prev_y).clamp(0, height as i32 - 1) as usize;
+            reprojected[index] = previous_scene_frame.normals[prev_y * width + prev_x];
         }
     }
+    reprojected
+}
 
+fn reproject_scalar_buffer(
+    previous_values: &[f32],
+    width: usize,
+    height: usize,
+    motion: &[MotionVector],
+) -> Vec<f32> {
+    let mut reprojected = vec![0.0; width * height];
+    for y in 0..height {
+        for x in 0..width {
+            let index = y * width + x;
+            let vector = motion[index];
+            let prev_x = (x as i32 + vector.to_prev_x).clamp(0, width as i32 - 1) as usize;
+            let prev_y = (y as i32 + vector.to_prev_y).clamp(0, height as i32 - 1) as usize;
+            reprojected[index] = previous_values[prev_y * width + prev_x];
+        }
+    }
+    reprojected
+}
+
+fn compute_thin_hint(scene_frame: &SceneFrame) -> ScalarField {
+    let width = scene_frame.ground_truth.width();
+    let height = scene_frame.ground_truth.height();
+    let mut field = ScalarField::new(width, height);
+    for y in 0..height {
+        for x in 0..width {
+            let index = y * width + x;
+            let hint = matches!(
+                scene_frame.layers[index],
+                crate::scene::SurfaceTag::ThinStructure
+            ) || neighbors(x, y, width, height).into_iter().any(|(nx, ny)| {
+                matches!(
+                    scene_frame.layers[ny * width + nx],
+                    crate::scene::SurfaceTag::ThinStructure
+                )
+            });
+            field.set(x, y, if hint { 1.0 } else { 0.0 });
+        }
+    }
     field
 }
 
@@ -281,57 +346,30 @@ fn empty_supervision(
         proxies: ProxyFields {
             residual_proxy: ScalarField::new(width, height),
             visibility_proxy: ScalarField::new(width, height),
-            motion_edge_proxy: ScalarField::new(width, height),
+            depth_proxy: ScalarField::new(width, height),
+            normal_proxy: ScalarField::new(width, height),
+            motion_proxy: ScalarField::new(width, height),
+            neighborhood_proxy: ScalarField::new(width, height),
             thin_proxy: ScalarField::new(width, height),
+            history_instability_proxy: ScalarField::new(width, height),
         },
         state,
     }
 }
 
-fn classify_state(
-    residual_gate: f32,
-    visibility_gate: f32,
-    motion_edge_gate: f32,
-    thin_gate: f32,
-) -> StructuralState {
-    if visibility_gate >= 0.5 {
-        StructuralState::DisocclusionLike
-    } else if residual_gate >= 0.45 && (motion_edge_gate >= 0.25 || thin_gate >= 0.5) {
-        StructuralState::UnstableHistory
-    } else if motion_edge_gate >= 0.45 || (thin_gate >= 0.5 && residual_gate >= 0.10) {
-        StructuralState::MotionEdge
-    } else {
-        StructuralState::Nominal
-    }
-}
-
-fn grammar_hazard(state: StructuralState) -> f32 {
-    match state {
-        StructuralState::Nominal => 0.0,
-        StructuralState::MotionEdge => 0.35,
-        StructuralState::UnstableHistory => 0.70,
-        StructuralState::DisocclusionLike => 1.0,
-    }
-}
-
-fn smoothstep(edge0: f32, edge1: f32, value: f32) -> f32 {
-    let t = ((value - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
 fn neighbors(x: usize, y: usize, width: usize, height: usize) -> Vec<(usize, usize)> {
-    let mut values = Vec::with_capacity(4);
-    if x > 0 {
-        values.push((x - 1, y));
-    }
-    if x + 1 < width {
-        values.push((x + 1, y));
-    }
-    if y > 0 {
-        values.push((x, y - 1));
-    }
-    if y + 1 < height {
-        values.push((x, y + 1));
+    let mut values = Vec::with_capacity(8);
+    for dy in -1i32..=1 {
+        for dx in -1i32..=1 {
+            if dx == 0 && dy == 0 {
+                continue;
+            }
+            let nx = x as i32 + dx;
+            let ny = y as i32 + dy;
+            if nx >= 0 && nx < width as i32 && ny >= 0 && ny < height as i32 {
+                values.push((nx as usize, ny as usize));
+            }
+        }
     }
     values
 }

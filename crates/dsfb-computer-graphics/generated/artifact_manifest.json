@@ -1,0 +1,58 @@
+{
+  "output_root_name": "output-dsfb-computer-graphics",
+  "run_name": "generated",
+  "artifact_manifest_file_name": "artifact_manifest.json",
+  "pdf_bundle_file_name": "artifacts_bundle.pdf",
+  "zip_bundle_file_name": "generated.zip",
+  "demo_a": {
+    "metrics_path": "metrics.json",
+    "report_path": "report.md",
+    "reviewer_summary_path": "reviewer_summary.md",
+    "completion_note_path": "completion_note.md",
+    "scene_manifest_path": "scene_manifest.json",
+    "scenario_suite_manifest_path": "scenario_suite_manifest.json",
+    "ablation_report_path": "ablation_report.md",
+    "cost_report_path": "cost_report.md",
+    "figure_paths": [
+      "figures/fig_system_diagram.svg",
+      "figures/fig_trust_map.svg",
+      "figures/fig_before_after.svg",
+      "figures/fig_trust_vs_error.svg",
+      "figures/fig_intervention_alpha.svg",
+      "figures/fig_ablation.svg",
+      "figures/fig_roi_nonroi_error.svg",
+      "figures/fig_leaderboard.svg",
+      "figures/fig_scenario_mosaic.svg"
+    ]
+  },
+  "demo_b": {
+    "metrics_path": "demo_b/metrics.json",
+    "report_path": "demo_b/report.md",
+    "scene_manifest_path": "demo_b/scene_manifest.json",
+    "scenario_suite_manifest_path": "demo_b/scenario_suite_manifest.json",
+    "figure_paths": [
+      "demo_b/figures/fig_demo_b_sampling.svg",
+      "demo_b/figures/fig_demo_b_budget_efficiency.svg"
+    ],
+    "image_paths": [
+      "demo_b/images/reference.png",
+      "demo_b/images/uniform.png",
+      "demo_b/images/combined_heuristic.png",
+      "demo_b/images/imported_trust.png",
+      "demo_b/images/guided.png",
+      "demo_b/images/uniform_error.png",
+      "demo_b/images/combined_heuristic_error.png",
+      "demo_b/images/imported_trust_error.png",
+      "demo_b/images/guided_error.png",
+      "demo_b/images/combined_heuristic_spp.png",
+      "demo_b/images/imported_trust_spp.png",
+      "demo_b/images/guided_spp.png",
+      "demo_b/images/trust.png"
+    ]
+  },
+  "reviewer_report_paths": [
+    "five_mentor_audit.md",
+    "check_signing_blockers.md",
+    "demo_b_decision_report.md"
+  ]
+}
