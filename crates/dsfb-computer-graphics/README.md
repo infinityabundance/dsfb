@@ -1,5 +1,7 @@
 # dsfb-computer-graphics
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-computer-graphics/colab/dsfb_computer_graphics_demo.ipynb)
+
 `dsfb-computer-graphics` is a self-contained Rust artifact for evaluating DSFB-style supervision in temporal reuse and fixed-budget sampling. The crate is designed to be decision-clean rather than cosmetically polished: it exposes point-ROI caveats, mixed outcomes, gate-like trust behavior, external-validation gaps, and validation failures instead of hiding them.
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
