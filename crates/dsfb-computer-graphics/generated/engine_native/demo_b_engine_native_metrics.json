@@ -1,0 +1,21 @@
+{
+  "captures": [],
+  "engine_native_capture_missing": true,
+  "engine_type": "pending",
+  "fixed_budget_equal": true,
+  "measurement_kind": "pending",
+  "notes": [
+    "Proxy allocation only — not renderer-integrated.",
+    "ENGINE_NATIVE_CAPTURE_MISSING=true: evaluation pending."
+  ],
+  "policies": [
+    "uniform",
+    "gradient",
+    "contrast",
+    "variance",
+    "combined_heuristic",
+    "imported_trust",
+    "hybrid"
+  ],
+  "renderer_integrated": false
+}

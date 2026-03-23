@@ -1,0 +1,108 @@
+{
+  "format_version": "dsfb_engine_native_v1",
+  "description": "Engine-native temporal buffer capture manifest — pending real capture. Update engine_type and buffer paths after exporting from your renderer. See docs/unreal_export_playbook.md, docs/unity_export_playbook.md, or docs/custom_renderer_export_playbook.md.",
+  "source": {
+    "kind": "engine_native",
+    "engine_type": "pending",
+    "engine_version": null,
+    "capture_tool": null,
+    "capture_note": "ENGINE_NATIVE_CAPTURE_MISSING=true — replace engine_type and buffer paths with real renderer output."
+  },
+  "buffers": null,
+  "captures": [
+    {
+      "label": "engine_native_frame_000",
+      "buffers": {
+        "current_color": {
+          "path": "data/engine_native/frame_000/current_color.exr",
+          "format": "exr_rgb32f",
+          "semantic": "current_color",
+          "width": null,
+          "height": null,
+          "channels": 3
+        },
+        "history_color": {
+          "path": "data/engine_native/frame_000/history_color.exr",
+          "format": "exr_rgb32f",
+          "semantic": "history_color",
+          "width": null,
+          "height": null,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "data/engine_native/frame_000/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": null,
+          "height": null,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "data/engine_native/frame_000/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": null,
+          "height": null,
+          "channels": 1
+        },
+        "history_depth": {
+          "path": "data/engine_native/frame_000/history_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "history_depth",
+          "width": null,
+          "height": null,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "data/engine_native/frame_000/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": null,
+          "height": null,
+          "channels": 3
+        },
+        "history_normals": {
+          "path": "data/engine_native/frame_000/history_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "history_normals",
+          "width": null,
+          "height": null,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "data/engine_native/frame_000/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata",
+          "width": null,
+          "height": null,
+          "channels": null
+        },
+        "optional_mask": {
+          "path": "data/engine_native/frame_000/roi_mask.json",
+          "format": "json_scalar_f32",
+          "semantic": "optional_mask",
+          "width": null,
+          "height": null,
+          "channels": 1
+        }
+      }
+    }
+  ],
+  "normalization": {
+    "color": "linear RGB, pre-tonemapped, in [0, ∞); values > 1.0 indicate HDR content",
+    "motion_vectors": "screen-space pixel offsets from current to previous frame; positive x samples from a pixel further right in history",
+    "depth": "monotonic depth — larger values indicate further from camera; values must be in a consistent unit for the frame pair",
+    "normals": "unit vectors in view space (camera-facing = positive z); must be consistent across current and history frames"
+  },
+  "notes": [
+    "ENGINE_NATIVE_CAPTURE_MISSING=true",
+    "NO REAL EXTERNAL DATA PROVIDED",
+    "Replace source.engine_type with: unreal | unity | custom",
+    "Replace buffer paths with actual exported file paths",
+    "See docs/unreal_export_playbook.md for Unreal Engine export steps",
+    "See docs/unity_export_playbook.md for Unity export steps",
+    "See docs/custom_renderer_export_playbook.md for custom renderer export steps",
+    "history_depth and history_normals are optional — see engine_capture_schema.md for handling",
+    "roi_mask is optional — if absent, a derived mask is computed from depth+normal discontinuities"
+  ]
+}

@@ -6,14 +6,16 @@ use crate::config::DemoConfig;
 use crate::datasets::{
     prepare_davis_dataset, prepare_sintel_dataset, validate_standard_external_package,
 };
+use crate::engine_native::{run_engine_native_import, run_engine_native_replay};
 use crate::error::Result;
 use crate::external_validation::probe_external_gpu_only;
+use crate::mixed_regime::confirm_mixed_regime;
 use crate::pipeline::{
     export_evaluator_handoff, export_minimal_report, generate_scene_artifacts, run_all,
     run_all_filtered, run_demo_a, run_demo_a_filtered, run_demo_b, run_demo_b_efficiency_only,
     run_demo_b_filtered, run_external_replay_only, run_gpu_path_only, run_realism_bridge_only,
     run_resolution_scaling_only, run_sensitivity_only, run_timing_only, validate_artifact_bundle,
-    validate_final_bundle,
+    validate_engine_native_gates, validate_final_bundle,
 };
 
 #[derive(Debug, Parser)]
@@ -111,6 +113,32 @@ pub enum Command {
         output: PathBuf,
     },
     ValidateFinal {
+        #[arg(long, default_value = "generated")]
+        output: PathBuf,
+        /// Allow pending engine-native gates (pass even if no real engine capture has been provided).
+        /// Without this flag, validate-final fails if ENGINE_NATIVE_CAPTURE_MISSING=true.
+        #[arg(long)]
+        allow_pending_engine_native: bool,
+    },
+    /// Import and validate an engine-native temporal buffer capture.
+    /// See docs/engine_capture_schema.md and examples/engine_native_capture_manifest.json.
+    ImportEngineNative {
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long, default_value = "generated/engine_native")]
+        output: PathBuf,
+    },
+    /// Run the full DSFB replay pipeline on an engine-native capture.
+    /// Same pipeline as DAVIS/Sintel — no special-case path.
+    RunEngineNativeReplay {
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long, default_value = "generated/engine_native")]
+        output: PathBuf,
+    },
+    /// Confirm one mixed-regime case (aliasing + variance co-active in same ROI).
+    /// Uses internal synthetic scenario data; engine-native confirmation remains pending.
+    ConfirmMixedRegime {
         #[arg(long, default_value = "generated")]
         output: PathBuf,
     },
@@ -238,9 +266,37 @@ pub fn run(cli: Cli) -> Result<()> {
                 output.display()
             );
         }
-        Command::ValidateFinal { output } => {
+        Command::ValidateFinal {
+            output,
+            allow_pending_engine_native,
+        } => {
             validate_final_bundle(&output)?;
+            // Engine-native gates: check {output}/../engine_native/ (i.e., generated/engine_native/)
+            let engine_native_dir = output
+                .parent()
+                .unwrap_or(std::path::Path::new("."))
+                .join("engine_native");
+            validate_engine_native_gates(&engine_native_dir, allow_pending_engine_native)?;
             println!("validated final bundle at {}", output.display());
+        }
+        Command::ImportEngineNative { manifest, output } => {
+            let artifacts = run_engine_native_import(&config, &manifest, &output)?;
+            println!("engine-native import report: {}", artifacts.import_report_path.display());
+            println!("resolved manifest: {}", artifacts.resolved_manifest_path.display());
+            println!("ENGINE_NATIVE_CAPTURE_MISSING={}", artifacts.capture_missing);
+        }
+        Command::RunEngineNativeReplay { manifest, output } => {
+            let artifacts = run_engine_native_replay(&config, &manifest, &output)?;
+            println!("engine-native replay report: {}", artifacts.replay_report_path.display());
+            println!("GPU report: {}", artifacts.gpu_report_path.display());
+            println!("Demo A: {}", artifacts.demo_a_report_path.display());
+            println!("Demo B: {}", artifacts.demo_b_report_path.display());
+            println!("validation: {}", artifacts.validation_report_path.display());
+            println!("ENGINE_NATIVE_CAPTURE_MISSING={}", artifacts.capture_missing);
+        }
+        Command::ConfirmMixedRegime { output } => {
+            let report = confirm_mixed_regime(&config, &output)?;
+            println!("mixed regime confirmation: {}", report.display());
         }
         Command::ValidateArtifacts { output } => {
             validate_artifact_bundle(&output)?;

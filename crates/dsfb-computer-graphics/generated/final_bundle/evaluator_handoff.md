@@ -42,3 +42,65 @@ Engine-side baselines to keep:
 
 - external engine captures
 - GPU profiling on imported captures
+
+## Engine-Native Validation
+
+### Status
+ENGINE_NATIVE_CAPTURE_MISSING=true — infrastructure is complete; real capture not yet provided.
+
+### What is in place
+- `examples/engine_native_capture_manifest.json` — manifest template (update engine_type + paths)
+- `examples/engine_native_buffer_schema.json` — complete buffer format spec
+- `docs/engine_capture_schema.md` — schema and conventions
+- `docs/unreal_export_playbook.md` — exact Unreal Engine export steps
+- `docs/unity_export_playbook.md` — exact Unity export steps
+- `docs/custom_renderer_export_playbook.md` — exact custom renderer steps
+- `generated/engine_native/` — all pending placeholder reports (will be overwritten with real data)
+- `generated/mixed_regime_confirmation_report.md` — internal mixed-regime confirmed (aliasing + variance co-active)
+- `generated/manual_engine_native_commands.md` — exact manual steps
+
+### Exact manual export steps
+See `docs/unreal_export_playbook.md` for the precise UE5 sequence. Minimum required:
+1. Export `current_color.exr` (pre-TAA linear HDR)
+2. Export `history_color.exr` (TAA history input or previous frame)
+3. Export `motion_vectors.exr` (pixel offset convention — see playbook for NDC conversion)
+4. Export `current_depth.exr` (linear depth, larger = further)
+5. Export `current_normals.exr` (view-space unit vectors)
+6. Write `metadata.json` with frame_index, dimensions, real_external_data=true
+
+### Exact import command
+```bash
+cargo run --release -- import-engine-native \
+  --manifest examples/engine_native_capture_manifest.json \
+  --output generated/engine_native
+```
+
+### Exact replay command (GPU + Demo A + Demo B — same pipeline as DAVIS/Sintel)
+```bash
+cargo run --release -- run-engine-native-replay \
+  --manifest examples/engine_native_capture_manifest.json \
+  --output generated/engine_native
+```
+
+### Exact validation command
+```bash
+# Strict (requires real capture — fails until capture is provided):
+cargo run --release -- validate-final --output generated/final_bundle
+
+# Permissive (passes even without real capture):
+cargo run --release -- validate-final --output generated/final_bundle --allow-pending-engine-native
+```
+
+### What success looks like
+- `ENGINE_NATIVE_CAPTURE_MISSING=false` in all engine_native reports
+- `measured_gpu: true` with real adapter name and timing in `gpu_execution_report.md`
+- `actual_engine_native_data: true` in GPU metrics JSON
+- Demo A and Demo B reports with actual computed metrics (not TBD)
+- `validate-final --output generated/final_bundle` passes without `--allow-pending-engine-native`
+
+### What failure looks like
+- `ENGINE_NATIVE_CAPTURE_MISSING=true` (no real capture provided — most common)
+- Buffer shape mismatch (all buffers must have same width×height)
+- Non-linear depth (reversed-Z not converted)
+- World-space normals (not converted to view space)
+- Post-tonemapped color (must be pre-TAA linear HDR)
