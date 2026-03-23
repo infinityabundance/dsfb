@@ -115,6 +115,13 @@ fn run_all_generates_required_artifacts() {
         "completion_note.md",
         "five_mentor_audit.md",
         "check_signing_blockers.md",
+        "trust_mode_report.md",
+        "external_replay_report.md",
+        "realism_bridge_report.md",
+        "product_positioning_report.md",
+        "operating_band_report.md",
+        "demo_b_competitive_baselines_report.md",
+        "check_signing_readiness.md",
         "demo_b_decision_report.md",
         "figures/fig_system_diagram.svg",
         "figures/fig_trust_map.svg",
@@ -363,10 +370,18 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
     let blocker_report = read(output_dir.join("check_signing_blockers.md"));
     let demo_b_report = read(output_dir.join("demo_b_decision_report.md"));
     let gpu_report = read(output_dir.join("gpu_execution_report.md"));
+    let trust_mode_report = read(output_dir.join("trust_mode_report.md"));
+    let external_replay_report = read(output_dir.join("external_replay_report.md"));
     let external_report = read(output_dir.join("external_handoff_report.md"));
     let realism_report = read(output_dir.join("realism_suite_report.md"));
+    let realism_bridge_report = read(output_dir.join("realism_bridge_report.md"));
     let competitive_report = read(output_dir.join("competitive_baseline_analysis.md"));
     let non_roi_report = read(output_dir.join("non_roi_penalty_report.md"));
+    let product_positioning_report = read(output_dir.join("product_positioning_report.md"));
+    let operating_band_report = read(output_dir.join("operating_band_report.md"));
+    let demo_b_competitive_report =
+        read(output_dir.join("demo_b_competitive_baselines_report.md"));
+    let readiness_report = read(output_dir.join("check_signing_readiness.md"));
     let readme = read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("README.md"));
     let integration_doc = read(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -383,10 +398,17 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
         &report,
         &demo_b_report,
         &gpu_report,
+        &trust_mode_report,
+        &external_replay_report,
         &external_report,
         &realism_report,
+        &realism_bridge_report,
         &competitive_report,
         &non_roi_report,
+        &product_positioning_report,
+        &operating_band_report,
+        &demo_b_competitive_report,
+        &readiness_report,
         &readme,
         &integration_doc,
         &cost_doc,
@@ -398,16 +420,24 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
     assert!(demo_b_report.contains("## What is not proven"));
     assert!(gpu_report.contains("Actual GPU timing measured"));
     assert!(gpu_report.contains("## Remaining Blockers"));
+    assert!(trust_mode_report.contains("near-binary") || trust_mode_report.contains("WeaklyGraded"));
+    assert!(external_replay_report.contains("external-capable"));
     assert!(external_report.contains("external-capable"));
     assert!(realism_report.contains("realism-stress"));
+    assert!(realism_bridge_report.contains("Region-ROI evidence"));
     assert!(competitive_report.contains("targeted supervisory overlay"));
     assert!(non_roi_report.contains("non-ROI penalty"));
+    assert!(product_positioning_report.contains("instability-focused specialist"));
+    assert!(operating_band_report.contains("moderately sensitive"));
+    assert!(demo_b_competitive_report.contains("variance-guided"));
+    assert!(readiness_report.contains("blocked pending external evidence"));
     assert!(blocker_report.contains("## Remaining"));
     assert!(reviewer_summary.contains("What is still blocked"));
-    assert!(readme.contains("## DSFB Integration into Temporal Reuse"));
-    assert!(readme.contains("## GPU Implementation Considerations"));
-    assert!(readme.contains("## Mission and Transition Relevance"));
-    assert!(readme.contains("## Product Framing and Integration Surfaces"));
+    assert!(readme.contains("## Strongest Current Evidence"));
+    assert!(readme.contains("## Biggest Remaining Blockers"));
+    assert!(readme.contains("run-external-replay"));
+    assert!(readme.contains("run-realism-bridge"));
+    assert!(readme.contains("validate-final"));
     assert!(cost_doc.contains(COST_SENTENCE));
     assert!(cost_doc.contains(COMPATIBILITY_SENTENCE));
 }

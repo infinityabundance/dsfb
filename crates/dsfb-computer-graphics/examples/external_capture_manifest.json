@@ -51,7 +51,8 @@
       "path": "external_capture/optional_mask.json",
       "format": "json_mask_bool",
       "semantic": "optional ROI-like disclosure or debug mask"
-    }
+    },
+    "optional_reference": null
   },
   "normalization": {
     "color": "linear RGB in [0,1]",

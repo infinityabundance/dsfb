@@ -29,18 +29,23 @@ use crate::plots::{
 };
 use crate::report::{
     build_trust_diagnostics, write_ablation_report, write_completion_note, write_cost_report,
+    write_check_signing_readiness,
     write_competitive_baseline_analysis,
     write_demo_b_aliasing_vs_variance_report,
+    write_demo_b_competitive_baselines_report,
     write_demo_b_decision_report, write_demo_b_efficiency_report,
     write_evaluator_handoff,
     write_full_check_signing_blockers, write_full_five_mentor_audit, write_full_report,
-    write_full_reviewer_summary, write_parameter_sensitivity_report, write_report,
+    write_full_reviewer_summary, write_operating_band_report,
+    write_parameter_sensitivity_report, write_product_positioning_report, write_report,
     write_minimum_external_validation_plan,
     write_next_step_matrix,
     write_non_roi_penalty_report,
     write_production_eval_checklist,
+    write_realism_bridge_report,
     write_realism_suite_report,
     write_resolution_scaling_report, write_reviewer_summary, write_timing_report,
+    write_trust_mode_report,
     write_trust_diagnostics_report, CompletionNoteStatus, COMPATIBILITY_SENTENCE, COST_SENTENCE,
     EXPERIMENT_SENTENCE,
 };
@@ -150,6 +155,7 @@ struct ScenarioTaxonomyEntry {
     scenario_id: String,
     support_category: String,
     expectation: String,
+    labels: Vec<String>,
     sampling_taxonomy: String,
     realism_stress: bool,
     competitive_baseline_case: bool,
@@ -430,6 +436,14 @@ pub fn import_external_buffers(
     Ok(artifacts.report_path)
 }
 
+pub fn run_external_replay_only(
+    config: &DemoConfig,
+    manifest_path: &Path,
+    output_dir: &Path,
+) -> Result<PathBuf> {
+    import_external_buffers(config, manifest_path, output_dir)
+}
+
 pub fn run_realism_suite_only(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
     fs::create_dir_all(output_dir)?;
     let definitions = scenario_suite(&config.scene);
@@ -440,7 +454,13 @@ pub fn run_realism_suite_only(config: &DemoConfig, output_dir: &Path) -> Result<
     write_scenario_taxonomy_json(&taxonomy_path, &executions)?;
     let report_path = output_dir.join("realism_suite_report.md");
     write_realism_suite_report(&report_path, &demo_a_metrics)?;
-    Ok(report_path)
+    let bridge_report_path = output_dir.join("realism_bridge_report.md");
+    write_realism_bridge_report(&bridge_report_path, &demo_a_metrics)?;
+    Ok(bridge_report_path)
+}
+
+pub fn run_realism_bridge_only(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
+    run_realism_suite_only(config, output_dir)
 }
 
 pub fn export_evaluator_handoff(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
@@ -475,7 +495,18 @@ pub fn export_evaluator_handoff(config: &DemoConfig, output_dir: &Path) -> Resul
     write_next_step_matrix(&next_steps_path, &gpu_metrics, &external_artifacts.metrics)?;
     let external_plan_path = output_dir.join("minimum_external_validation_plan.md");
     write_minimum_external_validation_plan(&external_plan_path)?;
+    let readiness_path = output_dir.join("check_signing_readiness.md");
+    write_check_signing_readiness(
+        &readiness_path,
+        &demo_a_metrics,
+        &gpu_metrics,
+        &external_artifacts.metrics,
+    )?;
     Ok(handoff_path)
+}
+
+pub fn validate_final_bundle(output_dir: &Path) -> Result<()> {
+    validate_artifact_bundle(output_dir).and_then(|_| validate_decision_reports(output_dir))
 }
 
 pub fn export_minimal_report(config: &DemoConfig, output_dir: &Path) -> Result<PathBuf> {
@@ -559,6 +590,8 @@ pub fn run_all_filtered(
         &trust_diagnostics_json_path,
         serde_json::to_string_pretty(&trust_diagnostics)?,
     )?;
+    let trust_mode_report_path = output_dir.join("trust_mode_report.md");
+    write_trust_mode_report(&trust_mode_report_path, &trust_diagnostics)?;
 
     let timing_metrics = run_timing_study(config)?;
     let timing_report_path = output_dir.join("timing_report.md");
@@ -585,6 +618,8 @@ pub fn run_all_filtered(
     }
     let external_artifacts =
         run_external_import_from_manifest(config, &example_manifest_path, &output_dir.join("external_demo"))?;
+    let external_replay_report_path = output_dir.join("external_replay_report.md");
+    fs::copy(&external_artifacts.report_path, &external_replay_report_path)?;
     let external_handoff_report_path = output_dir.join("external_handoff_report.md");
     fs::copy(&external_artifacts.report_path, &external_handoff_report_path)?;
 
@@ -623,6 +658,8 @@ pub fn run_all_filtered(
     write_scenario_taxonomy_json(&scenario_taxonomy_path, &executions)?;
     let realism_suite_report_path = output_dir.join("realism_suite_report.md");
     write_realism_suite_report(&realism_suite_report_path, &demo_a_metrics)?;
+    let realism_bridge_report_path = output_dir.join("realism_bridge_report.md");
+    write_realism_bridge_report(&realism_bridge_report_path, &demo_a_metrics)?;
     let demo_b_scene_taxonomy_path = output_dir.join("demo_b_scene_taxonomy.json");
     write_demo_b_scene_taxonomy_json(&demo_b_scene_taxonomy_path, &demo_b_metrics)?;
     let competitive_baseline_analysis_path =
@@ -630,6 +667,16 @@ pub fn run_all_filtered(
     write_competitive_baseline_analysis(&competitive_baseline_analysis_path, &demo_a_metrics)?;
     let non_roi_penalty_report_path = output_dir.join("non_roi_penalty_report.md");
     write_non_roi_penalty_report(&non_roi_penalty_report_path, &demo_a_metrics)?;
+    let product_positioning_report_path = output_dir.join("product_positioning_report.md");
+    write_product_positioning_report(&product_positioning_report_path, &demo_a_metrics)?;
+    let operating_band_report_path = output_dir.join("operating_band_report.md");
+    write_operating_band_report(&operating_band_report_path, &parameter_sensitivity_metrics)?;
+    let demo_b_competitive_baselines_report_path =
+        output_dir.join("demo_b_competitive_baselines_report.md");
+    write_demo_b_competitive_baselines_report(
+        &demo_b_competitive_baselines_report_path,
+        &demo_b_metrics,
+    )?;
 
     let cost_report = build_cost_report(CostMode::HostRealistic);
     write_full_report(
@@ -696,6 +743,13 @@ pub fn run_all_filtered(
         &gpu_execution_metrics,
         &external_artifacts.metrics,
     )?;
+    let check_signing_readiness_path = output_dir.join("check_signing_readiness.md");
+    write_check_signing_readiness(
+        &check_signing_readiness_path,
+        &demo_a_metrics,
+        &gpu_execution_metrics,
+        &external_artifacts.metrics,
+    )?;
 
     let additional_figure_paths = write_additional_figures(
         output_dir,
@@ -712,15 +766,21 @@ pub fn run_all_filtered(
         &demo_b,
         &[
             &trust_diagnostics_path,
+            &trust_mode_report_path,
             &timing_report_path,
             &gpu_execution_report_path,
+            &external_replay_report_path,
             &external_handoff_report_path,
             &resolution_scaling_report_path,
             &realism_suite_report_path,
+            &realism_bridge_report_path,
             &parameter_sensitivity_report_path,
+            &operating_band_report_path,
             &competitive_baseline_analysis_path,
             &non_roi_penalty_report_path,
+            &product_positioning_report_path,
             &demo_b_efficiency_report_path,
+            &demo_b_competitive_baselines_report_path,
             &demo_b_aliasing_report_path,
             &five_mentor_audit_path,
             &blocker_report_path,
@@ -729,6 +789,7 @@ pub fn run_all_filtered(
             &evaluator_handoff_path,
             &minimum_external_validation_plan_path,
             &next_step_matrix_path,
+            &check_signing_readiness_path,
         ],
     )?;
 
@@ -739,15 +800,21 @@ pub fn run_all_filtered(
         &manifest_path,
         &[
             &trust_diagnostics_path,
+            &trust_mode_report_path,
             &timing_report_path,
             &gpu_execution_report_path,
+            &external_replay_report_path,
             &external_handoff_report_path,
             &resolution_scaling_report_path,
             &realism_suite_report_path,
+            &realism_bridge_report_path,
             &parameter_sensitivity_report_path,
+            &operating_band_report_path,
             &competitive_baseline_analysis_path,
             &non_roi_penalty_report_path,
+            &product_positioning_report_path,
             &demo_b_efficiency_report_path,
+            &demo_b_competitive_baselines_report_path,
             &demo_b_aliasing_report_path,
             &five_mentor_audit_path,
             &blocker_report_path,
@@ -756,6 +823,7 @@ pub fn run_all_filtered(
             &evaluator_handoff_path,
             &minimum_external_validation_plan_path,
             &next_step_matrix_path,
+            &check_signing_readiness_path,
         ],
     )?;
 
@@ -798,21 +866,27 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
         output_dir.join("completion_note.md"),
         output_dir.join("trust_diagnostics.md"),
         output_dir.join("trust_diagnostics.json"),
+        output_dir.join("trust_mode_report.md"),
         output_dir.join("timing_report.md"),
         output_dir.join("timing_metrics.json"),
         output_dir.join("gpu_execution_report.md"),
         output_dir.join("gpu_execution_metrics.json"),
+        output_dir.join("external_replay_report.md"),
         output_dir.join("external_handoff_report.md"),
         output_dir.join("resolution_scaling_report.md"),
         output_dir.join("resolution_scaling_metrics.json"),
         output_dir.join("realism_suite_report.md"),
+        output_dir.join("realism_bridge_report.md"),
         output_dir.join("scenario_taxonomy.json"),
         output_dir.join("parameter_sensitivity_report.md"),
         output_dir.join("parameter_sensitivity_metrics.json"),
+        output_dir.join("operating_band_report.md"),
         output_dir.join("competitive_baseline_analysis.md"),
         output_dir.join("non_roi_penalty_report.md"),
+        output_dir.join("product_positioning_report.md"),
         output_dir.join("demo_b_metrics.json"),
         output_dir.join("demo_b_scene_taxonomy.json"),
+        output_dir.join("demo_b_competitive_baselines_report.md"),
         output_dir.join("demo_b_aliasing_vs_variance_report.md"),
         output_dir.join("demo_b_efficiency_report.md"),
         output_dir.join("five_mentor_audit.md"),
@@ -822,6 +896,7 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
         output_dir.join("evaluator_handoff.md"),
         output_dir.join("minimum_external_validation_plan.md"),
         output_dir.join("next_step_matrix.md"),
+        output_dir.join("check_signing_readiness.md"),
         output_dir.join("figures").join("fig_system_diagram.svg"),
         output_dir.join("figures").join("fig_trust_map.svg"),
         output_dir.join("figures").join("fig_before_after.svg"),
@@ -908,6 +983,17 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
         ));
     }
 
+    let external_replay_report =
+        fs::read_to_string(output_dir.join("external_replay_report.md"))?;
+    if !external_replay_report.contains("external-capable")
+        && !external_replay_report.contains("external-capable =")
+    {
+        return Err(Error::Message(
+            "external replay report must distinguish external-capable from externally validated"
+                .to_string(),
+        ));
+    }
+
     let external_report = fs::read_to_string(output_dir.join("external_handoff_report.md"))?;
     if !external_report.contains("external-capable")
         && !external_report.contains("external-capable =")
@@ -927,6 +1013,22 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
     }
     if !scenario_taxonomy
         .iter()
+        .any(|entry| entry.labels.iter().any(|label| label == "region_roi"))
+    {
+        return Err(Error::Message(
+            "scenario taxonomy must expose at least one explicit region_roi label".to_string(),
+        ));
+    }
+    if !scenario_taxonomy
+        .iter()
+        .any(|entry| entry.labels.iter().any(|label| label == "point_roi"))
+    {
+        return Err(Error::Message(
+            "scenario taxonomy must expose at least one explicit point_roi label".to_string(),
+        ));
+    }
+    if !scenario_taxonomy
+        .iter()
         .any(|entry| entry.competitive_baseline_case)
     {
         return Err(Error::Message(
@@ -942,11 +1044,88 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
                 .to_string(),
         ));
     }
+    if !scenario_taxonomy.iter().any(|entry| {
+        entry
+            .labels
+            .iter()
+            .any(|label| label == "bounded_neutral" || label == "bounded_loss")
+    }) {
+        return Err(Error::Message(
+            "scenario taxonomy must include explicit bounded_neutral or bounded_loss labels"
+                .to_string(),
+        ));
+    }
+
+    let demo_b_taxonomy: Vec<ScenarioTaxonomyEntry> = serde_json::from_str(&fs::read_to_string(
+        output_dir.join("demo_b_scene_taxonomy.json"),
+    )?)?;
+    if !demo_b_taxonomy.iter().any(|entry| {
+        entry
+            .labels
+            .iter()
+            .any(|label| label == "aliasing_limited")
+    }) || !demo_b_taxonomy.iter().any(|entry| {
+        entry
+            .labels
+            .iter()
+            .any(|label| label == "variance_limited")
+    }) || !demo_b_taxonomy.iter().any(|entry| {
+        entry
+            .labels
+            .iter()
+            .any(|label| label == "mixed_regime")
+    }) {
+        return Err(Error::Message(
+            "Demo B taxonomy must include aliasing_limited, variance_limited, and mixed_regime scenes"
+                .to_string(),
+        ));
+    }
 
     let demo_b_aliasing = fs::read_to_string(output_dir.join("demo_b_aliasing_vs_variance_report.md"))?;
     if !demo_b_aliasing.contains("variance") || !demo_b_aliasing.contains("aliasing") {
         return Err(Error::Message(
             "Demo B aliasing-vs-variance report is missing the required distinction".to_string(),
+        ));
+    }
+    let demo_b_competitive =
+        fs::read_to_string(output_dir.join("demo_b_competitive_baselines_report.md"))?;
+    if !demo_b_competitive.contains("gradient-magnitude / edge-guided")
+        || !demo_b_competitive.contains("variance-guided")
+    {
+        return Err(Error::Message(
+            "Demo B competitive-baseline report must mention gradient/edge and variance-guided baselines"
+                .to_string(),
+        ));
+    }
+
+    let trust_mode = fs::read_to_string(output_dir.join("trust_mode_report.md"))?;
+    if !trust_mode.contains("near-binary")
+        && !trust_mode.contains("WeaklyGraded")
+        && !trust_mode.contains("StronglyGraded")
+    {
+        return Err(Error::Message(
+            "trust mode report must classify the trust operating mode".to_string(),
+        ));
+    }
+
+    let operating_band = fs::read_to_string(output_dir.join("operating_band_report.md"))?;
+    if !operating_band.contains("robust")
+        || !operating_band.contains("moderately sensitive")
+        || !operating_band.contains("fragile")
+    {
+        return Err(Error::Message(
+            "operating band report must classify robust, moderately sensitive, and fragile settings"
+                .to_string(),
+        ));
+    }
+
+    let readiness = fs::read_to_string(output_dir.join("check_signing_readiness.md"))?;
+    if !readiness.contains("blocked pending external evidence")
+        || !readiness.contains("ready for diligence")
+    {
+        return Err(Error::Message(
+            "check-signing readiness must classify internal readiness and external blocking"
+                .to_string(),
         ));
     }
 
@@ -968,10 +1147,15 @@ pub fn validate_artifact_bundle(output_dir: &Path) -> Result<()> {
 
     for doc_path in [
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/completion_gates.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/final_completion_gates.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/final_last_mile_plan.md"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/gpu_execution_path.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/external_replay.md"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/external_handoff.md"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/engine_integration_playbook.md"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/production_eval_bridge.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/evaluator_handoff.md"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/external_buffer_schema.json"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/host_buffer_schema.json"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/external_capture_manifest.json"),
     ] {
@@ -1205,6 +1389,15 @@ fn write_scenario_taxonomy_json(output_path: &Path, executions: &[ScenarioExecut
             scenario_id: execution.sequence.scenario_id.as_str().to_string(),
             support_category: format!("{:?}", execution.sequence.support_category),
             expectation: format!("{:?}", execution.sequence.expectation),
+            labels: taxonomy_labels(
+                execution.sequence.scenario_id.as_str(),
+                &execution.sequence.support_category,
+                execution.sequence.expectation,
+                execution.sequence.realism_stress,
+                execution.sequence.competitive_baseline_case,
+                execution.sequence.bounded_loss_disclosure,
+                execution.sequence.demo_b_taxonomy.as_str(),
+            ),
             sampling_taxonomy: execution.sequence.sampling_taxonomy.clone(),
             realism_stress: execution.sequence.realism_stress,
             competitive_baseline_case: execution.sequence.competitive_baseline_case,
@@ -1224,6 +1417,15 @@ fn write_demo_b_scene_taxonomy_json(output_path: &Path, demo_b: &DemoBSuiteMetri
             scenario_id: scenario.scenario_id.clone(),
             support_category: format!("{:?}", scenario.support_category),
             expectation: format!("{:?}", scenario.expectation),
+            labels: taxonomy_labels(
+                &scenario.scenario_id,
+                &scenario.support_category,
+                scenario.expectation,
+                false,
+                false,
+                matches!(scenario.expectation, ScenarioExpectation::NeutralExpected),
+                scenario.demo_b_taxonomy.as_str(),
+            ),
             sampling_taxonomy: scenario.sampling_taxonomy.clone(),
             realism_stress: false,
             competitive_baseline_case: false,
@@ -1233,6 +1435,52 @@ fn write_demo_b_scene_taxonomy_json(output_path: &Path, demo_b: &DemoBSuiteMetri
         .collect::<Vec<_>>();
     fs::write(output_path, serde_json::to_string_pretty(&entries)?)?;
     Ok(())
+}
+
+fn taxonomy_labels(
+    scenario_id: &str,
+    support_category: &crate::scene::ScenarioSupportCategory,
+    expectation: crate::scene::ScenarioExpectation,
+    realism_stress: bool,
+    competitive_baseline_case: bool,
+    bounded_loss_disclosure: bool,
+    demo_b_taxonomy: &str,
+) -> Vec<String> {
+    let mut labels = Vec::new();
+    match support_category {
+        crate::scene::ScenarioSupportCategory::PointLikeRoi => {
+            labels.push("point_roi".to_string())
+        }
+        crate::scene::ScenarioSupportCategory::RegionRoi => {
+            labels.push("region_roi".to_string())
+        }
+        crate::scene::ScenarioSupportCategory::NegativeControl => {
+            labels.push("negative_control".to_string())
+        }
+    }
+    if realism_stress {
+        labels.push("realism_stress".to_string());
+    }
+    if competitive_baseline_case {
+        labels.push("strong_heuristic_competitive".to_string());
+    }
+    if bounded_loss_disclosure {
+        if matches!(expectation, ScenarioExpectation::NeutralExpected) {
+            labels.push("bounded_neutral".to_string());
+        } else {
+            labels.push("bounded_loss".to_string());
+        }
+    }
+    if scenario_id == "motion_bias_band" || scenario_id == "fast_pan" {
+        labels.push("motion_relevance_probe".to_string());
+    }
+    match demo_b_taxonomy {
+        "aliasing_limited" => labels.push("aliasing_limited".to_string()),
+        "variance_limited" => labels.push("variance_limited".to_string()),
+        "mixed" | "edge_trap" => labels.push("mixed_regime".to_string()),
+        _ => {}
+    }
+    labels
 }
 
 fn write_scenario_debug_artifacts(
@@ -2111,21 +2359,28 @@ fn validate_decision_reports(output_dir: &Path) -> Result<()> {
         "five_mentor_audit.md",
         "check_signing_blockers.md",
         "trust_diagnostics.md",
+        "trust_mode_report.md",
         "timing_report.md",
         "gpu_execution_report.md",
+        "external_replay_report.md",
         "external_handoff_report.md",
         "resolution_scaling_report.md",
         "realism_suite_report.md",
+        "realism_bridge_report.md",
         "parameter_sensitivity_report.md",
+        "operating_band_report.md",
         "competitive_baseline_analysis.md",
         "non_roi_penalty_report.md",
+        "product_positioning_report.md",
         "demo_b_decision_report.md",
         "demo_b_efficiency_report.md",
+        "demo_b_competitive_baselines_report.md",
         "demo_b_aliasing_vs_variance_report.md",
         "production_eval_checklist.md",
         "evaluator_handoff.md",
         "minimum_external_validation_plan.md",
         "next_step_matrix.md",
+        "check_signing_readiness.md",
     ] {
         let text = fs::read_to_string(output_dir.join(file_name))?;
         let normalized = text.to_ascii_lowercase();

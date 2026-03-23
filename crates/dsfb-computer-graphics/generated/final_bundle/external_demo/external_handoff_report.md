@@ -1,8 +1,8 @@
-# External Handoff Report
+# External Replay Report
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
 
-This report covers the file-based external buffer import path. It demonstrates that the crate is external-capable, not externally validated.
+This report covers the file-based external buffer replay path. It demonstrates that the crate is external-capable, not externally validated.
 
 Source kind: `synthetic_compat`. Externally validated: `false`.
 
@@ -46,7 +46,8 @@ Source kind: `synthetic_compat`. Externally validated: `false`.
 
 - Export one frame pair using the buffer names and normalization described in the manifest.
 - Set `source.kind` to `files` and point the buffer paths at the exported assets.
-- Run `cargo run --release -- import-external --manifest <manifest> --output <dir>`.
+- Run `cargo run --release -- run-external-replay --manifest <manifest> --output <dir>`.
+- Alias: `cargo run --release -- replay-external --manifest <manifest> --output <dir>`.
 - Inspect `external_trust.png`, `external_alpha.png`, and `external_intervention.png` plus the generated report.
 
 ## What Is Not Proven

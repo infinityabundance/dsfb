@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
@@ -1740,6 +1741,204 @@ pub fn write_realism_suite_report(path: &Path, demo_a: &DemoASuiteMetrics) -> Re
     Ok(())
 }
 
+pub fn write_realism_bridge_report(path: &Path, demo_a: &DemoASuiteMetrics) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let point_roi = demo_a.summary.point_roi_scenarios.len();
+    let region_roi = demo_a.summary.region_roi_scenarios.len();
+    let realism_stress = demo_a
+        .scenarios
+        .iter()
+        .filter(|scenario| scenario.realism_stress)
+        .count();
+    let competitive = demo_a
+        .scenarios
+        .iter()
+        .filter(|scenario| scenario.competitive_baseline_case)
+        .count();
+    let bounded = demo_a
+        .scenarios
+        .iter()
+        .filter(|scenario| scenario.bounded_loss_disclosure)
+        .count();
+
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Realism Bridge Report");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "Region-ROI evidence, realism-stress probes, competitive-baseline cases, and bounded-neutral controls now carry the main empirical load instead of leaving the story concentrated in point-ROI stress tests."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- Point-ROI scenarios: `{point_roi}`"
+    );
+    let _ = writeln!(
+        markdown,
+        "- Region-ROI scenarios: `{region_roi}`"
+    );
+    let _ = writeln!(
+        markdown,
+        "- Realism-stress scenarios: `{realism_stress}`"
+    );
+    let _ = writeln!(
+        markdown,
+        "- Strong-heuristic-competitive scenarios: `{competitive}`"
+    );
+    let _ = writeln!(
+        markdown,
+        "- Bounded-neutral or bounded-loss disclosures: `{bounded}`"
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "| Scenario | Support | Tags | ROI pixels | Host vs fixed ROI gain | Host vs strong ROI gain | Bounded note |"
+    );
+    let _ = writeln!(
+        markdown,
+        "| --- | --- | --- | ---: | ---: | ---: | --- |"
+    );
+    for scenario in &demo_a.scenarios {
+        let _ = writeln!(
+            markdown,
+            "| {} | {:?} | {} | {} | {:.5} | {:.5} | {} |",
+            scenario.scenario_id,
+            scenario.support_category,
+            scenario_tags(scenario).join(", "),
+            scenario.target_pixels,
+            scenario.host_realistic_vs_fixed_alpha_cumulative_roi_gain,
+            scenario.host_realistic_vs_strong_heuristic_cumulative_roi_gain,
+            scenario.bounded_or_neutral_note
+        );
+    }
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- The crate now exposes a broader synthetic realism bridge with explicit external-handoff relevance instead of a narrow point-ROI-only story."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Not Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- These scenarios remain synthetic and do not replace external engine captures or production image content."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Remaining Blockers");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- The realism bridge still needs external replay on real engine buffers before it can be treated as production-adjacent evidence."
+    );
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+pub fn write_trust_mode_report(path: &Path, diagnostics: &TrustDiagnostics) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let region_entries = diagnostics
+        .scenarios
+        .iter()
+        .filter(|entry| entry.run_id == "dsfb_host_realistic")
+        .filter(|entry| entry.support_category.contains("RegionRoi"))
+        .collect::<Vec<_>>();
+    let mut mode_counts: BTreeMap<String, usize> = BTreeMap::new();
+    for entry in diagnostics
+        .scenarios
+        .iter()
+        .filter(|entry| entry.run_id == "dsfb_host_realistic")
+    {
+        *mode_counts
+            .entry(
+                entry
+                    .operating_mode
+                    .map(|mode| format!("{mode:?}"))
+                    .unwrap_or_else(|| "Unknown".to_string()),
+            )
+            .or_insert(0) += 1;
+    }
+
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Trust Mode Report");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{}", diagnostics.conclusion);
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Operating Mode Counts");
+    let _ = writeln!(markdown);
+    for (mode, count) in mode_counts {
+        let _ = writeln!(markdown, "- `{mode}`: `{count}` host-realistic scenarios");
+    }
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "| Region-ROI scenario | Occupied bins | Effective levels | Entropy (bits) | Discreteness | Mode | Correlation note |"
+    );
+    let _ = writeln!(
+        markdown,
+        "| --- | ---: | ---: | ---: | ---: | --- | --- |"
+    );
+    for entry in region_entries {
+        let _ = writeln!(
+            markdown,
+            "| {} | {} | {} | {:.3} | {:.3} | {} | {} |",
+            entry.scenario_id,
+            entry.occupied_bin_count,
+            entry
+                .effective_level_count
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "n/a".to_string()),
+            entry.entropy_bits.unwrap_or(0.0),
+            entry.discreteness_score.unwrap_or(0.0),
+            entry
+                .operating_mode
+                .map(|mode| format!("{mode:?}"))
+                .unwrap_or_else(|| "Unknown".to_string()),
+            if entry.trust_rank_correlation_is_degenerate {
+                "degenerate, not decision-facing"
+            } else {
+                "non-degenerate"
+            }
+        );
+    }
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- The trust signal is now described according to its actual operating mode instead of being overstated as smoothly calibrated."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Not Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- This report does not claim externally validated probabilistic calibration."
+    );
+    let _ = writeln!(
+        markdown,
+        "- A gate-like trust mode can still be useful externally, but this report does not turn it into a continuous confidence guarantee."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Remaining Blockers");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- Real external replay traces are still needed before the trust operating mode can be generalized beyond this synthetic suite."
+    );
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
 pub fn write_competitive_baseline_analysis(path: &Path, demo_a: &DemoASuiteMetrics) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -1810,6 +2009,69 @@ pub fn write_competitive_baseline_analysis(path: &Path, demo_a: &DemoASuiteMetri
     Ok(())
 }
 
+pub fn write_product_positioning_report(path: &Path, demo_a: &DemoASuiteMetrics) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let wins = demo_a
+        .scenarios
+        .iter()
+        .filter(|scenario| scenario.host_realistic_vs_strong_heuristic_cumulative_roi_gain > 0.0)
+        .count();
+    let ties = demo_a
+        .scenarios
+        .iter()
+        .filter(|scenario| {
+            scenario.host_realistic_vs_strong_heuristic_cumulative_roi_gain.abs() <= 1.0e-4
+        })
+        .count();
+    let losses = demo_a.scenarios.len().saturating_sub(wins + ties);
+    let framing = if losses == 0 {
+        "targeted supervisory overlay with unusually broad synthetic support"
+    } else {
+        "targeted supervisory overlay / instability-focused specialist"
+    };
+
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Product Positioning Report");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "Recommended framing: **{}**.", framing);
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "- Wins vs strong heuristic: `{wins}`");
+    let _ = writeln!(markdown, "- Ties vs strong heuristic: `{ties}`");
+    let _ = writeln!(markdown, "- Losses vs strong heuristic: `{losses}`");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "DSFB's value is concentrated in instability-focused intervention rather than universal full-frame quality dominance. That makes non-ROI penalties and strong-heuristic ties part of the product story, not evidence to hide."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- The current bundle supports a targeted-supervision story with explicit competitive-baseline honesty and external evaluation guidance."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Not Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- This report does not justify blanket replacement language or a claim that DSFB beats all strong heuristics on every scene."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Remaining Blockers");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- External replay is still required to confirm that the same positioning holds on real engine-exported buffers."
+    );
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
 pub fn write_non_roi_penalty_report(path: &Path, demo_a: &DemoASuiteMetrics) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -1856,6 +2118,84 @@ pub fn write_non_roi_penalty_report(path: &Path, demo_a: &DemoASuiteMetrics) -> 
     let _ = writeln!(
         markdown,
         "- Non-ROI tradeoffs still need validation on imported external captures and measured GPU runs."
+    );
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+pub fn write_demo_b_competitive_baselines_report(
+    path: &Path,
+    demo_b: &DemoBSuiteMetrics,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Demo B Competitive Baselines Report");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "This report compares imported trust against the full heuristic suite: gradient-magnitude / edge-guided, residual-guided, contrast-guided, variance-guided, combined heuristic, native trust, and hybrid trust + variance."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "| Scenario | Taxonomy | Best heuristic baseline | Best heuristic ROI MAE | Imported trust ROI MAE | Hybrid ROI MAE | Interpretation |"
+    );
+    let _ = writeln!(
+        markdown,
+        "| --- | --- | --- | ---: | ---: | ---: | --- |"
+    );
+    for scenario in &demo_b.scenarios {
+        let heuristic_ids = [
+            "edge_guided",
+            "residual_guided",
+            "contrast_guided",
+            "variance_guided",
+            "combined_heuristic",
+        ];
+        let best_heuristic = scenario
+            .policies
+            .iter()
+            .filter(|policy| heuristic_ids.contains(&policy.policy_id.as_str()))
+            .min_by(|left, right| left.roi_mae.total_cmp(&right.roi_mae))
+            .expect("Demo B heuristic baseline should exist");
+        let imported = find_policy(scenario, "imported_trust").expect("imported trust policy");
+        let hybrid = find_policy(scenario, "hybrid_trust_variance").expect("hybrid policy");
+        let interpretation = if imported.roi_mae + 1.0e-6 < best_heuristic.roi_mae {
+            "Imported trust beats the strongest heuristic baseline on fixed budget."
+        } else if hybrid.roi_mae + 1.0e-6 < best_heuristic.roi_mae {
+            "Hybrid trust/variance beats pure heuristics even when imported trust alone does not."
+        } else {
+            "Heuristic baseline remains competitive here."
+        };
+        let _ = writeln!(
+            markdown,
+            "| {} | {} | {} | {:.5} | {:.5} | {:.5} | {} |",
+            scenario.scenario_id,
+            scenario.demo_b_taxonomy,
+            best_heuristic.label,
+            best_heuristic.roi_mae,
+            imported.roi_mae,
+            hybrid.roi_mae,
+            interpretation
+        );
+    }
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Not Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- This report does not claim the same ranking will hold on externally replayed renderer traces."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Remaining Blockers");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- External sample-allocation traces and real renderer variance are still needed before these competitive-baseline rankings become externally validated."
     );
     fs::write(path, markdown)?;
     Ok(())
@@ -1914,6 +2254,94 @@ pub fn write_demo_b_aliasing_vs_variance_report(
     let _ = writeln!(
         markdown,
         "- No external renderer handoff exists yet for per-pixel sample-allocation traces."
+    );
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+pub fn write_operating_band_report(
+    path: &Path,
+    sensitivity: &ParameterSensitivityMetrics,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut grouped: BTreeMap<&str, Vec<&crate::sensitivity::ParameterSweepPoint>> =
+        BTreeMap::new();
+    for point in &sensitivity.sweep_points {
+        grouped
+            .entry(point.parameter_id.as_str())
+            .or_default()
+            .push(point);
+    }
+
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Operating Band Report");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "This report translates parameter sweeps into evaluator-facing operating bands: what is robust, what is moderately sensitive, and what is fragile."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "| Parameter | Robust values | Moderately sensitive values | Fragile values | First tuning priority |"
+    );
+    let _ = writeln!(
+        markdown,
+        "| --- | --- | --- | --- | --- |"
+    );
+    for (parameter_id, points) in grouped {
+        let robust = band_values(&points, "robust");
+        let moderate = band_values(&points, "moderately_sensitive");
+        let fragile = band_values(&points, "fragile");
+        let first_tuning_priority = if parameter_id.contains("alpha") {
+            "second"
+        } else if parameter_id.contains("motion") {
+            "optional path only"
+        } else {
+            "first"
+        };
+        let _ = writeln!(
+            markdown,
+            "| {} | {} | {} | {} | {} |",
+            parameter_id,
+            if robust.is_empty() { "none".to_string() } else { robust.join(", ") },
+            if moderate.is_empty() {
+                "none".to_string()
+            } else {
+                moderate.join(", ")
+            },
+            if fragile.is_empty() {
+                "none".to_string()
+            } else {
+                fragile.join(", ")
+            },
+            first_tuning_priority
+        );
+    }
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- The current weights are no longer opaque magic constants; they are centralized and classified into safe, narrower, and fragile corridors."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Not Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- These operating bands are still derived from synthetic in-crate sweeps rather than externally validated calibration."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Remaining Blockers");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- External replay and engine-side tuning are still required before these operating bands can be treated as deployment guidance."
     );
     fs::write(path, markdown)?;
     Ok(())
@@ -1991,9 +2419,9 @@ pub fn write_evaluator_handoff(
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "Run first:");
     let _ = writeln!(markdown, "- `cargo run --release -- run-all --output generated/final_bundle`");
-    let _ = writeln!(markdown, "- `cargo run --release -- validate --output generated/final_bundle`");
+    let _ = writeln!(markdown, "- `cargo run --release -- validate-final --output generated/final_bundle`");
     let _ = writeln!(markdown, "- `cargo run --release -- run-gpu-path --output generated/gpu_path`");
-    let _ = writeln!(markdown, "- `cargo run --release -- import-external --manifest examples/external_capture_manifest.json --output generated/external_demo`");
+    let _ = writeln!(markdown, "- `cargo run --release -- run-external-replay --manifest examples/external_capture_manifest.json --output generated/external_demo`");
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "Strongest current evidence:");
     let _ = writeln!(markdown, "- {}", demo_a.summary.primary_behavioral_result);
@@ -2008,11 +2436,22 @@ pub fn write_evaluator_handoff(
     }
     let _ = writeln!(markdown, "- strong heuristic remains competitive on some scenarios");
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "Single highest-value next external experiment:");
+    let _ = writeln!(markdown, "Single highest-value next GPU experiment:");
     let _ = writeln!(
         markdown,
-        "- Export one real frame pair from an engine into the external schema and run the GPU path on that imported capture."
+        "- Run the measured `wgpu` minimum kernel on the target evaluator GPU and compare numeric deltas against the CPU reference on one region-ROI case and one realism-stress case."
     );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "Single highest-value next external replay experiment:");
+    let _ = writeln!(
+        markdown,
+        "- Export one real frame pair from an engine into the external schema, replay it through DSFB host-realistic, and compare fixed alpha, strong heuristic, and DSFB on the same capture."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "Engine-side baselines to keep:");
+    let _ = writeln!(markdown, "- fixed alpha");
+    let _ = writeln!(markdown, "- strong heuristic");
+    let _ = writeln!(markdown, "- imported-trust or native-trust sampling policy where relevant");
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## What Is Not Proven");
     let _ = writeln!(markdown);
@@ -2092,8 +2531,96 @@ pub fn write_next_step_matrix(
     Ok(())
 }
 
+pub fn write_check_signing_readiness(
+    path: &Path,
+    demo_a: &DemoASuiteMetrics,
+    gpu: &GpuExecutionMetrics,
+    external: &ExternalHandoffMetrics,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let internal_ready = gpu.entries.iter().all(|entry| entry.gpu_path_available)
+        && external.external_capable
+        && !demo_a.summary.region_roi_scenarios.is_empty();
+    let sign_off_status = if internal_ready && external.externally_validated {
+        "ready now"
+    } else if internal_ready {
+        "blocked pending external evidence"
+    } else {
+        "ready for evaluation"
+    };
+
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Check Signing Readiness");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{EXPERIMENT_SENTENCE}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "| Axis | Status | Evidence |");
+    let _ = writeln!(markdown, "| --- | --- | --- |");
+    let _ = writeln!(
+        markdown,
+        "| Internal artifact completeness | {} | GPU path present=`{}`, external replay present=`{}`, region-ROI scenarios=`{}` |",
+        if internal_ready { "ready for diligence" } else { "ready for evaluation" },
+        gpu.entries.iter().all(|entry| entry.gpu_path_available),
+        external.external_capable,
+        demo_a.summary.region_roi_scenarios.len()
+    );
+    let _ = writeln!(
+        markdown,
+        "| Immediate sign-off | {} | external validation=`{}`, measured GPU timing=`{}` |",
+        sign_off_status,
+        external.externally_validated,
+        gpu.actual_gpu_timing_measured
+    );
+    let _ = writeln!(
+        markdown,
+        "| External replay | {} | source kind=`{}` |",
+        if external.externally_validated {
+            "ready for diligence"
+        } else {
+            "blocked pending external evidence"
+        },
+        external.source_kind
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- The remaining blockers are now dominated by external validation needs rather than missing in-repo mechanisms."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## What Is Not Proven");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- This report does not claim immediate sign-off without external replay evidence and broader engine-side measurement."
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Remaining Blockers");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "- Real external captures and imported-capture GPU profiling still gate immediate external sign-off."
+    );
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
 fn checklist(markdown: &mut String, ok: bool, label: &str) {
     let _ = writeln!(markdown, "- {} {}", if ok { "[x]" } else { "[ ]" }, label);
+}
+
+fn band_values(
+    points: &[&crate::sensitivity::ParameterSweepPoint],
+    class_name: &str,
+) -> Vec<String> {
+    points
+        .iter()
+        .filter(|point| point.robustness_class == class_name)
+        .map(|point| format!("{:.3}", point.numeric_value))
+        .collect()
 }
 
 fn scenario_tags(scenario: &crate::metrics::ScenarioReport) -> Vec<&'static str> {
