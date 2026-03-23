@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 use crate::frame::{ImageFrame, ScalarField};
 use crate::scene::{SceneFrame, SceneSequence, SurfaceTag};
 
@@ -9,12 +11,86 @@ pub struct ProxyFields {
     pub thin_proxy: ScalarField,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum StructuralState {
+    Nominal,
+    DisocclusionLike,
+    UnstableHistory,
+    MotionEdge,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct StateCounts {
+    pub nominal: usize,
+    pub disocclusion_like: usize,
+    pub unstable_history: usize,
+    pub motion_edge: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct StateField {
+    width: usize,
+    values: Vec<StructuralState>,
+}
+
+impl StateField {
+    pub fn new(width: usize, height: usize) -> Self {
+        Self {
+            width,
+            values: vec![StructuralState::Nominal; width * height],
+        }
+    }
+
+    pub fn get(&self, x: usize, y: usize) -> StructuralState {
+        self.values[y * self.width + x]
+    }
+
+    pub fn set(&mut self, x: usize, y: usize, value: StructuralState) {
+        self.values[y * self.width + x] = value;
+    }
+
+    pub fn values(&self) -> &[StructuralState] {
+        &self.values
+    }
+
+    pub fn counts(&self) -> StateCounts {
+        let mut counts = StateCounts::default();
+        for state in &self.values {
+            match state {
+                StructuralState::Nominal => counts.nominal += 1,
+                StructuralState::DisocclusionLike => counts.disocclusion_like += 1,
+                StructuralState::UnstableHistory => counts.unstable_history += 1,
+                StructuralState::MotionEdge => counts.motion_edge += 1,
+            }
+        }
+        counts
+    }
+
+    pub fn counts_over_mask(&self, mask: &[bool]) -> StateCounts {
+        let mut counts = StateCounts::default();
+        for (state, include) in self.values.iter().zip(mask.iter().copied()) {
+            if !include {
+                continue;
+            }
+            match state {
+                StructuralState::Nominal => counts.nominal += 1,
+                StructuralState::DisocclusionLike => counts.disocclusion_like += 1,
+                StructuralState::UnstableHistory => counts.unstable_history += 1,
+                StructuralState::MotionEdge => counts.motion_edge += 1,
+            }
+        }
+        counts
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SupervisionFrame {
     pub residual: ScalarField,
     pub trust: ScalarField,
     pub alpha: ScalarField,
+    pub intervention: ScalarField,
     pub proxies: ProxyFields,
+    pub state: StateField,
 }
 
 #[derive(Clone, Debug)]
@@ -51,6 +127,8 @@ pub fn run_gated_taa(sequence: &SceneSequence, alpha_min: f32, alpha_max: f32) -
         let mut visibility_proxy = ScalarField::new(width, height);
         let mut trust = ScalarField::new(width, height);
         let mut alpha = ScalarField::new(width, height);
+        let mut intervention = ScalarField::new(width, height);
+        let mut state = StateField::new(width, height);
 
         for y in 0..height {
             for x in 0..width {
@@ -72,12 +150,21 @@ pub fn run_gated_taa(sequence: &SceneSequence, alpha_min: f32, alpha_max: f32) -
                 };
                 let structural_gate =
                     0.35 * motion_edge_proxy.get(x, y) + 0.25 * thin_proxy.get(x, y);
+                let state_value = classify_state(
+                    residual_gate,
+                    visibility_gate,
+                    motion_edge_proxy.get(x, y),
+                    thin_proxy.get(x, y),
+                );
+                let grammar_gate = grammar_hazard(state_value);
                 let hazard = (0.55 * residual_gate
                     + 0.15 * structural_gate
                     + 0.10 * residual_gate * structural_gate)
+                    .max(0.70 * grammar_gate)
                     .max(0.88 * visibility_gate)
                     .clamp(0.0, 1.0);
                 let trust_value = 1.0 - hazard;
+                let intervention_value = 1.0 - trust_value;
                 let alpha_value = alpha_min + (alpha_max - alpha_min) * (1.0 - trust_value);
 
                 reprojected.set(x, y, history);
@@ -86,6 +173,8 @@ pub fn run_gated_taa(sequence: &SceneSequence, alpha_min: f32, alpha_max: f32) -
                 visibility_proxy.set(x, y, visibility_gate);
                 trust.set(x, y, trust_value);
                 alpha.set(x, y, alpha_value);
+                intervention.set(x, y, intervention_value);
+                state.set(x, y, state_value);
                 resolved.set(x, y, history.lerp(current, alpha_value));
             }
         }
@@ -96,12 +185,14 @@ pub fn run_gated_taa(sequence: &SceneSequence, alpha_min: f32, alpha_max: f32) -
             residual,
             trust,
             alpha,
+            intervention,
             proxies: ProxyFields {
                 residual_proxy,
                 visibility_proxy,
                 motion_edge_proxy,
                 thin_proxy,
             },
+            state,
         });
     }
 
@@ -172,22 +263,54 @@ fn empty_supervision(
 ) -> SupervisionFrame {
     let mut trust = ScalarField::new(width, height);
     let mut alpha = ScalarField::new(width, height);
+    let mut intervention = ScalarField::new(width, height);
+    let mut state = StateField::new(width, height);
     for y in 0..height {
         for x in 0..width {
             trust.set(x, y, trust_value);
             alpha.set(x, y, alpha_value);
+            intervention.set(x, y, 1.0 - trust_value);
+            state.set(x, y, StructuralState::Nominal);
         }
     }
     SupervisionFrame {
         residual: ScalarField::new(width, height),
         trust,
         alpha,
+        intervention,
         proxies: ProxyFields {
             residual_proxy: ScalarField::new(width, height),
             visibility_proxy: ScalarField::new(width, height),
             motion_edge_proxy: ScalarField::new(width, height),
             thin_proxy: ScalarField::new(width, height),
         },
+        state,
+    }
+}
+
+fn classify_state(
+    residual_gate: f32,
+    visibility_gate: f32,
+    motion_edge_gate: f32,
+    thin_gate: f32,
+) -> StructuralState {
+    if visibility_gate >= 0.5 {
+        StructuralState::DisocclusionLike
+    } else if residual_gate >= 0.45 && (motion_edge_gate >= 0.25 || thin_gate >= 0.5) {
+        StructuralState::UnstableHistory
+    } else if motion_edge_gate >= 0.45 || (thin_gate >= 0.5 && residual_gate >= 0.10) {
+        StructuralState::MotionEdge
+    } else {
+        StructuralState::Nominal
+    }
+}
+
+fn grammar_hazard(state: StructuralState) -> f32 {
+    match state {
+        StructuralState::Nominal => 0.0,
+        StructuralState::MotionEdge => 0.35,
+        StructuralState::UnstableHistory => 0.70,
+        StructuralState::DisocclusionLike => 1.0,
     }
 }
 

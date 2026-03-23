@@ -7,6 +7,17 @@ use crate::frame::{BoundingBox, Color, ImageFrame, ScalarField};
 use crate::metrics::MetricsReport;
 use crate::sampling::DemoBMetrics;
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct TrustErrorPlotDiagnostics {
+    pub max_error: f32,
+    pub top_trust_label: f32,
+    pub bottom_trust_label: f32,
+    pub reveal_frame: usize,
+    pub trust_min_frame: usize,
+    pub peak_baseline_error_frame: usize,
+    pub peak_dsfb_error_frame: usize,
+}
+
 pub struct DemoBFigureInputs<'a> {
     pub reference: &'a ImageFrame,
     pub uniform: &'a ImageFrame,
@@ -79,6 +90,7 @@ pub fn write_trust_map_figure(
     current_frame: &ImageFrame,
     trust: &ScalarField,
     focus_bbox: BoundingBox,
+    motion_edge_bbox: BoundingBox,
     path: &Path,
 ) -> Result<()> {
     if let Some(parent) = path.parent() {
@@ -91,18 +103,25 @@ pub fn write_trust_map_figure(
     let y = focus_bbox.min_y as f32 * 4.0 + 72.0;
     let width = focus_bbox.width() as f32 * 4.0;
     let height = focus_bbox.height() as f32 * 4.0;
+    let motion_x = motion_edge_bbox.min_x as f32 * 4.0 + 36.0;
+    let motion_y = motion_edge_bbox.min_y as f32 * 4.0 + 72.0;
+    let motion_width = motion_edge_bbox.width() as f32 * 4.0;
+    let motion_height = motion_edge_bbox.height() as f32 * 4.0;
     let legend = color_ramp_svg(760.0, 120.0, 36.0, 240.0);
 
     let svg = format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520">
 <rect width="980" height="520" fill="#0b1320"/>
 <text x="36" y="40" font-size="30" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Figure 2. Trust Map on the Canonical Reveal Frame</text>
-<text x="36" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Red encodes low trust; stable regions remain largely unmarked.</text>
+<text x="36" y="64" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Red encodes low trust; the white box marks disocclusion and the teal box marks motion-edge supervision.</text>
 <image href="{base_png}" x="36" y="72" width="640" height="384" preserveAspectRatio="none"/>
 <image href="{overlay_png}" x="36" y="72" width="640" height="384" opacity="0.74" preserveAspectRatio="none"/>
 <rect x="{x}" y="{y}" width="{width}" height="{height}" fill="none" stroke="#f4f7fb" stroke-width="2.5" stroke-dasharray="10 7"/>
+<rect x="{motion_x}" y="{motion_y}" width="{motion_width}" height="{motion_height}" fill="none" stroke="#53d1c8" stroke-width="2.5" stroke-dasharray="12 8"/>
 <text x="{x}" y="{label_y}" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">thin-geometry disocclusion</text>
 <line x1="{line_x1}" y1="{line_y1}" x2="{line_x2}" y2="{line_y2}" stroke="#f4f7fb" stroke-width="2"/>
+<text x="{motion_label_x}" y="{motion_label_y}" font-size="18" font-family="Arial, Helvetica, sans-serif" fill="#53d1c8">motion-edge supervision</text>
+<line x1="{motion_line_x1}" y1="{motion_line_y1}" x2="{motion_line_x2}" y2="{motion_line_y2}" stroke="#53d1c8" stroke-width="2"/>
 <text x="722" y="102" font-size="22" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Trust Legend</text>
 {legend}
 <text x="806" y="386" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">low trust</text>
@@ -116,6 +135,12 @@ pub fn write_trust_map_figure(
         line_y1 = y + 8.0,
         line_x2 = x + width + 42.0,
         line_y2 = y - 8.0,
+        motion_label_x = (motion_x + motion_width + 14.0).min(650.0),
+        motion_label_y = (motion_y + motion_height + 26.0).min(442.0),
+        motion_line_x1 = motion_x + motion_width,
+        motion_line_y1 = motion_y + motion_height * 0.5,
+        motion_line_x2 = (motion_x + motion_width + 24.0).min(680.0),
+        motion_line_y2 = (motion_y + motion_height + 14.0).min(452.0),
     );
 
     fs::write(path, svg)?;
@@ -185,17 +210,8 @@ pub fn write_trust_vs_error_figure(metrics: &MetricsReport, path: &Path) -> Resu
     let inner_width = right - left;
     let inner_height = bottom - top;
 
-    let max_error = metrics
-        .frame_metrics
-        .iter()
-        .map(|frame| {
-            frame
-                .persistence_roi_mae_baseline
-                .max(frame.persistence_roi_mae_dsfb)
-        })
-        .fold(0.0f32, f32::max)
-        .max(metrics.summary.persistence_threshold)
-        .max(0.05);
+    let diagnostics = trust_error_plot_diagnostics(metrics);
+    let max_error = diagnostics.max_error;
     let frame_count = metrics.frame_metrics.len().max(2);
     let x_scale = inner_width / (frame_count.saturating_sub(1)) as f32;
 
@@ -233,17 +249,24 @@ pub fn write_trust_vs_error_figure(metrics: &MetricsReport, path: &Path) -> Resu
             .map(|(index, frame)| {
                 (
                     left + index as f32 * x_scale,
-                    bottom - frame.persistence_roi_trust * inner_height,
+                    y_for_trust(bottom, inner_height, frame.persistence_roi_trust),
                 )
             })
             .collect::<Vec<_>>(),
     );
     let reveal_x = left + metrics.summary.reveal_frame as f32 * x_scale;
+    let trust_min_x = left + metrics.summary.trust_min_frame as f32 * x_scale;
+    let threshold_y = y_for_error(
+        bottom,
+        inner_height,
+        max_error,
+        metrics.summary.persistence_threshold,
+    );
 
     let mut y_grid = String::new();
     for tick in 0..=5 {
-        let value = max_error * tick as f32 / 5.0;
-        let y = bottom - inner_height * tick as f32 / 5.0;
+        let y = top + inner_height * tick as f32 / 5.0;
+        let value = max_error * (5 - tick) as f32 / 5.0;
         let _ = write!(
             y_grid,
             r##"<line x1="{left}" y1="{y}" x2="{right}" y2="{y}" stroke="#324253" stroke-width="1"/>"##
@@ -253,7 +276,8 @@ pub fn write_trust_vs_error_figure(metrics: &MetricsReport, path: &Path) -> Resu
             r##"<text x="28" y="{}" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{value:.3}</text>"##,
             y + 5.0
         );
-        let trust_label = 1.0 - tick as f32 / 5.0;
+        let trust_label = diagnostics.top_trust_label
+            - (diagnostics.top_trust_label - diagnostics.bottom_trust_label) * tick as f32 / 5.0;
         let _ = write!(
             y_grid,
             r##"<text x="842" y="{}" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{trust_label:.2}</text>"##,
@@ -285,11 +309,14 @@ pub fn write_trust_vs_error_figure(metrics: &MetricsReport, path: &Path) -> Resu
 <line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
 <line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
 <line x1="{right}" y1="{top}" x2="{right}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="{left}" y1="{threshold_y}" x2="{right}" y2="{threshold_y}" stroke="#ffd166" stroke-width="2" stroke-dasharray="8 6"/>
 <path d="{baseline_path}" fill="none" stroke="#ef476f" stroke-width="3.5"/>
 <path d="{dsfb_path}" fill="none" stroke="#4cc9f0" stroke-width="3.5"/>
 <path d="{trust_path}" fill="none" stroke="#8bd450" stroke-width="3.5" stroke-dasharray="12 8"/>
 <line x1="{reveal_x}" y1="{top}" x2="{reveal_x}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2" stroke-dasharray="9 7"/>
+<line x1="{trust_min_x}" y1="{top}" x2="{trust_min_x}" y2="{bottom}" stroke="#53d1c8" stroke-width="2" stroke-dasharray="6 6"/>
 <text x="{reveal_label_x}" y="104" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">reveal onset</text>
+<text x="{trust_min_label_x}" y="126" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#53d1c8">trust minimum</text>
 <text x="98" y="520" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">frame index</text>
 <text x="18" y="86" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">error</text>
 <text x="834" y="86" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">trust</text>
@@ -299,15 +326,51 @@ pub fn write_trust_vs_error_figure(metrics: &MetricsReport, path: &Path) -> Resu
 <text x="614" y="121" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB ROI error</text>
 <line x1="560" y1="144" x2="606" y2="144" stroke="#8bd450" stroke-width="3.5" stroke-dasharray="12 8"/>
 <text x="614" y="149" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB ROI trust</text>
+<line x1="560" y1="172" x2="606" y2="172" stroke="#ffd166" stroke-width="2" stroke-dasharray="8 6"/>
+<text x="614" y="177" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">ghost-persistence threshold</text>
+<text x="560" y="272" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Summary</text>
+<text x="560" y="298" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">reveal frame: {reveal_frame}</text>
+<text x="560" y="322" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">trust minimum frame: {trust_min_frame}</text>
+<text x="560" y="346" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">peak baseline error frame: {baseline_peak_frame}</text>
+<text x="560" y="370" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">peak DSFB error frame: {dsfb_peak_frame}</text>
 <text x="560" y="198" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">The experiment is intended to demonstrate</text>
 <text x="560" y="220" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">behavioral differences rather than establish</text>
 <text x="560" y="242" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">optimal performance.</text>
 </svg>"##,
         reveal_label_x = (reveal_x + 10.0).min(right - 90.0),
+        trust_min_label_x = (trust_min_x + 10.0).min(right - 110.0),
+        reveal_frame = diagnostics.reveal_frame,
+        trust_min_frame = diagnostics.trust_min_frame,
+        baseline_peak_frame = diagnostics.peak_baseline_error_frame,
+        dsfb_peak_frame = diagnostics.peak_dsfb_error_frame,
     );
 
     fs::write(path, svg)?;
     Ok(())
+}
+
+pub fn trust_error_plot_diagnostics(metrics: &MetricsReport) -> TrustErrorPlotDiagnostics {
+    let max_error = metrics
+        .frame_metrics
+        .iter()
+        .map(|frame| {
+            frame
+                .persistence_roi_mae_baseline
+                .max(frame.persistence_roi_mae_dsfb)
+        })
+        .fold(0.0f32, f32::max)
+        .max(metrics.summary.persistence_threshold)
+        .max(0.05);
+
+    TrustErrorPlotDiagnostics {
+        max_error,
+        top_trust_label: 1.0,
+        bottom_trust_label: 0.0,
+        reveal_frame: metrics.summary.reveal_frame,
+        trust_min_frame: metrics.summary.trust_min_frame,
+        peak_baseline_error_frame: metrics.summary.baseline_peak_roi_error_frame,
+        peak_dsfb_error_frame: metrics.summary.dsfb_peak_roi_error_frame,
+    }
 }
 
 pub fn write_demo_b_sampling_figure(inputs: &DemoBFigureInputs<'_>, path: &Path) -> Result<()> {
@@ -451,6 +514,19 @@ fn polyline(points: &[(f32, f32)]) -> String {
     path
 }
 
+fn y_for_error(bottom: f32, inner_height: f32, max_error: f32, value: f32) -> f32 {
+    let normalized = if max_error <= f32::EPSILON {
+        0.0
+    } else {
+        (value / max_error).clamp(0.0, 1.0)
+    };
+    bottom - normalized * inner_height
+}
+
+fn y_for_trust(bottom: f32, inner_height: f32, trust: f32) -> f32 {
+    bottom - trust.clamp(0.0, 1.0) * inner_height
+}
+
 fn png_data_uri(bytes: &[u8]) -> String {
     format!("data:image/png;base64,{}", base64_encode(bytes))
 }
@@ -485,4 +561,75 @@ fn base64_encode(bytes: &[u8]) -> String {
     }
 
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{trust_error_plot_diagnostics, y_for_error, y_for_trust};
+    use crate::config::DemoConfig;
+    use crate::dsfb::run_gated_taa;
+    use crate::metrics::analyze_demo_a;
+    use crate::scene::generate_sequence;
+    use crate::taa::{run_fixed_alpha, run_residual_threshold};
+
+    fn demo_metrics() -> crate::metrics::MetricsReport {
+        let config = DemoConfig::default();
+        let sequence = generate_sequence(&config.scene);
+        let baseline = run_fixed_alpha(&sequence, config.baseline_alpha);
+        let residual_baseline = run_residual_threshold(
+            &sequence,
+            config.baseline_alpha,
+            config.residual_baseline_alpha_high,
+            config.residual_baseline_threshold_low,
+            config.residual_baseline_threshold_high,
+        );
+        let dsfb = run_gated_taa(&sequence, config.dsfb_alpha_min, config.dsfb_alpha_max);
+        analyze_demo_a(
+            &sequence,
+            &baseline,
+            &residual_baseline,
+            &dsfb,
+            config.trust_map_frame_offset,
+            config.comparison_frame_offset,
+        )
+        .expect("analysis should succeed")
+        .report
+    }
+
+    #[test]
+    fn trust_plot_diagnostics_match_metric_summary() {
+        let metrics = demo_metrics();
+        let diagnostics = trust_error_plot_diagnostics(&metrics);
+
+        assert_eq!(diagnostics.top_trust_label, 1.0);
+        assert_eq!(diagnostics.bottom_trust_label, 0.0);
+        assert_eq!(diagnostics.reveal_frame, metrics.summary.reveal_frame);
+        assert_eq!(diagnostics.trust_min_frame, metrics.summary.trust_min_frame);
+        assert_eq!(
+            diagnostics.peak_baseline_error_frame,
+            metrics.summary.baseline_peak_roi_error_frame
+        );
+        assert_eq!(
+            diagnostics.peak_dsfb_error_frame,
+            metrics.summary.dsfb_peak_roi_error_frame
+        );
+    }
+
+    #[test]
+    fn trust_and_error_axes_have_correct_orientation() {
+        let bottom = 460.0;
+        let inner_height = 382.0;
+        let max_error = 0.4;
+
+        assert!(y_for_trust(bottom, inner_height, 1.0) < y_for_trust(bottom, inner_height, 0.0));
+        assert!(
+            y_for_error(bottom, inner_height, max_error, max_error * 0.9)
+                < y_for_error(bottom, inner_height, max_error, max_error * 0.1)
+        );
+        assert_eq!(y_for_trust(bottom, inner_height, 0.0), bottom);
+        assert_eq!(
+            y_for_trust(bottom, inner_height, 1.0),
+            bottom - inner_height
+        );
+    }
 }
