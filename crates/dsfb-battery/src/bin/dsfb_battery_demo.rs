@@ -4,17 +4,80 @@
 // DSFB Battery Health Monitoring — CLI demo binary
 //
 // Runs the full DSFB pipeline on NASA PCoE B0005 data and exports
-// all artifacts to a timestamped output folder.
+// all artifacts to a timestamped output folder: CSV, JSON, 12 figures
+// (SVG + PNG), and a ZIP archive.
 
+use clap::Parser;
 use dsfb_battery::{
     build_dsfb_detection, build_threshold_detection, export_results_json, export_trajectory_csv,
-    load_b0005_csv, run_dsfb_pipeline, verify_theorem1, PipelineConfig, Stage2Results,
+    export_zip, generate_all_figures, load_b0005_csv, run_dsfb_pipeline, verify_theorem1,
+    FigureContext, PipelineConfig, Stage2Results,
 };
 use std::path::PathBuf;
 
+/// DSFB Battery Health Monitoring — full pipeline CLI.
+///
+/// Produces semiotic trajectory CSV, detection results JSON,
+/// 12 publication figures (SVG and PNG), and a ZIP archive.
+#[derive(Parser, Debug)]
+#[command(version, about)]
+struct Cli {
+    /// Path to the NASA B0005 capacity CSV file
+    #[arg(short, long)]
+    data: Option<PathBuf>,
+
+    /// Output directory (default: outputs/dsfb_battery_<timestamp>)
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+
+    /// Healthy window size in cycles (N_h)
+    #[arg(long)]
+    healthy_window: Option<usize>,
+
+    /// Drift averaging window (W)
+    #[arg(long)]
+    drift_window: Option<usize>,
+
+    /// Drift persistence length (L_d)
+    #[arg(long)]
+    drift_persistence: Option<usize>,
+
+    /// Slew persistence length (L_s)
+    #[arg(long)]
+    slew_persistence: Option<usize>,
+
+    /// Drift threshold (θ_d)
+    #[arg(long)]
+    drift_threshold: Option<f64>,
+
+    /// Slew threshold (θ_s)
+    #[arg(long)]
+    slew_threshold: Option<f64>,
+
+    /// End-of-life fraction of initial capacity
+    #[arg(long)]
+    eol_fraction: Option<f64>,
+
+    /// Boundary fraction for grammar classification
+    #[arg(long)]
+    boundary_fraction: Option<f64>,
+
+    /// Skip figure generation
+    #[arg(long, default_value_t = false)]
+    no_figures: bool,
+
+    /// Skip ZIP packaging
+    #[arg(long, default_value_t = false)]
+    no_zip: bool,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cli = Cli::parse();
+
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let data_path = crate_dir.join("data").join("nasa_b0005_capacity.csv");
+    let data_path = cli
+        .data
+        .unwrap_or_else(|| crate_dir.join("data").join("nasa_b0005_capacity.csv"));
 
     if !data_path.exists() {
         eprintln!("ERROR: {} not found.", data_path.display());
@@ -34,10 +97,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         capacities[capacities.len() - 1]
     );
 
-    // Pipeline configuration (Stage II benchmark, Section 8)
-    let config = PipelineConfig::default();
+    // Pipeline configuration — override any field the user supplies
+    let mut config = PipelineConfig::default();
+    if let Some(v) = cli.healthy_window { config.healthy_window = v; }
+    if let Some(v) = cli.drift_window { config.drift_window = v; }
+    if let Some(v) = cli.drift_persistence { config.drift_persistence = v; }
+    if let Some(v) = cli.slew_persistence { config.slew_persistence = v; }
+    if let Some(v) = cli.drift_threshold { config.drift_threshold = v; }
+    if let Some(v) = cli.slew_threshold { config.slew_threshold = v; }
+    if let Some(v) = cli.eol_fraction { config.eol_fraction = v; }
+    if let Some(v) = cli.boundary_fraction { config.boundary_fraction = v; }
+
     let eol_capacity = config.eol_fraction * capacities[0];
-    println!("  EOL threshold (80% of initial): {:.4} Ah", eol_capacity);
+    println!("  EOL threshold ({}% of initial): {:.4} Ah",
+        (config.eol_fraction * 100.0) as u32, eol_capacity);
 
     // Run DSFB pipeline
     println!("\nRunning DSFB pipeline...");
@@ -63,27 +136,55 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Actual detection cycle: {:?}", thm1.actual_detection_cycle);
     println!("  Bound satisfied: {:?}", thm1.bound_satisfied);
 
-    // Create timestamped output folder
-    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-    let output_dir = crate_dir
-        .join("outputs")
-        .join(format!("dsfb_battery_{}", timestamp));
+    // Create output folder
+    let output_dir = cli.output.unwrap_or_else(|| {
+        let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+        crate_dir
+            .join("outputs")
+            .join(format!("dsfb_battery_{}", timestamp))
+    });
     std::fs::create_dir_all(&output_dir)?;
 
-    // Export artifacts
+    let provenance = "NASA PCoE Battery Dataset, Cell B0005 (18650 Li-ion, constant-current discharge at 2A, 24°C ambient)";
+
+    // CSV + JSON
     export_trajectory_csv(&trajectory, &output_dir.join("semiotic_trajectory.csv"))?;
     println!("\nExported semiotic_trajectory.csv");
 
     let results = Stage2Results {
-        data_provenance: "NASA PCoE Battery Dataset, Cell B0005 (18650 Li-ion, constant-current discharge at 2A, 24°C ambient)".to_string(),
-        config,
+        data_provenance: provenance.to_string(),
+        config: config.clone(),
         envelope,
-        dsfb_detection: dsfb_det,
-        threshold_detection: threshold_det,
-        theorem1: thm1,
+        dsfb_detection: dsfb_det.clone(),
+        threshold_detection: threshold_det.clone(),
+        theorem1: thm1.clone(),
     };
     export_results_json(&results, &output_dir.join("stage2_detection_results.json"))?;
     println!("Exported stage2_detection_results.json");
+
+    // Figures
+    if !cli.no_figures {
+        println!("\nGenerating 12 figures (SVG + PNG)...");
+        let fig_ctx = FigureContext {
+            capacities: &capacities,
+            trajectory: &trajectory,
+            envelope: &envelope,
+            config: &config,
+            dsfb_detection: &dsfb_det,
+            threshold_detection: &threshold_det,
+            theorem1: &thm1,
+            data_provenance: provenance,
+        };
+        generate_all_figures(&fig_ctx, &output_dir)?;
+        println!("Exported 24 figure files (12 SVG + 12 PNG)");
+    }
+
+    // ZIP
+    if !cli.no_zip {
+        let zip_path = output_dir.join("dsfb_battery_results.zip");
+        export_zip(&output_dir, &zip_path)?;
+        println!("Exported {}", zip_path.display());
+    }
 
     println!("\nAll artifacts written to: {}", output_dir.display());
     Ok(())

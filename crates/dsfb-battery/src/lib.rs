@@ -20,13 +20,15 @@
 pub mod detection;
 pub mod export;
 pub mod math;
+pub mod plotting;
 pub mod types;
 
 pub use detection::{
     build_dsfb_detection, build_threshold_detection, detect_dsfb_alarm, detect_eol,
     detect_threshold_alarm, run_dsfb_pipeline, verify_theorem1,
 };
-pub use export::{export_results_json, export_trajectory_csv, Stage2Results};
+pub use export::{export_results_json, export_trajectory_csv, export_zip, Stage2Results};
+pub use plotting::{generate_all_figures, FigureContext};
 pub use math::{
     compute_all_drifts, compute_all_residuals, compute_all_slews, compute_drift, compute_envelope,
     compute_residual, compute_slew, theorem1_exit_bound,
