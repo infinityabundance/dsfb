@@ -86,3 +86,36 @@ pub fn export_results_json(results: &Stage2Results, path: &Path) -> Result<(), E
     file.write_all(json.as_bytes())?;
     Ok(())
 }
+
+/// Package an entire output directory into a ZIP archive.
+///
+/// All files directly inside `dir` are included in the ZIP.
+pub fn export_zip(dir: &Path, zip_path: &Path) -> Result<(), ExportError> {
+    use std::io::Read;
+    let file = std::fs::File::create(zip_path)?;
+    let mut archive = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            let name = entry.file_name();
+            archive
+                .start_file(
+                    name.to_string_lossy().as_ref(),
+                    options,
+                )
+                .map_err(|e| ExportError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            let mut f = std::fs::File::open(&path)?;
+            let mut buf = Vec::new();
+            f.read_to_end(&mut buf)?;
+            archive
+                .write_all(&buf)?;
+        }
+    }
+    archive
+        .finish()
+        .map_err(|e| ExportError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+    Ok(())
+}
