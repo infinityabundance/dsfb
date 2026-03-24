@@ -82,6 +82,11 @@ Don’t believe a sensor all at once.
 > **de Beer, R.** (2026). 
 > *Deterministic Structural Inference in Solid-State Systems: A DSFB Engine for Crystal Lattices, Phonons, and Structural Forensics - Operator-Theoretic Detectability and Scaling Laws* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.19102789]
+
+> **de Beer, R.** (2026).
+> *DSFB Structural Semiotics Engine: A Survey of Applications Across Safety-Critical Domains - Prior Art Establishment and Domain Instantiation Framework for Deterministic Residual-Based Structural Interpretation* (Version v1.0).
+> Zenodo. [https://doi.org/10.5281/ZENODO.19204366]
+
 ---
 
 `DSFB Simulation Notebook:`
