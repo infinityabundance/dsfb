@@ -1,0 +1,10 @@
+/target/
+outputs/
+data/*.csv
+data/*.json
+data/*.zip
+data/tmp_extract/
+*.pdb
+*.tex
+Cargo.lock
+notebooks/executed_*.ipynb

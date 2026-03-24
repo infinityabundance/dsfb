@@ -1,0 +1,35 @@
+[package]
+name = "dsfb-battery"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+authors = ["Riaan de Beer"]
+license = "Apache-2.0"
+description = "DSFB structural semiotics engine for battery health monitoring: deterministic early-warning framework for capacity fade, resistance drift, and knee-onset detection"
+repository = "https://github.com/infinityabundance/dsfb"
+homepage = "https://github.com/infinityabundance/dsfb"
+readme = "README.md"
+keywords = ["dsfb", "battery", "health-monitoring", "deterministic", "semiotics"]
+categories = ["science", "algorithms"]
+include = [
+    "src/**",
+    "Cargo.toml",
+    "README.md",
+]
+
+[workspace]
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+csv = "1.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+[lib]
+name = "dsfb_battery"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb-battery-demo"
+path = "src/bin/dsfb_battery_demo.rs"
