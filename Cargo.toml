@@ -8,6 +8,7 @@ members = [
     "crates/dsfb-ddmf",
     "crates/dsfb-add",
     "crates/dsfb-dscd",
+    "crates/dsfb-endoduction",
 ]
 default-members = ["crates/dsfb"]
 resolver = "2"

@@ -1,0 +1,40 @@
+[package]
+name = "dsfb-endoduction"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+authors = ["Riaan de Beer"]
+license = "Apache-2.0"
+readme = "README.md"
+description = "Empirical evaluation of the Thermodynamic Precursor Visibility Principle on NASA IMS bearing run-to-failure data using DSFB structural residual analysis"
+repository = "https://github.com/infinityabundance/dsfb"
+homepage = "https://github.com/infinityabundance/dsfb"
+keywords = ["dsfb", "endoduction", "bearing", "precursor", "thermodynamic"]
+categories = ["science", "algorithms"]
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
+
+[lib]
+name = "dsfb_endoduction"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb-endoduction"
+path = "src/bin/main.rs"
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "=0.4.38", default-features = false, features = ["clock"] }
+clap = { version = "=4.5.23", features = ["derive"] }
+csv = "1.3"
+plotters = { version = "=0.3.7", default-features = false, features = ["bitmap_backend", "bitmap_encoder", "line_series", "point_series", "area_series", "ttf"] }
+printpdf = "=0.7.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
