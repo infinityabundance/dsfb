@@ -20,8 +20,12 @@ out/
 outputs/
 output-dsfb/
 output-dsfb-fusion-bench/
+/output-dsfb-endoduction/
 *.csv
 !crates/dsfb/sim.csv
+
+# Data (downloaded datasets)
+/data/
 
 # Python
 __pycache__/
