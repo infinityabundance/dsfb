@@ -1,0 +1,22 @@
+{
+  "schema_version": "dsfb_unreal_native_v1",
+  "dataset_kind": "unreal_native",
+  "provenance_label": "unreal_native",
+  "dataset_id": "ue57_dsfb_temporal_capture_sample",
+  "manifest_path": "examples/unreal_native_capture_manifest.json",
+  "materialized_manifest_path": "generated/unreal_native_runs/sample_capture_contract/materialized_unreal_external_manifest.json",
+  "run_name": "sample_capture_contract",
+  "run_dir": "generated/unreal_native_runs/sample_capture_contract",
+  "timestamp_epoch_seconds": 1774541628,
+  "git_commit": "9843db090fff45662e5fd4a5fec15fef0515b9da",
+  "cli_args": [
+    "target/release/dsfb-computer-graphics",
+    "run-unreal-native",
+    "--manifest",
+    "examples/unreal_native_capture_manifest.json",
+    "--output",
+    "generated/unreal_native_runs",
+    "--run-name",
+    "sample_capture_contract"
+  ]
+}

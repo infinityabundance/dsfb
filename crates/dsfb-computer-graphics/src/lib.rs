@@ -24,6 +24,7 @@ pub mod mixed_regime;
 pub mod sensitivity;
 pub mod taa;
 pub mod timing;
+pub mod unreal_native;
 
 pub use config::{DemoConfig, SceneConfig};
 pub use error::{Error, Result};

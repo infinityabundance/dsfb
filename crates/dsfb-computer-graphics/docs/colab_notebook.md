@@ -1,8 +1,15 @@
 # Colab Notebook Design
 
-This note documents the crate-local Google Colab notebook at `colab/dsfb_computer_graphics_demo.ipynb`.
+This crate now has two notebook entry points:
+
+- `colab/dsfb_computer_graphics_demo.ipynb` for the legacy synthetic artifact
+- `colab/dsfb_unreal_native_evidence.ipynb` for the strict Unreal-native evidence path
+
+The Unreal-native notebook is the canonical notebook for real engine-native diligence.
 
 The notebook exists to make the crate evaluable from a clean browser session. It does not reimplement the artifact in Python. Instead, it installs the small set of runtime dependencies needed for Colab, clones the repository, builds `dsfb-computer-graphics`, and drives the Rust CLI so the crate remains the source of truth for Demo A, Demo B, metrics, figures, and reports.
+
+For the Unreal-native path, the notebook is a replay-and-review surface for an existing real Unreal-native dataset bundle. It does not pretend Colab is generating Unreal exports itself.
 
 “The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
 
@@ -70,4 +77,6 @@ This is intended to support review convenience and archival traceability, not to
 - It does not claim measured production GPU performance.
 - It does not claim superiority over full commercial temporal reconstruction stacks.
 
-The notebook is a polished access path to a bounded synthetic artifact, not a substitute for broader engine integration or field validation.
+The legacy synthetic notebook is a polished access path to a bounded synthetic artifact, not a substitute for broader engine integration or field validation.
+
+For the strict engine-native path, use `colab/dsfb_unreal_native_evidence.ipynb` and keep the provenance label `unreal_native` honest.
