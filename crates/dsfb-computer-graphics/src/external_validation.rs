@@ -73,7 +73,7 @@ pub struct ExternalGpuMetrics {
     pub notes: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExternalDemoAMethodMetrics {
     pub method_id: String,
     pub label: String,
@@ -85,7 +85,7 @@ pub struct ExternalDemoAMethodMetrics {
     pub intervention_rate: f32,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExternalDemoACaptureMetrics {
     pub capture_label: String,
     pub roi_source: String,
@@ -95,7 +95,7 @@ pub struct ExternalDemoACaptureMetrics {
     pub methods: Vec<ExternalDemoAMethodMetrics>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExternalDemoAMetrics {
     pub real_external_data_provided: bool,
     pub no_real_external_data_provided: bool,
@@ -103,7 +103,7 @@ pub struct ExternalDemoAMetrics {
     pub notes: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExternalDemoBCaptureMetrics {
     pub capture_label: String,
     pub regime: String,
@@ -117,7 +117,7 @@ pub struct ExternalDemoBCaptureMetrics {
     pub budget_curves: Vec<BudgetCurve>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExternalDemoBMetrics {
     pub real_external_data_provided: bool,
     pub no_real_external_data_provided: bool,
@@ -125,7 +125,7 @@ pub struct ExternalDemoBMetrics {
     pub notes: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExternalScalingEntry {
     pub label: String,
     pub source: String,
@@ -143,7 +143,7 @@ pub struct ExternalScalingEntry {
     pub unavailable_reason: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExternalCoverageSummary {
     pub realism_stress_case: bool,
     pub larger_roi_case: bool,
@@ -152,7 +152,7 @@ pub struct ExternalCoverageSummary {
     pub missing: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExternalScalingMetrics {
     pub measurement_kind: String,
     pub kernel: String,

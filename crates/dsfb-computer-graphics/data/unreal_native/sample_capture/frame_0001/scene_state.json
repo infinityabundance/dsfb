@@ -1,0 +1,114 @@
+{
+  "schema_version": "dsfb_unreal_capture_scene_state_v1",
+  "dataset_kind": "unreal_native",
+  "provenance_label": "unreal_native",
+  "frame_label": "frame_0001",
+  "width": 256,
+  "height": 144,
+  "camera": {
+    "name": "DSFBTemporalCapture_Camera",
+    "position": [
+      -600.0,
+      0.0,
+      140.0
+    ],
+    "forward": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "right": [
+      0.0,
+      0.9945218953682733,
+      0.10452846326765347
+    ],
+    "up": [
+      0.0,
+      -0.10452846326765347,
+      0.9945218953682733
+    ],
+    "rotation": [
+      0.0,
+      0.0,
+      -6.000000000000001
+    ],
+    "fov_degrees": 45.981632232666016,
+    "focal_length_mm": 28.0
+  },
+  "scene": {
+    "plane": {
+      "center": [
+        300.0,
+        0.0,
+        0.0
+      ],
+      "scale": [
+        40.0,
+        40.0,
+        1.0
+      ],
+      "nominal_mesh_extent_xy": [
+        50.0,
+        50.0
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "cube": {
+      "previous_center": [
+        0.0,
+        -220.0,
+        80.0
+      ],
+      "current_center": [
+        0.0,
+        220.0,
+        80.0
+      ],
+      "scale": [
+        2.5,
+        2.5,
+        2.5
+      ],
+      "nominal_half_extent": [
+        50.0,
+        50.0,
+        50.0
+      ]
+    }
+  },
+  "raw_exports": {
+    "previous_color": {
+      "path": "raw/previous_color.png",
+      "semantic": "final_color_png"
+    },
+    "current_color": {
+      "path": "raw/current_color.png",
+      "semantic": "final_color_png"
+    },
+    "previous_normals": {
+      "path": "raw/previous_normals.png",
+      "semantic": "world_normal_visualization_png"
+    },
+    "current_normals": {
+      "path": "raw/current_normals.png",
+      "semantic": "world_normal_visualization_png"
+    },
+    "previous_depth": {
+      "path": "raw/previous_depth.png",
+      "semantic": "scene_depth_visualization_png"
+    },
+    "current_depth": {
+      "path": "raw/current_depth.png",
+      "semantic": "scene_depth_visualization_png"
+    }
+  },
+  "notes": [
+    "This file records the exact Unreal-side camera and object transforms used for the real export.",
+    "The crate-local postprocess builder converts these raw Unreal PNG exports into the strict DSFB replay dataset.",
+    "If raw float velocity export is unavailable on this editor path, motion_vectors.json is derived from Unreal camera/object metadata rather than fabricated from a synthetic scene."
+  ]
+}

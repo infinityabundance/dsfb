@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::config::DemoConfig;
 use crate::dsfb::DsfbRun;
@@ -51,20 +51,20 @@ impl AllocationPolicyId {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BudgetCurvePoint {
     pub average_spp: f32,
     pub roi_mae: f32,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BudgetCurve {
     pub scenario_id: String,
     pub policy_id: String,
     pub points: Vec<BudgetCurvePoint>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DemoBPolicyMetrics {
     pub policy_id: String,
     pub label: String,

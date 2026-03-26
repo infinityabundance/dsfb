@@ -1,350 +1,214 @@
 # dsfb-computer-graphics
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-computer-graphics/colab/dsfb_computer_graphics_demo.ipynb)
+`dsfb-computer-graphics` is a Rust crate for evaluating DSFB as a deterministic supervisory layer over temporal graphics pipelines. The canonical proof path is now the strict Unreal-native replay path: real Unreal-exported frame buffers and metadata are ingested, validated, replayed through the existing DSFB temporal supervision core, and packaged into a decision-grade evidence bundle.
 
-`dsfb-computer-graphics` is a self-contained Rust artifact for evaluating DSFB-style supervision in temporal reuse and fixed-budget sampling. The crate is designed to be decision-clean rather than cosmetically polished: it exposes point-ROI caveats, mixed outcomes, gate-like trust behavior, external-validation gaps, and validation failures instead of hiding them.
+DSFB in this crate is not a renderer replacement. The posture is narrower and more useful:
 
-“The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
+- trust estimation over temporal reuse inputs
+- admissibility / regime gating
+- intervention and alpha signals for downstream resolve logic
+- replayable evidence, provenance, and audit artifacts
 
-## What This Crate Proves
+The intended insertion point is temporal anti-aliasing / temporal reuse supervision, with a sober extension path toward adaptive sampling, simulation integrity monitoring, and certification-style replay.
 
-- A host-realistic minimum supervisory path exists and produces a real effect without relying on privileged visibility hints.
-- Point-like ROI evidence and region-ROI evidence are separated explicitly in reports and validation.
-- The current trust signal is described honestly as gate-like / weakly graded rather than advertised as smoothly calibrated.
-- Motion disagreement is no longer hidden inside the minimum path; it is treated as an optional extension and reported separately.
-- Demo B no longer depends only on the original thin sub-pixel line case.
-- Hazard weights are centralized and sensitivity-vetted inside this crate.
-- A GPU-executable minimum kernel now exists alongside the CPU proxy timing path.
-- A stable external buffer import path exists for engine handoff without re-architecting the crate.
+## Canonical Path
 
-## What This Crate Does Not Prove
+If you want to regenerate the crate-local Unreal sample from the installed editor:
 
-- It does not prove production-scene generalization.
-- It does not prove universal engine integration success or externally validated production behavior.
-- It does not prove globally calibrated trust or globally optimal parameter settings.
+```bash
+/home/one/Unreal/UE_5.7.2/Engine/Binaries/Linux/UnrealEditor \
+  crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/DSFBTemporalCapture.uproject \
+  -ExecutePythonScript=crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/Scripts/export_unreal_native_capture.py \
+  -stdout -FullStdOutLogOutput
 
-## Strongest Current Evidence
+python3 crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/Scripts/build_unreal_native_dataset.py
+```
 
-- Host-realistic DSFB still shows a real supervisory effect on explicit region-ROI cases rather than only point-ROI stress tests.
-- The crate contains a real GPU-executable minimum kernel with measured-vs-unmeasured disclosure.
-- The crate contains a real external replay path that can ingest a stable manifest without re-architecting the evaluator.
-- Demo B now compares imported trust against edge/gradient, residual, contrast, variance, combined heuristic, native trust, and hybrid trust/variance policies.
-
-## Biggest Remaining Blockers
-
-- Real external engine captures are still required.
-- Imported-capture GPU profiling is still required.
-- The realism bridge is broader, but it is still synthetic.
-- Strong heuristics still tie or win on some scenarios, so the correct framing remains targeted supervision rather than blanket replacement.
-
-## Core Evidence Shape
-
-### Demo A
-
-Temporal reuse study with:
-
-- fixed alpha
-- residual threshold
-- neighborhood clamp
-- depth/normal rejection
-- reactive-mask-style baseline
-- strong heuristic baseline
-- DSFB visibility-assisted reference
-- DSFB host-realistic minimum
-- DSFB gated reference
-- DSFB motion-augmented extension
-- DSFB ablations
-
-Scenario suite:
-
-- `thin_reveal`
-- `fast_pan`
-- `diagonal_reveal`
-- `reveal_band`
-- `motion_bias_band`
-- `layered_slats`
-- `noisy_reprojection`
-- `heuristic_friendly_pan`
-- `contrast_pulse`
-- `stability_holdout`
-
-### Demo B
-
-Fixed-budget allocation study with:
-
-- uniform
-- edge-guided
-- residual-guided
-- contrast-guided
-- variance-guided
-- combined heuristic
-- native trust
-- imported trust
-- hybrid trust + variance
-
-## Recommended Commands
-
-Use release mode for serious artifact generation:
+Use the strict Unreal-native command when the input really came from Unreal Engine:
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run --release -- run-all --output generated/final_bundle
+cargo run --release -- run-unreal-native \
+  --manifest examples/unreal_native_capture_manifest.json \
+  --output generated/unreal_native_runs
 ```
 
-Run one scenario through the full bundle:
+What this command does:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-scenario reveal_band --output generated/single_scenario
-```
+- validates a strict `dsfb_unreal_native_v1` manifest
+- refuses synthetic, pending, proxy-labeled, or mis-provenanced input
+- materializes the Unreal capture into the crate’s stable replay contract
+- runs the DSFB replay bundle on the imported capture
+- writes a timestamped Unreal-native run directory
+- generates `summary.json`, `metrics.csv`, `metrics_summary.json`, `comparison_summary.md`, `failure_modes.md`, `provenance.json`, per-frame maps, a boardroom panel, an executive evidence sheet, a PDF bundle, and a ZIP bundle
 
-Run the canonical ablation slice:
+A checked-in evidence run for the canonical sample currently lives under:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-ablations --output generated/ablations
-```
+- [`generated/unreal_native_runs/sample_capture_contract`](/home/one/dsfb/crates/dsfb-computer-graphics/generated/unreal_native_runs/sample_capture_contract)
 
-Generate the timing path only:
+That sample currently lands as a `heuristic_favorable` Demo A case, which is kept on purpose as an honesty check rather than filtered out.
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-timing --output generated/timing_only
-```
+## What Counts As Unreal-Native
 
-Generate the GPU execution path only:
+The strict path accepts only manifests labeled:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-gpu-path --output generated/gpu_path
-```
+- `schema_version = "dsfb_unreal_native_v1"`
+- `dataset_kind = "unreal_native"`
+- `provenance_label = "unreal_native"`
+- `engine.engine_name = "unreal_engine"`
+- `engine.real_engine_capture = true`
 
-Import an external or synthetic-compat capture through the stable handoff schema:
+Per capture, the contract requires:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- import-external --manifest examples/external_capture_manifest.json --output generated/external_real
-```
+- `current_color`
+- `previous_color`
+- `motion_vectors`
+- `current_depth`
+- `previous_depth`
+- `current_normals`
+- `previous_normals`
+- `metadata`
 
-Run the same path through the evaluator-facing alias:
+Optional but strongly recommended:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-external-replay --manifest examples/external_capture_manifest.json --output generated/external_real
-```
+- `host_output`
+- `history_color`, `history_depth`, `history_normals` if the engine exposes them directly
+- `roi_mask`
+- `disocclusion_mask`
+- `reference_color`
 
-Generate the resolution study only:
+The strict path does not silently synthesize missing required buffers. If a required file is absent or malformed, the run fails.
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-resolution-scaling --output generated/scaling_only
-```
+The crate-local sample currently retains the following raw Unreal exports under [`data/unreal_native/sample_capture/frame_0001/raw`](/home/one/dsfb/crates/dsfb-computer-graphics/data/unreal_native/sample_capture/frame_0001/raw):
 
-Generate the realism and taxonomy package only:
+- final-color SceneCapture PNGs for `current_color` and `previous_color`
+- `SceneDepth` visualization PNGs for `current_depth` and `previous_depth`
+- `WorldNormal` visualization PNGs for `current_normals` and `previous_normals`
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-realism-suite --output generated/realism_only
-```
+The checked-in replay dataset materializes from those raw exports and the recorded Unreal camera/object metadata:
 
-Evaluator-facing alias:
+- `current_color.json` and `previous_color.json` are linearized from the raw color PNGs
+- `current_depth.json` and `previous_depth.json` are decoded from the raw depth visualization PNGs and labeled `monotonic_visualized_depth`
+- `current_normals.json` and `previous_normals.json` are metadata-derived unit normals for this minimal sample
+- `motion_vectors.json` is a metadata-derived dense pixel-offset field for this minimal sample
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-realism-bridge --output generated/realism_bridge
-```
+That means the checked-in sample manifest labels:
 
-Generate the sensitivity sweep only:
+- `normal_space = "world_space_unit"`
+- `depth_convention = "monotonic_visualized_depth"`
+- `motion_vector_convention = "pixel_offset_to_prev"`
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-sensitivity --output generated/sensitivity_only
-```
+## Dataset Contract
 
-Generate Demo B only:
+Canonical manifest:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-demo-b --output generated/demo_b_only
-```
+- [`examples/unreal_native_capture_manifest.json`](/home/one/dsfb/crates/dsfb-computer-graphics/examples/unreal_native_capture_manifest.json)
 
-Generate the Demo B efficiency package:
+Canonical data root:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- run-demo-b-efficiency --output generated/demo_b_efficiency_only
-```
+- [`data/unreal_native`](/home/one/dsfb/crates/dsfb-computer-graphics/data/unreal_native)
 
-Export the small operator-facing summary:
+Canonical schema and guide:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- export-minimal-report --output generated/minimal
-```
+- [`docs/DATASET_SCHEMA.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/DATASET_SCHEMA.md)
+- [`docs/UNREAL_CAPTURE_GUIDE.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/UNREAL_CAPTURE_GUIDE.md)
 
-Export the external evaluator handoff package:
+The manifest supports either:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- export-evaluator-handoff --output generated/evaluator_handoff
-```
+- direct history buffers exported from Unreal, or
+- previous-frame exports plus motion-vector reprojection performed in the crate
 
-Validate an artifact directory:
+That second case is still engine-native because the inputs are real Unreal exports. It is explicitly labeled as such and is not presented as synthetic equivalence.
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- validate --output generated/final_bundle
-```
+## Unreal Project Scaffold
 
-Final-gate alias:
+The crate-local Unreal scaffold lives under:
 
-```bash
-cd crates/dsfb-computer-graphics
-cargo run --release -- validate-final --output generated/final_bundle
-```
+- [`unreal/DSFBTemporalCapture`](/home/one/dsfb/crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture)
 
-## Output Contract
+Key files:
 
-`run-all` writes the full bundle under the chosen output directory, including:
+- [`unreal/DSFBTemporalCapture/DSFBTemporalCapture.uproject`](/home/one/dsfb/crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/DSFBTemporalCapture.uproject)
+- [`unreal/DSFBTemporalCapture/Scripts/export_unreal_native_capture.py`](/home/one/dsfb/crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/Scripts/export_unreal_native_capture.py)
+- [`unreal/DSFBTemporalCapture/Scripts/build_unreal_native_dataset.py`](/home/one/dsfb/crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/Scripts/build_unreal_native_dataset.py)
+- [`unreal/DSFBTemporalCapture/README.md`](/home/one/dsfb/crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/README.md)
 
-- `report.md`
-- `reviewer_summary.md`
-- `five_mentor_audit.md`
-- `check_signing_blockers.md`
-- `trust_diagnostics.md`
-- `trust_diagnostics.json`
-- `timing_report.md`
-- `timing_metrics.json`
-- `external_real/external_validation_report.md`
-- `external_real/gpu_external_report.md`
-- `external_real/demo_a_external_report.md`
-- `external_real/demo_b_external_report.md`
-- `external_real/scaling_report.md`
-- `external_real/memory_bandwidth_report.md`
-- `external_real/integration_scaling_report.md`
-- `resolution_scaling_report.md`
-- `resolution_scaling_metrics.json`
-- `parameter_sensitivity_report.md`
-- `parameter_sensitivity_metrics.json`
+This project assumes Unreal Engine is already installed on the machine. The crate stores only the project/export files, not the engine itself.
+
+## Output Bundle
+
+Each `run-unreal-native` execution writes a dedicated run directory under the chosen output root. The bundle includes:
+
+- `summary.json`
+- `metrics.csv`
+- `metrics_summary.json`
+- `comparison_summary.md`
+- `failure_modes.md`
+- `provenance.json`
+- `run_manifest.json`
+- `materialized_unreal_external_manifest.json`
 - `gpu_execution_report.md`
-- `gpu_execution_metrics.json`
-- `external_replay_report.md`
-- `external_handoff_report.md`
-- `realism_suite_report.md`
-- `realism_bridge_report.md`
-- `scenario_taxonomy.json`
-- `trust_mode_report.md`
-- `competitive_baseline_analysis.md`
-- `non_roi_penalty_report.md`
-- `product_positioning_report.md`
-- `demo_b_decision_report.md`
-- `demo_b_efficiency_report.md`
-- `demo_b_competitive_baselines_report.md`
-- `demo_b_aliasing_vs_variance_report.md`
-- `demo_b_scene_taxonomy.json`
-- `operating_band_report.md`
-- `production_eval_checklist.md`
-- `evaluator_handoff.md`
-- `minimum_external_validation_plan.md`
-- `next_step_matrix.md`
-- `check_signing_readiness.md`
-- `demo_b_metrics.json`
-- `metrics.json`
-- `figures/*.svg`
-- `demo_b/*`
+- `demo_a_external_report.md`
+- `demo_b_external_report.md`
+- `external_validation_report.md`
+- `per_frame/<label>/trust_map.png`
+- `per_frame/<label>/alpha_map.png`
+- `per_frame/<label>/intervention_map.png`
+- `per_frame/<label>/residual_map.png`
+- `per_frame/<label>/instability_overlay.png`
+- `per_frame/<label>/boardroom_panel_<label>.png`
+- `executive_evidence_sheet.png`
+- `artifacts_bundle.pdf`
+- `artifacts_bundle.zip`
+- `notebook_manifest.json`
 
-The validator fails if required files are missing, if point-ROI disclosure disappears, if degenerate trust rank correlation is presented as a headline claim, if external-validation needs disappear from decision-facing reports, or if the timing and GPU reports stop declaring measured vs unmeasured status.
+The PDF and ZIP are generated automatically by the crate-local bundle builder:
 
-## Key Current Readout
+- [`colab/build_unreal_native_bundle.py`](/home/one/dsfb/crates/dsfb-computer-graphics/colab/build_unreal_native_bundle.py)
 
-From the current default release bundle:
+## Notebook
 
-- Canonical `thin_reveal` ROI size is `1` pixel.
-- `diagonal_reveal` ROI size is also `1` pixel.
-- `reveal_band`, `layered_slats`, `motion_bias_band`, and `noisy_reprojection` provide the larger region-ROI evidence path.
-- The current host-realistic trust behavior is reported as near-binary / gate-like.
-- The CPU timing report remains explicitly labeled `cpu_only_proxy`.
-- The GPU execution bundle reports measured-vs-unmeasured status separately; on hosts with a usable adapter it records actual GPU timings.
+The Unreal-native Colab / notebook entry point is:
 
-## Minimum Viable Integration Surface
+- [`colab/dsfb_unreal_native_evidence.ipynb`](/home/one/dsfb/crates/dsfb-computer-graphics/colab/dsfb_unreal_native_evidence.ipynb)
 
-The minimum host-realistic path consumes:
+It is designed to:
 
-- current color
-- reprojected history
-- motion vectors
-- current and reprojected depth
-- current and reprojected normals
+- explain what real Unreal-native input means
+- refuse synthetic relabeling
+- run the strict Unreal-native CLI
+- display the executive sheet and primary panel inline
+- expose PDF and ZIP downloads
 
-It produces:
+## Secondary Paths
 
-- trust
-- intervention
-- alpha
-- debug proxy fields
+The crate still contains synthetic and generic external replay workflows. They remain useful, but they are secondary support only:
 
-The minimum path no longer includes motion disagreement by default. That cue is kept as an optional extension and is reported separately.
+- `run-all`, `run-demo-a`, `run-demo-b`, and the internal realism bridge are synthetic or semi-synthetic
+- `run-external-replay` is a generic file-based replay path
+- `run-unreal-native` is the canonical Unreal proof path
 
-For details:
+Those paths are not equivalent and are not labeled as equivalent.
 
-- `docs/integration_surface.md`
-- `docs/cost_model.md`
-- `docs/gpu_path.md`
-- `docs/gpu_execution_path.md`
-- `docs/external_handoff.md`
-- `docs/engine_integration_playbook.md`
-- `docs/production_eval_bridge.md`
-- `docs/validation_contract.md`
-- `docs/completion_gates.md`
+## Commercial Framing
 
-## DSFB Integration into Temporal Reuse
+The credible claim from this crate is bounded:
 
-Baseline resolve:
+- DSFB can be inserted as a supervisory layer over a temporal reuse path
+- the Unreal-native replay path produces evidence consistent with reduced temporal artifact risk in some regimes
+- results depend on observability, exported buffers, and regime specification
+- strong heuristics can remain competitive or win on some captures
+- the checked-in Unreal sample is intentionally retained even though its Demo A classification is `heuristic_favorable`
 
-```text
-C_t(u) = alpha * C_t_current(u) + (1 - alpha) * C_{t-1}_reproj(u)
-```
+The crate does not claim:
 
-Supervised resolve:
+- universal outperformance
+- solved rendering
+- renderer replacement
+- production readiness without engine-side integration proof
 
-```text
-C_t(u) = alpha_t(u) * C_t_current(u) + (1 - alpha_t(u)) * C_{t-1}_reproj(u)
-alpha_t(u) = alpha_min + (alpha_max - alpha_min) * (1 - T_t(u))
-```
+## Reproducibility Docs
 
-The current crate demonstrates supervisory modulation of temporal reuse, not a replacement renderer.
-
-## GPU Implementation Considerations
-
-The crate now exposes both a CPU proxy timing path and a GPU execution path. The timing report remains CPU-side by design, while `run-gpu-path` records actual GPU execution when a usable adapter is present and explicitly reports when no measurement was possible. The timing bundle still provides:
-
-- per-stage timing
-- op and traffic estimates
-- minimum, host-realistic, and research/debug timing modes
-- a higher-resolution selected-scenario proxy
-
-For details, see `docs/gpu_path.md`.
-
-## Mission and Transition Relevance
-
-The artifact is useful when reviewers need:
-
-- a replayable temporal-reuse failure story
-- explicit blocker disclosure
-- a path from synthetic evidence to engine-adjacent evaluation
-- a diligence package that says where DSFB is neutral or worse
-
-It remains a synthetic evaluation artifact rather than a fielded mission system.
-
-## Product Framing and Integration Surfaces
-
-The current strongest honest framing is:
-
-- evaluation-ready for serious internal review
-- GPU timing measured: RTX 4080 SUPER at 160×96 (0.29 ms dispatch) and 854×480 via DAVIS/Sintel (3.5 ms dispatch). Engine-integrated GPU profiling pending real engine capture.
-- not yet backed by external engine validation
-- suitable for diligence conversations because the weak points are surfaced, not hidden
-
-## Scope Boundary
-
-This crate is intentionally self-contained. All code, docs, metrics, reports, and generated outputs needed for the artifact live under `crates/dsfb-computer-graphics`.
+- [`docs/EVIDENCE_WORKFLOW.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/EVIDENCE_WORKFLOW.md)
+- [`docs/FAILURE_MODES.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/FAILURE_MODES.md)
+- [`docs/REPRODUCIBILITY.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/REPRODUCIBILITY.md)

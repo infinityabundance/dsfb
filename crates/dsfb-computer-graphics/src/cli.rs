@@ -18,6 +18,7 @@ use crate::pipeline::{
     run_resolution_scaling_only, run_sensitivity_only, run_timing_only, validate_artifact_bundle,
     validate_engine_native_gates, validate_final_bundle,
 };
+use crate::unreal_native::run_unreal_native;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -136,6 +137,16 @@ pub enum Command {
         manifest: PathBuf,
         #[arg(long, default_value = "generated/engine_native")]
         output: PathBuf,
+    },
+    /// Run the strict Unreal-native empirical replay path on a real Unreal capture bundle.
+    /// This mode refuses pending, proxy-labeled, or synthetic manifests.
+    RunUnrealNative {
+        #[arg(long)]
+        manifest: PathBuf,
+        #[arg(long, default_value = "generated/unreal_native_runs")]
+        output: PathBuf,
+        #[arg(long)]
+        run_name: Option<String>,
     },
     /// Confirm one mixed-regime case (aliasing + variance co-active in same ROI).
     /// Uses internal synthetic scenario data; engine-native confirmation remains pending.
@@ -304,6 +315,44 @@ pub fn run(cli: Cli) -> Result<()> {
             println!("Demo B: {}", artifacts.demo_b_report_path.display());
             println!("validation: {}", artifacts.validation_report_path.display());
             println!("ENGINE_NATIVE_CAPTURE_MISSING={}", artifacts.capture_missing);
+        }
+        Command::RunUnrealNative {
+            manifest,
+            output,
+            run_name,
+        } => {
+            let cli_args = std::env::args().collect::<Vec<_>>();
+            let artifacts = run_unreal_native(
+                &config,
+                &manifest,
+                &output,
+                run_name.as_deref(),
+                &cli_args,
+            )?;
+            println!("run dir: {}", artifacts.run_dir.display());
+            println!(
+                "materialized manifest: {}",
+                artifacts.materialized_manifest_path.display()
+            );
+            println!("summary: {}", artifacts.summary_path.display());
+            println!("metrics csv: {}", artifacts.metrics_csv_path.display());
+            println!("metrics summary: {}", artifacts.metrics_summary_path.display());
+            println!(
+                "comparison summary: {}",
+                artifacts.comparison_summary_path.display()
+            );
+            println!("failure modes: {}", artifacts.failure_modes_path.display());
+            println!("provenance: {}", artifacts.provenance_path.display());
+            println!(
+                "notebook manifest: {}",
+                artifacts.notebook_manifest_path.display()
+            );
+            println!(
+                "executive sheet: {}",
+                artifacts.executive_sheet_path.display()
+            );
+            println!("pdf: {}", artifacts.pdf_path.display());
+            println!("zip: {}", artifacts.zip_path.display());
         }
         Command::ConfirmMixedRegime { output } => {
             let report = confirm_mixed_regime(&config, &output)?;

@@ -1086,6 +1086,15 @@ fn load_color_buffer(
     Ok(frame)
 }
 
+pub(crate) fn load_color_buffer_from_reference(
+    base_dir: &Path,
+    reference: &BufferReference,
+    expected_width: usize,
+    expected_height: usize,
+) -> Result<ImageFrame> {
+    load_color_buffer(base_dir, reference, expected_width, expected_height)
+}
+
 fn load_scalar_buffer(
     base_dir: &Path,
     reference: &BufferReference,
@@ -1112,6 +1121,16 @@ fn load_scalar_buffer(
         expected_height,
     )?;
     Ok(file)
+}
+
+pub(crate) fn load_scalar_buffer_from_reference(
+    base_dir: &Path,
+    reference: &BufferReference,
+    expected_width: usize,
+    expected_height: usize,
+) -> Result<(usize, usize, Vec<f32>)> {
+    let file = load_scalar_buffer(base_dir, reference, expected_width, expected_height)?;
+    Ok((file.width, file.height, file.data))
 }
 
 fn load_vec2_buffer(
@@ -1142,6 +1161,16 @@ fn load_vec2_buffer(
     Ok(file)
 }
 
+pub(crate) fn load_vec2_buffer_from_reference(
+    base_dir: &Path,
+    reference: &BufferReference,
+    expected_width: usize,
+    expected_height: usize,
+) -> Result<(usize, usize, Vec<[f32; 2]>)> {
+    let file = load_vec2_buffer(base_dir, reference, expected_width, expected_height)?;
+    Ok((file.width, file.height, file.data))
+}
+
 fn load_vec3_buffer(
     base_dir: &Path,
     reference: &BufferReference,
@@ -1170,6 +1199,16 @@ fn load_vec3_buffer(
     Ok(file)
 }
 
+pub(crate) fn load_vec3_buffer_from_reference(
+    base_dir: &Path,
+    reference: &BufferReference,
+    expected_width: usize,
+    expected_height: usize,
+) -> Result<(usize, usize, Vec<[f32; 3]>)> {
+    let file = load_vec3_buffer(base_dir, reference, expected_width, expected_height)?;
+    Ok((file.width, file.height, file.data))
+}
+
 fn load_bool_buffer(
     base_dir: &Path,
     reference: &BufferReference,
@@ -1195,6 +1234,16 @@ fn load_bool_buffer(
         expected_height,
     )?;
     Ok(file)
+}
+
+pub(crate) fn load_bool_buffer_from_reference(
+    base_dir: &Path,
+    reference: &BufferReference,
+    expected_width: usize,
+    expected_height: usize,
+) -> Result<(usize, usize, Vec<bool>)> {
+    let file = load_bool_buffer(base_dir, reference, expected_width, expected_height)?;
+    Ok((file.width, file.height, file.data))
 }
 
 fn validate_buffer_extent(
