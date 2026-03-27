@@ -22,14 +22,16 @@ The residual-based signal indicates the degradation transition earlier than the 
 ### Observed result (B0005)
 
 | Metric                     | Cycle |
-|--------------------------|-------|
-| DSFB signal trigger       | X     |
-| 85% capacity threshold    | Y     |
-| End-of-life (80%)         | Z     |
-| Lead vs threshold         | Δ₁    |
-| Lead vs EOL               | Δ₂    |
+|--------------------------|------:|
+| DSFB signal trigger       |    38 |
+| 85% capacity threshold    |    79 |
+| End-of-life (80%)         |   101 |
+| Lead vs threshold         |    41 |
+| Lead vs EOL               |    63 |
 
-*Observed on B0005; no generalization claimed.*
+*Observed on NASA PCoE B0005; no generalization claimed.*  
+*Reproducible using this crate and the provided Colab notebook (deterministic replay).*
+The DSFB signal reflects a change in residual structure and should be interpreted as an early indication of transition, not a direct estimate of capacity or remaining useful life.
 
 ## How it works (brief)
 Computes residual-like quantities from battery signals
