@@ -54,7 +54,7 @@ On the NASA PCoE B0005 dataset:
 ### How to reproduce
 Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
 
-Notebook: notebooks/phase2_battery_validation.ipynb
+Notebook: notebooks/dsfb_battery_demo.ipynb
 
 Run: 
 ```bash
