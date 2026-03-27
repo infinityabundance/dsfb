@@ -36,7 +36,7 @@ The residual-based signal indicates the transition region earlier than the thres
 The DSFB signal reflects a change in residual structure and should be interpreted as an early indication of transition, not a direct estimate of capacity or remaining useful life.
 
 ### How it works (brief)
-Computes residual-like quantities from battery signals
+Computes residual quantities derived from battery signals
 Extracts local drift and slew structure
 Detects transitions in signal behavior
 
