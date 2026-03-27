@@ -58,6 +58,17 @@ The signal remains elevated over multiple cycles rather than appearing as a tran
 
 ---
 
+### Interface Requirements
+
+- Input: stream of scalar health signals (C_k, r_k, or equivalent)
+- Output: grammar state, reason code, audit trace
+- Protocol independent (CAN / Modbus / wireless)
+- No cloud required
+- No retraining required
+
+
+---
+
 ### How to reproduce
 - **Colab (recommended):**  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
 
