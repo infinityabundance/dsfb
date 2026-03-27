@@ -36,6 +36,8 @@ On the NASA PCoE B0005 dataset:
 
 ![Detection comparison (DSFB vs threshold)](assets/fig07_detection_comparison.png)
 
+*Figure 07 - Detection comparison (DSFB vs 85% threshold baseline)*
+
 The signal remains elevated over multiple cycles rather than appearing as a transient spike.
 
 >The DSFB signal reflects a change in residual structure and should be interpreted as an early indication of transition, not a direct estimate of capacity or remaining useful life.
