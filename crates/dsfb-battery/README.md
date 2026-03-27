@@ -41,7 +41,7 @@ The signal remains elevated over multiple cycles rather than appearing as a tran
 ### How it works (brief)
 - Computes residual quantities derived from battery signals  
 - Extracts local drift and slew patterns  
-- Detects transitions in signal behavior  
+- Identifies sustained changes in signal behavior   
 
 ---
 
