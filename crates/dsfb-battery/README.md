@@ -59,7 +59,7 @@ The signal remains elevated over multiple cycles rather than appearing as a tran
 ---
 
 ### How to reproduce
-Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
+- **Colab (recommended):**  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
 
 Notebook: notebooks/dsfb_battery_demo.ipynb
 
