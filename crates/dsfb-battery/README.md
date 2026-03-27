@@ -1,5 +1,5 @@
 # Deterministic Residual-Based Early Indication of Battery Degradation
-## DSFB Battery Health Monitoring
+### DSFB Battery Health Monitoring
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
 
@@ -7,7 +7,7 @@
 
 ### (NASA PCoE B0005 Evaluation)
 
-## What this shows
+### What this shows
 
 This repository evaluates a deterministic residual-based signal for indicating battery degradation transitions.
 
@@ -33,12 +33,12 @@ The residual-based signal indicates the transition region earlier than the thres
 *Reproducible using this crate and the provided Colab notebook (deterministic replay).*
 The DSFB signal reflects a change in residual structure and should be interpreted as an early indication of transition, not a direct estimate of capacity or remaining useful life.
 
-## How it works (brief)
+### How it works (brief)
 Computes residual-like quantities from battery signals
 Extracts local drift and slew structure
 Detects transitions in signal behavior
 
-## Key properties:
+### Key properties:
 
 deterministic (replayable)
 read-only (non-interfering)
