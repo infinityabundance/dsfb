@@ -67,10 +67,11 @@ The signal remains elevated over multiple cycles rather than appearing as a tran
 - No retraining required
 
 ---
+```
 [DSFB_STATUS]: BOUNDARY
 [REASON_CODE]: AcceleratingFadeKnee
 [EVIDENCE]: Slew (s_k) exceeded threshold for 8 consecutive cycles.
-
+```
 ---
 
 ### How to reproduce
