@@ -47,6 +47,7 @@ The signal remains elevated over multiple cycles rather than appearing as a tran
 - Extracts local drift and slew patterns  
 - Identifies sustained changes in signal behavior   
 
+*This operates as a read-only supervisory layer on top of existing signals.*
 ---
 
 ### Key properties:
