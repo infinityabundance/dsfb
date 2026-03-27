@@ -13,13 +13,13 @@
 
 This repository evaluates a deterministic residual-based signal for indicating battery degradation transitions.
 
-### On the NASA PCoE B0005 dataset:
+On the NASA PCoE B0005 dataset:
 
-A residual-derived signal is computed from observed battery behavior
-A simple capacity threshold (85%) is used as a baseline
-End-of-life (80%) is used as a reference
+- A residual-derived signal is computed from observed battery behavior  
+- A simple capacity threshold (85%) is used as a baseline  
+- End-of-life (80%) is used as a reference  
 
-The residual-based signal indicates the transition region earlier than the threshold baseline in this case.
+> The residual-based signal indicates the **transition region earlier than the threshold baseline in this case**.
 
 ### Observed result (B0005)
 
@@ -33,26 +33,34 @@ The residual-based signal indicates the transition region earlier than the thres
 
 *Observed on NASA PCoE B0005; no generalization claimed.*  
 *Reproducible using this crate and the provided Colab notebook (deterministic replay).*
-The DSFB signal reflects a change in residual structure and should be interpreted as an early indication of transition, not a direct estimate of capacity or remaining useful life.
 
+The DSFB signal reflects a change in residual structure and should be interpreted as an early indication of transition, not a direct estimate of capacity or remaining useful life.
+---
 ### How it works (brief)
-Computes residual quantities derived from battery signals
-Extracts local drift and slew structure
-Detects transitions in signal behavior
+- Computes residual quantities derived from battery signals  
+- Extracts local drift and slew patterns  
+- Detects transitions in signal behavior  
+
+---
 
 ### Key properties:
 
-deterministic (replayable)
-read-only (non-interfering)
-does not replace existing BMS or estimators
-How to reproduce
+- Deterministic (replayable)  
+- Read-only (non-interfering)  
+- Does not replace existing BMS or estimators
+
+---
+
+### How to reproduce
 Colab: [link]
 Notebook: notebooks/phase2_battery_validation.ipynb
 Run: cargo run --release
-Scope
-Single-cell evaluation (B0005)
-Offline analysis
-Demonstration of behavior, not general proof
+---
+### Scope
+- Single-cell evaluation (B0005)
+- Offline analysis
+- Demonstration of behavior, not general proof
+
 A standalone Rust crate implementing the DSFB (Drift–Slew Fusion Bootstrap) structural semiotics engine for battery health monitoring. The crate interprets capacity fade, resistance drift, and knee-onset acceleration in lithium-ion battery data as structured diagnostic signs, producing typed early-warning signals with deterministic auditability. It operates as an interpretive augmentation layer over existing BMS estimation pipelines — it does not replace probabilistic estimators or physics-based models.
 
 ---
