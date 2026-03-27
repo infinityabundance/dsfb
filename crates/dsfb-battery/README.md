@@ -53,6 +53,8 @@ Offline analysis
 Demonstration of behavior, not general proof
 A standalone Rust crate implementing the DSFB (Drift–Slew Fusion Bootstrap) structural semiotics engine for battery health monitoring. The crate interprets capacity fade, resistance drift, and knee-onset acceleration in lithium-ion battery data as structured diagnostic signs, producing typed early-warning signals with deterministic auditability. It operates as an interpretive augmentation layer over existing BMS estimation pipelines — it does not replace probabilistic estimators or physics-based models.
 
+---
+
 ## Formal framework and traceability to the paper
 
 ### Mathematical Specification
