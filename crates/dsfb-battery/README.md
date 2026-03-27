@@ -17,7 +17,7 @@ A residual-derived signal is computed from observed battery behavior
 A simple capacity threshold (85%) is used as a baseline
 End-of-life (80%) is used as a reference
 
-The residual-based signal indicates the degradation transition earlier than the threshold baseline in this case.
+The residual-based signal indicates the transition region earlier than the threshold baseline in this case.
 
 ### Observed result (B0005)
 
