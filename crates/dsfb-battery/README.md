@@ -56,8 +56,9 @@ Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.sv
 
 Notebook: notebooks/phase2_battery_validation.ipynb
 
+Run: 
 ```bash
-Run: cargo run --release
+cargo run --release
 ```
 ---
 
