@@ -1,8 +1,56 @@
-# DSFB Battery Health Monitoring
+# Deterministic Residual-Based Early Indication of Battery Degradation
+## DSFB Battery Health Monitoring
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
 
+
+
+### (NASA PCoE B0005 Evaluation)
+
+## What this shows
+
+This repository evaluates a deterministic residual-based signal for indicating battery degradation transitions.
+
+### On the NASA PCoE B0005 dataset:
+
+A residual-derived signal is computed from observed battery behavior
+A simple capacity threshold (85%) is used as a baseline
+End-of-life (80%) is used as a reference
+
+The residual-based signal indicates the degradation transition earlier than the threshold baseline in this case.
+
+### Observed result (B0005)
+
+| Metric                     | Cycle |
+|--------------------------|-------|
+| DSFB signal trigger       | X     |
+| 85% capacity threshold    | Y     |
+| End-of-life (80%)         | Z     |
+| Lead vs threshold         | Δ₁    |
+| Lead vs EOL               | Δ₂    |
+
+*Observed on B0005; no generalization claimed.*
+
+## How it works (brief)
+Computes residual-like quantities from battery signals
+Extracts local drift and slew structure
+Detects transitions in signal behavior
+
+## Key properties:
+
+deterministic (replayable)
+read-only (non-interfering)
+does not replace existing BMS or estimators
+How to reproduce
+Colab: [link]
+Notebook: notebooks/phase2_battery_validation.ipynb
+Run: cargo run --release
+Scope
+Single-cell evaluation (B0005)
+Offline analysis
+Demonstration of behavior, not general proof
 A standalone Rust crate implementing the DSFB (Drift–Slew Fusion Bootstrap) structural semiotics engine for battery health monitoring. The crate interprets capacity fade, resistance drift, and knee-onset acceleration in lithium-ion battery data as structured diagnostic signs, producing typed early-warning signals with deterministic auditability. It operates as an interpretive augmentation layer over existing BMS estimation pipelines — it does not replace probabilistic estimators or physics-based models.
+
 
 ## Mathematical Specification
 
