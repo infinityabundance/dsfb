@@ -1,11 +1,13 @@
 # Deterministic Residual-Based Early Indication of Battery Degradation
 ### DSFB Battery Health Monitoring
+---
+### (NASA PCoE B0005 Evaluation)
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
 
 
 
-### (NASA PCoE B0005 Evaluation)
+
 
 ### What this shows
 
