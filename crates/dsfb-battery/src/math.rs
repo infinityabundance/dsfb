@@ -7,6 +7,8 @@
 //   "DSFB Structural Semiotics Engine for Battery Health Monitoring"
 //   by Riaan de Beer, Version 1.0.
 
+use alloc::vec;
+use alloc::vec::Vec;
 use crate::types::EnvelopeParams;
 use thiserror::Error;
 
@@ -106,8 +108,7 @@ pub fn compute_envelope(healthy_data: &[f64]) -> Result<EnvelopeParams, MathErro
     let mu: f64 = healthy_data.iter().sum::<f64>() / n as f64;
 
     // σ_y^(0) = sqrt( (1/(N_0−1)) Σ (y_k − μ)² )
-    let variance: f64 =
-        healthy_data.iter().map(|y| (y - mu).powi(2)).sum::<f64>() / (n - 1) as f64;
+    let variance: f64 = healthy_data.iter().map(|y| (y - mu).powi(2)).sum::<f64>() / (n - 1) as f64;
     let sigma = variance.sqrt();
 
     if sigma < f64::EPSILON {
@@ -163,7 +164,10 @@ pub fn theorem1_exit_bound(
 ///
 /// Returns a vector of residuals with the same length as `capacities`.
 pub fn compute_all_residuals(capacities: &[f64], nominal: f64) -> Vec<f64> {
-    capacities.iter().map(|c| compute_residual(*c, nominal)).collect()
+    capacities
+        .iter()
+        .map(|c| compute_residual(*c, nominal))
+        .collect()
 }
 
 /// Compute all drifts from a residual sequence.

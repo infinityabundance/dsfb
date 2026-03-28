@@ -4,9 +4,10 @@
 // Narrow FFI helper for conservative C integration.
 
 use crate::detection::{
-    build_dsfb_detection, build_threshold_detection, run_dsfb_pipeline, verify_theorem1,
+    assign_reason_code, build_dsfb_detection, build_threshold_detection, run_dsfb_pipeline,
+    verify_theorem1,
 };
-use crate::types::{GrammarState, PipelineConfig};
+use crate::types::{GrammarState, PipelineConfig, SignTuple};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -30,6 +31,16 @@ pub struct DsfbBatterySummary {
     pub first_boundary_cycle: usize,
     pub first_violation_cycle: usize,
     pub t_star: usize,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DsfbBatteryStepStatus {
+    pub state_code: i32,
+    pub color_code: i32,
+    pub reason_code: i32,
+    pub advisory_only: i32,
+    pub valid: i32,
 }
 
 impl From<DsfbBatteryConfig> for PipelineConfig {
@@ -94,6 +105,50 @@ pub extern "C" fn dsfb_battery_evaluate_grammar_state(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn dsfb_battery_evaluate_step_status(
+    residual: f64,
+    envelope_rho: f64,
+    drift: f64,
+    slew: f64,
+    drift_counter: usize,
+    slew_counter: usize,
+    config: DsfbBatteryConfig,
+) -> DsfbBatteryStepStatus {
+    let config: PipelineConfig = config.into();
+    let state = crate::detection::evaluate_grammar_state(
+        residual,
+        &crate::types::EnvelopeParams {
+            mu: 0.0,
+            sigma: envelope_rho / 3.0,
+            rho: envelope_rho,
+        },
+        drift,
+        slew,
+        drift_counter,
+        slew_counter,
+        &config,
+    );
+    let reason_code = assign_reason_code(
+        &SignTuple {
+            r: residual,
+            d: drift,
+            s: slew,
+        },
+        state,
+        drift_counter,
+        slew_counter,
+        &config,
+    );
+    DsfbBatteryStepStatus {
+        state_code: grammar_state_code(state),
+        color_code: state_color_code(state),
+        reason_code: reason_code_numeric(reason_code),
+        advisory_only: 1,
+        valid: 1,
+    }
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn dsfb_battery_run_capacity_summary(
     capacities_ptr: *const f64,
     len: usize,
@@ -104,7 +159,7 @@ pub unsafe extern "C" fn dsfb_battery_run_capacity_summary(
         return -1;
     }
 
-    let capacities = unsafe { std::slice::from_raw_parts(capacities_ptr, len) };
+    let capacities = unsafe { core::slice::from_raw_parts(capacities_ptr, len) };
     let config: PipelineConfig = config.into();
     let Ok((envelope, trajectory)) = run_dsfb_pipeline(capacities, &config) else {
         return -2;
@@ -133,6 +188,36 @@ pub unsafe extern "C" fn dsfb_battery_run_capacity_summary(
         *out_summary = summary;
     }
     0
+}
+
+fn grammar_state_code(state: GrammarState) -> i32 {
+    match state {
+        GrammarState::Admissible => 0,
+        GrammarState::Boundary => 1,
+        GrammarState::Violation => 2,
+    }
+}
+
+fn state_color_code(state: GrammarState) -> i32 {
+    match state {
+        GrammarState::Admissible => 0,
+        GrammarState::Boundary => 1,
+        GrammarState::Violation => 2,
+    }
+}
+
+fn reason_code_numeric(reason_code: Option<crate::types::ReasonCode>) -> i32 {
+    match reason_code {
+        None => -1,
+        Some(crate::types::ReasonCode::SustainedCapacityFade) => 0,
+        Some(crate::types::ReasonCode::AbruptResistanceSpike) => 1,
+        Some(crate::types::ReasonCode::RecurrentVoltageGrazing) => 2,
+        Some(crate::types::ReasonCode::ThermalDriftCoupling) => 3,
+        Some(crate::types::ReasonCode::PackImbalanceExpansion) => 4,
+        Some(crate::types::ReasonCode::AcceleratingFadeKnee) => 5,
+        Some(crate::types::ReasonCode::PossibleLithiumPlatingSignature) => 6,
+        Some(crate::types::ReasonCode::TransientThermalExcursionNotPersistent) => 7,
+    }
 }
 
 #[cfg(test)]
@@ -170,5 +255,24 @@ mod tests {
         };
         assert_eq!(code, 0);
         assert!(summary.t_star > 0);
+    }
+
+    #[test]
+    fn ffi_step_status_returns_color_and_reason() {
+        let config = DsfbBatteryConfig {
+            healthy_window: 3,
+            drift_window: 1,
+            drift_persistence: 1,
+            slew_persistence: 1,
+            drift_threshold: 0.002,
+            slew_threshold: 0.001,
+            eol_fraction: 0.80,
+            boundary_fraction: 0.80,
+        };
+        let status = dsfb_battery_evaluate_step_status(0.06, 0.05, -0.003, -0.002, 1, 1, config);
+        assert_eq!(status.valid, 1);
+        assert_eq!(status.advisory_only, 1);
+        assert!(status.state_code == 1 || status.state_code == 2);
+        assert!(status.color_code >= 0);
     }
 }

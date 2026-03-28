@@ -7,8 +7,9 @@
 //   "DSFB Structural Semiotics Engine for Battery Health Monitoring"
 //   by Riaan de Beer, Version 1.0.
 
+use alloc::string::String;
+use core::fmt;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 // ---------------------------------------------------------------------------
 // Definition 1 (Paper): Residual Sign Tuple
