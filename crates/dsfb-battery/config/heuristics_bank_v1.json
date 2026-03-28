@@ -1,0 +1,24 @@
+{
+  "artifact_type": "dsfb_battery_heuristics_bank",
+  "schema_version": "1.0.0",
+  "bank_version": "1.0.0",
+  "frozen": true,
+  "entries": [
+    {
+      "entry_id": "HB-001",
+      "pattern": "Capacity residual becomes persistently negative with low-curvature monotone fade.",
+      "regime_scope": "Single-cell, capacity-only, cycle-aging traces under fixed interpretation thresholds.",
+      "admissibility_assumptions": "Capacity channel available; no claim of mechanism uniqueness; production path remains read-only and advisory.",
+      "interpretation": "SustainedCapacityFade",
+      "uncertainty_notes": "Illustrative heuristic only; transfer across chemistries or observers is not claimed here."
+    },
+    {
+      "entry_id": "HB-002",
+      "pattern": "Capacity drift remains outward while negative slew persists long enough to satisfy the acceleration rule.",
+      "regime_scope": "Single-cell, capacity-only helper narratives under the current drift and slew persistence settings.",
+      "admissibility_assumptions": "Acceleration message is structural and rule-based rather than a mechanism identification claim.",
+      "interpretation": "AcceleratingFadeKnee",
+      "uncertainty_notes": "This entry does not identify lithium plating or any unique physical cause."
+    }
+  ]
+}

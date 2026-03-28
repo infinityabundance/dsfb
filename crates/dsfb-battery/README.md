@@ -260,6 +260,12 @@ The current emitted interface contract declares `read_only`, `protocol_independe
 
 A local JSON Schema for this contract is provided at `schemas/dsfb_battery_audit_trace.schema.json`. Crate-local manuscript-safe wording notes are provided in `docs/paper_wording_alignment.md`.
 
+## Engineer-Facing Helper Extensions
+
+Additional helper binaries are available for opt-in engineering work such as sensitivity analysis, noise robustness checks, comparison baselines, heuristics-bank verification, and integration scaffolding. These helpers write only under `outputs/engineer_extensions/...` and do not change the default `dsfb-battery-demo` path, existing mono-cell figures, or the production Stage II JSON contract.
+
+The frozen heuristics bank is stored at `config/heuristics_bank_v1.json` with a tracked SHA-256 sidecar, the narrow C header for the optional static library is at `include/dsfb_battery_ffi.h`, and the additive integration/FFI notes are collected in `docs/engineer_extensions.md`.
+
 ## Build and Run
 
 ```bash

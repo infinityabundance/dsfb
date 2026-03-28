@@ -14,6 +14,9 @@ categories = ["science", "algorithms"]
 include = [
     "src/**",
     "schemas/**",
+    "config/**",
+    "docs/**",
+    "include/**",
     "Cargo.toml",
     "README.md",
 ]
@@ -34,6 +37,7 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 [lib]
 name = "dsfb_battery"
 path = "src/lib.rs"
+crate-type = ["rlib", "staticlib"]
 
 [[bin]]
 name = "dsfb-battery-demo"
@@ -46,3 +50,23 @@ path = "src/bin/dsfb_battery_multicell.rs"
 [[bin]]
 name = "dsfb-battery-ablation"
 path = "src/bin/dsfb_battery_ablation.rs"
+
+[[bin]]
+name = "dsfb-battery-sensitivity"
+path = "src/bin/dsfb_battery_sensitivity.rs"
+
+[[bin]]
+name = "dsfb-battery-noise-robustness"
+path = "src/bin/dsfb_battery_noise_robustness.rs"
+
+[[bin]]
+name = "dsfb-battery-sota-compare"
+path = "src/bin/dsfb_battery_sota_compare.rs"
+
+[[bin]]
+name = "dsfb-battery-engineer"
+path = "src/bin/dsfb_battery_engineer.rs"
+
+[[bin]]
+name = "dsfb-battery-verify-heuristics"
+path = "src/bin/dsfb_battery_verify_heuristics.rs"
