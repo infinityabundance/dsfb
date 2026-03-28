@@ -1,0 +1,41 @@
+{
+  "schema_label": "dsfb_battery_mosa_component_map_v1",
+  "components": [
+    {
+      "name": "signal_ingestion",
+      "paths": ["src/lib.rs", "src/integration.rs"],
+      "replaceable": true,
+      "notes": "Capacity CSV input and external residual handoff are separate from the core grammar engine."
+    },
+    {
+      "name": "residual_processing",
+      "paths": ["src/math.rs"],
+      "replaceable": true,
+      "notes": "Residual, drift, slew, and envelope computation are isolated in the math module."
+    },
+    {
+      "name": "grammar_engine",
+      "paths": ["src/detection.rs", "src/types.rs"],
+      "replaceable": true,
+      "notes": "State evaluation and reason-code assignment remain deterministic and separable."
+    },
+    {
+      "name": "heuristics_bank",
+      "paths": ["config/heuristics_bank_v1.json", "src/heuristics.rs"],
+      "replaceable": true,
+      "notes": "The heuristics bank is versioned and independently hash-verifiable."
+    },
+    {
+      "name": "artifact_reporting",
+      "paths": ["src/audit.rs", "src/export.rs", "src/plotting.rs"],
+      "replaceable": true,
+      "notes": "Reporting and figure generation are host-side and std-only."
+    },
+    {
+      "name": "integration_wrappers",
+      "paths": ["src/ffi.rs", "include/dsfb_battery_ffi.h", "wrappers/plc/structured_text.st", "wrappers/matlab/dsfb_battery_sfun_stub.c"],
+      "replaceable": true,
+      "notes": "Wrapper paths are additive and transport-agnostic."
+    }
+  ]
+}

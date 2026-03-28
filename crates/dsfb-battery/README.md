@@ -266,6 +266,20 @@ Additional helper binaries are available for opt-in engineering work such as sen
 
 The frozen heuristics bank is stored at `config/heuristics_bank_v1.json` with a tracked SHA-256 sidecar, the narrow C header for the optional static library is at `include/dsfb_battery_ffi.h`, and the additive integration/FFI notes are collected in `docs/engineer_extensions.md`.
 
+## Core Engine `no_std` Path
+
+The crate is not presented as fully `no_std`. The demo, benchmarking, CSV loading, JSON/file export, plotting, figure generation, and other host-side reporting paths remain `std`-based.
+
+The separable core interpretive engine now has a conservative `no_std + alloc` build path covering `src/types.rs`, `src/math.rs`, `src/detection.rs`, and the narrow `src/ffi.rs` wrapper. This allows the deterministic residual/drift/slew calculations, grammar-state evaluation, persistence logic, and theorem-summary computation to be compiled independently of the host-side artifact stack when `alloc` is available.
+
+The intended core-only check is:
+
+```bash
+cargo check --lib --no-default-features --features alloc
+```
+
+Default users do not need to change anything. The existing `std`-based binaries and production output paths remain the default build and run path.
+
 ## Build and Run
 
 ```bash

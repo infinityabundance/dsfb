@@ -7,6 +7,10 @@
 // transitions (Proposition 3), reason code assignment (Section 5),
 // full pipeline execution, and threshold-baseline comparison.
 
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::cmp::Ordering;
 use crate::math::{compute_all_drifts, compute_all_residuals, compute_all_slews, compute_envelope};
 use crate::types::{
     BatteryResidual, DetectionResult, EnvelopeParams, GrammarState, PipelineConfig, ReasonCode,
@@ -59,8 +63,8 @@ pub fn evaluate_grammar_state(
     //  2. Persistent outward drift (Proposition 3: L_d consecutive cycles)
     //  3. Persistent slew with persistent drift (acceleration, Proposition 3)
     let near_boundary = abs_r > config.boundary_fraction * envelope.rho;
-    let persistent_drift = drift.abs() > config.drift_threshold
-        && drift_persist_count >= config.drift_persistence;
+    let persistent_drift =
+        drift.abs() > config.drift_threshold && drift_persist_count >= config.drift_persistence;
     let persistent_slew_and_drift = slew_persist_count >= config.slew_persistence
         && drift_persist_count >= config.drift_persistence;
 
@@ -69,6 +73,19 @@ pub fn evaluate_grammar_state(
     }
 
     GrammarState::Admissible
+}
+
+/// Compute the next persistence counter value for a boolean threshold condition.
+///
+/// This helper exists for addendum proof harnesses and wrapper layers. It
+/// mirrors the current pipeline rule used in the batch evaluator:
+/// increment while the threshold condition remains true, otherwise reset.
+pub fn next_persistence_count(current: usize, threshold_condition_met: bool) -> usize {
+    if threshold_condition_met {
+        current + 1
+    } else {
+        0
+    }
 }
 
 /// Assign a typed reason code based on sign tuple and grammar state.
@@ -102,9 +119,7 @@ pub fn assign_reason_code(
     }
 
     // SustainedCapacityFade: persistent drift without acceleration
-    if drift_persist_count >= config.drift_persistence
-        && sign.d.abs() > config.drift_threshold
-    {
+    if drift_persist_count >= config.drift_persistence && sign.d.abs() > config.drift_threshold {
         return Some(ReasonCode::SustainedCapacityFade);
     }
 
@@ -263,7 +278,11 @@ pub fn detect_threshold_alarm(capacities: &[f64], threshold_fraction: f64) -> Op
 }
 
 /// Build a DetectionResult for DSFB alarm.
-pub fn build_dsfb_detection(trajectory: &[BatteryResidual], capacities: &[f64], eol_capacity: f64) -> DetectionResult {
+pub fn build_dsfb_detection(
+    trajectory: &[BatteryResidual],
+    capacities: &[f64],
+    eol_capacity: f64,
+) -> DetectionResult {
     let alarm = detect_dsfb_alarm(trajectory);
     let eol = detect_eol(capacities, eol_capacity);
     let lead = match (alarm, eol) {
@@ -271,7 +290,7 @@ pub fn build_dsfb_detection(trajectory: &[BatteryResidual], capacities: &[f64], 
         _ => None,
     };
     DetectionResult {
-        method: "DSFB Structural Alarm".to_string(),
+        method: String::from("DSFB Structural Alarm"),
         alarm_cycle: alarm,
         eol_cycle: eol,
         lead_time_cycles: lead,
@@ -327,7 +346,7 @@ pub fn verify_theorem1(
         .map(|br| br.sign.d.abs())
         .collect();
 
-    outward_drifts.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    outward_drifts.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
 
     let alpha = if outward_drifts.is_empty() {
         0.0

@@ -26,6 +26,14 @@ typedef struct {
   size_t t_star;
 } DsfbBatterySummary;
 
+typedef struct {
+  int32_t state_code;   /* 0 = Admissible, 1 = Boundary, 2 = Violation */
+  int32_t color_code;   /* 0 = Green, 1 = Yellow, 2 = Red */
+  int32_t reason_code;  /* -1 = none, see Rust enum mapping in docs/addendum/ffi_integration.md */
+  int32_t advisory_only;
+  int32_t valid;
+} DsfbBatteryStepStatus;
+
 DsfbBatteryConfig dsfb_battery_default_config(void);
 int32_t dsfb_battery_evaluate_grammar_state(
     double residual,
@@ -40,6 +48,13 @@ int32_t dsfb_battery_run_capacity_summary(
     size_t len,
     DsfbBatteryConfig config,
     DsfbBatterySummary *out_summary);
+DsfbBatteryStepStatus dsfb_battery_evaluate_step_status(
+    double residual,
+    double envelope_rho,
+    double drift,
+    double slew,
+    size_t drift_counter,
+    size_t slew_counter,
+    DsfbBatteryConfig config);
 
 #endif
-
