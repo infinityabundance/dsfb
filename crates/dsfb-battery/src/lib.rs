@@ -17,22 +17,30 @@
 //   - Detection comparison: DSFB structural alarm vs threshold baseline
 //   - CSV/JSON artifact export
 
+pub mod audit;
 pub mod detection;
 pub mod export;
 pub mod math;
 pub mod plotting;
 pub mod types;
 
+pub use audit::{
+    build_stage2_audit_trace, ArtifactManifest, AuditEvent, AuditTraceBuildContext,
+    BenchmarkConfiguration, DatasetDescriptor, FailureModeObservation, InterfaceContract,
+    OutputContract, RunMetadata, Stage2AuditTraceArtifact, SummaryOutcome,
+};
 pub use detection::{
     build_dsfb_detection, build_threshold_detection, detect_dsfb_alarm, detect_eol,
     detect_threshold_alarm, run_dsfb_pipeline, verify_theorem1,
 };
-pub use export::{export_results_json, export_trajectory_csv, export_zip, Stage2Results};
-pub use plotting::{generate_all_figures, FigureContext};
+pub use export::{
+    export_audit_trace_json, export_results_json, export_trajectory_csv, export_zip, Stage2Results,
+};
 pub use math::{
     compute_all_drifts, compute_all_residuals, compute_all_slews, compute_drift, compute_envelope,
     compute_residual, compute_slew, theorem1_exit_bound,
 };
+pub use plotting::{generate_all_figures, FigureContext};
 pub use types::{
     BatteryResidual, DetectionResult, EnvelopeParams, GrammarState, HeuristicBankEntry,
     PipelineConfig, ReasonCode, SignTuple, Theorem1Result,
@@ -49,14 +57,8 @@ pub fn load_b0005_csv(
     let mut data = Vec::new();
     for result in reader.records() {
         let record = result?;
-        let cycle: usize = record
-            .get(0)
-            .ok_or("missing cycle column")?
-            .parse()?;
-        let capacity: f64 = record
-            .get(1)
-            .ok_or("missing capacity_ah column")?
-            .parse()?;
+        let cycle: usize = record.get(0).ok_or("missing cycle column")?.parse()?;
+        let capacity: f64 = record.get(1).ok_or("missing capacity_ah column")?.parse()?;
         data.push((cycle, capacity));
     }
     Ok(data)
