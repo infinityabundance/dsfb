@@ -38,3 +38,11 @@ path = "src/lib.rs"
 [[bin]]
 name = "dsfb-battery-demo"
 path = "src/bin/dsfb_battery_demo.rs"
+
+[[bin]]
+name = "dsfb-battery-multicell"
+path = "src/bin/dsfb_battery_multicell.rs"
+
+[[bin]]
+name = "dsfb-battery-ablation"
+path = "src/bin/dsfb_battery_ablation.rs"
