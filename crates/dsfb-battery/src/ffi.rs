@@ -209,6 +209,7 @@ fn state_color_code(state: GrammarState) -> i32 {
 fn reason_code_numeric(reason_code: Option<crate::types::ReasonCode>) -> i32 {
     match reason_code {
         None => -1,
+        Some(crate::types::ReasonCode::InvalidStreamSuppression) => 8,
         Some(crate::types::ReasonCode::SustainedCapacityFade) => 0,
         Some(crate::types::ReasonCode::AbruptResistanceSpike) => 1,
         Some(crate::types::ReasonCode::RecurrentVoltageGrazing) => 2,

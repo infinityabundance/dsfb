@@ -6,6 +6,7 @@
 // Structured, serde-serializable contract for the Stage II JSON artifact.
 
 use crate::export::Stage2Results;
+use crate::detection::classification_is_emitted;
 use crate::types::{BatteryResidual, GrammarState, PipelineConfig, ReasonCode};
 use chrono::Utc;
 use serde::Serialize;
@@ -73,6 +74,8 @@ pub struct InterfaceContract {
     pub requires_model_retraining: bool,
     pub advisory_only: bool,
     pub fail_silent_on_invalid_stream: bool,
+    pub fail_silent_defined: bool,
+    pub fail_silent_enforced: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -146,6 +149,7 @@ pub struct AuditFields {
     pub input_hash: String,
     pub stream_valid: bool,
     pub suppressed_due_to_regime_gate: bool,
+    pub suppressed_due_to_invalid_stream: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -192,6 +196,7 @@ pub struct InvalidStreamGapEvent {
     pub cycle_index_end: usize,
     pub timestamp_utc: Option<String>,
     pub channel: String,
+    pub reason_code: ReasonCode,
     pub explanatory_text: String,
     pub audit_fields: AuditFields,
 }
@@ -340,7 +345,9 @@ pub fn build_stage2_audit_trace(
             requires_cloud_connectivity: false,
             requires_model_retraining: false,
             advisory_only: true,
-            fail_silent_on_invalid_stream: false,
+            fail_silent_on_invalid_stream: true,
+            fail_silent_defined: true,
+            fail_silent_enforced: true,
         },
         benchmark_configuration: BenchmarkConfiguration {
             healthy_window: ctx.results.config.healthy_window,
@@ -460,10 +467,12 @@ fn build_summary_outcome(
 ) -> SummaryOutcome {
     let first_boundary_cycle = trajectory
         .iter()
+        .filter(|sample| classification_is_emitted(sample))
         .find(|sample| sample.grammar_state == GrammarState::Boundary)
         .map(|sample| sample.cycle);
     let first_violation_cycle = trajectory
         .iter()
+        .filter(|sample| classification_is_emitted(sample))
         .find(|sample| sample.grammar_state == GrammarState::Violation)
         .map(|sample| sample.cycle);
     let first_non_admissible_cycle = first_boundary_cycle.or(first_violation_cycle);
@@ -485,11 +494,28 @@ fn build_summary_outcome(
     let primary_reason_code = first_non_admissible_cycle
         .and_then(|cycle| trajectory.iter().find(|sample| sample.cycle == cycle))
         .and_then(|sample| sample.reason_code)
-        .or_else(|| trajectory.iter().find_map(|sample| sample.reason_code));
+        .or_else(|| {
+            trajectory
+                .iter()
+                .filter(|sample| classification_is_emitted(sample))
+                .find_map(|sample| sample.reason_code)
+        });
+
+    let initial_state = trajectory
+        .iter()
+        .find(|sample| classification_is_emitted(sample))
+        .map(|sample| sample.grammar_state)
+        .unwrap_or(GrammarState::Admissible);
+    let final_state = trajectory
+        .iter()
+        .rev()
+        .find(|sample| classification_is_emitted(sample))
+        .map(|sample| sample.grammar_state)
+        .unwrap_or(GrammarState::Admissible);
 
     SummaryOutcome {
-        initial_state: trajectory[0].grammar_state,
-        final_state: trajectory[trajectory.len() - 1].grammar_state,
+        initial_state,
+        final_state,
         first_boundary_cycle,
         first_violation_cycle,
         capacity_85pct_cycle,
@@ -511,14 +537,45 @@ fn build_audit_trace(
     input_hash: &str,
 ) -> Vec<AuditEvent> {
     let mut events = Vec::with_capacity(trajectory.len() * 2 + 1);
+    let mut last_emitted_state = None;
+    let mut invalid_gap_start = None;
+    let mut invalid_gap_end = None;
 
     for (index, sample) in trajectory.iter().enumerate() {
         let support = &supports[index];
+        if !classification_is_emitted(sample) {
+            if invalid_gap_start.is_none() {
+                invalid_gap_start = Some(sample.cycle);
+            }
+            invalid_gap_end = Some(sample.cycle);
+            continue;
+        }
+
+        if let (Some(start), Some(end)) = (invalid_gap_start.take(), invalid_gap_end.take()) {
+            events.push(AuditEvent::InvalidStreamGap(InvalidStreamGapEvent {
+                event_id: format!("evt-{start:06}-invalid-stream-gap"),
+                cycle_index_start: start,
+                cycle_index_end: end,
+                timestamp_utc: None,
+                channel: "capacity".to_string(),
+                reason_code: ReasonCode::InvalidStreamSuppression,
+                explanatory_text: "Classification suppressed because the upstream sample stream or its fixed-window residual/drift/slew terms were invalid for this interval under the fail-silent contract.".to_string(),
+                audit_fields: AuditFields {
+                    config_hash: config_hash.to_string(),
+                    input_hash: input_hash.to_string(),
+                    stream_valid: false,
+                    suppressed_due_to_regime_gate: false,
+                    suppressed_due_to_invalid_stream: true,
+                },
+            }));
+        }
+
         let audit_fields = AuditFields {
             config_hash: config_hash.to_string(),
             input_hash: input_hash.to_string(),
             stream_valid: true,
             suppressed_due_to_regime_gate: false,
+            suppressed_due_to_invalid_stream: false,
         };
 
         events.push(AuditEvent::ClassificationSample(
@@ -538,11 +595,7 @@ fn build_audit_trace(
             },
         ));
 
-        let previous_state = if index == 0 {
-            None
-        } else {
-            Some(trajectory[index - 1].grammar_state)
-        };
+        let previous_state = last_emitted_state;
 
         // Emit a transition whenever the observed per-cycle classification changes.
         // The current stage II artifact records those changes as-is; it does not
@@ -570,10 +623,36 @@ fn build_audit_trace(
                 audit_fields,
             }));
         }
+
+        last_emitted_state = Some(sample.grammar_state);
+    }
+
+    if let (Some(start), Some(end)) = (invalid_gap_start.take(), invalid_gap_end.take()) {
+        events.push(AuditEvent::InvalidStreamGap(InvalidStreamGapEvent {
+            event_id: format!("evt-{start:06}-invalid-stream-gap"),
+            cycle_index_start: start,
+            cycle_index_end: end,
+            timestamp_utc: None,
+            channel: "capacity".to_string(),
+            reason_code: ReasonCode::InvalidStreamSuppression,
+            explanatory_text: "Classification suppressed because the upstream sample stream or its fixed-window residual/drift/slew terms were invalid for this interval under the fail-silent contract.".to_string(),
+            audit_fields: AuditFields {
+                config_hash: config_hash.to_string(),
+                input_hash: input_hash.to_string(),
+                stream_valid: false,
+                suppressed_due_to_regime_gate: false,
+                suppressed_due_to_invalid_stream: true,
+            },
+        }));
     }
 
     let final_cycle = trajectory[trajectory.len() - 1].cycle;
-    let final_classification = trajectory[trajectory.len() - 1].grammar_state;
+    let final_classification = trajectory
+        .iter()
+        .rev()
+        .find(|sample| classification_is_emitted(sample))
+        .map(|sample| sample.grammar_state)
+        .unwrap_or(GrammarState::Admissible);
     events.push(AuditEvent::RunSummaryMarker(RunSummaryMarkerEvent {
         event_id: "evt-run-summary".to_string(),
         cycle_index: final_cycle,
@@ -662,7 +741,10 @@ fn build_failure_mode_observations(trajectory: &[BatteryResidual]) -> Vec<Failur
 
     for sample in trajectory
         .iter()
-        .filter(|sample| sample.reason_code.is_some())
+        .filter(|sample| {
+            sample.reason_code.is_some()
+                && sample.reason_code != Some(ReasonCode::InvalidStreamSuppression)
+        })
     {
         let reason_code = sample.reason_code.unwrap();
         if let Some(existing) = observations
@@ -872,10 +954,9 @@ mod tests {
         assert_eq!(value["artifact_type"], "dsfb_battery_audit_trace");
         assert_eq!(value["run_metadata"]["crate_name"], "dsfb-battery");
         assert_eq!(value["dataset"]["cell_id"], "B0005");
-        assert_eq!(
-            value["interface_contract"]["fail_silent_on_invalid_stream"],
-            false
-        );
+        assert_eq!(value["interface_contract"]["fail_silent_on_invalid_stream"], true);
+        assert_eq!(value["interface_contract"]["fail_silent_defined"], true);
+        assert_eq!(value["interface_contract"]["fail_silent_enforced"], true);
         assert_eq!(
             value["audit_trace"][0]["event_type"],
             "classification_sample"
@@ -995,8 +1076,90 @@ mod tests {
         assert_eq!(return_transition["cycle_index"], 3);
         assert_eq!(return_transition["audit_fields"]["stream_valid"], true);
         assert_eq!(
+            return_transition["audit_fields"]["suppressed_due_to_invalid_stream"],
+            false
+        );
+        assert_eq!(
             return_transition["explanatory_text"],
             "Classification returned to Admissible because the residual was inside the admissibility envelope and no persistence-gated boundary conditions were active under the current stage II capacity interpretation rules."
         );
+    }
+
+    #[test]
+    fn audit_trace_emits_invalid_stream_gap_and_suppresses_classification() {
+        let config = PipelineConfig {
+            healthy_window: 2,
+            drift_window: 1,
+            drift_persistence: 1,
+            slew_persistence: 1,
+            drift_threshold: 0.002,
+            slew_threshold: 0.001,
+            eol_fraction: 0.80,
+            boundary_fraction: 0.80,
+        };
+        let capacities = [2.0, 1.99, 1.95, f64::NAN, 1.93, 1.88, 1.84, 1.80];
+        let raw_input: Vec<(usize, f64)> = capacities
+            .iter()
+            .enumerate()
+            .map(|(index, capacity)| (index + 1, *capacity))
+            .collect();
+        let (envelope, trajectory) = crate::detection::run_dsfb_pipeline(&capacities, &config).unwrap();
+        let eol_capacity = config.eol_fraction * capacities[0];
+        let dsfb_detection = crate::detection::build_dsfb_detection(&trajectory, &capacities, eol_capacity);
+        let threshold_detection =
+            crate::detection::build_threshold_detection(&capacities, 0.85, eol_capacity);
+        let theorem1 = crate::detection::verify_theorem1(&envelope, &trajectory, &config);
+        let results = Stage2Results {
+            data_provenance: "Synthetic invalid-stream sample".to_string(),
+            config,
+            envelope,
+            dsfb_detection,
+            threshold_detection,
+            theorem1,
+        };
+
+        let artifact = build_stage2_audit_trace(AuditTraceBuildContext {
+            results: &results,
+            raw_input: &raw_input,
+            trajectory: &trajectory,
+            source_artifact: None,
+            supporting_figures: &[],
+            supporting_tables: &[],
+        })
+        .unwrap();
+
+        let value = serde_json::to_value(&artifact).unwrap();
+        let gap_event = value["audit_trace"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|event| event["event_type"] == "invalid_stream_gap")
+            .unwrap();
+        assert_eq!(gap_event["cycle_index_start"], 4);
+        assert_eq!(gap_event["cycle_index_end"], 6);
+        assert_eq!(gap_event["reason_code"], "InvalidStreamSuppression");
+        assert_eq!(gap_event["audit_fields"]["stream_valid"], false);
+        assert_eq!(
+            gap_event["audit_fields"]["suppressed_due_to_invalid_stream"],
+            true
+        );
+        assert!(!value["audit_trace"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|event| {
+                let event_type = event["event_type"].as_str().unwrap_or_default();
+                let cycle = event["cycle_index"].as_u64().unwrap_or_default();
+                (event_type == "classification_sample" || event_type == "state_transition")
+                    && (4..=6).contains(&(cycle as usize))
+            }));
+        assert!(value["audit_trace"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|event| {
+                event["event_type"] == "classification_sample"
+                    && event["cycle_index"] == serde_json::Value::from(7)
+            }));
     }
 }

@@ -27,6 +27,8 @@ pub enum DetectionError {
     EmptyData,
     #[error("healthy window ({window}) exceeds data length ({len})")]
     InsufficientData { window: usize, len: usize },
+    #[error("healthy window contains non-finite input at cycle {cycle}")]
+    InvalidHealthyBaseline { cycle: usize },
 }
 
 /// Evaluate grammar state at a single cycle.
@@ -86,6 +88,15 @@ pub fn next_persistence_count(current: usize, threshold_condition_met: bool) -> 
     } else {
         0
     }
+}
+
+/// Return true when the current sample should emit a normal DSFB classification.
+pub fn classification_is_emitted(sample: &BatteryResidual) -> bool {
+    sample.reason_code != Some(ReasonCode::InvalidStreamSuppression)
+}
+
+fn stream_sample_is_valid(capacity: f64, sign: &SignTuple) -> bool {
+    capacity.is_finite() && sign.r.is_finite() && sign.d.is_finite() && sign.s.is_finite()
 }
 
 /// Assign a typed reason code based on sign tuple and grammar state.
@@ -156,6 +167,13 @@ pub fn run_dsfb_pipeline(
             len: n,
         });
     }
+    if let Some((index, _)) = capacities[..config.healthy_window]
+        .iter()
+        .enumerate()
+        .find(|(_, capacity)| !capacity.is_finite())
+    {
+        return Err(DetectionError::InvalidHealthyBaseline { cycle: index + 1 });
+    }
 
     // Step 1: Compute envelope from healthy window (Definition 3)
     let healthy_data = &capacities[..config.healthy_window];
@@ -181,6 +199,25 @@ pub fn run_dsfb_pipeline(
             d: drifts[k],
             s: slews[k],
         };
+
+        if !stream_sample_is_valid(capacities[k], &sign) {
+            drift_persist_count = 0;
+            slew_persist_count = 0;
+            let fallback_state = trajectory
+                .iter()
+                .rev()
+                .find(|sample| classification_is_emitted(sample))
+                .map(|sample| sample.grammar_state)
+                .unwrap_or(GrammarState::Admissible);
+            trajectory.push(BatteryResidual {
+                cycle: k + 1,
+                capacity_ah: capacities[k],
+                sign,
+                grammar_state: fallback_state,
+                reason_code: Some(ReasonCode::InvalidStreamSuppression),
+            });
+            continue;
+        }
 
         // Update persistence counters (Proposition 3)
         // Outward drift for capacity: negative drift means capacity is falling
@@ -235,7 +272,7 @@ pub fn run_dsfb_pipeline(
 /// Returns the cycle number (1-indexed) of the first non-Admissible state.
 pub fn detect_dsfb_alarm(trajectory: &[BatteryResidual]) -> Option<usize> {
     trajectory.iter().find_map(|br| {
-        if br.grammar_state != GrammarState::Admissible {
+        if classification_is_emitted(br) && br.grammar_state != GrammarState::Admissible {
             Some(br.cycle)
         } else {
             None
@@ -342,7 +379,7 @@ pub fn verify_theorem1(
     let mut outward_drifts: Vec<f64> = trajectory
         .iter()
         .skip(config.healthy_window + config.drift_window)
-        .filter(|br| br.sign.d < 0.0) // outward = capacity falling
+        .filter(|br| classification_is_emitted(br) && br.sign.d < 0.0) // outward = capacity falling
         .map(|br| br.sign.d.abs())
         .collect();
 
@@ -440,5 +477,32 @@ mod tests {
         // 85% of initial = 1.7, first below at index 4 (capacity 1.6)
         let alarm = detect_threshold_alarm(&capacities, 0.85);
         assert_eq!(alarm, Some(5)); // cycle 5 = index 4 = 1.6 < 1.7
+    }
+
+    #[test]
+    fn test_invalid_stream_samples_are_suppressed_and_can_resume() {
+        let capacities = vec![2.0, 1.99, 1.95, f64::NAN, 1.93, 1.88, 1.84, 1.80];
+        let config = PipelineConfig {
+            healthy_window: 2,
+            drift_window: 1,
+            drift_persistence: 1,
+            slew_persistence: 1,
+            drift_threshold: 0.002,
+            slew_threshold: 0.001,
+            eol_fraction: 0.80,
+            boundary_fraction: 0.80,
+        };
+
+        let (_env, traj) = run_dsfb_pipeline(&capacities, &config).unwrap();
+        assert_eq!(traj.len(), capacities.len());
+        assert!(classification_is_emitted(&traj[2]));
+        assert!(!classification_is_emitted(&traj[3]));
+        assert_eq!(
+            traj[3].reason_code,
+            Some(ReasonCode::InvalidStreamSuppression)
+        );
+        assert!(traj.iter().skip(3).any(|sample| !classification_is_emitted(sample)));
+        assert!(classification_is_emitted(traj.last().unwrap()));
+        assert!(detect_dsfb_alarm(&traj).is_some());
     }
 }

@@ -896,6 +896,7 @@ fn grammar_state_code(state: GrammarState) -> u8 {
 fn reason_code_numeric(reason_code: Option<ReasonCode>) -> i32 {
     match reason_code {
         None => -1,
+        Some(ReasonCode::InvalidStreamSuppression) => 8,
         Some(ReasonCode::SustainedCapacityFade) => 0,
         Some(ReasonCode::AbruptResistanceSpike) => 1,
         Some(ReasonCode::RecurrentVoltageGrazing) => 2,

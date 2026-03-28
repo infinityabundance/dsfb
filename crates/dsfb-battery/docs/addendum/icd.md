@@ -44,7 +44,9 @@ Addendum / integration helper path:
 
 ## Invalid-Stream Behavior
 
-- The current production audit contract sets `fail_silent_on_invalid_stream = false`.
+- The current production audit contract sets `fail_silent_on_invalid_stream = true`.
+- The emitted interface contract also distinguishes `fail_silent_defined = true` and `fail_silent_enforced = true`.
+- During an invalid interval, normal classification output is suppressed and the audit trace emits `invalid_stream_gap` instead.
 - The addendum validity token is a freshness/helper signal only.
 - A consuming system can ignore advisory DSFB output when the validity token is absent or stale.
 

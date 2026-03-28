@@ -89,6 +89,9 @@ impl fmt::Display for GrammarState {
 /// Typed battery-domain reason code, per Section 5 of the paper.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReasonCode {
+    /// Classification suppressed because the upstream sample stream or its
+    /// fixed-window derivatives were invalid for this interval.
+    InvalidStreamSuppression,
     /// Low-curvature monotone fade (e.g., SEI growth regime).
     SustainedCapacityFade,
     /// Sudden resistance increase (single-event or step change).
@@ -110,6 +113,7 @@ pub enum ReasonCode {
 impl fmt::Display for ReasonCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ReasonCode::InvalidStreamSuppression => write!(f, "InvalidStreamSuppression"),
             ReasonCode::SustainedCapacityFade => write!(f, "SustainedCapacityFade"),
             ReasonCode::AbruptResistanceSpike => write!(f, "AbruptResistanceSpike"),
             ReasonCode::RecurrentVoltageGrazing => write!(f, "RecurrentVoltageGrazing"),

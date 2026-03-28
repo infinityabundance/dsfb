@@ -4,7 +4,8 @@
 // Reusable cell-level evaluation helpers for additive workflows.
 
 use crate::detection::{
-    build_dsfb_detection, build_threshold_detection, run_dsfb_pipeline, verify_theorem1,
+    build_dsfb_detection, build_threshold_detection, classification_is_emitted, run_dsfb_pipeline,
+    verify_theorem1,
 };
 use crate::export::Stage2Results;
 use crate::types::{
@@ -70,14 +71,17 @@ pub fn evaluate_cell(
 
     let first_boundary_cycle = trajectory
         .iter()
+        .filter(|sample| classification_is_emitted(sample))
         .find(|sample| sample.grammar_state == GrammarState::Boundary)
         .map(|sample| sample.cycle);
     let first_violation_cycle = trajectory
         .iter()
+        .filter(|sample| classification_is_emitted(sample))
         .find(|sample| sample.grammar_state == GrammarState::Violation)
         .map(|sample| sample.cycle);
     let first_non_admissible = trajectory
         .iter()
+        .filter(|sample| classification_is_emitted(sample))
         .find(|sample| sample.grammar_state != GrammarState::Admissible)
         .map(|sample| sample.cycle);
     let lead_time_vs_threshold_baseline = first_non_admissible
@@ -93,7 +97,12 @@ pub fn evaluate_cell(
     let primary_reason_code = first_non_admissible
         .and_then(|cycle| trajectory.iter().find(|sample| sample.cycle == cycle))
         .and_then(|sample| sample.reason_code)
-        .or_else(|| trajectory.iter().find_map(|sample| sample.reason_code));
+        .or_else(|| {
+            trajectory
+                .iter()
+                .filter(|sample| classification_is_emitted(sample))
+                .find_map(|sample| sample.reason_code)
+        });
 
     let summary = CellEvaluationSummary {
         cell_id: cell_id.to_string(),

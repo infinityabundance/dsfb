@@ -135,7 +135,9 @@
         "requires_cloud_connectivity",
         "requires_model_retraining",
         "advisory_only",
-        "fail_silent_on_invalid_stream"
+        "fail_silent_on_invalid_stream",
+        "fail_silent_defined",
+        "fail_silent_enforced"
       ],
       "properties": {
         "deployment_mode": {
@@ -157,6 +159,12 @@
           "type": "boolean"
         },
         "fail_silent_on_invalid_stream": {
+          "type": "boolean"
+        },
+        "fail_silent_defined": {
+          "type": "boolean"
+        },
+        "fail_silent_enforced": {
           "type": "boolean"
         }
       },
@@ -396,6 +404,8 @@
         "AcceleratingFadeKnee",
         "PossibleLithiumPlatingSignature",
         "TransientThermalExcursionNotPersistent"
+        ,
+        "InvalidStreamSuppression"
       ]
     },
     "auditEvidence": {
@@ -492,7 +502,8 @@
         "config_hash",
         "input_hash",
         "stream_valid",
-        "suppressed_due_to_regime_gate"
+        "suppressed_due_to_regime_gate",
+        "suppressed_due_to_invalid_stream"
       ],
       "properties": {
         "config_hash": {
@@ -505,6 +516,9 @@
           "type": "boolean"
         },
         "suppressed_due_to_regime_gate": {
+          "type": "boolean"
+        },
+        "suppressed_due_to_invalid_stream": {
           "type": "boolean"
         }
       },
@@ -677,6 +691,7 @@
         "cycle_index_end",
         "timestamp_utc",
         "channel",
+        "reason_code",
         "explanatory_text",
         "audit_fields"
       ],
@@ -701,6 +716,9 @@
         },
         "channel": {
           "type": "string"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/reasonCode"
         },
         "explanatory_text": {
           "type": "string"
