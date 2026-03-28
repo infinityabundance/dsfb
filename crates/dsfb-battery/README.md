@@ -254,7 +254,7 @@ outputs/dsfb_battery_YYYYMMDD_HHMMSS/
 
 The primary JSON artifact, `stage2_detection_results.json`, is emitted as an advisory audit trace contract while retaining the existing Stage II benchmark summary fields for compatibility. The trace stays within the current B0005 capacity-channel scope and reports classifications and interpretations rather than decisions.
 
-The audit trace contains DSFB state transitions, reason codes, residual evidence, persistence counters, and benchmark lead-time summaries. Each transition record preserves the exact cycle index, previous/current grammar states, reason code, residual/drift/slew evidence, thresholds and persistence counters in force, and the regime tag and stream-validity status where available. A local JSON Schema for this contract is provided at `schemas/dsfb_battery_audit_trace.schema.json`.
+The audit trace contains DSFB state transitions, reason codes, residual evidence, persistence counters, benchmark lead-time summaries, and the theorem-derived `t_star` bound already computed by the crate. Each transition record preserves the exact cycle index, previous/current grammar states, reason code, residual/drift/slew evidence, thresholds and persistence counters in force, and the regime tag and stream-validity status where available. A local JSON Schema for this contract is provided at `schemas/dsfb_battery_audit_trace.schema.json`.
 
 ## Build and Run
 
