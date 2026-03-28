@@ -17,13 +17,23 @@
 //   - Detection comparison: DSFB structural alarm vs threshold baseline
 //   - CSV/JSON artifact export
 
+pub mod ablation;
 pub mod audit;
 pub mod detection;
+pub mod engineer_plots;
+pub mod evaluation;
 pub mod export;
 pub mod math;
+pub mod multicell;
+pub mod nasa;
+pub mod output_paths;
 pub mod plotting;
 pub mod types;
 
+pub use ablation::{
+    build_cumulative_residual_detection, run_ablation_workflow, AblationArtifact,
+    AblationCellSummary, AblationMethodSummary,
+};
 pub use audit::{
     build_stage2_audit_trace, ArtifactManifest, AuditEvent, AuditTraceBuildContext,
     BenchmarkConfiguration, DatasetDescriptor, FailureModeObservation, InterfaceContract,
@@ -40,17 +50,20 @@ pub use math::{
     compute_all_drifts, compute_all_residuals, compute_all_slews, compute_drift, compute_envelope,
     compute_residual, compute_slew, theorem1_exit_bound,
 };
+pub use multicell::{run_multicell_workflow, MultiCellArtifact};
+pub use nasa::{default_nasa_cell_csv_path, supported_nasa_pcoe_cells, NasaPcoeCellSpec};
+pub use output_paths::resolve_helper_output_dir;
 pub use plotting::{generate_all_figures, FigureContext};
 pub use types::{
     BatteryResidual, DetectionResult, EnvelopeParams, GrammarState, HeuristicBankEntry,
     PipelineConfig, ReasonCode, SignTuple, Theorem1Result,
 };
 
-/// Load NASA PCoE B0005 capacity data from a CSV file.
+/// Load NASA PCoE battery capacity data from a CSV file.
 ///
 /// Expects columns: cycle, capacity_ah, type
 /// Returns a vector of (cycle, capacity_ah) tuples.
-pub fn load_b0005_csv(
+pub fn load_capacity_csv(
     path: &std::path::Path,
 ) -> Result<Vec<(usize, f64)>, Box<dyn std::error::Error>> {
     let mut reader = csv::Reader::from_path(path)?;
@@ -62,4 +75,14 @@ pub fn load_b0005_csv(
         data.push((cycle, capacity));
     }
     Ok(data)
+}
+
+/// Load NASA PCoE B0005 capacity data from a CSV file.
+///
+/// This is retained for backward compatibility with the existing
+/// single-cell production path.
+pub fn load_b0005_csv(
+    path: &std::path::Path,
+) -> Result<Vec<(usize, f64)>, Box<dyn std::error::Error>> {
+    load_capacity_csv(path)
 }
