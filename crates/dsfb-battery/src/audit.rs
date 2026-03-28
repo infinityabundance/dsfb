@@ -544,6 +544,9 @@ fn build_audit_trace(
             Some(trajectory[index - 1].grammar_state)
         };
 
+        // Emit a transition whenever the observed per-cycle classification changes.
+        // The current stage II artifact records those changes as-is; it does not
+        // impose a monotone-only progression on the grammar states.
         let should_emit_transition = match previous_state {
             Some(previous) => previous != sample.grammar_state,
             None => sample.grammar_state != GrammarState::Admissible,
@@ -608,42 +611,49 @@ fn grammar_state_slug(state: GrammarState) -> String {
 }
 
 fn transition_explanation(sample: &BatteryResidual, support: &CycleAuditSupport) -> String {
-    if sample.grammar_state == GrammarState::Violation {
-        return "Classification moved to Violation because the residual exited the admissibility envelope under the current stage II capacity trace."
-            .to_string();
-    }
+    match sample.grammar_state {
+        GrammarState::Violation => {
+            "Classification moved to Violation because the residual exited the admissibility envelope under the current stage II capacity trace."
+                .to_string()
+        }
+        GrammarState::Boundary => {
+            let mut clauses = Vec::new();
+            if support
+                .trigger_conditions_met
+                .iter()
+                .any(|value| value == "persistent_outward_drift")
+            {
+                clauses.push("persistent outward residual drift");
+            }
+            if support
+                .trigger_conditions_met
+                .iter()
+                .any(|value| value == "persistent_accelerating_slew")
+            {
+                clauses.push("persistent accelerating slew");
+            }
+            if support
+                .trigger_conditions_met
+                .iter()
+                .any(|value| value == "boundary_proximity")
+            {
+                clauses.push("boundary-envelope proximity");
+            }
 
-    let mut clauses = Vec::new();
-    if support
-        .trigger_conditions_met
-        .iter()
-        .any(|value| value == "persistent_outward_drift")
-    {
-        clauses.push("persistent outward residual drift");
-    }
-    if support
-        .trigger_conditions_met
-        .iter()
-        .any(|value| value == "persistent_accelerating_slew")
-    {
-        clauses.push("persistent accelerating slew");
-    }
-    if support
-        .trigger_conditions_met
-        .iter()
-        .any(|value| value == "boundary_proximity")
-    {
-        clauses.push("boundary-envelope proximity");
-    }
-
-    if clauses.is_empty() {
-        "Classification moved to Boundary based on the configured stage II capacity interpretation rules."
-            .to_string()
-    } else {
-        format!(
-            "Classification moved to Boundary because {} was observed before envelope exit.",
-            clauses.join(" with ")
-        )
+            if clauses.is_empty() {
+                "Classification moved to Boundary based on the configured stage II capacity interpretation rules."
+                    .to_string()
+            } else {
+                format!(
+                    "Classification moved to Boundary because {} was observed before envelope exit.",
+                    clauses.join(" with ")
+                )
+            }
+        }
+        GrammarState::Admissible => {
+            "Classification returned to Admissible because the residual was inside the admissibility envelope and no persistence-gated boundary conditions were active under the current stage II capacity interpretation rules."
+                .to_string()
+        }
     }
 }
 
@@ -863,6 +873,10 @@ mod tests {
         assert_eq!(value["run_metadata"]["crate_name"], "dsfb-battery");
         assert_eq!(value["dataset"]["cell_id"], "B0005");
         assert_eq!(
+            value["interface_contract"]["fail_silent_on_invalid_stream"],
+            false
+        );
+        assert_eq!(
             value["audit_trace"][0]["event_type"],
             "classification_sample"
         );
@@ -874,5 +888,115 @@ mod tests {
         assert_eq!(value["summary_outcome"]["first_boundary_cycle"], 3);
         assert_eq!(value["summary_outcome"]["first_violation_cycle"], 4);
         assert_eq!(value["summary_outcome"]["t_star"], 15);
+    }
+
+    #[test]
+    fn audit_trace_records_return_to_admissible_transitions() {
+        let config = PipelineConfig {
+            healthy_window: 2,
+            drift_window: 1,
+            drift_persistence: 2,
+            slew_persistence: 2,
+            drift_threshold: 0.002,
+            slew_threshold: 0.001,
+            eol_fraction: 0.80,
+            boundary_fraction: 0.80,
+        };
+
+        let raw_input = vec![(1, 2.0000), (2, 1.9000), (3, 1.9750)];
+        let trajectory = vec![
+            BatteryResidual {
+                cycle: 1,
+                capacity_ah: 2.0000,
+                sign: SignTuple {
+                    r: 0.0000,
+                    d: 0.0,
+                    s: 0.0,
+                },
+                grammar_state: GrammarState::Admissible,
+                reason_code: None,
+            },
+            BatteryResidual {
+                cycle: 2,
+                capacity_ah: 1.9000,
+                sign: SignTuple {
+                    r: -0.0900,
+                    d: -0.0040,
+                    s: -0.0015,
+                },
+                grammar_state: GrammarState::Violation,
+                reason_code: Some(ReasonCode::SustainedCapacityFade),
+            },
+            BatteryResidual {
+                cycle: 3,
+                capacity_ah: 1.9750,
+                sign: SignTuple {
+                    r: -0.0100,
+                    d: 0.0005,
+                    s: 0.0002,
+                },
+                grammar_state: GrammarState::Admissible,
+                reason_code: None,
+            },
+        ];
+
+        let results = Stage2Results {
+            data_provenance: "Synthetic return-transition sample".to_string(),
+            config,
+            envelope: EnvelopeParams {
+                mu: 1.9875,
+                sigma: 0.0200,
+                rho: 0.0500,
+            },
+            dsfb_detection: DetectionResult {
+                method: "DSFB Structural Alarm".to_string(),
+                alarm_cycle: Some(2),
+                eol_cycle: None,
+                lead_time_cycles: None,
+            },
+            threshold_detection: DetectionResult {
+                method: "Threshold Baseline (85% of initial)".to_string(),
+                alarm_cycle: None,
+                eol_cycle: None,
+                lead_time_cycles: None,
+            },
+            theorem1: Theorem1Result {
+                rho: 0.0500,
+                alpha: 0.0040,
+                kappa: 0.0,
+                t_star: 13,
+                actual_detection_cycle: Some(2),
+                bound_satisfied: Some(true),
+            },
+        };
+
+        let artifact = build_stage2_audit_trace(AuditTraceBuildContext {
+            results: &results,
+            raw_input: &raw_input,
+            trajectory: &trajectory,
+            source_artifact: None,
+            supporting_figures: &[],
+            supporting_tables: &[],
+        })
+        .unwrap();
+
+        let value = serde_json::to_value(&artifact).unwrap();
+        let return_transition = value["audit_trace"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|event| {
+                event["event_type"] == "state_transition"
+                    && event["previous_state"] == "Violation"
+                    && event["current_state"] == "Admissible"
+            })
+            .unwrap();
+
+        assert_eq!(return_transition["cycle_index"], 3);
+        assert_eq!(return_transition["audit_fields"]["stream_valid"], true);
+        assert_eq!(
+            return_transition["explanatory_text"],
+            "Classification returned to Admissible because the residual was inside the admissibility envelope and no persistence-gated boundary conditions were active under the current stage II capacity interpretation rules."
+        );
     }
 }
