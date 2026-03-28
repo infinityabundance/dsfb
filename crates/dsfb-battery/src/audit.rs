@@ -105,6 +105,8 @@ pub struct SummaryOutcome {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lead_time_vs_80pct_cycles: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub t_star: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub persistent_elevation_confirmed: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub primary_reason_code: Option<ReasonCode>,
@@ -494,6 +496,7 @@ fn build_summary_outcome(
         capacity_80pct_cycle,
         lead_time_vs_85pct_cycles,
         lead_time_vs_80pct_cycles,
+        t_star: Some(results.theorem1.t_star),
         persistent_elevation_confirmed,
         primary_reason_code,
     }
@@ -870,5 +873,6 @@ mod tests {
             .any(|event| event["event_type"] == "state_transition"));
         assert_eq!(value["summary_outcome"]["first_boundary_cycle"], 3);
         assert_eq!(value["summary_outcome"]["first_violation_cycle"], 4);
+        assert_eq!(value["summary_outcome"]["t_star"], 15);
     }
 }

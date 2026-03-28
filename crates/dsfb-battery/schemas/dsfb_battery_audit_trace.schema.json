@@ -255,6 +255,12 @@
             "null"
           ]
         },
+        "t_star": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "persistent_elevation_confirmed": {
           "type": [
             "boolean",

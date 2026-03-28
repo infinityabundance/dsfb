@@ -312,6 +312,7 @@ mod tests {
         assert_eq!(value["summary_outcome"]["first_boundary_cycle"], 3);
         assert_eq!(value["summary_outcome"]["capacity_85pct_cycle"], 4);
         assert_eq!(value["summary_outcome"]["capacity_80pct_cycle"], 5);
+        assert_eq!(value["summary_outcome"]["t_star"], 15);
 
         let _ = fs::remove_dir_all(&dir);
     }
