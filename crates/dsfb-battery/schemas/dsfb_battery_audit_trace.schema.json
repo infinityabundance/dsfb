@@ -1,0 +1,768 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dsfb-battery:schema:audit-trace:1.0.0",
+  "title": "DSFB Battery Stage II Audit Trace",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "output_contract",
+    "run_metadata",
+    "dataset",
+    "interface_contract",
+    "benchmark_configuration",
+    "summary_outcome",
+    "audit_trace",
+    "failure_mode_observations",
+    "artifact_manifest",
+    "data_provenance",
+    "config",
+    "envelope",
+    "dsfb_detection",
+    "threshold_detection",
+    "theorem1"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "artifact_type": {
+      "const": "dsfb_battery_audit_trace"
+    },
+    "output_contract": {
+      "type": "object",
+      "required": [
+        "kind",
+        "deterministic",
+        "self_documenting"
+      ],
+      "properties": {
+        "kind": {
+          "const": "audit_trace"
+        },
+        "deterministic": {
+          "type": "boolean"
+        },
+        "self_documenting": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "run_metadata": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "generated_at_utc",
+        "crate_name",
+        "crate_version",
+        "paper_version",
+        "benchmark_id",
+        "config_hash",
+        "input_hash"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string"
+        },
+        "generated_at_utc": {
+          "type": "string"
+        },
+        "crate_name": {
+          "const": "dsfb-battery"
+        },
+        "crate_version": {
+          "type": "string"
+        },
+        "paper_version": {
+          "type": "string"
+        },
+        "benchmark_id": {
+          "type": "string"
+        },
+        "code_commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "config_hash": {
+          "type": "string"
+        },
+        "input_hash": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dataset": {
+      "type": "object",
+      "required": [
+        "dataset_name",
+        "cell_id",
+        "trajectory_unit",
+        "channel_scope",
+        "source_artifact"
+      ],
+      "properties": {
+        "dataset_name": {
+          "type": "string"
+        },
+        "cell_id": {
+          "const": "B0005"
+        },
+        "trajectory_unit": {
+          "const": "cycle"
+        },
+        "channel_scope": {
+          "type": "array",
+          "items": {
+            "const": "capacity"
+          }
+        },
+        "source_artifact": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "interface_contract": {
+      "type": "object",
+      "required": [
+        "deployment_mode",
+        "read_only",
+        "protocol_independent",
+        "requires_cloud_connectivity",
+        "requires_model_retraining",
+        "advisory_only",
+        "fail_silent_on_invalid_stream"
+      ],
+      "properties": {
+        "deployment_mode": {
+          "const": "offline"
+        },
+        "read_only": {
+          "type": "boolean"
+        },
+        "protocol_independent": {
+          "type": "boolean"
+        },
+        "requires_cloud_connectivity": {
+          "type": "boolean"
+        },
+        "requires_model_retraining": {
+          "type": "boolean"
+        },
+        "advisory_only": {
+          "type": "boolean"
+        },
+        "fail_silent_on_invalid_stream": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "benchmark_configuration": {
+      "type": "object",
+      "required": [
+        "healthy_window",
+        "drift_window",
+        "drift_persistence",
+        "slew_persistence",
+        "drift_threshold",
+        "slew_threshold",
+        "eol_fraction",
+        "boundary_fraction",
+        "threshold_baseline_fraction"
+      ],
+      "properties": {
+        "healthy_window": {
+          "type": "integer"
+        },
+        "drift_window": {
+          "type": "integer"
+        },
+        "drift_persistence": {
+          "type": "integer"
+        },
+        "slew_persistence": {
+          "type": "integer"
+        },
+        "drift_threshold": {
+          "type": "number"
+        },
+        "slew_threshold": {
+          "type": "number"
+        },
+        "eol_fraction": {
+          "type": "number"
+        },
+        "boundary_fraction": {
+          "type": "number"
+        },
+        "threshold_baseline_fraction": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "summary_outcome": {
+      "type": "object",
+      "required": [
+        "initial_state",
+        "final_state"
+      ],
+      "properties": {
+        "initial_state": {
+          "$ref": "#/$defs/grammarState"
+        },
+        "final_state": {
+          "$ref": "#/$defs/grammarState"
+        },
+        "first_boundary_cycle": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "first_violation_cycle": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "capacity_85pct_cycle": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "capacity_80pct_cycle": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lead_time_vs_85pct_cycles": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lead_time_vs_80pct_cycles": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "persistent_elevation_confirmed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "primary_reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "audit_trace": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/classificationSampleEvent"
+          },
+          {
+            "$ref": "#/$defs/stateTransitionEvent"
+          },
+          {
+            "$ref": "#/$defs/invalidStreamGapEvent"
+          },
+          {
+            "$ref": "#/$defs/runSummaryMarkerEvent"
+          }
+        ]
+      }
+    },
+    "failure_mode_observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "interpretation",
+          "first_observed_cycle",
+          "last_observed_cycle",
+          "sample_count",
+          "advisory_text"
+        ],
+        "properties": {
+          "interpretation": {
+            "$ref": "#/$defs/reasonCode"
+          },
+          "first_observed_cycle": {
+            "type": "integer"
+          },
+          "last_observed_cycle": {
+            "type": "integer"
+          },
+          "sample_count": {
+            "type": "integer"
+          },
+          "advisory_text": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "artifact_manifest": {
+      "type": "object",
+      "required": [
+        "primary_json",
+        "supporting_figures",
+        "supporting_tables"
+      ],
+      "properties": {
+        "primary_json": {
+          "const": "stage2_detection_results.json"
+        },
+        "supporting_figures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "supporting_tables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "data_provenance": {
+      "type": "string"
+    },
+    "config": {
+      "type": "object"
+    },
+    "envelope": {
+      "type": "object"
+    },
+    "dsfb_detection": {
+      "type": "object"
+    },
+    "threshold_detection": {
+      "type": "object"
+    },
+    "theorem1": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "grammarState": {
+      "type": "string",
+      "enum": [
+        "Admissible",
+        "Boundary",
+        "Violation"
+      ]
+    },
+    "reasonCode": {
+      "type": "string",
+      "enum": [
+        "SustainedCapacityFade",
+        "AbruptResistanceSpike",
+        "RecurrentVoltageGrazing",
+        "ThermalDriftCoupling",
+        "PackImbalanceExpansion",
+        "AcceleratingFadeKnee",
+        "PossibleLithiumPlatingSignature",
+        "TransientThermalExcursionNotPersistent"
+      ]
+    },
+    "auditEvidence": {
+      "type": "object",
+      "required": [
+        "residual_value",
+        "drift_value",
+        "slew_value",
+        "boundary_fraction",
+        "inside_admissibility_envelope",
+        "near_envelope",
+        "persistent_outward_drift",
+        "persistent_accelerating_slew"
+      ],
+      "properties": {
+        "residual_value": {
+          "type": "number"
+        },
+        "drift_value": {
+          "type": "number"
+        },
+        "slew_value": {
+          "type": "number"
+        },
+        "boundary_fraction": {
+          "type": "number"
+        },
+        "inside_admissibility_envelope": {
+          "type": "boolean"
+        },
+        "near_envelope": {
+          "type": "boolean"
+        },
+        "persistent_outward_drift": {
+          "type": "boolean"
+        },
+        "persistent_accelerating_slew": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "thresholdsInForce": {
+      "type": "object",
+      "required": [
+        "boundary_threshold",
+        "violation_threshold",
+        "drift_threshold",
+        "slew_threshold",
+        "persistence_length_drift",
+        "persistence_length_slew"
+      ],
+      "properties": {
+        "boundary_threshold": {
+          "type": "number"
+        },
+        "violation_threshold": {
+          "type": "number"
+        },
+        "drift_threshold": {
+          "type": "number"
+        },
+        "slew_threshold": {
+          "type": "number"
+        },
+        "persistence_length_drift": {
+          "type": "integer"
+        },
+        "persistence_length_slew": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "persistenceCounters": {
+      "type": "object",
+      "required": [
+        "drift_counter",
+        "slew_counter"
+      ],
+      "properties": {
+        "drift_counter": {
+          "type": "integer"
+        },
+        "slew_counter": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "auditFields": {
+      "type": "object",
+      "required": [
+        "config_hash",
+        "input_hash",
+        "stream_valid",
+        "suppressed_due_to_regime_gate"
+      ],
+      "properties": {
+        "config_hash": {
+          "type": "string"
+        },
+        "input_hash": {
+          "type": "string"
+        },
+        "stream_valid": {
+          "type": "boolean"
+        },
+        "suppressed_due_to_regime_gate": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "classificationSampleEvent": {
+      "type": "object",
+      "required": [
+        "event_type",
+        "event_id",
+        "cycle_index",
+        "timestamp_utc",
+        "classification",
+        "regime_tag",
+        "channel",
+        "evidence",
+        "thresholds_in_force",
+        "persistence_counters",
+        "trigger_conditions_met",
+        "audit_fields"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "classification_sample"
+        },
+        "event_id": {
+          "type": "string"
+        },
+        "cycle_index": {
+          "type": "integer"
+        },
+        "timestamp_utc": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "classification": {
+          "$ref": "#/$defs/grammarState"
+        },
+        "interpretation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "regime_tag": {
+          "type": "string"
+        },
+        "channel": {
+          "const": "capacity"
+        },
+        "evidence": {
+          "$ref": "#/$defs/auditEvidence"
+        },
+        "thresholds_in_force": {
+          "$ref": "#/$defs/thresholdsInForce"
+        },
+        "persistence_counters": {
+          "$ref": "#/$defs/persistenceCounters"
+        },
+        "trigger_conditions_met": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "audit_fields": {
+          "$ref": "#/$defs/auditFields"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stateTransitionEvent": {
+      "type": "object",
+      "required": [
+        "event_type",
+        "event_id",
+        "cycle_index",
+        "timestamp_utc",
+        "current_state",
+        "regime_tag",
+        "channel",
+        "evidence",
+        "thresholds_in_force",
+        "persistence_counters",
+        "trigger_conditions_met",
+        "explanatory_text",
+        "audit_fields"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "state_transition"
+        },
+        "event_id": {
+          "type": "string"
+        },
+        "cycle_index": {
+          "type": "integer"
+        },
+        "timestamp_utc": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "previous_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/grammarState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_state": {
+          "$ref": "#/$defs/grammarState"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/reasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "regime_tag": {
+          "type": "string"
+        },
+        "channel": {
+          "const": "capacity"
+        },
+        "evidence": {
+          "$ref": "#/$defs/auditEvidence"
+        },
+        "thresholds_in_force": {
+          "$ref": "#/$defs/thresholdsInForce"
+        },
+        "persistence_counters": {
+          "$ref": "#/$defs/persistenceCounters"
+        },
+        "trigger_conditions_met": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "explanatory_text": {
+          "type": "string"
+        },
+        "audit_fields": {
+          "$ref": "#/$defs/auditFields"
+        }
+      },
+      "additionalProperties": false
+    },
+    "invalidStreamGapEvent": {
+      "type": "object",
+      "required": [
+        "event_type",
+        "event_id",
+        "cycle_index_start",
+        "cycle_index_end",
+        "timestamp_utc",
+        "channel",
+        "explanatory_text",
+        "audit_fields"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "invalid_stream_gap"
+        },
+        "event_id": {
+          "type": "string"
+        },
+        "cycle_index_start": {
+          "type": "integer"
+        },
+        "cycle_index_end": {
+          "type": "integer"
+        },
+        "timestamp_utc": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "channel": {
+          "type": "string"
+        },
+        "explanatory_text": {
+          "type": "string"
+        },
+        "audit_fields": {
+          "$ref": "#/$defs/auditFields"
+        }
+      },
+      "additionalProperties": false
+    },
+    "runSummaryMarkerEvent": {
+      "type": "object",
+      "required": [
+        "event_type",
+        "event_id",
+        "cycle_index",
+        "timestamp_utc",
+        "final_classification",
+        "advisory_text"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "run_summary_marker"
+        },
+        "event_id": {
+          "type": "string"
+        },
+        "cycle_index": {
+          "type": "integer"
+        },
+        "timestamp_utc": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "final_classification": {
+          "$ref": "#/$defs/grammarState"
+        },
+        "first_boundary_cycle": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "first_violation_cycle": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lead_time_vs_85pct_cycles": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lead_time_vs_80pct_cycles": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "advisory_text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

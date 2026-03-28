@@ -9,9 +9,10 @@
 
 use clap::Parser;
 use dsfb_battery::{
-    build_dsfb_detection, build_threshold_detection, export_results_json, export_trajectory_csv,
-    export_zip, generate_all_figures, load_b0005_csv, run_dsfb_pipeline, verify_theorem1,
-    FigureContext, PipelineConfig, Stage2Results,
+    build_dsfb_detection, build_stage2_audit_trace, build_threshold_detection,
+    export_audit_trace_json, export_trajectory_csv, export_zip, generate_all_figures,
+    load_b0005_csv, run_dsfb_pipeline, verify_theorem1, AuditTraceBuildContext, FigureContext,
+    PipelineConfig, Stage2Results,
 };
 use std::path::PathBuf;
 
@@ -86,7 +87,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
-    println!("Loading NASA PCoE B0005 capacity data from {}", data_path.display());
+    println!(
+        "Loading NASA PCoE B0005 capacity data from {}",
+        data_path.display()
+    );
     let raw_data = load_b0005_csv(&data_path)?;
     let capacities: Vec<f64> = raw_data.iter().map(|(_, c)| *c).collect();
 
@@ -99,24 +103,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Pipeline configuration — override any field the user supplies
     let mut config = PipelineConfig::default();
-    if let Some(v) = cli.healthy_window { config.healthy_window = v; }
-    if let Some(v) = cli.drift_window { config.drift_window = v; }
-    if let Some(v) = cli.drift_persistence { config.drift_persistence = v; }
-    if let Some(v) = cli.slew_persistence { config.slew_persistence = v; }
-    if let Some(v) = cli.drift_threshold { config.drift_threshold = v; }
-    if let Some(v) = cli.slew_threshold { config.slew_threshold = v; }
-    if let Some(v) = cli.eol_fraction { config.eol_fraction = v; }
-    if let Some(v) = cli.boundary_fraction { config.boundary_fraction = v; }
+    if let Some(v) = cli.healthy_window {
+        config.healthy_window = v;
+    }
+    if let Some(v) = cli.drift_window {
+        config.drift_window = v;
+    }
+    if let Some(v) = cli.drift_persistence {
+        config.drift_persistence = v;
+    }
+    if let Some(v) = cli.slew_persistence {
+        config.slew_persistence = v;
+    }
+    if let Some(v) = cli.drift_threshold {
+        config.drift_threshold = v;
+    }
+    if let Some(v) = cli.slew_threshold {
+        config.slew_threshold = v;
+    }
+    if let Some(v) = cli.eol_fraction {
+        config.eol_fraction = v;
+    }
+    if let Some(v) = cli.boundary_fraction {
+        config.boundary_fraction = v;
+    }
 
     let eol_capacity = config.eol_fraction * capacities[0];
-    println!("  EOL threshold ({}% of initial): {:.4} Ah",
-        (config.eol_fraction * 100.0) as u32, eol_capacity);
+    println!(
+        "  EOL threshold ({}% of initial): {:.4} Ah",
+        (config.eol_fraction * 100.0) as u32,
+        eol_capacity
+    );
 
     // Run DSFB pipeline
     println!("\nRunning DSFB pipeline...");
     let (envelope, trajectory) = run_dsfb_pipeline(&capacities, &config)?;
-    println!("  Envelope: μ = {:.4} Ah, σ = {:.4} Ah, ρ = {:.4} Ah",
-        envelope.mu, envelope.sigma, envelope.rho);
+    println!(
+        "  Envelope: μ = {:.4} Ah, σ = {:.4} Ah, ρ = {:.4} Ah",
+        envelope.mu, envelope.sigma, envelope.rho
+    );
 
     // Detection comparison
     let dsfb_det = build_dsfb_detection(&trajectory, &capacities, eol_capacity);
@@ -133,7 +158,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  α (observed drift rate): {:.6} Ah/cycle", thm1.alpha);
     println!("  κ (envelope expansion): {:.6} Ah/cycle", thm1.kappa);
     println!("  t* = ⌈ρ/(α−κ)⌉ = {} cycles", thm1.t_star);
-    println!("  Actual detection cycle: {:?}", thm1.actual_detection_cycle);
+    println!(
+        "  Actual detection cycle: {:?}",
+        thm1.actual_detection_cycle
+    );
     println!("  Bound satisfied: {:?}", thm1.bound_satisfied);
 
     // Create output folder
@@ -159,7 +187,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         threshold_detection: threshold_det.clone(),
         theorem1: thm1.clone(),
     };
-    export_results_json(&results, &output_dir.join("stage2_detection_results.json"))?;
+    let supporting_figures = if cli.no_figures {
+        Vec::new()
+    } else {
+        expected_figure_files()
+    };
+    let supporting_tables = vec!["semiotic_trajectory.csv".to_string()];
+    let audit_trace = build_stage2_audit_trace(AuditTraceBuildContext {
+        results: &results,
+        raw_input: &raw_data,
+        trajectory: &trajectory,
+        source_artifact: Some(&data_path),
+        supporting_figures: &supporting_figures,
+        supporting_tables: &supporting_tables,
+    })?;
+    export_audit_trace_json(
+        &audit_trace,
+        &output_dir.join("stage2_detection_results.json"),
+    )?;
     println!("Exported stage2_detection_results.json");
 
     // Figures
@@ -195,4 +240,24 @@ fn print_detection(det: &dsfb_battery::DetectionResult) {
     println!("    Alarm cycle: {:?}", det.alarm_cycle);
     println!("    EOL cycle:   {:?}", det.eol_cycle);
     println!("    Lead time:   {:?} cycles", det.lead_time_cycles);
+}
+
+fn expected_figure_files() -> Vec<String> {
+    [
+        "fig01_capacity_fade.svg",
+        "fig02_residual_trajectory.svg",
+        "fig03_drift_trajectory.svg",
+        "fig04_slew_trajectory.svg",
+        "fig05_admissibility_envelope.svg",
+        "fig06_grammar_state_timeline.svg",
+        "fig07_detection_comparison.svg",
+        "fig08_theorem1_verification.svg",
+        "fig09_semiotic_projection.svg",
+        "fig10_cumulative_drift.svg",
+        "fig11_lead_time_comparison.svg",
+        "fig12_heuristics_bank_entry.svg",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect()
 }
