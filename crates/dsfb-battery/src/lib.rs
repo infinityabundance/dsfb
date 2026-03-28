@@ -61,6 +61,8 @@ pub mod output_paths;
 #[cfg(feature = "std")]
 pub mod plotting;
 #[cfg(feature = "std")]
+pub mod resource_trace;
+#[cfg(feature = "std")]
 pub mod sensitivity;
 #[cfg(feature = "std")]
 pub mod sota;
@@ -151,6 +153,13 @@ pub use noise_robustness::{
 pub use output_paths::resolve_helper_output_dir;
 #[cfg(feature = "std")]
 pub use plotting::{generate_all_figures, FigureContext};
+#[cfg(feature = "std")]
+pub use resource_trace::{
+    run_resource_trace_workflow, verify_resource_trace_validation_hash, AuditHeader,
+    ComputationalProfile, HeuristicsCost, HeuristicsDensityReport, MeasurementMode,
+    MemoryBudgetReport, MemoryFootprint, ResourceMetric, ResourceRunSummary, ResourceTrace,
+    ResourceTraceArtifacts, TimingSummary, WindowTrace,
+};
 #[cfg(feature = "std")]
 pub use sensitivity::{run_sensitivity_workflow, SensitivityArtifact, SensitivityScenarioResult};
 #[cfg(feature = "std")]
