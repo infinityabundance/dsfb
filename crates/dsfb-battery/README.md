@@ -262,9 +262,9 @@ A local JSON Schema for this contract is provided at `schemas/dsfb_battery_audit
 
 ## Engineer-Facing Helper Extensions
 
-Additional helper binaries are available for opt-in engineering work such as sensitivity analysis, noise robustness checks, comparison baselines, heuristics-bank verification, and integration scaffolding. These helpers write only under `outputs/engineer_extensions/...` and do not change the default `dsfb-battery-demo` path, existing mono-cell figures, or the production Stage II JSON contract.
+Additional helper binaries are available for opt-in engineering work such as sensitivity analysis, noise robustness checks, comparison baselines, heuristics-bank verification, a NASA-grounded heuristics-bank helper, and integration scaffolding. These helpers write only under `outputs/engineer_extensions/...` and do not change the default `dsfb-battery-demo` path, existing mono-cell figures, or the production Stage II JSON contract.
 
-The frozen heuristics bank is stored at `config/heuristics_bank_v1.json` with a tracked SHA-256 sidecar, the narrow C header for the optional static library is at `include/dsfb_battery_ffi.h`, and the additive integration/FFI notes are collected in `docs/engineer_extensions.md`.
+The frozen illustrative heuristics bank remains at `config/heuristics_bank_v1.json` with a tracked SHA-256 sidecar. A separate typed NASA-grounded bank is now provided at `heuristics/heuristics_bank_v2.json` with its own SHA-256 sidecar and schema at `schemas/dsfb_battery_heuristics_bank_v2.schema.json`. The bank is capacity-centric, ambiguity-aware, and does not claim unique physical mechanism identification; maturity notes are collected in `docs/heuristics_bank_maturity.md`. The narrow C header for the optional static library is at `include/dsfb_battery_ffi.h`, and the additive integration/FFI notes are collected in `docs/engineer_extensions.md`.
 
 ## Core Engine `no_std` Path
 

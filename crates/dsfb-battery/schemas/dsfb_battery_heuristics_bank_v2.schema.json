@@ -1,0 +1,491 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dsfb-battery:schema:heuristics-bank:2.0.0",
+  "title": "DSFB Battery NASA-Grounded Heuristics Bank",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_type",
+    "schema_version",
+    "bank_version",
+    "read_only",
+    "dataset_scope",
+    "signal_scope",
+    "integrity",
+    "entries"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "dsfb_battery_nasa_heuristics_bank"
+    },
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "bank_version": {
+      "type": "string"
+    },
+    "read_only": {
+      "type": "boolean"
+    },
+    "dataset_scope": {
+      "type": "string"
+    },
+    "signal_scope": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "integrity": {
+      "$ref": "#/$defs/integrity"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "$defs": {
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "sidecar_path"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string"
+        },
+        "sidecar_path": {
+          "type": "string"
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "illustrative",
+        "candidate",
+        "validated",
+        "deprecated"
+      ]
+    },
+    "grammar_state": {
+      "type": "string",
+      "enum": [
+        "Admissible",
+        "Boundary",
+        "Violation"
+      ]
+    },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "SustainedCapacityFade",
+        "AbruptResistanceSpike",
+        "RecurrentVoltageGrazing",
+        "ThermalDriftCoupling",
+        "PackImbalanceExpansion",
+        "AcceleratingFadeKnee",
+        "PossibleLithiumPlatingSignature",
+        "TransientThermalExcursionNotPersistent"
+      ]
+    },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drift_cycles",
+        "slew_cycles",
+        "stable_non_admissible_cycles"
+      ],
+      "properties": {
+        "drift_cycles": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "slew_cycles": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "stable_non_admissible_cycles": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "pattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "residual_behavior",
+        "drift_behavior",
+        "slew_behavior",
+        "persistence_requirements",
+        "envelope_relation",
+        "state_sequence"
+      ],
+      "properties": {
+        "residual_behavior": {
+          "type": "string"
+        },
+        "drift_behavior": {
+          "type": "string"
+        },
+        "slew_behavior": {
+          "type": "string"
+        },
+        "persistence_requirements": {
+          "$ref": "#/$defs/persistence"
+        },
+        "envelope_relation": {
+          "type": "string"
+        },
+        "state_sequence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/grammar_state"
+          }
+        }
+      }
+    },
+    "interpretation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structural_class",
+        "operational_meaning",
+        "candidate_mechanisms"
+      ],
+      "properties": {
+        "structural_class": {
+          "type": "string"
+        },
+        "operational_meaning": {
+          "type": "string"
+        },
+        "candidate_mechanisms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "evidence_instance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset",
+        "cell_id",
+        "cycle_interval_start",
+        "cycle_interval_end",
+        "notes"
+      ],
+      "properties": {
+        "dataset": {
+          "type": "string"
+        },
+        "cell_id": {
+          "type": "string"
+        },
+        "cycle_interval_start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cycle_interval_end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "first_boundary_cycle": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "first_violation_cycle": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "threshold_85pct_cycle": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "lead_time_vs_threshold_baseline": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "theorem_t_star": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "artifact_reference": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supporting_instances",
+        "counter_examples"
+      ],
+      "properties": {
+        "supporting_instances": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_instance"
+          }
+        },
+        "counter_examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence_instance"
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "derived_from",
+        "notes"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "match_criteria": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_primary_reason_codes",
+        "required_final_states"
+      ],
+      "properties": {
+        "required_primary_reason_codes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reason_code"
+          }
+        },
+        "required_final_states": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/grammar_state"
+          }
+        },
+        "requires_first_boundary": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requires_first_violation": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requires_positive_lead_vs_threshold_baseline": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requires_persistent_elevation_confirmed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requires_boundary_return_before_violation": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requires_violation_return": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requires_recurrent_reentry_loop": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requires_monotone_escalation_only": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requires_final_violation_persistent": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "min_lead_time_vs_threshold_baseline": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_boundary_to_violation_gap_cycles": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "min_terminal_violation_run_length": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "title",
+        "status",
+        "channels_required",
+        "regime_scope",
+        "admissibility_assumptions",
+        "pattern",
+        "interpretation",
+        "ambiguity_notes",
+        "exclusion_conditions",
+        "evidence",
+        "transfer_scope",
+        "known_failures",
+        "provenance",
+        "match_criteria"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "channels_required": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "regime_scope": {
+          "type": "string"
+        },
+        "admissibility_assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pattern": {
+          "$ref": "#/$defs/pattern"
+        },
+        "interpretation": {
+          "$ref": "#/$defs/interpretation"
+        },
+        "ambiguity_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclusion_conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "transfer_scope": {
+          "type": "string"
+        },
+        "known_failures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "match_criteria": {
+          "$ref": "#/$defs/match_criteria"
+        }
+      }
+    }
+  }
+}

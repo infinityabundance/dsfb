@@ -111,8 +111,19 @@ pub use export::{
 };
 #[cfg(feature = "std")]
 pub use heuristics::{
-    load_heuristics_bank, verify_heuristics_bank, HeuristicsBankArtifact,
-    HeuristicsBankEntryRecord, HeuristicsBankVerification,
+    build_heuristic_observation_profile, load_heuristics_bank, load_nasa_heuristics_bank,
+    retrieve_heuristic_matches, run_nasa_heuristics_bank_workflow, verify_heuristics_bank,
+    verify_nasa_heuristics_bank, AmbiguityLevel, HeuristicEvidenceInstance,
+    HeuristicEvidenceSet, HeuristicInventoryItem, HeuristicInterpretation,
+    HeuristicMatchCriteria, HeuristicMatchResult, HeuristicObservationProfile,
+    HeuristicPatternDescriptor, HeuristicPatternPersistence, HeuristicProvenance,
+    HeuristicStatus, HeuristicTransitionObservation, HeuristicsBankArtifact,
+    HeuristicsBankEntryRecord, HeuristicsBankEvidenceSummaryArtifact,
+    HeuristicsBankInventoryArtifact, HeuristicsBankRetrievalArtifact,
+    HeuristicsBankSummaryArtifact, HeuristicsBankVerification,
+    HeuristicsBankWorkflowArtifact, HeuristicsIntegrityMetadata,
+    NasaHeuristicsBankArtifact, NasaHeuristicsBankEntry, NasaHeuristicsBankVerification,
+    NASA_HEURISTICS_BANK_JSON, NASA_HEURISTICS_BANK_SHA256,
 };
 #[cfg(feature = "std")]
 pub use integration::{

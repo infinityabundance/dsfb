@@ -19,6 +19,7 @@ include = [
     "docs/**",
     "ffi/**",
     "formal/**",
+    "heuristics/**",
     "include/**",
     "wrappers/**",
     "Cargo.toml",
@@ -99,6 +100,11 @@ required-features = ["std"]
 [[bin]]
 name = "dsfb-battery-verify-heuristics"
 path = "src/bin/dsfb_battery_verify_heuristics.rs"
+required-features = ["std"]
+
+[[bin]]
+name = "dsfb-battery-heuristics-bank"
+path = "src/bin/dsfb_battery_heuristics_bank.rs"
 required-features = ["std"]
 
 [[bin]]

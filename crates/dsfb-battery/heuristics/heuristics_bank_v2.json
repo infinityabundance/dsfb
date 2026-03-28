@@ -1,0 +1,866 @@
+{
+  "artifact_type": "dsfb_battery_nasa_heuristics_bank",
+  "schema_version": "2.0.0",
+  "bank_version": "2.0.0",
+  "read_only": true,
+  "dataset_scope": "NASA PCoE FY08Q4 single-cell capacity traces evaluated through the current dsfb-battery Stage II capacity-only workflow.",
+  "signal_scope": [
+    "capacity",
+    "residual",
+    "drift",
+    "slew",
+    "persistence",
+    "envelope_relation",
+    "grammar_state_transitions"
+  ],
+  "integrity": {
+    "algorithm": "sha256",
+    "sidecar_path": "heuristics/heuristics_bank_v2.sha256"
+  },
+  "entries": [
+    {
+      "id": "HB-NASA-001",
+      "version": "2.0.0",
+      "title": "Sustained outward capacity fade",
+      "status": "candidate",
+      "channels_required": [
+        "capacity"
+      ],
+      "regime_scope": "NASA PCoE FY08Q4 single-cell capacity-only traces evaluated with the crate's default Stage II configuration.",
+      "admissibility_assumptions": [
+        "Capacity is the only measured channel in this workflow.",
+        "Residual, drift, and slew are derived from the healthy-window envelope in the current crate.",
+        "Interpretation remains read-only and advisory."
+      ],
+      "pattern": {
+        "residual_behavior": "Residual becomes persistently negative and reaches Boundary or Violation relative to the admissibility envelope.",
+        "drift_behavior": "Outward drift remains negative across multiple cycles.",
+        "slew_behavior": "No unique acceleration requirement; slew may remain near zero or fluctuate while the fade structure persists.",
+        "persistence_requirements": {
+          "drift_cycles": 12,
+          "stable_non_admissible_cycles": 2
+        },
+        "envelope_relation": "Boundary approach followed by envelope exit or stable non-admissible occupancy.",
+        "state_sequence": [
+          "Admissible",
+          "Boundary",
+          "Violation"
+        ]
+      },
+      "interpretation": {
+        "structural_class": "SustainedCapacityFade",
+        "operational_meaning": "The capacity trajectory is structurally diverging from the healthy envelope ahead of the 85% threshold baseline.",
+        "candidate_mechanisms": [
+          "General capacity fade processes consistent with monotone structural divergence"
+        ]
+      },
+      "ambiguity_notes": [
+        "This entry does not identify a unique physical mechanism.",
+        "The same structural pattern can arise under multiple degradation causes or observer biases."
+      ],
+      "exclusion_conditions": [
+        "Do not treat this as validated outside the NASA PCoE capacity-only workflow.",
+        "Do not infer chemistry transfer from this entry."
+      ],
+      "evidence": {
+        "supporting_instances": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0005",
+            "cycle_interval_start": 38,
+            "cycle_interval_end": 39,
+            "first_boundary_cycle": 38,
+            "first_violation_cycle": 39,
+            "threshold_85pct_cycle": 79,
+            "lead_time_vs_threshold_baseline": 41,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0005_capacity.csv",
+            "notes": "First boundary and first violation precede the 85% threshold baseline under the default Stage II run."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0006",
+            "cycle_interval_start": 17,
+            "cycle_interval_end": 38,
+            "first_boundary_cycle": 17,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 46,
+            "lead_time_vs_threshold_baseline": 29,
+            "theorem_t_star": 24,
+            "artifact_reference": "data/nasa_b0006_capacity.csv",
+            "notes": "Boundary onset appears well before threshold crossing, with later violation under the same configuration."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0007",
+            "cycle_interval_start": 35,
+            "cycle_interval_end": 38,
+            "first_boundary_cycle": 35,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 85,
+            "lead_time_vs_threshold_baseline": 50,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0007_capacity.csv",
+            "notes": "Clean escalation from boundary to violation appears before the threshold baseline."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0018",
+            "cycle_interval_start": 22,
+            "cycle_interval_end": 29,
+            "first_boundary_cycle": 22,
+            "first_violation_cycle": 29,
+            "threshold_85pct_cycle": 62,
+            "lead_time_vs_threshold_baseline": 40,
+            "theorem_t_star": 17,
+            "artifact_reference": "data/nasa_b0018_capacity.csv",
+            "notes": "The first non-admissible cycles and first violation both precede threshold crossing."
+          }
+        ],
+        "counter_examples": []
+      },
+      "transfer_scope": "Single-cell NASA PCoE capacity-only traces evaluated with the current crate configuration.",
+      "known_failures": [
+        "The bank does not distinguish among physical fade mechanisms."
+      ],
+      "provenance": {
+        "source": "dsfb-battery NASA-grounded heuristics bank v2",
+        "derived_from": [
+          "data/nasa_b0005_capacity.csv",
+          "data/nasa_b0006_capacity.csv",
+          "data/nasa_b0007_capacity.csv",
+          "data/nasa_b0018_capacity.csv"
+        ],
+        "notes": [
+          "Derived from repeated cell evaluation using the crate's default PipelineConfig.",
+          "Evidence reflects the currently available capacity-only workflow."
+        ]
+      },
+      "match_criteria": {
+        "required_primary_reason_codes": [
+          "SustainedCapacityFade"
+        ],
+        "required_final_states": [
+          "Violation"
+        ],
+        "requires_first_boundary": true,
+        "requires_first_violation": true,
+        "requires_positive_lead_vs_threshold_baseline": true,
+        "requires_persistent_elevation_confirmed": true,
+        "requires_final_violation_persistent": true,
+        "min_lead_time_vs_threshold_baseline": 1
+      }
+    },
+    {
+      "id": "HB-NASA-002",
+      "version": "2.0.0",
+      "title": "Boundary reentry before stable violation",
+      "status": "candidate",
+      "channels_required": [
+        "capacity"
+      ],
+      "regime_scope": "NASA PCoE FY08Q4 single-cell capacity-only traces under the current DSFB grammar.",
+      "admissibility_assumptions": [
+        "Boundary state reflects envelope approach or persistence-gated outward drift.",
+        "Return to Admissible is interpreted structurally rather than as proof of recovery."
+      ],
+      "pattern": {
+        "residual_behavior": "Residual approaches the boundary region and then returns inside the admissibility envelope before the first stable violation.",
+        "drift_behavior": "Outward drift is present but not sufficient to sustain immediate terminal violation.",
+        "slew_behavior": "Slew does not establish a unique acceleration signature.",
+        "persistence_requirements": {
+          "drift_cycles": 12
+        },
+        "envelope_relation": "Boundary grazing followed by reentry into the admissible envelope.",
+        "state_sequence": [
+          "Admissible",
+          "Boundary",
+          "Admissible"
+        ]
+      },
+      "interpretation": {
+        "structural_class": "BoundaryReentry",
+        "operational_meaning": "The trajectory has entered a cautionary boundary regime but does not remain there on the first excursion.",
+        "candidate_mechanisms": []
+      },
+      "ambiguity_notes": [
+        "This may reflect an estimator or regime effect as well as genuine degradation structure.",
+        "Boundary reentry is not evidence that the underlying degradation cause has disappeared."
+      ],
+      "exclusion_conditions": [
+        "Do not call this a healthy trajectory once boundary reentry has occurred.",
+        "Do not interpret reentry as mechanism-specific reversal."
+      ],
+      "evidence": {
+        "supporting_instances": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0006",
+            "cycle_interval_start": 17,
+            "cycle_interval_end": 20,
+            "first_boundary_cycle": 17,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 46,
+            "lead_time_vs_threshold_baseline": 29,
+            "theorem_t_star": 24,
+            "artifact_reference": "data/nasa_b0006_capacity.csv",
+            "notes": "The first boundary event at cycle 17 returns to Admissible at cycle 20 before the later violation."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0018",
+            "cycle_interval_start": 22,
+            "cycle_interval_end": 25,
+            "first_boundary_cycle": 22,
+            "first_violation_cycle": 29,
+            "threshold_85pct_cycle": 62,
+            "lead_time_vs_threshold_baseline": 40,
+            "theorem_t_star": 17,
+            "artifact_reference": "data/nasa_b0018_capacity.csv",
+            "notes": "The first boundary event at cycle 22 returns to Admissible at cycle 25 before the later violation."
+          }
+        ],
+        "counter_examples": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0007",
+            "cycle_interval_start": 35,
+            "cycle_interval_end": 38,
+            "first_boundary_cycle": 35,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 85,
+            "lead_time_vs_threshold_baseline": 50,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0007_capacity.csv",
+            "notes": "The observed boundary regime proceeds directly to violation without a return to Admissible."
+          }
+        ]
+      },
+      "transfer_scope": "Current NASA PCoE capacity-only traces with explicitly recorded state transitions.",
+      "known_failures": [
+        "The current bank cannot attribute boundary reentry to a unique external regime or measurement condition."
+      ],
+      "provenance": {
+        "source": "dsfb-battery NASA-grounded heuristics bank v2",
+        "derived_from": [
+          "data/nasa_b0006_capacity.csv",
+          "data/nasa_b0018_capacity.csv"
+        ],
+        "notes": [
+          "Supporting instances are taken from the current repeated cell evaluation path."
+        ]
+      },
+      "match_criteria": {
+        "requires_first_boundary": true,
+        "requires_boundary_return_before_violation": true,
+        "requires_positive_lead_vs_threshold_baseline": true
+      }
+    },
+    {
+      "id": "HB-NASA-003",
+      "version": "2.0.0",
+      "title": "Violation recovery followed by repeat structural alarm",
+      "status": "candidate",
+      "channels_required": [
+        "capacity"
+      ],
+      "regime_scope": "NASA PCoE FY08Q4 single-cell capacity-only traces with explicit transition auditing.",
+      "admissibility_assumptions": [
+        "The audit trace explicitly records return transitions from Violation to Admissible.",
+        "This entry remains structural and advisory."
+      ],
+      "pattern": {
+        "residual_behavior": "Residual exits the envelope, returns inside it, and later re-enters Boundary or Violation.",
+        "drift_behavior": "Outward drift remains active across a recurrent transition sequence.",
+        "slew_behavior": "Slew may vary but does not by itself resolve the ambiguity of the recurrent loop.",
+        "persistence_requirements": {
+          "stable_non_admissible_cycles": 2
+        },
+        "envelope_relation": "Violation, reentry into Admissible, and later repeat non-admissible excursion.",
+        "state_sequence": [
+          "Violation",
+          "Admissible",
+          "Boundary",
+          "Violation"
+        ]
+      },
+      "interpretation": {
+        "structural_class": "RecurrentStructuralAlarmLoop",
+        "operational_meaning": "The trajectory has already violated the envelope once and later repeats the alarm after reentry.",
+        "candidate_mechanisms": []
+      },
+      "ambiguity_notes": [
+        "A recurrent alarm loop does not uniquely identify the cause of the envelope reentry or repeat violation.",
+        "This pattern should be treated as structurally unstable rather than mechanistically resolved."
+      ],
+      "exclusion_conditions": [
+        "Do not reduce this pattern to a single-cause diagnosis.",
+        "Do not infer that one return to Admissible clears the structural concern."
+      ],
+      "evidence": {
+        "supporting_instances": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0005",
+            "cycle_interval_start": 39,
+            "cycle_interval_end": 50,
+            "first_boundary_cycle": 38,
+            "first_violation_cycle": 39,
+            "threshold_85pct_cycle": 79,
+            "lead_time_vs_threshold_baseline": 41,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0005_capacity.csv",
+            "notes": "Violation at cycle 39 is followed by a return to Admissible at 48 and a repeat alarm at cycles 49-50."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0006",
+            "cycle_interval_start": 38,
+            "cycle_interval_end": 50,
+            "first_boundary_cycle": 17,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 46,
+            "lead_time_vs_threshold_baseline": 29,
+            "theorem_t_star": 24,
+            "artifact_reference": "data/nasa_b0006_capacity.csv",
+            "notes": "Violation at cycle 38 returns to Admissible at 48, then repeats Boundary and Violation at 49-50."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0018",
+            "cycle_interval_start": 29,
+            "cycle_interval_end": 48,
+            "first_boundary_cycle": 22,
+            "first_violation_cycle": 29,
+            "threshold_85pct_cycle": 62,
+            "lead_time_vs_threshold_baseline": 40,
+            "theorem_t_star": 17,
+            "artifact_reference": "data/nasa_b0018_capacity.csv",
+            "notes": "Violation at cycle 29 returns to Admissible at 46 and repeats Boundary and Violation at 47-48."
+          }
+        ],
+        "counter_examples": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0007",
+            "cycle_interval_start": 35,
+            "cycle_interval_end": 38,
+            "first_boundary_cycle": 35,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 85,
+            "lead_time_vs_threshold_baseline": 50,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0007_capacity.csv",
+            "notes": "The observed trajectory does not return to Admissible after violation."
+          }
+        ]
+      },
+      "transfer_scope": "NASA PCoE capacity-only trajectories with explicit state-transition auditing.",
+      "known_failures": [
+        "The current crate does not model invalid-stream suppression, so recurrent loops are evaluated only from the available capacity structure."
+      ],
+      "provenance": {
+        "source": "dsfb-battery NASA-grounded heuristics bank v2",
+        "derived_from": [
+          "data/nasa_b0005_capacity.csv",
+          "data/nasa_b0006_capacity.csv",
+          "data/nasa_b0018_capacity.csv"
+        ],
+        "notes": [
+          "Supporting intervals come from the current per-cell audit traces."
+        ]
+      },
+      "match_criteria": {
+        "required_final_states": [
+          "Violation"
+        ],
+        "requires_first_violation": true,
+        "requires_violation_return": true,
+        "requires_recurrent_reentry_loop": true,
+        "requires_final_violation_persistent": true
+      }
+    },
+    {
+      "id": "HB-NASA-004",
+      "version": "2.0.0",
+      "title": "Clean monotone escalation",
+      "status": "candidate",
+      "channels_required": [
+        "capacity"
+      ],
+      "regime_scope": "NASA PCoE FY08Q4 single-cell capacity-only traces with no observed return transitions.",
+      "admissibility_assumptions": [
+        "The observed monotone state sequence is specific to the current evaluated trajectory.",
+        "The absence of return transitions is an observed property, not a universal rule of the grammar."
+      ],
+      "pattern": {
+        "residual_behavior": "Residual approaches the boundary and then exits the envelope without later reentry in the observed trace.",
+        "drift_behavior": "Outward drift remains negative through the first non-admissible transition sequence.",
+        "slew_behavior": "Slew is not required to establish a unique acceleration claim.",
+        "persistence_requirements": {
+          "stable_non_admissible_cycles": 2
+        },
+        "envelope_relation": "Boundary approach followed by a short gap to first envelope exit, with no regressive transitions.",
+        "state_sequence": [
+          "Admissible",
+          "Boundary",
+          "Violation"
+        ]
+      },
+      "interpretation": {
+        "structural_class": "CleanEscalation",
+        "operational_meaning": "The observed trace escalates directly from admissible behavior to violation without returning to a lower grammar state.",
+        "candidate_mechanisms": []
+      },
+      "ambiguity_notes": [
+        "This is an observed trajectory motif, not a grammar invariant.",
+        "Other cells in the same dataset do show return transitions."
+      ],
+      "exclusion_conditions": [
+        "Do not describe the full grammar as monotone-only based on this entry."
+      ],
+      "evidence": {
+        "supporting_instances": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0007",
+            "cycle_interval_start": 35,
+            "cycle_interval_end": 38,
+            "first_boundary_cycle": 35,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 85,
+            "lead_time_vs_threshold_baseline": 50,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0007_capacity.csv",
+            "notes": "The observed transitions are Admissible -> Boundary -> Violation with no later return to a lower grammar state."
+          }
+        ],
+        "counter_examples": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0005",
+            "cycle_interval_start": 38,
+            "cycle_interval_end": 50,
+            "first_boundary_cycle": 38,
+            "first_violation_cycle": 39,
+            "threshold_85pct_cycle": 79,
+            "lead_time_vs_threshold_baseline": 41,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0005_capacity.csv",
+            "notes": "The trace later returns from Violation to Admissible before the final reentry loop."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0006",
+            "cycle_interval_start": 17,
+            "cycle_interval_end": 50,
+            "first_boundary_cycle": 17,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 46,
+            "lead_time_vs_threshold_baseline": 29,
+            "theorem_t_star": 24,
+            "artifact_reference": "data/nasa_b0006_capacity.csv",
+            "notes": "The trace includes both Boundary -> Admissible and Violation -> Admissible transitions."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0018",
+            "cycle_interval_start": 22,
+            "cycle_interval_end": 48,
+            "first_boundary_cycle": 22,
+            "first_violation_cycle": 29,
+            "threshold_85pct_cycle": 62,
+            "lead_time_vs_threshold_baseline": 40,
+            "theorem_t_star": 17,
+            "artifact_reference": "data/nasa_b0018_capacity.csv",
+            "notes": "The trace includes Boundary and Violation reentry loops."
+          }
+        ]
+      },
+      "transfer_scope": "Observed only for the current B0007 capacity-only trajectory under the crate's default configuration.",
+      "known_failures": [
+        "This pattern is not representative of all cells even within the current dataset."
+      ],
+      "provenance": {
+        "source": "dsfb-battery NASA-grounded heuristics bank v2",
+        "derived_from": [
+          "data/nasa_b0007_capacity.csv"
+        ],
+        "notes": [
+          "Counter-examples are attached from the other evaluated FY08Q4 cells."
+        ]
+      },
+      "match_criteria": {
+        "required_final_states": [
+          "Violation"
+        ],
+        "requires_first_boundary": true,
+        "requires_first_violation": true,
+        "requires_monotone_escalation_only": true,
+        "max_boundary_to_violation_gap_cycles": 5
+      }
+    },
+    {
+      "id": "HB-NASA-005",
+      "version": "2.0.0",
+      "title": "Early structural lead relative to threshold baseline",
+      "status": "candidate",
+      "channels_required": [
+        "capacity"
+      ],
+      "regime_scope": "Current NASA PCoE single-cell capacity-only runs using the crate's fixed 85% threshold baseline for comparison.",
+      "admissibility_assumptions": [
+        "Lead time is measured against the current threshold baseline definition in the crate.",
+        "This entry compares structural timing; it is not a claim of universal superiority."
+      ],
+      "pattern": {
+        "residual_behavior": "Residual-driven boundary or violation onset appears before the 85% threshold alarm cycle.",
+        "drift_behavior": "Outward drift is already present when the structural lead is observed.",
+        "slew_behavior": "Slew may or may not be prominent; the lead is defined by timing, not a unique slew signature.",
+        "persistence_requirements": {
+          "stable_non_admissible_cycles": 1
+        },
+        "envelope_relation": "Structural boundary/violation onset occurs before threshold crossing.",
+        "state_sequence": [
+          "Admissible",
+          "Boundary"
+        ]
+      },
+      "interpretation": {
+        "structural_class": "EarlyStructuralLead",
+        "operational_meaning": "The DSFB structural onset provides positive cycle lead relative to the current blunt capacity threshold comparator.",
+        "candidate_mechanisms": []
+      },
+      "ambiguity_notes": [
+        "Lead depends on the declared 85% threshold baseline used in the crate.",
+        "This entry does not establish comparative optimality outside the evaluated workflow."
+      ],
+      "exclusion_conditions": [
+        "Do not extrapolate the lead metric to other threshold definitions without rerunning the workflow."
+      ],
+      "evidence": {
+        "supporting_instances": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0005",
+            "cycle_interval_start": 38,
+            "cycle_interval_end": 79,
+            "first_boundary_cycle": 38,
+            "first_violation_cycle": 39,
+            "threshold_85pct_cycle": 79,
+            "lead_time_vs_threshold_baseline": 41,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0005_capacity.csv",
+            "notes": "Boundary onset precedes the threshold baseline by 41 cycles."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0006",
+            "cycle_interval_start": 17,
+            "cycle_interval_end": 46,
+            "first_boundary_cycle": 17,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 46,
+            "lead_time_vs_threshold_baseline": 29,
+            "theorem_t_star": 24,
+            "artifact_reference": "data/nasa_b0006_capacity.csv",
+            "notes": "Boundary onset precedes the threshold baseline by 29 cycles."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0007",
+            "cycle_interval_start": 35,
+            "cycle_interval_end": 85,
+            "first_boundary_cycle": 35,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 85,
+            "lead_time_vs_threshold_baseline": 50,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0007_capacity.csv",
+            "notes": "Boundary onset precedes the threshold baseline by 50 cycles."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0018",
+            "cycle_interval_start": 22,
+            "cycle_interval_end": 62,
+            "first_boundary_cycle": 22,
+            "first_violation_cycle": 29,
+            "threshold_85pct_cycle": 62,
+            "lead_time_vs_threshold_baseline": 40,
+            "theorem_t_star": 17,
+            "artifact_reference": "data/nasa_b0018_capacity.csv",
+            "notes": "Boundary onset precedes the threshold baseline by 40 cycles."
+          }
+        ],
+        "counter_examples": []
+      },
+      "transfer_scope": "Current NASA PCoE FY08Q4 cell-level repeated evaluation only.",
+      "known_failures": [
+        "The lead metric is comparator-dependent and does not imply general comparative dominance."
+      ],
+      "provenance": {
+        "source": "dsfb-battery NASA-grounded heuristics bank v2",
+        "derived_from": [
+          "data/nasa_b0005_capacity.csv",
+          "data/nasa_b0006_capacity.csv",
+          "data/nasa_b0007_capacity.csv",
+          "data/nasa_b0018_capacity.csv"
+        ],
+        "notes": [
+          "Lead is computed from the current cell evaluation helper against the fixed 85% baseline."
+        ]
+      },
+      "match_criteria": {
+        "requires_first_boundary": true,
+        "requires_positive_lead_vs_threshold_baseline": true,
+        "min_lead_time_vs_threshold_baseline": 20
+      }
+    },
+    {
+      "id": "HB-NASA-006",
+      "version": "2.0.0",
+      "title": "Terminal persistent structural alarm",
+      "status": "candidate",
+      "channels_required": [
+        "capacity"
+      ],
+      "regime_scope": "Current NASA PCoE FY08Q4 cell-level traces as far as the recorded trajectory end.",
+      "admissibility_assumptions": [
+        "Terminal persistence is defined only relative to the available recorded trajectory end.",
+        "This is a trajectory-end observation, not a control action."
+      ],
+      "pattern": {
+        "residual_behavior": "Residual remains outside the admissibility envelope through the end of the recorded trace after the final violation onset.",
+        "drift_behavior": "Outward drift has already established a non-admissible regime before the terminal run.",
+        "slew_behavior": "Slew may vary; terminal persistence is defined by the final state run, not a unique slew signature.",
+        "persistence_requirements": {
+          "stable_non_admissible_cycles": 2
+        },
+        "envelope_relation": "The final recorded segment remains in Violation.",
+        "state_sequence": [
+          "Boundary",
+          "Violation"
+        ]
+      },
+      "interpretation": {
+        "structural_class": "TerminalStructuralAlarm",
+        "operational_meaning": "The observed trajectory ends in a persistent Violation regime and should remain advisory-review relevant.",
+        "candidate_mechanisms": []
+      },
+      "ambiguity_notes": [
+        "Terminal persistence is defined only over the recorded dataset horizon.",
+        "This does not imply unique physical collapse dynamics."
+      ],
+      "exclusion_conditions": [
+        "Do not convert this advisory interpretation into automatic actuation inside the current crate."
+      ],
+      "evidence": {
+        "supporting_instances": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0005",
+            "cycle_interval_start": 50,
+            "cycle_interval_end": 168,
+            "first_boundary_cycle": 38,
+            "first_violation_cycle": 39,
+            "threshold_85pct_cycle": 79,
+            "lead_time_vs_threshold_baseline": 41,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0005_capacity.csv",
+            "notes": "After the final repeat violation at cycle 50, the recorded trajectory ends in Violation."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0006",
+            "cycle_interval_start": 50,
+            "cycle_interval_end": 168,
+            "first_boundary_cycle": 17,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 46,
+            "lead_time_vs_threshold_baseline": 29,
+            "theorem_t_star": 24,
+            "artifact_reference": "data/nasa_b0006_capacity.csv",
+            "notes": "After the final repeat violation at cycle 50, the recorded trajectory ends in Violation."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0007",
+            "cycle_interval_start": 38,
+            "cycle_interval_end": 168,
+            "first_boundary_cycle": 35,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 85,
+            "lead_time_vs_threshold_baseline": 50,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0007_capacity.csv",
+            "notes": "The recorded trajectory remains in Violation from the first violation at cycle 38 through the end of the trace."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0018",
+            "cycle_interval_start": 48,
+            "cycle_interval_end": 132,
+            "first_boundary_cycle": 22,
+            "first_violation_cycle": 29,
+            "threshold_85pct_cycle": 62,
+            "lead_time_vs_threshold_baseline": 40,
+            "theorem_t_star": 17,
+            "artifact_reference": "data/nasa_b0018_capacity.csv",
+            "notes": "After the final repeat violation at cycle 48, the recorded trajectory ends in Violation."
+          }
+        ],
+        "counter_examples": []
+      },
+      "transfer_scope": "Recorded NASA PCoE trajectory endings only; no claim beyond the available trace horizon.",
+      "known_failures": [
+        "Terminal persistence is truncated by the recorded data horizon."
+      ],
+      "provenance": {
+        "source": "dsfb-battery NASA-grounded heuristics bank v2",
+        "derived_from": [
+          "data/nasa_b0005_capacity.csv",
+          "data/nasa_b0006_capacity.csv",
+          "data/nasa_b0007_capacity.csv",
+          "data/nasa_b0018_capacity.csv"
+        ],
+        "notes": [
+          "End-of-trace persistence is taken from the current repeated cell evaluation path."
+        ]
+      },
+      "match_criteria": {
+        "required_final_states": [
+          "Violation"
+        ],
+        "requires_first_violation": true,
+        "requires_final_violation_persistent": true,
+        "min_terminal_violation_run_length": 5
+      }
+    },
+    {
+      "id": "HB-NASA-007",
+      "version": "2.0.0",
+      "title": "Accelerating fade / knee candidate",
+      "status": "illustrative",
+      "channels_required": [
+        "capacity"
+      ],
+      "regime_scope": "Single-channel capacity-only structural rule set with the current drift and slew persistence thresholds.",
+      "admissibility_assumptions": [
+        "Acceleration is defined structurally from persistent drift and persistent slew.",
+        "No unique physical mechanism is implied by this entry."
+      ],
+      "pattern": {
+        "residual_behavior": "Residual remains negative near or beyond the admissibility envelope.",
+        "drift_behavior": "Outward drift remains persistently negative beyond the configured threshold.",
+        "slew_behavior": "Negative slew remains persistently beyond the configured threshold long enough to trigger the acceleration rule.",
+        "persistence_requirements": {
+          "drift_cycles": 12,
+          "slew_cycles": 8,
+          "stable_non_admissible_cycles": 2
+        },
+        "envelope_relation": "Boundary or Violation coincides with persistent drift and persistent accelerating slew.",
+        "state_sequence": [
+          "Admissible",
+          "Boundary",
+          "Violation"
+        ]
+      },
+      "interpretation": {
+        "structural_class": "AcceleratingFadeKnee",
+        "operational_meaning": "A structural acceleration-style motif is present under the current rule set.",
+        "candidate_mechanisms": [
+          "Acceleration-like degradation regime change"
+        ]
+      },
+      "ambiguity_notes": [
+        "This is not a mechanism-identification claim.",
+        "The current default NASA PCoE runs in this crate do not populate this reason code."
+      ],
+      "exclusion_conditions": [
+        "Do not promote this entry beyond illustrative status without direct supporting instances."
+      ],
+      "evidence": {
+        "supporting_instances": [],
+        "counter_examples": [
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0005",
+            "cycle_interval_start": 38,
+            "cycle_interval_end": 168,
+            "first_boundary_cycle": 38,
+            "first_violation_cycle": 39,
+            "threshold_85pct_cycle": 79,
+            "lead_time_vs_threshold_baseline": 41,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0005_capacity.csv",
+            "notes": "Current default run records SustainedCapacityFade, not AcceleratingFadeKnee."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0006",
+            "cycle_interval_start": 17,
+            "cycle_interval_end": 168,
+            "first_boundary_cycle": 17,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 46,
+            "lead_time_vs_threshold_baseline": 29,
+            "theorem_t_star": 24,
+            "artifact_reference": "data/nasa_b0006_capacity.csv",
+            "notes": "Current default run records SustainedCapacityFade, not AcceleratingFadeKnee."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0007",
+            "cycle_interval_start": 35,
+            "cycle_interval_end": 168,
+            "first_boundary_cycle": 35,
+            "first_violation_cycle": 38,
+            "threshold_85pct_cycle": 85,
+            "lead_time_vs_threshold_baseline": 50,
+            "theorem_t_star": 10,
+            "artifact_reference": "data/nasa_b0007_capacity.csv",
+            "notes": "Current default run records SustainedCapacityFade, not AcceleratingFadeKnee."
+          },
+          {
+            "dataset": "NASA PCoE FY08Q4",
+            "cell_id": "B0018",
+            "cycle_interval_start": 22,
+            "cycle_interval_end": 132,
+            "first_boundary_cycle": 22,
+            "first_violation_cycle": 29,
+            "threshold_85pct_cycle": 62,
+            "lead_time_vs_threshold_baseline": 40,
+            "theorem_t_star": 17,
+            "artifact_reference": "data/nasa_b0018_capacity.csv",
+            "notes": "Current default run records SustainedCapacityFade, not AcceleratingFadeKnee."
+          }
+        ]
+      },
+      "transfer_scope": "Illustrative only until the current crate produces direct supporting instances.",
+      "known_failures": [
+        "No supporting instances are currently attached under the default NASA PCoE workflow."
+      ],
+      "provenance": {
+        "source": "dsfb-battery NASA-grounded heuristics bank v2",
+        "derived_from": [
+          "data/nasa_b0005_capacity.csv",
+          "data/nasa_b0006_capacity.csv",
+          "data/nasa_b0007_capacity.csv",
+          "data/nasa_b0018_capacity.csv"
+        ],
+        "notes": [
+          "This entry remains illustrative because the current default runs do not emit the knee reason code."
+        ]
+      },
+      "match_criteria": {
+        "required_primary_reason_codes": [
+          "AcceleratingFadeKnee"
+        ],
+        "requires_first_boundary": true,
+        "requires_first_violation": true,
+        "requires_final_violation_persistent": true
+      }
+    }
+  ]
+}
