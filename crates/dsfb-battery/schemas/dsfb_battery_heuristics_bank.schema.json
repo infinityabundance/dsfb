@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dsfb-battery:schema:heuristics-bank:1.0.0",
+  "title": "DSFB Battery Heuristics Bank",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_type",
+    "schema_version",
+    "bank_version",
+    "frozen",
+    "entries"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "dsfb_battery_heuristics_bank"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "bank_version": {
+      "type": "string"
+    },
+    "frozen": {
+      "type": "boolean"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entry_id",
+          "pattern",
+          "regime_scope",
+          "admissibility_assumptions",
+          "interpretation",
+          "uncertainty_notes"
+        ],
+        "properties": {
+          "entry_id": { "type": "string" },
+          "pattern": { "type": "string" },
+          "regime_scope": { "type": "string" },
+          "admissibility_assumptions": { "type": "string" },
+          "interpretation": { "type": "string" },
+          "uncertainty_notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}
