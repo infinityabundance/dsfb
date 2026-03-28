@@ -92,7 +92,8 @@
         "PackImbalanceExpansion",
         "AcceleratingFadeKnee",
         "PossibleLithiumPlatingSignature",
-        "TransientThermalExcursionNotPersistent"
+        "TransientThermalExcursionNotPersistent",
+        "InvalidStreamSuppression"
       ]
     },
     "persistence": {

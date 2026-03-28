@@ -13,8 +13,10 @@ This note is crate-local only. It does not edit the paper. It records wording th
 
 ## Observed Artifact Facts Relevant to Manuscript Wording
 
-- In the current emitted Stage II artifact path, `interface_contract.fail_silent_on_invalid_stream` is `false`.
-- The current audit-trace builder emits `stream_valid: true` for recorded events and does not emit invalid-stream gap events in the default B0005 path.
+- In the current emitted Stage II artifact path, `interface_contract.fail_silent_on_invalid_stream` is `true`.
+- The emitted interface contract now also distinguishes `fail_silent_defined: true` and `fail_silent_enforced: true`.
+- The current audit-trace builder emits `invalid_stream_gap` events and suppresses normal classification/state-transition emission whenever the capacity sample or its fixed-window residual/drift/slew terms are non-finite.
+- The default B0005 production path still emits `stream_valid: true` for all recorded events because the shipped NASA B0005 capacity series is valid and does not contain invalid-stream gaps.
 - The current B0005 audit trace records these observed state-transition pairs: `Admissible -> Boundary`, `Boundary -> Violation`, and `Violation -> Admissible`.
 - A current default B0005 emission includes a `Violation -> Admissible` transition at cycle `48`.
 - Transition events are emitted whenever the per-cycle grammar classification changes; the current implementation does not impose monotone-only progression in the artifact exporter.
@@ -22,7 +24,7 @@ This note is crate-local only. It does not edit the paper. It records wording th
 
 ## Wording to Avoid Unless Implementation Changes
 
-- Avoid claiming fail-silent behavior on invalid streams. The current emitted interface contract does not assert it.
+- Avoid claiming stronger safety properties than the current implementation supports. The crate now enforces fail-silent classification suppression on invalid intervals, but it does not claim certification, watchdog enforcement by proof, or system-level safety guarantees beyond the declared advisory-only interface contract.
 - Avoid claiming monotone-only or irreversible grammar progression. The current implementation permits return transitions, including `Violation -> Admissible`, when the observed residual and persistence conditions return to admissible conditions.
 - Avoid claiming that Theorem 1 drives the classifier or triggers the DSFB alarm. The current artifact reports the theorem-derived bound separately from the grammar-based alarm path.
 - Avoid stronger claims such as formally verified, safety-preserving by proof, certifiable, or guaranteed protocol independence beyond what the emitted interface contract explicitly states.
