@@ -5,8 +5,8 @@
 //
 // Structured, serde-serializable contract for the Stage II JSON artifact.
 
-use crate::export::Stage2Results;
 use crate::detection::classification_is_emitted;
+use crate::export::Stage2Results;
 use crate::types::{BatteryResidual, GrammarState, PipelineConfig, ReasonCode};
 use chrono::Utc;
 use serde::Serialize;
@@ -18,8 +18,10 @@ use thiserror::Error;
 const SCHEMA_VERSION: &str = "1.0.0";
 const ARTIFACT_TYPE: &str = "dsfb_battery_audit_trace";
 const PAPER_VERSION: &str = "1.0";
-const BENCHMARK_ID: &str = "stage-ii-b0005-capacity";
-const REGIME_TAG: &str = "nasa_pcoe_b0005_capacity_only";
+const DEFAULT_DATASET_NAME: &str = "NASA PCoE Battery Dataset";
+const DEFAULT_CELL_ID: &str = "B0005";
+const DEFAULT_BENCHMARK_ID: &str = "stage-ii-b0005-capacity";
+const DEFAULT_REGIME_TAG: &str = "nasa_pcoe_b0005_capacity_only";
 const PRIMARY_JSON_NAME: &str = "stage2_detection_results.json";
 
 #[derive(Debug, Error)]
@@ -268,6 +270,10 @@ pub struct AuditTraceBuildContext<'a> {
     pub source_artifact: Option<&'a Path>,
     pub supporting_figures: &'a [String],
     pub supporting_tables: &'a [String],
+    pub dataset_name: Option<&'a str>,
+    pub cell_id: Option<&'a str>,
+    pub benchmark_id: Option<&'a str>,
+    pub regime_tag: Option<&'a str>,
 }
 
 #[derive(Debug, Clone)]
@@ -300,6 +306,10 @@ pub fn build_stage2_audit_trace(
         "run",
         16,
     );
+    let dataset_name = ctx.dataset_name.unwrap_or(DEFAULT_DATASET_NAME);
+    let cell_id = ctx.cell_id.unwrap_or(DEFAULT_CELL_ID);
+    let benchmark_id = ctx.benchmark_id.unwrap_or(DEFAULT_BENCHMARK_ID);
+    let regime_tag = ctx.regime_tag.unwrap_or(DEFAULT_REGIME_TAG);
     let thresholds = thresholds_in_force(&ctx.results.config);
     let supports = build_cycle_audit_support(ctx.trajectory, ctx.results);
     let summary_outcome = build_summary_outcome(ctx.trajectory, ctx.results);
@@ -310,6 +320,7 @@ pub fn build_stage2_audit_trace(
         &summary_outcome,
         &config_hash,
         &input_hash,
+        regime_tag,
     );
 
     Ok(Stage2AuditTraceArtifact {
@@ -326,14 +337,14 @@ pub fn build_stage2_audit_trace(
             crate_name: env!("CARGO_PKG_NAME").to_string(),
             crate_version: env!("CARGO_PKG_VERSION").to_string(),
             paper_version: PAPER_VERSION.to_string(),
-            benchmark_id: BENCHMARK_ID.to_string(),
+            benchmark_id: benchmark_id.to_string(),
             code_commit: None,
             config_hash: config_hash.clone(),
             input_hash: input_hash.clone(),
         },
         dataset: DatasetDescriptor {
-            dataset_name: "NASA PCoE Battery Dataset".to_string(),
-            cell_id: "B0005".to_string(),
+            dataset_name: dataset_name.to_string(),
+            cell_id: cell_id.to_string(),
             trajectory_unit: "cycle".to_string(),
             channel_scope: vec!["capacity".to_string()],
             source_artifact: source_artifact_label(ctx.source_artifact),
@@ -535,6 +546,7 @@ fn build_audit_trace(
     summary: &SummaryOutcome,
     config_hash: &str,
     input_hash: &str,
+    regime_tag: &str,
 ) -> Vec<AuditEvent> {
     let mut events = Vec::with_capacity(trajectory.len() * 2 + 1);
     let mut last_emitted_state = None;
@@ -585,7 +597,7 @@ fn build_audit_trace(
                 timestamp_utc: None,
                 classification: sample.grammar_state,
                 interpretation: sample.reason_code,
-                regime_tag: REGIME_TAG.to_string(),
+                regime_tag: regime_tag.to_string(),
                 channel: "capacity".to_string(),
                 evidence: support.evidence.clone(),
                 thresholds_in_force: thresholds.clone(),
@@ -613,7 +625,7 @@ fn build_audit_trace(
                 previous_state,
                 current_state: sample.grammar_state,
                 reason_code: sample.reason_code,
-                regime_tag: REGIME_TAG.to_string(),
+                regime_tag: regime_tag.to_string(),
                 channel: "capacity".to_string(),
                 evidence: support.evidence.clone(),
                 thresholds_in_force: thresholds.clone(),
@@ -739,13 +751,10 @@ fn transition_explanation(sample: &BatteryResidual, support: &CycleAuditSupport)
 fn build_failure_mode_observations(trajectory: &[BatteryResidual]) -> Vec<FailureModeObservation> {
     let mut observations: Vec<FailureModeObservation> = Vec::new();
 
-    for sample in trajectory
-        .iter()
-        .filter(|sample| {
-            sample.reason_code.is_some()
-                && sample.reason_code != Some(ReasonCode::InvalidStreamSuppression)
-        })
-    {
+    for sample in trajectory.iter().filter(|sample| {
+        sample.reason_code.is_some()
+            && sample.reason_code != Some(ReasonCode::InvalidStreamSuppression)
+    }) {
         let reason_code = sample.reason_code.unwrap();
         if let Some(existing) = observations
             .iter_mut()
@@ -946,6 +955,10 @@ mod tests {
             source_artifact: Some(Path::new("data/nasa_b0005_capacity.csv")),
             supporting_figures: &figures,
             supporting_tables: &tables,
+            dataset_name: None,
+            cell_id: None,
+            benchmark_id: None,
+            regime_tag: None,
         })
         .unwrap();
 
@@ -954,7 +967,10 @@ mod tests {
         assert_eq!(value["artifact_type"], "dsfb_battery_audit_trace");
         assert_eq!(value["run_metadata"]["crate_name"], "dsfb-battery");
         assert_eq!(value["dataset"]["cell_id"], "B0005");
-        assert_eq!(value["interface_contract"]["fail_silent_on_invalid_stream"], true);
+        assert_eq!(
+            value["interface_contract"]["fail_silent_on_invalid_stream"],
+            true
+        );
         assert_eq!(value["interface_contract"]["fail_silent_defined"], true);
         assert_eq!(value["interface_contract"]["fail_silent_enforced"], true);
         assert_eq!(
@@ -969,6 +985,41 @@ mod tests {
         assert_eq!(value["summary_outcome"]["first_boundary_cycle"], 3);
         assert_eq!(value["summary_outcome"]["first_violation_cycle"], 4);
         assert_eq!(value["summary_outcome"]["t_star"], 15);
+    }
+
+    #[test]
+    fn audit_trace_context_can_override_cell_metadata() {
+        let (results, raw_input, trajectory) = sample_results();
+        let artifact = build_stage2_audit_trace(AuditTraceBuildContext {
+            results: &results,
+            raw_input: &raw_input,
+            trajectory: &trajectory,
+            source_artifact: Some(Path::new("data/nasa_b0006_capacity.csv")),
+            supporting_figures: &[],
+            supporting_tables: &[],
+            dataset_name: Some("NASA PCoE Battery Dataset"),
+            cell_id: Some("B0006"),
+            benchmark_id: Some("reviewer-bundle-b0006-capacity"),
+            regime_tag: Some("nasa_pcoe_b0006_capacity_only"),
+        })
+        .unwrap();
+
+        let value = serde_json::to_value(&artifact).unwrap();
+        assert_eq!(value["dataset"]["cell_id"], "B0006");
+        assert_eq!(
+            value["run_metadata"]["benchmark_id"],
+            "reviewer-bundle-b0006-capacity"
+        );
+        let first_classification = value["audit_trace"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|event| event["event_type"] == "classification_sample")
+            .unwrap();
+        assert_eq!(
+            first_classification["regime_tag"],
+            "nasa_pcoe_b0006_capacity_only"
+        );
     }
 
     #[test]
@@ -1058,6 +1109,10 @@ mod tests {
             source_artifact: None,
             supporting_figures: &[],
             supporting_tables: &[],
+            dataset_name: None,
+            cell_id: None,
+            benchmark_id: None,
+            regime_tag: None,
         })
         .unwrap();
 
@@ -1103,9 +1158,11 @@ mod tests {
             .enumerate()
             .map(|(index, capacity)| (index + 1, *capacity))
             .collect();
-        let (envelope, trajectory) = crate::detection::run_dsfb_pipeline(&capacities, &config).unwrap();
+        let (envelope, trajectory) =
+            crate::detection::run_dsfb_pipeline(&capacities, &config).unwrap();
         let eol_capacity = config.eol_fraction * capacities[0];
-        let dsfb_detection = crate::detection::build_dsfb_detection(&trajectory, &capacities, eol_capacity);
+        let dsfb_detection =
+            crate::detection::build_dsfb_detection(&trajectory, &capacities, eol_capacity);
         let threshold_detection =
             crate::detection::build_threshold_detection(&capacities, 0.85, eol_capacity);
         let theorem1 = crate::detection::verify_theorem1(&envelope, &trajectory, &config);
@@ -1125,6 +1182,10 @@ mod tests {
             source_artifact: None,
             supporting_figures: &[],
             supporting_tables: &[],
+            dataset_name: None,
+            cell_id: None,
+            benchmark_id: None,
+            regime_tag: None,
         })
         .unwrap();
 

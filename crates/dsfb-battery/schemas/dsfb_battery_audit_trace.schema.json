@@ -109,7 +109,7 @@
           "type": "string"
         },
         "cell_id": {
-          "const": "B0005"
+          "type": "string"
         },
         "trajectory_unit": {
           "const": "cycle"

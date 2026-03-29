@@ -37,3 +37,8 @@ cc -Iinclude ffi/dsfb_battery_addendum_example.c target/release/libdsfb_battery.
 ```
 
 The example source is at `ffi/dsfb_battery_addendum_example.c`.
+
+An additional static-link example is provided at:
+
+- `wrappers/c/dsfb_battery_summary_example.c`
+- `wrappers/c/README.md`

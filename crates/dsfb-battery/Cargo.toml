@@ -21,6 +21,8 @@ include = [
     "formal/**",
     "heuristics/**",
     "include/**",
+    "LICENSE-COMMERCIAL.md",
+    "sbir-partner-template/**",
     "wrappers/**",
     "Cargo.toml",
     "README.md",
@@ -45,6 +47,7 @@ std = [
     "serde/std",
 ]
 alloc = ["serde/alloc"]
+cert-trace = []
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["clock"], optional = true }
@@ -121,4 +124,9 @@ required-features = ["std"]
 [[bin]]
 name = "dsfb-battery-addendum"
 path = "src/bin/dsfb_battery_addendum.rs"
+required-features = ["std"]
+
+[[bin]]
+name = "sbir-demo"
+path = "src/bin/sbir-demo.rs"
 required-features = ["std"]

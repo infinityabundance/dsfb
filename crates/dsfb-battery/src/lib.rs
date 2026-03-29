@@ -63,6 +63,8 @@ pub mod plotting;
 #[cfg(feature = "std")]
 pub mod resource_trace;
 #[cfg(feature = "std")]
+pub mod sbir_demo;
+#[cfg(feature = "std")]
 pub mod sensitivity;
 #[cfg(feature = "std")]
 pub mod sota;
@@ -115,17 +117,15 @@ pub use export::{
 pub use heuristics::{
     build_heuristic_observation_profile, load_heuristics_bank, load_nasa_heuristics_bank,
     retrieve_heuristic_matches, run_nasa_heuristics_bank_workflow, verify_heuristics_bank,
-    verify_nasa_heuristics_bank, AmbiguityLevel, HeuristicEvidenceInstance,
-    HeuristicEvidenceSet, HeuristicInventoryItem, HeuristicInterpretation,
-    HeuristicMatchCriteria, HeuristicMatchResult, HeuristicObservationProfile,
-    HeuristicPatternDescriptor, HeuristicPatternPersistence, HeuristicProvenance,
-    HeuristicStatus, HeuristicTransitionObservation, HeuristicsBankArtifact,
+    verify_nasa_heuristics_bank, AmbiguityLevel, HeuristicEvidenceInstance, HeuristicEvidenceSet,
+    HeuristicInterpretation, HeuristicInventoryItem, HeuristicMatchCriteria, HeuristicMatchResult,
+    HeuristicObservationProfile, HeuristicPatternDescriptor, HeuristicPatternPersistence,
+    HeuristicProvenance, HeuristicStatus, HeuristicTransitionObservation, HeuristicsBankArtifact,
     HeuristicsBankEntryRecord, HeuristicsBankEvidenceSummaryArtifact,
     HeuristicsBankInventoryArtifact, HeuristicsBankRetrievalArtifact,
-    HeuristicsBankSummaryArtifact, HeuristicsBankVerification,
-    HeuristicsBankWorkflowArtifact, HeuristicsIntegrityMetadata,
-    NasaHeuristicsBankArtifact, NasaHeuristicsBankEntry, NasaHeuristicsBankVerification,
-    NASA_HEURISTICS_BANK_JSON, NASA_HEURISTICS_BANK_SHA256,
+    HeuristicsBankSummaryArtifact, HeuristicsBankVerification, HeuristicsBankWorkflowArtifact,
+    HeuristicsIntegrityMetadata, NasaHeuristicsBankArtifact, NasaHeuristicsBankEntry,
+    NasaHeuristicsBankVerification, NASA_HEURISTICS_BANK_JSON, NASA_HEURISTICS_BANK_SHA256,
 };
 #[cfg(feature = "std")]
 pub use integration::{
@@ -159,6 +159,11 @@ pub use resource_trace::{
     ComputationalProfile, HeuristicsCost, HeuristicsDensityReport, MeasurementMode,
     MemoryBudgetReport, MemoryFootprint, ResourceMetric, ResourceRunSummary, ResourceTrace,
     ResourceTraceArtifacts, TimingSummary, WindowTrace,
+};
+#[cfg(feature = "std")]
+pub use sbir_demo::{
+    resolve_sbir_demo_output_dir, run_sbir_demo_workflow, SbirDemoArtifactRecord,
+    SbirDemoBundleManifest, SbirDemoOptions, SbirDemoResult,
 };
 #[cfg(feature = "std")]
 pub use sensitivity::{run_sensitivity_workflow, SensitivityArtifact, SensitivityScenarioResult};

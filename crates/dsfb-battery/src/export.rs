@@ -265,6 +265,10 @@ mod tests {
             source_artifact: Some(std::path::Path::new("data/nasa_b0005_capacity.csv")),
             supporting_figures: &figures,
             supporting_tables: &tables,
+            dataset_name: None,
+            cell_id: None,
+            benchmark_id: None,
+            regime_tag: None,
         })
         .unwrap();
 
@@ -289,6 +293,10 @@ mod tests {
             source_artifact: Some(std::path::Path::new("data/nasa_b0005_capacity.csv")),
             supporting_figures: &figures,
             supporting_tables: &tables,
+            dataset_name: None,
+            cell_id: None,
+            benchmark_id: None,
+            regime_tag: None,
         })
         .unwrap();
 

@@ -200,6 +200,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         source_artifact: Some(&data_path),
         supporting_figures: &supporting_figures,
         supporting_tables: &supporting_tables,
+        dataset_name: None,
+        cell_id: None,
+        benchmark_id: None,
+        regime_tag: None,
     })?;
     export_audit_trace_json(
         &audit_trace,

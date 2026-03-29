@@ -1,102 +1,48 @@
-# Deterministic Residual-Based Early Indication of Battery Degradation
-### DSFB Battery Health Monitoring
----
-### (NASA PCoE B0005 Evaluation)
+# DSFB Battery Health Monitoring
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
 
-
-
-
-
-### What this shows
-
-This repository evaluates a deterministic residual-based signal for indicating battery degradation transitions.
-
-On the NASA PCoE B0005 dataset:
-
-- A residual-derived signal is computed from observed battery behavior  
-- A simple capacity threshold (85%) is used as a baseline  
-- End-of-life (80%) is used as a reference  
-
-> The residual-based signal indicates the **transition region earlier than the threshold baseline in this case**.
-
-### Observed result (B0005)
-
-| Metric                     | Cycle |
-|--------------------------|------:|
-| DSFB signal trigger       |    38 |
-| 85% capacity threshold    |    79 |
-| End-of-life (80%)         |   101 |
-| Lead vs threshold         |    41 |
-| Lead vs EOL               |    63 |
-
-*Observed on NASA PCoE B0005; no generalization claimed.*  
-*Reproducible using this crate and the provided Colab notebook (deterministic replay).*
-
-![Detection comparison (DSFB vs threshold)](assets/fig07_detection_comparison.png)
-
-*Figure 07 - Detection comparison (DSFB vs 85% threshold baseline)*
-
-The signal remains elevated over multiple cycles rather than appearing as a transient spike.
-
->The DSFB signal reflects a change in residual structure and should be interpreted as an early indication of transition, not a direct estimate of capacity or remaining useful life.
----
-### How it works (brief)
-- Computes residual quantities derived from battery signals  
-- Extracts local drift and slew patterns  
-- Identifies sustained changes in signal behavior   
-
-> This operates as a read-only supervisory layer on top of existing signals.
----
-
-### Key properties:
-
-- Deterministic (replayable)  
-- Read-only (non-interfering)  
-- Does not replace existing BMS or estimators
-
----
-
-### Interface Requirements
-
-- Input: stream of scalar health signals (C_k, r_k, or equivalent)
-- Output: grammar state, reason code, audit trace
-- Protocol independent (CAN / Modbus / wireless)
-- No cloud required
-- No retraining required
-
----
-```
-[DSFB_STATUS]: BOUNDARY
-[REASON_CODE]: AcceleratingFadeKnee
-[EVIDENCE]: Slew (s_k) exceeded threshold for 8 consecutive cycles.
-```
----
-
-### How to reproduce
-- **Colab (recommended):**  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
-
-Notebook: notebooks/dsfb_battery_demo.ipynb
-
-Run: 
-```bash
-cargo run --release
-```
----
-
-### Scope
-- Single-cell evaluation (B0005)
-- Offline analysis
-- Demonstration of behavior, not general proof
-
 A standalone Rust crate implementing the DSFB (Drift–Slew Fusion Bootstrap) structural semiotics engine for battery health monitoring. The crate interprets capacity fade, resistance drift, and knee-onset acceleration in lithium-ion battery data as structured diagnostic signs, producing typed early-warning signals with deterministic auditability. It operates as an interpretive augmentation layer over existing BMS estimation pipelines — it does not replace probabilistic estimators or physics-based models.
 
----
+## For SBIR Operators
 
-## Formal framework and traceability to the paper
+`dsfb-battery` now includes a reviewer-facing `sbir-demo` bundle path that packages the crate's existing audit-trace, compliance, addendum, and optional multicell/resource-trace helpers into one isolated output directory. The bundle is additive only. It does not modify the existing `dsfb-battery-demo` mono-cell production path, current mono-cell figure basenames, or the production `stage2_detection_results.json` contract.
 
-### Mathematical Specification
+The intended posture remains conservative:
+
+- read-only and advisory-only rather than control-authoritative
+- reproducible on the checked-in NASA PCoE capacity CSVs already present in this crate
+- supportive of audit traces, JSON schemas, integrity hashes, resource profiling, and integration planning
+- explicit about measured versus estimated versus documented evidence
+
+Reviewer-facing example:
+
+```bash
+cargo run --release --bin sbir-demo -- \
+  --cell B0005 \
+  --multicell \
+  --trace-resources \
+  --output reviewer-bundle-20260329
+```
+
+By default this writes a new bundle under `outputs/sbir_demo/...`. Single-name `--output` values are placed under the same root. The bundle emits a primary audit trace for the selected cell, bundle-local compliance/addendum helper outputs, a reproducibility manifest with SHA-256 hashes, a reviewer summary, and optional multicell/resource-trace convenience copies.
+
+An additive `cert-trace` feature flag is also available for certification-facing traceability fields in the reviewer bundle:
+
+```bash
+cargo run --release --features cert-trace --bin sbir-demo -- --cell B0005
+```
+
+Supporting references:
+
+- `docs/embedded-integration.md`
+- `docs/engineer_extensions.md`
+- `docs/compliance/README.md`
+- `docs/addendum/README.md`
+- `LICENSE-COMMERCIAL.md`
+- `sbir-partner-template/`
+
+## Mathematical Specification
 
 All functions implement named formal objects from the paper:
 
@@ -223,6 +169,8 @@ Both are measured against end-of-life (EOL = 80% of initial capacity):
 | `src/detection.rs` | Detection engine: grammar state evaluation, reason code assignment, full pipeline, threshold baseline, Theorem 1 verification |
 | `src/export.rs` | Artifact export: CSV trajectory, JSON detection results |
 | `src/bin/dsfb_battery_demo.rs` | CLI binary: runs full pipeline on B0005 data, exports to timestamped output folder |
+| `src/sbir_demo.rs` | Additive reviewer-bundle orchestration over the existing helper workflows |
+| `src/bin/sbir-demo.rs` | Reviewer-facing CLI binary for isolated SBIR-style output bundles |
 | `tools/extract_nasa_b0005.py` | Python script: downloads NASA PCoE dataset, extracts B0005 capacity data to CSV |
 | `notebooks/dsfb_battery_demo.ipynb` | Colab notebook: full pipeline, 12 figures, Theorem 1 verification, artifact export |
 
@@ -266,6 +214,8 @@ Additional helper binaries are available for opt-in engineering work such as sen
 
 The frozen illustrative heuristics bank remains at `config/heuristics_bank_v1.json` with a tracked SHA-256 sidecar. A separate typed NASA-grounded bank is now provided at `heuristics/heuristics_bank_v2.json` with its own SHA-256 sidecar and schema at `schemas/dsfb_battery_heuristics_bank_v2.schema.json`. The bank is capacity-centric, ambiguity-aware, and does not claim unique physical mechanism identification; maturity notes are collected in `docs/heuristics_bank_maturity.md`. The narrow C header for the optional static library is at `include/dsfb_battery_ffi.h`, and the additive integration/FFI notes are collected in `docs/engineer_extensions.md`.
 
+The crate also includes an additive `sbir-demo` bundle path under `outputs/sbir_demo/...`. It reuses the existing helper workflows instead of introducing a second DSFB implementation. The bundle keeps production figure generation untouched, writes only into its own isolated directory, and can optionally include multicell comparison and resource-trace outputs. The reviewer bundle emits markdown and JSON/TXT artifacts rather than forcing a PDF path.
+
 ## Core Engine `no_std` Path
 
 The crate is not presented as fully `no_std`. The demo, benchmarking, CSV loading, JSON/file export, plotting, figure generation, and other host-side reporting paths remain `std`-based.
@@ -295,13 +245,16 @@ cargo build --release
 # Run demo
 cargo run --release --bin dsfb-battery-demo
 
+# Run reviewer-facing SBIR bundle
+cargo run --release --bin sbir-demo -- --cell B0005 --multicell --trace-resources
+
 # Run tests
 cargo test
 ```
 
 ## IP Notice
 
-This paper is published under CC BY 4.0. The CC BY 4.0 license applies to the text and figures of this paper as a written work and to all prior and subsequent papers in the DSFB series published by the same author; it does not constitute a license to the theoretical framework, formal constructions, or methods described herein. Reference implementations, Rust crates, Colab notebooks, and all associated code artifacts are released under the Apache 2.0 license. The Apache 2.0 license applies solely to those software artifacts as executable and distributable works; it does not constitute a license to the underlying theoretical framework, mathematical architecture, formal constructions, or supervisory methods from which those artifacts derive. The theoretical framework, formal constructions, mathematical architecture, and supervisory methods described in this paper and in all papers in the DSFB series constitute proprietary Background IP of Invariant Forge LLC. Commercial deployment, integration, sublicensing, or derivative use of the framework—including re-derivation by abstraction, equivalent reformulation, notation substitution, or domain translation—requires a separate written license from Invariant Forge LLC. Licensing: licensing@invariantforge.net
+This paper is published under CC BY 4.0. The CC BY 4.0 license applies to the text and figures of this paper as a written work and to all prior and subsequent papers in the DSFB series published by the same author; it does not constitute a license to the theoretical framework, formal constructions, or methods described herein. Reference implementations, Rust crates, Colab notebooks, and all associated code artifacts are released under the Apache 2.0 license. The Apache 2.0 license applies solely to those software artifacts as executable and distributable works; it does not constitute a license to the underlying theoretical framework, mathematical architecture, formal constructions, or supervisory methods from which those artifacts derive. The theoretical framework, formal constructions, mathematical architecture, and supervisory methods described in this paper and in all papers in the DSFB series constitute proprietary Background IP of Invariant Forge LLC. Commercial deployment, integration, sublicensing, or derivative use of the framework—including re-derivation by abstraction, equivalent reformulation, notation substitution, or domain translation—requires a separate written license from Invariant Forge LLC. Commercial licensing note: see `LICENSE-COMMERCIAL.md`.
 
 ## Citation
 
