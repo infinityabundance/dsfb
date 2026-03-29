@@ -4,8 +4,8 @@
 // Isolated addendum layer for formal/procedural scaffolds, operator overlays,
 // integrity helpers, SWaP-C reporting, and wrapper-support artifacts.
 
-use crate::compliance::run_compliance_workflow_from_input;
 use crate::complexity::{estimate_dsfb_update_complexity, ComplexityArtifact};
+use crate::compliance::run_compliance_workflow_from_input;
 use crate::detection::{
     assign_reason_code, build_dsfb_detection, build_threshold_detection, evaluate_grammar_state,
     next_persistence_count, run_dsfb_pipeline, verify_theorem1,
@@ -192,7 +192,10 @@ pub fn resolve_addendum_output_dir(crate_dir: &Path, explicit_output: Option<Pat
         return output;
     }
     let root = crate_dir.join("outputs").join("addendum");
-    let stem = format!("dsfb_battery_addendum_{}", Local::now().format("%Y%m%d_%H%M%S"));
+    let stem = format!(
+        "dsfb_battery_addendum_{}",
+        Local::now().format("%Y%m%d_%H%M%S")
+    );
     unique_named_output_dir(&root, &stem)
 }
 
@@ -234,6 +237,7 @@ pub fn run_addendum_workflow_from_input(
 
     let capacities: Vec<f64> = raw_input.iter().map(|(_, value)| *value).collect();
     let config = PipelineConfig::default();
+    let cell_id = infer_cell_id_from_path(source_path);
     let (envelope, trajectory) = run_dsfb_pipeline(&capacities, &config)?;
     let eol_capacity = config.eol_fraction * capacities[0];
     let dsfb_detection = build_dsfb_detection(&trajectory, &capacities, eol_capacity);
@@ -253,6 +257,7 @@ pub fn run_addendum_workflow_from_input(
         raw_input,
         &trajectory,
         &config,
+        &cell_id,
         dsfb_detection.lead_time_cycles,
     )?;
     let swapc_artifact = build_swapc_artifact(crate_dir, &config);
@@ -305,10 +310,7 @@ pub fn run_addendum_workflow_from_input(
         &mission_bus_dictionary,
         &output_dir.join("mission_bus_signal_dictionary.json"),
     )?;
-    write_json(
-        &seu_artifact,
-        &seu_dir.join("seu_resilience_report.json"),
-    )?;
+    write_json(&seu_artifact, &seu_dir.join("seu_resilience_report.json"))?;
 
     let compliance_summary = run_compliance_workflow_from_input(
         crate_dir,
@@ -392,7 +394,11 @@ pub fn build_zero_burden_overlay(
         tri_state_color: tri_state_color(grammar_state).to_string(),
         reason_code,
         lead_time_vs_threshold_cycles,
-        tactical_margin: compute_tactical_margin_summary(capacities, trajectory, TACTICAL_MARGIN_FRACTION),
+        tactical_margin: compute_tactical_margin_summary(
+            capacities,
+            trajectory,
+            TACTICAL_MARGIN_FRACTION,
+        ),
         validity_token: build_validity_token(final_cycle, true, 60),
         knee_onset_narrative: build_knee_onset_narrative(trajectory, config),
         advisory_text: operator_text(grammar_state, reason_code),
@@ -493,73 +499,94 @@ pub fn tamper_evident_verification(
 }
 
 pub fn render_swapc_report(artifact: &AddendumSwapcArtifact) -> String {
-    let mut lines = vec![
-        "DSFB Addendum SWaP-C Report".to_string(),
-        format!("Generated at: {}", artifact.generated_at_utc),
-        "".to_string(),
-        format!(
-            "Per-update arithmetic order: {}",
-            artifact.complexity.algorithmic_order_per_update
-        ),
-        format!(
-            "Implementation shape: {}",
-            artifact.complexity.implementation_shape
-        ),
-        "".to_string(),
-        "Warm-path operation estimate:".to_string(),
-        format!(
-            "- floating-point add/sub: {}",
-            artifact.complexity.operation_estimate.floating_point_add_sub
-        ),
-        format!(
-            "- floating-point mul/div: {}",
-            artifact.complexity.operation_estimate.floating_point_mul_div
-        ),
-        format!("- abs ops: {}", artifact.complexity.operation_estimate.abs_ops),
-        format!(
-            "- comparisons: {}",
-            artifact.complexity.operation_estimate.comparisons
-        ),
-        format!(
-            "- integer counter updates: {}",
-            artifact.complexity.operation_estimate.integer_counter_updates
-        ),
-        format!(
-            "- rolling window reads: {}",
-            artifact.complexity.operation_estimate.window_reads
-        ),
-        "".to_string(),
-        "State footprint estimate:".to_string(),
-        format!(
-            "- residual window samples: {}",
-            artifact.complexity.memory_footprint.residual_window_samples
-        ),
-        format!(
-            "- drift window samples: {}",
-            artifact.complexity.memory_footprint.drift_window_samples
-        ),
-        format!(
-            "- envelope scalars: {}",
-            artifact.complexity.memory_footprint.envelope_scalars
-        ),
-        format!(
-            "- persistence counters: {}",
-            artifact.complexity.memory_footprint.persistence_counters
-        ),
-        "".to_string(),
-        format!("Static allocation note: {}", artifact.static_allocation_note),
-        format!("Dynamic allocation note: {}", artifact.dynamic_allocation_note),
-        match artifact.debug_staticlib_bytes {
-            Some(bytes) => format!("- debug staticlib size: {} bytes", bytes),
-            None => "- debug staticlib size: not measured in the current workspace state".to_string(),
-        },
-        match artifact.release_staticlib_bytes {
-            Some(bytes) => format!("- release staticlib size: {} bytes", bytes),
-            None => "- release staticlib size: not measured in the current workspace state".to_string(),
-        },
-        "".to_string(),
-        "Notes:".to_string(),
-    ];
+    let mut lines =
+        vec![
+            "DSFB Addendum SWaP-C Report".to_string(),
+            format!("Generated at: {}", artifact.generated_at_utc),
+            "".to_string(),
+            format!(
+                "Per-update arithmetic order: {}",
+                artifact.complexity.algorithmic_order_per_update
+            ),
+            format!(
+                "Implementation shape: {}",
+                artifact.complexity.implementation_shape
+            ),
+            "".to_string(),
+            "Warm-path operation estimate:".to_string(),
+            format!(
+                "- floating-point add/sub: {}",
+                artifact
+                    .complexity
+                    .operation_estimate
+                    .floating_point_add_sub
+            ),
+            format!(
+                "- floating-point mul/div: {}",
+                artifact
+                    .complexity
+                    .operation_estimate
+                    .floating_point_mul_div
+            ),
+            format!(
+                "- abs ops: {}",
+                artifact.complexity.operation_estimate.abs_ops
+            ),
+            format!(
+                "- comparisons: {}",
+                artifact.complexity.operation_estimate.comparisons
+            ),
+            format!(
+                "- integer counter updates: {}",
+                artifact
+                    .complexity
+                    .operation_estimate
+                    .integer_counter_updates
+            ),
+            format!(
+                "- rolling window reads: {}",
+                artifact.complexity.operation_estimate.window_reads
+            ),
+            "".to_string(),
+            "State footprint estimate:".to_string(),
+            format!(
+                "- residual window samples: {}",
+                artifact.complexity.memory_footprint.residual_window_samples
+            ),
+            format!(
+                "- drift window samples: {}",
+                artifact.complexity.memory_footprint.drift_window_samples
+            ),
+            format!(
+                "- envelope scalars: {}",
+                artifact.complexity.memory_footprint.envelope_scalars
+            ),
+            format!(
+                "- persistence counters: {}",
+                artifact.complexity.memory_footprint.persistence_counters
+            ),
+            "".to_string(),
+            format!(
+                "Static allocation note: {}",
+                artifact.static_allocation_note
+            ),
+            format!(
+                "Dynamic allocation note: {}",
+                artifact.dynamic_allocation_note
+            ),
+            match artifact.debug_staticlib_bytes {
+                Some(bytes) => format!("- debug staticlib size: {} bytes", bytes),
+                None => "- debug staticlib size: not measured in the current workspace state"
+                    .to_string(),
+            },
+            match artifact.release_staticlib_bytes {
+                Some(bytes) => format!("- release staticlib size: {} bytes", bytes),
+                None => "- release staticlib size: not measured in the current workspace state"
+                    .to_string(),
+            },
+            "".to_string(),
+            "Notes:".to_string(),
+        ];
     for note in &artifact.notes {
         lines.push(format!("- {}", note));
     }
@@ -589,6 +616,7 @@ fn build_battery_passport_stub(
     raw_input: &[(usize, f64)],
     trajectory: &[BatteryResidual],
     config: &PipelineConfig,
+    cell_id: &str,
     lead_time_vs_threshold_cycles: Option<i64>,
 ) -> Result<BatteryPassportStubArtifact, AddendumError> {
     Ok(BatteryPassportStubArtifact {
@@ -596,7 +624,7 @@ fn build_battery_passport_stub(
         generated_at_utc: Utc::now().to_rfc3339(),
         schema_label: "engineer_facing_battery_passport_support_stub_v1".to_string(),
         dataset_name: "NASA PCoE Battery Dataset".to_string(),
-        cell_id: "B0005".to_string(),
+        cell_id: cell_id.to_string(),
         audit_trace_contract_present: true,
         config_hash: hash_json(config)?,
         input_hash: hash_json(raw_input)?,
@@ -619,6 +647,21 @@ fn build_battery_passport_stub(
     })
 }
 
+fn infer_cell_id_from_path(path: &Path) -> String {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| {
+            name.strip_prefix("nasa_")
+                .and_then(|trimmed| trimmed.strip_suffix("_capacity.csv"))
+        })
+        .map(|cell| cell.to_ascii_uppercase())
+        .unwrap_or_else(|| {
+            path.file_stem()
+                .map(|stem| stem.to_string_lossy().to_string())
+                .unwrap_or_else(|| "input_series".to_string())
+        })
+}
+
 fn build_seu_resilience_artifact(
     trajectory: &[BatteryResidual],
     config: &PipelineConfig,
@@ -635,7 +678,8 @@ fn build_seu_resilience_artifact(
     let mut digest = Sha256::new();
 
     for sample in trajectory {
-        drift_counter = next_persistence_count(drift_counter, sample.sign.d < -config.drift_threshold);
+        drift_counter =
+            next_persistence_count(drift_counter, sample.sign.d < -config.drift_threshold);
         slew_counter = next_persistence_count(slew_counter, sample.sign.s < -config.slew_threshold);
 
         let envelope = crate::types::EnvelopeParams {
@@ -665,20 +709,10 @@ fn build_seu_resilience_artifact(
             redundant_state_match = false;
         }
 
-        let reason_a = assign_reason_code(
-            &sample.sign,
-            state_a,
-            drift_counter,
-            slew_counter,
-            config,
-        );
-        let reason_b = assign_reason_code(
-            &sample.sign,
-            state_b,
-            drift_counter,
-            slew_counter,
-            config,
-        );
+        let reason_a =
+            assign_reason_code(&sample.sign, state_a, drift_counter, slew_counter, config);
+        let reason_b =
+            assign_reason_code(&sample.sign, state_b, drift_counter, slew_counter, config);
         if reason_a != reason_b {
             redundant_reason_match = false;
         }
@@ -847,7 +881,10 @@ fn render_implementation_summary(
         format!("Final overlay state: {}", overlay.grammar_state),
         format!("Final overlay color: {}", overlay.tri_state_color),
         format!("Theorem t_star observed in addendum helper run: {}", t_star),
-        format!("Nested compliance support output: {}", compliance_support_output),
+        format!(
+            "Nested compliance support output: {}",
+            compliance_support_output
+        ),
         "".to_string(),
         "Fully implemented:".to_string(),
     ];
@@ -972,12 +1009,10 @@ mod tests {
     fn resolve_addendum_output_dir_defaults_to_timestamped_directory() {
         let crate_dir = Path::new("/tmp/dsfb-battery");
         let output = resolve_addendum_output_dir(crate_dir, None);
-        assert!(
-            output
-                .display()
-                .to_string()
-                .contains("outputs/addendum/dsfb_battery_addendum_")
-        );
+        assert!(output
+            .display()
+            .to_string()
+            .contains("outputs/addendum/dsfb_battery_addendum_"));
     }
 
     #[test]
@@ -1016,31 +1051,25 @@ mod tests {
 
         assert!(output_dir.join("implementation_summary.txt").exists());
         assert!(output_dir.join("swapc").join("swapc_report.txt").exists());
-        assert!(
-            output_dir
-                .join("integrity")
-                .join("tamper_evident_trace.json")
-                .exists()
-        );
-        assert!(
-            output_dir
-                .join("operator_overlay")
-                .join("decision_support_overlay.json")
-                .exists()
-        );
-        assert!(
-            output_dir
-                .join("battery_passport")
-                .join("battery_passport_stub.json")
-                .exists()
-        );
-        assert!(
-            output_dir
-                .join("seu_resilience")
-                .join("seu_resilience_report.json")
-                .exists()
-        );
-        assert!(output_dir.join("mission_bus_signal_dictionary.json").exists());
+        assert!(output_dir
+            .join("integrity")
+            .join("tamper_evident_trace.json")
+            .exists());
+        assert!(output_dir
+            .join("operator_overlay")
+            .join("decision_support_overlay.json")
+            .exists());
+        assert!(output_dir
+            .join("battery_passport")
+            .join("battery_passport_stub.json")
+            .exists());
+        assert!(output_dir
+            .join("seu_resilience")
+            .join("seu_resilience_report.json")
+            .exists());
+        assert!(output_dir
+            .join("mission_bus_signal_dictionary.json")
+            .exists());
         assert!(!output_dir.join("stage2_detection_results.json").exists());
         assert!(!output_dir.join("fig01_capacity_fade.svg").exists());
         assert_eq!(

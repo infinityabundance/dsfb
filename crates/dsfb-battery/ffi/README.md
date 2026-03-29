@@ -18,3 +18,8 @@ cc -Iinclude ffi/dsfb_battery_addendum_example.c target/release/libdsfb_battery.
 ```
 
 This example is engineering support material only.
+
+See also:
+
+- `wrappers/c/dsfb_battery_summary_example.c`
+- `wrappers/c/README.md`
