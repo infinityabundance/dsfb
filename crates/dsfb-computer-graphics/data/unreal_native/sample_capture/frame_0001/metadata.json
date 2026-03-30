@@ -9,7 +9,7 @@
   "data_description": "Real Unreal SceneCapture exports with crate-local numeric materialization for DSFB replay",
   "provenance_label": "unreal_native",
   "scene_name": "DSFBTemporalCapture",
-  "shot_name": "minimal_temporal_pair",
+  "shot_name": "minimal_temporal_sequence",
   "exposure": "manual_auto_exposure_disabled",
   "tonemap": "scene_capture_png_linearized",
   "camera": {
@@ -32,6 +32,7 @@
   },
   "notes": [
     "Raw current_color and previous_color came from Unreal SceneCapture2D final-color PNG exports and were linearized into json_rgb_f32.",
+    "reference_color.json was built from a real Unreal final-color export rendered at a higher resolution and box-downsampled to the canonical replay resolution; it is a reference proxy, not path-traced ground truth.",
     "Raw current_normals and previous_normals came from the Unreal WorldNormal visualization material and are retained under raw/ as provenance.",
     "current_normals.json and previous_normals.json are derived deterministically from the Unreal scene metadata and per-pixel geometry trace because the visualization PNG is not treated as a numerically stable unit-normal field on this editor-side Linux path.",
     "Raw current_depth and previous_depth came from the Unreal SceneDepth visualization material and were decoded into monotonic visualization depth scalars.",

@@ -2,8 +2,8 @@
   "schema_version": "dsfb_unreal_native_v1",
   "dataset_kind": "unreal_native",
   "provenance_label": "unreal_native",
-  "dataset_id": "ue57_dsfb_temporal_capture_sample",
-  "description": "Strict Unreal-native temporal capture manifest for the crate-local DSFBTemporalCapture Unreal project. The sample uses real Unreal SceneCapture exports for color, normals, and depth, then materializes deterministic replay buffers and metadata without any synthetic fallback.",
+  "dataset_id": "ue57_dsfb_temporal_capture_sequence_sample",
+  "description": "Strict Unreal-native temporal capture manifest for the crate-local DSFBTemporalCapture Unreal project. The sample now contains a real ordered Unreal-native capture sequence with a higher-resolution exported reference proxy for each frame.",
   "engine": {
     "engine_name": "unreal_engine",
     "engine_version": "5.7.2",
@@ -22,6 +22,7 @@
     "history_source": "previous_frame_export_plus_metadata_motion_reprojection",
     "notes": [
       "current_color and previous_color originate from real Unreal SceneCapture PNG exports and are linearized into json_rgb_f32 before replay.",
+      "reference_color originates from a real higher-resolution Unreal final-color export that is box-downsampled to the canonical replay resolution and used as a reference proxy.",
       "current_depth and previous_depth originate from real Unreal SceneDepth visualization exports and are labeled as monotonic_visualized_depth rather than claimed as exact linear depth.",
       "motion_vectors.json is derived deterministically from Unreal camera/object metadata for this minimal sample because stable dense velocity export was not available on the editor-side Linux path used here."
     ]
@@ -88,6 +89,14 @@
           "height": 144,
           "channels": 3
         },
+        "reference_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0001/reference_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
         "metadata": {
           "path": "../data/unreal_native/sample_capture/frame_0001/metadata.json",
           "format": "json_metadata",
@@ -111,8 +120,401 @@
         }
       },
       "notes": [
-        "This canonical sample is a real Unreal export bundle from the crate-local DSFBTemporalCapture project.",
+        "This canonical sample frame is a real Unreal export bundle from the crate-local DSFBTemporalCapture project for minimal_temporal_sequence.",
         "The raw Unreal PNG exports are retained under data/unreal_native/sample_capture/frame_0001/raw for auditability.",
+        "reference_color.json is built from a real higher-resolution Unreal export rather than substituted from the current frame.",
+        "Unreal-native mode will fail if any required file is missing or if the metadata provenance is anything other than unreal_native."
+      ]
+    },
+    {
+      "label": "frame_0002",
+      "frame_index": 2,
+      "history_frame_index": 1,
+      "buffers": {
+        "current_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/current_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "current_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "previous_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/previous_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "previous_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": 256,
+          "height": 144,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "previous_depth": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/previous_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "previous_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "previous_normals": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/previous_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "previous_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "reference_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/reference_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata"
+        },
+        "roi_mask": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/roi_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "roi_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "disocclusion_mask": {
+          "path": "../data/unreal_native/sample_capture/frame_0002/disocclusion_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "disocclusion_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        }
+      },
+      "notes": [
+        "This canonical sample frame is a real Unreal export bundle from the crate-local DSFBTemporalCapture project for minimal_temporal_sequence.",
+        "The raw Unreal PNG exports are retained under data/unreal_native/sample_capture/frame_0002/raw for auditability.",
+        "reference_color.json is built from a real higher-resolution Unreal export rather than substituted from the current frame.",
+        "Unreal-native mode will fail if any required file is missing or if the metadata provenance is anything other than unreal_native."
+      ]
+    },
+    {
+      "label": "frame_0003",
+      "frame_index": 3,
+      "history_frame_index": 2,
+      "buffers": {
+        "current_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/current_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "current_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "previous_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/previous_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "previous_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": 256,
+          "height": 144,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "previous_depth": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/previous_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "previous_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "previous_normals": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/previous_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "previous_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "reference_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/reference_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata"
+        },
+        "roi_mask": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/roi_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "roi_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "disocclusion_mask": {
+          "path": "../data/unreal_native/sample_capture/frame_0003/disocclusion_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "disocclusion_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        }
+      },
+      "notes": [
+        "This canonical sample frame is a real Unreal export bundle from the crate-local DSFBTemporalCapture project for minimal_temporal_sequence.",
+        "The raw Unreal PNG exports are retained under data/unreal_native/sample_capture/frame_0003/raw for auditability.",
+        "reference_color.json is built from a real higher-resolution Unreal export rather than substituted from the current frame.",
+        "Unreal-native mode will fail if any required file is missing or if the metadata provenance is anything other than unreal_native."
+      ]
+    },
+    {
+      "label": "frame_0004",
+      "frame_index": 4,
+      "history_frame_index": 3,
+      "buffers": {
+        "current_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/current_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "current_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "previous_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/previous_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "previous_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": 256,
+          "height": 144,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "previous_depth": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/previous_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "previous_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "previous_normals": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/previous_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "previous_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "reference_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/reference_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata"
+        },
+        "roi_mask": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/roi_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "roi_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "disocclusion_mask": {
+          "path": "../data/unreal_native/sample_capture/frame_0004/disocclusion_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "disocclusion_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        }
+      },
+      "notes": [
+        "This canonical sample frame is a real Unreal export bundle from the crate-local DSFBTemporalCapture project for minimal_temporal_sequence.",
+        "The raw Unreal PNG exports are retained under data/unreal_native/sample_capture/frame_0004/raw for auditability.",
+        "reference_color.json is built from a real higher-resolution Unreal export rather than substituted from the current frame.",
+        "Unreal-native mode will fail if any required file is missing or if the metadata provenance is anything other than unreal_native."
+      ]
+    },
+    {
+      "label": "frame_0005",
+      "frame_index": 5,
+      "history_frame_index": 4,
+      "buffers": {
+        "current_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/current_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "current_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "previous_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/previous_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "previous_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": 256,
+          "height": 144,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "previous_depth": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/previous_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "previous_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "previous_normals": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/previous_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "previous_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "reference_color": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/reference_color.json",
+          "format": "json_rgb_f32",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata"
+        },
+        "roi_mask": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/roi_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "roi_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "disocclusion_mask": {
+          "path": "../data/unreal_native/sample_capture/frame_0005/disocclusion_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "disocclusion_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        }
+      },
+      "notes": [
+        "This canonical sample frame is a real Unreal export bundle from the crate-local DSFBTemporalCapture project for minimal_temporal_sequence.",
+        "The raw Unreal PNG exports are retained under data/unreal_native/sample_capture/frame_0005/raw for auditability.",
+        "reference_color.json is built from a real higher-resolution Unreal export rather than substituted from the current frame.",
         "Unreal-native mode will fail if any required file is missing or if the metadata provenance is anything other than unreal_native."
       ]
     }

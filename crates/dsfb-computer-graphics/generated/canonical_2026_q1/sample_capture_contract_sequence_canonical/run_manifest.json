@@ -1,0 +1,36 @@
+{
+  "capture_count": 5,
+  "contract": {
+    "color_space": "linear_rgb_from_scene_capture_png",
+    "coordinate_space": "screen_space_current_to_previous",
+    "depth_convention": "monotonic_visualized_depth",
+    "history_source": "previous_frame_export_plus_metadata_motion_reprojection",
+    "motion_vector_convention": "pixel_offset_to_prev",
+    "normal_space": "world_space_unit",
+    "notes": [
+      "current_color and previous_color originate from real Unreal SceneCapture PNG exports and are linearized into json_rgb_f32 before replay.",
+      "reference_color originates from a real higher-resolution Unreal final-color export that is box-downsampled to the canonical replay resolution and used as a reference proxy.",
+      "current_depth and previous_depth originate from real Unreal SceneDepth visualization exports and are labeled as monotonic_visualized_depth rather than claimed as exact linear depth.",
+      "motion_vectors.json is derived deterministically from Unreal camera/object metadata for this minimal sample because stable dense velocity export was not available on the editor-side Linux path used here."
+    ],
+    "tonemap": "scene_capture_png_linearized"
+  },
+  "dataset_id": "ue57_dsfb_temporal_capture_sequence_sample",
+  "dataset_kind": "unreal_native",
+  "engine": {
+    "capture_script": "../unreal/DSFBTemporalCapture/Scripts/export_unreal_native_capture.py",
+    "capture_tool": "scene_capture2d_png_export_plus_dataset_builder",
+    "engine_name": "unreal_engine",
+    "engine_version": "5.7.2",
+    "project_path": "../unreal/DSFBTemporalCapture/DSFBTemporalCapture.uproject",
+    "real_engine_capture": true
+  },
+  "manifest_path": "crates/dsfb-computer-graphics/examples/unreal_native_capture_manifest.json",
+  "materialized_manifest_path": "crates/dsfb-computer-graphics/generated/canonical_2026_q1/sample_capture_contract_sequence_canonical/materialized_unreal_external_manifest.json",
+  "notes": [
+    "Unreal-native mode has no synthetic fallback.",
+    "If a richer engine path later exposes exact float velocity or direct history buffers, update the manifest and exporter rather than relabeling this sample."
+  ],
+  "provenance_label": "unreal_native",
+  "schema_version": "dsfb_unreal_native_v1"
+}

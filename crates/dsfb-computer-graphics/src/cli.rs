@@ -169,6 +169,12 @@ pub enum Command {
         manifest: PathBuf,
         #[arg(long, default_value = "generated")]
         output: PathBuf,
+        #[arg(long)]
+        capture_label: Option<String>,
+        #[arg(long)]
+        width: Option<usize>,
+        #[arg(long)]
+        height: Option<usize>,
     },
     /// Generate the engine-realistic synthetic 1080p bridge and run the full external validation bundle on it.
     RunEngineRealisticBridge {
@@ -366,8 +372,30 @@ pub fn run(cli: Cli) -> Result<()> {
             let report = export_minimal_report(&config, &output)?;
             println!("minimal report: {}", report.display());
         }
-        Command::ProbeExternalGpu { manifest, output } => {
-            let metrics_path = probe_external_gpu_only(&config, &manifest, &output)?;
+        Command::ProbeExternalGpu {
+            manifest,
+            output,
+            capture_label,
+            width,
+            height,
+        } => {
+            let scaled_resolution = match (width, height) {
+                (Some(width), Some(height)) => Some((width, height)),
+                (None, None) => None,
+                _ => {
+                    return Err(crate::error::Error::Message(
+                        "probe-external-gpu requires both --width and --height when scaling is requested"
+                            .to_string(),
+                    ))
+                }
+            };
+            let metrics_path = probe_external_gpu_only(
+                &config,
+                &manifest,
+                &output,
+                capture_label.as_deref(),
+                scaled_resolution,
+            )?;
             println!("gpu probe metrics: {}", metrics_path.display());
         }
         Command::RunEngineRealisticBridge { output } => {

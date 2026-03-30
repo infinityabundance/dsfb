@@ -1,0 +1,43 @@
+{
+  "frame_index": 5,
+  "history_frame_index": 4,
+  "width": 256,
+  "height": 144,
+  "source_kind": "unreal_native",
+  "externally_validated": true,
+  "real_external_data": true,
+  "data_description": "Real Unreal SceneCapture exports with crate-local numeric materialization for DSFB replay",
+  "provenance_label": "unreal_native",
+  "scene_name": "DSFBTemporalCapture",
+  "shot_name": "minimal_temporal_sequence",
+  "exposure": "manual_auto_exposure_disabled",
+  "tonemap": "scene_capture_png_linearized",
+  "camera": {
+    "name": "DSFBTemporalCapture_Camera",
+    "position": [
+      -600.0,
+      0.0,
+      140.0
+    ],
+    "forward": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "fov_degrees": 45.981632232666016,
+    "jitter_pixels": [
+      0.0,
+      0.0
+    ]
+  },
+  "notes": [
+    "Raw current_color and previous_color came from Unreal SceneCapture2D final-color PNG exports and were linearized into json_rgb_f32.",
+    "reference_color.json was built from a real Unreal final-color export rendered at a higher resolution and box-downsampled to the canonical replay resolution; it is a reference proxy, not path-traced ground truth.",
+    "Raw current_normals and previous_normals came from the Unreal WorldNormal visualization material and are retained under raw/ as provenance.",
+    "current_normals.json and previous_normals.json are derived deterministically from the Unreal scene metadata and per-pixel geometry trace because the visualization PNG is not treated as a numerically stable unit-normal field on this editor-side Linux path.",
+    "Raw current_depth and previous_depth came from the Unreal SceneDepth visualization material and were decoded into monotonic visualization depth scalars.",
+    "motion_vectors.json was derived deterministically from Unreal camera/object metadata because the editor-side Linux path did not expose a stable dense velocity export for this minimal sample.",
+    "roi_mask.json and disocclusion_mask.json were derived from the same Unreal scene metadata and exported frame pair to make the evidence bundle easier to audit.",
+    "Do not relabel synthetic data as unreal_native."
+  ]
+}

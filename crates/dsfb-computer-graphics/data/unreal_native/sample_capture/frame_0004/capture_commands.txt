@@ -1,0 +1,51 @@
+# DSFB Unreal-Native Capture Log
+
+This sample bundle is the canonical crate-local Unreal-native sequence example.
+
+Raw export command:
+- /home/one/Unreal/UE_5.7.2/Engine/Binaries/Linux/UnrealEditor crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/DSFBTemporalCapture.uproject -ExecutePythonScript=crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/Scripts/export_unreal_native_capture.py -stdout -FullStdOutLogOutput
+
+Dataset materialization command:
+- python3 crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/Scripts/build_unreal_native_dataset.py
+
+Strict replay command:
+- cargo run --release -- run-unreal-native --manifest examples/unreal_native_capture_manifest.json --output generated/unreal_native_runs
+
+Frame:
+- label = frame_0004
+- frame_index = 4
+- history_frame_index = 3
+- shot_name = minimal_temporal_sequence
+
+Resolution:
+- canonical replay inputs: 256x144
+- reference proxy export: 1024x576
+
+Direct Unreal exports retained under raw/:
+- previous_color.png
+- current_color.png
+- reference_color_hi.png
+- previous_normals.png
+- current_normals.png
+- previous_depth.png
+- current_depth.png
+
+Materialized replay buffers:
+- previous_color.json
+- current_color.json
+- reference_color.json               # higher-resolution Unreal export, box-downsampled
+- previous_normals.json              # derived from Unreal scene metadata
+- current_normals.json               # derived from Unreal scene metadata
+- previous_depth.json
+- current_depth.json
+- motion_vectors.json                # derived from Unreal scene metadata
+- roi_mask.json
+- disocclusion_mask.json
+- metadata.json
+
+Boundaries:
+- reference_color.json is a real higher-resolution Unreal export proxy rather than path-traced ground truth
+- motion_vectors.json is metadata-derived for this minimal sample because stable dense velocity export was not available on the editor-side Linux path used here
+- current_normals.json and previous_normals.json are metadata-derived for this minimal sample because the WorldNormal PNG export is retained as visual evidence, not trusted as a numerically stable unit-normal field
+- depth is labeled monotonic_visualized_depth rather than linear depth because the raw Unreal depth export is a visualization pass
+- this is still an Unreal-native empirical replay path, not a synthetic substitute
