@@ -258,6 +258,10 @@ This paper is published under CC BY 4.0. The CC BY 4.0 license applies to the te
 
 ## Citation
 
+If you use `dsfb-battery`, cite:
+
+de Beer, R. (2026). *DSFB Structural Semiotics Engine for Battery Health Monitoring: A Deterministic Early-Warning Framework for Capacity Fade, Internal Resistance Drift, and Knee-Onset Detection in Safety-Critical Energy Storage Systems* (v1.0). Zenodo. https://doi.org/10.5281/zenodo.19339713
+
 ```bibtex
 @article{debeer2026dsfb_battery,
   title={DSFB Structural Semiotics Engine for Battery Health Monitoring:
