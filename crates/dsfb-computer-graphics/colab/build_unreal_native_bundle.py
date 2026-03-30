@@ -122,7 +122,7 @@ def build_boardroom_panel(run_dir: Path, frame: dict) -> Path:
 
     tiles = [
         ("Current frame", current),
-        ("Baseline / host output", baseline),
+        ("Fixed-alpha baseline", baseline),
         ("DSFB trust", trust),
         ("DSFB alpha", alpha),
         ("DSFB intervention", intervention),

@@ -9,14 +9,15 @@ use crate::config::DemoConfig;
 use crate::error::{Error, Result};
 use crate::external::{
     load_external_capture_bundle, run_external_import_from_manifest, ExternalCaptureBundle,
-    ExternalHandoffMetrics, ExternalLoadedCapture, NO_REAL_EXTERNAL_DATA_PROVIDED,
+    ExternalHandoffMetrics, ExternalLoadedCapture, OwnedHostTemporalInputs,
+    NO_REAL_EXTERNAL_DATA_PROVIDED,
 };
 use crate::frame::{
     mean_abs_error, mean_abs_error_over_mask, save_scalar_field_png, Color, ImageFrame, ScalarField,
 };
 use crate::gpu::try_execute_host_minimum_kernel;
 use crate::host::{
-    default_host_realistic_profile, supervise_temporal_reuse, HostSupervisionOutputs,
+    default_host_realistic_profile, supervise_temporal_reuse,
 };
 use crate::parameters::SmoothstepThreshold;
 use crate::report::EXPERIMENT_SENTENCE;
@@ -26,6 +27,18 @@ use crate::sampling::{
     DemoBPolicyMetrics,
 };
 use crate::scene::{MotionVector, Normal3};
+pub const ROI_CONTRACT_ALPHA: f32 = 0.15;
+pub const ROI_CONTRACT_BASELINE_METHOD_ID: &str = "fixed_alpha";
+pub const ROI_CONTRACT_SOURCE: &str = "fixed_alpha_local_contrast_0p15";
+pub const ROI_CONTRACT_STATEMENT: &str =
+    "ROI is defined as pixels where baseline error exceeds 15% of local contrast. The mask is computed once from the baseline and held fixed across all methods. DSFB does not influence ROI selection.";
+pub const CANONICAL_HEADLINE_STATEMENT: &str =
+    "DSFB improves strong temporal heuristics via structural supervision.";
+pub const PURE_DSFB_LIMITATION_STATEMENT: &str =
+    "DSFB alone does not outperform strong heuristic baselines in the current evaluation.";
+pub const ROI_HONESTY_STATEMENT: &str =
+    "The ROI definition captures approximately 50% of the frame under the fixed baseline-relative threshold, making the metric closer to a global structural error measure than a sparse artifact mask.";
+pub const ROI_AGGREGATION_MIN_CAPTURES: usize = 3;
 
 #[derive(Clone, Debug)]
 pub struct ExternalValidationArtifacts {
@@ -81,6 +94,7 @@ pub struct ExternalDemoAMethodMetrics {
     pub overall_mae: f32,
     pub roi_mae: f32,
     pub non_roi_mae: f32,
+    pub max_error: f32,
     pub temporal_error_accumulation: f32,
     pub intervention_rate: f32,
 }
@@ -90,6 +104,11 @@ pub struct ExternalDemoACaptureMetrics {
     pub capture_label: String,
     pub roi_source: String,
     pub roi_pixels: usize,
+    pub total_pixels: usize,
+    pub roi_coverage: f32,
+    pub roi_statement: String,
+    pub baseline_method_id: String,
+    pub reference_source: String,
     pub ground_truth_available: bool,
     pub metric_source: String,
     pub methods: Vec<ExternalDemoAMethodMetrics>,
@@ -110,6 +129,11 @@ pub struct ExternalDemoBCaptureMetrics {
     pub metric_source: String,
     pub roi_source: String,
     pub roi_pixels: usize,
+    pub total_pixels: usize,
+    pub roi_coverage: f32,
+    pub roi_statement: String,
+    pub baseline_method_id: String,
+    pub reference_source: String,
     pub ground_truth_available: bool,
     pub budget_total_samples: usize,
     pub fixed_budget_equal: bool,
@@ -165,6 +189,26 @@ pub struct ExternalScalingMetrics {
     pub notes: Vec<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+struct TemporalTrustTrajectoryPoint {
+    capture_label: String,
+    frame_index: usize,
+    mean_trust: f32,
+    mean_alpha: f32,
+    intervention_rate: f32,
+    roi_coverage: f32,
+    dsfb_roi_mae: f32,
+    hybrid_roi_mae: f32,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct TemporalTrustTrajectoryReport {
+    onset_capture_label: String,
+    peak_roi_capture_label: String,
+    recovery_capture_label: String,
+    points: Vec<TemporalTrustTrajectoryPoint>,
+}
+
 pub fn run_external_validation_bundle(
     config: &DemoConfig,
     manifest_path: &Path,
@@ -214,8 +258,15 @@ pub fn run_external_validation_bundle(
     let demo_b_report_path = output_dir.join("demo_b_external_report.md");
     write_demo_b_external_report(&demo_b_report_path, &demo_b_metrics, &bundle)?;
 
-    let scaling_metrics =
-        run_external_scaling_study(config, &bundle, &demo_a_metrics, &demo_b_metrics)?;
+    let scaling_metrics = run_external_scaling_study(
+        config,
+        manifest_path,
+        output_dir,
+        &bundle,
+        &gpu_metrics,
+        &demo_a_metrics,
+        &demo_b_metrics,
+    )?;
     let scaling_metrics_path = output_dir.join("scaling_metrics.json");
     fs::write(
         &scaling_metrics_path,
@@ -263,13 +314,52 @@ pub fn probe_external_gpu_only(
     config: &DemoConfig,
     manifest_path: &Path,
     output_dir: &Path,
+    capture_label: Option<&str>,
+    scaled_resolution: Option<(usize, usize)>,
 ) -> Result<PathBuf> {
     fs::create_dir_all(output_dir)?;
     let bundle = load_external_capture_bundle(config, manifest_path, output_dir)?;
+    let bundle = if capture_label.is_some() || scaled_resolution.is_some() {
+        build_gpu_probe_bundle(bundle, capture_label, scaled_resolution)?
+    } else {
+        bundle
+    };
     let metrics = run_external_gpu_metrics(config, &bundle)?;
     let path = output_dir.join("gpu_probe_metrics.json");
     fs::write(&path, serde_json::to_string_pretty(&metrics)?)?;
     Ok(path)
+}
+
+fn build_gpu_probe_bundle(
+    bundle: ExternalCaptureBundle,
+    capture_label: Option<&str>,
+    scaled_resolution: Option<(usize, usize)>,
+) -> Result<ExternalCaptureBundle> {
+    let capture = if let Some(label) = capture_label {
+        bundle
+            .captures
+            .iter()
+            .find(|capture| capture.label == label)
+            .cloned()
+            .ok_or_else(|| Error::Message(format!("capture `{label}` was missing from the bundle")))?
+    } else {
+        bundle
+            .captures
+            .first()
+            .cloned()
+            .ok_or_else(|| Error::Message("external capture bundle had no captures".to_string()))?
+    };
+    let capture = if let Some((width, height)) = scaled_resolution {
+        scale_external_capture(&capture, width, height)?
+    } else {
+        capture
+    };
+    Ok(ExternalCaptureBundle {
+        manifest: bundle.manifest,
+        captures: vec![capture],
+        real_external_data_provided: bundle.real_external_data_provided,
+        no_real_external_data_provided: bundle.no_real_external_data_provided,
+    })
 }
 
 fn run_external_gpu_metrics(
@@ -367,14 +457,9 @@ fn try_gpu_subprocess_probe(
     output_dir: &Path,
     bundle: &ExternalCaptureBundle,
 ) -> Result<Option<ExternalGpuMetrics>> {
-    let executable = std::env::current_exe()?;
-    let executable_name = executable
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default();
-    if !executable_name.contains("dsfb-computer-graphics") {
+    let Some(executable) = gpu_probe_executable()? else {
         return Ok(None);
-    }
+    };
 
     let probe_dir = output_dir.join("gpu_probe");
     fs::create_dir_all(&probe_dir)?;
@@ -441,17 +526,10 @@ fn run_demo_a_external_metrics(
     let profile =
         default_host_realistic_profile(config.dsfb_alpha_range.min, config.dsfb_alpha_range.max);
     let mut captures = Vec::with_capacity(bundle.captures.len());
+    let mut trajectory_points = Vec::with_capacity(bundle.captures.len());
 
     for (capture_index, capture) in bundle.captures.iter().enumerate() {
         let outputs = supervise_temporal_reuse(&capture.inputs.borrow(), &profile);
-        let (roi_mask, roi_source) = roi_mask_for_capture(capture, &outputs);
-        let dsfb_resolved = resolve_with_alpha(
-            &capture.inputs.reprojected_history,
-            &capture.inputs.current_color,
-            &outputs.alpha,
-        );
-        let (strong_resolved, strong_alpha, strong_response) =
-            run_external_strong_heuristic(config, capture);
         let fixed_alpha_field = constant_field(
             capture.inputs.width(),
             capture.inputs.height(),
@@ -462,34 +540,85 @@ fn run_demo_a_external_metrics(
             &capture.inputs.current_color,
             &fixed_alpha_field,
         );
+        let (reference_frame, reference_source, metric_source) =
+            capture_reference_frame_and_metric_source(capture);
+        let (roi_mask, roi_source, roi_coverage) =
+            roi_mask_for_capture(capture, &fixed_resolved, reference_frame);
+        let dsfb_resolved = resolve_with_alpha(
+            &capture.inputs.reprojected_history,
+            &capture.inputs.current_color,
+            &outputs.alpha,
+        );
+        let (strong_resolved, strong_alpha, strong_response) =
+            run_external_strong_heuristic(config, capture);
+        let (hybrid_resolved, _hybrid_alpha, hybrid_response) =
+            run_external_dsfb_plus_strong_heuristic(
+                capture,
+                &outputs.alpha,
+                &outputs.intervention,
+                &strong_alpha,
+                &strong_response,
+            );
         let fixed_response = ScalarField::new(capture.inputs.width(), capture.inputs.height());
 
         let methods = vec![
             build_demo_a_method_metrics(
                 "fixed_alpha",
                 "Fixed alpha baseline",
-                capture,
                 &fixed_resolved,
+                reference_frame,
+                metric_source,
                 &roi_mask,
                 &fixed_response,
             ),
             build_demo_a_method_metrics(
                 "strong_heuristic",
-                "Strong heuristic",
-                capture,
+                "Strong heuristic clamp",
                 &strong_resolved,
+                reference_frame,
+                metric_source,
                 &roi_mask,
                 &strong_response,
             ),
             build_demo_a_method_metrics(
                 "dsfb_host_minimum",
                 "DSFB host minimum",
-                capture,
                 &dsfb_resolved,
+                reference_frame,
+                metric_source,
                 &roi_mask,
                 &outputs.intervention,
             ),
+            build_demo_a_method_metrics(
+                "dsfb_plus_strong_heuristic",
+                "DSFB + strong heuristic",
+                &hybrid_resolved,
+                reference_frame,
+                metric_source,
+                &roi_mask,
+                &hybrid_response,
+            ),
         ];
+        let dsfb_roi_mae = methods
+            .iter()
+            .find(|method| method.method_id == "dsfb_host_minimum")
+            .map(|method| method.roi_mae)
+            .ok_or_else(|| {
+                Error::Message(format!(
+                    "capture `{}` did not retain dsfb_host_minimum metrics",
+                    capture.label
+                ))
+            })?;
+        let hybrid_roi_mae = methods
+            .iter()
+            .find(|method| method.method_id == "dsfb_plus_strong_heuristic")
+            .map(|method| method.roi_mae)
+            .ok_or_else(|| {
+                Error::Message(format!(
+                    "capture `{}` did not retain dsfb_plus_strong_heuristic metrics",
+                    capture.label
+                ))
+            })?;
 
         if capture_index == 0 {
             capture
@@ -503,6 +632,9 @@ fn run_demo_a_external_metrics(
             fixed_resolved.save_png(&figures_dir.join("demo_a_fixed_alpha.png"))?;
             strong_resolved.save_png(&figures_dir.join("demo_a_strong_heuristic.png"))?;
             dsfb_resolved.save_png(&figures_dir.join("demo_a_dsfb.png"))?;
+            hybrid_resolved.save_png(
+                &figures_dir.join("demo_a_dsfb_plus_strong_heuristic.png"),
+            )?;
             save_scalar_field_png(
                 &outputs.trust,
                 &figures_dir.join("trust_map.png"),
@@ -525,31 +657,73 @@ fn run_demo_a_external_metrics(
                 &figures_dir.join("strong_alpha_map.png"),
                 heatmap_orange,
             )?;
+            let trust_error_field = absolute_error_field(&dsfb_resolved, reference_frame);
+            write_trust_histogram_figure(
+                &outputs.trust,
+                &figures_dir.join("trust_histogram.svg"),
+            )?;
+            write_trust_vs_error_figure(
+                &outputs.trust,
+                &trust_error_field,
+                metric_source,
+                &figures_dir.join("trust_vs_error.svg"),
+            )?;
+            save_trust_conditioned_error_map(
+                &outputs.trust,
+                &trust_error_field,
+                &figures_dir.join("trust_conditioned_error_map.png"),
+            )?;
         }
+
+        trajectory_points.push(TemporalTrustTrajectoryPoint {
+            capture_label: capture.label.clone(),
+            frame_index: capture.metadata.frame_index,
+            mean_trust: outputs.trust.mean(),
+            mean_alpha: outputs.alpha.mean(),
+            intervention_rate: outputs.intervention.mean(),
+            roi_coverage,
+            dsfb_roi_mae,
+            hybrid_roi_mae,
+        });
 
         captures.push(ExternalDemoACaptureMetrics {
             capture_label: capture.label.clone(),
             roi_source,
             roi_pixels: roi_mask.iter().filter(|value| **value).count(),
+            total_pixels: capture.inputs.width() * capture.inputs.height(),
+            roi_coverage,
+            roi_statement: ROI_CONTRACT_STATEMENT.to_string(),
+            baseline_method_id: ROI_CONTRACT_BASELINE_METHOD_ID.to_string(),
+            reference_source: reference_source.to_string(),
             ground_truth_available: capture.reference.is_some(),
-            metric_source: if capture.reference.is_some() {
-                "real_reference".to_string()
-            } else {
-                "proxy_current_vs_history".to_string()
-            },
+            metric_source: metric_source.to_string(),
             methods,
         });
     }
 
-    Ok(ExternalDemoAMetrics {
+    let all_have_reference = captures.iter().all(|capture| capture.ground_truth_available);
+    let reference_note = if all_have_reference {
+        "The current bundle measures against exported `reference_color` on every capture; that reference is a higher-resolution Unreal proxy rather than a path-traced ground truth.".to_string()
+    } else {
+        "If no optional reference frame is supplied, the current frame is used as the explicit proxy reference for ROI and full-frame error.".to_string()
+    };
+
+    let metrics = ExternalDemoAMetrics {
         real_external_data_provided: bundle.real_external_data_provided,
         no_real_external_data_provided: bundle.no_real_external_data_provided,
         captures,
         notes: vec![
             "Demo A external replay uses the same host-minimum supervisory logic as the internal suite.".to_string(),
-            "If no optional reference frame is supplied, ROI error becomes a lag proxy against current color and non-ROI error becomes a history-deviation proxy.".to_string(),
+            ROI_CONTRACT_STATEMENT.to_string(),
+            reference_note,
         ],
-    })
+    };
+
+    if trajectory_points.len() >= 2 {
+        write_temporal_trust_trajectory_outputs(&trajectory_points, figures_dir)?;
+    }
+
+    Ok(metrics)
 }
 
 fn run_demo_b_external_metrics(
@@ -563,7 +737,19 @@ fn run_demo_b_external_metrics(
 
     for (capture_index, capture) in bundle.captures.iter().enumerate() {
         let outputs = supervise_temporal_reuse(&capture.inputs.borrow(), &profile);
-        let (roi_mask, roi_source) = roi_mask_for_capture(capture, &outputs);
+        let fixed_alpha_field = constant_field(
+            capture.inputs.width(),
+            capture.inputs.height(),
+            config.baseline.fixed_alpha,
+        );
+        let fixed_resolved = resolve_with_alpha(
+            &capture.inputs.reprojected_history,
+            &capture.inputs.current_color,
+            &fixed_alpha_field,
+        );
+        let (reference_frame, reference_source, _) = capture_reference_frame_and_metric_source(capture);
+        let (roi_mask, roi_source, roi_coverage) =
+            roi_mask_for_capture(capture, &fixed_resolved, reference_frame);
         let width = capture.inputs.width();
         let height = capture.inputs.height();
         let total_pixels = width * height;
@@ -743,6 +929,11 @@ fn run_demo_b_external_metrics(
             },
             roi_source,
             roi_pixels: roi_mask.iter().filter(|value| **value).count(),
+            total_pixels,
+            roi_coverage,
+            roi_statement: ROI_CONTRACT_STATEMENT.to_string(),
+            baseline_method_id: ROI_CONTRACT_BASELINE_METHOD_ID.to_string(),
+            reference_source: reference_source.to_string(),
             ground_truth_available: capture.reference.is_some(),
             budget_total_samples: total_samples,
             fixed_budget_equal,
@@ -758,18 +949,20 @@ fn run_demo_b_external_metrics(
         notes: vec![
             "External Demo B is an allocation proxy, not a live renderer replay, because imported captures do not contain per-sample shading or multi-budget re-renders.".to_string(),
             "The proxy still enforces identical total budgets across all policies and is intended to guide the next engine-side experiment rather than replace it.".to_string(),
+            ROI_CONTRACT_STATEMENT.to_string(),
         ],
     })
 }
 
 fn run_external_scaling_study(
-    config: &DemoConfig,
+    _config: &DemoConfig,
+    manifest_path: &Path,
+    output_dir: &Path,
     bundle: &ExternalCaptureBundle,
+    gpu: &ExternalGpuMetrics,
     demo_a: &ExternalDemoAMetrics,
     demo_b: &ExternalDemoBMetrics,
 ) -> Result<ExternalScalingMetrics> {
-    let profile =
-        default_host_realistic_profile(config.dsfb_alpha_range.min, config.dsfb_alpha_range.max);
     let capture = bundle.captures.first().ok_or_else(|| {
         Error::Message("external scaling study requires at least one capture".to_string())
     })?;
@@ -777,123 +970,68 @@ fn run_external_scaling_study(
     let native_height = capture.inputs.height();
     let native_pixels = (native_width * native_height) as f64;
     let coverage = coverage_summary(bundle, demo_a, demo_b);
-    let mut entries = Vec::new();
+    let native_capture = gpu
+        .captures
+        .iter()
+        .find(|candidate| candidate.capture_label == capture.label)
+        .or_else(|| gpu.captures.first());
+    let native_total_ms = native_capture.and_then(|metrics| metrics.total_ms);
+    let mut entries = vec![ExternalScalingEntry {
+        label: "native_imported".to_string(),
+        source: "native_imported".to_string(),
+        width: native_width,
+        height: native_height,
+        attempted: true,
+        measured_gpu: native_capture.map(|metrics| metrics.measured_gpu).unwrap_or(false),
+        total_ms: native_capture.and_then(|metrics| metrics.total_ms),
+        dispatch_ms: native_capture.and_then(|metrics| metrics.dispatch_ms),
+        readback_ms: native_capture.and_then(|metrics| metrics.readback_ms),
+        ms_per_megapixel: native_capture
+            .and_then(|metrics| metrics.total_ms)
+            .map(|total_ms| total_ms / (native_pixels / 1_000_000.0).max(1e-6)),
+        scaling_ratio_vs_native: native_total_ms.map(|_| 1.0),
+        pixel_ratio_vs_native: 1.0,
+        approximately_linear: native_total_ms.map(|_| true),
+        unavailable_reason: native_capture
+            .filter(|metrics| !metrics.measured_gpu || metrics.total_ms.is_none())
+            .map(|metrics| metrics.notes.join(" ")),
+    }];
 
-    for (label, width, height, source) in [
-        (
-            "native_imported",
-            native_width,
-            native_height,
-            "native_imported",
-        ),
-        (
-            "scaled_1080p",
-            1920usize,
-            1080usize,
-            "scaled_external_ready",
-        ),
-        ("scaled_4k", 3840usize, 2160usize, "scaled_external_ready"),
-    ] {
-        let attempt_inputs = if width == native_width && height == native_height {
-            capture.inputs.clone()
+    let executable = gpu_probe_executable()?;
+    for (label, width, height) in [("scaled_1080p", 1920usize, 1080usize), ("scaled_4k", 3840usize, 2160usize)] {
+        entries.push(if let Some(executable) = &executable {
+            probe_scaled_gpu_entry(
+                executable,
+                manifest_path,
+                output_dir,
+                &capture.label,
+                label,
+                width,
+                height,
+                native_pixels,
+                native_total_ms,
+            )?
         } else {
-            scale_owned_inputs(&capture.inputs, width, height)?
-        };
-        let previous_hook = std::panic::take_hook();
-        std::panic::set_hook(Box::new(|_| {}));
-        let maybe_gpu = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            try_execute_host_minimum_kernel(&attempt_inputs, profile.parameters)
-        }));
-        std::panic::set_hook(previous_hook);
-        let pixel_ratio = (width * height) as f64 / native_pixels.max(1.0);
-        match maybe_gpu {
-            Ok(Ok(Some(gpu))) => {
-                let total_ms = gpu.total_ms;
-                let native_total_ms = entries
-                    .iter()
-                    .find(|entry: &&ExternalScalingEntry| entry.label == "native_imported")
-                    .and_then(|entry| entry.total_ms);
-                let scaling_ratio_vs_native =
-                    native_total_ms.map(|native| total_ms / native.max(1e-6));
-                let approximately_linear = scaling_ratio_vs_native.map(|ratio| {
-                    let ratio_per_pixel = ratio / pixel_ratio.max(1e-6);
-                    (0.80..=1.25).contains(&ratio_per_pixel)
-                });
-                entries.push(ExternalScalingEntry {
-                    label: label.to_string(),
-                    source: source.to_string(),
-                    width,
-                    height,
-                    attempted: true,
-                    measured_gpu: true,
-                    total_ms: Some(total_ms),
-                    dispatch_ms: Some(gpu.dispatch_ms),
-                    readback_ms: Some(gpu.readback_ms),
-                    ms_per_megapixel: Some(total_ms / ((width * height) as f64 / 1_000_000.0)),
-                    scaling_ratio_vs_native,
-                    pixel_ratio_vs_native: pixel_ratio,
-                    approximately_linear,
-                    unavailable_reason: None,
-                });
-            }
-            Ok(Ok(None)) => entries.push(ExternalScalingEntry {
-                label: label.to_string(),
-                source: source.to_string(),
+            unavailable_scaling_entry(
+                label,
                 width,
                 height,
-                attempted: true,
-                measured_gpu: false,
-                total_ms: None,
-                dispatch_ms: None,
-                readback_ms: None,
-                ms_per_megapixel: None,
-                scaling_ratio_vs_native: None,
-                pixel_ratio_vs_native: pixel_ratio,
-                approximately_linear: None,
-                unavailable_reason: Some(
-                    "no usable GPU adapter available in the current environment".to_string(),
-                ),
-            }),
-            Ok(Err(error)) => entries.push(ExternalScalingEntry {
-                label: label.to_string(),
-                source: source.to_string(),
-                width,
-                height,
-                attempted: true,
-                measured_gpu: false,
-                total_ms: None,
-                dispatch_ms: None,
-                readback_ms: None,
-                ms_per_megapixel: None,
-                scaling_ratio_vs_native: None,
-                pixel_ratio_vs_native: pixel_ratio,
-                approximately_linear: None,
-                unavailable_reason: Some(error.to_string()),
-            }),
-            Err(panic_payload) => entries.push(ExternalScalingEntry {
-                label: label.to_string(),
-                source: source.to_string(),
-                width,
-                height,
-                attempted: true,
-                measured_gpu: false,
-                total_ms: None,
-                dispatch_ms: None,
-                readback_ms: None,
-                ms_per_megapixel: None,
-                scaling_ratio_vs_native: None,
-                pixel_ratio_vs_native: pixel_ratio,
-                approximately_linear: None,
-                unavailable_reason: Some(format!(
-                    "GPU scaling attempt failed at runtime: {}",
-                    panic_payload_to_string(panic_payload)
-                )),
-            }),
-        }
+                native_pixels,
+                false,
+                "scaled probe requires the standalone dsfb-computer-graphics binary; library/test invocation cannot safely isolate GPU shader-JIT failures"
+                    .to_string(),
+            )
+        });
     }
 
-    let measurement_kind = if entries.iter().any(|entry| entry.measured_gpu) {
-        "measured_gpu".to_string()
+    let measured_scaled = entries
+        .iter()
+        .skip(1)
+        .any(|entry| entry.measured_gpu && entry.total_ms.is_some());
+    let measurement_kind = if measured_scaled {
+        "gpu_scaled_probe_measured".to_string()
+    } else if entries.iter().any(|entry| entry.measured_gpu) {
+        "native_gpu_only".to_string()
     } else {
         "gpu_path_unmeasured".to_string()
     };
@@ -907,11 +1045,159 @@ fn run_external_scaling_study(
         attempted_4k: true,
         entries,
         coverage,
-        notes: vec![
-            "Scaling runs use the same imported or scaled external-ready buffers and the same minimum host-realistic GPU kernel.".to_string(),
-            "Readback is used here for validation and numeric comparison, not because the production path requires CPU readback.".to_string(),
-        ],
+        notes: if measured_scaled {
+            vec![
+                "Scaled GPU timings were measured in isolated subprocess probes to avoid driver-specific shader-JIT crashes from corrupting the canonical run.".to_string(),
+                "The native imported timing reuses the same minimum-kernel path as gpu_execution_metrics.json.".to_string(),
+            ]
+        } else {
+            vec![
+                "Scaled GPU probes were attempted only when the standalone binary was available for isolated subprocess execution.".to_string(),
+                "When a scaled row is unavailable, the run fails closed rather than guessing a scaling claim.".to_string(),
+            ]
+        },
     })
+}
+
+fn gpu_probe_executable() -> Result<Option<PathBuf>> {
+    let executable = std::env::current_exe()?;
+    let executable_name = executable
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    if executable_name.contains("dsfb-computer-graphics") {
+        Ok(Some(executable))
+    } else {
+        Ok(None)
+    }
+}
+
+fn probe_scaled_gpu_entry(
+    executable: &Path,
+    manifest_path: &Path,
+    output_dir: &Path,
+    capture_label: &str,
+    label: &str,
+    width: usize,
+    height: usize,
+    native_pixels: f64,
+    native_total_ms: Option<f64>,
+) -> Result<ExternalScalingEntry> {
+    let pixel_ratio = (width * height) as f64 / native_pixels.max(1.0);
+    let probe_dir = output_dir.join("scaling_gpu_probe").join(label);
+    fs::create_dir_all(&probe_dir)?;
+    let status = Command::new(executable)
+        .arg("probe-external-gpu")
+        .arg("--manifest")
+        .arg(manifest_path)
+        .arg("--output")
+        .arg(&probe_dir)
+        .arg("--capture-label")
+        .arg(capture_label)
+        .arg("--width")
+        .arg(width.to_string())
+        .arg("--height")
+        .arg(height.to_string())
+        .status()?;
+    let metrics_path = probe_dir.join("gpu_probe_metrics.json");
+    if status.success() && metrics_path.exists() {
+        let metrics: ExternalGpuMetrics = serde_json::from_str(&fs::read_to_string(metrics_path)?)?;
+        let capture = metrics.captures.first().ok_or_else(|| {
+            Error::Message(format!(
+                "scaled GPU probe `{label}` did not emit any capture metrics"
+            ))
+        })?;
+        return Ok(build_scaling_entry(
+            label,
+            "scaled_subprocess_probe",
+            width,
+            height,
+            pixel_ratio,
+            capture,
+            native_total_ms,
+        ));
+    }
+
+    let reason = if let Some(code) = status.code() {
+        format!("scaled GPU subprocess exited with status {code}")
+    } else {
+        "scaled GPU subprocess terminated by signal".to_string()
+    };
+    Ok(unavailable_scaling_entry(
+        label,
+        width,
+        height,
+        native_pixels,
+        true,
+        reason,
+    ))
+}
+
+fn build_scaling_entry(
+    label: &str,
+    source: &str,
+    width: usize,
+    height: usize,
+    pixel_ratio: f64,
+    capture: &ExternalGpuCaptureMetrics,
+    native_total_ms: Option<f64>,
+) -> ExternalScalingEntry {
+    let total_ms = capture.total_ms;
+    let scaling_ratio_vs_native = native_total_ms
+        .zip(total_ms)
+        .map(|(native, total)| total / native.max(1e-9));
+    let approximately_linear = scaling_ratio_vs_native.map(|scaling_ratio| {
+        let normalized = scaling_ratio / pixel_ratio.max(1e-9);
+        (normalized - 1.0).abs() <= 0.20
+    });
+    ExternalScalingEntry {
+        label: label.to_string(),
+        source: source.to_string(),
+        width,
+        height,
+        attempted: true,
+        measured_gpu: capture.measured_gpu,
+        total_ms,
+        dispatch_ms: capture.dispatch_ms,
+        readback_ms: capture.readback_ms,
+        ms_per_megapixel: total_ms.map(|value| value / (((width * height) as f64) / 1_000_000.0).max(1e-6)),
+        scaling_ratio_vs_native,
+        pixel_ratio_vs_native: pixel_ratio,
+        approximately_linear,
+        unavailable_reason: if capture.measured_gpu && total_ms.is_some() {
+            None
+        } else if capture.notes.is_empty() {
+            Some("scaled GPU probe did not return a usable timing".to_string())
+        } else {
+            Some(capture.notes.join(" "))
+        },
+    }
+}
+
+fn unavailable_scaling_entry(
+    label: &str,
+    width: usize,
+    height: usize,
+    native_pixels: f64,
+    attempted: bool,
+    reason: String,
+) -> ExternalScalingEntry {
+    ExternalScalingEntry {
+        label: label.to_string(),
+        source: "scaled_subprocess_probe".to_string(),
+        width,
+        height,
+        attempted,
+        measured_gpu: false,
+        total_ms: None,
+        dispatch_ms: None,
+        readback_ms: None,
+        ms_per_megapixel: None,
+        scaling_ratio_vs_native: None,
+        pixel_ratio_vs_native: (width * height) as f64 / native_pixels.max(1.0),
+        approximately_linear: None,
+        unavailable_reason: Some(reason),
+    }
 }
 
 fn coverage_summary(
@@ -949,6 +1235,318 @@ fn coverage_summary(
         },
         missing,
     }
+}
+
+fn scale_external_capture(
+    capture: &ExternalLoadedCapture,
+    width: usize,
+    height: usize,
+) -> Result<ExternalLoadedCapture> {
+    if width == 0 || height == 0 {
+        return Err(Error::Message(
+            "scaled GPU probe requires non-zero width and height".to_string(),
+        ));
+    }
+    let source_width = capture.inputs.width();
+    let source_height = capture.inputs.height();
+    if width == source_width && height == source_height {
+        return Ok(capture.clone());
+    }
+
+    let inputs = OwnedHostTemporalInputs {
+        current_color: scale_image_frame(&capture.inputs.current_color, width, height),
+        reprojected_history: scale_image_frame(&capture.inputs.reprojected_history, width, height),
+        motion_vectors: scale_motion_vectors(
+            &capture.inputs.motion_vectors,
+            source_width,
+            source_height,
+            width,
+            height,
+        ),
+        current_depth: scale_scalar_buffer(
+            &capture.inputs.current_depth,
+            source_width,
+            source_height,
+            width,
+            height,
+        ),
+        reprojected_depth: scale_scalar_buffer(
+            &capture.inputs.reprojected_depth,
+            source_width,
+            source_height,
+            width,
+            height,
+        ),
+        current_normals: scale_normal_buffer(
+            &capture.inputs.current_normals,
+            source_width,
+            source_height,
+            width,
+            height,
+        ),
+        reprojected_normals: scale_normal_buffer(
+            &capture.inputs.reprojected_normals,
+            source_width,
+            source_height,
+            width,
+            height,
+        ),
+        visibility_hint: capture
+            .inputs
+            .visibility_hint
+            .as_ref()
+            .map(|mask| scale_bool_buffer(mask, source_width, source_height, width, height)),
+        thin_hint: capture
+            .inputs
+            .thin_hint
+            .as_ref()
+            .map(|field| scale_scalar_field(field, width, height)),
+    };
+    let mut metadata = capture.metadata.clone();
+    metadata.width = width;
+    metadata.height = height;
+    metadata.notes.push(format!(
+        "This capture was scaled in-memory from {}x{} to {}x{} for an isolated GPU scaling probe.",
+        source_width, source_height, width, height
+    ));
+
+    Ok(ExternalLoadedCapture {
+        label: capture.label.clone(),
+        inputs,
+        metadata,
+        mask: capture
+            .mask
+            .as_ref()
+            .map(|mask| scale_bool_buffer(mask, source_width, source_height, width, height)),
+        reference: capture
+            .reference
+            .as_ref()
+            .map(|reference| scale_image_frame(reference, width, height)),
+        variance: capture
+            .variance
+            .as_ref()
+            .map(|variance| scale_scalar_field(variance, width, height)),
+    })
+}
+
+fn scale_image_frame(frame: &ImageFrame, width: usize, height: usize) -> ImageFrame {
+    let mut scaled = ImageFrame::new(width, height);
+    for y in 0..height {
+        for x in 0..width {
+            let sample_x = scaled_sample_coordinate(x, frame.width(), width);
+            let sample_y = scaled_sample_coordinate(y, frame.height(), height);
+            scaled.set(x, y, frame.sample_bilinear_clamped(sample_x, sample_y));
+        }
+    }
+    scaled
+}
+
+fn scale_scalar_field(field: &ScalarField, width: usize, height: usize) -> ScalarField {
+    ScalarField::from_values(
+        width,
+        height,
+        scale_scalar_buffer(field.values(), field.width(), field.height(), width, height),
+    )
+}
+
+fn scale_scalar_buffer(
+    values: &[f32],
+    source_width: usize,
+    source_height: usize,
+    width: usize,
+    height: usize,
+) -> Vec<f32> {
+    let mut scaled = Vec::with_capacity(width * height);
+    for y in 0..height {
+        for x in 0..width {
+            let sample_x = scaled_sample_coordinate(x, source_width, width);
+            let sample_y = scaled_sample_coordinate(y, source_height, height);
+            scaled.push(sample_scalar_bilinear(
+                values,
+                source_width,
+                source_height,
+                sample_x,
+                sample_y,
+            ));
+        }
+    }
+    scaled
+}
+
+fn scale_bool_buffer(
+    values: &[bool],
+    source_width: usize,
+    source_height: usize,
+    width: usize,
+    height: usize,
+) -> Vec<bool> {
+    let mut scaled = Vec::with_capacity(width * height);
+    for y in 0..height {
+        for x in 0..width {
+            let sample_x = scaled_sample_coordinate(x, source_width, width)
+                .round()
+                .clamp(0.0, (source_width.saturating_sub(1)) as f32) as usize;
+            let sample_y = scaled_sample_coordinate(y, source_height, height)
+                .round()
+                .clamp(0.0, (source_height.saturating_sub(1)) as f32) as usize;
+            scaled.push(values[sample_y * source_width + sample_x]);
+        }
+    }
+    scaled
+}
+
+fn scale_motion_vectors(
+    values: &[MotionVector],
+    source_width: usize,
+    source_height: usize,
+    width: usize,
+    height: usize,
+) -> Vec<MotionVector> {
+    let scale_x = width as f32 / source_width.max(1) as f32;
+    let scale_y = height as f32 / source_height.max(1) as f32;
+    let mut scaled = Vec::with_capacity(width * height);
+    for y in 0..height {
+        for x in 0..width {
+            let sample_x = scaled_sample_coordinate(x, source_width, width);
+            let sample_y = scaled_sample_coordinate(y, source_height, height);
+            let motion = sample_motion_bilinear(values, source_width, source_height, sample_x, sample_y);
+            scaled.push(MotionVector {
+                to_prev_x: motion.to_prev_x * scale_x,
+                to_prev_y: motion.to_prev_y * scale_y,
+            });
+        }
+    }
+    scaled
+}
+
+fn scale_normal_buffer(
+    values: &[Normal3],
+    source_width: usize,
+    source_height: usize,
+    width: usize,
+    height: usize,
+) -> Vec<Normal3> {
+    let mut scaled = Vec::with_capacity(width * height);
+    for y in 0..height {
+        for x in 0..width {
+            let sample_x = scaled_sample_coordinate(x, source_width, width);
+            let sample_y = scaled_sample_coordinate(y, source_height, height);
+            scaled.push(sample_normal_bilinear(
+                values,
+                source_width,
+                source_height,
+                sample_x,
+                sample_y,
+            ));
+        }
+    }
+    scaled
+}
+
+fn scaled_sample_coordinate(index: usize, source_extent: usize, scaled_extent: usize) -> f32 {
+    ((index as f32 + 0.5) * source_extent as f32 / scaled_extent.max(1) as f32) - 0.5
+}
+
+fn sample_scalar_bilinear(
+    values: &[f32],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+) -> f32 {
+    let x0 = x.floor();
+    let y0 = y.floor();
+    let x1 = x0 + 1.0;
+    let y1 = y0 + 1.0;
+    let tx = (x - x0).clamp(0.0, 1.0);
+    let ty = (y - y0).clamp(0.0, 1.0);
+    let p00 = scalar_at(values, width, height, x0 as i32, y0 as i32);
+    let p10 = scalar_at(values, width, height, x1 as i32, y0 as i32);
+    let p01 = scalar_at(values, width, height, x0 as i32, y1 as i32);
+    let p11 = scalar_at(values, width, height, x1 as i32, y1 as i32);
+    let top = p00 * (1.0 - tx) + p10 * tx;
+    let bottom = p01 * (1.0 - tx) + p11 * tx;
+    top * (1.0 - ty) + bottom * ty
+}
+
+fn scalar_at(values: &[f32], width: usize, height: usize, x: i32, y: i32) -> f32 {
+    let clamped_x = x.clamp(0, width as i32 - 1) as usize;
+    let clamped_y = y.clamp(0, height as i32 - 1) as usize;
+    values[clamped_y * width + clamped_x]
+}
+
+fn sample_motion_bilinear(
+    values: &[MotionVector],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+) -> MotionVector {
+    let x0 = x.floor();
+    let y0 = y.floor();
+    let x1 = x0 + 1.0;
+    let y1 = y0 + 1.0;
+    let tx = (x - x0).clamp(0.0, 1.0);
+    let ty = (y - y0).clamp(0.0, 1.0);
+    let p00 = motion_at(values, width, height, x0 as i32, y0 as i32);
+    let p10 = motion_at(values, width, height, x1 as i32, y0 as i32);
+    let p01 = motion_at(values, width, height, x0 as i32, y1 as i32);
+    let p11 = motion_at(values, width, height, x1 as i32, y1 as i32);
+    let top_x = p00.to_prev_x * (1.0 - tx) + p10.to_prev_x * tx;
+    let top_y = p00.to_prev_y * (1.0 - tx) + p10.to_prev_y * tx;
+    let bottom_x = p01.to_prev_x * (1.0 - tx) + p11.to_prev_x * tx;
+    let bottom_y = p01.to_prev_y * (1.0 - tx) + p11.to_prev_y * tx;
+    MotionVector {
+        to_prev_x: top_x * (1.0 - ty) + bottom_x * ty,
+        to_prev_y: top_y * (1.0 - ty) + bottom_y * ty,
+    }
+}
+
+fn motion_at(values: &[MotionVector], width: usize, height: usize, x: i32, y: i32) -> MotionVector {
+    let clamped_x = x.clamp(0, width as i32 - 1) as usize;
+    let clamped_y = y.clamp(0, height as i32 - 1) as usize;
+    values[clamped_y * width + clamped_x]
+}
+
+fn sample_normal_bilinear(
+    values: &[Normal3],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+) -> Normal3 {
+    let x0 = x.floor();
+    let y0 = y.floor();
+    let x1 = x0 + 1.0;
+    let y1 = y0 + 1.0;
+    let tx = (x - x0).clamp(0.0, 1.0);
+    let ty = (y - y0).clamp(0.0, 1.0);
+    let p00 = normal_at(values, width, height, x0 as i32, y0 as i32);
+    let p10 = normal_at(values, width, height, x1 as i32, y0 as i32);
+    let p01 = normal_at(values, width, height, x0 as i32, y1 as i32);
+    let p11 = normal_at(values, width, height, x1 as i32, y1 as i32);
+    let top = Normal3::new(
+        p00.x * (1.0 - tx) + p10.x * tx,
+        p00.y * (1.0 - tx) + p10.y * tx,
+        p00.z * (1.0 - tx) + p10.z * tx,
+    );
+    let bottom = Normal3::new(
+        p01.x * (1.0 - tx) + p11.x * tx,
+        p01.y * (1.0 - tx) + p11.y * tx,
+        p01.z * (1.0 - tx) + p11.z * tx,
+    );
+    Normal3::new(
+        top.x * (1.0 - ty) + bottom.x * ty,
+        top.y * (1.0 - ty) + bottom.y * ty,
+        top.z * (1.0 - ty) + bottom.z * ty,
+    )
+    .normalized()
+}
+
+fn normal_at(values: &[Normal3], width: usize, height: usize, x: i32, y: i32) -> Normal3 {
+    let clamped_x = x.clamp(0, width as i32 - 1) as usize;
+    let clamped_y = y.clamp(0, height as i32 - 1) as usize;
+    values[clamped_y * width + clamped_x]
 }
 
 fn is_realism_stress_capture(capture: &ExternalLoadedCapture) -> bool {
@@ -1111,7 +1709,7 @@ fn write_external_scaling_report(
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "- Real imported captures still need the same scaling study on the target evaluator hardware."
+        "- Imported-buffer scaling does not replace full in-engine profiling on the final evaluator hardware and renderer integration point."
     );
     fs::write(path, markdown)?;
     Ok(())
@@ -1422,10 +2020,14 @@ fn write_demo_a_external_report(
         let _ = writeln!(markdown, "{NO_REAL_EXTERNAL_DATA_PROVIDED}");
         let _ = writeln!(markdown);
     }
+    let has_sequence = metrics.captures.len() >= 2;
+    let all_have_reference = metrics.captures.iter().all(|capture| capture.ground_truth_available);
     let _ = writeln!(
         markdown,
         "Point-vs-region disclosure is explicit per capture via the `point_vs_region` line below."
     );
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{ROI_CONTRACT_STATEMENT}");
     let _ = writeln!(markdown);
     for capture in &metrics.captures {
         let source_capture = bundle
@@ -1444,6 +2046,17 @@ fn write_demo_a_external_report(
         let _ = writeln!(markdown);
         let _ = writeln!(markdown, "- ROI source: `{}`", capture.roi_source);
         let _ = writeln!(markdown, "- ROI pixels: `{}`", capture.roi_pixels);
+        let _ = writeln!(markdown, "- ROI coverage: `{:.2}%`", capture.roi_coverage * 100.0);
+        let _ = writeln!(
+            markdown,
+            "- ROI baseline method: `{}`",
+            capture.baseline_method_id
+        );
+        let _ = writeln!(
+            markdown,
+            "- reference_source: `{}`",
+            capture.reference_source
+        );
         let _ = writeln!(
             markdown,
             "- ground_truth_available: `{}`",
@@ -1483,16 +2096,18 @@ fn write_demo_a_external_report(
         let _ = writeln!(markdown);
         let _ = writeln!(
             markdown,
-            "| Method | ROI MAE | non-ROI MAE | temporal error accumulation | intervention rate |"
+            "| Method | full-frame MAE | ROI MAE | non-ROI MAE | max error | temporal error accumulation | intervention rate |"
         );
-        let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | ---: |");
+        let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
         for method in &capture.methods {
             let _ = writeln!(
                 markdown,
-                "| {} | {:.5} | {:.5} | {:.5} | {:.5} |",
+                "| {} | {:.5} | {:.5} | {:.5} | {:.5} | {:.5} | {:.5} |",
                 method.label,
+                method.overall_mae,
                 method.roi_mae,
                 method.non_roi_mae,
+                method.max_error,
                 method.temporal_error_accumulation,
                 method.intervention_rate
             );
@@ -1503,23 +2118,47 @@ fn write_demo_a_external_report(
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "- The same DSFB host-minimum supervisory layer runs on imported buffers and can be compared against fixed alpha and a strong heuristic baseline."
+        "- The same DSFB host-minimum supervisory layer runs on imported buffers and can be compared against fixed alpha, a strong heuristic baseline, and an explicit DSFB + strong heuristic hybrid."
     );
     let _ = writeln!(
         markdown,
         "- ROI and non-ROI behavior remain separated on imported data."
     );
+    if has_sequence {
+        let _ = writeln!(
+            markdown,
+            "- The current real Unreal-native package also emits `figures/trust_temporal_trajectory.svg` and `figures/trust_temporal_trajectory.json` over the ordered capture sequence."
+        );
+    }
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## What Is Not Proven");
     let _ = writeln!(markdown);
-    let _ = writeln!(
-        markdown,
-        "- Without an optional reference frame, ROI MAE and non-ROI MAE are proxy quantities rather than true reconstruction error."
-    );
+    if all_have_reference {
+        let _ = writeln!(
+            markdown,
+            "- The current bundle measures against `reference_color`, but that reference is a higher-resolution exported Unreal proxy rather than a path-traced ground truth."
+        );
+    } else {
+        let _ = writeln!(
+            markdown,
+            "- Without an optional reference frame, error is measured against the current-frame proxy rather than a high-spp reconstruction."
+        );
+    }
     let _ = writeln!(
         markdown,
         "- Even with a reference frame, this does not replace longer engine-side sequences."
     );
+    if has_sequence {
+        let _ = writeln!(
+            markdown,
+            "- The current bundle generates `figures/trust_histogram.svg`, `figures/trust_vs_error.svg`, `figures/trust_conditioned_error_map.png`, and `figures/trust_temporal_trajectory.svg`; these are calibration artifacts over a short five-frame sequence, not a broad temporal generalization claim."
+        );
+    } else {
+        let _ = writeln!(
+            markdown,
+            "- The current bundle generates `figures/trust_histogram.svg`, `figures/trust_vs_error.svg`, and `figures/trust_conditioned_error_map.png`; for a single frame pair these are calibration diagnostics, not temporal claims."
+        );
+    }
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## Remaining Blockers");
     let _ = writeln!(markdown);
@@ -1553,6 +2192,8 @@ fn write_demo_b_external_report(
         "Regime labels used in this report: `aliasing_limited`, `variance_limited`, `mixed_regime`."
     );
     let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{ROI_CONTRACT_STATEMENT}");
+    let _ = writeln!(markdown);
     for capture in &metrics.captures {
         let _ = writeln!(markdown, "## Capture `{}`", capture.capture_label);
         let _ = writeln!(markdown);
@@ -1565,6 +2206,17 @@ fn write_demo_b_external_report(
         );
         let _ = writeln!(markdown, "- ROI source: `{}`", capture.roi_source);
         let _ = writeln!(markdown, "- ROI pixels: `{}`", capture.roi_pixels);
+        let _ = writeln!(markdown, "- ROI coverage: `{:.2}%`", capture.roi_coverage * 100.0);
+        let _ = writeln!(
+            markdown,
+            "- ROI baseline method: `{}`",
+            capture.baseline_method_id
+        );
+        let _ = writeln!(
+            markdown,
+            "- reference_source: `{}`",
+            capture.reference_source
+        );
         let _ = writeln!(markdown);
         let _ = writeln!(
             markdown,
@@ -1712,6 +2364,7 @@ fn write_external_validation_report(
         markdown,
         "- Differences: imported buffers replace synthetic scene generation, and Demo B uses an allocation proxy because no live renderer samples are present."
     );
+    let _ = writeln!(markdown, "- ROI contract: {ROI_CONTRACT_STATEMENT}");
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## GPU Execution Summary");
     let _ = writeln!(markdown);
@@ -1734,16 +2387,22 @@ fn write_external_validation_report(
     for capture in &demo_a.captures {
         let _ = writeln!(
             markdown,
-            "- `{}`: ROI source = `{}`, ROI pixels = {}, metric_source = `{}`",
-            capture.capture_label, capture.roi_source, capture.roi_pixels, capture.metric_source
+            "- `{}`: ROI source = `{}`, ROI pixels = {}, ROI coverage = {:.2}%, metric_source = `{}`",
+            capture.capture_label,
+            capture.roi_source,
+            capture.roi_pixels,
+            capture.roi_coverage * 100.0,
+            capture.metric_source
         );
         for method in &capture.methods {
             let _ = writeln!(
                 markdown,
-                "  - {}: ROI MAE = {:.5}, non-ROI MAE = {:.5}, temporal accumulation = {:.5}, intervention rate = {:.5}",
+                "  - {}: full-frame MAE = {:.5}, ROI MAE = {:.5}, non-ROI MAE = {:.5}, max error = {:.5}, temporal accumulation = {:.5}, intervention rate = {:.5}",
                 method.label,
+                method.overall_mae,
                 method.roi_mae,
                 method.non_roi_mae,
+                method.max_error,
                 method.temporal_error_accumulation,
                 method.intervention_rate
             );
@@ -1807,11 +2466,11 @@ fn write_external_validation_report(
     );
     let _ = writeln!(
         markdown,
-        "- The same GPU kernel can execute on imported buffers, with explicit measured-vs-unmeasured disclosure."
+        "- The same GPU kernel can execute on imported buffers, with explicit measured-vs-unmeasured disclosure and isolated scaled-resolution probes when the standalone binary is available."
     );
     let _ = writeln!(
         markdown,
-        "- ROI vs non-ROI reporting survives the external path, and Demo B keeps equal budgets across stronger heuristic baselines."
+        "- ROI vs non-ROI reporting survives the external path, Demo B keeps equal budgets across stronger heuristic baselines, and Demo A now includes an explicit DSFB + strong heuristic hybrid."
     );
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## What Is Not Proven");
@@ -1828,10 +2487,20 @@ fn write_external_validation_report(
         markdown,
         "- Demo B on imported captures remains an allocation proxy, not a renderer-integrated sampling benchmark."
     );
+    if demo_a.captures.len() >= 2 {
+        let _ = writeln!(
+            markdown,
+            "- The trust trajectory is now measured across an ordered five-frame real Unreal-native sequence, but that short sequence is still not enough to claim broad temporal calibration."
+        );
+    } else {
+        let _ = writeln!(
+            markdown,
+            "- For the single checked-in Unreal-native sample, trust calibration artifacts are per-frame diagnostics only; no temporal trust trajectory claim is made."
+        );
+    }
     let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## Remaining Blockers");
     let _ = writeln!(markdown);
-    let _ = writeln!(markdown, "- real external engine captures");
     let _ = writeln!(markdown, "- engine-side GPU profiling on imported buffers");
     let _ = writeln!(
         markdown,
@@ -1842,7 +2511,7 @@ fn write_external_validation_report(
     let _ = writeln!(markdown);
     let _ = writeln!(
         markdown,
-        "Export one real frame pair plus an ROI/mask disclosure from an engine into the external schema, run `run-external-replay` on the target GPU, and compare fixed alpha, strong heuristic, and DSFB on the same imported capture."
+        "Move from the current five-frame exported Unreal-native sequence to a longer production-representative engine capture, preserve the same fixed ROI contract and baseline ladder, and confirm the trust trajectory plus scaled GPU timings on the target evaluation hardware."
     );
     fs::write(path, markdown)?;
     Ok(())
@@ -1868,63 +2537,53 @@ fn copy_representative_figure_aliases(output_dir: &Path, figures_dir: &Path) -> 
 fn build_demo_a_method_metrics(
     method_id: &str,
     label: &str,
-    capture: &ExternalLoadedCapture,
     resolved: &ImageFrame,
+    reference: &ImageFrame,
+    metric_source: &str,
     roi_mask: &[bool],
     intervention: &ScalarField,
 ) -> ExternalDemoAMethodMetrics {
-    if let Some(reference) = &capture.reference {
-        ExternalDemoAMethodMetrics {
-            method_id: method_id.to_string(),
-            label: label.to_string(),
-            metric_source: "real_reference".to_string(),
-            overall_mae: mean_abs_error(resolved, reference),
-            roi_mae: mean_abs_error_over_mask(resolved, reference, roi_mask),
-            non_roi_mae: mean_abs_error_over_mask(resolved, reference, &invert_mask(roi_mask)),
-            temporal_error_accumulation: mean_abs_error(resolved, reference),
-            intervention_rate: intervention.mean(),
-        }
-    } else {
-        let proxy = demo_a_proxy_field(capture, resolved, roi_mask);
-        let non_roi_mask = invert_mask(roi_mask);
-        ExternalDemoAMethodMetrics {
-            method_id: method_id.to_string(),
-            label: label.to_string(),
-            metric_source: "proxy_current_vs_history".to_string(),
-            overall_mae: proxy.mean(),
-            roi_mae: proxy.mean_over_mask(roi_mask),
-            non_roi_mae: proxy.mean_over_mask(&non_roi_mask),
-            temporal_error_accumulation: proxy.mean(),
-            intervention_rate: intervention.mean(),
-        }
+    let error_field = absolute_error_field(resolved, reference);
+    let non_roi_mask = invert_mask(roi_mask);
+    ExternalDemoAMethodMetrics {
+        method_id: method_id.to_string(),
+        label: label.to_string(),
+        metric_source: metric_source.to_string(),
+        overall_mae: mean_abs_error(resolved, reference),
+        roi_mae: mean_abs_error_over_mask(resolved, reference, roi_mask),
+        non_roi_mae: mean_abs_error_over_mask(resolved, reference, &non_roi_mask),
+        max_error: scalar_field_max(&error_field),
+        temporal_error_accumulation: mean_abs_error(resolved, reference),
+        intervention_rate: intervention.mean(),
     }
 }
 
-fn demo_a_proxy_field(
-    capture: &ExternalLoadedCapture,
-    resolved: &ImageFrame,
-    roi_mask: &[bool],
-) -> ScalarField {
-    let mut field = ScalarField::new(capture.inputs.width(), capture.inputs.height());
-    let non_roi_mask = invert_mask(roi_mask);
-    for y in 0..capture.inputs.height() {
-        for x in 0..capture.inputs.width() {
-            let index = y * capture.inputs.width() + x;
-            let value = if roi_mask[index] {
-                resolved
-                    .get(x, y)
-                    .abs_diff(capture.inputs.current_color.get(x, y))
-            } else if non_roi_mask[index] {
-                resolved
-                    .get(x, y)
-                    .abs_diff(capture.inputs.reprojected_history.get(x, y))
-            } else {
-                0.0
-            };
-            field.set(x, y, value);
+pub(crate) fn capture_reference_frame_and_metric_source<'a>(
+    capture: &'a ExternalLoadedCapture,
+) -> (&'a ImageFrame, &'static str, &'static str) {
+    if let Some(reference) = &capture.reference {
+        (reference, "reference_color", "real_reference")
+    } else {
+        (
+            &capture.inputs.current_color,
+            "current_color_proxy",
+            "current_color_proxy",
+        )
+    }
+}
+
+pub(crate) fn absolute_error_field(frame_a: &ImageFrame, frame_b: &ImageFrame) -> ScalarField {
+    let mut field = ScalarField::new(frame_a.width(), frame_a.height());
+    for y in 0..frame_a.height() {
+        for x in 0..frame_a.width() {
+            field.set(x, y, frame_a.get(x, y).abs_diff(frame_b.get(x, y)));
         }
     }
     field
+}
+
+pub(crate) fn scalar_field_max(field: &ScalarField) -> f32 {
+    field.values().iter().copied().fold(0.0, f32::max)
 }
 
 fn resolve_with_alpha(
@@ -1994,6 +2653,36 @@ fn run_external_strong_heuristic(
     (resolved, alpha, response)
 }
 
+fn run_external_dsfb_plus_strong_heuristic(
+    capture: &ExternalLoadedCapture,
+    dsfb_alpha: &ScalarField,
+    dsfb_intervention: &ScalarField,
+    strong_alpha: &ScalarField,
+    strong_response: &ScalarField,
+) -> (ImageFrame, ScalarField, ScalarField) {
+    let width = capture.inputs.width();
+    let height = capture.inputs.height();
+    let mut resolved = ImageFrame::new(width, height);
+    let mut alpha = ScalarField::new(width, height);
+    let mut response = ScalarField::new(width, height);
+
+    for y in 0..height {
+        for x in 0..width {
+            let current = capture.inputs.current_color.get(x, y);
+            let history = capture.inputs.reprojected_history.get(x, y);
+            let clamped =
+                clamp_to_current_neighborhood(&capture.inputs.current_color, history, x, y);
+            let hybrid_alpha = dsfb_alpha.get(x, y).max(strong_alpha.get(x, y));
+            let hybrid_response = dsfb_intervention.get(x, y).max(strong_response.get(x, y));
+            alpha.set(x, y, hybrid_alpha);
+            response.set(x, y, hybrid_response);
+            resolved.set(x, y, clamped.lerp(current, hybrid_alpha));
+        }
+    }
+
+    (resolved, alpha, response)
+}
+
 fn clamp_to_current_neighborhood(
     current: &ImageFrame,
     history: Color,
@@ -2030,38 +2719,23 @@ fn smoothstep(threshold: SmoothstepThreshold, value: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-fn roi_mask_for_capture(
+pub(crate) fn roi_mask_for_capture(
     capture: &ExternalLoadedCapture,
-    outputs: &HostSupervisionOutputs,
-) -> (Vec<bool>, String) {
-    if let Some(mask) = &capture.mask {
-        if mask.iter().any(|value| *value) {
-            return (mask.clone(), "manifest_mask".to_string());
+    baseline: &ImageFrame,
+    reference: &ImageFrame,
+) -> (Vec<bool>, String, f32) {
+    let contrast = local_contrast_field(reference);
+    let mut mask = vec![false; capture.inputs.width() * capture.inputs.height()];
+    for y in 0..capture.inputs.height() {
+        for x in 0..capture.inputs.width() {
+            let index = y * capture.inputs.width() + x;
+            let baseline_error = baseline.get(x, y).abs_diff(reference.get(x, y));
+            let threshold = ROI_CONTRACT_ALPHA * contrast.get(x, y);
+            mask[index] = baseline_error > threshold;
         }
     }
-
-    let width = capture.inputs.width();
-    let height = capture.inputs.height();
-    let total = width * height;
-    let scores = (0..total)
-        .map(|index| {
-            let x = index % width;
-            let y = index / width;
-            outputs.intervention.get(x, y) * 0.55
-                + outputs.proxies.depth_proxy.get(x, y) * 0.20
-                + outputs.proxies.normal_proxy.get(x, y) * 0.10
-                + outputs.proxies.neighborhood_proxy.get(x, y) * 0.15
-        })
-        .collect::<Vec<_>>();
-    let mut sorted = scores.clone();
-    sorted.sort_by(|left, right| right.total_cmp(left));
-    let keep = (total / 16).max(1).min(total.saturating_sub(1).max(1));
-    let threshold = sorted[keep.saturating_sub(1)];
-    let mask = scores
-        .iter()
-        .map(|score| *score >= threshold)
-        .collect::<Vec<_>>();
-    (mask, "derived_proxy_mask".to_string())
+    let coverage = mask.iter().filter(|value| **value).count() as f32 / mask.len().max(1) as f32;
+    (mask, ROI_CONTRACT_SOURCE.to_string(), coverage)
 }
 
 fn overlay_roi_mask(frame: &ImageFrame, mask: &[bool]) -> ImageFrame {
@@ -2076,6 +2750,303 @@ fn overlay_roi_mask(frame: &ImageFrame, mask: &[bool]) -> ImageFrame {
         }
     }
     output
+}
+
+fn write_trust_histogram_figure(trust: &ScalarField, path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let bin_count = 10usize;
+    let mut counts = vec![0usize; bin_count];
+    for value in trust.values() {
+        let bin = ((*value).clamp(0.0, 0.999_999) * bin_count as f32) as usize;
+        counts[bin.min(bin_count - 1)] += 1;
+    }
+    let max_count = counts.iter().copied().max().unwrap_or(1).max(1) as f32;
+    let mut bars = String::new();
+    for (index, count) in counts.iter().enumerate() {
+        let height = 260.0 * (*count as f32 / max_count);
+        let x = 86.0 + index as f32 * 62.0;
+        let y = 368.0 - height;
+        let _ = writeln!(
+            bars,
+            r##"<rect x="{x:.1}" y="{y:.1}" width="42" height="{height:.1}" fill="#4cc9f0"/>"##
+        );
+        let _ = writeln!(
+            bars,
+            r##"<text x="{:.1}" y="392" font-size="13" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{:.1}</text>"##,
+            x,
+            index as f32 / bin_count as f32
+        );
+    }
+
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="900" height="460" viewBox="0 0 900 460">
+<rect width="900" height="460" fill="#0b1320"/>
+<text x="36" y="42" font-size="28" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Trust Histogram</text>
+<text x="36" y="68" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Per-pixel DSFB trust distribution for the canonical imported capture.</text>
+<line x1="70" y1="96" x2="70" y2="368" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="70" y1="368" x2="760" y2="368" stroke="#f4f7fb" stroke-width="2"/>
+{bars}
+<text x="36" y="106" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">count</text>
+<text x="730" y="420" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">trust</text>
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+fn write_trust_vs_error_figure(
+    trust: &ScalarField,
+    error: &ScalarField,
+    metric_source: &str,
+    path: &Path,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let bin_count = 10usize;
+    let mut counts = vec![0usize; bin_count];
+    let mut means = vec![0.0f32; bin_count];
+    for (trust_value, error_value) in trust.values().iter().zip(error.values()) {
+        let bin = ((*trust_value).clamp(0.0, 0.999_999) * bin_count as f32) as usize;
+        let index = bin.min(bin_count - 1);
+        counts[index] += 1;
+        means[index] += *error_value;
+    }
+    for (count, mean) in counts.iter().zip(means.iter_mut()) {
+        if *count > 0 {
+            *mean /= *count as f32;
+        }
+    }
+    let max_error = means.iter().copied().fold(0.05, f32::max);
+    let left = 82.0f32;
+    let right = 780.0f32;
+    let top = 92.0f32;
+    let bottom = 366.0f32;
+    let x_scale = (right - left) / (bin_count.saturating_sub(1)) as f32;
+    let mut points = String::new();
+    for (index, mean) in means.iter().enumerate() {
+        let x = left + index as f32 * x_scale;
+        let y = bottom - (mean / max_error.max(1e-6)) * (bottom - top);
+        let _ = writeln!(points, "{x:.1},{y:.1} ");
+    }
+
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="920" height="460" viewBox="0 0 920 460">
+<rect width="920" height="460" fill="#0b1320"/>
+<text x="36" y="42" font-size="28" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Trust vs Error Curve</text>
+<text x="36" y="68" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Mean per-pixel error by trust bin. Error source: {metric_source}.</text>
+<line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
+<polyline fill="none" stroke="#8bd450" stroke-width="3.5" points="{points}"/>
+<text x="36" y="102" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">mean error</text>
+<text x="744" y="420" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">trust bin</text>
+</svg>"##
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+fn save_trust_conditioned_error_map(
+    trust: &ScalarField,
+    error: &ScalarField,
+    path: &Path,
+) -> Result<()> {
+    let mut conditioned = ScalarField::new(trust.width(), trust.height());
+    for y in 0..trust.height() {
+        for x in 0..trust.width() {
+            conditioned.set(x, y, error.get(x, y) * (1.0 - trust.get(x, y)));
+        }
+    }
+    save_scalar_field_png(&conditioned, path, heatmap_red)
+}
+
+fn write_temporal_trust_trajectory_outputs(
+    points: &[TemporalTrustTrajectoryPoint],
+    figures_dir: &Path,
+) -> Result<()> {
+    let mut ordered = points.to_vec();
+    ordered.sort_by_key(|point| point.frame_index);
+    let peak_index = ordered
+        .iter()
+        .enumerate()
+        .max_by(|(_, left), (_, right)| left.roi_coverage.total_cmp(&right.roi_coverage))
+        .map(|(index, _)| index)
+        .unwrap_or(0);
+    let report = TemporalTrustTrajectoryReport {
+        onset_capture_label: ordered
+            .first()
+            .map(|point| point.capture_label.clone())
+            .unwrap_or_default(),
+        peak_roi_capture_label: ordered[peak_index].capture_label.clone(),
+        recovery_capture_label: ordered
+            .last()
+            .map(|point| point.capture_label.clone())
+            .unwrap_or_default(),
+        points: ordered.clone(),
+    };
+    fs::write(
+        figures_dir.join("trust_temporal_trajectory.json"),
+        serde_json::to_string_pretty(&report)?,
+    )?;
+    write_temporal_trust_trajectory_figure(
+        &report,
+        &figures_dir.join("trust_temporal_trajectory.svg"),
+    )
+}
+
+fn write_temporal_trust_trajectory_figure(
+    report: &TemporalTrustTrajectoryReport,
+    path: &Path,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let point_count = report.points.len().max(2);
+    let width = 980.0f32;
+    let height = 520.0f32;
+    let left = 86.0f32;
+    let right = 860.0f32;
+    let top = 88.0f32;
+    let bottom = 418.0f32;
+    let inner_width = right - left;
+    let inner_height = bottom - top;
+    let x_scale = inner_width / (point_count.saturating_sub(1)) as f32;
+    let max_roi_error = report
+        .points
+        .iter()
+        .map(|point| point.dsfb_roi_mae.max(point.hybrid_roi_mae))
+        .fold(1e-6f32, f32::max);
+
+    let trust_path = polyline_points(
+        &report
+            .points
+            .iter()
+            .enumerate()
+            .map(|(index, point)| {
+                (
+                    left + index as f32 * x_scale,
+                    bottom - point.mean_trust.clamp(0.0, 1.0) * inner_height,
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+    let intervention_path = polyline_points(
+        &report
+            .points
+            .iter()
+            .enumerate()
+            .map(|(index, point)| {
+                (
+                    left + index as f32 * x_scale,
+                    bottom - point.intervention_rate.clamp(0.0, 1.0) * inner_height,
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+    let roi_coverage_path = polyline_points(
+        &report
+            .points
+            .iter()
+            .enumerate()
+            .map(|(index, point)| {
+                (
+                    left + index as f32 * x_scale,
+                    bottom - point.roi_coverage.clamp(0.0, 1.0) * inner_height,
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+    let dsfb_error_path = polyline_points(
+        &report
+            .points
+            .iter()
+            .enumerate()
+            .map(|(index, point)| {
+                (
+                    left + index as f32 * x_scale,
+                    bottom - (point.dsfb_roi_mae / max_roi_error) * inner_height,
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+    let hybrid_error_path = polyline_points(
+        &report
+            .points
+            .iter()
+            .enumerate()
+            .map(|(index, point)| {
+                (
+                    left + index as f32 * x_scale,
+                    bottom - (point.hybrid_roi_mae / max_roi_error) * inner_height,
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+    let peak_index = report
+        .points
+        .iter()
+        .enumerate()
+        .max_by(|(_, left), (_, right)| left.roi_coverage.total_cmp(&right.roi_coverage))
+        .map(|(index, _)| index)
+        .unwrap_or(0);
+    let peak_x = left + peak_index as f32 * x_scale;
+
+    let mut labels = String::new();
+    for (index, point) in report.points.iter().enumerate() {
+        let x = left + index as f32 * x_scale;
+        let _ = writeln!(
+            labels,
+            r##"<text x="{x:.1}" y="446" text-anchor="middle" font-size="13" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">{}</text>"##,
+            point.capture_label
+        );
+    }
+
+    let svg = format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+<rect width="{width}" height="{height}" fill="#0b1320"/>
+<text x="34" y="42" font-size="28" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Temporal Trust Trajectory</text>
+<text x="34" y="68" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Ordered real Unreal-native sequence from onset-side frame {onset} through peak ROI frame {peak} to recovery-side frame {recovery}.</text>
+<line x1="{left}" y1="{top}" x2="{left}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="{left}" y1="{bottom}" x2="{right}" y2="{bottom}" stroke="#f4f7fb" stroke-width="2"/>
+<path d="{trust_path}" fill="none" stroke="#4cc9f0" stroke-width="3.5"/>
+<path d="{intervention_path}" fill="none" stroke="#ef476f" stroke-width="3.5" stroke-dasharray="10 8"/>
+<path d="{roi_coverage_path}" fill="none" stroke="#8bd450" stroke-width="3.5"/>
+<path d="{dsfb_error_path}" fill="none" stroke="#ffd166" stroke-width="3.5"/>
+<path d="{hybrid_error_path}" fill="none" stroke="#f4978e" stroke-width="3.5" stroke-dasharray="6 6"/>
+<line x1="{peak_x:.1}" y1="{top}" x2="{peak_x:.1}" y2="{bottom}" stroke="#f4f7fb" stroke-width="1.5" stroke-dasharray="8 6"/>
+<text x="628" y="110" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Mean trust</text>
+<line x1="566" y1="104" x2="616" y2="104" stroke="#4cc9f0" stroke-width="3.5"/>
+<text x="628" y="136" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Intervention rate</text>
+<line x1="566" y1="130" x2="616" y2="130" stroke="#ef476f" stroke-width="3.5" stroke-dasharray="10 8"/>
+<text x="628" y="162" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">ROI coverage</text>
+<line x1="566" y1="156" x2="616" y2="156" stroke="#8bd450" stroke-width="3.5"/>
+<text x="628" y="188" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">DSFB ROI MAE / max</text>
+<line x1="566" y1="182" x2="616" y2="182" stroke="#ffd166" stroke-width="3.5"/>
+<text x="628" y="214" font-size="15" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Hybrid ROI MAE / max</text>
+<line x1="566" y1="208" x2="616" y2="208" stroke="#f4978e" stroke-width="3.5" stroke-dasharray="6 6"/>
+<text x="34" y="102" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">normalized value</text>
+<text x="788" y="470" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">ordered capture label</text>
+{labels}
+</svg>"##,
+        onset = report.onset_capture_label,
+        peak = report.peak_roi_capture_label,
+        recovery = report.recovery_capture_label,
+    );
+    fs::write(path, svg)?;
+    Ok(())
+}
+
+fn polyline_points(points: &[(f32, f32)]) -> String {
+    let mut path = String::new();
+    for (index, (x, y)) in points.iter().enumerate() {
+        let command = if index == 0 { "M" } else { "L" };
+        let _ = write!(path, "{command}{x:.1},{y:.1} ");
+    }
+    path
 }
 
 fn constant_field(width: usize, height: usize, value: f32) -> ScalarField {
@@ -2110,261 +3081,6 @@ fn temporal_variance_proxy(current: &ImageFrame, history: &ImageFrame) -> Scalar
         }
     }
     field
-}
-
-fn scale_owned_inputs(
-    inputs: &crate::external::OwnedHostTemporalInputs,
-    target_width: usize,
-    target_height: usize,
-) -> Result<crate::external::OwnedHostTemporalInputs> {
-    if target_width == 0 || target_height == 0 {
-        return Err(Error::Message(
-            "scaled external replay requires positive target dimensions".to_string(),
-        ));
-    }
-    let scale_x = target_width as f32 / inputs.width() as f32;
-    let scale_y = target_height as f32 / inputs.height() as f32;
-    Ok(crate::external::OwnedHostTemporalInputs {
-        current_color: scale_image_frame(&inputs.current_color, target_width, target_height),
-        reprojected_history: scale_image_frame(
-            &inputs.reprojected_history,
-            target_width,
-            target_height,
-        ),
-        motion_vectors: scale_motion_vectors(
-            &inputs.motion_vectors,
-            inputs.width(),
-            inputs.height(),
-            target_width,
-            target_height,
-            scale_x,
-            scale_y,
-        ),
-        current_depth: scale_scalar_samples(
-            &inputs.current_depth,
-            inputs.width(),
-            inputs.height(),
-            target_width,
-            target_height,
-        ),
-        reprojected_depth: scale_scalar_samples(
-            &inputs.reprojected_depth,
-            inputs.width(),
-            inputs.height(),
-            target_width,
-            target_height,
-        ),
-        current_normals: scale_normals(
-            &inputs.current_normals,
-            inputs.width(),
-            inputs.height(),
-            target_width,
-            target_height,
-        ),
-        reprojected_normals: scale_normals(
-            &inputs.reprojected_normals,
-            inputs.width(),
-            inputs.height(),
-            target_width,
-            target_height,
-        ),
-        visibility_hint: inputs.visibility_hint.as_ref().map(|hint| {
-            scale_bool_mask(
-                hint,
-                inputs.width(),
-                inputs.height(),
-                target_width,
-                target_height,
-            )
-        }),
-        thin_hint: None,
-    })
-}
-
-fn scale_image_frame(frame: &ImageFrame, target_width: usize, target_height: usize) -> ImageFrame {
-    let mut output = ImageFrame::new(target_width, target_height);
-    let source_width = frame.width() as f32;
-    let source_height = frame.height() as f32;
-    for y in 0..target_height {
-        for x in 0..target_width {
-            let source_x = (x as f32 + 0.5) * source_width / target_width as f32 - 0.5;
-            let source_y = (y as f32 + 0.5) * source_height / target_height as f32 - 0.5;
-            output.set(x, y, frame.sample_bilinear_clamped(source_x, source_y));
-        }
-    }
-    output
-}
-
-fn scale_scalar_samples(
-    values: &[f32],
-    source_width: usize,
-    source_height: usize,
-    target_width: usize,
-    target_height: usize,
-) -> Vec<f32> {
-    let mut output = vec![0.0; target_width * target_height];
-    for y in 0..target_height {
-        for x in 0..target_width {
-            let source_x = (x as f32 + 0.5) * source_width as f32 / target_width as f32 - 0.5;
-            let source_y = (y as f32 + 0.5) * source_height as f32 / target_height as f32 - 0.5;
-            output[y * target_width + x] =
-                sample_scalar_bilinear(values, source_width, source_height, source_x, source_y);
-        }
-    }
-    output
-}
-
-fn scale_motion_vectors(
-    values: &[MotionVector],
-    source_width: usize,
-    source_height: usize,
-    target_width: usize,
-    target_height: usize,
-    scale_x: f32,
-    scale_y: f32,
-) -> Vec<MotionVector> {
-    let mut output = vec![
-        MotionVector {
-            to_prev_x: 0.0,
-            to_prev_y: 0.0,
-        };
-        target_width * target_height
-    ];
-    for y in 0..target_height {
-        for x in 0..target_width {
-            let source_x = (x as f32 + 0.5) * source_width as f32 / target_width as f32 - 0.5;
-            let source_y = (y as f32 + 0.5) * source_height as f32 / target_height as f32 - 0.5;
-            let sampled =
-                sample_motion_bilinear(values, source_width, source_height, source_x, source_y);
-            output[y * target_width + x] = MotionVector {
-                to_prev_x: sampled.to_prev_x * scale_x,
-                to_prev_y: sampled.to_prev_y * scale_y,
-            };
-        }
-    }
-    output
-}
-
-fn scale_normals(
-    values: &[Normal3],
-    source_width: usize,
-    source_height: usize,
-    target_width: usize,
-    target_height: usize,
-) -> Vec<Normal3> {
-    let mut output = vec![Normal3::new(0.0, 0.0, 1.0); target_width * target_height];
-    for y in 0..target_height {
-        for x in 0..target_width {
-            let source_x = (x as f32 + 0.5) * source_width as f32 / target_width as f32 - 0.5;
-            let source_y = (y as f32 + 0.5) * source_height as f32 / target_height as f32 - 0.5;
-            output[y * target_width + x] =
-                sample_normal_bilinear(values, source_width, source_height, source_x, source_y);
-        }
-    }
-    output
-}
-
-fn scale_bool_mask(
-    mask: &[bool],
-    source_width: usize,
-    source_height: usize,
-    target_width: usize,
-    target_height: usize,
-) -> Vec<bool> {
-    let mut output = vec![false; target_width * target_height];
-    for y in 0..target_height {
-        for x in 0..target_width {
-            let source_x = ((x as f32 + 0.5) * source_width as f32 / target_width as f32)
-                .floor()
-                .clamp(0.0, source_width.saturating_sub(1) as f32)
-                as usize;
-            let source_y = ((y as f32 + 0.5) * source_height as f32 / target_height as f32)
-                .floor()
-                .clamp(0.0, source_height.saturating_sub(1) as f32)
-                as usize;
-            output[y * target_width + x] = mask[source_y * source_width + source_x];
-        }
-    }
-    output
-}
-
-fn sample_scalar_bilinear(values: &[f32], width: usize, height: usize, x: f32, y: f32) -> f32 {
-    let x0 = x.floor();
-    let y0 = y.floor();
-    let x1 = x0 + 1.0;
-    let y1 = y0 + 1.0;
-    let tx = (x - x0).clamp(0.0, 1.0);
-    let ty = (y - y0).clamp(0.0, 1.0);
-    let sample = |sample_x: f32, sample_y: f32| {
-        let sx = sample_x.clamp(0.0, width.saturating_sub(1) as f32) as usize;
-        let sy = sample_y.clamp(0.0, height.saturating_sub(1) as f32) as usize;
-        values[sy * width + sx]
-    };
-    let top = sample(x0, y0) * (1.0 - tx) + sample(x1, y0) * tx;
-    let bottom = sample(x0, y1) * (1.0 - tx) + sample(x1, y1) * tx;
-    top * (1.0 - ty) + bottom * ty
-}
-
-fn sample_motion_bilinear(
-    values: &[MotionVector],
-    width: usize,
-    height: usize,
-    x: f32,
-    y: f32,
-) -> MotionVector {
-    let x0 = x.floor();
-    let y0 = y.floor();
-    let x1 = x0 + 1.0;
-    let y1 = y0 + 1.0;
-    let tx = (x - x0).clamp(0.0, 1.0);
-    let ty = (y - y0).clamp(0.0, 1.0);
-    let sample = |sample_x: f32, sample_y: f32| {
-        let sx = sample_x.clamp(0.0, width.saturating_sub(1) as f32) as usize;
-        let sy = sample_y.clamp(0.0, height.saturating_sub(1) as f32) as usize;
-        values[sy * width + sx]
-    };
-    let lerp = |a: MotionVector, b: MotionVector, t: f32| MotionVector {
-        to_prev_x: a.to_prev_x + (b.to_prev_x - a.to_prev_x) * t,
-        to_prev_y: a.to_prev_y + (b.to_prev_y - a.to_prev_y) * t,
-    };
-    lerp(
-        lerp(sample(x0, y0), sample(x1, y0), tx),
-        lerp(sample(x0, y1), sample(x1, y1), tx),
-        ty,
-    )
-}
-
-fn sample_normal_bilinear(
-    values: &[Normal3],
-    width: usize,
-    height: usize,
-    x: f32,
-    y: f32,
-) -> Normal3 {
-    let x0 = x.floor();
-    let y0 = y.floor();
-    let x1 = x0 + 1.0;
-    let y1 = y0 + 1.0;
-    let tx = (x - x0).clamp(0.0, 1.0);
-    let ty = (y - y0).clamp(0.0, 1.0);
-    let sample = |sample_x: f32, sample_y: f32| {
-        let sx = sample_x.clamp(0.0, width.saturating_sub(1) as f32) as usize;
-        let sy = sample_y.clamp(0.0, height.saturating_sub(1) as f32) as usize;
-        values[sy * width + sx]
-    };
-    let lerp = |a: Normal3, b: Normal3, t: f32| {
-        Normal3::new(
-            a.x + (b.x - a.x) * t,
-            a.y + (b.y - a.y) * t,
-            a.z + (b.z - a.z) * t,
-        )
-    };
-    lerp(
-        lerp(sample(x0, y0), sample(x1, y0), tx),
-        lerp(sample(x0, y1), sample(x1, y1), tx),
-        ty,
-    )
-    .normalized()
 }
 
 fn predicted_error_over_mask(
@@ -2428,15 +3144,6 @@ fn mean_abs_delta(left: &[f32], right: &[f32]) -> f32 {
         / count as f32
 }
 
-fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
-    if let Some(message) = payload.downcast_ref::<&str>() {
-        (*message).to_string()
-    } else if let Some(message) = payload.downcast_ref::<String>() {
-        message.clone()
-    } else {
-        "unknown panic payload".to_string()
-    }
-}
 
 fn format_f64(value: Option<f64>) -> String {
     value

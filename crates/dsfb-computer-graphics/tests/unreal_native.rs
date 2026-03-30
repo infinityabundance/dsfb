@@ -4,6 +4,10 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use dsfb_computer_graphics::config::DemoConfig;
+use dsfb_computer_graphics::external_validation::{
+    CANONICAL_HEADLINE_STATEMENT, PURE_DSFB_LIMITATION_STATEMENT, ROI_CONTRACT_ALPHA,
+    ROI_CONTRACT_STATEMENT, ROI_HONESTY_STATEMENT,
+};
 use dsfb_computer_graphics::frame::{Color, ImageFrame};
 use dsfb_computer_graphics::unreal_native::{
     run_unreal_native, UNREAL_NATIVE_EVIDENCE_MANIFEST_FILE_NAME, UNREAL_NATIVE_EXECUTIVE_SHEET_FILE_NAME,
@@ -40,6 +44,14 @@ fn simple_png(path: impl AsRef<Path>, rgb: [f32; 3]) {
         }
     }
     frame.save_png(path.as_ref()).expect("png should save");
+}
+
+#[test]
+fn roi_contract_alpha_is_locked() {
+    assert!(
+        (ROI_CONTRACT_ALPHA - 0.15).abs() <= f32::EPSILON,
+        "ROI alpha must remain fixed at 0.15"
+    );
 }
 
 #[test]
@@ -316,12 +328,84 @@ fn unreal_native_sample_manifest_smoke_runs() {
     assert!(artifacts.executive_sheet_path.exists());
     assert!(artifacts.pdf_path.exists());
     assert!(artifacts.zip_path.exists());
+    assert!(artifacts.run_dir.join("canonical_metric_sheet.md").exists());
+    assert!(artifacts.run_dir.join("aggregation_summary.md").exists());
+    assert!(artifacts.run_dir.join("figures/trust_histogram.svg").exists());
+    assert!(artifacts.run_dir.join("figures/trust_vs_error.svg").exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures/trust_temporal_trajectory.svg")
+        .exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures/trust_temporal_trajectory.json")
+        .exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures/trust_conditioned_error_map.png")
+        .exists());
+    assert!(artifacts
+        .run_dir
+        .join("per_frame/frame_0001/roi_mask.json")
+        .exists());
 
     let summary_text = fs::read_to_string(&artifacts.summary_path).expect("summary should exist");
     let summary: Value = serde_json::from_str(&summary_text).expect("summary should be valid json");
     assert_eq!(summary["dataset_kind"], "unreal_native");
     assert_eq!(summary["provenance_label"], "unreal_native");
-    assert_eq!(summary["capture_count"], 1);
+    assert_eq!(summary["capture_count"], 5);
+    assert!(summary_text.contains(ROI_CONTRACT_STATEMENT));
+
+    let comparison_summary = fs::read_to_string(&artifacts.comparison_summary_path)
+        .expect("comparison summary should exist");
+    assert!(comparison_summary.contains(ROI_CONTRACT_STATEMENT));
+    assert!(comparison_summary.contains(CANONICAL_HEADLINE_STATEMENT));
+    assert!(comparison_summary.contains(PURE_DSFB_LIMITATION_STATEMENT));
+    assert!(comparison_summary.contains(ROI_HONESTY_STATEMENT));
+    assert!(comparison_summary.contains("DSFB + heuristic ROI MAE"));
+    assert!(comparison_summary.contains("onset `frame_0001`"));
+    assert!(comparison_summary.contains("peak ROI `frame_0002`"));
+    assert!(comparison_summary.contains("recovery-side `frame_0005`"));
+    assert!(comparison_summary.contains("0.78657 -> 0.35245 -> 0.49284"));
+    assert!(comparison_summary.contains("0.21345 -> 0.64758 -> 0.50715"));
+    assert!(comparison_summary.contains("0.23822"));
+    assert!(comparison_summary.contains("0.26347"));
+    assert!(comparison_summary.contains("0.30026"));
+
+    let canonical_metric_sheet = fs::read_to_string(artifacts.run_dir.join("canonical_metric_sheet.md"))
+        .expect("canonical metric sheet should exist");
+    assert!(canonical_metric_sheet.contains("Strong heuristic"));
+    assert!(canonical_metric_sheet.contains("DSFB + heuristic"));
+    assert!(canonical_metric_sheet.contains(ROI_CONTRACT_STATEMENT));
+
+    let aggregation_summary = fs::read_to_string(artifacts.run_dir.join("aggregation_summary.md"))
+        .expect("aggregation summary should exist");
+    assert!(aggregation_summary.contains("Real capture count in this run: `5`"));
+    assert!(aggregation_summary.contains("DSFB + heuristic mean ± std"));
+
+    let metrics_summary_text =
+        fs::read_to_string(&artifacts.metrics_summary_path).expect("metrics summary should exist");
+    let metrics_summary: Value =
+        serde_json::from_str(&metrics_summary_text).expect("metrics summary should be valid json");
+    assert_eq!(metrics_summary["capture_count"], 5);
+    assert_eq!(
+        metrics_summary["captures"][0]["roi_source"],
+        "fixed_alpha_local_contrast_0p15"
+    );
+    assert_eq!(metrics_summary["captures"][0]["reference_source"], "reference_color");
+
+    let current_status_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("CURRENT_STATUS.md");
+    assert!(current_status_path.exists(), "CURRENT_STATUS.md must exist");
+    let current_status =
+        fs::read_to_string(&current_status_path).expect("CURRENT_STATUS.md should be readable");
+    assert!(current_status.contains(CANONICAL_HEADLINE_STATEMENT));
+    assert!(current_status.contains(PURE_DSFB_LIMITATION_STATEMENT));
+    assert!(current_status.contains(ROI_HONESTY_STATEMENT));
+    assert!(current_status.contains("0.00501 +- 0.00178"));
+    assert!(current_status.contains("0.00657 +- 0.00247"));
+    assert!(current_status.contains("50.60% +- 18.61%"));
+    assert!(current_status.contains("0.78657 -> 0.35245 -> 0.49284"));
+    assert!(current_status.contains("0.21345 -> 0.64758 -> 0.50715"));
 }
 
 #[test]

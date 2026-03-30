@@ -5,19 +5,15 @@ from pathlib import Path
 from PIL import Image
 
 
-FRAME_LABEL = "frame_0001"
+SHOT_NAME = "minimal_temporal_sequence"
 
 
 def crate_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
-def frame_dir() -> Path:
-    return crate_root() / "data" / "unreal_native" / "sample_capture" / FRAME_LABEL
-
-
-def raw_dir() -> Path:
-    return frame_dir() / "raw"
+def capture_root() -> Path:
+    return crate_root() / "data" / "unreal_native" / "sample_capture"
 
 
 def manifest_path() -> Path:
@@ -37,6 +33,19 @@ def write_json(path: Path, payload, pretty: bool = False) -> None:
         ),
         encoding="utf-8",
     )
+
+
+def frame_dirs() -> list[Path]:
+    frames = [
+        path
+        for path in sorted(capture_root().iterdir())
+        if path.is_dir() and (path / "scene_state.json").exists()
+    ]
+    if not frames:
+        raise RuntimeError(
+            f"{capture_root()} did not contain any Unreal-native frame directories; run the Unreal export script first"
+        )
+    return frames
 
 
 def srgb_to_linear(value: float) -> float:
@@ -88,14 +97,39 @@ def decode_depth(rgb_pixels: list[tuple[int, int, int]]) -> list[float]:
     return [((r + g + b) / 3.0) / 255.0 for r, g, b in rgb_pixels]
 
 
+def build_reference_proxy(
+    path: Path,
+    target_width: int,
+    target_height: int,
+) -> list[list[float]]:
+    image = Image.open(path).convert("RGB")
+    source_width, source_height = image.size
+    if source_width % target_width != 0 or source_height % target_height != 0:
+        raise RuntimeError(
+            f"{path} had extent {source_width}x{source_height}; it must be an integer multiple of {target_width}x{target_height}"
+        )
+    scale_x = source_width // target_width
+    scale_y = source_height // target_height
+    reference = []
+    for y in range(target_height):
+        for x in range(target_width):
+            accum = [0.0, 0.0, 0.0]
+            for dy in range(scale_y):
+                for dx in range(scale_x):
+                    r, g, b = image.getpixel((x * scale_x + dx, y * scale_y + dy))
+                    accum[0] += srgb_to_linear(r / 255.0)
+                    accum[1] += srgb_to_linear(g / 255.0)
+                    accum[2] += srgb_to_linear(b / 255.0)
+            scale = 1.0 / float(scale_x * scale_y)
+            reference.append([channel * scale for channel in accum])
+    return reference
+
+
 def current_vs_previous_difference(
     current: list[list[float]], previous: list[list[float]]
 ) -> float:
     return max(
-        max(
-            abs(curr[channel] - prev[channel])
-            for channel in range(3)
-        )
+        max(abs(curr[channel] - prev[channel]) for channel in range(3))
         for curr, prev in zip(current, previous)
     )
 
@@ -115,6 +149,7 @@ def validate_raw_exports(
     height: int,
     current_color: list[list[float]],
     previous_color: list[list[float]],
+    reference_color: list[list[float]],
     current_depth: list[float],
     current_normals_rgb: list[tuple[int, int, int]],
     previous_normals_rgb: list[tuple[int, int, int]],
@@ -135,11 +170,19 @@ def validate_raw_exports(
 
     normal_signal = max(max(pixel) for pixel in current_normals_rgb)
     normal_diff = sum(
-        1 for current, previous in zip(current_normals_rgb, previous_normals_rgb) if current != previous
+        1
+        for current, previous in zip(current_normals_rgb, previous_normals_rgb)
+        if current != previous
     )
     if normal_signal <= 16 or normal_diff <= (width * height) // 64:
         raise RuntimeError(
             "current_normals.png did not contain a meaningful Unreal normal-visualization signal"
+        )
+
+    reference_delta = current_vs_previous_difference(reference_color, current_color)
+    if reference_delta <= 1.0e-5:
+        raise RuntimeError(
+            "reference_color_hi.png did not produce a distinct downsampled reference proxy"
         )
 
 
@@ -341,8 +384,8 @@ def derive_motion_and_masks(
 
 def metadata_payload(scene_state: dict[str, object]) -> dict[str, object]:
     return {
-        "frame_index": 1,
-        "history_frame_index": 0,
+        "frame_index": scene_state["frame_index"],
+        "history_frame_index": scene_state["history_frame_index"],
         "width": scene_state["width"],
         "height": scene_state["height"],
         "source_kind": "unreal_native",
@@ -351,7 +394,7 @@ def metadata_payload(scene_state: dict[str, object]) -> dict[str, object]:
         "data_description": "Real Unreal SceneCapture exports with crate-local numeric materialization for DSFB replay",
         "provenance_label": "unreal_native",
         "scene_name": "DSFBTemporalCapture",
-        "shot_name": "minimal_temporal_pair",
+        "shot_name": scene_state.get("shot_name", SHOT_NAME),
         "exposure": "manual_auto_exposure_disabled",
         "tonemap": "scene_capture_png_linearized",
         "camera": {
@@ -363,6 +406,7 @@ def metadata_payload(scene_state: dict[str, object]) -> dict[str, object]:
         },
         "notes": [
             "Raw current_color and previous_color came from Unreal SceneCapture2D final-color PNG exports and were linearized into json_rgb_f32.",
+            "reference_color.json was built from a real Unreal final-color export rendered at a higher resolution and box-downsampled to the canonical replay resolution; it is a reference proxy, not path-traced ground truth.",
             "Raw current_normals and previous_normals came from the Unreal WorldNormal visualization material and are retained under raw/ as provenance.",
             "current_normals.json and previous_normals.json are derived deterministically from the Unreal scene metadata and per-pixel geometry trace because the visualization PNG is not treated as a numerically stable unit-normal field on this editor-side Linux path.",
             "Raw current_depth and previous_depth came from the Unreal SceneDepth visualization material and were decoded into monotonic visualization depth scalars.",
@@ -376,7 +420,7 @@ def metadata_payload(scene_state: dict[str, object]) -> dict[str, object]:
 def capture_log(scene_state: dict[str, object]) -> str:
     return f"""# DSFB Unreal-Native Capture Log
 
-This sample bundle is the canonical crate-local Unreal-native example.
+This sample bundle is the canonical crate-local Unreal-native sequence example.
 
 Raw export command:
 - /home/one/Unreal/UE_5.7.2/Engine/Binaries/Linux/UnrealEditor crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/DSFBTemporalCapture.uproject -ExecutePythonScript=crates/dsfb-computer-graphics/unreal/DSFBTemporalCapture/Scripts/export_unreal_native_capture.py -stdout -FullStdOutLogOutput
@@ -387,12 +431,20 @@ Dataset materialization command:
 Strict replay command:
 - cargo run --release -- run-unreal-native --manifest examples/unreal_native_capture_manifest.json --output generated/unreal_native_runs
 
+Frame:
+- label = {scene_state["frame_label"]}
+- frame_index = {scene_state["frame_index"]}
+- history_frame_index = {scene_state["history_frame_index"]}
+- shot_name = {scene_state.get("shot_name", SHOT_NAME)}
+
 Resolution:
-- {scene_state["width"]}x{scene_state["height"]}
+- canonical replay inputs: {scene_state["width"]}x{scene_state["height"]}
+- reference proxy export: {scene_state["width"] * scene_state.get("reference_scale", 4)}x{scene_state["height"] * scene_state.get("reference_scale", 4)}
 
 Direct Unreal exports retained under raw/:
 - previous_color.png
 - current_color.png
+- reference_color_hi.png
 - previous_normals.png
 - current_normals.png
 - previous_depth.png
@@ -401,6 +453,7 @@ Direct Unreal exports retained under raw/:
 Materialized replay buffers:
 - previous_color.json
 - current_color.json
+- reference_color.json               # higher-resolution Unreal export, box-downsampled
 - previous_normals.json              # derived from Unreal scene metadata
 - current_normals.json               # derived from Unreal scene metadata
 - previous_depth.json
@@ -411,6 +464,7 @@ Materialized replay buffers:
 - metadata.json
 
 Boundaries:
+- reference_color.json is a real higher-resolution Unreal export proxy rather than path-traced ground truth
 - motion_vectors.json is metadata-derived for this minimal sample because stable dense velocity export was not available on the editor-side Linux path used here
 - current_normals.json and previous_normals.json are metadata-derived for this minimal sample because the WorldNormal PNG export is retained as visual evidence, not trusted as a numerically stable unit-normal field
 - depth is labeled monotonic_visualized_depth rather than linear depth because the raw Unreal depth export is a visualization pass
@@ -418,35 +472,174 @@ Boundaries:
 """
 
 
-def main() -> None:
-    frame = frame_dir()
-    state_path = frame / "scene_state.json"
-    if not state_path.exists():
-        raise RuntimeError(
-            f"{state_path} was missing; run the Unreal export script before building the dataset"
-        )
+def manifest_payload(frame_infos: list[dict[str, object]]) -> dict[str, object]:
+    return {
+        "schema_version": "dsfb_unreal_native_v1",
+        "dataset_kind": "unreal_native",
+        "provenance_label": "unreal_native",
+        "dataset_id": "ue57_dsfb_temporal_capture_sequence_sample",
+        "description": "Strict Unreal-native temporal capture manifest for the crate-local DSFBTemporalCapture Unreal project. The sample now contains a real ordered Unreal-native capture sequence with a higher-resolution exported reference proxy for each frame.",
+        "engine": {
+            "engine_name": "unreal_engine",
+            "engine_version": "5.7.2",
+            "capture_tool": "scene_capture2d_png_export_plus_dataset_builder",
+            "project_path": "../unreal/DSFBTemporalCapture/DSFBTemporalCapture.uproject",
+            "capture_script": "../unreal/DSFBTemporalCapture/Scripts/export_unreal_native_capture.py",
+            "real_engine_capture": True,
+        },
+        "contract": {
+            "color_space": "linear_rgb_from_scene_capture_png",
+            "tonemap": "scene_capture_png_linearized",
+            "depth_convention": "monotonic_visualized_depth",
+            "normal_space": "world_space_unit",
+            "motion_vector_convention": "pixel_offset_to_prev",
+            "coordinate_space": "screen_space_current_to_previous",
+            "history_source": "previous_frame_export_plus_metadata_motion_reprojection",
+            "notes": [
+                "current_color and previous_color originate from real Unreal SceneCapture PNG exports and are linearized into json_rgb_f32 before replay.",
+                "reference_color originates from a real higher-resolution Unreal final-color export that is box-downsampled to the canonical replay resolution and used as a reference proxy.",
+                "current_depth and previous_depth originate from real Unreal SceneDepth visualization exports and are labeled as monotonic_visualized_depth rather than claimed as exact linear depth.",
+                "motion_vectors.json is derived deterministically from Unreal camera/object metadata for this minimal sample because stable dense velocity export was not available on the editor-side Linux path used here.",
+            ],
+        },
+        "frames": frame_infos,
+        "notes": [
+            "Unreal-native mode has no synthetic fallback.",
+            "If a richer engine path later exposes exact float velocity or direct history buffers, update the manifest and exporter rather than relabeling this sample.",
+        ],
+    }
 
+
+def build_manifest_frame(frame_dir: Path, scene_state: dict[str, object]) -> dict[str, object]:
+    width = scene_state["width"]
+    height = scene_state["height"]
+    label = frame_dir.name
+    return {
+        "label": label,
+        "frame_index": scene_state["frame_index"],
+        "history_frame_index": scene_state["history_frame_index"],
+        "buffers": {
+            "current_color": {
+                "path": f"../data/unreal_native/sample_capture/{label}/current_color.json",
+                "format": "json_rgb_f32",
+                "semantic": "current_color",
+                "width": width,
+                "height": height,
+                "channels": 3,
+            },
+            "previous_color": {
+                "path": f"../data/unreal_native/sample_capture/{label}/previous_color.json",
+                "format": "json_rgb_f32",
+                "semantic": "previous_color",
+                "width": width,
+                "height": height,
+                "channels": 3,
+            },
+            "motion_vectors": {
+                "path": f"../data/unreal_native/sample_capture/{label}/motion_vectors.json",
+                "format": "json_vec2_f32",
+                "semantic": "motion_vectors",
+                "width": width,
+                "height": height,
+                "channels": 2,
+            },
+            "current_depth": {
+                "path": f"../data/unreal_native/sample_capture/{label}/current_depth.json",
+                "format": "json_scalar_f32",
+                "semantic": "current_depth",
+                "width": width,
+                "height": height,
+                "channels": 1,
+            },
+            "previous_depth": {
+                "path": f"../data/unreal_native/sample_capture/{label}/previous_depth.json",
+                "format": "json_scalar_f32",
+                "semantic": "previous_depth",
+                "width": width,
+                "height": height,
+                "channels": 1,
+            },
+            "current_normals": {
+                "path": f"../data/unreal_native/sample_capture/{label}/current_normals.json",
+                "format": "json_vec3_f32",
+                "semantic": "current_normals",
+                "width": width,
+                "height": height,
+                "channels": 3,
+            },
+            "previous_normals": {
+                "path": f"../data/unreal_native/sample_capture/{label}/previous_normals.json",
+                "format": "json_vec3_f32",
+                "semantic": "previous_normals",
+                "width": width,
+                "height": height,
+                "channels": 3,
+            },
+            "reference_color": {
+                "path": f"../data/unreal_native/sample_capture/{label}/reference_color.json",
+                "format": "json_rgb_f32",
+                "semantic": "reference_color",
+                "width": width,
+                "height": height,
+                "channels": 3,
+            },
+            "metadata": {
+                "path": f"../data/unreal_native/sample_capture/{label}/metadata.json",
+                "format": "json_metadata",
+                "semantic": "metadata",
+            },
+            "roi_mask": {
+                "path": f"../data/unreal_native/sample_capture/{label}/roi_mask.json",
+                "format": "json_mask_bool",
+                "semantic": "roi_mask",
+                "width": width,
+                "height": height,
+                "channels": 1,
+            },
+            "disocclusion_mask": {
+                "path": f"../data/unreal_native/sample_capture/{label}/disocclusion_mask.json",
+                "format": "json_mask_bool",
+                "semantic": "disocclusion_mask",
+                "width": width,
+                "height": height,
+                "channels": 1,
+            },
+        },
+        "notes": [
+            f"This canonical sample frame is a real Unreal export bundle from the crate-local DSFBTemporalCapture project for {SHOT_NAME}.",
+            f"The raw Unreal PNG exports are retained under data/unreal_native/sample_capture/{label}/raw for auditability.",
+            "reference_color.json is built from a real higher-resolution Unreal export rather than substituted from the current frame.",
+            "Unreal-native mode will fail if any required file is missing or if the metadata provenance is anything other than unreal_native.",
+        ],
+    }
+
+
+def materialize_frame(frame_dir: Path) -> dict[str, object]:
+    state_path = frame_dir / "scene_state.json"
     scene_state = load_json(state_path)
     width = int(scene_state["width"])
     height = int(scene_state["height"])
+    raw_dir = frame_dir / "raw"
 
-    previous_color_rgb = rgb_tuples(raw_dir() / "previous_color.png", width, height)
-    current_color_rgb = rgb_tuples(raw_dir() / "current_color.png", width, height)
-    previous_normals_rgb = rgb_tuples(raw_dir() / "previous_normals.png", width, height)
-    current_normals_rgb = rgb_tuples(raw_dir() / "current_normals.png", width, height)
-    previous_depth_rgb = rgb_tuples(raw_dir() / "previous_depth.png", width, height)
-    current_depth_rgb = rgb_tuples(raw_dir() / "current_depth.png", width, height)
+    previous_color_rgb = rgb_tuples(raw_dir / "previous_color.png", width, height)
+    current_color_rgb = rgb_tuples(raw_dir / "current_color.png", width, height)
+    previous_normals_rgb = rgb_tuples(raw_dir / "previous_normals.png", width, height)
+    current_normals_rgb = rgb_tuples(raw_dir / "current_normals.png", width, height)
+    previous_depth_rgb = rgb_tuples(raw_dir / "previous_depth.png", width, height)
+    current_depth_rgb = rgb_tuples(raw_dir / "current_depth.png", width, height)
 
     previous_color = linearize_color(previous_color_rgb)
     current_color = linearize_color(current_color_rgb)
     previous_depth = decode_depth(previous_depth_rgb)
     current_depth = decode_depth(current_depth_rgb)
+    reference_color = build_reference_proxy(raw_dir / "reference_color_hi.png", width, height)
 
     validate_raw_exports(
         width,
         height,
         current_color,
         previous_color,
+        reference_color,
         current_depth,
         current_normals_rgb,
         previous_normals_rgb,
@@ -464,23 +657,29 @@ def main() -> None:
         previous_color,
     )
 
-    write_json(frame / "previous_color.json", {"width": width, "height": height, "data": previous_color})
-    write_json(frame / "current_color.json", {"width": width, "height": height, "data": current_color})
-    write_json(frame / "previous_normals.json", {"width": width, "height": height, "data": previous_normals})
-    write_json(frame / "current_normals.json", {"width": width, "height": height, "data": current_normals})
-    write_json(frame / "previous_depth.json", {"width": width, "height": height, "data": previous_depth})
-    write_json(frame / "current_depth.json", {"width": width, "height": height, "data": current_depth})
-    write_json(frame / "motion_vectors.json", {"width": width, "height": height, "data": motion_vectors})
-    write_json(frame / "roi_mask.json", {"width": width, "height": height, "data": roi_mask})
-    write_json(
-        frame / "disocclusion_mask.json",
-        {"width": width, "height": height, "data": disocclusion_mask},
-    )
-    write_json(frame / "metadata.json", metadata_payload(scene_state), pretty=True)
-    (frame / "capture_commands.txt").write_text(capture_log(scene_state), encoding="utf-8")
+    write_json(frame_dir / "previous_color.json", {"width": width, "height": height, "data": previous_color})
+    write_json(frame_dir / "current_color.json", {"width": width, "height": height, "data": current_color})
+    write_json(frame_dir / "reference_color.json", {"width": width, "height": height, "data": reference_color})
+    write_json(frame_dir / "previous_normals.json", {"width": width, "height": height, "data": previous_normals})
+    write_json(frame_dir / "current_normals.json", {"width": width, "height": height, "data": current_normals})
+    write_json(frame_dir / "previous_depth.json", {"width": width, "height": height, "data": previous_depth})
+    write_json(frame_dir / "current_depth.json", {"width": width, "height": height, "data": current_depth})
+    write_json(frame_dir / "motion_vectors.json", {"width": width, "height": height, "data": motion_vectors})
+    write_json(frame_dir / "roi_mask.json", {"width": width, "height": height, "data": roi_mask})
+    write_json(frame_dir / "disocclusion_mask.json", {"width": width, "height": height, "data": disocclusion_mask})
+    write_json(frame_dir / "metadata.json", metadata_payload(scene_state), pretty=True)
+    (frame_dir / "capture_commands.txt").write_text(capture_log(scene_state), encoding="utf-8")
 
-    print(f"Materialized Unreal-native dataset in {frame}")
+    return build_manifest_frame(frame_dir, scene_state)
+
+
+def main() -> None:
+    frame_infos = [materialize_frame(frame_dir) for frame_dir in frame_dirs()]
+    write_json(manifest_path(), manifest_payload(frame_infos), pretty=True)
+
+    print(f"Materialized Unreal-native dataset in {capture_root()}")
     print(f"Canonical manifest: {manifest_path()}")
+    print(f"Frame count: {len(frame_infos)}")
 
 
 if __name__ == "__main__":

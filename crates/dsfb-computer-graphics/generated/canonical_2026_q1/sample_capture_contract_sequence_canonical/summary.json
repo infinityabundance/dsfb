@@ -1,0 +1,25 @@
+{
+  "schema_version": "dsfb_unreal_native_v1",
+  "dataset_kind": "unreal_native",
+  "provenance_label": "unreal_native",
+  "dataset_id": "ue57_dsfb_temporal_capture_sequence_sample",
+  "run_name": "sample_capture_contract_sequence_canonical",
+  "run_dir": "crates/dsfb-computer-graphics/generated/canonical_2026_q1/sample_capture_contract_sequence_canonical",
+  "capture_count": 5,
+  "classification_counts": {
+    "dsfb_helpful": 0,
+    "dsfb_neutral": 0,
+    "heuristic_favorable": 5,
+    "richer_cues_required": 0
+  },
+  "executive_capture_label": "frame_0003",
+  "pdf_file_name": "artifacts_bundle.pdf",
+  "zip_file_name": "artifacts_bundle.zip",
+  "notes": [
+    "Engine-native empirical replay executed on a strict Unreal-native manifest.",
+    "No synthetic fallback is available in this mode.",
+    "Any missing required Unreal-native buffer is a hard failure.",
+    "ROI is defined as pixels where baseline error exceeds 15% of local contrast. The mask is computed once from the baseline and held fixed across all methods. DSFB does not influence ROI selection.",
+    "This checked-in manifest provides 5 real Unreal-native captures; aggregation is emitted in aggregation_summary.md."
+  ]
+}

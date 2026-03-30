@@ -17,12 +17,13 @@ use crate::external::{
     EXTERNAL_CAPTURE_FORMAT_VERSION,
 };
 use crate::external_validation::{
-    run_external_validation_bundle, ExternalDemoAMetrics, ExternalDemoBMetrics, ExternalGpuMetrics,
-    ExternalScalingMetrics,
+    capture_reference_frame_and_metric_source, roi_mask_for_capture, run_external_validation_bundle,
+    CANONICAL_HEADLINE_STATEMENT, ExternalDemoAMetrics, ExternalDemoBMetrics,
+    ExternalGpuMetrics, ExternalScalingMetrics, PURE_DSFB_LIMITATION_STATEMENT,
+    ROI_AGGREGATION_MIN_CAPTURES, ROI_CONTRACT_BASELINE_METHOD_ID, ROI_CONTRACT_SOURCE,
+    ROI_CONTRACT_STATEMENT, ROI_HONESTY_STATEMENT,
 };
-use crate::frame::{
-    mean_abs_error_over_mask, save_scalar_field_png, Color, ImageFrame, ScalarField,
-};
+use crate::frame::{save_scalar_field_png, Color, ImageFrame, ScalarField};
 use crate::host::{
     default_host_realistic_profile, supervise_temporal_reuse, HostSupervisionOutputs,
 };
@@ -35,6 +36,8 @@ pub const UNREAL_NATIVE_PDF_FILE_NAME: &str = "artifacts_bundle.pdf";
 pub const UNREAL_NATIVE_ZIP_FILE_NAME: &str = "artifacts_bundle.zip";
 pub const UNREAL_NATIVE_EXECUTIVE_SHEET_FILE_NAME: &str = "executive_evidence_sheet.png";
 pub const UNREAL_NATIVE_EVIDENCE_MANIFEST_FILE_NAME: &str = "evidence_bundle_manifest.json";
+const UNREAL_NATIVE_CANONICAL_METRIC_SHEET_FILE_NAME: &str = "canonical_metric_sheet.md";
+const UNREAL_NATIVE_AGGREGATION_SUMMARY_FILE_NAME: &str = "aggregation_summary.md";
 
 #[derive(Clone, Debug)]
 pub struct UnrealNativeArtifacts {
@@ -210,6 +213,7 @@ struct MetricsSummaryRecord {
     dataset_id: String,
     provenance_label: String,
     capture_count: usize,
+    roi_statement: String,
     classification_counts: ClassificationCounts,
     captures: Vec<CaptureSummaryRecord>,
 }
@@ -229,10 +233,22 @@ struct CaptureSummaryRecord {
     shot_name: String,
     frame_index: usize,
     classification: String,
+    roi_source: String,
+    roi_coverage: f32,
+    reference_source: String,
     metric_source: String,
+    dsfb_full_frame_mae: f32,
     dsfb_roi_mae: f32,
+    dsfb_max_error: f32,
+    dsfb_plus_heuristic_full_frame_mae: f32,
+    dsfb_plus_heuristic_roi_mae: f32,
+    dsfb_plus_heuristic_max_error: f32,
+    strong_heuristic_full_frame_mae: f32,
     strong_heuristic_roi_mae: f32,
+    strong_heuristic_max_error: f32,
+    fixed_alpha_full_frame_mae: f32,
     fixed_alpha_roi_mae: f32,
+    fixed_alpha_max_error: f32,
     dsfb_mean_trust: f32,
     dsfb_mean_alpha: f32,
     dsfb_intervention_rate: f32,
@@ -315,7 +331,6 @@ struct MaterializedCapture {
     frame_index: usize,
     scene_name: String,
     shot_name: String,
-    baseline_source: String,
     host_output: Option<ImageFrame>,
     roi_mask: Option<Vec<bool>>,
     disocclusion_mask: Option<Vec<bool>>,
@@ -328,8 +343,13 @@ struct FrameArtifacts {
     shot_name: String,
     frame_index: usize,
     classification: String,
+    roi_source: String,
+    roi_pixels: usize,
+    roi_coverage: f32,
+    reference_source: String,
     current_frame_path: PathBuf,
     baseline_frame_path: PathBuf,
+    roi_mask_path: PathBuf,
     trust_map_path: PathBuf,
     alpha_map_path: PathBuf,
     intervention_map_path: PathBuf,
@@ -338,9 +358,18 @@ struct FrameArtifacts {
     roi_overlay_path: PathBuf,
     output_panel_path: PathBuf,
     metric_source: String,
+    dsfb_full_frame_mae: f32,
     dsfb_roi_mae: f32,
+    dsfb_max_error: f32,
+    dsfb_plus_heuristic_full_frame_mae: f32,
+    dsfb_plus_heuristic_roi_mae: f32,
+    dsfb_plus_heuristic_max_error: f32,
+    strong_heuristic_full_frame_mae: f32,
     strong_heuristic_roi_mae: f32,
+    strong_heuristic_max_error: f32,
+    fixed_alpha_full_frame_mae: f32,
     fixed_alpha_roi_mae: f32,
+    fixed_alpha_max_error: f32,
     dsfb_mean_trust: f32,
     dsfb_mean_alpha: f32,
     dsfb_intervention_rate: f32,
@@ -353,9 +382,13 @@ struct FrameArtifacts {
 #[derive(Clone, Debug)]
 struct DemoAMethodSelection<'a> {
     metric_source: &'a str,
+    roi_source: &'a str,
+    roi_coverage: f32,
+    reference_source: &'a str,
     fixed_alpha: &'a crate::external_validation::ExternalDemoAMethodMetrics,
     strong_heuristic: &'a crate::external_validation::ExternalDemoAMethodMetrics,
     dsfb: &'a crate::external_validation::ExternalDemoAMethodMetrics,
+    dsfb_plus_heuristic: &'a crate::external_validation::ExternalDemoAMethodMetrics,
 }
 
 pub fn run_unreal_native(
@@ -393,6 +426,9 @@ pub fn run_unreal_native(
     )?;
 
     let comparison_summary_path = run_dir.join("comparison_summary.md");
+    let canonical_metric_sheet_path =
+        run_dir.join(UNREAL_NATIVE_CANONICAL_METRIC_SHEET_FILE_NAME);
+    let aggregation_summary_path = run_dir.join(UNREAL_NATIVE_AGGREGATION_SUMMARY_FILE_NAME);
     let metrics_csv_path = run_dir.join("metrics.csv");
     let metrics_summary_path = run_dir.join("metrics_summary.json");
     let failure_modes_path = run_dir.join("failure_modes.md");
@@ -413,10 +449,22 @@ pub fn run_unreal_native(
             shot_name: frame.shot_name.clone(),
             frame_index: frame.frame_index,
             classification: frame.classification.clone(),
+            roi_source: frame.roi_source.clone(),
+            roi_coverage: frame.roi_coverage,
+            reference_source: frame.reference_source.clone(),
             metric_source: frame.metric_source.clone(),
+            dsfb_full_frame_mae: frame.dsfb_full_frame_mae,
             dsfb_roi_mae: frame.dsfb_roi_mae,
+            dsfb_max_error: frame.dsfb_max_error,
+            dsfb_plus_heuristic_full_frame_mae: frame.dsfb_plus_heuristic_full_frame_mae,
+            dsfb_plus_heuristic_roi_mae: frame.dsfb_plus_heuristic_roi_mae,
+            dsfb_plus_heuristic_max_error: frame.dsfb_plus_heuristic_max_error,
+            strong_heuristic_full_frame_mae: frame.strong_heuristic_full_frame_mae,
             strong_heuristic_roi_mae: frame.strong_heuristic_roi_mae,
+            strong_heuristic_max_error: frame.strong_heuristic_max_error,
+            fixed_alpha_full_frame_mae: frame.fixed_alpha_full_frame_mae,
             fixed_alpha_roi_mae: frame.fixed_alpha_roi_mae,
+            fixed_alpha_max_error: frame.fixed_alpha_max_error,
             dsfb_mean_trust: frame.dsfb_mean_trust,
             dsfb_mean_alpha: frame.dsfb_mean_alpha,
             dsfb_intervention_rate: frame.dsfb_intervention_rate,
@@ -431,6 +479,7 @@ pub fn run_unreal_native(
         dataset_id: manifest.dataset_id.clone(),
         provenance_label: manifest.provenance_label.clone(),
         capture_count: capture_summaries.len(),
+        roi_statement: ROI_CONTRACT_STATEMENT.to_string(),
         classification_counts: counts.clone(),
         captures: capture_summaries.clone(),
     };
@@ -439,6 +488,8 @@ pub fn run_unreal_native(
         serde_json::to_string_pretty(&metrics_summary)?,
     )?;
 
+    write_canonical_metric_sheet(&canonical_metric_sheet_path, &capture_summaries)?;
+    write_aggregation_summary(&aggregation_summary_path, &capture_summaries)?;
     write_comparison_summary(&comparison_summary_path, &manifest, &frame_artifacts, &demo_b)?;
     write_failure_modes(&failure_modes_path, &manifest, &materialized.captures, &scaling)?;
 
@@ -492,6 +543,10 @@ pub fn run_unreal_native(
                         value: format!("{:.5}", frame.strong_heuristic_roi_mae),
                     },
                     KeyMetric {
+                        label: "DSFB + heuristic ROI MAE".to_string(),
+                        value: format!("{:.5}", frame.dsfb_plus_heuristic_roi_mae),
+                    },
+                    KeyMetric {
                         label: "Mean trust".to_string(),
                         value: format!("{:.4}", frame.dsfb_mean_trust),
                     },
@@ -543,6 +598,16 @@ pub fn run_unreal_native(
             "Engine-native empirical replay executed on a strict Unreal-native manifest.".to_string(),
             "No synthetic fallback is available in this mode.".to_string(),
             "Any missing required Unreal-native buffer is a hard failure.".to_string(),
+            ROI_CONTRACT_STATEMENT.to_string(),
+            format!(
+                "This checked-in manifest provides {} real Unreal-native captures; aggregation {}.",
+                capture_summaries.len(),
+                if capture_summaries.len() >= ROI_AGGREGATION_MIN_CAPTURES {
+                    "is emitted in aggregation_summary.md"
+                } else {
+                    "remains blocked because fewer than the required real captures are available"
+                }
+            ),
         ],
     };
     fs::write(&summary_path, serde_json::to_string_pretty(&summary)?)?;
@@ -573,6 +638,13 @@ pub fn run_unreal_native(
     let executive_sheet_path = run_dir.join(UNREAL_NATIVE_EXECUTIVE_SHEET_FILE_NAME);
     let pdf_path = run_dir.join(UNREAL_NATIVE_PDF_FILE_NAME);
     let zip_path = run_dir.join(UNREAL_NATIVE_ZIP_FILE_NAME);
+    validate_unreal_native_artifacts(
+        &run_dir,
+        &frame_artifacts,
+        &comparison_summary_path,
+        &canonical_metric_sheet_path,
+        &aggregation_summary_path,
+    )?;
 
     Ok(UnrealNativeArtifacts {
         run_dir,
@@ -1066,11 +1138,6 @@ fn materialize_unreal_manifest(
                 .shot_name
                 .clone()
                 .unwrap_or_else(|| "shot_000".to_string()),
-            baseline_source: if host_output.is_some() {
-                "exported_host_output".to_string()
-            } else {
-                "strong_heuristic_baseline".to_string()
-            },
             host_output,
             roi_mask,
             disocclusion_mask,
@@ -1155,12 +1222,12 @@ fn generate_per_frame_artifacts(
             })?;
         let methods = find_demo_a_methods(demo_a, &capture.label)?;
         let outputs = supervise_temporal_reuse(&capture.inputs.borrow(), &profile);
-        let dsfb_resolved = resolve_with_alpha(
+        let _dsfb_resolved = resolve_with_alpha(
             &capture.inputs.reprojected_history,
             &capture.inputs.current_color,
             &outputs.alpha,
         );
-        let (strong_resolved, _, strong_response) = run_strong_heuristic(config, capture);
+        let (_strong_resolved, _, _strong_response) = run_strong_heuristic(config, capture);
         let fixed_alpha_field = constant_field(
             capture.inputs.width(),
             capture.inputs.height(),
@@ -1171,23 +1238,28 @@ fn generate_per_frame_artifacts(
             &capture.inputs.current_color,
             &fixed_alpha_field,
         );
-        let roi_mask = materialized
-            .roi_mask
-            .clone()
-            .unwrap_or_else(|| derive_roi_mask(&outputs));
+        let (reference_frame, reference_source, _) =
+            capture_reference_frame_and_metric_source(capture);
+        let (roi_mask, roi_source, roi_coverage) =
+            roi_mask_for_capture(capture, &fixed_resolved, reference_frame);
+        let roi_pixels = roi_mask.iter().filter(|value| **value).count();
         let instability_mask = materialized
             .disocclusion_mask
             .clone()
-            .unwrap_or_else(|| derive_instability_mask(&outputs, &capture.inputs.current_color, &capture.inputs.reprojected_history));
-        let baseline = materialized
-            .host_output
-            .clone()
-            .unwrap_or_else(|| strong_resolved.clone());
+            .unwrap_or_else(|| {
+                derive_instability_mask(
+                    &outputs,
+                    &capture.inputs.current_color,
+                    &capture.inputs.reprojected_history,
+                )
+            });
+        let baseline = fixed_resolved.clone();
 
         let capture_dir = per_frame_dir.join(&capture.label);
         fs::create_dir_all(&capture_dir)?;
         let current_frame_path = capture_dir.join("current_frame.png");
         let baseline_frame_path = capture_dir.join("baseline_or_host_output.png");
+        let roi_mask_path = capture_dir.join("roi_mask.json");
         let trust_map_path = capture_dir.join("trust_map.png");
         let alpha_map_path = capture_dir.join("alpha_map.png");
         let intervention_map_path = capture_dir.join("intervention_map.png");
@@ -1198,6 +1270,14 @@ fn generate_per_frame_artifacts(
 
         capture.inputs.current_color.save_png(&current_frame_path)?;
         baseline.save_png(&baseline_frame_path)?;
+        write_json(
+            &roi_mask_path,
+            &BoolJson {
+                width: capture.inputs.width(),
+                height: capture.inputs.height(),
+                data: roi_mask.clone(),
+            },
+        )?;
         save_scalar_field_png(&outputs.trust, &trust_map_path, heatmap_blue)?;
         save_scalar_field_png(&outputs.alpha, &alpha_map_path, heatmap_orange)?;
         save_scalar_field_png(
@@ -1238,19 +1318,19 @@ fn generate_per_frame_artifacts(
             instability_fraction,
         );
 
-        let baseline_gap = mean_abs_error_over_mask(&baseline, &dsfb_resolved, &roi_mask);
-        let _ = baseline_gap;
-        let _ = strong_response;
-        let _ = fixed_resolved;
-
         frames.push(FrameArtifacts {
             label: capture.label.clone(),
             scene_name: materialized.scene_name.clone(),
             shot_name: materialized.shot_name.clone(),
             frame_index: materialized.frame_index,
             classification,
+            roi_source,
+            roi_pixels,
+            roi_coverage,
+            reference_source: reference_source.to_string(),
             current_frame_path,
             baseline_frame_path,
+            roi_mask_path,
             trust_map_path,
             alpha_map_path,
             intervention_map_path,
@@ -1259,9 +1339,18 @@ fn generate_per_frame_artifacts(
             roi_overlay_path,
             output_panel_path,
             metric_source: methods.metric_source.to_string(),
+            dsfb_full_frame_mae: methods.dsfb.overall_mae,
             dsfb_roi_mae: methods.dsfb.roi_mae,
+            dsfb_max_error: methods.dsfb.max_error,
+            dsfb_plus_heuristic_full_frame_mae: methods.dsfb_plus_heuristic.overall_mae,
+            dsfb_plus_heuristic_roi_mae: methods.dsfb_plus_heuristic.roi_mae,
+            dsfb_plus_heuristic_max_error: methods.dsfb_plus_heuristic.max_error,
+            strong_heuristic_full_frame_mae: methods.strong_heuristic.overall_mae,
             strong_heuristic_roi_mae: methods.strong_heuristic.roi_mae,
+            strong_heuristic_max_error: methods.strong_heuristic.max_error,
+            fixed_alpha_full_frame_mae: methods.fixed_alpha.overall_mae,
             fixed_alpha_roi_mae: methods.fixed_alpha.roi_mae,
+            fixed_alpha_max_error: methods.fixed_alpha.max_error,
             dsfb_mean_trust: outputs.trust.mean(),
             dsfb_mean_alpha: outputs.alpha.mean(),
             dsfb_intervention_rate: outputs.intervention.mean(),
@@ -1318,27 +1407,39 @@ fn write_metrics_csv(
     let mut csv = String::new();
     let _ = writeln!(
         csv,
-        "record_type,capture_label,scene_name,shot_name,frame_index,classification,metric_source,dsfb_roi_mae,strong_heuristic_roi_mae,fixed_alpha_roi_mae,dsfb_mean_trust,dsfb_mean_alpha,dsfb_intervention_rate,roi_residual_mean,instability_fraction,gpu_total_ms"
+        "record_type,capture_label,scene_name,shot_name,frame_index,classification,roi_source,roi_coverage,reference_source,metric_source,dsfb_full_frame_mae,dsfb_roi_mae,dsfb_max_error,dsfb_plus_heuristic_full_frame_mae,dsfb_plus_heuristic_roi_mae,dsfb_plus_heuristic_max_error,strong_heuristic_full_frame_mae,strong_heuristic_roi_mae,strong_heuristic_max_error,fixed_alpha_full_frame_mae,fixed_alpha_roi_mae,fixed_alpha_max_error,dsfb_mean_trust,dsfb_mean_alpha,dsfb_intervention_rate,roi_residual_mean,instability_fraction,gpu_total_ms"
     );
     for capture in capture_summaries {
         let _ = writeln!(
             csv,
-            "demo_a,{},{},{},{},{},{},{:.5},{:.5},{:.5},{:.5},{:.5},{:.5},{:.5},{:.5},{}",
-            capture.capture_label,
-            capture.scene_name,
-            capture.shot_name,
-            capture.frame_index,
-            capture.classification,
-            capture.metric_source,
-            capture.dsfb_roi_mae,
-            capture.strong_heuristic_roi_mae,
-            capture.fixed_alpha_roi_mae,
-            capture.dsfb_mean_trust,
-            capture.dsfb_mean_alpha,
-            capture.dsfb_intervention_rate,
-            capture.roi_residual_mean,
-            capture.instability_fraction,
-            capture
+            "demo_a,{capture_label},{scene_name},{shot_name},{frame_index},{classification},{roi_source},{roi_coverage:.5},{reference_source},{metric_source},{dsfb_full_frame_mae:.5},{dsfb_roi_mae:.5},{dsfb_max_error:.5},{dsfb_plus_heuristic_full_frame_mae:.5},{dsfb_plus_heuristic_roi_mae:.5},{dsfb_plus_heuristic_max_error:.5},{strong_heuristic_full_frame_mae:.5},{strong_heuristic_roi_mae:.5},{strong_heuristic_max_error:.5},{fixed_alpha_full_frame_mae:.5},{fixed_alpha_roi_mae:.5},{fixed_alpha_max_error:.5},{dsfb_mean_trust:.5},{dsfb_mean_alpha:.5},{dsfb_intervention_rate:.5},{roi_residual_mean:.5},{instability_fraction:.5},{gpu_total_ms}",
+            capture_label = capture.capture_label,
+            scene_name = capture.scene_name,
+            shot_name = capture.shot_name,
+            frame_index = capture.frame_index,
+            classification = capture.classification,
+            roi_source = capture.roi_source,
+            roi_coverage = capture.roi_coverage,
+            reference_source = capture.reference_source,
+            metric_source = capture.metric_source,
+            dsfb_full_frame_mae = capture.dsfb_full_frame_mae,
+            dsfb_roi_mae = capture.dsfb_roi_mae,
+            dsfb_max_error = capture.dsfb_max_error,
+            dsfb_plus_heuristic_full_frame_mae = capture.dsfb_plus_heuristic_full_frame_mae,
+            dsfb_plus_heuristic_roi_mae = capture.dsfb_plus_heuristic_roi_mae,
+            dsfb_plus_heuristic_max_error = capture.dsfb_plus_heuristic_max_error,
+            strong_heuristic_full_frame_mae = capture.strong_heuristic_full_frame_mae,
+            strong_heuristic_roi_mae = capture.strong_heuristic_roi_mae,
+            strong_heuristic_max_error = capture.strong_heuristic_max_error,
+            fixed_alpha_full_frame_mae = capture.fixed_alpha_full_frame_mae,
+            fixed_alpha_roi_mae = capture.fixed_alpha_roi_mae,
+            fixed_alpha_max_error = capture.fixed_alpha_max_error,
+            dsfb_mean_trust = capture.dsfb_mean_trust,
+            dsfb_mean_alpha = capture.dsfb_mean_alpha,
+            dsfb_intervention_rate = capture.dsfb_intervention_rate,
+            roi_residual_mean = capture.roi_residual_mean,
+            instability_fraction = capture.instability_fraction,
+            gpu_total_ms = capture
                 .gpu_total_ms
                 .map(|value| format!("{value:.5}"))
                 .unwrap_or_else(|| "n/a".to_string()),
@@ -1348,10 +1449,12 @@ fn write_metrics_csv(
         for policy in &capture.policies {
             let _ = writeln!(
                 csv,
-                "demo_b,{capture_label},,,,{metric_source},{policy_id},{roi_mae:.5},,,,{roi_mean_spp:.5},{non_roi_mean_spp:.5},{overall_mae:.5},,",
+                "demo_b,{capture_label},,,,,{roi_source},{roi_coverage:.5},{reference_source},{metric_source},,{roi_mae:.5},,,,,,,,,,{roi_mean_spp:.5},{non_roi_mean_spp:.5},{overall_mae:.5},,,",
                 capture_label = capture.capture_label,
+                roi_source = capture.roi_source,
+                roi_coverage = capture.roi_coverage,
+                reference_source = capture.reference_source,
                 metric_source = capture.metric_source,
-                policy_id = policy.policy_id,
                 roi_mae = policy.roi_mae,
                 roi_mean_spp = policy.roi_mean_spp,
                 non_roi_mean_spp = policy.non_roi_mean_spp,
@@ -1370,6 +1473,53 @@ fn write_comparison_summary(
     demo_b: &ExternalDemoBMetrics,
 ) -> Result<()> {
     let mut markdown = String::new();
+    let roi_coverages = frames
+        .iter()
+        .map(|frame| frame.roi_coverage)
+        .collect::<Vec<_>>();
+    let fixed_roi = frames
+        .iter()
+        .map(|frame| frame.fixed_alpha_roi_mae)
+        .collect::<Vec<_>>();
+    let strong_roi = frames
+        .iter()
+        .map(|frame| frame.strong_heuristic_roi_mae)
+        .collect::<Vec<_>>();
+    let dsfb_roi = frames
+        .iter()
+        .map(|frame| frame.dsfb_roi_mae)
+        .collect::<Vec<_>>();
+    let hybrid_roi = frames
+        .iter()
+        .map(|frame| frame.dsfb_plus_heuristic_roi_mae)
+        .collect::<Vec<_>>();
+    let (roi_coverage_mean, roi_coverage_std) = mean_and_std(&roi_coverages);
+    let (fixed_roi_mean, fixed_roi_std) = mean_and_std(&fixed_roi);
+    let (strong_roi_mean, strong_roi_std) = mean_and_std(&strong_roi);
+    let (dsfb_roi_mean, dsfb_roi_std) = mean_and_std(&dsfb_roi);
+    let (hybrid_roi_mean, hybrid_roi_std) = mean_and_std(&hybrid_roi);
+    let heuristic_favorable_everywhere =
+        !frames.is_empty() && frames.iter().all(|frame| frame.classification == "heuristic_favorable");
+    let hybrid_beats_strong = !frames.is_empty() && hybrid_roi_mean + 1e-6 < strong_roi_mean;
+    let onset_frame = frames.iter().min_by_key(|frame| frame.frame_index);
+    let peak_roi_frame = frames
+        .iter()
+        .max_by(|left, right| left.roi_coverage.total_cmp(&right.roi_coverage));
+    let recovery_frame = frames.iter().max_by_key(|frame| frame.frame_index);
+    let mean_demo_b_policy = |policy_id: &str| -> Option<f32> {
+        let values = demo_b
+            .captures
+            .iter()
+            .map(|capture| {
+                capture
+                    .policies
+                    .iter()
+                    .find(|policy| policy.policy_id == policy_id)
+                    .map(|policy| policy.roi_mae)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(values.iter().copied().sum::<f32>() / values.len() as f32)
+    };
     let _ = writeln!(markdown, "# Unreal-Native Comparison Summary");
     let _ = writeln!(markdown);
     let _ = writeln!(
@@ -1378,18 +1528,114 @@ fn write_comparison_summary(
         manifest.dataset_id, manifest.provenance_label
     );
     let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Frozen Benchmark Contract");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "- {ROI_CONTRACT_STATEMENT}");
+    let _ = writeln!(
+        markdown,
+        "- Canonical baseline ladder: `fixed_alpha`, `strong_heuristic`, `dsfb_host_minimum`, `dsfb_plus_strong_heuristic`."
+    );
+    let _ = writeln!(
+        markdown,
+        "- Fixed capture count in this run: `{}` real Unreal-native capture(s).",
+        frames.len()
+    );
+    if frames.len() >= 2 {
+        let _ = writeln!(
+            markdown,
+            "- Trust diagnostics generated for the canonical run: `figures/trust_histogram.svg`, `figures/trust_vs_error.svg`, `figures/trust_conditioned_error_map.png`, `figures/trust_temporal_trajectory.svg`."
+        );
+    } else {
+        let _ = writeln!(
+            markdown,
+            "- Trust diagnostics generated for the canonical run: `figures/trust_histogram.svg`, `figures/trust_vs_error.svg`, `figures/trust_conditioned_error_map.png`."
+        );
+    }
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "## Current Result Posture");
+    let _ = writeln!(markdown);
+    if hybrid_beats_strong {
+        let _ = writeln!(markdown, "- {CANONICAL_HEADLINE_STATEMENT}");
+    }
+    if heuristic_favorable_everywhere {
+        let _ = writeln!(markdown, "- {PURE_DSFB_LIMITATION_STATEMENT}");
+    } else if !frames.is_empty() {
+        let _ = writeln!(
+            markdown,
+            "- Pure DSFB does beat the strong heuristic on at least one capture in this run, so no pure-DSFB limitation claim is emitted for this manifest."
+        );
+    }
+    if (roi_coverage_mean - 0.5).abs() <= 0.1 {
+        let _ = writeln!(markdown, "- {ROI_HONESTY_STATEMENT}");
+    } else {
+        let _ = writeln!(
+            markdown,
+            "- The ROI definition captures {:.2}% of the frame under the fixed baseline-relative threshold, so it is not being treated as a tiny artifact-only mask in this run.",
+            roi_coverage_mean * 100.0
+        );
+    }
+    let _ = writeln!(
+        markdown,
+        "- Demo A ROI MAE mean ± std is {:.5} ± {:.5} for `fixed_alpha`, {:.5} ± {:.5} for `strong_heuristic`, {:.5} ± {:.5} for `dsfb_host_minimum`, and {:.5} ± {:.5} for `dsfb_plus_strong_heuristic`.",
+        fixed_roi_mean,
+        fixed_roi_std,
+        strong_roi_mean,
+        strong_roi_std,
+        dsfb_roi_mean,
+        dsfb_roi_std,
+        hybrid_roi_mean,
+        hybrid_roi_std
+    );
+    let _ = writeln!(
+        markdown,
+        "- ROI coverage mean ± std is {:.2}% ± {:.2}% across the fixed capture family.",
+        roi_coverage_mean * 100.0,
+        roi_coverage_std * 100.0
+    );
+    if let (Some(onset), Some(peak), Some(recovery)) = (onset_frame, peak_roi_frame, recovery_frame) {
+        let _ = writeln!(
+            markdown,
+            "- Trust trajectory facts for this run: onset `{}`, peak ROI `{}`, recovery-side `{}`; mean trust = {:.5} -> {:.5} -> {:.5}; intervention rate = {:.5} -> {:.5} -> {:.5}.",
+            onset.label,
+            peak.label,
+            recovery.label,
+            onset.dsfb_mean_trust,
+            peak.dsfb_mean_trust,
+            recovery.dsfb_mean_trust,
+            onset.dsfb_intervention_rate,
+            peak.dsfb_intervention_rate,
+            recovery.dsfb_intervention_rate
+        );
+    }
+    if let (Some(imported), Some(combined), Some(uniform)) = (
+        mean_demo_b_policy("imported_trust"),
+        mean_demo_b_policy("combined_heuristic"),
+        mean_demo_b_policy("uniform"),
+    ) {
+        let _ = writeln!(
+            markdown,
+            "- Demo B mean ROI error is {:.5} for imported trust, {:.5} for the combined heuristic, and {:.5} for uniform allocation.",
+            imported,
+            combined,
+            uniform
+        );
+    }
+    let _ = writeln!(markdown);
     let _ = writeln!(markdown, "## Capture Classification");
     let _ = writeln!(markdown);
     for frame in frames {
         let _ = writeln!(
             markdown,
-            "- `{}` ({}/{} frame {}): `{}`. DSFB ROI MAE = {:.5}, strong heuristic ROI MAE = {:.5}, fixed alpha ROI MAE = {:.5}.",
+            "- `{}` ({}/{} frame {}): `{}`. ROI pixels = {}, ROI coverage = {:.2}%. DSFB ROI MAE = {:.5}, DSFB + heuristic ROI MAE = {:.5}, strong heuristic ROI MAE = {:.5}, fixed alpha ROI MAE = {:.5}.",
             frame.label,
             frame.scene_name,
             frame.shot_name,
             frame.frame_index,
             frame.classification,
+            frame.roi_pixels,
+            frame.roi_coverage * 100.0,
             frame.dsfb_roi_mae,
+            frame.dsfb_plus_heuristic_roi_mae,
             frame.strong_heuristic_roi_mae,
             frame.fixed_alpha_roi_mae
         );
@@ -1436,6 +1682,19 @@ fn write_comparison_summary(
         markdown,
         "- This is evidence consistent with reduced temporal artifact risk in bounded cases, not a claim of universal outperformance."
     );
+    if frames.len() < ROI_AGGREGATION_MIN_CAPTURES {
+        let _ = writeln!(
+            markdown,
+            "- Aggregated mean ± std claims are blocked until at least {} real captures are available under unchanged parameters and code.",
+            ROI_AGGREGATION_MIN_CAPTURES
+        );
+    } else {
+        let _ = writeln!(
+            markdown,
+            "- Aggregated mean ± std claims are emitted in `aggregation_summary.md` because this run contains {} unchanged-code real captures.",
+            frames.len()
+        );
+    }
     let _ = writeln!(
         markdown,
         "- Demo B remains an advisory allocation proxy unless a live renderer budget path is exported."
@@ -1475,7 +1734,8 @@ fn write_failure_modes(
     );
     let _ = writeln!(
         markdown,
-        "- Missing ROI or disocclusion masks force the run to derive overlays from the DSFB response, which is useful for triage but not a substitute for exported engine annotations."
+        "- Canonical ROI is always recomputed from the fixed-alpha baseline and the reference/proxy frame using `{}`; optional manifest ROI masks are audit inputs only.",
+        ROI_CONTRACT_SOURCE
     );
     let _ = writeln!(
         markdown,
@@ -1531,8 +1791,12 @@ fn select_executive_frame<'a>(frames: &'a [FrameArtifacts]) -> Result<&'a FrameA
     frames
         .iter()
         .max_by(|left, right| {
-            let left_gain = left.strong_heuristic_roi_mae - left.dsfb_roi_mae;
-            let right_gain = right.strong_heuristic_roi_mae - right.dsfb_roi_mae;
+            let left_gain = left
+                .strong_heuristic_roi_mae
+                - left.dsfb_roi_mae.min(left.dsfb_plus_heuristic_roi_mae);
+            let right_gain = right
+                .strong_heuristic_roi_mae
+                - right.dsfb_roi_mae.min(right.dsfb_plus_heuristic_roi_mae);
             left_gain.total_cmp(&right_gain)
         })
         .ok_or_else(|| Error::Message("no per-frame artifacts were generated".to_string()))
@@ -1599,11 +1863,24 @@ fn find_demo_a_methods<'a>(
                 "capture `{capture_label}` missing dsfb_host_minimum"
             ))
         })?;
+    let dsfb_plus_heuristic = capture
+        .methods
+        .iter()
+        .find(|method| method.method_id == "dsfb_plus_strong_heuristic")
+        .ok_or_else(|| {
+            Error::Message(format!(
+                "capture `{capture_label}` missing dsfb_plus_strong_heuristic"
+            ))
+        })?;
     Ok(DemoAMethodSelection {
         metric_source: &capture.metric_source,
+        roi_source: &capture.roi_source,
+        roi_coverage: capture.roi_coverage,
+        reference_source: &capture.reference_source,
         fixed_alpha,
         strong_heuristic,
         dsfb,
+        dsfb_plus_heuristic,
     })
 }
 
@@ -1637,18 +1914,29 @@ fn build_explanation(
         materialized.scene_name, materialized.shot_name, materialized.frame_index, roi_residual_mean, instability_fraction
     );
     let what_dsfb_detected = format!(
-        "DSFB concentrated low trust and intervention in the exported Unreal-native ROI, with ROI MAE {:.5} against strong heuristic ROI MAE {:.5}.",
-        methods.dsfb.roi_mae, methods.strong_heuristic.roi_mae
+        "DSFB concentrated low trust and intervention in the exported Unreal-native ROI, with ROI MAE {:.5}, strong heuristic ROI MAE {:.5}, and DSFB + heuristic ROI MAE {:.5}.",
+        methods.dsfb.roi_mae, methods.strong_heuristic.roi_mae, methods.dsfb_plus_heuristic.roi_mae
     );
     let what_dsfb_changed = match classification {
         "dsfb_helpful" => "The supervisory layer would route this region toward higher alpha / intervention and away from blind temporal reuse.".to_string(),
         "dsfb_neutral" => "The supervisory layer agreed with the strongest host heuristic closely enough that this should be treated as a bounded monitor result, not a large behavioral delta.".to_string(),
+        "heuristic_favorable" if methods.dsfb_plus_heuristic.roi_mae + 1e-4 < methods.strong_heuristic.roi_mae =>
+            "The strongest host heuristic outperformed pure DSFB on this frame, but the explicit DSFB + strong heuristic hybrid recovered that miss and is reported separately rather than relabeled as DSFB.".to_string(),
         "heuristic_favorable" => "The strongest host heuristic outperformed DSFB on this frame; the evidence is surfaced directly rather than hidden.".to_string(),
         _ => "The current observability is not rich enough to claim a strong DSFB advantage on this frame.".to_string(),
     };
+    let host_output_note = if materialized.host_output.is_some() {
+        "Exported host output was preserved as an audit-only artifact and is not the canonical benchmark baseline."
+    } else {
+        "No exported host output was available; the canonical benchmark baseline remains fixed alpha."
+    };
     let overhead_and_caveat = format!(
-        "GPU measurement is advisory and environment-dependent; baseline source for this frame was `{}`. This is not a renderer replacement claim.",
-        materialized.baseline_source
+        "GPU measurement is advisory and environment-dependent; canonical ROI source is `{}` with {:.2}% coverage against reference source `{}` and canonical baseline is `{}`. {} This is not a renderer replacement claim.",
+        methods.roi_source,
+        methods.roi_coverage * 100.0,
+        methods.reference_source,
+        ROI_CONTRACT_BASELINE_METHOD_ID,
+        host_output_note
     );
     EvidenceExplanation {
         what_went_wrong,
@@ -1962,27 +2250,6 @@ fn residual_field(current: &ImageFrame, history: &ImageFrame) -> ScalarField {
     field
 }
 
-fn derive_roi_mask(outputs: &HostSupervisionOutputs) -> Vec<bool> {
-    let width = outputs.trust.width();
-    let height = outputs.trust.height();
-    let total = width * height;
-    let mut scores = (0..total)
-        .map(|index| {
-            let x = index % width;
-            let y = index / width;
-            outputs.intervention.get(x, y) * 0.60
-                + outputs.proxies.depth_proxy.get(x, y) * 0.20
-                + outputs.proxies.normal_proxy.get(x, y) * 0.10
-                + outputs.proxies.neighborhood_proxy.get(x, y) * 0.10
-        })
-        .collect::<Vec<_>>();
-    let mut sorted = scores.clone();
-    sorted.sort_by(|left, right| right.total_cmp(left));
-    let keep = (total / 12).max(1).min(total.max(1));
-    let threshold = sorted[keep.saturating_sub(1)];
-    scores.drain(..).map(|score| score >= threshold).collect()
-}
-
 fn derive_instability_mask(
     outputs: &HostSupervisionOutputs,
     current: &ImageFrame,
@@ -2032,6 +2299,306 @@ fn relative_path_string(path: &Path, base_dir: &Path) -> String {
         .unwrap_or(path)
         .to_string_lossy()
         .replace('\\', "/")
+}
+
+fn write_canonical_metric_sheet(
+    path: &Path,
+    capture_summaries: &[CaptureSummaryRecord],
+) -> Result<()> {
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Canonical Metric Sheet");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{ROI_CONTRACT_STATEMENT}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "Strong baseline: `strong_heuristic` (named strong heuristic clamp). Canonical baseline: `{}`.",
+        ROI_CONTRACT_BASELINE_METHOD_ID
+    );
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "| Capture set | Metric | Baseline | Strong heuristic | DSFB | DSFB + heuristic | Winner |"
+    );
+    let _ = writeln!(markdown, "| --- | --- | ---: | ---: | ---: | ---: | --- |");
+    for capture in capture_summaries {
+        let _ = writeln!(
+            markdown,
+            "| {} | ROI MAE | {:.5} | {:.5} | {:.5} | {:.5} | {} |",
+            capture.capture_label,
+            capture.fixed_alpha_roi_mae,
+            capture.strong_heuristic_roi_mae,
+            capture.dsfb_roi_mae,
+            capture.dsfb_plus_heuristic_roi_mae,
+            winner_label(
+                capture.fixed_alpha_roi_mae,
+                capture.strong_heuristic_roi_mae,
+                capture.dsfb_roi_mae,
+                Some(capture.dsfb_plus_heuristic_roi_mae),
+            )
+        );
+        let _ = writeln!(
+            markdown,
+            "| {} | Full-frame MAE | {:.5} | {:.5} | {:.5} | {:.5} | {} |",
+            capture.capture_label,
+            capture.fixed_alpha_full_frame_mae,
+            capture.strong_heuristic_full_frame_mae,
+            capture.dsfb_full_frame_mae,
+            capture.dsfb_plus_heuristic_full_frame_mae,
+            winner_label(
+                capture.fixed_alpha_full_frame_mae,
+                capture.strong_heuristic_full_frame_mae,
+                capture.dsfb_full_frame_mae,
+                Some(capture.dsfb_plus_heuristic_full_frame_mae),
+            )
+        );
+        let _ = writeln!(
+            markdown,
+            "| {} | Max error | {:.5} | {:.5} | {:.5} | {:.5} | {} |",
+            capture.capture_label,
+            capture.fixed_alpha_max_error,
+            capture.strong_heuristic_max_error,
+            capture.dsfb_max_error,
+            capture.dsfb_plus_heuristic_max_error,
+            winner_label(
+                capture.fixed_alpha_max_error,
+                capture.strong_heuristic_max_error,
+                capture.dsfb_max_error,
+                Some(capture.dsfb_plus_heuristic_max_error),
+            )
+        );
+        let _ = writeln!(
+            markdown,
+            "| {} | ROI coverage | {:.2}% | {:.2}% | {:.2}% | {:.2}% | fixed ROI mask |",
+            capture.capture_label,
+            capture.roi_coverage * 100.0,
+            capture.roi_coverage * 100.0,
+            capture.roi_coverage * 100.0,
+            capture.roi_coverage * 100.0,
+        );
+    }
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+fn write_aggregation_summary(path: &Path, capture_summaries: &[CaptureSummaryRecord]) -> Result<()> {
+    let mut markdown = String::new();
+    let _ = writeln!(markdown, "# Aggregation Summary");
+    let _ = writeln!(markdown);
+    let _ = writeln!(markdown, "{ROI_CONTRACT_STATEMENT}");
+    let _ = writeln!(markdown);
+    let _ = writeln!(
+        markdown,
+        "Real capture count in this run: `{}`. Mean ± std claims require at least `{}` real captures under unchanged code and parameters.",
+        capture_summaries.len(),
+        ROI_AGGREGATION_MIN_CAPTURES
+    );
+    let _ = writeln!(markdown);
+    if capture_summaries.len() < ROI_AGGREGATION_MIN_CAPTURES {
+        let _ = writeln!(
+            markdown,
+            "Status: blocked by missing real captures. The crate-local canonical path currently has fewer than {} real Unreal-native captures, so no distribution claim is emitted.",
+            ROI_AGGREGATION_MIN_CAPTURES
+        );
+    } else {
+        let fixed = mean_and_std(
+            &capture_summaries
+                .iter()
+                .map(|capture| capture.fixed_alpha_roi_mae)
+                .collect::<Vec<_>>(),
+        );
+        let strong = mean_and_std(
+            &capture_summaries
+                .iter()
+                .map(|capture| capture.strong_heuristic_roi_mae)
+                .collect::<Vec<_>>(),
+        );
+        let dsfb = mean_and_std(
+            &capture_summaries
+                .iter()
+                .map(|capture| capture.dsfb_roi_mae)
+                .collect::<Vec<_>>(),
+        );
+        let hybrid = mean_and_std(
+            &capture_summaries
+                .iter()
+                .map(|capture| capture.dsfb_plus_heuristic_roi_mae)
+                .collect::<Vec<_>>(),
+        );
+        let _ = writeln!(
+            markdown,
+            "| Metric | Baseline mean ± std | Strong heuristic mean ± std | DSFB mean ± std | DSFB + heuristic mean ± std | Winner |"
+        );
+        let _ = writeln!(markdown, "| --- | ---: | ---: | ---: | ---: | --- |");
+        let _ = writeln!(
+            markdown,
+            "| ROI MAE | {:.5} ± {:.5} | {:.5} ± {:.5} | {:.5} ± {:.5} | {:.5} ± {:.5} | {} |",
+            fixed.0,
+            fixed.1,
+            strong.0,
+            strong.1,
+            dsfb.0,
+            dsfb.1,
+            hybrid.0,
+            hybrid.1,
+            winner_label(fixed.0, strong.0, dsfb.0, Some(hybrid.0))
+        );
+    }
+    fs::write(path, markdown)?;
+    Ok(())
+}
+
+fn validate_unreal_native_artifacts(
+    run_dir: &Path,
+    frames: &[FrameArtifacts],
+    comparison_summary_path: &Path,
+    canonical_metric_sheet_path: &Path,
+    aggregation_summary_path: &Path,
+) -> Result<()> {
+    let current_status_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("CURRENT_STATUS.md");
+    if !current_status_path.exists() {
+        return Err(Error::Message(format!(
+            "required crate status file is missing: {}",
+            current_status_path.display()
+        )));
+    }
+    let current_status = fs::read_to_string(&current_status_path)?;
+    for required in [
+        CANONICAL_HEADLINE_STATEMENT,
+        PURE_DSFB_LIMITATION_STATEMENT,
+        ROI_HONESTY_STATEMENT,
+    ] {
+        if !current_status.contains(required) {
+            return Err(Error::Message(format!(
+                "crate status file {} is missing required canonical statement: {}",
+                current_status_path.display(),
+                required
+            )));
+        }
+    }
+
+    let comparison_summary = fs::read_to_string(comparison_summary_path)?;
+    if !comparison_summary.contains(ROI_CONTRACT_STATEMENT) {
+        return Err(Error::Message(format!(
+            "comparison summary {} is missing the ROI contract statement",
+            comparison_summary_path.display()
+        )));
+    }
+
+    for report_name in [
+        "demo_a_external_report.md",
+        "demo_b_external_report.md",
+        "external_validation_report.md",
+    ] {
+        let report_path = run_dir.join(report_name);
+        let report = fs::read_to_string(&report_path)?;
+        if !report.contains(ROI_CONTRACT_STATEMENT) {
+            return Err(Error::Message(format!(
+                "report {} is missing the ROI contract statement",
+                report_path.display()
+            )));
+        }
+    }
+
+    let canonical_metric_sheet = fs::read_to_string(canonical_metric_sheet_path)?;
+    if !canonical_metric_sheet.contains("Strong heuristic") {
+        return Err(Error::Message(format!(
+            "canonical metric sheet {} is missing the strong baseline column",
+            canonical_metric_sheet_path.display()
+        )));
+    }
+    if !canonical_metric_sheet.contains("DSFB + heuristic") {
+        return Err(Error::Message(format!(
+            "canonical metric sheet {} is missing the DSFB + heuristic column",
+            canonical_metric_sheet_path.display()
+        )));
+    }
+    if !canonical_metric_sheet.contains(ROI_CONTRACT_STATEMENT) {
+        return Err(Error::Message(format!(
+            "canonical metric sheet {} is missing the ROI contract statement",
+            canonical_metric_sheet_path.display()
+        )));
+    }
+
+    let aggregation_summary = fs::read_to_string(aggregation_summary_path)?;
+    if frames.len() < ROI_AGGREGATION_MIN_CAPTURES
+        && !aggregation_summary.contains("blocked by missing real captures")
+    {
+        return Err(Error::Message(format!(
+            "aggregation summary {} emitted distribution output without enough real captures",
+            aggregation_summary_path.display()
+        )));
+    }
+
+    for relative_path in [
+        "figures/trust_histogram.svg",
+        "figures/trust_vs_error.svg",
+        "figures/trust_conditioned_error_map.png",
+    ] {
+        let artifact_path = run_dir.join(relative_path);
+        if !artifact_path.exists() {
+            return Err(Error::Message(format!(
+                "required trust artifact is missing: {}",
+                artifact_path.display()
+            )));
+        }
+    }
+    if frames.len() >= 2 {
+        for relative_path in [
+            "figures/trust_temporal_trajectory.svg",
+            "figures/trust_temporal_trajectory.json",
+        ] {
+            let artifact_path = run_dir.join(relative_path);
+            if !artifact_path.exists() {
+                return Err(Error::Message(format!(
+                    "required temporal trust artifact is missing: {}",
+                    artifact_path.display()
+                )));
+            }
+        }
+    }
+
+    for frame in frames {
+        if !frame.roi_mask_path.exists() {
+            return Err(Error::Message(format!(
+                "required ROI mask artifact is missing: {}",
+                frame.roi_mask_path.display()
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+fn winner_label(baseline: f32, strong: f32, dsfb: f32, hybrid: Option<f32>) -> &'static str {
+    let best = hybrid
+        .map(|hybrid| baseline.min(strong).min(dsfb).min(hybrid))
+        .unwrap_or_else(|| baseline.min(strong).min(dsfb));
+    if (best - baseline).abs() <= 1e-6 {
+        "Baseline"
+    } else if (best - strong).abs() <= 1e-6 {
+        "Strong heuristic"
+    } else if hybrid.is_some_and(|value| (best - value).abs() <= 1e-6) {
+        "DSFB + heuristic"
+    } else {
+        "DSFB"
+    }
+}
+
+fn mean_and_std(values: &[f32]) -> (f32, f32) {
+    if values.is_empty() {
+        return (0.0, 0.0);
+    }
+    let mean = values.iter().copied().sum::<f32>() / values.len() as f32;
+    let variance = values
+        .iter()
+        .map(|value| {
+            let delta = *value - mean;
+            delta * delta
+        })
+        .sum::<f32>()
+        / values.len() as f32;
+    (mean, variance.sqrt())
 }
 
 fn git_commit_hash() -> Option<String> {

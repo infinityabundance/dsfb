@@ -1,0 +1,460 @@
+{
+  "format_version": "dsfb_external_capture_v1",
+  "description": "Materialized external replay manifest generated from the strict Unreal-native dataset `ue57_dsfb_temporal_capture_sequence_sample`",
+  "source": {
+    "kind": "engine_native",
+    "engine_type": "unreal",
+    "engine_version": "5.7.2",
+    "capture_tool": "scene_capture2d_png_export_plus_dataset_builder",
+    "capture_note": "real Unreal capture materialized into reprojected replay inputs with no synthetic fallback"
+  },
+  "buffers": null,
+  "captures": [
+    {
+      "label": "frame_0001",
+      "buffers": {
+        "current_color": {
+          "path": "materialized_external/frame_0001/current_color.png",
+          "format": "png_rgb8",
+          "semantic": "current_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_color": {
+          "path": "materialized_external/frame_0001/reprojected_history.png",
+          "format": "png_rgb8",
+          "semantic": "reprojected_history",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "materialized_external/frame_0001/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": 256,
+          "height": 144,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "materialized_external/frame_0001/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "history_depth": {
+          "path": "materialized_external/frame_0001/reprojected_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "reprojected_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "materialized_external/frame_0001/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_normals": {
+          "path": "materialized_external/frame_0001/reprojected_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "reprojected_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "materialized_external/frame_0001/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata",
+          "width": null,
+          "height": null,
+          "channels": null
+        },
+        "optional_mask": {
+          "path": "materialized_external/frame_0001/roi_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "roi_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "optional_reference": {
+          "path": "materialized_external/frame_0001/reference_color.png",
+          "format": "png_rgb8",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "optional_ground_truth": null,
+        "optional_variance": null
+      }
+    },
+    {
+      "label": "frame_0002",
+      "buffers": {
+        "current_color": {
+          "path": "materialized_external/frame_0002/current_color.png",
+          "format": "png_rgb8",
+          "semantic": "current_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_color": {
+          "path": "materialized_external/frame_0002/reprojected_history.png",
+          "format": "png_rgb8",
+          "semantic": "reprojected_history",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "materialized_external/frame_0002/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": 256,
+          "height": 144,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "materialized_external/frame_0002/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "history_depth": {
+          "path": "materialized_external/frame_0002/reprojected_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "reprojected_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "materialized_external/frame_0002/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_normals": {
+          "path": "materialized_external/frame_0002/reprojected_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "reprojected_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "materialized_external/frame_0002/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata",
+          "width": null,
+          "height": null,
+          "channels": null
+        },
+        "optional_mask": {
+          "path": "materialized_external/frame_0002/roi_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "roi_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "optional_reference": {
+          "path": "materialized_external/frame_0002/reference_color.png",
+          "format": "png_rgb8",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "optional_ground_truth": null,
+        "optional_variance": null
+      }
+    },
+    {
+      "label": "frame_0003",
+      "buffers": {
+        "current_color": {
+          "path": "materialized_external/frame_0003/current_color.png",
+          "format": "png_rgb8",
+          "semantic": "current_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_color": {
+          "path": "materialized_external/frame_0003/reprojected_history.png",
+          "format": "png_rgb8",
+          "semantic": "reprojected_history",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "materialized_external/frame_0003/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": 256,
+          "height": 144,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "materialized_external/frame_0003/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "history_depth": {
+          "path": "materialized_external/frame_0003/reprojected_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "reprojected_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "materialized_external/frame_0003/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_normals": {
+          "path": "materialized_external/frame_0003/reprojected_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "reprojected_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "materialized_external/frame_0003/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata",
+          "width": null,
+          "height": null,
+          "channels": null
+        },
+        "optional_mask": {
+          "path": "materialized_external/frame_0003/roi_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "roi_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "optional_reference": {
+          "path": "materialized_external/frame_0003/reference_color.png",
+          "format": "png_rgb8",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "optional_ground_truth": null,
+        "optional_variance": null
+      }
+    },
+    {
+      "label": "frame_0004",
+      "buffers": {
+        "current_color": {
+          "path": "materialized_external/frame_0004/current_color.png",
+          "format": "png_rgb8",
+          "semantic": "current_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_color": {
+          "path": "materialized_external/frame_0004/reprojected_history.png",
+          "format": "png_rgb8",
+          "semantic": "reprojected_history",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "materialized_external/frame_0004/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": 256,
+          "height": 144,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "materialized_external/frame_0004/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "history_depth": {
+          "path": "materialized_external/frame_0004/reprojected_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "reprojected_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "materialized_external/frame_0004/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_normals": {
+          "path": "materialized_external/frame_0004/reprojected_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "reprojected_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "materialized_external/frame_0004/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata",
+          "width": null,
+          "height": null,
+          "channels": null
+        },
+        "optional_mask": {
+          "path": "materialized_external/frame_0004/roi_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "roi_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "optional_reference": {
+          "path": "materialized_external/frame_0004/reference_color.png",
+          "format": "png_rgb8",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "optional_ground_truth": null,
+        "optional_variance": null
+      }
+    },
+    {
+      "label": "frame_0005",
+      "buffers": {
+        "current_color": {
+          "path": "materialized_external/frame_0005/current_color.png",
+          "format": "png_rgb8",
+          "semantic": "current_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_color": {
+          "path": "materialized_external/frame_0005/reprojected_history.png",
+          "format": "png_rgb8",
+          "semantic": "reprojected_history",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "motion_vectors": {
+          "path": "materialized_external/frame_0005/motion_vectors.json",
+          "format": "json_vec2_f32",
+          "semantic": "motion_vectors",
+          "width": 256,
+          "height": 144,
+          "channels": 2
+        },
+        "current_depth": {
+          "path": "materialized_external/frame_0005/current_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "current_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "history_depth": {
+          "path": "materialized_external/frame_0005/reprojected_depth.json",
+          "format": "json_scalar_f32",
+          "semantic": "reprojected_depth",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "current_normals": {
+          "path": "materialized_external/frame_0005/current_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "current_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "history_normals": {
+          "path": "materialized_external/frame_0005/reprojected_normals.json",
+          "format": "json_vec3_f32",
+          "semantic": "reprojected_normals",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "metadata": {
+          "path": "materialized_external/frame_0005/metadata.json",
+          "format": "json_metadata",
+          "semantic": "metadata",
+          "width": null,
+          "height": null,
+          "channels": null
+        },
+        "optional_mask": {
+          "path": "materialized_external/frame_0005/roi_mask.json",
+          "format": "json_mask_bool",
+          "semantic": "roi_mask",
+          "width": 256,
+          "height": 144,
+          "channels": 1
+        },
+        "optional_reference": {
+          "path": "materialized_external/frame_0005/reference_color.png",
+          "format": "png_rgb8",
+          "semantic": "reference_color",
+          "width": 256,
+          "height": 144,
+          "channels": 3
+        },
+        "optional_ground_truth": null,
+        "optional_variance": null
+      }
+    }
+  ],
+  "normalization": {
+    "color": "linear_rgb_from_scene_capture_png",
+    "motion_vectors": "pixel_offset_to_prev; normalized into pixel offsets to the previous frame",
+    "depth": "monotonic_visualized_depth",
+    "normals": "world_space_unit"
+  },
+  "notes": [
+    "provenance_label=unreal_native",
+    "real_engine_capture=true",
+    "no synthetic fallback is implemented in this path"
+  ]
+}

@@ -6,6 +6,7 @@ use wgpu::util::DeviceExt;
 
 use crate::error::{Error, Result};
 use crate::external::OwnedHostTemporalInputs;
+use crate::frame::ScalarField;
 use crate::parameters::HostSupervisionParameters;
 
 #[derive(Clone, Debug)]
@@ -19,6 +20,16 @@ pub struct GpuKernelResult {
     pub dispatch_ms: f64,
     pub readback_ms: f64,
     pub workgroup_size: (u32, u32, u32),
+}
+
+#[derive(Clone, Debug)]
+struct ChunkExecutionResult {
+    trust: Vec<f32>,
+    alpha: Vec<f32>,
+    intervention: Vec<f32>,
+    total_ms: f64,
+    dispatch_ms: f64,
+    readback_ms: f64,
 }
 
 #[repr(C)]
@@ -119,21 +130,15 @@ fn color_at(x: i32, y: i32) -> vec3<f32> {
     return current_color[idx].xyz;
 }
 
-var<workgroup> tile: array<f32, 100>;
-
-fn tile_luma(tx: i32, ty: i32) -> f32 {
-    return tile[u32(ty * 10 + tx)];
-}
-
-fn local_contrast_gate_tile(tile_cx: i32, tile_cy: i32) -> f32 {
-    let center = tile_luma(tile_cx, tile_cy);
+fn local_contrast_gate(x: i32, y: i32) -> f32 {
+    let center = luma(color_at(x, y));
     var strongest = 0.0;
     for (var oy: i32 = -1; oy <= 1; oy = oy + 1) {
         for (var ox: i32 = -1; ox <= 1; ox = ox + 1) {
             if (ox == 0 && oy == 0) {
                 continue;
             }
-            strongest = max(strongest, abs(center - tile_luma(tile_cx + ox, tile_cy + oy)));
+            strongest = max(strongest, abs(center - luma(color_at(x + ox, y + oy))));
         }
     }
     return smoothstep_threshold(
@@ -143,12 +148,12 @@ fn local_contrast_gate_tile(tile_cx: i32, tile_cy: i32) -> f32 {
     );
 }
 
-fn neighborhood_gate_tile(tile_cx: i32, tile_cy: i32, history_luma: f32) -> f32 {
+fn neighborhood_gate(x: i32, y: i32, history_luma: f32) -> f32 {
     var min_luma = 1e9;
     var max_luma = -1e9;
     for (var oy: i32 = -1; oy <= 1; oy = oy + 1) {
         for (var ox: i32 = -1; ox <= 1; ox = ox + 1) {
-            let sample = tile_luma(tile_cx + ox, tile_cy + oy);
+            let sample = luma(color_at(x + ox, y + oy));
             min_luma = min(min_luma, sample);
             max_luma = max(max_luma, sample);
         }
@@ -166,35 +171,16 @@ fn neighborhood_gate_tile(tile_cx: i32, tile_cy: i32, history_luma: f32) -> f32 
     );
 }
 
-@compute @workgroup_size(8, 8, 1)
+@compute @workgroup_size(1, 1, 1)
 fn main(
     @builtin(global_invocation_id) gid: vec3<u32>,
-    @builtin(local_invocation_id) lid: vec3<u32>,
-    @builtin(workgroup_id) wgid: vec3<u32>,
 ) {
-    let wg_origin_x = i32(wgid.x * 8u);
-    let wg_origin_y = i32(wgid.y * 8u);
-    let lid_flat = lid.y * 8u + lid.x;
-
-    // Cooperative tile load: thread lid_flat loads tile[lid_flat] and possibly tile[lid_flat+64]
-    {
-        let k0 = lid_flat;
-        let tx0 = i32(k0 % 10u);
-        let ty0 = i32(k0 / 10u);
-        tile[k0] = luma(color_at(wg_origin_x - 1 + tx0, wg_origin_y - 1 + ty0));
-    }
-    if (lid_flat < 36u) {
-        let k1 = lid_flat + 64u;
-        let tx1 = i32(k1 % 10u);
-        let ty1 = i32(k1 / 10u);
-        tile[k1] = luma(color_at(wg_origin_x - 1 + tx1, wg_origin_y - 1 + ty1));
-    }
-    workgroupBarrier();
-
     if (gid.x >= params.size.x || gid.y >= params.size.y) {
         return;
     }
     let idx = index_of(gid.x, gid.y);
+    let pixel_x = i32(gid.x);
+    let pixel_y = i32(gid.y);
     let current = current_color[idx].xyz;
     let history = reprojected_history[idx].xyz;
     let residual = (abs(current.x - history.x) + abs(current.y - history.y) + abs(current.z - history.z)) / 3.0;
@@ -214,10 +200,8 @@ fn main(
         1.0 - clamp(dot(n0, n1), -1.0, 1.0)
     );
     let history_luma = luma(history);
-    let tile_cx = i32(lid.x) + 1;
-    let tile_cy = i32(lid.y) + 1;
-    let neighbor_gate = neighborhood_gate_tile(tile_cx, tile_cy, history_luma);
-    let thin_gate = local_contrast_gate_tile(tile_cx, tile_cy);
+    let neighbor_gate = neighborhood_gate(pixel_x, pixel_y, history_luma);
+    let thin_gate = local_contrast_gate(pixel_x, pixel_y);
     let history_instability = clamp(
         params.history_instability_mix.x * residual_gate +
         params.history_instability_mix.y * neighbor_gate,
@@ -294,6 +278,152 @@ async fn try_execute_host_minimum_kernel_async(
         .await
         .map_err(|error| Error::Message(format!("failed to request wgpu device: {error}")))?;
 
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("dsfb-host-minimum-wgsl"),
+        source: wgpu::ShaderSource::Wgsl(SHADER_SOURCE.into()),
+    });
+    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("dsfb-host-minimum-layout"),
+        entries: &[
+            storage_layout_entry(0, true),
+            storage_layout_entry(1, true),
+            storage_layout_entry(2, true),
+            storage_layout_entry(3, true),
+            uniform_layout_entry(4),
+            storage_layout_entry(5, false),
+            storage_layout_entry(6, false),
+            storage_layout_entry(7, false),
+        ],
+    });
+    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("dsfb-host-minimum-pipeline-layout"),
+        bind_group_layouts: &[&bind_group_layout],
+        push_constant_ranges: &[],
+    });
+    let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        label: Some("dsfb-host-minimum-pipeline"),
+        layout: Some(&pipeline_layout),
+        module: &shader,
+        entry_point: "main",
+    });
+    let max_binding_size = device.limits().max_storage_buffer_binding_size as usize;
+    let chunk = if requires_tiled_dispatch(inputs, max_binding_size) {
+        execute_host_minimum_tiled(
+            &device,
+            &queue,
+            &pipeline,
+            &bind_group_layout,
+            inputs,
+            parameters,
+            max_binding_size,
+        )?
+    } else {
+        execute_host_minimum_chunk(
+            &device,
+            &queue,
+            &pipeline,
+            &bind_group_layout,
+            inputs,
+            parameters,
+        )?
+    };
+
+    Ok(Some(GpuKernelResult {
+        adapter_name: adapter_info.name,
+        backend: format!("{:?}", adapter_info.backend),
+        trust: chunk.trust,
+        alpha: chunk.alpha,
+        intervention: chunk.intervention,
+        total_ms: chunk.total_ms,
+        dispatch_ms: chunk.dispatch_ms,
+        readback_ms: chunk.readback_ms,
+        workgroup_size: (1, 1, 1),
+    }))
+}
+
+fn requires_tiled_dispatch(inputs: &OwnedHostTemporalInputs, max_binding_size: usize) -> bool {
+    let pixel_count = inputs.width().saturating_mul(inputs.height());
+    let largest_binding_bytes = pixel_count.saturating_mul(std::mem::size_of::<GpuNormalPair>());
+    largest_binding_bytes > max_binding_size
+}
+
+fn execute_host_minimum_tiled(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    pipeline: &wgpu::ComputePipeline,
+    bind_group_layout: &wgpu::BindGroupLayout,
+    inputs: &OwnedHostTemporalInputs,
+    parameters: HostSupervisionParameters,
+    max_binding_size: usize,
+) -> Result<ChunkExecutionResult> {
+    let width = inputs.width();
+    let height = inputs.height();
+    let bytes_per_row = width
+        .saturating_mul(std::mem::size_of::<GpuNormalPair>())
+        .max(1);
+    let max_rows_with_padding = max_binding_size / bytes_per_row;
+    let stripe_rows = max_rows_with_padding.saturating_sub(2).max(1);
+    if stripe_rows == 0 {
+        return Err(Error::Message(
+            "GPU tiled dispatch could not derive a non-zero stripe height".to_string(),
+        ));
+    }
+
+    let pixel_count = width * height;
+    let mut trust = Vec::with_capacity(pixel_count);
+    let mut alpha = Vec::with_capacity(pixel_count);
+    let mut intervention = Vec::with_capacity(pixel_count);
+    let mut total_ms = 0.0;
+    let mut dispatch_ms = 0.0;
+    let mut readback_ms = 0.0;
+    let mut output_row_start = 0usize;
+
+    while output_row_start < height {
+        let output_rows = stripe_rows.min(height - output_row_start);
+        let pad_top = usize::from(output_row_start > 0);
+        let pad_bottom = usize::from(output_row_start + output_rows < height);
+        let sub_start = output_row_start.saturating_sub(pad_top);
+        let sub_end = (output_row_start + output_rows + pad_bottom).min(height);
+        let sub_inputs = slice_inputs_rows(inputs, sub_start, sub_end);
+        let sub_result = execute_host_minimum_chunk(
+            device,
+            queue,
+            pipeline,
+            bind_group_layout,
+            &sub_inputs,
+            parameters,
+        )?;
+        let row_stride = width;
+        let kept_start = pad_top * row_stride;
+        let kept_len = output_rows * row_stride;
+        let kept_end = kept_start + kept_len;
+        trust.extend_from_slice(&sub_result.trust[kept_start..kept_end]);
+        alpha.extend_from_slice(&sub_result.alpha[kept_start..kept_end]);
+        intervention.extend_from_slice(&sub_result.intervention[kept_start..kept_end]);
+        total_ms += sub_result.total_ms;
+        dispatch_ms += sub_result.dispatch_ms;
+        readback_ms += sub_result.readback_ms;
+        output_row_start += output_rows;
+    }
+
+    Ok(ChunkExecutionResult {
+        trust,
+        alpha,
+        intervention,
+        total_ms,
+        dispatch_ms,
+        readback_ms,
+    })
+}
+
+fn execute_host_minimum_chunk(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    pipeline: &wgpu::ComputePipeline,
+    bind_group_layout: &wgpu::BindGroupLayout,
+    inputs: &OwnedHostTemporalInputs,
+    parameters: HostSupervisionParameters,
+) -> Result<ChunkExecutionResult> {
     let pixel_count = inputs.width() * inputs.height();
     let color_current = pack_colors(&inputs.current_color);
     let color_history = pack_colors(&inputs.reprojected_history);
@@ -347,41 +477,12 @@ async fn try_execute_host_minimum_kernel_async(
         mapped_at_creation: false,
     });
 
-    let trust_staging = create_staging_buffer(&device, output_size, "trust-staging");
-    let alpha_staging = create_staging_buffer(&device, output_size, "alpha-staging");
-    let intervention_staging = create_staging_buffer(&device, output_size, "intervention-staging");
-
-    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("dsfb-host-minimum-wgsl"),
-        source: wgpu::ShaderSource::Wgsl(SHADER_SOURCE.into()),
-    });
-    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("dsfb-host-minimum-layout"),
-        entries: &[
-            storage_layout_entry(0, true),
-            storage_layout_entry(1, true),
-            storage_layout_entry(2, true),
-            storage_layout_entry(3, true),
-            uniform_layout_entry(4),
-            storage_layout_entry(5, false),
-            storage_layout_entry(6, false),
-            storage_layout_entry(7, false),
-        ],
-    });
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("dsfb-host-minimum-pipeline-layout"),
-        bind_group_layouts: &[&bind_group_layout],
-        push_constant_ranges: &[],
-    });
-    let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-        label: Some("dsfb-host-minimum-pipeline"),
-        layout: Some(&pipeline_layout),
-        module: &shader,
-        entry_point: "main",
-    });
+    let trust_staging = create_staging_buffer(device, output_size, "trust-staging");
+    let alpha_staging = create_staging_buffer(device, output_size, "alpha-staging");
+    let intervention_staging = create_staging_buffer(device, output_size, "intervention-staging");
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("dsfb-host-minimum-bind-group"),
-        layout: &bind_group_layout,
+        layout: bind_group_layout,
         entries: &[
             storage_binding(0, &current_buffer),
             storage_binding(1, &history_buffer),
@@ -404,10 +505,10 @@ async fn try_execute_host_minimum_kernel_async(
             label: Some("dsfb-host-minimum-pass"),
             timestamp_writes: None,
         });
-        pass.set_pipeline(&pipeline);
+        pass.set_pipeline(pipeline);
         pass.set_bind_group(0, &bind_group, &[]);
-        let groups_x = (inputs.width() as u32).div_ceil(8);
-        let groups_y = (inputs.height() as u32).div_ceil(8);
+        let groups_x = inputs.width() as u32;
+        let groups_y = inputs.height() as u32;
         pass.dispatch_workgroups(groups_x, groups_y, 1);
     }
     encoder.copy_buffer_to_buffer(&trust_buffer, 0, &trust_staging, 0, output_size);
@@ -424,22 +525,63 @@ async fn try_execute_host_minimum_kernel_async(
     let dispatch_ms = dispatch_start.elapsed().as_secs_f64() * 1000.0;
 
     let readback_start = Instant::now();
-    let trust = read_f32_buffer(&device, &trust_staging, pixel_count)?;
-    let alpha = read_f32_buffer(&device, &alpha_staging, pixel_count)?;
-    let intervention = read_f32_buffer(&device, &intervention_staging, pixel_count)?;
+    let trust = read_f32_buffer(device, &trust_staging, pixel_count)?;
+    let alpha = read_f32_buffer(device, &alpha_staging, pixel_count)?;
+    let intervention = read_f32_buffer(device, &intervention_staging, pixel_count)?;
     let readback_ms = readback_start.elapsed().as_secs_f64() * 1000.0;
 
-    Ok(Some(GpuKernelResult {
-        adapter_name: adapter_info.name,
-        backend: format!("{:?}", adapter_info.backend),
+    Ok(ChunkExecutionResult {
         trust,
         alpha,
         intervention,
         total_ms: total_start.elapsed().as_secs_f64() * 1000.0,
         dispatch_ms,
         readback_ms,
-        workgroup_size: (8, 8, 1),
-    }))
+    })
+}
+
+fn slice_inputs_rows(
+    inputs: &OwnedHostTemporalInputs,
+    row_start: usize,
+    row_end: usize,
+) -> OwnedHostTemporalInputs {
+    let height = row_end.saturating_sub(row_start);
+    let width = inputs.width();
+    OwnedHostTemporalInputs {
+        current_color: slice_frame_rows(&inputs.current_color, row_start, row_end),
+        reprojected_history: slice_frame_rows(&inputs.reprojected_history, row_start, row_end),
+        motion_vectors: slice_rows(&inputs.motion_vectors, width, row_start, row_end),
+        current_depth: slice_rows(&inputs.current_depth, width, row_start, row_end),
+        reprojected_depth: slice_rows(&inputs.reprojected_depth, width, row_start, row_end),
+        current_normals: slice_rows(&inputs.current_normals, width, row_start, row_end),
+        reprojected_normals: slice_rows(&inputs.reprojected_normals, width, row_start, row_end),
+        visibility_hint: inputs
+            .visibility_hint
+            .as_ref()
+            .map(|mask| slice_rows(mask, width, row_start, row_end)),
+        thin_hint: inputs
+            .thin_hint
+            .as_ref()
+            .map(|field| ScalarField::from_values(width, height, slice_rows(field.values(), width, row_start, row_end))),
+    }
+}
+
+fn slice_frame_rows(frame: &crate::frame::ImageFrame, row_start: usize, row_end: usize) -> crate::frame::ImageFrame {
+    let width = frame.width();
+    let height = row_end.saturating_sub(row_start);
+    let mut pixels = Vec::with_capacity(width * height);
+    for y in row_start..row_end {
+        for x in 0..width {
+            pixels.push(frame.get(x, y));
+        }
+    }
+    crate::frame::ImageFrame::from_pixels(width, height, pixels)
+}
+
+fn slice_rows<T: Copy>(values: &[T], width: usize, row_start: usize, row_end: usize) -> Vec<T> {
+    let start = row_start * width;
+    let end = row_end * width;
+    values[start..end].to_vec()
 }
 
 fn create_staging_buffer(device: &wgpu::Device, size: u64, label: &str) -> wgpu::Buffer {

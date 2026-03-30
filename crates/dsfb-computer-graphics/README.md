@@ -2,6 +2,14 @@
 
 `dsfb-computer-graphics` is a Rust crate for evaluating DSFB as a deterministic supervisory layer over temporal graphics pipelines. The canonical proof path is now the strict Unreal-native replay path: real Unreal-exported frame buffers and metadata are ingested, validated, replayed through the existing DSFB temporal supervision core, and packaged into a decision-grade evidence bundle.
 
+“The experiment is intended to demonstrate behavioral differences rather than establish optimal performance.”
+
+Start here:
+
+- [`CURRENT_STATUS.md`](/home/one/dsfb/crates/dsfb-computer-graphics/CURRENT_STATUS.md)
+- [`generated/canonical_2026_q1/sample_capture_contract_sequence_canonical`](/home/one/dsfb/crates/dsfb-computer-graphics/generated/canonical_2026_q1/sample_capture_contract_sequence_canonical)
+- [`generated/HISTORICAL_BUNDLES.md`](/home/one/dsfb/crates/dsfb-computer-graphics/generated/HISTORICAL_BUNDLES.md)
+
 DSFB in this crate is not a renderer replacement. The posture is narrower and more useful:
 
 - trust estimation over temporal reuse inputs
@@ -28,7 +36,7 @@ Use the strict Unreal-native command when the input really came from Unreal Engi
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run --release -- run-unreal-native \
+WGPU_BACKEND=vulkan cargo run --release -- run-unreal-native \
   --manifest examples/unreal_native_capture_manifest.json \
   --output generated/unreal_native_runs
 ```
@@ -40,13 +48,36 @@ What this command does:
 - materializes the Unreal capture into the crate’s stable replay contract
 - runs the DSFB replay bundle on the imported capture
 - writes a timestamped Unreal-native run directory
-- generates `summary.json`, `metrics.csv`, `metrics_summary.json`, `comparison_summary.md`, `failure_modes.md`, `provenance.json`, per-frame maps, a boardroom panel, an executive evidence sheet, a PDF bundle, and a ZIP bundle
+- generates `summary.json`, `metrics.csv`, `metrics_summary.json`, `canonical_metric_sheet.md`, `aggregation_summary.md`, `comparison_summary.md`, `failure_modes.md`, `provenance.json`, trust-calibration artifacts, per-frame maps, a boardroom panel, an executive evidence sheet, a PDF bundle, and a ZIP bundle
 
 A checked-in evidence run for the canonical sample currently lives under:
 
-- [`generated/unreal_native_runs/sample_capture_contract`](/home/one/dsfb/crates/dsfb-computer-graphics/generated/unreal_native_runs/sample_capture_contract)
+- [`generated/canonical_2026_q1/sample_capture_contract_sequence_canonical`](/home/one/dsfb/crates/dsfb-computer-graphics/generated/canonical_2026_q1/sample_capture_contract_sequence_canonical)
 
-That sample currently lands as a `heuristic_favorable` Demo A case, which is kept on purpose as an honesty check rather than filtered out.
+Historical pre-canonical sample runs remain under:
+
+- [`generated/HISTORICAL_BUNDLES.md`](/home/one/dsfb/crates/dsfb-computer-graphics/generated/HISTORICAL_BUNDLES.md)
+
+The current canonical package is a 5-capture real Unreal-native sequence from one ordered shot. Pure DSFB remains `heuristic_favorable` on all 5 Demo A captures, but the canonical `DSFB + heuristic` hybrid wins ROI MAE mean +- std (`0.00501 +- 0.00178`) against `strong_heuristic` (`0.00657 +- 0.00247`) and pure DSFB (`0.04522 +- 0.00683`). The sequence includes exported `reference_color`, emits a trust temporal trajectory, and measures imported-buffer GPU/scaling timing on `NVIDIA GeForce RTX 4080 SUPER` / `Vulkan`.
+
+DSFB improves strong temporal heuristics via structural supervision. DSFB alone does not outperform strong heuristic baselines in the current evaluation. The ROI definition captures approximately 50% of the frame under the fixed baseline-relative threshold, making the metric closer to a global structural error measure than a sparse artifact mask. For the current five-capture sequence, onset is `frame_0001`, peak ROI is `frame_0002`, recovery-side is `frame_0005`, mean trust moves `0.78657 -> 0.35245 -> 0.49284`, and intervention rate moves `0.21345 -> 0.64758 -> 0.50715`.
+
+## Strongest Current Evidence
+
+- strict Unreal-native replay via `run-unreal-native`
+- five checked-in real Unreal-native captures under [`generated/canonical_2026_q1/sample_capture_contract_sequence_canonical`](/home/one/dsfb/crates/dsfb-computer-graphics/generated/canonical_2026_q1/sample_capture_contract_sequence_canonical)
+- frozen ROI contract, named strong heuristic baseline, DSFB + heuristic hybrid, trust histogram, trust-vs-error curve, trust temporal trajectory, and canonical metric sheet generated from the same sequence
+- exported `reference_color` on every capture, with metrics sourced from that real higher-resolution Unreal export proxy
+- imported-buffer GPU execution and scaling measurements on `NVIDIA GeForce RTX 4080 SUPER` / `Vulkan`, disclosed separately from in-engine profiling claims
+- canonical validation bundle refreshed by `cargo run --release -- validate-final --output generated/final_bundle`
+
+## Biggest Remaining Blockers
+
+- the checked-in sequence is still one shot, so broader scene/regime distribution is incomplete even though 5 real captures are now present
+- pure DSFB is `heuristic_favorable` on all 5 checked-in Demo A captures; the stronger story is the fixed hybrid, not pure DSFB alone
+- `reference_color` is a higher-resolution exported Unreal proxy, not a path-traced or high-spp ground truth
+- imported-buffer GPU/scaling measurements do not replace engine-side profiling on the final evaluator hardware
+- `run-external-replay` and `run-realism-bridge` remain secondary support paths rather than equivalent proof paths
 
 ## What Counts As Unreal-Native
 
@@ -79,15 +110,17 @@ Optional but strongly recommended:
 
 The strict path does not silently synthesize missing required buffers. If a required file is absent or malformed, the run fails.
 
-The crate-local sample currently retains the following raw Unreal exports under [`data/unreal_native/sample_capture/frame_0001/raw`](/home/one/dsfb/crates/dsfb-computer-graphics/data/unreal_native/sample_capture/frame_0001/raw):
+The crate-local sample currently retains raw Unreal exports under [`data/unreal_native/sample_capture`](/home/one/dsfb/crates/dsfb-computer-graphics/data/unreal_native/sample_capture), with per-frame `raw/` subdirectories for `frame_0001` through `frame_0005`:
 
 - final-color SceneCapture PNGs for `current_color` and `previous_color`
+- higher-resolution final-color PNGs for `reference_color_hi`
 - `SceneDepth` visualization PNGs for `current_depth` and `previous_depth`
 - `WorldNormal` visualization PNGs for `current_normals` and `previous_normals`
 
 The checked-in replay dataset materializes from those raw exports and the recorded Unreal camera/object metadata:
 
 - `current_color.json` and `previous_color.json` are linearized from the raw color PNGs
+- `reference_color.json` is downsampled from the real higher-resolution Unreal export for that frame
 - `current_depth.json` and `previous_depth.json` are decoded from the raw depth visualization PNGs and labeled `monotonic_visualized_depth`
 - `current_normals.json` and `previous_normals.json` are metadata-derived unit normals for this minimal sample
 - `motion_vectors.json` is a metadata-derived dense pixel-offset field for this minimal sample
@@ -142,6 +175,8 @@ Each `run-unreal-native` execution writes a dedicated run directory under the ch
 - `summary.json`
 - `metrics.csv`
 - `metrics_summary.json`
+- `canonical_metric_sheet.md`
+- `aggregation_summary.md`
 - `comparison_summary.md`
 - `failure_modes.md`
 - `provenance.json`
@@ -151,10 +186,16 @@ Each `run-unreal-native` execution writes a dedicated run directory under the ch
 - `demo_a_external_report.md`
 - `demo_b_external_report.md`
 - `external_validation_report.md`
+- `figures/trust_histogram.svg`
+- `figures/trust_vs_error.svg`
+- `figures/trust_conditioned_error_map.png`
+- `figures/trust_temporal_trajectory.svg`
+- `scaling_report.md`
 - `per_frame/<label>/trust_map.png`
 - `per_frame/<label>/alpha_map.png`
 - `per_frame/<label>/intervention_map.png`
 - `per_frame/<label>/residual_map.png`
+- `per_frame/<label>/roi_mask.json`
 - `per_frame/<label>/instability_overlay.png`
 - `per_frame/<label>/boardroom_panel_<label>.png`
 - `executive_evidence_sheet.png`
@@ -198,7 +239,7 @@ The credible claim from this crate is bounded:
 - the Unreal-native replay path produces evidence consistent with reduced temporal artifact risk in some regimes
 - results depend on observability, exported buffers, and regime specification
 - strong heuristics can remain competitive or win on some captures
-- the checked-in Unreal sample is intentionally retained even though its Demo A classification is `heuristic_favorable`
+- the checked-in real sequence is intentionally retained even though pure DSFB remains `heuristic_favorable` on every Demo A capture in that sequence
 
 The crate does not claim:
 
@@ -209,6 +250,7 @@ The crate does not claim:
 
 ## Reproducibility Docs
 
+- [`CURRENT_STATUS.md`](/home/one/dsfb/crates/dsfb-computer-graphics/CURRENT_STATUS.md)
 - [`docs/EVIDENCE_WORKFLOW.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/EVIDENCE_WORKFLOW.md)
 - [`docs/FAILURE_MODES.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/FAILURE_MODES.md)
 - [`docs/REPRODUCIBILITY.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/REPRODUCIBILITY.md)

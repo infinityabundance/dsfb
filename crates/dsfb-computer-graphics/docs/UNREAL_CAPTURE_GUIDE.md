@@ -79,14 +79,14 @@ Then run:
 
 ```bash
 cd crates/dsfb-computer-graphics
-cargo run --release -- run-unreal-native \
+WGPU_BACKEND=vulkan cargo run --release -- run-unreal-native \
   --manifest examples/unreal_native_capture_manifest.json \
   --output generated/unreal_native_runs
 ```
 
 The checked-in sample can be replayed immediately without rerunning Unreal. Its existing evidence bundle lives under:
 
-- [`generated/unreal_native_runs/sample_capture_contract`](/home/one/dsfb/crates/dsfb-computer-graphics/generated/unreal_native_runs/sample_capture_contract)
+- [`generated/canonical_2026_q1/sample_capture_contract_sequence_canonical`](/home/one/dsfb/crates/dsfb-computer-graphics/generated/canonical_2026_q1/sample_capture_contract_sequence_canonical)
 
 This command must fail if:
 

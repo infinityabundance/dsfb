@@ -1,0 +1,32 @@
+{
+  "measurement_kind": "measured_gpu",
+  "measured_gpu": true,
+  "actual_real_external_data": true,
+  "kernel": "dsfb_host_minimum",
+  "captures": [
+    {
+      "capture_label": "frame_0001",
+      "measured_gpu": true,
+      "adapter": "llvmpipe (LLVM 22.1.1, 256 bits)",
+      "backend": "Gl",
+      "resolution": [
+        1920,
+        1080
+      ],
+      "kernel": "dsfb_host_minimum",
+      "total_ms": 51.116834,
+      "dispatch_ms": 48.723043000000004,
+      "readback_ms": 2.392909,
+      "mean_abs_trust_delta_vs_cpu": 6.9580146e-9,
+      "mean_abs_alpha_delta_vs_cpu": 6.12544e-9,
+      "mean_abs_intervention_delta_vs_cpu": 6.9669412e-9,
+      "notes": [
+        "Measured on imported external buffers using the same minimum host-realistic kernel as the synthetic GPU study."
+      ]
+    }
+  ],
+  "notes": [
+    "This report covers imported external buffers rather than the synthetic internal suite.",
+    "Real external data was supplied through the file schema."
+  ]
+}

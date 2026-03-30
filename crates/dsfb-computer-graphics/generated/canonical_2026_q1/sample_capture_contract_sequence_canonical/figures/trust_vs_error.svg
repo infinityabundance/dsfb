@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="460" viewBox="0 0 920 460">
+<rect width="920" height="460" fill="#0b1320"/>
+<text x="36" y="42" font-size="28" font-family="Arial, Helvetica, sans-serif" fill="#f4f7fb">Trust vs Error Curve</text>
+<text x="36" y="68" font-size="16" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">Mean per-pixel error by trust bin. Error source: real_reference.</text>
+<line x1="82" y1="92" x2="82" y2="366" stroke="#f4f7fb" stroke-width="2"/>
+<line x1="82" y1="366" x2="780" y2="366" stroke="#f4f7fb" stroke-width="2"/>
+<polyline fill="none" stroke="#8bd450" stroke-width="3.5" points="82.0,278.7 
+159.6,92.0 
+237.1,242.4 
+314.7,242.0 
+392.2,210.7 
+469.8,251.6 
+547.3,253.3 
+624.9,343.8 
+702.4,190.1 
+780.0,342.0 
+"/>
+<text x="36" y="102" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">mean error</text>
+<text x="744" y="420" font-size="14" font-family="Arial, Helvetica, sans-serif" fill="#c6d2dd">trust bin</text>
+</svg>
