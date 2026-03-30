@@ -87,6 +87,10 @@ Don’t believe a sensor all at once.
 > *DSFB Structural Semiotics Engine: A Survey of Applications Across Safety-Critical Domains - Prior Art Establishment and Domain Instantiation Framework for Deterministic Residual-Based Structural Interpretation* (Version v1.0).
 > Zenodo. [https://doi.org/10.5281/ZENODO.19204366]
 
+> **de Beer, R.** (2026). 
+> *DSFB Structural Semiotics Engine for Battery Health Monitoring: A Deterministic Early-Warning Framework for Capacity Fade, Internal Resistance Drift, and Knee-Onset Detection in Safety-Critical Energy Storage Systems* (v1.0).
+> Zenodo. [https://doi.org/10.5281/zenodo.19339713]
+
 ---
 
 `DSFB Simulation Notebook:`
@@ -124,6 +128,10 @@ Don’t believe a sensor all at once.
 
 `DSFB Lattice Notebook`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lattice/dsfb_lattice_colab.ipynb)
+
+`DSFB Battery Health Monitoring`
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
 
 ---
 
