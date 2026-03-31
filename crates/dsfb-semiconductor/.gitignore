@@ -1,0 +1,6 @@
+target/
+data/raw/
+*.aux
+*.log
+*.out
+*.toc
