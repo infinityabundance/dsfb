@@ -4,7 +4,7 @@ use crate::error::{DsfbSemiconductorError, Result};
 use crate::grammar::{GrammarSet, GrammarState};
 use crate::metrics::BenchmarkMetrics;
 use crate::nominal::NominalModel;
-use crate::precursor::PrecursorEvaluation;
+use crate::precursor::PspEvaluation;
 use crate::preprocessing::PreparedDataset;
 use crate::residual::ResidualSet;
 use crate::signs::SignSet;
@@ -45,7 +45,7 @@ pub fn generate_figures(
     baselines: &BaselineSet,
     grammar: &GrammarSet,
     metrics: &BenchmarkMetrics,
-    precursor: &PrecursorEvaluation,
+    psp: &PspEvaluation,
     config: &PipelineConfig,
 ) -> Result<FigureManifest> {
     let figure_dir = run_dir.join("figures");
@@ -110,7 +110,7 @@ pub fn generate_figures(
     draw_grammar_timeline(&figure_dir, metrics, grammar)?;
     files.push("grammar_timeline.png".into());
 
-    draw_baseline_comparison(&figure_dir, metrics, precursor)?;
+    draw_baseline_comparison(&figure_dir, metrics, psp)?;
     files.push("benchmark_comparison.png".into());
 
     let drsc = if let Some(feature_index) = metrics.top_feature_indices.first().copied() {
@@ -370,7 +370,7 @@ fn draw_grammar_timeline(
 fn draw_baseline_comparison(
     figure_dir: &Path,
     metrics: &BenchmarkMetrics,
-    precursor: &PrecursorEvaluation,
+    psp: &PspEvaluation,
 ) -> Result<()> {
     let out_path = figure_dir.join("benchmark_comparison.png");
     let root = BitMapBackend::new(&out_path, (WIDTH, HEIGHT)).into_drawing_area();
@@ -378,8 +378,8 @@ fn draw_baseline_comparison(
     let areas = root.split_evenly((1, 2));
     let lead_labels = [
         (
-            "DSFB precursor",
-            precursor.summary.mean_lead_time_runs.unwrap_or(0.0),
+            "PSP",
+            psp.summary.mean_lead_time_runs.unwrap_or(0.0),
             MAGENTA.mix(0.7),
         ),
         (
@@ -417,8 +417,8 @@ fn draw_baseline_comparison(
     ];
     let nuisance_labels = [
         (
-            "DSFB precursor",
-            precursor.summary.pass_run_nuisance_proxy,
+            "PSP",
+            psp.summary.pass_run_nuisance_proxy,
             MAGENTA.mix(0.7),
         ),
         (

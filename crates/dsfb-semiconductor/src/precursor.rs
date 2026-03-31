@@ -1,6 +1,6 @@
 use crate::baselines::BaselineSet;
 use crate::error::{DsfbSemiconductorError, Result};
-use crate::grammar::{GrammarReason, GrammarSet, GrammarState};
+use crate::grammar::{GrammarReason, GrammarSet};
 use crate::nominal::NominalModel;
 use crate::preprocessing::PreparedDataset;
 use crate::residual::ResidualSet;
@@ -8,65 +8,37 @@ use crate::signs::SignSet;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PrecursorConfig {
+pub struct PspConfig {
     pub window: usize,
     pub persistence_runs: usize,
-    pub boundary_density_tau: f64,
-    pub drift_persistence_tau: f64,
-    pub transition_cluster_tau: usize,
-    pub ewma_occupancy_tau: f64,
     pub alert_tau: f64,
 }
 
-impl Default for PrecursorConfig {
+impl Default for PspConfig {
     fn default() -> Self {
         Self {
             window: 10,
             persistence_runs: 2,
-            boundary_density_tau: 0.3,
-            drift_persistence_tau: 0.3,
-            transition_cluster_tau: 2,
-            ewma_occupancy_tau: 0.8,
             alert_tau: 2.5,
         }
     }
 }
 
-impl PrecursorConfig {
+impl PspConfig {
     pub fn validate(&self) -> Result<()> {
         if self.window == 0 {
             return Err(DsfbSemiconductorError::DatasetFormat(
-                "precursor window must be positive".into(),
+                "psp window must be positive".into(),
             ));
         }
         if self.persistence_runs == 0 {
             return Err(DsfbSemiconductorError::DatasetFormat(
-                "precursor persistence_runs must be positive".into(),
-            ));
-        }
-        if !(0.0..=1.0).contains(&self.boundary_density_tau) {
-            return Err(DsfbSemiconductorError::DatasetFormat(
-                "precursor boundary_density_tau must be in [0, 1]".into(),
-            ));
-        }
-        if !(0.0..=1.0).contains(&self.drift_persistence_tau) {
-            return Err(DsfbSemiconductorError::DatasetFormat(
-                "precursor drift_persistence_tau must be in [0, 1]".into(),
-            ));
-        }
-        if self.transition_cluster_tau == 0 {
-            return Err(DsfbSemiconductorError::DatasetFormat(
-                "precursor transition_cluster_tau must be positive".into(),
-            ));
-        }
-        if !(0.0..=1.0).contains(&self.ewma_occupancy_tau) {
-            return Err(DsfbSemiconductorError::DatasetFormat(
-                "precursor ewma_occupancy_tau must be in [0, 1]".into(),
+                "psp persistence_runs must be positive".into(),
             ));
         }
         if self.alert_tau <= 0.0 {
             return Err(DsfbSemiconductorError::DatasetFormat(
-                "precursor alert_tau must be positive".into(),
+                "psp alert_tau must be positive".into(),
             ));
         }
         Ok(())
@@ -74,20 +46,20 @@ impl PrecursorConfig {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PrecursorWeights {
+pub struct PspWeights {
     pub boundary_density: f64,
     pub drift_persistence: f64,
-    pub transition_cluster: f64,
+    pub slew_cluster: f64,
     pub ewma_occupancy: f64,
     pub motif_recurrence: f64,
 }
 
-impl Default for PrecursorWeights {
+impl Default for PspWeights {
     fn default() -> Self {
         Self {
             boundary_density: 1.0,
             drift_persistence: 1.0,
-            transition_cluster: 1.0,
+            slew_cluster: 1.0,
             ewma_occupancy: 1.0,
             motif_recurrence: 1.0,
         }
@@ -95,24 +67,23 @@ impl Default for PrecursorWeights {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PrecursorFeatureTrace {
+pub struct PspFeatureTrace {
     pub feature_index: usize,
     pub feature_name: String,
     pub boundary_density_w: Vec<f64>,
-    pub violation_density_w: Vec<f64>,
     pub drift_persistence_w: Vec<f64>,
-    pub transition_cluster_w: Vec<f64>,
+    pub slew_cluster_w: Vec<f64>,
     pub ewma_occupancy_w: Vec<f64>,
     pub motif_recurrence_w: Vec<f64>,
-    pub precursor_score: Vec<f64>,
-    pub precursor_active: Vec<bool>,
-    pub precursor_alert: Vec<bool>,
+    pub psp_score: Vec<f64>,
+    pub psp_active: Vec<bool>,
+    pub psp_alert: Vec<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PrecursorSignalSummary {
-    pub config: PrecursorConfig,
-    pub weights: PrecursorWeights,
+pub struct PspSignalSummary {
+    pub config: PspConfig,
+    pub weights: PspWeights,
     pub analyzable_feature_count: usize,
     pub alert_point_count: usize,
     pub alert_run_count: usize,
@@ -140,9 +111,9 @@ pub struct SignalComparisonRow {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PrecursorVsBaselinesSummary {
+pub struct PspVsBaselinesSummary {
     pub dataset: String,
-    pub precursor: SignalComparisonRow,
+    pub psp: SignalComparisonRow,
     pub threshold: SignalComparisonRow,
     pub ewma: SignalComparisonRow,
     pub improvement_vs_threshold: bool,
@@ -151,51 +122,43 @@ pub struct PrecursorVsBaselinesSummary {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PerFailureRunPrecursorSignal {
+pub struct PerFailureRunPspSignal {
     pub failure_run_index: usize,
     pub failure_timestamp: String,
-    pub earliest_precursor_run: Option<usize>,
-    pub earliest_precursor_feature_index: Option<usize>,
-    pub earliest_precursor_feature_name: Option<String>,
-    pub precursor_lead_runs: Option<usize>,
+    pub earliest_psp_run: Option<usize>,
+    pub earliest_psp_feature_index: Option<usize>,
+    pub earliest_psp_feature_name: Option<String>,
+    pub psp_lead_runs: Option<usize>,
     pub threshold_lead_runs: Option<usize>,
     pub ewma_lead_runs: Option<usize>,
-    pub precursor_minus_threshold_delta_runs: Option<i64>,
-    pub precursor_minus_ewma_delta_runs: Option<i64>,
-    pub precursor_alerting_feature_count: usize,
-    pub max_precursor_score_in_lookback: Option<f64>,
-    pub max_precursor_score_feature_index: Option<usize>,
-    pub max_precursor_score_feature_name: Option<String>,
+    pub psp_minus_threshold_delta_runs: Option<i64>,
+    pub psp_minus_ewma_delta_runs: Option<i64>,
+    pub psp_alerting_feature_count: usize,
+    pub max_psp_score_in_lookback: Option<f64>,
+    pub max_psp_score_feature_index: Option<usize>,
+    pub max_psp_score_feature_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PrecursorEvaluation {
-    pub traces: Vec<PrecursorFeatureTrace>,
-    pub summary: PrecursorSignalSummary,
-    pub comparison_summary: PrecursorVsBaselinesSummary,
-    pub per_failure_run_signals: Vec<PerFailureRunPrecursorSignal>,
+pub struct PspEvaluation {
+    pub traces: Vec<PspFeatureTrace>,
+    pub summary: PspSignalSummary,
+    pub comparison_summary: PspVsBaselinesSummary,
+    pub per_failure_run_signals: Vec<PerFailureRunPspSignal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PrecursorCalibrationGrid {
+pub struct PspCalibrationGrid {
     pub window: Vec<usize>,
     pub persistence_runs: Vec<usize>,
-    pub boundary_density_tau: Vec<f64>,
-    pub drift_persistence_tau: Vec<f64>,
-    pub transition_cluster_tau: Vec<usize>,
-    pub ewma_occupancy_tau: Vec<f64>,
     pub alert_tau: Vec<f64>,
 }
 
-impl PrecursorCalibrationGrid {
+impl PspCalibrationGrid {
     pub fn bounded_default() -> Self {
         Self {
-            window: vec![5, 10, 15, 20],
+            window: vec![5, 10, 15],
             persistence_runs: vec![2, 3, 4],
-            boundary_density_tau: vec![0.2, 0.3, 0.4],
-            drift_persistence_tau: vec![0.2, 0.3, 0.4],
-            transition_cluster_tau: vec![1, 2, 3],
-            ewma_occupancy_tau: vec![0.7, 0.8, 0.9],
             alert_tau: vec![2.0, 2.5, 3.0],
         }
     }
@@ -203,12 +166,12 @@ impl PrecursorCalibrationGrid {
     pub fn validate(&self) -> Result<()> {
         if self.grid_point_count() == 0 {
             return Err(DsfbSemiconductorError::DatasetFormat(
-                "precursor calibration grid must contain at least one point".into(),
+                "psp calibration grid must contain at least one point".into(),
             ));
         }
-        if self.grid_point_count() > 4096 {
+        if self.grid_point_count() > 256 {
             return Err(DsfbSemiconductorError::DatasetFormat(format!(
-                "precursor calibration grid is too large ({})",
+                "psp calibration grid is too large ({})",
                 self.grid_point_count()
             )));
         }
@@ -219,38 +182,22 @@ impl PrecursorCalibrationGrid {
         [
             self.window.len(),
             self.persistence_runs.len(),
-            self.boundary_density_tau.len(),
-            self.drift_persistence_tau.len(),
-            self.transition_cluster_tau.len(),
-            self.ewma_occupancy_tau.len(),
             self.alert_tau.len(),
         ]
         .into_iter()
         .product()
     }
 
-    pub fn expand(&self) -> Vec<PrecursorConfig> {
+    pub fn expand(&self) -> Vec<PspConfig> {
         let mut out = Vec::with_capacity(self.grid_point_count());
         for &window in &self.window {
             for &persistence_runs in &self.persistence_runs {
-                for &boundary_density_tau in &self.boundary_density_tau {
-                    for &drift_persistence_tau in &self.drift_persistence_tau {
-                        for &transition_cluster_tau in &self.transition_cluster_tau {
-                            for &ewma_occupancy_tau in &self.ewma_occupancy_tau {
-                                for &alert_tau in &self.alert_tau {
-                                    out.push(PrecursorConfig {
-                                        window,
-                                        persistence_runs,
-                                        boundary_density_tau,
-                                        drift_persistence_tau,
-                                        transition_cluster_tau,
-                                        ewma_occupancy_tau,
-                                        alert_tau,
-                                    });
-                                }
-                            }
-                        }
-                    }
+                for &alert_tau in &self.alert_tau {
+                    out.push(PspConfig {
+                        window,
+                        persistence_runs,
+                        alert_tau,
+                    });
                 }
             }
         }
@@ -259,14 +206,10 @@ impl PrecursorCalibrationGrid {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PrecursorCalibrationRow {
+pub struct PspCalibrationRow {
     pub config_id: usize,
     pub window: usize,
     pub persistence_runs: usize,
-    pub boundary_density_tau: f64,
-    pub drift_persistence_tau: f64,
-    pub transition_cluster_tau: usize,
-    pub ewma_occupancy_tau: f64,
     pub alert_tau: f64,
     pub failure_run_recall: usize,
     pub failure_runs: usize,
@@ -277,18 +220,19 @@ pub struct PrecursorCalibrationRow {
     pub mean_lead_delta_vs_ewma_runs: Option<f64>,
 }
 
-pub fn evaluate_precursor(
+pub fn evaluate_psp(
     dataset: &PreparedDataset,
     nominal: &NominalModel,
     residuals: &ResidualSet,
     signs: &SignSet,
     baselines: &BaselineSet,
     grammar: &GrammarSet,
-    config: &PrecursorConfig,
+    config: &PspConfig,
+    boundary_fraction_of_rho: f64,
     pre_failure_lookback_runs: usize,
-) -> Result<PrecursorEvaluation> {
+) -> Result<PspEvaluation> {
     config.validate()?;
-    let weights = PrecursorWeights::default();
+    let weights = PspWeights::default();
     let run_count = dataset.labels.len();
     let mut traces = Vec::with_capacity(residuals.traces.len());
 
@@ -308,120 +252,90 @@ pub fn evaluate_precursor(
         let boundary_flags = residual_trace
             .norms
             .iter()
-            .map(|norm| {
-                *norm >= config.boundary_density_tau * feature.rho && *norm < feature.rho
+            .map(|norm| *norm >= boundary_fraction_of_rho * feature.rho && *norm < feature.rho)
+            .collect::<Vec<_>>();
+        let slew_flags = sign_trace
+            .slew
+            .iter()
+            .map(|slew| slew.abs() >= sign_trace.slew_threshold)
+            .collect::<Vec<_>>();
+        let motif_flags = grammar_trace
+            .raw_reasons
+            .iter()
+            .map(|reason| {
+                matches!(
+                    reason,
+                    GrammarReason::SustainedOutwardDrift
+                        | GrammarReason::AbruptSlewViolation
+                        | GrammarReason::RecurrentBoundaryGrazing
+                )
             })
             .collect::<Vec<_>>();
-        let violation_flags = residual_trace
-            .norms
+        let residual_signs = residual_trace
+            .residuals
             .iter()
-            .map(|norm| *norm >= feature.rho)
+            .map(|value| residual_sign(*value))
             .collect::<Vec<_>>();
-        let drift_flags = sign_trace
-            .drift
-            .iter()
-            .map(|drift| *drift >= config.drift_persistence_tau * sign_trace.drift_threshold)
-            .collect::<Vec<_>>();
-        let transition_flags = grammar_trace
-            .states
-            .iter()
-            .enumerate()
-            .map(|(index, state)| {
-                index > 0
-                    && *state != grammar_trace.states[index - 1]
-                    && (*state != GrammarState::Admissible
-                        || grammar_trace.states[index - 1] != GrammarState::Admissible)
-            })
-            .collect::<Vec<_>>();
-        let ewma_flags = ewma_trace
+        let ewma_normalized = ewma_trace
             .ewma
             .iter()
-            .map(|value| ewma_trace.threshold > 0.0 && *value >= config.ewma_occupancy_tau * ewma_trace.threshold)
-            .collect::<Vec<_>>();
-        let slow_drift_flags = grammar_trace
-            .raw_reasons
-            .iter()
-            .map(|reason| *reason == GrammarReason::SustainedOutwardDrift)
-            .collect::<Vec<_>>();
-        let slew_flags = grammar_trace
-            .raw_reasons
-            .iter()
-            .map(|reason| *reason == GrammarReason::AbruptSlewViolation)
-            .collect::<Vec<_>>();
-        let grazing_flags = grammar_trace
-            .raw_reasons
-            .iter()
-            .map(|reason| *reason == GrammarReason::RecurrentBoundaryGrazing)
+            .map(|value| normalize_to_threshold(*value, ewma_trace.threshold))
             .collect::<Vec<_>>();
 
         let boundary_prefix = bool_prefix_sum(&boundary_flags);
-        let violation_prefix = bool_prefix_sum(&violation_flags);
-        let drift_prefix = bool_prefix_sum(&drift_flags);
-        let transition_prefix = bool_prefix_sum(&transition_flags);
-        let ewma_prefix = bool_prefix_sum(&ewma_flags);
-        let slow_drift_prefix = bool_prefix_sum(&slow_drift_flags);
-        let slew_prefix = bool_prefix_sum(&slew_flags);
-        let grazing_prefix = bool_prefix_sum(&grazing_flags);
+        let motif_prefix = bool_prefix_sum(&motif_flags);
 
         let mut boundary_density_w = Vec::with_capacity(run_count);
-        let mut violation_density_w = Vec::with_capacity(run_count);
         let mut drift_persistence_w = Vec::with_capacity(run_count);
-        let mut transition_cluster_w = Vec::with_capacity(run_count);
+        let mut slew_cluster_w = Vec::with_capacity(run_count);
         let mut ewma_occupancy_w = Vec::with_capacity(run_count);
         let mut motif_recurrence_w = Vec::with_capacity(run_count);
-        let mut precursor_score = Vec::with_capacity(run_count);
-        let mut precursor_active = Vec::with_capacity(run_count);
+        let mut psp_score = Vec::with_capacity(run_count);
+        let mut psp_active = Vec::with_capacity(run_count);
 
         for run_index in 0..run_count {
             let start = run_index.saturating_sub(config.window.saturating_sub(1));
             let window_len = (run_index - start + 1) as f64;
-            let boundary_density =
-                window_fraction(&boundary_prefix, start, run_index, window_len);
-            let violation_density =
-                window_fraction(&violation_prefix, start, run_index, window_len);
-            let drift_persistence = window_fraction(&drift_prefix, start, run_index, window_len);
-            let transition_cluster = (window_count(&transition_prefix, start, run_index) as f64
-                / config.transition_cluster_tau as f64)
-                .min(1.0);
-            let ewma_occupancy = window_fraction(&ewma_prefix, start, run_index, window_len);
-            let motif_recurrence = [
-                window_count(&slow_drift_prefix, start, run_index),
-                window_count(&slew_prefix, start, run_index),
-                window_count(&grazing_prefix, start, run_index),
-            ]
-            .into_iter()
-            .max()
-            .unwrap_or(0) as f64
+            let boundary_density = window_fraction(&boundary_prefix, start, run_index, window_len);
+            let drift_persistence = longest_consistent_drift_streak(
+                &sign_trace.drift,
+                sign_trace.drift_threshold,
+                &residual_signs,
+                start,
+                run_index,
+            ) as f64
                 / window_len;
+            let slew_cluster =
+                longest_true_streak(&slew_flags, start, run_index) as f64 / window_len;
+            let ewma_occupancy = window_mean(&ewma_normalized, start, run_index);
+            let motif_recurrence = window_fraction(&motif_prefix, start, run_index, window_len);
             let score = weights.boundary_density * boundary_density
                 + weights.drift_persistence * drift_persistence
-                + weights.transition_cluster * transition_cluster
+                + weights.slew_cluster * slew_cluster
                 + weights.ewma_occupancy * ewma_occupancy
                 + weights.motif_recurrence * motif_recurrence;
 
             boundary_density_w.push(boundary_density);
-            violation_density_w.push(violation_density);
             drift_persistence_w.push(drift_persistence);
-            transition_cluster_w.push(transition_cluster);
+            slew_cluster_w.push(slew_cluster);
             ewma_occupancy_w.push(ewma_occupancy);
             motif_recurrence_w.push(motif_recurrence);
-            precursor_score.push(score);
-            precursor_active.push(score >= config.alert_tau);
+            psp_score.push(score);
+            psp_active.push(score >= config.alert_tau);
         }
 
-        let precursor_alert = persistence_mask(&precursor_active, config.persistence_runs);
-        traces.push(PrecursorFeatureTrace {
+        let psp_alert = persistence_mask(&psp_active, config.persistence_runs);
+        traces.push(PspFeatureTrace {
             feature_index: feature.feature_index,
             feature_name: feature.feature_name.clone(),
             boundary_density_w,
-            violation_density_w,
             drift_persistence_w,
-            transition_cluster_w,
+            slew_cluster_w,
             ewma_occupancy_w,
             motif_recurrence_w,
-            precursor_score,
-            precursor_active,
-            precursor_alert,
+            psp_score,
+            psp_active,
+            psp_alert,
         });
     }
 
@@ -442,7 +356,7 @@ pub fn evaluate_precursor(
         .iter()
         .map(|&failure_index| {
             let window_start = failure_index.saturating_sub(pre_failure_lookback_runs);
-            let earliest_precursor = earliest_precursor_signal(&traces, window_start, failure_index);
+            let earliest_psp = earliest_psp_signal(&traces, window_start, failure_index);
             let earliest_threshold_run =
                 earliest_baseline_signal(window_start, failure_index, |run_index| {
                     residuals
@@ -454,92 +368,89 @@ pub fn evaluate_precursor(
                 earliest_baseline_signal(window_start, failure_index, |run_index| {
                     baselines.ewma.iter().any(|trace| trace.alarm[run_index])
                 });
-            let precursor_lead_runs =
-                earliest_precursor.as_ref().map(|signal| failure_index - signal.run_index);
+            let psp_lead_runs = earliest_psp
+                .as_ref()
+                .map(|signal| failure_index - signal.run_index);
             let threshold_lead_runs = earliest_threshold_run.map(|index| failure_index - index);
             let ewma_lead_runs = earliest_ewma_run.map(|index| failure_index - index);
             let alerting_feature_count = traces
                 .iter()
-                .filter(|trace| trace.precursor_alert[window_start..failure_index].iter().any(|flag| *flag))
+                .filter(|trace| trace.psp_alert[window_start..failure_index].iter().any(|flag| *flag))
                 .count();
-            let max_score = max_precursor_score(&traces, window_start, failure_index);
+            let max_score = max_psp_score(&traces, window_start, failure_index);
 
-            PerFailureRunPrecursorSignal {
+            PerFailureRunPspSignal {
                 failure_run_index: failure_index,
                 failure_timestamp: dataset.timestamps[failure_index]
                     .format("%Y-%m-%d %H:%M:%S")
                     .to_string(),
-                earliest_precursor_run: earliest_precursor.as_ref().map(|signal| signal.run_index),
-                earliest_precursor_feature_index: earliest_precursor
+                earliest_psp_run: earliest_psp.as_ref().map(|signal| signal.run_index),
+                earliest_psp_feature_index: earliest_psp
                     .as_ref()
                     .map(|signal| signal.feature_index),
-                earliest_precursor_feature_name: earliest_precursor
+                earliest_psp_feature_name: earliest_psp
                     .as_ref()
                     .map(|signal| signal.feature_name.clone()),
-                precursor_lead_runs,
+                psp_lead_runs,
                 threshold_lead_runs,
                 ewma_lead_runs,
-                precursor_minus_threshold_delta_runs: paired_delta(
-                    precursor_lead_runs,
-                    threshold_lead_runs,
-                ),
-                precursor_minus_ewma_delta_runs: paired_delta(
-                    precursor_lead_runs,
-                    ewma_lead_runs,
-                ),
-                precursor_alerting_feature_count: alerting_feature_count,
-                max_precursor_score_in_lookback: max_score.as_ref().map(|score| score.score),
-                max_precursor_score_feature_index: max_score.as_ref().map(|score| score.feature_index),
-                max_precursor_score_feature_name: max_score.as_ref().map(|score| score.feature_name.clone()),
+                psp_minus_threshold_delta_runs: paired_delta(psp_lead_runs, threshold_lead_runs),
+                psp_minus_ewma_delta_runs: paired_delta(psp_lead_runs, ewma_lead_runs),
+                psp_alerting_feature_count: alerting_feature_count,
+                max_psp_score_in_lookback: max_score.as_ref().map(|score| score.score),
+                max_psp_score_feature_index: max_score.as_ref().map(|score| score.feature_index),
+                max_psp_score_feature_name: max_score
+                    .as_ref()
+                    .map(|score| score.feature_name.clone()),
             }
         })
         .collect::<Vec<_>>();
 
     let alert_point_count = traces
         .iter()
-        .map(|trace| trace.precursor_alert.iter().filter(|flag| **flag).count())
+        .map(|trace| trace.psp_alert.iter().filter(|flag| **flag).count())
         .sum::<usize>();
     let alert_run_count = (0..run_count)
-        .filter(|&run_index| traces.iter().any(|trace| trace.precursor_alert[run_index]))
+        .filter(|&run_index| traces.iter().any(|trace| trace.psp_alert[run_index]))
         .count();
     let failure_run_recall = per_failure_run_signals
         .iter()
-        .filter(|signal| signal.earliest_precursor_run.is_some())
+        .filter(|signal| signal.earliest_psp_run.is_some())
         .count();
-    let precursor_row = SignalComparisonRow {
-        signal: "DSFB precursor".into(),
+    let psp_row = SignalComparisonRow {
+        signal: "PSP".into(),
         failure_run_recall,
         failure_runs: failure_indices.len(),
         failure_run_recall_rate: rate(failure_run_recall, failure_indices.len()),
         mean_lead_time_runs: mean_option_usize(
             &per_failure_run_signals
                 .iter()
-                .map(|signal| signal.precursor_lead_runs)
+                .map(|signal| signal.psp_lead_runs)
                 .collect::<Vec<_>>(),
         ),
         median_lead_time_runs: median_option_usize(
             &per_failure_run_signals
                 .iter()
-                .map(|signal| signal.precursor_lead_runs)
+                .map(|signal| signal.psp_lead_runs)
                 .collect::<Vec<_>>(),
         ),
         pass_run_nuisance_proxy: rate(
             pass_indices
                 .iter()
-                .filter(|&&run_index| traces.iter().any(|trace| trace.precursor_alert[run_index]))
+                .filter(|&&run_index| traces.iter().any(|trace| trace.psp_alert[run_index]))
                 .count(),
             pass_indices.len(),
         ),
         mean_lead_delta_vs_threshold_runs: mean_option_i64(
             &per_failure_run_signals
                 .iter()
-                .map(|signal| signal.precursor_minus_threshold_delta_runs)
+                .map(|signal| signal.psp_minus_threshold_delta_runs)
                 .collect::<Vec<_>>(),
         ),
         mean_lead_delta_vs_ewma_runs: mean_option_i64(
             &per_failure_run_signals
                 .iter()
-                .map(|signal| signal.precursor_minus_ewma_delta_runs)
+                .map(|signal| signal.psp_minus_ewma_delta_runs)
                 .collect::<Vec<_>>(),
         ),
     };
@@ -578,36 +489,40 @@ pub fn evaluate_precursor(
             pass_indices.len(),
         ),
     );
-    let improvement_vs_threshold = qualifies_as_improvement(&precursor_row, &threshold_row, true);
-    let improvement_vs_ewma = qualifies_as_improvement(&precursor_row, &ewma_row, false);
-    let conclusion = precursor_conclusion(
-        &precursor_row,
+    let improvement_vs_threshold = qualifies_as_improvement(&psp_row, &threshold_row, true);
+    let improvement_vs_ewma = qualifies_as_improvement(&psp_row, &ewma_row, false);
+    let conclusion = psp_conclusion(
+        &psp_row,
         &threshold_row,
         &ewma_row,
         improvement_vs_threshold,
         improvement_vs_ewma,
     );
 
-    Ok(PrecursorEvaluation {
+    Ok(PspEvaluation {
         traces,
-        summary: PrecursorSignalSummary {
+        summary: PspSignalSummary {
             config: config.clone(),
             weights: weights.clone(),
-            analyzable_feature_count: nominal.features.iter().filter(|feature| feature.analyzable).count(),
+            analyzable_feature_count: nominal
+                .features
+                .iter()
+                .filter(|feature| feature.analyzable)
+                .count(),
             alert_point_count,
             alert_run_count,
             failure_runs: failure_indices.len(),
             failure_run_recall,
-            failure_run_recall_rate: precursor_row.failure_run_recall_rate,
-            mean_lead_time_runs: precursor_row.mean_lead_time_runs,
-            median_lead_time_runs: precursor_row.median_lead_time_runs,
-            pass_run_nuisance_proxy: precursor_row.pass_run_nuisance_proxy,
-            mean_lead_delta_vs_threshold_runs: precursor_row.mean_lead_delta_vs_threshold_runs,
-            mean_lead_delta_vs_ewma_runs: precursor_row.mean_lead_delta_vs_ewma_runs,
+            failure_run_recall_rate: psp_row.failure_run_recall_rate,
+            mean_lead_time_runs: psp_row.mean_lead_time_runs,
+            median_lead_time_runs: psp_row.median_lead_time_runs,
+            pass_run_nuisance_proxy: psp_row.pass_run_nuisance_proxy,
+            mean_lead_delta_vs_threshold_runs: psp_row.mean_lead_delta_vs_threshold_runs,
+            mean_lead_delta_vs_ewma_runs: psp_row.mean_lead_delta_vs_ewma_runs,
         },
-        comparison_summary: PrecursorVsBaselinesSummary {
+        comparison_summary: PspVsBaselinesSummary {
             dataset: "SECOM".into(),
-            precursor: precursor_row,
+            psp: psp_row,
             threshold: threshold_row,
             ewma: ewma_row,
             improvement_vs_threshold,
@@ -618,21 +533,22 @@ pub fn evaluate_precursor(
     })
 }
 
-pub fn run_precursor_calibration_grid(
+pub fn run_psp_calibration_grid(
     dataset: &PreparedDataset,
     nominal: &NominalModel,
     residuals: &ResidualSet,
     signs: &SignSet,
     baselines: &BaselineSet,
     grammar: &GrammarSet,
-    grid: &PrecursorCalibrationGrid,
+    grid: &PspCalibrationGrid,
+    boundary_fraction_of_rho: f64,
     pre_failure_lookback_runs: usize,
-) -> Result<Vec<PrecursorCalibrationRow>> {
+) -> Result<Vec<PspCalibrationRow>> {
     grid.validate()?;
 
     let mut rows = Vec::with_capacity(grid.grid_point_count());
     for (config_id, config) in grid.expand().into_iter().enumerate() {
-        let evaluation = evaluate_precursor(
+        let evaluation = evaluate_psp(
             dataset,
             nominal,
             residuals,
@@ -640,16 +556,13 @@ pub fn run_precursor_calibration_grid(
             baselines,
             grammar,
             &config,
+            boundary_fraction_of_rho,
             pre_failure_lookback_runs,
         )?;
-        rows.push(PrecursorCalibrationRow {
+        rows.push(PspCalibrationRow {
             config_id,
             window: config.window,
             persistence_runs: config.persistence_runs,
-            boundary_density_tau: config.boundary_density_tau,
-            drift_persistence_tau: config.drift_persistence_tau,
-            transition_cluster_tau: config.transition_cluster_tau,
-            ewma_occupancy_tau: config.ewma_occupancy_tau,
             alert_tau: config.alert_tau,
             failure_run_recall: evaluation.summary.failure_run_recall,
             failure_runs: evaluation.summary.failure_runs,
@@ -666,19 +579,36 @@ pub fn run_precursor_calibration_grid(
     Ok(rows)
 }
 
-fn empty_trace(feature_index: usize, feature_name: &str, run_count: usize) -> PrecursorFeatureTrace {
-    PrecursorFeatureTrace {
+fn empty_trace(feature_index: usize, feature_name: &str, run_count: usize) -> PspFeatureTrace {
+    PspFeatureTrace {
         feature_index,
         feature_name: feature_name.into(),
         boundary_density_w: vec![0.0; run_count],
-        violation_density_w: vec![0.0; run_count],
         drift_persistence_w: vec![0.0; run_count],
-        transition_cluster_w: vec![0.0; run_count],
+        slew_cluster_w: vec![0.0; run_count],
         ewma_occupancy_w: vec![0.0; run_count],
         motif_recurrence_w: vec![0.0; run_count],
-        precursor_score: vec![0.0; run_count],
-        precursor_active: vec![false; run_count],
-        precursor_alert: vec![false; run_count],
+        psp_score: vec![0.0; run_count],
+        psp_active: vec![false; run_count],
+        psp_alert: vec![false; run_count],
+    }
+}
+
+fn residual_sign(value: f64) -> i8 {
+    if value > 0.0 {
+        1
+    } else if value < 0.0 {
+        -1
+    } else {
+        0
+    }
+}
+
+fn normalize_to_threshold(value: f64, threshold: f64) -> f64 {
+    if threshold <= 0.0 {
+        0.0
+    } else {
+        (value / threshold).clamp(0.0, 1.0)
     }
 }
 
@@ -701,6 +631,55 @@ fn window_fraction(prefix: &[usize], start: usize, end: usize, window_len: f64) 
     window_count(prefix, start, end) as f64 / window_len
 }
 
+fn window_mean(values: &[f64], start: usize, end: usize) -> f64 {
+    let slice = &values[start..=end];
+    slice.iter().sum::<f64>() / slice.len() as f64
+}
+
+fn longest_true_streak(flags: &[bool], start: usize, end: usize) -> usize {
+    let mut longest = 0usize;
+    let mut current = 0usize;
+    for flag in &flags[start..=end] {
+        if *flag {
+            current += 1;
+            longest = longest.max(current);
+        } else {
+            current = 0;
+        }
+    }
+    longest
+}
+
+fn longest_consistent_drift_streak(
+    drift: &[f64],
+    drift_threshold: f64,
+    residual_signs: &[i8],
+    start: usize,
+    end: usize,
+) -> usize {
+    let mut longest = 0usize;
+    let mut current = 0usize;
+    let mut current_sign = 0i8;
+
+    for run_index in start..=end {
+        let sign = residual_signs[run_index];
+        if drift[run_index] >= drift_threshold && sign != 0 {
+            if sign == current_sign {
+                current += 1;
+            } else {
+                current_sign = sign;
+                current = 1;
+            }
+            longest = longest.max(current);
+        } else {
+            current = 0;
+            current_sign = 0;
+        }
+    }
+
+    longest
+}
+
 fn persistence_mask(values: &[bool], persistence_runs: usize) -> Vec<bool> {
     let mut out = Vec::with_capacity(values.len());
     let mut consecutive = 0usize;
@@ -717,30 +696,30 @@ fn persistence_mask(values: &[bool], persistence_runs: usize) -> Vec<bool> {
 }
 
 #[derive(Debug, Clone)]
-struct EarliestPrecursorSignal {
+struct EarliestPspSignal {
     run_index: usize,
     feature_index: usize,
     feature_name: String,
     score: f64,
 }
 
-fn earliest_precursor_signal(
-    traces: &[PrecursorFeatureTrace],
+fn earliest_psp_signal(
+    traces: &[PspFeatureTrace],
     start: usize,
     end: usize,
-) -> Option<EarliestPrecursorSignal> {
-    let mut earliest: Option<EarliestPrecursorSignal> = None;
+) -> Option<EarliestPspSignal> {
+    let mut earliest: Option<EarliestPspSignal> = None;
 
     for trace in traces {
         for run_index in start..end {
-            if !trace.precursor_alert[run_index] {
+            if !trace.psp_alert[run_index] {
                 continue;
             }
-            let candidate = EarliestPrecursorSignal {
+            let candidate = EarliestPspSignal {
                 run_index,
                 feature_index: trace.feature_index,
                 feature_name: trace.feature_name.clone(),
-                score: trace.precursor_score[run_index],
+                score: trace.psp_score[run_index],
             };
             let should_replace = match &earliest {
                 None => true,
@@ -764,24 +743,20 @@ fn earliest_precursor_signal(
 }
 
 #[derive(Debug, Clone)]
-struct MaxPrecursorScore {
+struct MaxPspScore {
     feature_index: usize,
     feature_name: String,
     score: f64,
 }
 
-fn max_precursor_score(
-    traces: &[PrecursorFeatureTrace],
-    start: usize,
-    end: usize,
-) -> Option<MaxPrecursorScore> {
-    let mut max_score: Option<MaxPrecursorScore> = None;
+fn max_psp_score(traces: &[PspFeatureTrace], start: usize, end: usize) -> Option<MaxPspScore> {
+    let mut max_score: Option<MaxPspScore> = None;
     for trace in traces {
         for run_index in start..end {
-            let candidate = MaxPrecursorScore {
+            let candidate = MaxPspScore {
                 feature_index: trace.feature_index,
                 feature_name: trace.feature_name.clone(),
-                score: trace.precursor_score[run_index],
+                score: trace.psp_score[run_index],
             };
             let should_replace = match &max_score {
                 None => true,
@@ -831,23 +806,23 @@ fn baseline_row(
 }
 
 fn qualifies_as_improvement(
-    precursor: &SignalComparisonRow,
+    psp: &SignalComparisonRow,
     baseline: &SignalComparisonRow,
     against_threshold: bool,
 ) -> bool {
     let lead_delta = if against_threshold {
-        precursor.mean_lead_delta_vs_threshold_runs
+        psp.mean_lead_delta_vs_threshold_runs
     } else {
-        precursor.mean_lead_delta_vs_ewma_runs
+        psp.mean_lead_delta_vs_ewma_runs
     };
 
     matches!(lead_delta, Some(delta) if delta > 0.0)
-        && precursor.failure_run_recall >= baseline.failure_run_recall
-        && precursor.pass_run_nuisance_proxy <= baseline.pass_run_nuisance_proxy
+        && psp.failure_run_recall >= baseline.failure_run_recall
+        && psp.pass_run_nuisance_proxy <= baseline.pass_run_nuisance_proxy
 }
 
-fn precursor_conclusion(
-    precursor: &SignalComparisonRow,
+fn psp_conclusion(
+    psp: &SignalComparisonRow,
     threshold: &SignalComparisonRow,
     ewma: &SignalComparisonRow,
     improvement_vs_threshold: bool,
@@ -857,38 +832,70 @@ fn precursor_conclusion(
         let mut wins = Vec::new();
         if improvement_vs_threshold {
             wins.push(format!(
-                "threshold (lead delta {:.4}, recall {}/{}, nuisance {:.4} vs {:.4})",
-                precursor.mean_lead_delta_vs_threshold_runs.unwrap_or(0.0),
-                precursor.failure_run_recall,
-                precursor.failure_runs,
-                precursor.pass_run_nuisance_proxy,
+                "threshold (lead delta {}, recall {}/{}, nuisance {:.4} vs {:.4})",
+                format_option_f64(psp.mean_lead_delta_vs_threshold_runs),
+                psp.failure_run_recall,
+                psp.failure_runs,
+                psp.pass_run_nuisance_proxy,
                 threshold.pass_run_nuisance_proxy,
             ));
         }
         if improvement_vs_ewma {
             wins.push(format!(
-                "EWMA (lead delta {:.4}, recall {}/{}, nuisance {:.4} vs {:.4})",
-                precursor.mean_lead_delta_vs_ewma_runs.unwrap_or(0.0),
-                precursor.failure_run_recall,
-                precursor.failure_runs,
-                precursor.pass_run_nuisance_proxy,
+                "EWMA (lead delta {}, recall {}/{}, nuisance {:.4} vs {:.4})",
+                format_option_f64(psp.mean_lead_delta_vs_ewma_runs),
+                psp.failure_run_recall,
+                psp.failure_runs,
+                psp.pass_run_nuisance_proxy,
                 ewma.pass_run_nuisance_proxy,
             ));
         }
-        format!(
-            "The saved precursor metrics show a qualified improvement relative to {} because mean lead is higher while failure-run recall is not lower and pass-run nuisance is not higher.",
+        return format!(
+            "The saved PSP metrics show a qualified improvement relative to {} because mean lead is higher while failure-run recall is not lower and pass-run nuisance is not higher.",
             wins.join(" and ")
-        )
-    } else {
-        format!(
-            "The saved precursor metrics do not show a clear improvement over threshold or EWMA. Precursor recall is {}/{}, nuisance is {:.4}, mean lead deltas are threshold={} and EWMA={}.",
-            precursor.failure_run_recall,
-            precursor.failure_runs,
-            precursor.pass_run_nuisance_proxy,
-            format_option_f64(precursor.mean_lead_delta_vs_threshold_runs),
-            format_option_f64(precursor.mean_lead_delta_vs_ewma_runs),
-        )
+        );
     }
+
+    let nuisance_reduction_without_lead_gain = (psp.pass_run_nuisance_proxy < threshold.pass_run_nuisance_proxy
+        && !matches!(psp.mean_lead_delta_vs_threshold_runs, Some(delta) if delta > 0.0))
+        || (psp.pass_run_nuisance_proxy < ewma.pass_run_nuisance_proxy
+            && !matches!(psp.mean_lead_delta_vs_ewma_runs, Some(delta) if delta > 0.0));
+    if nuisance_reduction_without_lead_gain {
+        return format!(
+            "The saved PSP metrics reduce nuisance relative to at least one scalar baseline, but do not improve lead time, so no improvement claim is made. PSP recall is {}/{}, nuisance is {:.4}, and mean lead deltas are threshold={} and EWMA={}.",
+            psp.failure_run_recall,
+            psp.failure_runs,
+            psp.pass_run_nuisance_proxy,
+            format_option_f64(psp.mean_lead_delta_vs_threshold_runs),
+            format_option_f64(psp.mean_lead_delta_vs_ewma_runs),
+        );
+    }
+
+    let improves_anything = matches!(psp.mean_lead_delta_vs_threshold_runs, Some(delta) if delta > 0.0)
+        || matches!(psp.mean_lead_delta_vs_ewma_runs, Some(delta) if delta > 0.0)
+        || psp.failure_run_recall > threshold.failure_run_recall
+        || psp.failure_run_recall > ewma.failure_run_recall
+        || psp.pass_run_nuisance_proxy < threshold.pass_run_nuisance_proxy
+        || psp.pass_run_nuisance_proxy < ewma.pass_run_nuisance_proxy;
+    if !improves_anything {
+        return format!(
+            "The saved PSP metrics fail to improve lead time, recall, or nuisance relative to threshold or EWMA. PSP recall is {}/{}, nuisance is {:.4}, and mean lead deltas are threshold={} and EWMA={}.",
+            psp.failure_run_recall,
+            psp.failure_runs,
+            psp.pass_run_nuisance_proxy,
+            format_option_f64(psp.mean_lead_delta_vs_threshold_runs),
+            format_option_f64(psp.mean_lead_delta_vs_ewma_runs),
+        );
+    }
+
+    format!(
+        "The saved PSP metrics show mixed trade-offs but do not satisfy the crate's improvement rule. PSP recall is {}/{}, nuisance is {:.4}, and mean lead deltas are threshold={} and EWMA={}.",
+        psp.failure_run_recall,
+        psp.failure_runs,
+        psp.pass_run_nuisance_proxy,
+        format_option_f64(psp.mean_lead_delta_vs_threshold_runs),
+        format_option_f64(psp.mean_lead_delta_vs_ewma_runs),
+    )
 }
 
 fn rate(count: usize, total: usize) -> f64 {
@@ -934,14 +941,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn precursor_persistence_gating_requires_consecutive_hits() {
+    fn psp_persistence_gating_requires_consecutive_hits() {
         let alert = persistence_mask(&[false, true, true, false, true, true, true], 2);
         assert_eq!(alert, vec![false, false, true, false, false, true, true]);
     }
 
     #[test]
-    fn bounded_precursor_grid_matches_requested_size() {
-        let grid = PrecursorCalibrationGrid::bounded_default();
-        assert_eq!(grid.grid_point_count(), 2916);
+    fn bounded_psp_grid_matches_requested_size() {
+        let grid = PspCalibrationGrid::bounded_default();
+        assert_eq!(grid.grid_point_count(), 27);
     }
 }
