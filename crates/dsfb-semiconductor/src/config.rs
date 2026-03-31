@@ -1,3 +1,4 @@
+use crate::precursor::PrecursorConfig;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -6,6 +7,9 @@ pub struct PipelineConfig {
     pub drift_window: usize,
     pub envelope_sigma: f64,
     pub boundary_fraction_of_rho: f64,
+    pub state_confirmation_steps: usize,
+    pub persistent_state_steps: usize,
+    pub density_window: usize,
     pub ewma_alpha: f64,
     pub ewma_sigma_multiplier: f64,
     pub drift_sigma_multiplier: f64,
@@ -15,6 +19,7 @@ pub struct PipelineConfig {
     pub pre_failure_lookback_runs: usize,
     pub minimum_healthy_observations: usize,
     pub epsilon: f64,
+    pub precursor: PrecursorConfig,
 }
 
 impl Default for PipelineConfig {
@@ -24,6 +29,9 @@ impl Default for PipelineConfig {
             drift_window: 5,
             envelope_sigma: 3.0,
             boundary_fraction_of_rho: 0.5,
+            state_confirmation_steps: 2,
+            persistent_state_steps: 2,
+            density_window: 10,
             ewma_alpha: 0.2,
             ewma_sigma_multiplier: 3.0,
             drift_sigma_multiplier: 3.0,
@@ -33,6 +41,7 @@ impl Default for PipelineConfig {
             pre_failure_lookback_runs: 20,
             minimum_healthy_observations: 2,
             epsilon: 1.0e-9,
+            precursor: PrecursorConfig::default(),
         }
     }
 }
@@ -51,6 +60,15 @@ impl PipelineConfig {
         if !(0.0..=1.0).contains(&self.boundary_fraction_of_rho) {
             return Err("boundary_fraction_of_rho must be in [0, 1]".into());
         }
+        if self.state_confirmation_steps == 0 {
+            return Err("state_confirmation_steps must be positive".into());
+        }
+        if self.persistent_state_steps == 0 {
+            return Err("persistent_state_steps must be positive".into());
+        }
+        if self.density_window == 0 {
+            return Err("density_window must be positive".into());
+        }
         if !(0.0..=1.0).contains(&self.ewma_alpha) || self.ewma_alpha == 0.0 {
             return Err("ewma_alpha must be in (0, 1]".into());
         }
@@ -60,6 +78,9 @@ impl PipelineConfig {
         if self.minimum_healthy_observations < 2 {
             return Err("minimum_healthy_observations must be at least 2".into());
         }
+        self.precursor
+            .validate()
+            .map_err(|err| err.to_string())?;
         Ok(())
     }
 }

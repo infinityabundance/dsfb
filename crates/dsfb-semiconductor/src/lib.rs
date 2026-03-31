@@ -11,6 +11,7 @@ pub mod nominal;
 pub mod output_paths;
 pub mod pipeline;
 pub mod plots;
+pub mod precursor;
 pub mod preprocessing;
 pub mod report;
 pub mod residual;

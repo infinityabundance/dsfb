@@ -11,12 +11,14 @@ The current crate turns real semiconductor datasets into inspectable DSFB artifa
 - drift traces
 - slew traces
 - admissibility-envelope / grammar-state traces
+- precursor structural traces, scores, and persistence-gated alerts
 - provenance-aware heuristics-bank entries with operational fields
-- lead-time and pass-run nuisance proxy metrics
+- lead-time, sliding-window density, and pass-run nuisance proxy metrics
 - calibration grid artifacts over the fixed DSFB parameter surface
+- a bounded precursor calibration grid over fixed deterministic threshold and persistence settings
 - a deterministic residual stateflow chart (DRSC) plus aligned trace CSV for the top boundary-activity feature
-- figures
-- an engineering report in Markdown, LaTeX, and PDF when `pdflatex` is available
+- all notebook-parity PNG figures directly from the crate
+- an engineering report in Markdown, LaTeX, and PDF when `pdflatex` is available; the PDF includes the generated figures and an artifact inventory
 - a ZIP bundle of the full run directory
 
 ## What math from the paper is instantiated
@@ -29,12 +31,17 @@ This crate implements the paper's core operator-facing objects with explicit sav
 - slew as the first difference of drift
 - admissibility envelope radius `rho = sigma_multiplier * healthy_std`
 - grammar states `Admissible`, `Boundary`, and `Violation`
+- hysteretic state confirmation together with persistent boundary / violation traces
+- a separate deterministic precursor layer built from rolling boundary density, violation density, drift persistence, transition clustering, EWMA occupancy, and motif recurrence
+- persistence-gated precursor alerts `precursor_score >= tau` for at least `K` consecutive runs
 - a provenance-aware heuristics bank built from observed grammar motifs, severity tags, action notes, and limitations
 - two explicit scalar comparators: a raw residual-magnitude threshold and a univariate EWMA residual-norm comparator
-- per-failure-run earliest-signal tracking and lead-time deltas against the scalar comparators
+- per-failure-run earliest-signal tracking and lead-time deltas against the scalar comparators for both the DSFB state logic and the DSFB precursor layer
+- sliding-window density summaries for boundary / violation / threshold / EWMA occupancy
 - pass-run nuisance proxies derived from SECOM pass labels
 - a deterministic SECOM calibration workflow over explicit parameter grids
-- a deterministic residual stateflow chart (DRSC) that synchronizes residual/drift/slew structure, grammar state, and admissibility overlay for one emitted feature trace
+- a bounded precursor calibration workflow over `W`, `K`, `tau_b`, `tau_d`, `tau_s`, `tau_e`, and `tau`
+- a deterministic residual stateflow chart (DRSC) that synchronizes residual/drift/slew structure, confirmation-filtered grammar state, and admissibility overlay for one emitted feature trace
 
 The implementation is intentionally simple and deterministic. It is designed for auditability and reproducibility, not for inflated benchmark claims.
 
@@ -107,7 +114,16 @@ cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- calibrate-seco
   --healthy-pass-runs-grid 80,100,120 \
   --drift-window-grid 3,5 \
   --boundary-fraction-of-rho-grid 0.4,0.5 \
+  --state-confirmation-steps-grid 1,2 \
+  --persistent-state-steps-grid 1,2 \
+  --density-window-grid 10 \
   --pre-failure-lookback-runs-grid 10,20
+```
+
+Run the bounded deterministic precursor calibration grid:
+
+```bash
+cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- calibrate-secom-precursor --fetch-if-missing
 ```
 
 Key configurable parameters:
@@ -123,6 +139,16 @@ Key configurable parameters:
 - `--grazing-window`
 - `--grazing-min-hits`
 - `--pre-failure-lookback-runs`
+- `--state-confirmation-steps`
+- `--persistent-state-steps`
+- `--density-window`
+- `--precursor-window`
+- `--precursor-persistence-runs`
+- `--precursor-boundary-density-tau`
+- `--precursor-drift-persistence-tau`
+- `--precursor-transition-cluster-tau`
+- `--precursor-ewma-occupancy-tau`
+- `--precursor-alert-tau`
 
 Calibration-grid arguments:
 
@@ -137,11 +163,19 @@ Calibration-grid arguments:
 - `--grazing-window-grid`
 - `--grazing-min-hits-grid`
 - `--pre-failure-lookback-runs-grid`
+- `--state-confirmation-steps-grid`
+- `--persistent-state-steps-grid`
+- `--density-window-grid`
 
 Current implemented baselines:
 
 - residual-threshold baseline: `|r(k)| > rho`
 - EWMA baseline: univariate EWMA on residual norms with explicit `alpha` and healthy-window thresholding
+
+DSFB state-layer distinction:
+
+- `DSFB Violation`: hard envelope exit `|r(k)| > rho`
+- `DSFB Precursor`: persistence-gated structural early warning from rolling structural features
 
 Current baseline classes not implemented:
 
@@ -154,7 +188,7 @@ Current baseline classes not implemented:
 All benchmark runs write to a repo-level timestamped directory and do not reuse an existing run folder:
 
 ```text
-output-dsfb-semiconductor/<timestamped-run-folder>/
+output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_<dataset>/
 ```
 
 The current SECOM pipeline writes:
@@ -164,12 +198,13 @@ artifact_manifest.json
 baseline_comparison_summary.json
 benchmark_metrics.json
 dataset_summary.json
+density_metrics.csv
 drsc_top_feature.csv
 drifts.csv
 ewma_baseline.csv
 engineering_report.md
 engineering_report.tex
-engineering_report.pdf          # when pdflatex is available
+engineering_report.pdf          # when pdflatex is available; includes figures and artifact inventory
 feature_metrics.csv
 figures/
 grammar_states.csv
@@ -177,7 +212,10 @@ heuristics_bank.json
 lead_time_metrics.csv
 parameter_manifest.json
 per_failure_run_signals.csv
+per_failure_run_precursor_signals.csv
 phm2018_support_status.json
+precursor_metrics.csv
+precursor_vs_baselines_summary.json
 residuals.csv
 run_bundle.zip
 run_configuration.json
@@ -187,6 +225,7 @@ slews.csv
 
 The current figure set includes:
 
+- `figures/missingness_top20.png`
 - `figures/drsc_top_feature.png`
 - `figures/benchmark_comparison.png`
 - `figures/grammar_timeline.png`
@@ -198,15 +237,17 @@ The current figure set includes:
 The DRSC figure is an operator-facing synchronized chart for the top boundary-activity feature in the run. Its layers are:
 
 - normalized residual / drift / slew structure
-- deterministic grammar state band
+- confirmation-filtered persistent grammar state band
 - normalized admissibility-envelope occupancy together with normalized EWMA occupancy
 
-This crate does not currently implement a trust scalar, so the DRSC lower layer is an admissibility overlay rather than a trust plot.
+The emitted DRSC also annotates the first persistent boundary, the first persistent violation when present in the selected window, and the failure-labeled run. This crate does not currently implement a trust scalar, so the DRSC lower layer is an admissibility overlay rather than a trust plot.
+
+The crate emits these PNG figures directly; the notebook simply renders the contents of `run_dir/figures/*.png` inline. No notebook-only plotting logic is required to obtain them.
 
 The calibration pipeline writes:
 
 ```text
-output-dsfb-semiconductor/<timestamped-run-folder>_secom_calibration/
+output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_calibration/
   calibration_best_by_metric.json
   calibration_grid_results.csv
   calibration_report.md
@@ -214,24 +255,33 @@ output-dsfb-semiconductor/<timestamped-run-folder>_secom_calibration/
   parameter_grid_manifest.json
 ```
 
+The bounded precursor calibration pipeline writes:
+
+```text
+output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_precursor_calibration/
+  precursor_calibration_grid.csv
+  precursor_calibration_run_configuration.json
+  precursor_parameter_grid_manifest.json
+```
+
 ## Reproducibility discipline
 
 - Every meaningful threshold and window is saved to `parameter_manifest.json`
 - Dataset source and output root are saved to `run_configuration.json`
 - Calibration grids are saved verbatim to `parameter_grid_manifest.json`
+- The bounded precursor calibration grid is saved verbatim to `precursor_parameter_grid_manifest.json`
 - Missing values are preserved at load time and then deterministically imputed with the healthy-window nominal mean before residual construction
 - Repeated runs with the same inputs and parameters produce the same metrics, traces, and calibration rows, modulo different timestamped output directories
 
 ## Current empirical boundary
 
-The current default SECOM run establishes deterministic structural artifact generation on real semiconductor data, not superiority over the scalar baselines.
+The crate establishes deterministic structural artifact generation on real semiconductor data, not a blanket superiority claim over scalar baselines.
 
-- The default run currently uses `590` numeric SECOM columns, `1567` runs, and `104` failure-labeled runs.
-- Within the fixed 20-run lookback, DSFB any-signal recall, EWMA recall, and threshold recall are all `104 / 104`.
-- DSFB boundary-only recall is currently `103 / 104`.
-- The current `Violation` state shares the same envelope-exit condition as the raw threshold baseline, so those two columns are expected to match numerically in the default run.
-- The current lead-time and nuisance values are proxy metrics on SECOM labels, not fab-qualified false-alarm or economic metrics.
-- The calibration workflow currently exposes trade-offs; it does not currently justify a universal “DSFB is earlier” claim.
+- `Violation` and `Precursor` are intentionally different signals: violation is a hard envelope exit, precursor is a persistent structural early warning.
+- The authoritative comparison artifact for the precursor layer is `precursor_vs_baselines_summary.json`.
+- Improvement should only be claimed when that saved summary shows positive precursor lead deltas together with non-lower failure-run recall and non-higher pass-run nuisance proxy versus threshold or EWMA.
+- If the saved precursor metrics do not improve lead time or nuisance, the generated engineering report and `precursor_vs_baselines_summary.json` state that explicitly.
+- The lead-time, density, and nuisance values remain proxy metrics on SECOM labels, not fab-qualified false-alarm or economic metrics.
 - The DRSC figure is deterministic and replayable from saved traces, but it is an operator-facing visualization of current rule-based state evolution, not a probabilistic explanation layer.
 
 ## Caveats and non-claims

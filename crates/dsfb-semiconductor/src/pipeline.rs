@@ -6,11 +6,16 @@ use crate::error::{DsfbSemiconductorError, Result};
 use crate::grammar::evaluate_grammar;
 use crate::heuristics::build_heuristics_bank;
 use crate::metrics::{
-    compute_metrics, BenchmarkMetrics, BoundaryEpisodeSummary, LeadTimeSummary, PerFailureRunSignal,
+    compute_metrics, BenchmarkMetrics, BoundaryEpisodeSummary, DensityMetricRecord, DensitySummary,
+    LeadTimeSummary, PerFailureRunSignal,
 };
 use crate::nominal::build_nominal_model;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
 use crate::plots::{generate_figures, FigureManifest};
+use crate::precursor::{
+    evaluate_precursor, PerFailureRunPrecursorSignal, PrecursorEvaluation,
+    PrecursorVsBaselinesSummary,
+};
 use crate::preprocessing::prepare_secom;
 use crate::report::{write_reports, ReportArtifacts};
 use crate::residual::compute_residuals;
@@ -38,8 +43,12 @@ struct ArtifactManifest {
     run_dir: String,
     metrics_summary_path: String,
     baseline_comparison_summary_path: String,
+    precursor_vs_baselines_summary_path: String,
     lead_time_metrics_path: String,
+    density_metrics_path: String,
     per_failure_run_signals_path: String,
+    precursor_metrics_path: String,
+    per_failure_run_precursor_signals_path: String,
     secom_archive_layout_path: String,
     drsc_trace_path: Option<String>,
     drsc_figure_path: Option<String>,
@@ -60,26 +69,38 @@ struct BaselineComparisonSummary {
     failure_run_recall: FailureRunRecallSummary,
     pass_run_nuisance_proxy: PassRunNuisanceSummary,
     lead_time_summary: LeadTimeSummary,
+    density_summary: DensitySummary,
     boundary_episode_summary: BoundaryEpisodeSummary,
+    precursor_comparison_summary: Option<PrecursorVsBaselinesSummary>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct FailureRunRecallSummary {
-    dsfb_any_signal: usize,
-    dsfb_boundary_signal: usize,
-    dsfb_violation_signal: usize,
+    dsfb_raw_signal: usize,
+    dsfb_persistent_signal: usize,
+    dsfb_raw_boundary_signal: usize,
+    dsfb_persistent_boundary_signal: usize,
+    dsfb_raw_violation_signal: usize,
+    dsfb_persistent_violation_signal: usize,
+    dsfb_precursor_signal: usize,
     ewma_signal: usize,
     threshold_signal: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct PassRunNuisanceSummary {
-    dsfb_boundary_signal_runs: usize,
-    dsfb_violation_signal_runs: usize,
+    dsfb_raw_boundary_signal_runs: usize,
+    dsfb_persistent_boundary_signal_runs: usize,
+    dsfb_raw_violation_signal_runs: usize,
+    dsfb_persistent_violation_signal_runs: usize,
+    dsfb_precursor_signal_runs: usize,
     ewma_signal_runs: usize,
     threshold_signal_runs: usize,
-    dsfb_boundary_signal_rate: f64,
-    dsfb_violation_signal_rate: f64,
+    dsfb_raw_boundary_signal_rate: f64,
+    dsfb_persistent_boundary_signal_rate: f64,
+    dsfb_raw_violation_signal_rate: f64,
+    dsfb_persistent_violation_signal_rate: f64,
+    dsfb_precursor_signal_rate: f64,
     ewma_signal_rate: f64,
     threshold_signal_rate: f64,
 }
@@ -107,15 +128,26 @@ pub fn run_secom_benchmark(
     let signs = compute_signs(&prepared, &nominal, &residuals, &config);
     let baselines = compute_baselines(&prepared, &nominal, &residuals, &config);
     let grammar = evaluate_grammar(&residuals, &signs, &nominal, &config);
-    let metrics = compute_metrics(
+    let mut metrics = compute_metrics(
         &prepared,
         &nominal,
         &residuals,
         &signs,
         &baselines,
         &grammar,
-        config.pre_failure_lookback_runs,
+        &config,
     );
+    let precursor = evaluate_precursor(
+        &prepared,
+        &nominal,
+        &residuals,
+        &signs,
+        &baselines,
+        &grammar,
+        &config.precursor,
+        config.pre_failure_lookback_runs,
+    )?;
+    metrics.precursor_summary = Some(precursor.summary.clone());
     let heuristics = build_heuristics_bank(&metrics, "SECOM");
 
     let output_root = output_root
@@ -148,7 +180,16 @@ pub fn run_secom_benchmark(
     write_json_pretty(&run_dir.join("heuristics_bank.json"), &heuristics)?;
     write_json_pretty(
         &run_dir.join("baseline_comparison_summary.json"),
-        &build_baseline_comparison_summary(&metrics, &secom_archive_layout, &config),
+        &build_baseline_comparison_summary(
+            &metrics,
+            &precursor,
+            &secom_archive_layout,
+            &config,
+        ),
+    )?;
+    write_json_pretty(
+        &run_dir.join("precursor_vs_baselines_summary.json"),
+        &precursor.comparison_summary,
     )?;
 
     write_feature_metrics_csv(&run_dir.join("feature_metrics.csv"), &metrics)?;
@@ -156,20 +197,44 @@ pub fn run_secom_benchmark(
         &run_dir.join("per_failure_run_signals.csv"),
         &metrics.per_failure_run_signals,
     )?;
+    write_precursor_metrics_csv(
+        &run_dir.join("precursor_metrics.csv"),
+        &prepared,
+        &nominal,
+        &precursor,
+    )?;
+    write_per_failure_run_precursor_signals_csv(
+        &run_dir.join("per_failure_run_precursor_signals.csv"),
+        &precursor.per_failure_run_signals,
+    )?;
     write_lead_time_metrics_csv(
         &run_dir.join("lead_time_metrics.csv"),
         &metrics.per_failure_run_signals,
+    )?;
+    write_density_metrics_csv(
+        &run_dir.join("density_metrics.csv"),
+        &metrics.density_metrics,
     )?;
     write_trace_csvs(
         &run_dir, &prepared, &residuals, &signs, &baselines, &grammar,
     )?;
     let figures = generate_figures(
-        &run_dir, &prepared, &nominal, &residuals, &signs, &baselines, &grammar, &metrics,
+        &run_dir,
+        &prepared,
+        &nominal,
+        &residuals,
+        &signs,
+        &baselines,
+        &grammar,
+        &metrics,
+        &precursor,
+        &config,
     )?;
     let report = write_reports(
         &run_dir,
         &config,
         &metrics,
+        &precursor,
         &figures,
         &heuristics,
         &phm_support_status(data_root),
@@ -190,9 +255,19 @@ pub fn run_secom_benchmark(
                 .join("baseline_comparison_summary.json")
                 .display()
                 .to_string(),
+            precursor_vs_baselines_summary_path: run_dir
+                .join("precursor_vs_baselines_summary.json")
+                .display()
+                .to_string(),
             lead_time_metrics_path: run_dir.join("lead_time_metrics.csv").display().to_string(),
+            density_metrics_path: run_dir.join("density_metrics.csv").display().to_string(),
             per_failure_run_signals_path: run_dir
                 .join("per_failure_run_signals.csv")
+                .display()
+                .to_string(),
+            precursor_metrics_path: run_dir.join("precursor_metrics.csv").display().to_string(),
+            per_failure_run_precursor_signals_path: run_dir
+                .join("per_failure_run_precursor_signals.csv")
                 .display()
                 .to_string(),
             secom_archive_layout_path: run_dir
@@ -234,6 +309,7 @@ pub fn run_secom_benchmark(
 
 fn build_baseline_comparison_summary(
     metrics: &BenchmarkMetrics,
+    precursor: &PrecursorEvaluation,
     secom_archive_layout: &SecomArchiveLayout,
     config: &PipelineConfig,
 ) -> BaselineComparisonSummary {
@@ -245,28 +321,58 @@ fn build_baseline_comparison_summary(
         analyzable_feature_count: metrics.summary.analyzable_feature_count,
         lookback_runs: config.pre_failure_lookback_runs,
         failure_run_recall: FailureRunRecallSummary {
-            dsfb_any_signal: metrics.summary.failure_runs_with_preceding_dsfb_signal,
-            dsfb_boundary_signal: metrics
+            dsfb_raw_signal: metrics.summary.failure_runs_with_preceding_dsfb_raw_signal,
+            dsfb_persistent_signal: metrics
                 .summary
-                .failure_runs_with_preceding_dsfb_boundary_signal,
-            dsfb_violation_signal: metrics
+                .failure_runs_with_preceding_dsfb_persistent_signal,
+            dsfb_raw_boundary_signal: metrics
                 .summary
-                .failure_runs_with_preceding_dsfb_violation_signal,
+                .failure_runs_with_preceding_dsfb_raw_boundary_signal,
+            dsfb_persistent_boundary_signal: metrics
+                .summary
+                .failure_runs_with_preceding_dsfb_persistent_boundary_signal,
+            dsfb_raw_violation_signal: metrics
+                .summary
+                .failure_runs_with_preceding_dsfb_raw_violation_signal,
+            dsfb_persistent_violation_signal: metrics
+                .summary
+                .failure_runs_with_preceding_dsfb_persistent_violation_signal,
+            dsfb_precursor_signal: precursor.summary.failure_run_recall,
             ewma_signal: metrics.summary.failure_runs_with_preceding_ewma_signal,
             threshold_signal: metrics.summary.failure_runs_with_preceding_threshold_signal,
         },
         pass_run_nuisance_proxy: PassRunNuisanceSummary {
-            dsfb_boundary_signal_runs: metrics.summary.pass_runs_with_dsfb_boundary_signal,
-            dsfb_violation_signal_runs: metrics.summary.pass_runs_with_dsfb_violation_signal,
+            dsfb_raw_boundary_signal_runs: metrics.summary.pass_runs_with_dsfb_raw_boundary_signal,
+            dsfb_persistent_boundary_signal_runs: metrics
+                .summary
+                .pass_runs_with_dsfb_persistent_boundary_signal,
+            dsfb_raw_violation_signal_runs: metrics.summary.pass_runs_with_dsfb_raw_violation_signal,
+            dsfb_persistent_violation_signal_runs: metrics
+                .summary
+                .pass_runs_with_dsfb_persistent_violation_signal,
+            dsfb_precursor_signal_runs: (precursor.summary.pass_run_nuisance_proxy
+                * metrics.summary.pass_runs as f64)
+                .round() as usize,
             ewma_signal_runs: metrics.summary.pass_runs_with_ewma_signal,
             threshold_signal_runs: metrics.summary.pass_runs_with_threshold_signal,
-            dsfb_boundary_signal_rate: metrics.summary.pass_run_dsfb_boundary_nuisance_rate,
-            dsfb_violation_signal_rate: metrics.summary.pass_run_dsfb_violation_nuisance_rate,
+            dsfb_raw_boundary_signal_rate: metrics.summary.pass_run_dsfb_raw_boundary_nuisance_rate,
+            dsfb_persistent_boundary_signal_rate: metrics
+                .summary
+                .pass_run_dsfb_persistent_boundary_nuisance_rate,
+            dsfb_raw_violation_signal_rate: metrics
+                .summary
+                .pass_run_dsfb_raw_violation_nuisance_rate,
+            dsfb_persistent_violation_signal_rate: metrics
+                .summary
+                .pass_run_dsfb_persistent_violation_nuisance_rate,
+            dsfb_precursor_signal_rate: precursor.summary.pass_run_nuisance_proxy,
             ewma_signal_rate: metrics.summary.pass_run_ewma_nuisance_rate,
             threshold_signal_rate: metrics.summary.pass_run_threshold_nuisance_rate,
         },
         lead_time_summary: metrics.lead_time_summary.clone(),
+        density_summary: metrics.density_summary.clone(),
         boundary_episode_summary: metrics.boundary_episode_summary.clone(),
+        precursor_comparison_summary: Some(precursor.comparison_summary.clone()),
     }
 }
 
@@ -294,36 +400,135 @@ fn write_per_failure_run_signals_csv(path: &Path, records: &[PerFailureRunSignal
     Ok(())
 }
 
+fn write_precursor_metrics_csv(
+    path: &Path,
+    prepared: &crate::preprocessing::PreparedDataset,
+    nominal: &crate::nominal::NominalModel,
+    precursor: &PrecursorEvaluation,
+) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    writer.write_record([
+        "feature_index",
+        "feature_name",
+        "run_index",
+        "timestamp",
+        "label",
+        "boundary_density_W",
+        "violation_density_W",
+        "drift_persistence_W",
+        "transition_cluster_W",
+        "ewma_occupancy_W",
+        "motif_recurrence_W",
+        "precursor_score",
+        "precursor_active",
+        "precursor_alert",
+    ])?;
+
+    for trace in &precursor.traces {
+        if !nominal.features[trace.feature_index].analyzable {
+            continue;
+        }
+        for run_index in 0..trace.precursor_score.len() {
+            writer.write_record([
+                trace.feature_index.to_string(),
+                trace.feature_name.clone(),
+                run_index.to_string(),
+                prepared.timestamps[run_index]
+                    .format("%Y-%m-%d %H:%M:%S")
+                    .to_string(),
+                prepared.labels[run_index].to_string(),
+                trace.boundary_density_w[run_index].to_string(),
+                trace.violation_density_w[run_index].to_string(),
+                trace.drift_persistence_w[run_index].to_string(),
+                trace.transition_cluster_w[run_index].to_string(),
+                trace.ewma_occupancy_w[run_index].to_string(),
+                trace.motif_recurrence_w[run_index].to_string(),
+                trace.precursor_score[run_index].to_string(),
+                trace.precursor_active[run_index].to_string(),
+                trace.precursor_alert[run_index].to_string(),
+            ])?;
+        }
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_per_failure_run_precursor_signals_csv(
+    path: &Path,
+    records: &[PerFailureRunPrecursorSignal],
+) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    for record in records {
+        writer.serialize(record)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
 fn write_lead_time_metrics_csv(path: &Path, records: &[PerFailureRunSignal]) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     writer.write_record([
         "failure_run_index",
         "failure_timestamp",
-        "dsfb_boundary_lead_runs",
-        "dsfb_violation_lead_runs",
+        "earliest_dsfb_raw_boundary_run",
+        "earliest_dsfb_persistent_boundary_run",
+        "earliest_dsfb_raw_violation_run",
+        "earliest_dsfb_persistent_violation_run",
+        "earliest_threshold_run",
+        "earliest_ewma_run",
+        "dsfb_raw_boundary_lead_runs",
+        "dsfb_persistent_boundary_lead_runs",
+        "dsfb_raw_violation_lead_runs",
+        "dsfb_persistent_violation_lead_runs",
         "threshold_lead_runs",
         "ewma_lead_runs",
-        "dsfb_boundary_minus_threshold_delta_runs",
-        "dsfb_boundary_minus_ewma_delta_runs",
-        "dsfb_violation_minus_threshold_delta_runs",
-        "dsfb_violation_minus_ewma_delta_runs",
+        "dsfb_raw_boundary_minus_threshold_delta_runs",
+        "dsfb_raw_boundary_minus_ewma_delta_runs",
+        "dsfb_persistent_boundary_minus_threshold_delta_runs",
+        "dsfb_persistent_boundary_minus_ewma_delta_runs",
+        "dsfb_raw_violation_minus_threshold_delta_runs",
+        "dsfb_raw_violation_minus_ewma_delta_runs",
+        "dsfb_persistent_violation_minus_threshold_delta_runs",
+        "dsfb_persistent_violation_minus_ewma_delta_runs",
     ])?;
 
     for record in records {
         writer.write_record([
             record.failure_run_index.to_string(),
             record.failure_timestamp.clone(),
-            option_to_string(record.dsfb_boundary_lead_runs),
-            option_to_string(record.dsfb_violation_lead_runs),
+            option_to_string(record.earliest_dsfb_raw_boundary_run),
+            option_to_string(record.earliest_dsfb_persistent_boundary_run),
+            option_to_string(record.earliest_dsfb_raw_violation_run),
+            option_to_string(record.earliest_dsfb_persistent_violation_run),
+            option_to_string(record.earliest_threshold_run),
+            option_to_string(record.earliest_ewma_run),
+            option_to_string(record.dsfb_raw_boundary_lead_runs),
+            option_to_string(record.dsfb_persistent_boundary_lead_runs),
+            option_to_string(record.dsfb_raw_violation_lead_runs),
+            option_to_string(record.dsfb_persistent_violation_lead_runs),
             option_to_string(record.threshold_lead_runs),
             option_to_string(record.ewma_lead_runs),
-            option_to_string(record.dsfb_boundary_minus_threshold_delta_runs),
-            option_to_string(record.dsfb_boundary_minus_ewma_delta_runs),
-            option_to_string(record.dsfb_violation_minus_threshold_delta_runs),
-            option_to_string(record.dsfb_violation_minus_ewma_delta_runs),
+            option_to_string(record.dsfb_raw_boundary_minus_threshold_delta_runs),
+            option_to_string(record.dsfb_raw_boundary_minus_ewma_delta_runs),
+            option_to_string(record.dsfb_persistent_boundary_minus_threshold_delta_runs),
+            option_to_string(record.dsfb_persistent_boundary_minus_ewma_delta_runs),
+            option_to_string(record.dsfb_raw_violation_minus_threshold_delta_runs),
+            option_to_string(record.dsfb_raw_violation_minus_ewma_delta_runs),
+            option_to_string(record.dsfb_persistent_violation_minus_threshold_delta_runs),
+            option_to_string(record.dsfb_persistent_violation_minus_ewma_delta_runs),
         ])?;
     }
 
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_density_metrics_csv(path: &Path, records: &[DensityMetricRecord]) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    for record in records {
+        writer.serialize(record)?;
+    }
     writer.flush()?;
     Ok(())
 }
@@ -364,7 +569,17 @@ fn write_trace_csvs(
         "threshold",
         "alarm",
     ])?;
-    grammar_writer.write_record(["run_index", "timestamp", "feature", "state", "reason"])?;
+    grammar_writer.write_record([
+        "run_index",
+        "timestamp",
+        "feature",
+        "raw_state",
+        "confirmed_state",
+        "persistent_boundary",
+        "persistent_violation",
+        "raw_reason",
+        "confirmed_reason",
+    ])?;
 
     for feature_index in 0..residuals.traces.len() {
         let residual_trace = &residuals.traces[feature_index];
@@ -411,7 +626,11 @@ fn write_trace_csvs(
                 run_index.to_string(),
                 timestamp,
                 residual_trace.feature_name.clone(),
+                format!("{:?}", grammar_trace.raw_states[run_index]),
                 format!("{:?}", grammar_trace.states[run_index]),
+                grammar_trace.persistent_boundary[run_index].to_string(),
+                grammar_trace.persistent_violation[run_index].to_string(),
+                format!("{:?}", grammar_trace.raw_reasons[run_index]),
                 format!("{:?}", grammar_trace.reasons[run_index]),
             ])?;
         }

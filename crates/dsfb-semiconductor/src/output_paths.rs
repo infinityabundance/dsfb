@@ -23,7 +23,7 @@ pub fn default_output_root() -> PathBuf {
 
 pub fn create_timestamped_run_dir(output_root: &Path, dataset: &str) -> std::io::Result<PathBuf> {
     let timestamp = Local::now().format("%Y%m%d_%H%M%S_%3f").to_string();
-    let base = format!("{}_{}", timestamp, dataset);
+    let base = format!("{timestamp}_dsfb-semiconductor_{dataset}");
     for attempt in 0..1000 {
         let candidate = if attempt == 0 {
             output_root.join(&base)
@@ -65,6 +65,7 @@ mod tests {
         let run_dir = create_timestamped_run_dir(temp.path(), "secom").unwrap();
         let name = run_dir.file_name().unwrap().to_string_lossy();
         assert!(name.ends_with("_secom"));
+        assert!(name.contains("dsfb-semiconductor"));
     }
 
     #[test]
