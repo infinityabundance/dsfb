@@ -2,7 +2,7 @@ use crate::baselines::BaselineSet;
 use crate::config::PipelineConfig;
 use crate::grammar::{GrammarReason, GrammarSet, GrammarState};
 use crate::nominal::NominalModel;
-use crate::precursor::PspSignalSummary;
+use crate::precursor::DsaSignalSummary;
 use crate::preprocessing::{DatasetSummary, PreparedDataset};
 use crate::residual::ResidualSet;
 use crate::signs::SignSet;
@@ -172,7 +172,7 @@ pub struct BenchmarkMetrics {
     pub lead_time_summary: LeadTimeSummary,
     pub density_summary: DensitySummary,
     pub boundary_episode_summary: BoundaryEpisodeSummary,
-    pub psp_summary: Option<PspSignalSummary>,
+    pub dsa_summary: Option<DsaSignalSummary>,
     pub motif_metrics: Vec<MotifMetric>,
     pub per_failure_run_signals: Vec<PerFailureRunSignal>,
     pub density_metrics: Vec<DensityMetricRecord>,
@@ -435,7 +435,7 @@ pub fn compute_metrics(
         lead_time_summary,
         density_summary,
         boundary_episode_summary,
-        psp_summary: None,
+        dsa_summary: None,
         motif_metrics,
         per_failure_run_signals,
         density_metrics,

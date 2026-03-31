@@ -1,5 +1,5 @@
 use crate::calibration::{
-    run_secom_calibration, run_secom_psp_calibration, CalibrationGrid,
+    run_secom_calibration, run_secom_dsa_calibration, CalibrationGrid,
 };
 use crate::config::PipelineConfig;
 use crate::dataset::phm2018;
@@ -23,7 +23,7 @@ enum Command {
     FetchSecom(DataArgs),
     RunSecom(RunSecomArgs),
     CalibrateSecom(CalibrateSecomArgs),
-    CalibrateSecomPsp(CalibrateSecomPspArgs),
+    CalibrateSecomDsa(CalibrateSecomDsaArgs),
     ProbePhm2018(ProbePhm2018Args),
 }
 
@@ -70,11 +70,11 @@ struct RunSecomArgs {
     #[arg(long, default_value_t = 20)]
     pre_failure_lookback_runs: usize,
     #[arg(long, default_value_t = 10)]
-    psp_window: usize,
+    dsa_window: usize,
     #[arg(long, default_value_t = 2)]
-    psp_persistence_runs: usize,
+    dsa_persistence_runs: usize,
     #[arg(long, default_value_t = 2.5)]
-    psp_alert_tau: f64,
+    dsa_alert_tau: f64,
 }
 
 #[derive(Debug, Args)]
@@ -116,7 +116,7 @@ struct CalibrateSecomArgs {
 }
 
 #[derive(Debug, Args)]
-struct CalibrateSecomPspArgs {
+struct CalibrateSecomDsaArgs {
     #[command(flatten)]
     data: DataArgs,
     #[arg(long)]
@@ -189,10 +189,10 @@ pub fn run() -> Result<()> {
                 grazing_window: args.grazing_window,
                 grazing_min_hits: args.grazing_min_hits,
                 pre_failure_lookback_runs: args.pre_failure_lookback_runs,
-                psp: crate::precursor::PspConfig {
-                    window: args.psp_window,
-                    persistence_runs: args.psp_persistence_runs,
-                    alert_tau: args.psp_alert_tau,
+                dsa: crate::precursor::DsaConfig {
+                    window: args.dsa_window,
+                    persistence_runs: args.dsa_persistence_runs,
+                    alert_tau: args.dsa_alert_tau,
                 },
                 ..PipelineConfig::default()
             };
@@ -248,7 +248,7 @@ pub fn run() -> Result<()> {
             );
             Ok(())
         }
-        Command::CalibrateSecomPsp(args) => {
+        Command::CalibrateSecomDsa(args) => {
             let data_root = args.data.data_root.unwrap_or_else(default_data_root);
             let output_root = args.output_root.unwrap_or_else(default_output_root);
             let config = PipelineConfig {
@@ -268,17 +268,17 @@ pub fn run() -> Result<()> {
                 pre_failure_lookback_runs: args.pre_failure_lookback_runs,
                 ..PipelineConfig::default()
             };
-            let artifacts = run_secom_psp_calibration(
+            let artifacts = run_secom_dsa_calibration(
                 &data_root,
                 Some(&output_root),
                 config,
                 args.fetch_if_missing,
             )?;
             println!(
-                "PSP calibration run directory: {}",
+                "DSA calibration run directory: {}",
                 artifacts.run_dir.display()
             );
-            println!("PSP calibration grid: {}", artifacts.grid_results_csv.display());
+            println!("DSA calibration grid: {}", artifacts.grid_results_csv.display());
             Ok(())
         }
         Command::ProbePhm2018(args) => {
