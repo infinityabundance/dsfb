@@ -1,3 +1,4 @@
+use crate::baselines::BaselineSet;
 use crate::error::{DsfbSemiconductorError, Result};
 use crate::grammar::{GrammarSet, GrammarState};
 use crate::metrics::BenchmarkMetrics;
@@ -24,6 +25,7 @@ pub fn generate_figures(
     nominal: &NominalModel,
     residuals: &ResidualSet,
     signs: &SignSet,
+    baselines: &BaselineSet,
     grammar: &GrammarSet,
     metrics: &BenchmarkMetrics,
 ) -> Result<FigureManifest> {
@@ -42,6 +44,7 @@ pub fn generate_figures(
         nominal,
         residuals,
         signs,
+        baselines,
         residual_norms_for_feature,
     )?;
     files.push("top_feature_residual_norms.png".into());
@@ -54,9 +57,23 @@ pub fn generate_figures(
         nominal,
         residuals,
         signs,
+        baselines,
         drift_for_feature,
     )?;
     files.push("top_feature_drift.png".into());
+
+    draw_multi_feature_chart(
+        &figure_dir.join("top_feature_ewma.png"),
+        "Top feature EWMA traces",
+        "EWMA residual norm",
+        &metrics.top_feature_indices,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        ewma_for_feature,
+    )?;
+    files.push("top_feature_ewma.png".into());
 
     draw_multi_feature_chart(
         &figure_dir.join("top_feature_slew.png"),
@@ -66,6 +83,7 @@ pub fn generate_figures(
         nominal,
         residuals,
         signs,
+        baselines,
         slew_for_feature,
     )?;
     files.push("top_feature_slew.png".into());
@@ -138,20 +156,25 @@ fn draw_multi_feature_chart<F>(
     nominal: &NominalModel,
     residuals: &ResidualSet,
     signs: &SignSet,
+    baselines: &BaselineSet,
     selector: F,
 ) -> Result<()>
 where
-    F: Fn(usize, &ResidualSet, &SignSet) -> Vec<f64>,
+    F: Fn(usize, &ResidualSet, &SignSet, &BaselineSet) -> Vec<f64>,
 {
     let root = BitMapBackend::new(output_path, (WIDTH, HEIGHT)).into_drawing_area();
     root.fill(&WHITE).map_err(plot_error)?;
 
     let mut all_values = Vec::new();
     for feature_index in top_feature_indices {
-        all_values.extend(selector(*feature_index, residuals, signs));
+        all_values.extend(selector(*feature_index, residuals, signs, baselines));
     }
     let (min_value, max_value) = value_range(&all_values);
-    let x_upper = residuals.traces.first().map(|trace| trace.norms.len()).unwrap_or(0);
+    let x_upper = residuals
+        .traces
+        .first()
+        .map(|trace| trace.norms.len())
+        .unwrap_or(0);
 
     let mut chart = ChartBuilder::on(&root)
         .caption(title, ("sans-serif", 28))
@@ -170,7 +193,7 @@ where
 
     let palette = [RED, BLUE, GREEN, MAGENTA, CYAN, BLACK];
     for (series_index, feature_index) in top_feature_indices.iter().enumerate() {
-        let values = selector(*feature_index, residuals, signs);
+        let values = selector(*feature_index, residuals, signs, baselines);
         let color = palette[series_index % palette.len()];
         chart
             .draw_series(LineSeries::new(
@@ -197,15 +220,35 @@ fn residual_norms_for_feature(
     feature_index: usize,
     residuals: &ResidualSet,
     _signs: &SignSet,
+    _baselines: &BaselineSet,
 ) -> Vec<f64> {
     residuals.traces[feature_index].norms.clone()
 }
 
-fn drift_for_feature(feature_index: usize, _residuals: &ResidualSet, signs: &SignSet) -> Vec<f64> {
+fn drift_for_feature(
+    feature_index: usize,
+    _residuals: &ResidualSet,
+    signs: &SignSet,
+    _baselines: &BaselineSet,
+) -> Vec<f64> {
     signs.traces[feature_index].drift.clone()
 }
 
-fn slew_for_feature(feature_index: usize, _residuals: &ResidualSet, signs: &SignSet) -> Vec<f64> {
+fn ewma_for_feature(
+    feature_index: usize,
+    _residuals: &ResidualSet,
+    _signs: &SignSet,
+    baselines: &BaselineSet,
+) -> Vec<f64> {
+    baselines.ewma[feature_index].ewma.clone()
+}
+
+fn slew_for_feature(
+    feature_index: usize,
+    _residuals: &ResidualSet,
+    signs: &SignSet,
+    _baselines: &BaselineSet,
+) -> Vec<f64> {
     signs.traces[feature_index].slew.clone()
 }
 
@@ -226,7 +269,10 @@ fn draw_grammar_timeline(
         .unwrap_or_default();
 
     let mut chart = ChartBuilder::on(&root)
-        .caption("DSFB grammar-state timeline (top features)", ("sans-serif", 28))
+        .caption(
+            "DSFB grammar-state timeline (top features)",
+            ("sans-serif", 28),
+        )
         .margin(20)
         .x_label_area_size(50)
         .y_label_area_size(120)
@@ -275,6 +321,7 @@ fn draw_baseline_comparison(figure_dir: &Path, metrics: &BenchmarkMetrics) -> Re
         .summary
         .failure_runs
         .max(metrics.summary.failure_runs_with_preceding_dsfb_signal)
+        .max(metrics.summary.failure_runs_with_preceding_ewma_signal)
         .max(metrics.summary.failure_runs_with_preceding_threshold_signal)
         .max(1);
 
@@ -283,6 +330,11 @@ fn draw_baseline_comparison(figure_dir: &Path, metrics: &BenchmarkMetrics) -> Re
             "DSFB in pre-failure window",
             metrics.summary.failure_runs_with_preceding_dsfb_signal,
             BLUE.mix(0.7),
+        ),
+        (
+            "EWMA in pre-failure window",
+            metrics.summary.failure_runs_with_preceding_ewma_signal,
+            GREEN.mix(0.7),
         ),
         (
             "Threshold in pre-failure window",

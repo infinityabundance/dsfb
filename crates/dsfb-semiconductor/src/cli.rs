@@ -44,6 +44,10 @@ struct RunSecomArgs {
     envelope_sigma: f64,
     #[arg(long, default_value_t = 0.5)]
     boundary_fraction_of_rho: f64,
+    #[arg(long, default_value_t = 0.2)]
+    ewma_alpha: f64,
+    #[arg(long, default_value_t = 3.0)]
+    ewma_sigma_multiplier: f64,
     #[arg(long, default_value_t = 3.0)]
     drift_sigma_multiplier: f64,
     #[arg(long, default_value_t = 3.0)]
@@ -82,6 +86,8 @@ pub fn run() -> Result<()> {
                 drift_window: args.drift_window,
                 envelope_sigma: args.envelope_sigma,
                 boundary_fraction_of_rho: args.boundary_fraction_of_rho,
+                ewma_alpha: args.ewma_alpha,
+                ewma_sigma_multiplier: args.ewma_sigma_multiplier,
                 drift_sigma_multiplier: args.drift_sigma_multiplier,
                 slew_sigma_multiplier: args.slew_sigma_multiplier,
                 grazing_window: args.grazing_window,
@@ -89,14 +95,21 @@ pub fn run() -> Result<()> {
                 pre_failure_lookback_runs: args.pre_failure_lookback_runs,
                 ..PipelineConfig::default()
             };
-            let artifacts =
-                run_secom_benchmark(&data_root, Some(&output_root), config, args.fetch_if_missing)?;
+            let artifacts = run_secom_benchmark(
+                &data_root,
+                Some(&output_root),
+                config,
+                args.fetch_if_missing,
+            )?;
             println!("Run directory: {}", artifacts.run_dir.display());
             println!("Metrics: {}", artifacts.metrics_path.display());
             if let Some(pdf) = artifacts.report.pdf_path {
                 println!("PDF report: {}", pdf.display());
             } else if let Some(error) = artifacts.report.pdf_error {
-                println!("PDF report failed: {}", error.lines().next().unwrap_or("unknown error"));
+                println!(
+                    "PDF report failed: {}",
+                    error.lines().next().unwrap_or("unknown error")
+                );
             }
             println!("ZIP bundle: {}", artifacts.zip_path.display());
             Ok(())

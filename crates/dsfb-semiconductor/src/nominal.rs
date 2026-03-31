@@ -31,8 +31,8 @@ pub fn build_nominal_model(dataset: &PreparedDataset, config: &PipelineConfig) -
         let healthy_observations = healthy_values.len();
         let healthy_mean = mean(&healthy_values).unwrap_or(0.0);
         let healthy_std = sample_std(&healthy_values, healthy_mean).unwrap_or(0.0);
-        let analyzable =
-            healthy_observations >= config.minimum_healthy_observations && healthy_std > config.epsilon;
+        let analyzable = healthy_observations >= config.minimum_healthy_observations
+            && healthy_std > config.epsilon;
         let rho = if analyzable {
             config.envelope_sigma * healthy_std
         } else {

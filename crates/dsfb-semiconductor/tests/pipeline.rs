@@ -1,3 +1,4 @@
+use dsfb_semiconductor::baselines::{compute_baselines, ewma_series};
 use dsfb_semiconductor::config::PipelineConfig;
 use dsfb_semiconductor::dataset::secom;
 use dsfb_semiconductor::grammar::evaluate_grammar;
@@ -45,6 +46,8 @@ fn test_config() -> PipelineConfig {
         drift_window: 2,
         envelope_sigma: 2.0,
         boundary_fraction_of_rho: 0.5,
+        ewma_alpha: 0.3,
+        ewma_sigma_multiplier: 2.0,
         drift_sigma_multiplier: 2.0,
         slew_sigma_multiplier: 2.0,
         grazing_window: 3,
@@ -62,10 +65,12 @@ fn pipeline_outputs_are_deterministic_for_fixed_input() {
     let data_root = write_fixture_dataset(data_temp.path());
     let config = test_config();
 
-    let first = run_secom_benchmark(&data_root, Some(output_temp.path()), config.clone(), false).unwrap();
+    let first =
+        run_secom_benchmark(&data_root, Some(output_temp.path()), config.clone(), false).unwrap();
     let second = run_secom_benchmark(&data_root, Some(output_temp.path()), config, false).unwrap();
 
-    let first_metrics: Value = serde_json::from_str(&fs::read_to_string(&first.metrics_path).unwrap()).unwrap();
+    let first_metrics: Value =
+        serde_json::from_str(&fs::read_to_string(&first.metrics_path).unwrap()).unwrap();
     let second_metrics: Value =
         serde_json::from_str(&fs::read_to_string(&second.metrics_path).unwrap()).unwrap();
     assert_eq!(first_metrics, second_metrics);
@@ -97,7 +102,10 @@ fn missing_values_are_imputed_without_nan_or_inf_propagation() {
         assert!(trace.drift_threshold.is_finite());
         assert!(trace.slew_threshold.is_finite());
     }
-    assert_eq!(residuals.traces[1].imputed_values[3], nominal.features[1].healthy_mean);
+    assert_eq!(
+        residuals.traces[1].imputed_values[3],
+        nominal.features[1].healthy_mean
+    );
     assert_eq!(residuals.traces[1].residuals[3], 0.0);
     assert_eq!(grammar.traces.len(), residuals.traces.len());
 }
@@ -116,6 +124,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "benchmark_metrics.json",
         "dataset_summary.json",
         "drifts.csv",
+        "ewma_baseline.csv",
         "engineering_report.md",
         "engineering_report.tex",
         "feature_metrics.csv",
@@ -130,8 +139,42 @@ fn benchmark_run_writes_expected_core_artifacts() {
     ];
 
     for file in expected_files {
-        assert!(artifacts.run_dir.join(file).exists(), "missing artifact {file}");
+        assert!(
+            artifacts.run_dir.join(file).exists(),
+            "missing artifact {file}"
+        );
     }
-    assert!(artifacts.run_dir.join("figures").join("benchmark_comparison.png").exists());
-    assert!(artifacts.run_dir.join("figures").join("grammar_timeline.png").exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures")
+        .join("benchmark_comparison.png")
+        .exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures")
+        .join("grammar_timeline.png")
+        .exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures")
+        .join("top_feature_ewma.png")
+        .exists());
+}
+
+#[test]
+fn ewma_baseline_reacts_to_sustained_elevation() {
+    let data_temp = tempfile::tempdir().unwrap();
+    let data_root = write_fixture_dataset(data_temp.path());
+    let dataset = secom::load_from_root(&data_root).unwrap();
+    let config = test_config();
+    let prepared = prepare_secom(&dataset, &config).unwrap();
+    let nominal = build_nominal_model(&prepared, &config);
+    let residuals = compute_residuals(&prepared, &nominal);
+    let baselines = compute_baselines(&prepared, &nominal, &residuals, &config);
+
+    let feature = &baselines.ewma[0];
+    assert_eq!(ewma_series(&[0.0, 1.0, 1.0], 0.5), vec![0.0, 0.5, 0.75]);
+    assert!(feature.ewma.iter().all(|value| value.is_finite()));
+    assert!(feature.threshold.is_finite());
+    assert!(feature.alarm.iter().any(|flag| *flag));
 }

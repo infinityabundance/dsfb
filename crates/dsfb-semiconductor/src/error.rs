@@ -13,7 +13,10 @@ pub enum DsfbSemiconductorError {
     #[error("dataset format error: {0}")]
     DatasetFormat(String),
     #[error("dataset missing: {dataset} not available at {path}")]
-    DatasetMissing { dataset: &'static str, path: PathBuf },
+    DatasetMissing {
+        dataset: &'static str,
+        path: PathBuf,
+    },
     #[error("external command failed: {0}")]
     ExternalCommand(String),
     #[error("network fetch failed: {0}")]

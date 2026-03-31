@@ -27,6 +27,7 @@ This crate implements the paper's core operator-facing objects with explicit sav
 - admissibility envelope radius `rho = sigma_multiplier * healthy_std`
 - grammar states `Admissible`, `Boundary`, and `Violation`
 - a provenance-aware heuristics bank built from observed grammar motifs
+- two explicit scalar comparators: a raw residual-magnitude threshold and a univariate EWMA residual-norm comparator
 
 The implementation is intentionally simple and deterministic. It is designed for auditability and reproducibility, not for inflated benchmark claims.
 
@@ -91,11 +92,24 @@ Key configurable parameters:
 - `--drift-window`
 - `--envelope-sigma`
 - `--boundary-fraction-of-rho`
+- `--ewma-alpha`
+- `--ewma-sigma-multiplier`
 - `--drift-sigma-multiplier`
 - `--slew-sigma-multiplier`
 - `--grazing-window`
 - `--grazing-min-hits`
 - `--pre-failure-lookback-runs`
+
+Current implemented baselines:
+
+- residual-threshold baseline: `|r(k)| > rho`
+- EWMA baseline: univariate EWMA on residual norms with explicit `alpha` and healthy-window thresholding
+
+Current baseline classes not implemented:
+
+- CUSUM drift baseline
+- PCA / Hotelling `T^2` / SPE-style multivariate FDC baseline
+- lightweight ML anomaly baselines
 
 ## Output structure
 
@@ -112,6 +126,7 @@ artifact_manifest.json
 benchmark_metrics.json
 dataset_summary.json
 drifts.csv
+ewma_baseline.csv
 engineering_report.md
 engineering_report.tex
 engineering_report.pdf          # when pdflatex is available
@@ -138,10 +153,11 @@ slews.csv
 
 - This crate does not claim SEMI standards compliance or completed qualification.
 - This crate does not claim universal superiority over SPC, EWMA/CUSUM, multivariate FDC, or ML baselines.
-- The current comparator is intentionally weak: a univariate residual-magnitude threshold.
+- The current comparator set is still narrow: a univariate residual-magnitude threshold plus a univariate EWMA residual-norm comparator.
 - SECOM is real semiconductor data, but it is not a deployment validation dataset.
 - PHM 2018 support is not claimed beyond the manual-placement contract and archive probe unless the real archive is present and verified.
 - PDF generation depends on `pdflatex` being installed in the runtime.
+- The notebook file is wired to the current CLI and output paths, but this README does not claim that a live Colab execution was performed in this environment.
 
 ## Notebook
 
