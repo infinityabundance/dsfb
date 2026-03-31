@@ -32,8 +32,9 @@ This crate implements the paper's core operator-facing objects with explicit sav
 - admissibility envelope radius `rho = sigma_multiplier * healthy_std`
 - grammar states `Admissible`, `Boundary`, and `Violation`
 - hysteretic state confirmation together with persistent boundary / violation traces
-- a separate deterministic DSA layer built from rolling boundary density, drift persistence with consistent drift direction, slew density, normalized EWMA occupancy, and motif recurrence
+- a separate deterministic DSA layer built from rolling raw-boundary density, outward drift persistence, slew density, normalized EWMA occupancy, motif recurrence, and a directional-consistency gate
 - persistence-gated DSA alerts `dsa_score >= tau` for at least `K` consecutive runs when the structural consistency constraint also holds
+- run-level DSA aggregation as `any_feature_dsa_alert(k)` together with `feature_count_dsa_alert(k)`
 - a provenance-aware heuristics bank built from observed grammar motifs, severity tags, action notes, and limitations
 - two explicit scalar comparators: a raw residual-magnitude threshold and a univariate EWMA residual-norm comparator
 - per-failure-run earliest-signal tracking and lead-time deltas against the scalar comparators for both the DSFB state logic and the DSA layer
@@ -126,6 +127,12 @@ Run the bounded deterministic DSA calibration grid:
 cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- calibrate-secom-dsa --fetch-if-missing
 ```
 
+The bounded DSA grid is fixed at:
+
+- `W ∈ {5, 10, 15}`
+- `K ∈ {2, 3, 4}`
+- `tau ∈ {2.0, 2.5, 3.0}`
+
 Key configurable parameters:
 
 - `--healthy-pass-runs`
@@ -207,10 +214,12 @@ grammar_states.csv
 heuristics_bank.json
 lead_time_metrics.csv
 parameter_manifest.json
+dsa_parameter_manifest.json
 per_failure_run_signals.csv
 per_failure_run_dsa_signals.csv
 phm2018_support_status.json
 dsa_metrics.csv
+dsa_run_signals.csv
 dsa_vs_baselines.json
 residuals.csv
 run_bundle.zip
@@ -263,6 +272,7 @@ output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_dsa_calibration/
 ## Reproducibility discipline
 
 - Every meaningful threshold and window is saved to `parameter_manifest.json`
+- Fixed DSA weights, run-level aggregation choice, and the consistency rule are saved to `dsa_parameter_manifest.json`
 - Dataset source and output root are saved to `run_configuration.json`
 - Calibration grids are saved verbatim to `parameter_grid_manifest.json`
 - The bounded DSA calibration grid is saved verbatim to `dsa_parameter_grid_manifest.json`
@@ -275,8 +285,10 @@ The crate establishes deterministic structural artifact generation on real semic
 
 - `Violation` and `DSA` are intentionally different signals: violation is a hard envelope exit, DSA is a persistence-constrained structural early warning.
 - The authoritative comparison artifact for the DSA layer is `dsa_vs_baselines.json`.
-- Improvement should only be claimed when that saved summary shows positive DSA lead deltas together with non-lower failure-run recall, lower nuisance than persistent DSFB boundary nuisance, and non-higher pass-run nuisance proxy versus threshold or EWMA.
-- If the saved DSA metrics reduce nuisance but not lead time, or fail to improve anything, the generated engineering report and `dsa_vs_baselines.json` state that explicitly.
+- Improvement should only be claimed when that saved summary shows positive DSA lead deltas together with non-lower failure-run recall, lower nuisance than raw DSFB boundary nuisance, and no failed validation gate.
+- The current default SECOM run under `output-dsfb-semiconductor/20260331_212951_308_dsfb-semiconductor_secom/` reports DSA recall `10/104`, mean lead `11.10`, pass-run nuisance `0.0273`, mean lead deltas `-8.90` vs threshold and EWMA, and compression ratio `2594.82`.
+- On that saved run, nuisance improved and compression improved, but lead time did not improve and recall was not preserved. No superiority claim is made.
+- The current bounded DSA grid under `output-dsfb-semiconductor/20260331_213043_869_dsfb-semiconductor_secom_dsa_calibration/` has `0/27` validation-passing configurations. The best-recall point is `W=5, K=2, tau=2.0` with recall `92/104`, mean lead `17.04`, nuisance `0.3554`, and still failed recall preservation against threshold/EWMA.
 - The lead-time, density, and nuisance values remain proxy metrics on SECOM labels, not fab-qualified false-alarm or economic metrics.
 - The DRSC figure is deterministic and replayable from saved traces, but it is an operator-facing visualization of current rule-based state evolution, not a probabilistic explanation layer.
 

@@ -383,18 +383,18 @@ fn draw_baseline_comparison(
             MAGENTA.mix(0.7),
         ),
         (
-            "DSFB persistent boundary",
+            "DSFB raw boundary",
             metrics
                 .lead_time_summary
-                .mean_persistent_boundary_lead_runs
+                .mean_raw_boundary_lead_runs
                 .unwrap_or(0.0),
             BLUE.mix(0.7),
         ),
         (
-            "DSFB persistent violation",
+            "DSFB Violation",
             metrics
                 .lead_time_summary
-                .mean_persistent_violation_lead_runs
+                .mean_raw_violation_lead_runs
                 .unwrap_or(0.0),
             CYAN.mix(0.7),
         ),
@@ -422,17 +422,17 @@ fn draw_baseline_comparison(
             MAGENTA.mix(0.7),
         ),
         (
-            "DSFB persistent boundary",
+            "DSFB raw boundary",
             metrics
                 .summary
-                .pass_run_dsfb_persistent_boundary_nuisance_rate,
+                .pass_run_dsfb_raw_boundary_nuisance_rate,
             BLUE.mix(0.7),
         ),
         (
-            "DSFB persistent violation",
+            "DSFB Violation",
             metrics
                 .summary
-                .pass_run_dsfb_persistent_violation_nuisance_rate,
+                .pass_run_dsfb_raw_violation_nuisance_rate,
             CYAN.mix(0.7),
         ),
         (
