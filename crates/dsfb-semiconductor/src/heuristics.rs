@@ -38,7 +38,7 @@ pub fn build_heuristics_bank(
             applicable_dataset: dataset_name.into(),
             provenance_status: observed_status(sustained),
             interpretation:
-                "Candidate PSP-compatible drift motif that supports closer monitoring or maintenance review."
+                "Candidate DSA-compatible drift motif that supports closer monitoring or maintenance review."
                     .into(),
             severity: "review".into(),
             confidence: confidence_note(sustained),
@@ -104,7 +104,7 @@ pub fn build_heuristics_bank(
             applicable_dataset: dataset_name.into(),
             provenance_status: observed_status(grazing),
             interpretation:
-                "Ambiguous PSP motif that warrants continued observation rather than decisive attribution."
+                "Ambiguous DSA motif that warrants continued observation rather than decisive attribution."
                     .into(),
             severity: "review".into(),
             confidence: confidence_note(grazing),
@@ -115,7 +115,7 @@ pub fn build_heuristics_bank(
                 "Escalate when recurrent grazing concentrates in pre-failure windows or transitions into direct violations."
                     .into(),
             non_unique_warning:
-                "Repeated boundary grazing can arise from nuisance variation as well as meaningful PSP structure."
+                "Repeated boundary grazing can arise from nuisance variation as well as meaningful DSA structure."
                     .into(),
             known_limitations:
                 "This motif is especially sensitive to envelope and drift thresholds, so calibration materially affects its prevalence."

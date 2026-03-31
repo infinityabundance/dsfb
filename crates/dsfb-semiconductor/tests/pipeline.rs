@@ -1,6 +1,6 @@
 use dsfb_semiconductor::baselines::{compute_baselines, ewma_series};
 use dsfb_semiconductor::calibration::{
-    run_secom_calibration, run_secom_psp_calibration, CalibrationGrid,
+    run_secom_calibration, run_secom_dsa_calibration, CalibrationGrid,
 };
 use dsfb_semiconductor::config::PipelineConfig;
 use dsfb_semiconductor::dataset::secom;
@@ -63,7 +63,7 @@ fn test_config() -> PipelineConfig {
         pre_failure_lookback_runs: 2,
         minimum_healthy_observations: 2,
         epsilon: 1.0e-9,
-        psp: dsfb_semiconductor::precursor::PspConfig {
+        dsa: dsfb_semiconductor::precursor::DsaConfig {
             window: 3,
             persistence_runs: 2,
             alert_tau: 1.5,
@@ -164,10 +164,10 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "lead_time_metrics.csv",
         "parameter_manifest.json",
         "per_failure_run_signals.csv",
-        "per_failure_run_psp_signals.csv",
+        "per_failure_run_dsa_signals.csv",
         "phm2018_support_status.json",
-        "psp_metrics.csv",
-        "psp_vs_baselines.json",
+        "dsa_metrics.csv",
+        "dsa_vs_baselines.json",
         "residuals.csv",
         "run_bundle.zip",
         "run_configuration.json",
@@ -234,8 +234,8 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("figures/top_feature_drift.png").is_ok());
     assert!(zip.by_name("figures/top_feature_ewma.png").is_ok());
     assert!(zip.by_name("figures/top_feature_slew.png").is_ok());
-    assert!(zip.by_name("psp_metrics.csv").is_ok());
-    assert!(zip.by_name("per_failure_run_psp_signals.csv").is_ok());
+    assert!(zip.by_name("dsa_metrics.csv").is_ok());
+    assert!(zip.by_name("per_failure_run_dsa_signals.csv").is_ok());
     if pdflatex_available() {
         assert!(artifacts.run_dir.join("engineering_report.pdf").exists());
         assert!(zip.by_name("engineering_report.pdf").is_ok());
@@ -243,9 +243,9 @@ fn benchmark_run_writes_expected_core_artifacts() {
 
     let report = fs::read_to_string(artifacts.run_dir.join("engineering_report.md")).unwrap();
     assert!(report.contains("## Artifact Inventory"));
-    assert!(report.contains("## Persistent Structural Precursor (PSP)"));
-    assert!(report.contains("DSFB Violation: instantaneous hard envelope exit"));
-    assert!(report.contains("psp_vs_baselines.json"));
+    assert!(report.contains("## Deterministic Structural Accumulator (DSA)"));
+    assert!(report.contains("DSFB Violation remains instantaneous hard envelope exit"));
+    assert!(report.contains("dsa_vs_baselines.json"));
     assert!(report.contains("engineering_report.pdf"));
     assert!(report.contains("run_bundle.zip"));
 }
@@ -323,12 +323,12 @@ fn calibration_grid_writes_expected_artifacts() {
 }
 
 #[test]
-fn psp_calibration_writes_expected_artifacts() {
+fn dsa_calibration_writes_expected_artifacts() {
     let data_temp = tempfile::tempdir().unwrap();
     let output_temp = tempfile::tempdir().unwrap();
     let data_root = write_fixture_dataset(data_temp.path());
 
-    let artifacts = run_secom_psp_calibration(
+    let artifacts = run_secom_dsa_calibration(
         &data_root,
         Some(output_temp.path()),
         test_config(),
@@ -337,13 +337,13 @@ fn psp_calibration_writes_expected_artifacts() {
     .unwrap();
 
     for file in [
-        "psp_grid_results.csv",
-        "psp_calibration_run_configuration.json",
-        "psp_parameter_grid_manifest.json",
+        "dsa_grid_results.csv",
+        "dsa_calibration_run_configuration.json",
+        "dsa_parameter_grid_manifest.json",
     ] {
         assert!(
             artifacts.run_dir.join(file).exists(),
-            "missing psp calibration artifact {file}"
+            "missing dsa calibration artifact {file}"
         );
     }
 }
