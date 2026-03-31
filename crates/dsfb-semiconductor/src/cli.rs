@@ -1,3 +1,4 @@
+use crate::calibration::{run_secom_calibration, CalibrationGrid};
 use crate::config::PipelineConfig;
 use crate::dataset::phm2018;
 use crate::dataset::secom;
@@ -19,6 +20,7 @@ pub struct Cli {
 enum Command {
     FetchSecom(DataArgs),
     RunSecom(RunSecomArgs),
+    CalibrateSecom(CalibrateSecomArgs),
     ProbePhm2018(ProbePhm2018Args),
 }
 
@@ -58,6 +60,38 @@ struct RunSecomArgs {
     grazing_min_hits: usize,
     #[arg(long, default_value_t = 20)]
     pre_failure_lookback_runs: usize,
+}
+
+#[derive(Debug, Args)]
+struct CalibrateSecomArgs {
+    #[command(flatten)]
+    data: DataArgs,
+    #[arg(long)]
+    output_root: Option<PathBuf>,
+    #[arg(long, default_value_t = false)]
+    fetch_if_missing: bool,
+    #[arg(long, value_delimiter = ',', default_value = "100")]
+    healthy_pass_runs_grid: Vec<usize>,
+    #[arg(long, value_delimiter = ',', default_value = "5")]
+    drift_window_grid: Vec<usize>,
+    #[arg(long, value_delimiter = ',', default_value = "3.0")]
+    envelope_sigma_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "0.5")]
+    boundary_fraction_of_rho_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "0.2")]
+    ewma_alpha_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "3.0")]
+    ewma_sigma_multiplier_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "3.0")]
+    drift_sigma_multiplier_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "3.0")]
+    slew_sigma_multiplier_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "10")]
+    grazing_window_grid: Vec<usize>,
+    #[arg(long, value_delimiter = ',', default_value = "3")]
+    grazing_min_hits_grid: Vec<usize>,
+    #[arg(long, value_delimiter = ',', default_value = "20")]
+    pre_failure_lookback_runs_grid: Vec<usize>,
 }
 
 #[derive(Debug, Args)]
@@ -112,6 +146,36 @@ pub fn run() -> Result<()> {
                 );
             }
             println!("ZIP bundle: {}", artifacts.zip_path.display());
+            Ok(())
+        }
+        Command::CalibrateSecom(args) => {
+            let data_root = args.data.data_root.unwrap_or_else(default_data_root);
+            let output_root = args.output_root.unwrap_or_else(default_output_root);
+            let grid = CalibrationGrid {
+                healthy_pass_runs: args.healthy_pass_runs_grid,
+                drift_window: args.drift_window_grid,
+                envelope_sigma: args.envelope_sigma_grid,
+                boundary_fraction_of_rho: args.boundary_fraction_of_rho_grid,
+                ewma_alpha: args.ewma_alpha_grid,
+                ewma_sigma_multiplier: args.ewma_sigma_multiplier_grid,
+                drift_sigma_multiplier: args.drift_sigma_multiplier_grid,
+                slew_sigma_multiplier: args.slew_sigma_multiplier_grid,
+                grazing_window: args.grazing_window_grid,
+                grazing_min_hits: args.grazing_min_hits_grid,
+                pre_failure_lookback_runs: args.pre_failure_lookback_runs_grid,
+            };
+            let artifacts =
+                run_secom_calibration(&data_root, Some(&output_root), grid, args.fetch_if_missing)?;
+            println!("Calibration run directory: {}", artifacts.run_dir.display());
+            println!(
+                "Calibration grid results: {}",
+                artifacts.grid_results_csv.display()
+            );
+            println!("Calibration summary: {}", artifacts.summary_json.display());
+            println!(
+                "Calibration report: {}",
+                artifacts.report_markdown.display()
+            );
             Ok(())
         }
         Command::ProbePhm2018(args) => {

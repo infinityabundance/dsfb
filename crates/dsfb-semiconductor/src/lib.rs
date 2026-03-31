@@ -1,4 +1,5 @@
 pub mod baselines;
+pub mod calibration;
 pub mod cli;
 pub mod config;
 pub mod dataset;
