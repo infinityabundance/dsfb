@@ -448,7 +448,6 @@ pub fn run_secom_dsa_calibration(
         &baselines,
         &grammar,
         &grid,
-        config.boundary_fraction_of_rho,
         config.pre_failure_lookback_runs,
     )?;
 

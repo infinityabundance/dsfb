@@ -7,6 +7,7 @@ use dsfb_semiconductor::dataset::secom;
 use dsfb_semiconductor::grammar::evaluate_grammar;
 use dsfb_semiconductor::nominal::build_nominal_model;
 use dsfb_semiconductor::pipeline::run_secom_benchmark;
+use dsfb_semiconductor::precursor::evaluate_dsa;
 use dsfb_semiconductor::preprocessing::prepare_secom;
 use dsfb_semiconductor::residual::compute_residuals;
 use dsfb_semiconductor::signs::compute_signs;
@@ -153,8 +154,10 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "benchmark_metrics.json",
         "dataset_summary.json",
         "density_metrics.csv",
+        "dsa_parameter_manifest.json",
         "drsc_top_feature.csv",
         "drifts.csv",
+        "dsa_run_signals.csv",
         "ewma_baseline.csv",
         "engineering_report.md",
         "engineering_report.tex",
@@ -235,6 +238,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("figures/top_feature_ewma.png").is_ok());
     assert!(zip.by_name("figures/top_feature_slew.png").is_ok());
     assert!(zip.by_name("dsa_metrics.csv").is_ok());
+    assert!(zip.by_name("dsa_run_signals.csv").is_ok());
     assert!(zip.by_name("per_failure_run_dsa_signals.csv").is_ok());
     if pdflatex_available() {
         assert!(artifacts.run_dir.join("engineering_report.pdf").exists());
@@ -244,7 +248,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
     let report = fs::read_to_string(artifacts.run_dir.join("engineering_report.md")).unwrap();
     assert!(report.contains("## Artifact Inventory"));
     assert!(report.contains("## Deterministic Structural Accumulator (DSA)"));
-    assert!(report.contains("DSFB Violation remains instantaneous hard envelope exit"));
+    assert!(report.contains("DSFB Violation remains instantaneous envelope exit"));
     assert!(report.contains("dsa_vs_baselines.json"));
     assert!(report.contains("engineering_report.pdf"));
     assert!(report.contains("run_bundle.zip"));
@@ -267,6 +271,7 @@ fn heuristics_bank_entries_include_operational_fields() {
     for key in [
         "severity",
         "confidence",
+        "contributes_to_dsa_scoring",
         "recommended_action",
         "escalation_policy",
         "non_unique_warning",
@@ -364,4 +369,54 @@ fn ewma_baseline_reacts_to_sustained_elevation() {
     assert!(feature.ewma.iter().all(|value| value.is_finite()));
     assert!(feature.threshold.is_finite());
     assert!(feature.alarm.iter().any(|flag| *flag));
+}
+
+#[test]
+fn dsa_outputs_are_finite_and_reproducible() {
+    let data_temp = tempfile::tempdir().unwrap();
+    let data_root = write_fixture_dataset(data_temp.path());
+    let config = test_config();
+    let dataset = secom::load_from_root(&data_root).unwrap();
+    let prepared = prepare_secom(&dataset, &config).unwrap();
+    let nominal = build_nominal_model(&prepared, &config);
+    let residuals = compute_residuals(&prepared, &nominal);
+    let signs = compute_signs(&prepared, &nominal, &residuals, &config);
+    let baselines = compute_baselines(&prepared, &nominal, &residuals, &config);
+    let grammar = evaluate_grammar(&residuals, &signs, &nominal, &config);
+
+    let first = evaluate_dsa(
+        &prepared,
+        &nominal,
+        &residuals,
+        &signs,
+        &baselines,
+        &grammar,
+        &config.dsa,
+        config.pre_failure_lookback_runs,
+    )
+    .unwrap();
+    let second = evaluate_dsa(
+        &prepared,
+        &nominal,
+        &residuals,
+        &signs,
+        &baselines,
+        &grammar,
+        &config.dsa,
+        config.pre_failure_lookback_runs,
+    )
+    .unwrap();
+
+    let first_json = serde_json::to_value(&first.summary).unwrap();
+    let second_json = serde_json::to_value(&second.summary).unwrap();
+    assert_eq!(first_json, second_json);
+
+    for trace in &first.traces {
+        assert!(trace.boundary_density_w.iter().all(|value| value.is_finite()));
+        assert!(trace.drift_persistence_w.iter().all(|value| value.is_finite()));
+        assert!(trace.slew_density_w.iter().all(|value| value.is_finite()));
+        assert!(trace.ewma_occupancy_w.iter().all(|value| value.is_finite()));
+        assert!(trace.motif_recurrence_w.iter().all(|value| value.is_finite()));
+        assert!(trace.dsa_score.iter().all(|value| value.is_finite()));
+    }
 }

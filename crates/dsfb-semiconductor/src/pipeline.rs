@@ -13,7 +13,7 @@ use crate::nominal::build_nominal_model;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
 use crate::plots::{generate_figures, FigureManifest};
 use crate::precursor::{
-    evaluate_dsa, DsaEvaluation, DsaVsBaselinesSummary, PerFailureRunDsaSignal,
+    evaluate_dsa, DsaEvaluation, DsaRunSignals, DsaVsBaselinesSummary, PerFailureRunDsaSignal,
 };
 use crate::preprocessing::prepare_secom;
 use crate::report::{write_reports, ReportArtifacts};
@@ -43,10 +43,12 @@ struct ArtifactManifest {
     metrics_summary_path: String,
     baseline_comparison_summary_path: String,
     dsa_vs_baselines_summary_path: String,
+    dsa_parameter_manifest_path: String,
     lead_time_metrics_path: String,
     density_metrics_path: String,
     per_failure_run_signals_path: String,
     dsa_metrics_path: String,
+    dsa_run_signals_path: String,
     per_failure_run_dsa_signals_path: String,
     secom_archive_layout_path: String,
     drsc_trace_path: Option<String>,
@@ -144,7 +146,6 @@ pub fn run_secom_benchmark(
         &baselines,
         &grammar,
         &config.dsa,
-        config.boundary_fraction_of_rho,
         config.pre_failure_lookback_runs,
     )?;
     metrics.dsa_summary = Some(dsa.summary.clone());
@@ -191,6 +192,10 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsa_vs_baselines.json"),
         &dsa.comparison_summary,
     )?;
+    write_json_pretty(
+        &run_dir.join("dsa_parameter_manifest.json"),
+        &dsa.parameter_manifest,
+    )?;
 
     write_feature_metrics_csv(&run_dir.join("feature_metrics.csv"), &metrics)?;
     write_per_failure_run_signals_csv(
@@ -202,6 +207,11 @@ pub fn run_secom_benchmark(
         &prepared,
         &nominal,
         &dsa,
+    )?;
+    write_dsa_run_signals_csv(
+        &run_dir.join("dsa_run_signals.csv"),
+        &prepared,
+        &dsa.run_signals,
     )?;
     write_per_failure_run_dsa_signals_csv(
         &run_dir.join("per_failure_run_dsa_signals.csv"),
@@ -259,6 +269,10 @@ pub fn run_secom_benchmark(
                 .join("dsa_vs_baselines.json")
                 .display()
                 .to_string(),
+            dsa_parameter_manifest_path: run_dir
+                .join("dsa_parameter_manifest.json")
+                .display()
+                .to_string(),
             lead_time_metrics_path: run_dir.join("lead_time_metrics.csv").display().to_string(),
             density_metrics_path: run_dir.join("density_metrics.csv").display().to_string(),
             per_failure_run_signals_path: run_dir
@@ -266,6 +280,10 @@ pub fn run_secom_benchmark(
                 .display()
                 .to_string(),
             dsa_metrics_path: run_dir.join("dsa_metrics.csv").display().to_string(),
+            dsa_run_signals_path: run_dir
+                .join("dsa_run_signals.csv")
+                .display()
+                .to_string(),
             per_failure_run_dsa_signals_path: run_dir
                 .join("per_failure_run_dsa_signals.csv")
                 .display()
@@ -413,6 +431,10 @@ fn write_dsa_metrics_csv(
         "run_index",
         "timestamp",
         "label",
+        "boundary_basis_hit",
+        "drift_outward_hit",
+        "slew_hit",
+        "motif_hit",
         "boundary_density_W",
         "drift_persistence_W",
         "slew_density_W",
@@ -437,6 +459,10 @@ fn write_dsa_metrics_csv(
                     .format("%Y-%m-%d %H:%M:%S")
                     .to_string(),
                 prepared.labels[run_index].to_string(),
+                trace.boundary_basis_hit[run_index].to_string(),
+                trace.drift_outward_hit[run_index].to_string(),
+                trace.slew_hit[run_index].to_string(),
+                trace.motif_hit[run_index].to_string(),
                 trace.boundary_density_w[run_index].to_string(),
                 trace.drift_persistence_w[run_index].to_string(),
                 trace.slew_density_w[run_index].to_string(),
@@ -448,6 +474,38 @@ fn write_dsa_metrics_csv(
                 trace.dsa_alert[run_index].to_string(),
             ])?;
         }
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_dsa_run_signals_csv(
+    path: &Path,
+    prepared: &crate::preprocessing::PreparedDataset,
+    run_signals: &DsaRunSignals,
+) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    writer.write_record([
+        "run_index",
+        "timestamp",
+        "label",
+        "primary_run_signal",
+        "any_feature_dsa_alert",
+        "feature_count_dsa_alert",
+    ])?;
+
+    for run_index in 0..prepared.labels.len() {
+        writer.write_record([
+            run_index.to_string(),
+            prepared.timestamps[run_index]
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
+            prepared.labels[run_index].to_string(),
+            run_signals.primary_run_signal.clone(),
+            run_signals.any_feature_dsa_alert[run_index].to_string(),
+            run_signals.feature_count_dsa_alert[run_index].to_string(),
+        ])?;
     }
 
     writer.flush()?;

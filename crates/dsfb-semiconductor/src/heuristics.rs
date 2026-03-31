@@ -14,11 +14,20 @@ pub struct HeuristicEntry {
     pub escalation_policy: String,
     pub non_unique_warning: String,
     pub known_limitations: String,
+    pub contributes_to_dsa_scoring: bool,
     pub observed_point_hits: usize,
     pub observed_run_hits: usize,
     pub pre_failure_window_run_hits: usize,
     pub pre_failure_window_precision_proxy: Option<f64>,
     pub status_note: String,
+}
+
+pub fn dsa_contributing_motif_names() -> &'static [&'static str] {
+    &[
+        "pre_failure_slow_drift",
+        "transient_excursion",
+        "recurrent_boundary_approach",
+    ]
 }
 
 pub fn build_heuristics_bank(
@@ -54,6 +63,7 @@ pub fn build_heuristics_bank(
             known_limitations:
                 "SECOM is anonymized and instance-level, so this motif does not support chamber-level attribution on its own."
                     .into(),
+            contributes_to_dsa_scoring: true,
             observed_point_hits: sustained.point_hits,
             observed_run_hits: sustained.run_hits,
             pre_failure_window_run_hits: sustained.pre_failure_window_run_hits,
@@ -87,6 +97,7 @@ pub fn build_heuristics_bank(
             known_limitations:
                 "A single abrupt excursion does not identify physical cause and may not persist long enough for confident attribution."
                     .into(),
+            contributes_to_dsa_scoring: true,
             observed_point_hits: abrupt.point_hits,
             observed_run_hits: abrupt.run_hits,
             pre_failure_window_run_hits: abrupt.pre_failure_window_run_hits,
@@ -120,6 +131,7 @@ pub fn build_heuristics_bank(
             known_limitations:
                 "This motif is especially sensitive to envelope and drift thresholds, so calibration materially affects its prevalence."
                     .into(),
+            contributes_to_dsa_scoring: true,
             observed_point_hits: grazing.point_hits,
             observed_run_hits: grazing.run_hits,
             pre_failure_window_run_hits: grazing.pre_failure_window_run_hits,
