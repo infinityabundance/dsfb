@@ -8,7 +8,7 @@ use crate::nominal::build_nominal_model;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
 use crate::preprocessing::prepare_secom;
 use crate::precursor::{
-    run_precursor_calibration_grid, PrecursorCalibrationGrid, PrecursorCalibrationRow,
+    run_psp_calibration_grid, PspCalibrationGrid, PspCalibrationRow,
 };
 use crate::residual::compute_residuals;
 use crate::signs::compute_signs;
@@ -43,7 +43,7 @@ pub struct CalibrationArtifacts {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PrecursorCalibrationArtifacts {
+pub struct PspCalibrationArtifacts {
     pub run_dir: PathBuf,
     pub grid_results_csv: PathBuf,
 }
@@ -411,12 +411,12 @@ pub fn run_secom_calibration(
     })
 }
 
-pub fn run_secom_precursor_calibration(
+pub fn run_secom_psp_calibration(
     data_root: &Path,
     output_root: Option<&Path>,
     config: PipelineConfig,
     fetch_if_missing: bool,
-) -> Result<PrecursorCalibrationArtifacts> {
+) -> Result<PspCalibrationArtifacts> {
     config
         .validate()
         .map_err(DsfbSemiconductorError::DatasetFormat)?;
@@ -438,9 +438,9 @@ pub fn run_secom_precursor_calibration(
         .map(Path::to_path_buf)
         .unwrap_or_else(default_output_root);
     fs::create_dir_all(&output_root)?;
-    let run_dir = create_timestamped_run_dir(&output_root, "secom_precursor_calibration")?;
-    let grid = PrecursorCalibrationGrid::bounded_default();
-    let rows = run_precursor_calibration_grid(
+    let run_dir = create_timestamped_run_dir(&output_root, "secom_psp_calibration")?;
+    let grid = PspCalibrationGrid::bounded_default();
+    let rows = run_psp_calibration_grid(
         &prepared,
         &nominal,
         &residuals,
@@ -448,13 +448,14 @@ pub fn run_secom_precursor_calibration(
         &baselines,
         &grammar,
         &grid,
+        config.boundary_fraction_of_rho,
         config.pre_failure_lookback_runs,
     )?;
 
-    let grid_results_csv = run_dir.join("precursor_calibration_grid.csv");
-    write_precursor_grid_results(&grid_results_csv, &rows)?;
+    let grid_results_csv = run_dir.join("psp_grid_results.csv");
+    write_psp_grid_results(&grid_results_csv, &rows)?;
     fs::write(
-        run_dir.join("precursor_calibration_run_configuration.json"),
+        run_dir.join("psp_calibration_run_configuration.json"),
         serde_json::to_string_pretty(&CalibrationRunConfiguration {
             dataset: "SECOM".into(),
             data_root: data_root.display().to_string(),
@@ -479,11 +480,11 @@ pub fn run_secom_precursor_calibration(
         })?,
     )?;
     fs::write(
-        run_dir.join("precursor_parameter_grid_manifest.json"),
+        run_dir.join("psp_parameter_grid_manifest.json"),
         serde_json::to_string_pretty(&grid)?,
     )?;
 
-    Ok(PrecursorCalibrationArtifacts {
+    Ok(PspCalibrationArtifacts {
         run_dir,
         grid_results_csv,
     })
@@ -498,7 +499,7 @@ fn write_grid_results(path: &Path, rows: &[CalibrationResultRow]) -> Result<()> 
     Ok(())
 }
 
-fn write_precursor_grid_results(path: &Path, rows: &[PrecursorCalibrationRow]) -> Result<()> {
+fn write_psp_grid_results(path: &Path, rows: &[PspCalibrationRow]) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     for row in rows {
         writer.serialize(row)?;

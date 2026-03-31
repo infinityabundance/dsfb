@@ -11,11 +11,11 @@ The current crate turns real semiconductor datasets into inspectable DSFB artifa
 - drift traces
 - slew traces
 - admissibility-envelope / grammar-state traces
-- precursor structural traces, scores, and persistence-gated alerts
+- PSP structural traces, scores, and persistence-gated alerts
 - provenance-aware heuristics-bank entries with operational fields
 - lead-time, sliding-window density, and pass-run nuisance proxy metrics
 - calibration grid artifacts over the fixed DSFB parameter surface
-- a bounded precursor calibration grid over fixed deterministic threshold and persistence settings
+- a bounded PSP calibration grid over fixed deterministic threshold and persistence settings
 - a deterministic residual stateflow chart (DRSC) plus aligned trace CSV for the top boundary-activity feature
 - all notebook-parity PNG figures directly from the crate
 - an engineering report in Markdown, LaTeX, and PDF when `pdflatex` is available; the PDF includes the generated figures and an artifact inventory
@@ -32,15 +32,15 @@ This crate implements the paper's core operator-facing objects with explicit sav
 - admissibility envelope radius `rho = sigma_multiplier * healthy_std`
 - grammar states `Admissible`, `Boundary`, and `Violation`
 - hysteretic state confirmation together with persistent boundary / violation traces
-- a separate deterministic precursor layer built from rolling boundary density, violation density, drift persistence, transition clustering, EWMA occupancy, and motif recurrence
-- persistence-gated precursor alerts `precursor_score >= tau` for at least `K` consecutive runs
+- a separate deterministic PSP layer built from rolling boundary density, drift persistence with consistent residual sign, slew clustering, normalized EWMA occupancy, and motif recurrence
+- persistence-gated PSP alerts `psp_score >= tau` for at least `K` consecutive runs
 - a provenance-aware heuristics bank built from observed grammar motifs, severity tags, action notes, and limitations
 - two explicit scalar comparators: a raw residual-magnitude threshold and a univariate EWMA residual-norm comparator
-- per-failure-run earliest-signal tracking and lead-time deltas against the scalar comparators for both the DSFB state logic and the DSFB precursor layer
+- per-failure-run earliest-signal tracking and lead-time deltas against the scalar comparators for both the DSFB state logic and the PSP layer
 - sliding-window density summaries for boundary / violation / threshold / EWMA occupancy
 - pass-run nuisance proxies derived from SECOM pass labels
 - a deterministic SECOM calibration workflow over explicit parameter grids
-- a bounded precursor calibration workflow over `W`, `K`, `tau_b`, `tau_d`, `tau_s`, `tau_e`, and `tau`
+- a bounded PSP calibration workflow over `W`, `K`, and `tau`
 - a deterministic residual stateflow chart (DRSC) that synchronizes residual/drift/slew structure, confirmation-filtered grammar state, and admissibility overlay for one emitted feature trace
 
 The implementation is intentionally simple and deterministic. It is designed for auditability and reproducibility, not for inflated benchmark claims.
@@ -120,10 +120,10 @@ cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- calibrate-seco
   --pre-failure-lookback-runs-grid 10,20
 ```
 
-Run the bounded deterministic precursor calibration grid:
+Run the bounded deterministic PSP calibration grid:
 
 ```bash
-cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- calibrate-secom-precursor --fetch-if-missing
+cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- calibrate-secom-psp --fetch-if-missing
 ```
 
 Key configurable parameters:
@@ -142,13 +142,9 @@ Key configurable parameters:
 - `--state-confirmation-steps`
 - `--persistent-state-steps`
 - `--density-window`
-- `--precursor-window`
-- `--precursor-persistence-runs`
-- `--precursor-boundary-density-tau`
-- `--precursor-drift-persistence-tau`
-- `--precursor-transition-cluster-tau`
-- `--precursor-ewma-occupancy-tau`
-- `--precursor-alert-tau`
+- `--psp-window`
+- `--psp-persistence-runs`
+- `--psp-alert-tau`
 
 Calibration-grid arguments:
 
@@ -175,7 +171,7 @@ Current implemented baselines:
 DSFB state-layer distinction:
 
 - `DSFB Violation`: hard envelope exit `|r(k)| > rho`
-- `DSFB Precursor`: persistence-gated structural early warning from rolling structural features
+- `PSP`: persistent multi-signal structural accumulation from rolling structural features
 
 Current baseline classes not implemented:
 
@@ -212,10 +208,10 @@ heuristics_bank.json
 lead_time_metrics.csv
 parameter_manifest.json
 per_failure_run_signals.csv
-per_failure_run_precursor_signals.csv
+per_failure_run_psp_signals.csv
 phm2018_support_status.json
-precursor_metrics.csv
-precursor_vs_baselines_summary.json
+psp_metrics.csv
+psp_vs_baselines.json
 residuals.csv
 run_bundle.zip
 run_configuration.json
@@ -255,13 +251,13 @@ output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_calibration/
   parameter_grid_manifest.json
 ```
 
-The bounded precursor calibration pipeline writes:
+The bounded PSP calibration pipeline writes:
 
 ```text
-output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_precursor_calibration/
-  precursor_calibration_grid.csv
-  precursor_calibration_run_configuration.json
-  precursor_parameter_grid_manifest.json
+output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_psp_calibration/
+  psp_grid_results.csv
+  psp_calibration_run_configuration.json
+  psp_parameter_grid_manifest.json
 ```
 
 ## Reproducibility discipline
@@ -269,7 +265,7 @@ output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_precursor_calibra
 - Every meaningful threshold and window is saved to `parameter_manifest.json`
 - Dataset source and output root are saved to `run_configuration.json`
 - Calibration grids are saved verbatim to `parameter_grid_manifest.json`
-- The bounded precursor calibration grid is saved verbatim to `precursor_parameter_grid_manifest.json`
+- The bounded PSP calibration grid is saved verbatim to `psp_parameter_grid_manifest.json`
 - Missing values are preserved at load time and then deterministically imputed with the healthy-window nominal mean before residual construction
 - Repeated runs with the same inputs and parameters produce the same metrics, traces, and calibration rows, modulo different timestamped output directories
 
@@ -277,10 +273,10 @@ output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_precursor_calibra
 
 The crate establishes deterministic structural artifact generation on real semiconductor data, not a blanket superiority claim over scalar baselines.
 
-- `Violation` and `Precursor` are intentionally different signals: violation is a hard envelope exit, precursor is a persistent structural early warning.
-- The authoritative comparison artifact for the precursor layer is `precursor_vs_baselines_summary.json`.
-- Improvement should only be claimed when that saved summary shows positive precursor lead deltas together with non-lower failure-run recall and non-higher pass-run nuisance proxy versus threshold or EWMA.
-- If the saved precursor metrics do not improve lead time or nuisance, the generated engineering report and `precursor_vs_baselines_summary.json` state that explicitly.
+- `Violation` and `PSP` are intentionally different signals: violation is a hard envelope exit, PSP is a persistent structural early warning.
+- The authoritative comparison artifact for the PSP layer is `psp_vs_baselines.json`.
+- Improvement should only be claimed when that saved summary shows positive PSP lead deltas together with non-lower failure-run recall and non-higher pass-run nuisance proxy versus threshold or EWMA.
+- If the saved PSP metrics do not improve lead time or nuisance, the generated engineering report and `psp_vs_baselines.json` state that explicitly.
 - The lead-time, density, and nuisance values remain proxy metrics on SECOM labels, not fab-qualified false-alarm or economic metrics.
 - The DRSC figure is deterministic and replayable from saved traces, but it is an operator-facing visualization of current rule-based state evolution, not a probabilistic explanation layer.
 

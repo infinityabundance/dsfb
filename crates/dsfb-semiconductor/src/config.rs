@@ -1,4 +1,4 @@
-use crate::precursor::PrecursorConfig;
+use crate::precursor::PspConfig;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,7 +19,7 @@ pub struct PipelineConfig {
     pub pre_failure_lookback_runs: usize,
     pub minimum_healthy_observations: usize,
     pub epsilon: f64,
-    pub precursor: PrecursorConfig,
+    pub psp: PspConfig,
 }
 
 impl Default for PipelineConfig {
@@ -41,7 +41,7 @@ impl Default for PipelineConfig {
             pre_failure_lookback_runs: 20,
             minimum_healthy_observations: 2,
             epsilon: 1.0e-9,
-            precursor: PrecursorConfig::default(),
+            psp: PspConfig::default(),
         }
     }
 }
@@ -78,7 +78,7 @@ impl PipelineConfig {
         if self.minimum_healthy_observations < 2 {
             return Err("minimum_healthy_observations must be at least 2".into());
         }
-        self.precursor
+        self.psp
             .validate()
             .map_err(|err| err.to_string())?;
         Ok(())

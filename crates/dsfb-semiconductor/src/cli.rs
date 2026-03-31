@@ -1,5 +1,5 @@
 use crate::calibration::{
-    run_secom_calibration, run_secom_precursor_calibration, CalibrationGrid,
+    run_secom_calibration, run_secom_psp_calibration, CalibrationGrid,
 };
 use crate::config::PipelineConfig;
 use crate::dataset::phm2018;
@@ -23,7 +23,7 @@ enum Command {
     FetchSecom(DataArgs),
     RunSecom(RunSecomArgs),
     CalibrateSecom(CalibrateSecomArgs),
-    CalibrateSecomPrecursor(CalibrateSecomPrecursorArgs),
+    CalibrateSecomPsp(CalibrateSecomPspArgs),
     ProbePhm2018(ProbePhm2018Args),
 }
 
@@ -70,19 +70,11 @@ struct RunSecomArgs {
     #[arg(long, default_value_t = 20)]
     pre_failure_lookback_runs: usize,
     #[arg(long, default_value_t = 10)]
-    precursor_window: usize,
+    psp_window: usize,
     #[arg(long, default_value_t = 2)]
-    precursor_persistence_runs: usize,
-    #[arg(long, default_value_t = 0.3)]
-    precursor_boundary_density_tau: f64,
-    #[arg(long, default_value_t = 0.3)]
-    precursor_drift_persistence_tau: f64,
-    #[arg(long, default_value_t = 2)]
-    precursor_transition_cluster_tau: usize,
-    #[arg(long, default_value_t = 0.8)]
-    precursor_ewma_occupancy_tau: f64,
+    psp_persistence_runs: usize,
     #[arg(long, default_value_t = 2.5)]
-    precursor_alert_tau: f64,
+    psp_alert_tau: f64,
 }
 
 #[derive(Debug, Args)]
@@ -124,7 +116,7 @@ struct CalibrateSecomArgs {
 }
 
 #[derive(Debug, Args)]
-struct CalibrateSecomPrecursorArgs {
+struct CalibrateSecomPspArgs {
     #[command(flatten)]
     data: DataArgs,
     #[arg(long)]
@@ -197,14 +189,10 @@ pub fn run() -> Result<()> {
                 grazing_window: args.grazing_window,
                 grazing_min_hits: args.grazing_min_hits,
                 pre_failure_lookback_runs: args.pre_failure_lookback_runs,
-                precursor: crate::precursor::PrecursorConfig {
-                    window: args.precursor_window,
-                    persistence_runs: args.precursor_persistence_runs,
-                    boundary_density_tau: args.precursor_boundary_density_tau,
-                    drift_persistence_tau: args.precursor_drift_persistence_tau,
-                    transition_cluster_tau: args.precursor_transition_cluster_tau,
-                    ewma_occupancy_tau: args.precursor_ewma_occupancy_tau,
-                    alert_tau: args.precursor_alert_tau,
+                psp: crate::precursor::PspConfig {
+                    window: args.psp_window,
+                    persistence_runs: args.psp_persistence_runs,
+                    alert_tau: args.psp_alert_tau,
                 },
                 ..PipelineConfig::default()
             };
@@ -260,7 +248,7 @@ pub fn run() -> Result<()> {
             );
             Ok(())
         }
-        Command::CalibrateSecomPrecursor(args) => {
+        Command::CalibrateSecomPsp(args) => {
             let data_root = args.data.data_root.unwrap_or_else(default_data_root);
             let output_root = args.output_root.unwrap_or_else(default_output_root);
             let config = PipelineConfig {
@@ -280,20 +268,17 @@ pub fn run() -> Result<()> {
                 pre_failure_lookback_runs: args.pre_failure_lookback_runs,
                 ..PipelineConfig::default()
             };
-            let artifacts = run_secom_precursor_calibration(
+            let artifacts = run_secom_psp_calibration(
                 &data_root,
                 Some(&output_root),
                 config,
                 args.fetch_if_missing,
             )?;
             println!(
-                "Precursor calibration run directory: {}",
+                "PSP calibration run directory: {}",
                 artifacts.run_dir.display()
             );
-            println!(
-                "Precursor calibration grid: {}",
-                artifacts.grid_results_csv.display()
-            );
+            println!("PSP calibration grid: {}", artifacts.grid_results_csv.display());
             Ok(())
         }
         Command::ProbePhm2018(args) => {

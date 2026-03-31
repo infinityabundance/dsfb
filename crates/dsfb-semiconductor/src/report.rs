@@ -5,7 +5,7 @@ use crate::error::Result;
 use crate::heuristics::HeuristicEntry;
 use crate::metrics::{BenchmarkMetrics, MotifMetric};
 use crate::plots::FigureManifest;
-use crate::precursor::PrecursorEvaluation;
+use crate::precursor::PspEvaluation;
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -29,7 +29,7 @@ pub fn write_reports(
     run_dir: &Path,
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
-    precursor: &PrecursorEvaluation,
+    psp: &PspEvaluation,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
@@ -42,7 +42,7 @@ pub fn write_reports(
         markdown_report(
             config,
             metrics,
-            precursor,
+            psp,
             figures,
             heuristics,
             phm_status,
@@ -54,7 +54,7 @@ pub fn write_reports(
         latex_report(
             config,
             metrics,
-            precursor,
+            psp,
             figures,
             heuristics,
             phm_status,
@@ -75,7 +75,7 @@ pub fn write_reports(
 fn markdown_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
-    precursor: &PrecursorEvaluation,
+    psp: &PspEvaluation,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
@@ -135,19 +135,15 @@ fn markdown_report(
         config.ewma_sigma_multiplier,
     ));
     out.push_str(&format!(
-        "Grammar logic in this crate is intentionally simple and deterministic: raw admissible, boundary, and violation states are derived from the envelope radius, outward drift, abrupt slew, and recurrent boundary grazing rules encoded in the saved parameter manifest. A hysteresis-confirmed state trace and persistence masks are then derived deterministically from those raw states.\n\nIn this crate, `DSFB Violation` means hard envelope exit (`|r| > rho`). `DSFB Precursor` is a separate persistent structural early warning built from rolling boundary density, rolling violation density, drift persistence, transition clustering, EWMA occupancy, and motif recurrence. The current precursor configuration uses `W = {}`, `K = {}`, `tau_b = {:.2}`, `tau_d = {:.2}`, `tau_s = {}`, `tau_e = {:.2}`, `tau = {:.2}`, and fixed equal weights across the five scored precursor terms.\n\n",
-        config.precursor.window,
-        config.precursor.persistence_runs,
-        config.precursor.boundary_density_tau,
-        config.precursor.drift_persistence_tau,
-        config.precursor.transition_cluster_tau,
-        config.precursor.ewma_occupancy_tau,
-        config.precursor.alert_tau,
+        "Grammar logic in this crate is intentionally simple and deterministic: raw admissible, boundary, and violation states are derived from the envelope radius, outward drift, abrupt slew, and recurrent boundary grazing rules encoded in the saved parameter manifest. A hysteresis-confirmed state trace and persistence masks are then derived deterministically from those raw states.\n\nIn this crate, `DSFB Violation` means instantaneous hard envelope exit (`|r| > rho`). `Persistent Structural Precursor (PSP)` is a separate persistence-gated structural accumulation built from rolling boundary density, drift persistence with consistent residual sign, slew clustering, normalized EWMA occupancy, and heuristics-bank motif recurrence. The current PSP configuration uses `W = {}`, `K = {}`, `tau = {:.2}`, and fixed unit weights across the five scored PSP terms.\n\n",
+        config.psp.window,
+        config.psp.persistence_runs,
+        config.psp.alert_tau,
     ));
 
     out.push_str("## Quantitative Summary\n\n");
     out.push_str(&format!(
-        "- Analyzable features: {}\n- Threshold alarm points: {}\n- EWMA alarm points: {}\n- DSFB raw boundary points: {}\n- DSFB persistent boundary points: {}\n- DSFB raw violation points: {}\n- DSFB persistent violation points: {}\n- DSFB precursor alert points: {}\n- DSFB precursor alert runs: {}\n- Failure runs with preceding DSFB precursor signal ({}-run lookback): {}\n- Failure runs with preceding persistent DSFB boundary signal ({}-run lookback): {}\n- Failure runs with preceding persistent DSFB violation signal ({}-run lookback): {}\n- Failure runs with preceding EWMA signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
+        "- Analyzable features: {}\n- Threshold alarm points: {}\n- EWMA alarm points: {}\n- DSFB raw boundary points: {}\n- DSFB persistent boundary points: {}\n- DSFB raw violation points: {}\n- DSFB persistent violation points: {}\n- PSP alert points: {}\n- PSP alert runs: {}\n- Failure runs with preceding PSP signal ({}-run lookback): {}\n- Failure runs with preceding persistent DSFB boundary signal ({}-run lookback): {}\n- Failure runs with preceding persistent DSFB violation signal ({}-run lookback): {}\n- Failure runs with preceding EWMA signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
         metrics.summary.analyzable_feature_count,
         metrics.summary.threshold_alarm_points,
         metrics.summary.ewma_alarm_points,
@@ -155,10 +151,10 @@ fn markdown_report(
         metrics.summary.dsfb_persistent_boundary_points,
         metrics.summary.dsfb_raw_violation_points,
         metrics.summary.dsfb_persistent_violation_points,
-        precursor.summary.alert_point_count,
-        precursor.summary.alert_run_count,
+        psp.summary.alert_point_count,
+        psp.summary.alert_run_count,
         config.pre_failure_lookback_runs,
-        precursor.summary.failure_run_recall,
+        psp.summary.failure_run_recall,
         config.pre_failure_lookback_runs,
         metrics
             .summary
@@ -173,22 +169,22 @@ fn markdown_report(
         metrics.summary.failure_runs_with_preceding_threshold_signal,
     ));
     out.push_str(
-        "In the current implementation, the raw DSFB `Violation` state and the raw threshold share the same envelope-exit condition `|r| > rho`, so raw violation/threshold coincidences are expected before persistence filtering. The precursor layer is evaluated separately and should be interpreted as an early-warning overlay, not as a redefinition of the violation state.\n\n",
+        "In the current implementation, the raw DSFB `Violation` state and the raw threshold share the same envelope-exit condition `|r| > rho`, so raw violation/threshold coincidences are expected before persistence filtering. PSP is evaluated separately and should be interpreted as a persistent multi-signal structural overlay, not as a redefinition of the violation state.\n\n",
     );
 
     out.push_str("## Lead-Time and Nuisance Proxies\n\n");
     out.push_str(&format!(
-        "- Mean DSFB precursor lead (runs): {}\n- Median DSFB precursor lead (runs): {}\n- Mean raw DSFB boundary lead (runs): {}\n- Mean persistent DSFB boundary lead (runs): {}\n- Mean raw DSFB violation lead (runs): {}\n- Mean persistent DSFB violation lead (runs): {}\n- Mean EWMA lead (runs): {}\n- Mean threshold lead (runs): {}\n- Mean DSFB precursor minus EWMA lead delta (runs): {}\n- Mean DSFB precursor minus threshold lead delta (runs): {}\n- Mean persistent DSFB boundary minus EWMA lead delta (runs): {}\n- Mean persistent DSFB boundary minus threshold lead delta (runs): {}\n- Pass-run nuisance proxy, DSFB precursor: {:.4}\n- Pass-run nuisance proxy, persistent DSFB boundary: {:.4}\n- Pass-run nuisance proxy, persistent DSFB violation: {:.4}\n- Pass-run nuisance proxy, EWMA: {:.4}\n- Pass-run nuisance proxy, threshold: {:.4}\n- Persistent boundary episodes: {}\n- Mean persistent boundary episode length: {}\n- Persistent non-escalating boundary episode fraction: {}\n\n",
-        format_option_f64(precursor.summary.mean_lead_time_runs),
-        format_option_f64(precursor.summary.median_lead_time_runs),
+        "- Mean PSP lead (runs): {}\n- Median PSP lead (runs): {}\n- Mean raw DSFB boundary lead (runs): {}\n- Mean persistent DSFB boundary lead (runs): {}\n- Mean raw DSFB violation lead (runs): {}\n- Mean persistent DSFB violation lead (runs): {}\n- Mean EWMA lead (runs): {}\n- Mean threshold lead (runs): {}\n- Mean PSP minus EWMA lead delta (runs): {}\n- Mean PSP minus threshold lead delta (runs): {}\n- Mean persistent DSFB boundary minus EWMA lead delta (runs): {}\n- Mean persistent DSFB boundary minus threshold lead delta (runs): {}\n- Pass-run nuisance proxy, PSP: {:.4}\n- Pass-run nuisance proxy, persistent DSFB boundary: {:.4}\n- Pass-run nuisance proxy, persistent DSFB violation: {:.4}\n- Pass-run nuisance proxy, EWMA: {:.4}\n- Pass-run nuisance proxy, threshold: {:.4}\n- Persistent boundary episodes: {}\n- Mean persistent boundary episode length: {}\n- Mean persistent non-escalating boundary episode fraction: {}\n\n",
+        format_option_f64(psp.summary.mean_lead_time_runs),
+        format_option_f64(psp.summary.median_lead_time_runs),
         format_option_f64(metrics.lead_time_summary.mean_raw_boundary_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_persistent_boundary_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_raw_violation_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_persistent_violation_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_ewma_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_threshold_lead_runs),
-        format_option_f64(precursor.summary.mean_lead_delta_vs_ewma_runs),
-        format_option_f64(precursor.summary.mean_lead_delta_vs_threshold_runs),
+        format_option_f64(psp.summary.mean_lead_delta_vs_ewma_runs),
+        format_option_f64(psp.summary.mean_lead_delta_vs_threshold_runs),
         format_option_f64(
             metrics
                 .lead_time_summary
@@ -199,7 +195,7 @@ fn markdown_report(
                 .lead_time_summary
                 .mean_persistent_boundary_minus_threshold_delta_runs,
         ),
-        precursor.summary.pass_run_nuisance_proxy,
+        psp.summary.pass_run_nuisance_proxy,
         metrics
             .summary
             .pass_run_dsfb_persistent_boundary_nuisance_rate,
@@ -219,31 +215,31 @@ fn markdown_report(
     out.push_str(
         "The nuisance numbers above are pass-run proxies on SECOM labels, not fab-level false-alarm-rate certification metrics.\n\n",
     );
-    out.push_str("## Precursor Comparison\n\n");
+    out.push_str("## Persistent Structural Precursor (PSP)\n\n");
     out.push_str(&format!(
-        "- Failure-run recall, DSFB precursor: {}/{}\n- Failure-run recall, threshold: {}/{}\n- Failure-run recall, EWMA: {}/{}\n- Mean lead time, DSFB precursor: {}\n- Median lead time, DSFB precursor: {}\n- Pass-run nuisance proxy, DSFB precursor: {:.4}\n- Mean lead delta vs threshold (runs): {}\n- Mean lead delta vs EWMA (runs): {}\n\n{}\n\n",
-        precursor.comparison_summary.precursor.failure_run_recall,
-        precursor.comparison_summary.precursor.failure_runs,
-        precursor.comparison_summary.threshold.failure_run_recall,
-        precursor.comparison_summary.threshold.failure_runs,
-        precursor.comparison_summary.ewma.failure_run_recall,
-        precursor.comparison_summary.ewma.failure_runs,
-        format_option_f64(precursor.comparison_summary.precursor.mean_lead_time_runs),
-        format_option_f64(precursor.comparison_summary.precursor.median_lead_time_runs),
-        precursor.comparison_summary.precursor.pass_run_nuisance_proxy,
+        "- DSFB Violation: instantaneous hard envelope exit\n- PSP: persistent multi-signal structural accumulation\n- Failure-run recall, PSP: {}/{}\n- Failure-run recall, threshold: {}/{}\n- Failure-run recall, EWMA: {}/{}\n- Mean lead time, PSP: {}\n- Median lead time, PSP: {}\n- Pass-run nuisance proxy, PSP: {:.4}\n- Mean lead delta vs threshold (runs): {}\n- Mean lead delta vs EWMA (runs): {}\n\n{}\n\n",
+        psp.comparison_summary.psp.failure_run_recall,
+        psp.comparison_summary.psp.failure_runs,
+        psp.comparison_summary.threshold.failure_run_recall,
+        psp.comparison_summary.threshold.failure_runs,
+        psp.comparison_summary.ewma.failure_run_recall,
+        psp.comparison_summary.ewma.failure_runs,
+        format_option_f64(psp.comparison_summary.psp.mean_lead_time_runs),
+        format_option_f64(psp.comparison_summary.psp.median_lead_time_runs),
+        psp.comparison_summary.psp.pass_run_nuisance_proxy,
         format_option_f64(
-            precursor
+            psp
                 .comparison_summary
-                .precursor
+                .psp
                 .mean_lead_delta_vs_threshold_runs,
         ),
         format_option_f64(
-            precursor
+            psp
                 .comparison_summary
-                .precursor
+                .psp
                 .mean_lead_delta_vs_ewma_runs,
         ),
-        precursor.comparison_summary.conclusion,
+        psp.comparison_summary.conclusion,
     ));
     out.push_str(&format!(
         "## Density Summary\n\n- Density window: {} runs\n- Mean persistent boundary density, failure-labeled runs: {:.4}\n- Mean persistent boundary density, pass-labeled runs: {:.4}\n- Mean persistent violation density, failure-labeled runs: {:.4}\n- Mean persistent violation density, pass-labeled runs: {:.4}\n- Mean threshold density, failure-labeled runs: {:.4}\n- Mean threshold density, pass-labeled runs: {:.4}\n- Mean EWMA density, failure-labeled runs: {:.4}\n- Mean EWMA density, pass-labeled runs: {:.4}\n\n",
@@ -257,7 +253,7 @@ fn markdown_report(
         metrics.density_summary.mean_ewma_density_failure,
         metrics.density_summary.mean_ewma_density_pass,
     ));
-    out.push_str(&format!("{}\n\n", precursor_statement(precursor)));
+    out.push_str(&format!("{}\n\n", psp_statement(psp)));
 
     if let Some(drsc) = &figures.drsc {
         out.push_str("## Deterministic Residual Stateflow Chart (DRSC)\n\n");
@@ -339,7 +335,7 @@ fn markdown_report(
 fn latex_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
-    precursor: &PrecursorEvaluation,
+    psp: &PspEvaluation,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
@@ -432,7 +428,7 @@ Healthy passing runs found & {} \\\\
 \\end{{tabular}}
 
 \\section*{{DSFB instantiation}}
-The nominal reference is the healthy-window mean over the first {} passing runs. Residuals are defined as $x(k) - \\hat{{x}}(k)$. The admissibility envelope radius is {:.1}$\\sigma$ on the healthy residual distribution. The drift window is $W = {}$. The boundary rule in this implementation is $|r| > {:.1}\\rho$ with drift above {:.1}$\\sigma_{{\\mathrm{{healthy\\ drift}}}}$. Abrupt slew tags use {:.1}$\\sigma_{{\\mathrm{{healthy\\ slew}}}}$. Hysteresis-confirmed state changes require {} confirmations, persistent-state alarms require {} consecutive confirmed steps, and density metrics use a {}-run sliding window. The scalar comparator set contains a raw residual threshold and a univariate EWMA on residual norms with $\\alpha = {:.2}$ and a threshold at the healthy-window EWMA mean plus {:.1}$\\sigma$. In this crate, \\texttt{{DSFB Violation}} remains the hard envelope exit state, while \\texttt{{DSFB Precursor}} is a separate persistence-gated structural early warning with $W = {}$, $K = {}$, $\\tau_b = {:.2}$, $\\tau_d = {:.2}$, $\\tau_s = {}$, $\\tau_e = {:.2}$, $\\tau = {:.2}$, and fixed equal weights across the five scored precursor terms.
+The nominal reference is the healthy-window mean over the first {} passing runs. Residuals are defined as $x(k) - \\hat{{x}}(k)$. The admissibility envelope radius is {:.1}$\\sigma$ on the healthy residual distribution. The drift window is $W = {}$. The boundary rule in this implementation is $|r| > {:.1}\\rho$ with drift above {:.1}$\\sigma_{{\\mathrm{{healthy\\ drift}}}}$. Abrupt slew tags use {:.1}$\\sigma_{{\\mathrm{{healthy\\ slew}}}}$. Hysteresis-confirmed state changes require {} confirmations, persistent-state alarms require {} consecutive confirmed steps, and density metrics use a {}-run sliding window. The scalar comparator set contains a raw residual threshold and a univariate EWMA on residual norms with $\\alpha = {:.2}$ and a threshold at the healthy-window EWMA mean plus {:.1}$\\sigma$. In this crate, \\texttt{{DSFB Violation}} remains the instantaneous hard envelope exit state, while \\texttt{{PSP}} is a separate persistent multi-signal structural accumulation with $W = {}$, $K = {}$, $\\tau = {:.2}$, and fixed unit weights across the five scored PSP terms.
 
 \\section*{{Quantitative summary}}
 \\begin{{tabular}}{{lr}}
@@ -444,9 +440,9 @@ DSFB raw boundary points & {} \\\\
 DSFB persistent boundary points & {} \\\\
 DSFB raw violation points & {} \\\\
 DSFB persistent violation points & {} \\\\
-DSFB precursor alert points & {} \\\\
-DSFB precursor alert runs & {} \\\\
-Failure runs with preceding DSFB precursor signal & {} \\\\
+PSP alert points & {} \\\\
+PSP alert runs & {} \\\\
+Failure runs with preceding PSP signal & {} \\\\
 Failure runs with preceding persistent DSFB boundary signal & {} \\\\
 Failure runs with preceding persistent DSFB violation signal & {} \\\\
 Failure runs with preceding EWMA signal & {} \\\\
@@ -454,24 +450,24 @@ Failure runs with preceding threshold signal & {} \\\\
 \\bottomrule
 \\end{{tabular}}
 
-In the current implementation, the raw DSFB \\texttt{{Violation}} state and the raw threshold share the same envelope-exit condition $|r| > \\rho$, so raw violation/threshold coincidences are expected before persistence filtering. The precursor layer is evaluated separately as an early-warning overlay and is not a redefinition of the violation state.
+In the current implementation, the raw DSFB \\texttt{{Violation}} state and the raw threshold share the same envelope-exit condition $|r| > \\rho$, so raw violation/threshold coincidences are expected before persistence filtering. PSP is evaluated separately as a persistent multi-signal structural overlay and is not a redefinition of the violation state.
 
 \\section*{{Lead-time and nuisance proxies}}
 \\begin{{tabular}}{{lr}}
 \\toprule
-Mean DSFB precursor lead (runs) & {} \\\\
-Median DSFB precursor lead (runs) & {} \\\\
+Mean PSP lead (runs) & {} \\\\
+Median PSP lead (runs) & {} \\\\
 Mean raw DSFB boundary lead (runs) & {} \\\\
 Mean persistent DSFB boundary lead (runs) & {} \\\\
 Mean raw DSFB violation lead (runs) & {} \\\\
 Mean persistent DSFB violation lead (runs) & {} \\\\
 Mean EWMA lead (runs) & {} \\\\
 Mean threshold lead (runs) & {} \\\\
-Mean DSFB precursor minus EWMA lead delta & {} \\\\
-Mean DSFB precursor minus threshold lead delta & {} \\\\
+Mean PSP minus EWMA lead delta & {} \\\\
+Mean PSP minus threshold lead delta & {} \\\\
 Mean persistent DSFB boundary minus EWMA lead delta & {} \\\\
 Mean persistent DSFB boundary minus threshold lead delta & {} \\\\
-Pass-run nuisance proxy, DSFB precursor & {:.4} \\\\
+Pass-run nuisance proxy, PSP & {:.4} \\\\
 Pass-run nuisance proxy, persistent DSFB boundary & {:.4} \\\\
 Pass-run nuisance proxy, persistent DSFB violation & {:.4} \\\\
 Pass-run nuisance proxy, EWMA & {:.4} \\\\
@@ -484,15 +480,15 @@ Persistent non-escalating boundary episode fraction & {} \\\\
 
 These nuisance values are pass-run proxies on SECOM labels, not fab-qualified false-alarm-rate certification metrics.
 
-\\section*{{Precursor comparison}}
+\\section*{{Persistent Structural Precursor (PSP)}}
 \\begin{{tabular}}{{lr}}
 \\toprule
-Failure-run recall, DSFB precursor & {}/{} \\\\
+Failure-run recall, PSP & {}/{} \\\\
 Failure-run recall, threshold & {}/{} \\\\
 Failure-run recall, EWMA & {}/{} \\\\
-Mean lead time, DSFB precursor & {} \\\\
-Median lead time, DSFB precursor & {} \\\\
-Pass-run nuisance proxy, DSFB precursor & {:.4} \\\\
+Mean lead time, PSP & {} \\\\
+Median lead time, PSP & {} \\\\
+Pass-run nuisance proxy, PSP & {:.4} \\\\
 Mean lead delta vs threshold & {} \\\\
 Mean lead delta vs EWMA & {} \\\\
 \\bottomrule
@@ -595,13 +591,9 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
         config.density_window,
         config.ewma_alpha,
         config.ewma_sigma_multiplier,
-        config.precursor.window,
-        config.precursor.persistence_runs,
-        config.precursor.boundary_density_tau,
-        config.precursor.drift_persistence_tau,
-        config.precursor.transition_cluster_tau,
-        config.precursor.ewma_occupancy_tau,
-        config.precursor.alert_tau,
+        config.psp.window,
+        config.psp.persistence_runs,
+        config.psp.alert_tau,
         metrics.summary.analyzable_feature_count,
         metrics.summary.threshold_alarm_points,
         metrics.summary.ewma_alarm_points,
@@ -609,9 +601,9 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
         metrics.summary.dsfb_persistent_boundary_points,
         metrics.summary.dsfb_raw_violation_points,
         metrics.summary.dsfb_persistent_violation_points,
-        precursor.summary.alert_point_count,
-        precursor.summary.alert_run_count,
-        precursor.summary.failure_run_recall,
+        psp.summary.alert_point_count,
+        psp.summary.alert_run_count,
+        psp.summary.failure_run_recall,
         metrics
             .summary
             .failure_runs_with_preceding_dsfb_persistent_boundary_signal,
@@ -620,16 +612,16 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
             .failure_runs_with_preceding_dsfb_persistent_violation_signal,
         metrics.summary.failure_runs_with_preceding_ewma_signal,
         metrics.summary.failure_runs_with_preceding_threshold_signal,
-        format_option_f64(precursor.summary.mean_lead_time_runs),
-        format_option_f64(precursor.summary.median_lead_time_runs),
+        format_option_f64(psp.summary.mean_lead_time_runs),
+        format_option_f64(psp.summary.median_lead_time_runs),
         format_option_f64(metrics.lead_time_summary.mean_raw_boundary_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_persistent_boundary_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_raw_violation_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_persistent_violation_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_ewma_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_threshold_lead_runs),
-        format_option_f64(precursor.summary.mean_lead_delta_vs_ewma_runs),
-        format_option_f64(precursor.summary.mean_lead_delta_vs_threshold_runs),
+        format_option_f64(psp.summary.mean_lead_delta_vs_ewma_runs),
+        format_option_f64(psp.summary.mean_lead_delta_vs_threshold_runs),
         format_option_f64(
             metrics
                 .lead_time_summary
@@ -640,7 +632,7 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
                 .lead_time_summary
                 .mean_persistent_boundary_minus_threshold_delta_runs,
         ),
-        precursor.summary.pass_run_nuisance_proxy,
+        psp.summary.pass_run_nuisance_proxy,
         metrics
             .summary
             .pass_run_dsfb_persistent_boundary_nuisance_rate,
@@ -656,28 +648,28 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
                 .boundary_episode_summary
                 .persistent_non_escalating_episode_fraction,
         ),
-        precursor.comparison_summary.precursor.failure_run_recall,
-        precursor.comparison_summary.precursor.failure_runs,
-        precursor.comparison_summary.threshold.failure_run_recall,
-        precursor.comparison_summary.threshold.failure_runs,
-        precursor.comparison_summary.ewma.failure_run_recall,
-        precursor.comparison_summary.ewma.failure_runs,
-        format_option_f64(precursor.comparison_summary.precursor.mean_lead_time_runs),
-        format_option_f64(precursor.comparison_summary.precursor.median_lead_time_runs),
-        precursor.comparison_summary.precursor.pass_run_nuisance_proxy,
+        psp.comparison_summary.psp.failure_run_recall,
+        psp.comparison_summary.psp.failure_runs,
+        psp.comparison_summary.threshold.failure_run_recall,
+        psp.comparison_summary.threshold.failure_runs,
+        psp.comparison_summary.ewma.failure_run_recall,
+        psp.comparison_summary.ewma.failure_runs,
+        format_option_f64(psp.comparison_summary.psp.mean_lead_time_runs),
+        format_option_f64(psp.comparison_summary.psp.median_lead_time_runs),
+        psp.comparison_summary.psp.pass_run_nuisance_proxy,
         format_option_f64(
-            precursor
+            psp
                 .comparison_summary
-                .precursor
+                .psp
                 .mean_lead_delta_vs_threshold_runs,
         ),
         format_option_f64(
-            precursor
+            psp
                 .comparison_summary
-                .precursor
+                .psp
                 .mean_lead_delta_vs_ewma_runs,
         ),
-        latex_escape(&precursor.comparison_summary.conclusion),
+        latex_escape(&psp.comparison_summary.conclusion),
         metrics.density_summary.density_window,
         metrics.density_summary.mean_persistent_boundary_density_failure,
         metrics.density_summary.mean_persistent_boundary_density_pass,
@@ -687,7 +679,7 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
         metrics.density_summary.mean_threshold_density_pass,
         metrics.density_summary.mean_ewma_density_failure,
         metrics.density_summary.mean_ewma_density_pass,
-        latex_escape(&precursor_statement(precursor)),
+        latex_escape(&psp_statement(psp)),
         drsc_latex_section(figures),
         motif_rows,
         heuristic_rows,
@@ -707,7 +699,7 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
         },
         ArtifactInventoryEntry {
             path: "parameter_manifest.json".into(),
-            role: "Saved deterministic DSFB and precursor parameter values.".into(),
+            role: "Saved deterministic DSFB and PSP parameter values.".into(),
         },
         ArtifactInventoryEntry {
             path: "run_configuration.json".into(),
@@ -722,24 +714,24 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
             role: "DSFB state-layer comparison against threshold and EWMA baselines.".into(),
         },
         ArtifactInventoryEntry {
-            path: "precursor_vs_baselines_summary.json".into(),
-            role: "Saved precursor recall, lead-time, nuisance, and delta comparison summary.".into(),
+            path: "psp_vs_baselines.json".into(),
+            role: "Saved PSP recall, lead-time, nuisance, and delta comparison summary.".into(),
         },
         ArtifactInventoryEntry {
             path: "feature_metrics.csv".into(),
             role: "Per-feature DSFB and baseline point counts.".into(),
         },
         ArtifactInventoryEntry {
-            path: "precursor_metrics.csv".into(),
-            role: "Per-feature, per-run precursor structural features, scores, and alerts.".into(),
+            path: "psp_metrics.csv".into(),
+            role: "Per-feature, per-run PSP structural features, scores, and alerts.".into(),
         },
         ArtifactInventoryEntry {
             path: "per_failure_run_signals.csv".into(),
             role: "Per-failure DSFB state-layer earliest-signal and lead-time records.".into(),
         },
         ArtifactInventoryEntry {
-            path: "per_failure_run_precursor_signals.csv".into(),
-            role: "Per-failure precursor earliest-signal and lead-time records.".into(),
+            path: "per_failure_run_psp_signals.csv".into(),
+            role: "Per-failure PSP earliest-signal and lead-time records.".into(),
         },
         ArtifactInventoryEntry {
             path: "lead_time_metrics.csv".into(),
@@ -833,8 +825,8 @@ fn drsc_latex_section(figures: &FigureManifest) -> String {
     }
 }
 
-fn precursor_statement(precursor: &PrecursorEvaluation) -> String {
-    precursor.comparison_summary.conclusion.clone()
+fn psp_statement(psp: &PspEvaluation) -> String {
+    psp.comparison_summary.conclusion.clone()
 }
 
 fn motif_row(metric: &MotifMetric) -> String {

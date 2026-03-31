@@ -13,8 +13,7 @@ use crate::nominal::build_nominal_model;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
 use crate::plots::{generate_figures, FigureManifest};
 use crate::precursor::{
-    evaluate_precursor, PerFailureRunPrecursorSignal, PrecursorEvaluation,
-    PrecursorVsBaselinesSummary,
+    evaluate_psp, PerFailureRunPspSignal, PspEvaluation, PspVsBaselinesSummary,
 };
 use crate::preprocessing::prepare_secom;
 use crate::report::{write_reports, ReportArtifacts};
@@ -43,12 +42,12 @@ struct ArtifactManifest {
     run_dir: String,
     metrics_summary_path: String,
     baseline_comparison_summary_path: String,
-    precursor_vs_baselines_summary_path: String,
+    psp_vs_baselines_summary_path: String,
     lead_time_metrics_path: String,
     density_metrics_path: String,
     per_failure_run_signals_path: String,
-    precursor_metrics_path: String,
-    per_failure_run_precursor_signals_path: String,
+    psp_metrics_path: String,
+    per_failure_run_psp_signals_path: String,
     secom_archive_layout_path: String,
     drsc_trace_path: Option<String>,
     drsc_figure_path: Option<String>,
@@ -71,7 +70,7 @@ struct BaselineComparisonSummary {
     lead_time_summary: LeadTimeSummary,
     density_summary: DensitySummary,
     boundary_episode_summary: BoundaryEpisodeSummary,
-    precursor_comparison_summary: Option<PrecursorVsBaselinesSummary>,
+    psp_comparison_summary: Option<PspVsBaselinesSummary>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -82,7 +81,7 @@ struct FailureRunRecallSummary {
     dsfb_persistent_boundary_signal: usize,
     dsfb_raw_violation_signal: usize,
     dsfb_persistent_violation_signal: usize,
-    dsfb_precursor_signal: usize,
+    dsfb_psp_signal: usize,
     ewma_signal: usize,
     threshold_signal: usize,
 }
@@ -93,14 +92,14 @@ struct PassRunNuisanceSummary {
     dsfb_persistent_boundary_signal_runs: usize,
     dsfb_raw_violation_signal_runs: usize,
     dsfb_persistent_violation_signal_runs: usize,
-    dsfb_precursor_signal_runs: usize,
+    dsfb_psp_signal_runs: usize,
     ewma_signal_runs: usize,
     threshold_signal_runs: usize,
     dsfb_raw_boundary_signal_rate: f64,
     dsfb_persistent_boundary_signal_rate: f64,
     dsfb_raw_violation_signal_rate: f64,
     dsfb_persistent_violation_signal_rate: f64,
-    dsfb_precursor_signal_rate: f64,
+    dsfb_psp_signal_rate: f64,
     ewma_signal_rate: f64,
     threshold_signal_rate: f64,
 }
@@ -137,17 +136,18 @@ pub fn run_secom_benchmark(
         &grammar,
         &config,
     );
-    let precursor = evaluate_precursor(
+    let psp = evaluate_psp(
         &prepared,
         &nominal,
         &residuals,
         &signs,
         &baselines,
         &grammar,
-        &config.precursor,
+        &config.psp,
+        config.boundary_fraction_of_rho,
         config.pre_failure_lookback_runs,
     )?;
-    metrics.precursor_summary = Some(precursor.summary.clone());
+    metrics.psp_summary = Some(psp.summary.clone());
     let heuristics = build_heuristics_bank(&metrics, "SECOM");
 
     let output_root = output_root
@@ -182,14 +182,14 @@ pub fn run_secom_benchmark(
         &run_dir.join("baseline_comparison_summary.json"),
         &build_baseline_comparison_summary(
             &metrics,
-            &precursor,
+            &psp,
             &secom_archive_layout,
             &config,
         ),
     )?;
     write_json_pretty(
-        &run_dir.join("precursor_vs_baselines_summary.json"),
-        &precursor.comparison_summary,
+        &run_dir.join("psp_vs_baselines.json"),
+        &psp.comparison_summary,
     )?;
 
     write_feature_metrics_csv(&run_dir.join("feature_metrics.csv"), &metrics)?;
@@ -197,15 +197,15 @@ pub fn run_secom_benchmark(
         &run_dir.join("per_failure_run_signals.csv"),
         &metrics.per_failure_run_signals,
     )?;
-    write_precursor_metrics_csv(
-        &run_dir.join("precursor_metrics.csv"),
+    write_psp_metrics_csv(
+        &run_dir.join("psp_metrics.csv"),
         &prepared,
         &nominal,
-        &precursor,
+        &psp,
     )?;
-    write_per_failure_run_precursor_signals_csv(
-        &run_dir.join("per_failure_run_precursor_signals.csv"),
-        &precursor.per_failure_run_signals,
+    write_per_failure_run_psp_signals_csv(
+        &run_dir.join("per_failure_run_psp_signals.csv"),
+        &psp.per_failure_run_signals,
     )?;
     write_lead_time_metrics_csv(
         &run_dir.join("lead_time_metrics.csv"),
@@ -227,14 +227,14 @@ pub fn run_secom_benchmark(
         &baselines,
         &grammar,
         &metrics,
-        &precursor,
+        &psp,
         &config,
     )?;
     let report = write_reports(
         &run_dir,
         &config,
         &metrics,
-        &precursor,
+        &psp,
         &figures,
         &heuristics,
         &phm_support_status(data_root),
@@ -255,8 +255,8 @@ pub fn run_secom_benchmark(
                 .join("baseline_comparison_summary.json")
                 .display()
                 .to_string(),
-            precursor_vs_baselines_summary_path: run_dir
-                .join("precursor_vs_baselines_summary.json")
+            psp_vs_baselines_summary_path: run_dir
+                .join("psp_vs_baselines.json")
                 .display()
                 .to_string(),
             lead_time_metrics_path: run_dir.join("lead_time_metrics.csv").display().to_string(),
@@ -265,9 +265,9 @@ pub fn run_secom_benchmark(
                 .join("per_failure_run_signals.csv")
                 .display()
                 .to_string(),
-            precursor_metrics_path: run_dir.join("precursor_metrics.csv").display().to_string(),
-            per_failure_run_precursor_signals_path: run_dir
-                .join("per_failure_run_precursor_signals.csv")
+            psp_metrics_path: run_dir.join("psp_metrics.csv").display().to_string(),
+            per_failure_run_psp_signals_path: run_dir
+                .join("per_failure_run_psp_signals.csv")
                 .display()
                 .to_string(),
             secom_archive_layout_path: run_dir
@@ -309,7 +309,7 @@ pub fn run_secom_benchmark(
 
 fn build_baseline_comparison_summary(
     metrics: &BenchmarkMetrics,
-    precursor: &PrecursorEvaluation,
+    psp: &PspEvaluation,
     secom_archive_layout: &SecomArchiveLayout,
     config: &PipelineConfig,
 ) -> BaselineComparisonSummary {
@@ -337,7 +337,7 @@ fn build_baseline_comparison_summary(
             dsfb_persistent_violation_signal: metrics
                 .summary
                 .failure_runs_with_preceding_dsfb_persistent_violation_signal,
-            dsfb_precursor_signal: precursor.summary.failure_run_recall,
+            dsfb_psp_signal: psp.summary.failure_run_recall,
             ewma_signal: metrics.summary.failure_runs_with_preceding_ewma_signal,
             threshold_signal: metrics.summary.failure_runs_with_preceding_threshold_signal,
         },
@@ -350,7 +350,7 @@ fn build_baseline_comparison_summary(
             dsfb_persistent_violation_signal_runs: metrics
                 .summary
                 .pass_runs_with_dsfb_persistent_violation_signal,
-            dsfb_precursor_signal_runs: (precursor.summary.pass_run_nuisance_proxy
+            dsfb_psp_signal_runs: (psp.summary.pass_run_nuisance_proxy
                 * metrics.summary.pass_runs as f64)
                 .round() as usize,
             ewma_signal_runs: metrics.summary.pass_runs_with_ewma_signal,
@@ -365,14 +365,14 @@ fn build_baseline_comparison_summary(
             dsfb_persistent_violation_signal_rate: metrics
                 .summary
                 .pass_run_dsfb_persistent_violation_nuisance_rate,
-            dsfb_precursor_signal_rate: precursor.summary.pass_run_nuisance_proxy,
+            dsfb_psp_signal_rate: psp.summary.pass_run_nuisance_proxy,
             ewma_signal_rate: metrics.summary.pass_run_ewma_nuisance_rate,
             threshold_signal_rate: metrics.summary.pass_run_threshold_nuisance_rate,
         },
         lead_time_summary: metrics.lead_time_summary.clone(),
         density_summary: metrics.density_summary.clone(),
         boundary_episode_summary: metrics.boundary_episode_summary.clone(),
-        precursor_comparison_summary: Some(precursor.comparison_summary.clone()),
+        psp_comparison_summary: Some(psp.comparison_summary.clone()),
     }
 }
 
@@ -400,11 +400,11 @@ fn write_per_failure_run_signals_csv(path: &Path, records: &[PerFailureRunSignal
     Ok(())
 }
 
-fn write_precursor_metrics_csv(
+fn write_psp_metrics_csv(
     path: &Path,
     prepared: &crate::preprocessing::PreparedDataset,
     nominal: &crate::nominal::NominalModel,
-    precursor: &PrecursorEvaluation,
+    psp: &PspEvaluation,
 ) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     writer.write_record([
@@ -414,21 +414,20 @@ fn write_precursor_metrics_csv(
         "timestamp",
         "label",
         "boundary_density_W",
-        "violation_density_W",
         "drift_persistence_W",
-        "transition_cluster_W",
+        "slew_cluster_W",
         "ewma_occupancy_W",
         "motif_recurrence_W",
-        "precursor_score",
-        "precursor_active",
-        "precursor_alert",
+        "psp_score",
+        "psp_active",
+        "psp_alert",
     ])?;
 
-    for trace in &precursor.traces {
+    for trace in &psp.traces {
         if !nominal.features[trace.feature_index].analyzable {
             continue;
         }
-        for run_index in 0..trace.precursor_score.len() {
+        for run_index in 0..trace.psp_score.len() {
             writer.write_record([
                 trace.feature_index.to_string(),
                 trace.feature_name.clone(),
@@ -438,14 +437,13 @@ fn write_precursor_metrics_csv(
                     .to_string(),
                 prepared.labels[run_index].to_string(),
                 trace.boundary_density_w[run_index].to_string(),
-                trace.violation_density_w[run_index].to_string(),
                 trace.drift_persistence_w[run_index].to_string(),
-                trace.transition_cluster_w[run_index].to_string(),
+                trace.slew_cluster_w[run_index].to_string(),
                 trace.ewma_occupancy_w[run_index].to_string(),
                 trace.motif_recurrence_w[run_index].to_string(),
-                trace.precursor_score[run_index].to_string(),
-                trace.precursor_active[run_index].to_string(),
-                trace.precursor_alert[run_index].to_string(),
+                trace.psp_score[run_index].to_string(),
+                trace.psp_active[run_index].to_string(),
+                trace.psp_alert[run_index].to_string(),
             ])?;
         }
     }
@@ -454,9 +452,9 @@ fn write_precursor_metrics_csv(
     Ok(())
 }
 
-fn write_per_failure_run_precursor_signals_csv(
+fn write_per_failure_run_psp_signals_csv(
     path: &Path,
-    records: &[PerFailureRunPrecursorSignal],
+    records: &[PerFailureRunPspSignal],
 ) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     for record in records {
