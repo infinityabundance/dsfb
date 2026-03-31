@@ -44,13 +44,17 @@ pub fn compute_signs(
             .collect::<Vec<_>>();
         let drift_threshold = if feature.analyzable {
             config.drift_sigma_multiplier
-                * sample_std(&healthy_drift).unwrap_or(config.epsilon).max(config.epsilon)
+                * sample_std(&healthy_drift)
+                    .unwrap_or(config.epsilon)
+                    .max(config.epsilon)
         } else {
             0.0
         };
         let slew_threshold = if feature.analyzable {
             config.slew_sigma_multiplier
-                * sample_std(&healthy_slew).unwrap_or(config.epsilon).max(config.epsilon)
+                * sample_std(&healthy_slew)
+                    .unwrap_or(config.epsilon)
+                    .max(config.epsilon)
         } else {
             0.0
         };

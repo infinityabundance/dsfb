@@ -73,7 +73,10 @@ pub fn evaluate_grammar(
             } else if norm > config.boundary_fraction_of_rho * feature.rho
                 && zone_hits >= config.grazing_min_hits
             {
-                (GrammarState::Boundary, GrammarReason::RecurrentBoundaryGrazing)
+                (
+                    GrammarState::Boundary,
+                    GrammarReason::RecurrentBoundaryGrazing,
+                )
             } else {
                 (GrammarState::Admissible, GrammarReason::Admissible)
             };
@@ -135,6 +138,9 @@ mod tests {
         };
         let grammar = evaluate_grammar(&residuals, &signs, &nominal, &PipelineConfig::default());
         assert_eq!(grammar.traces[0].states[1], GrammarState::Violation);
-        assert_eq!(grammar.traces[0].reasons[1], GrammarReason::EnvelopeViolation);
+        assert_eq!(
+            grammar.traces[0].reasons[1],
+            GrammarReason::EnvelopeViolation
+        );
     }
 }

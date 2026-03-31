@@ -6,6 +6,8 @@ pub struct PipelineConfig {
     pub drift_window: usize,
     pub envelope_sigma: f64,
     pub boundary_fraction_of_rho: f64,
+    pub ewma_alpha: f64,
+    pub ewma_sigma_multiplier: f64,
     pub drift_sigma_multiplier: f64,
     pub slew_sigma_multiplier: f64,
     pub grazing_window: usize,
@@ -22,6 +24,8 @@ impl Default for PipelineConfig {
             drift_window: 5,
             envelope_sigma: 3.0,
             boundary_fraction_of_rho: 0.5,
+            ewma_alpha: 0.2,
+            ewma_sigma_multiplier: 3.0,
             drift_sigma_multiplier: 3.0,
             slew_sigma_multiplier: 3.0,
             grazing_window: 10,
@@ -46,6 +50,12 @@ impl PipelineConfig {
         }
         if !(0.0..=1.0).contains(&self.boundary_fraction_of_rho) {
             return Err("boundary_fraction_of_rho must be in [0, 1]".into());
+        }
+        if !(0.0..=1.0).contains(&self.ewma_alpha) || self.ewma_alpha == 0.0 {
+            return Err("ewma_alpha must be in (0, 1]".into());
+        }
+        if self.ewma_sigma_multiplier <= 0.0 {
+            return Err("ewma_sigma_multiplier must be positive".into());
         }
         if self.minimum_healthy_observations < 2 {
             return Err("minimum_healthy_observations must be at least 2".into());

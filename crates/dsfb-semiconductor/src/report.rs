@@ -27,8 +27,14 @@ pub fn write_reports(
 ) -> Result<ReportArtifacts> {
     let markdown_path = run_dir.join("engineering_report.md");
     let tex_path = run_dir.join("engineering_report.tex");
-    fs::write(&markdown_path, markdown_report(config, metrics, figures, heuristics, phm_status))?;
-    fs::write(&tex_path, latex_report(config, metrics, figures, heuristics, phm_status))?;
+    fs::write(
+        &markdown_path,
+        markdown_report(config, metrics, figures, heuristics, phm_status),
+    )?;
+    fs::write(
+        &tex_path,
+        latex_report(config, metrics, figures, heuristics, phm_status),
+    )?;
 
     let (pdf_path, pdf_error) = compile_pdf(&tex_path, run_dir);
 
@@ -51,7 +57,9 @@ fn markdown_report(
     out.push_str("# DSFB Semiconductor Engineering Report\n\n");
     out.push_str("## Dataset\n\n");
     out.push_str("- Dataset: SECOM (UCI Machine Learning Repository)\n");
-    out.push_str("- Evidence class: Stage II public-benchmark evidence on real semiconductor data\n");
+    out.push_str(
+        "- Evidence class: Stage II public-benchmark evidence on real semiconductor data\n",
+    );
     out.push_str("- Non-claim: this run does not establish SEMI compliance, production readiness, or physical root-cause attribution\n\n");
     out.push_str("## Preprocessing Summary\n\n");
     out.push_str(&format!(
@@ -67,7 +75,7 @@ fn markdown_report(
     out.push_str("Missing values are kept as explicit missing entries during dataset loading and then imputed feature-wise with the healthy-window nominal mean before residual construction. This keeps the residual transform deterministic and auditable, but it does not make missingness semantically neutral.\n\n");
     out.push_str("## DSFB Instantiation\n\n");
     out.push_str(&format!(
-        "- Nominal reference: healthy-window mean over first {} passing runs\n- Residual: x(k) - x_hat\n- Envelope radius rho: {:.1} * healthy-window residual std\n- Drift window W: {}\n- Boundary condition: |r| > {:.1} * rho and drift > {:.1} * healthy drift std\n- Slew threshold: {:.1} * healthy slew std\n- Recurrent-boundary grazing: {} hits in a {}-run window\n- Baseline comparator: univariate 3-sigma residual threshold\n\n",
+        "- Nominal reference: healthy-window mean over first {} passing runs\n- Residual: x(k) - x_hat\n- Envelope radius rho: {:.1} * healthy-window residual std\n- Drift window W: {}\n- Boundary condition: |r| > {:.1} * rho and drift > {:.1} * healthy drift std\n- Slew threshold: {:.1} * healthy slew std\n- Recurrent-boundary grazing: {} hits in a {}-run window\n- Baseline comparators: univariate 3-sigma residual threshold, plus univariate EWMA on residual norms with alpha = {:.2} and threshold mean + {:.1} * healthy EWMA std\n\n",
         config.healthy_pass_runs,
         config.envelope_sigma,
         config.drift_window,
@@ -76,17 +84,22 @@ fn markdown_report(
         config.slew_sigma_multiplier,
         config.grazing_min_hits,
         config.grazing_window,
+        config.ewma_alpha,
+        config.ewma_sigma_multiplier,
     ));
     out.push_str("Grammar logic in this crate is intentionally simple and deterministic: admissible, boundary, and violation states are derived from the envelope radius, outward drift, abrupt slew, and recurrent boundary grazing rules encoded in the saved parameter manifest.\n\n");
     out.push_str("## Quantitative Summary\n\n");
     out.push_str(&format!(
-        "- Analyzable features: {}\n- Threshold alarm points: {}\n- DSFB boundary points: {}\n- DSFB violation points: {}\n- Failure runs with preceding DSFB signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
+        "- Analyzable features: {}\n- Threshold alarm points: {}\n- EWMA alarm points: {}\n- DSFB boundary points: {}\n- DSFB violation points: {}\n- Failure runs with preceding DSFB signal ({}-run lookback): {}\n- Failure runs with preceding EWMA signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
         metrics.summary.analyzable_feature_count,
         metrics.summary.threshold_alarm_points,
+        metrics.summary.ewma_alarm_points,
         metrics.summary.dsfb_boundary_points,
         metrics.summary.dsfb_violation_points,
         config.pre_failure_lookback_runs,
         metrics.summary.failure_runs_with_preceding_dsfb_signal,
+        config.pre_failure_lookback_runs,
+        metrics.summary.failure_runs_with_preceding_ewma_signal,
         config.pre_failure_lookback_runs,
         metrics.summary.failure_runs_with_preceding_threshold_signal,
     ));
@@ -112,7 +125,7 @@ fn markdown_report(
     ));
     out.push_str("## Limitations of This Run\n\n");
     out.push_str("- SECOM is a real semiconductor dataset, but it is anonymized and instance-level; this run does not validate chamber-mechanism attribution or run-to-failure prognostics.\n");
-    out.push_str("- The current comparator is intentionally weak: a univariate residual-magnitude threshold. Stronger baselines such as EWMA/CUSUM drift detectors, PCA/T-squared/SPE-style FDC baselines, and lightweight ML anomaly detectors are not yet implemented in this crate.\n");
+    out.push_str("- The current comparator set remains narrow: a univariate residual-magnitude threshold plus a simple univariate EWMA residual-norm comparator. Stronger multivariate FDC baselines such as PCA/T-squared/SPE and lightweight ML anomaly detectors are not yet implemented in this crate.\n");
     out.push_str("- PHM 2018 support is not claimed beyond the manual-placement contract and archive probe until the real archive is present and verified.\n");
     out.push_str("- PDF generation depends on a local `pdflatex` installation.\n\n");
     out.push_str("## Explicit Non-Claims\n\n");
@@ -186,7 +199,7 @@ Healthy passing runs found & {} \\\\
 Missing values are preserved as explicit missing entries during parsing and then imputed feature-wise with the healthy-window nominal mean before residual construction. This choice is deterministic and reproducible, but it does not imply that missingness is operationally benign.
 
 \\section*{{DSFB instantiation}}
-The nominal reference is the healthy-window mean over the first {} passing runs. Residuals are defined as $x(k) - \\hat{{x}}(k)$. The admissibility envelope radius is {:.1}$\\sigma$ on the healthy residual distribution. The drift window is $W = {}$. The boundary rule in this implementation is $|r| > {:.1}\\rho$ with drift above {:.1}$\\sigma_{{\\mathrm{{healthy\\ drift}}}}$. Abrupt slew tags use {:.1}$\\sigma_{{\\mathrm{{healthy\\ slew}}}}$.
+The nominal reference is the healthy-window mean over the first {} passing runs. Residuals are defined as $x(k) - \\hat{{x}}(k)$. The admissibility envelope radius is {:.1}$\\sigma$ on the healthy residual distribution. The drift window is $W = {}$. The boundary rule in this implementation is $|r| > {:.1}\\rho$ with drift above {:.1}$\\sigma_{{\\mathrm{{healthy\\ drift}}}}$. Abrupt slew tags use {:.1}$\\sigma_{{\\mathrm{{healthy\\ slew}}}}$. The scalar comparator set contains a raw residual threshold and a univariate EWMA on residual norms with $\\alpha = {:.2}$ and a threshold at the healthy-window EWMA mean plus {:.1}$\\sigma$.
 
 Grammar logic in this crate is intentionally simple and deterministic: admissible, boundary, and violation states are derived from the saved envelope, drift, slew, and recurrent-boundary rules.
 
@@ -195,9 +208,11 @@ Grammar logic in this crate is intentionally simple and deterministic: admissibl
 \\toprule
 Analyzable features & {} \\\\
 Threshold alarm points & {} \\\\
+EWMA alarm points & {} \\\\
 DSFB boundary points & {} \\\\
 DSFB violation points & {} \\\\
 Failure runs with preceding DSFB signal & {} \\\\
+Failure runs with preceding EWMA signal & {} \\\\
 Failure runs with preceding threshold signal & {} \\\\
 \\bottomrule
 \\end{{tabular}}
@@ -217,7 +232,7 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
 \\section*{{Limitations of this run}}
 \\begin{{itemize}}
 \\item SECOM is a real semiconductor dataset, but it is anonymized and instance-level; this run does not validate chamber-mechanism attribution or run-to-failure prognostics.
-\\item The current comparator is intentionally weak: a univariate residual-magnitude threshold. Stronger baselines such as EWMA/CUSUM drift detectors, PCA/Hotelling-$T^2$/SPE-style multivariate FDC baselines, and lightweight ML anomaly detectors are not yet implemented in this crate.
+\\item The current comparator set remains narrow: a univariate residual-magnitude threshold plus a simple univariate EWMA residual-norm comparator. Stronger multivariate FDC baselines such as PCA/Hotelling-$T^2$/SPE and lightweight ML anomaly detectors are not yet implemented in this crate.
 \\item PHM 2018 support is not claimed beyond the manual-placement contract and archive probe unless the real archive is present and verified.
 \\item PDF generation in this artifact path depends on a local \\texttt{{pdflatex}} installation.
 \\end{{itemize}}
@@ -246,11 +261,15 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
         config.boundary_fraction_of_rho,
         config.drift_sigma_multiplier,
         config.slew_sigma_multiplier,
+        config.ewma_alpha,
+        config.ewma_sigma_multiplier,
         metrics.summary.analyzable_feature_count,
         metrics.summary.threshold_alarm_points,
+        metrics.summary.ewma_alarm_points,
         metrics.summary.dsfb_boundary_points,
         metrics.summary.dsfb_violation_points,
         metrics.summary.failure_runs_with_preceding_dsfb_signal,
+        metrics.summary.failure_runs_with_preceding_ewma_signal,
         metrics.summary.failure_runs_with_preceding_threshold_signal,
         heuristic_rows,
         phm_status.official_page,
@@ -281,7 +300,10 @@ fn compile_pdf(tex_path: &Path, output_dir: &Path) -> (Option<PathBuf>, Option<S
         }
         Ok(output) => (
             None,
-            Some(String::from_utf8_lossy(&output.stderr).to_string() + &String::from_utf8_lossy(&output.stdout)),
+            Some(
+                String::from_utf8_lossy(&output.stderr).to_string()
+                    + &String::from_utf8_lossy(&output.stdout),
+            ),
         ),
         Err(err) => (None, Some(err.to_string())),
     }

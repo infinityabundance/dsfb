@@ -59,7 +59,11 @@ pub fn inspect_archive(archive_path: &Path) -> Result<Phm2018ArchiveManifest> {
         if sample_paths.len() < 12 {
             sample_paths.push(path.clone());
         }
-        if path.contains("/train/") && path.ends_with(".csv") && !path.contains("/train_faults/") && !path.contains("/train_ttf/") {
+        if path.contains("/train/")
+            && path.ends_with(".csv")
+            && !path.contains("/train_faults/")
+            && !path.contains("/train_ttf/")
+        {
             train_sensor_files += 1;
         } else if path.contains("/test/") && path.ends_with(".csv") {
             test_sensor_files += 1;
@@ -82,6 +86,10 @@ pub fn inspect_archive(archive_path: &Path) -> Result<Phm2018ArchiveManifest> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+    use tar::Builder;
 
     #[test]
     fn support_status_points_to_manual_archive_location() {
@@ -90,5 +98,47 @@ mod tests {
             .manual_placement_path
             .ends_with("phm2018/phm_data_challenge_2018.tar.gz"));
         assert!(!status.fully_implemented);
+    }
+
+    #[test]
+    fn archive_probe_counts_expected_csv_classes() {
+        let temp = tempfile::tempdir().unwrap();
+        let archive_path = temp.path().join("phm_data_challenge_2018.tar.gz");
+
+        let file = File::create(&archive_path).unwrap();
+        let encoder = GzEncoder::new(file, Compression::default());
+        let mut builder = Builder::new(encoder);
+
+        fn append_csv(builder: &mut Builder<GzEncoder<File>>, path: &str, content: &[u8]) {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(content.len() as u64);
+            header.set_mode(0o644);
+            header.set_cksum();
+            builder.append_data(&mut header, path, content).unwrap();
+        }
+
+        append_csv(&mut builder, "challenge/train/run_001.csv", b"a,b\n1,2\n");
+        append_csv(&mut builder, "challenge/train/run_002.csv", b"a,b\n3,4\n");
+        append_csv(&mut builder, "challenge/test/run_003.csv", b"a,b\n5,6\n");
+        append_csv(
+            &mut builder,
+            "challenge/train_faults/run_001.csv",
+            b"fault\n1\n",
+        );
+        append_csv(
+            &mut builder,
+            "challenge/train_ttf/run_001.csv",
+            b"ttf\n10\n",
+        );
+        builder.finish().unwrap();
+        let mut encoder = builder.into_inner().unwrap();
+        encoder.flush().unwrap();
+
+        let manifest = inspect_archive(&archive_path).unwrap();
+        assert_eq!(manifest.train_sensor_files, 2);
+        assert_eq!(manifest.test_sensor_files, 1);
+        assert_eq!(manifest.train_fault_files, 1);
+        assert_eq!(manifest.train_ttf_files, 1);
+        assert!(!manifest.sample_paths.is_empty());
     }
 }

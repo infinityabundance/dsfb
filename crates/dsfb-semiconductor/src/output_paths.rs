@@ -39,7 +39,10 @@ pub fn create_timestamped_run_dir(output_root: &Path, dataset: &str) -> std::io:
 
     Err(std::io::Error::new(
         std::io::ErrorKind::AlreadyExists,
-        format!("failed to allocate unique run directory under {}", output_root.display()),
+        format!(
+            "failed to allocate unique run directory under {}",
+            output_root.display()
+        ),
     ))
 }
 
@@ -50,7 +53,10 @@ mod tests {
     #[test]
     fn output_root_targets_repo_level_directory() {
         let output_root = default_output_root();
-        assert_eq!(output_root.file_name().unwrap(), "output-dsfb-semiconductor");
+        assert_eq!(
+            output_root.file_name().unwrap(),
+            "output-dsfb-semiconductor"
+        );
     }
 
     #[test]
