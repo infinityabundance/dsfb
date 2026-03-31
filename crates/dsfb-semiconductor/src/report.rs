@@ -5,10 +5,17 @@ use crate::error::Result;
 use crate::heuristics::HeuristicEntry;
 use crate::metrics::{BenchmarkMetrics, MotifMetric};
 use crate::plots::FigureManifest;
+use crate::precursor::PrecursorEvaluation;
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+#[derive(Debug, Clone, Serialize)]
+struct ArtifactInventoryEntry {
+    path: String,
+    role: String,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ReportArtifacts {
@@ -22,6 +29,7 @@ pub fn write_reports(
     run_dir: &Path,
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
+    precursor: &PrecursorEvaluation,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
@@ -34,6 +42,7 @@ pub fn write_reports(
         markdown_report(
             config,
             metrics,
+            precursor,
             figures,
             heuristics,
             phm_status,
@@ -45,6 +54,7 @@ pub fn write_reports(
         latex_report(
             config,
             metrics,
+            precursor,
             figures,
             heuristics,
             phm_status,
@@ -65,12 +75,14 @@ pub fn write_reports(
 fn markdown_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
+    precursor: &PrecursorEvaluation,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
     secom_layout: &SecomArchiveLayout,
 ) -> String {
     let mut out = String::new();
+    let artifact_inventory = artifact_inventory(figures);
     out.push_str("# DSFB Semiconductor Engineering Report\n\n");
     out.push_str("## Dataset\n\n");
     out.push_str("- Dataset: SECOM (UCI Machine Learning Repository)\n");
@@ -107,7 +119,7 @@ fn markdown_report(
 
     out.push_str("## DSFB Instantiation\n\n");
     out.push_str(&format!(
-        "- Nominal reference: healthy-window mean over first {} passing runs\n- Residual: x(k) - x_hat\n- Envelope radius rho: {:.1} * healthy-window residual std\n- Drift window W: {}\n- Boundary condition: |r| > {:.1} * rho and drift > {:.1} * healthy drift std\n- Slew threshold: {:.1} * healthy slew std\n- Recurrent-boundary grazing: {} hits in a {}-run window\n- Baseline comparators: univariate 3-sigma residual threshold, plus univariate EWMA on residual norms with alpha = {:.2} and threshold mean + {:.1} * healthy EWMA std\n\n",
+        "- Nominal reference: healthy-window mean over first {} passing runs\n- Residual: x(k) - x_hat\n- Envelope radius rho: {:.1} * healthy-window residual std\n- Drift window W: {}\n- Boundary condition: |r| > {:.1} * rho and drift > {:.1} * healthy drift std\n- Slew threshold: {:.1} * healthy slew std\n- Recurrent-boundary grazing: {} hits in a {}-run window\n- Hysteresis confirmations: {}\n- Persistent-state minimum length: {}\n- Density window: {}\n- Baseline comparators: univariate 3-sigma residual threshold, plus univariate EWMA on residual norms with alpha = {:.2} and threshold mean + {:.1} * healthy EWMA std\n\n",
         config.healthy_pass_runs,
         config.envelope_sigma,
         config.drift_window,
@@ -116,61 +128,143 @@ fn markdown_report(
         config.slew_sigma_multiplier,
         config.grazing_min_hits,
         config.grazing_window,
+        config.state_confirmation_steps,
+        config.persistent_state_steps,
+        config.density_window,
         config.ewma_alpha,
         config.ewma_sigma_multiplier,
     ));
-    out.push_str("Grammar logic in this crate is intentionally simple and deterministic: admissible, boundary, and violation states are derived from the envelope radius, outward drift, abrupt slew, and recurrent boundary grazing rules encoded in the saved parameter manifest.\n\n");
+    out.push_str(&format!(
+        "Grammar logic in this crate is intentionally simple and deterministic: raw admissible, boundary, and violation states are derived from the envelope radius, outward drift, abrupt slew, and recurrent boundary grazing rules encoded in the saved parameter manifest. A hysteresis-confirmed state trace and persistence masks are then derived deterministically from those raw states.\n\nIn this crate, `DSFB Violation` means hard envelope exit (`|r| > rho`). `DSFB Precursor` is a separate persistent structural early warning built from rolling boundary density, rolling violation density, drift persistence, transition clustering, EWMA occupancy, and motif recurrence. The current precursor configuration uses `W = {}`, `K = {}`, `tau_b = {:.2}`, `tau_d = {:.2}`, `tau_s = {}`, `tau_e = {:.2}`, `tau = {:.2}`, and fixed equal weights across the five scored precursor terms.\n\n",
+        config.precursor.window,
+        config.precursor.persistence_runs,
+        config.precursor.boundary_density_tau,
+        config.precursor.drift_persistence_tau,
+        config.precursor.transition_cluster_tau,
+        config.precursor.ewma_occupancy_tau,
+        config.precursor.alert_tau,
+    ));
 
     out.push_str("## Quantitative Summary\n\n");
     out.push_str(&format!(
-        "- Analyzable features: {}\n- Threshold alarm points: {}\n- EWMA alarm points: {}\n- DSFB boundary points: {}\n- DSFB violation points: {}\n- Failure runs with preceding DSFB boundary signal ({}-run lookback): {}\n- Failure runs with preceding DSFB violation signal ({}-run lookback): {}\n- Failure runs with preceding EWMA signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
+        "- Analyzable features: {}\n- Threshold alarm points: {}\n- EWMA alarm points: {}\n- DSFB raw boundary points: {}\n- DSFB persistent boundary points: {}\n- DSFB raw violation points: {}\n- DSFB persistent violation points: {}\n- DSFB precursor alert points: {}\n- DSFB precursor alert runs: {}\n- Failure runs with preceding DSFB precursor signal ({}-run lookback): {}\n- Failure runs with preceding persistent DSFB boundary signal ({}-run lookback): {}\n- Failure runs with preceding persistent DSFB violation signal ({}-run lookback): {}\n- Failure runs with preceding EWMA signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
         metrics.summary.analyzable_feature_count,
         metrics.summary.threshold_alarm_points,
         metrics.summary.ewma_alarm_points,
-        metrics.summary.dsfb_boundary_points,
-        metrics.summary.dsfb_violation_points,
+        metrics.summary.dsfb_raw_boundary_points,
+        metrics.summary.dsfb_persistent_boundary_points,
+        metrics.summary.dsfb_raw_violation_points,
+        metrics.summary.dsfb_persistent_violation_points,
+        precursor.summary.alert_point_count,
+        precursor.summary.alert_run_count,
         config.pre_failure_lookback_runs,
-        metrics.summary.failure_runs_with_preceding_dsfb_boundary_signal,
+        precursor.summary.failure_run_recall,
         config.pre_failure_lookback_runs,
-        metrics.summary.failure_runs_with_preceding_dsfb_violation_signal,
+        metrics
+            .summary
+            .failure_runs_with_preceding_dsfb_persistent_boundary_signal,
+        config.pre_failure_lookback_runs,
+        metrics
+            .summary
+            .failure_runs_with_preceding_dsfb_persistent_violation_signal,
         config.pre_failure_lookback_runs,
         metrics.summary.failure_runs_with_preceding_ewma_signal,
         config.pre_failure_lookback_runs,
         metrics.summary.failure_runs_with_preceding_threshold_signal,
     ));
     out.push_str(
-        "In the current default SECOM run, the crate establishes deterministic structural artifact generation on real semiconductor data, but it does not yet establish superiority in failure-window coverage over the scalar baselines.\n\n",
-    );
-    out.push_str(
-        "In the current implementation, the DSFB `Violation` state and the raw threshold share the same envelope-exit condition `|r| > rho`, so identical counts between those two columns are expected.\n\n",
+        "In the current implementation, the raw DSFB `Violation` state and the raw threshold share the same envelope-exit condition `|r| > rho`, so raw violation/threshold coincidences are expected before persistence filtering. The precursor layer is evaluated separately and should be interpreted as an early-warning overlay, not as a redefinition of the violation state.\n\n",
     );
 
     out.push_str("## Lead-Time and Nuisance Proxies\n\n");
     out.push_str(&format!(
-        "- Mean DSFB boundary lead (runs): {}\n- Mean DSFB violation lead (runs): {}\n- Mean EWMA lead (runs): {}\n- Mean threshold lead (runs): {}\n- Mean DSFB boundary minus EWMA lead delta (runs): {}\n- Mean DSFB boundary minus threshold lead delta (runs): {}\n- Pass-run nuisance proxy, DSFB boundary: {:.4}\n- Pass-run nuisance proxy, DSFB violation: {:.4}\n- Pass-run nuisance proxy, EWMA: {:.4}\n- Pass-run nuisance proxy, threshold: {:.4}\n- Boundary episodes: {}\n- Mean boundary episode length: {}\n- Non-escalating boundary episode fraction: {}\n\n",
-        format_option_f64(metrics.lead_time_summary.mean_boundary_lead_runs),
-        format_option_f64(metrics.lead_time_summary.mean_violation_lead_runs),
+        "- Mean DSFB precursor lead (runs): {}\n- Median DSFB precursor lead (runs): {}\n- Mean raw DSFB boundary lead (runs): {}\n- Mean persistent DSFB boundary lead (runs): {}\n- Mean raw DSFB violation lead (runs): {}\n- Mean persistent DSFB violation lead (runs): {}\n- Mean EWMA lead (runs): {}\n- Mean threshold lead (runs): {}\n- Mean DSFB precursor minus EWMA lead delta (runs): {}\n- Mean DSFB precursor minus threshold lead delta (runs): {}\n- Mean persistent DSFB boundary minus EWMA lead delta (runs): {}\n- Mean persistent DSFB boundary minus threshold lead delta (runs): {}\n- Pass-run nuisance proxy, DSFB precursor: {:.4}\n- Pass-run nuisance proxy, persistent DSFB boundary: {:.4}\n- Pass-run nuisance proxy, persistent DSFB violation: {:.4}\n- Pass-run nuisance proxy, EWMA: {:.4}\n- Pass-run nuisance proxy, threshold: {:.4}\n- Persistent boundary episodes: {}\n- Mean persistent boundary episode length: {}\n- Persistent non-escalating boundary episode fraction: {}\n\n",
+        format_option_f64(precursor.summary.mean_lead_time_runs),
+        format_option_f64(precursor.summary.median_lead_time_runs),
+        format_option_f64(metrics.lead_time_summary.mean_raw_boundary_lead_runs),
+        format_option_f64(metrics.lead_time_summary.mean_persistent_boundary_lead_runs),
+        format_option_f64(metrics.lead_time_summary.mean_raw_violation_lead_runs),
+        format_option_f64(metrics.lead_time_summary.mean_persistent_violation_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_ewma_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_threshold_lead_runs),
-        format_option_f64(metrics.lead_time_summary.mean_boundary_minus_ewma_delta_runs),
-        format_option_f64(metrics.lead_time_summary.mean_boundary_minus_threshold_delta_runs),
-        metrics.summary.pass_run_dsfb_boundary_nuisance_rate,
-        metrics.summary.pass_run_dsfb_violation_nuisance_rate,
+        format_option_f64(precursor.summary.mean_lead_delta_vs_ewma_runs),
+        format_option_f64(precursor.summary.mean_lead_delta_vs_threshold_runs),
+        format_option_f64(
+            metrics
+                .lead_time_summary
+                .mean_persistent_boundary_minus_ewma_delta_runs,
+        ),
+        format_option_f64(
+            metrics
+                .lead_time_summary
+                .mean_persistent_boundary_minus_threshold_delta_runs,
+        ),
+        precursor.summary.pass_run_nuisance_proxy,
+        metrics
+            .summary
+            .pass_run_dsfb_persistent_boundary_nuisance_rate,
+        metrics
+            .summary
+            .pass_run_dsfb_persistent_violation_nuisance_rate,
         metrics.summary.pass_run_ewma_nuisance_rate,
         metrics.summary.pass_run_threshold_nuisance_rate,
-        metrics.boundary_episode_summary.episode_count,
-        format_option_f64(metrics.boundary_episode_summary.mean_episode_length),
-        format_option_f64(metrics.boundary_episode_summary.non_escalating_episode_fraction),
+        metrics.boundary_episode_summary.persistent_episode_count,
+        format_option_f64(metrics.boundary_episode_summary.mean_persistent_episode_length),
+        format_option_f64(
+            metrics
+                .boundary_episode_summary
+                .persistent_non_escalating_episode_fraction,
+        ),
     ));
     out.push_str(
         "The nuisance numbers above are pass-run proxies on SECOM labels, not fab-level false-alarm-rate certification metrics.\n\n",
     );
+    out.push_str("## Precursor Comparison\n\n");
+    out.push_str(&format!(
+        "- Failure-run recall, DSFB precursor: {}/{}\n- Failure-run recall, threshold: {}/{}\n- Failure-run recall, EWMA: {}/{}\n- Mean lead time, DSFB precursor: {}\n- Median lead time, DSFB precursor: {}\n- Pass-run nuisance proxy, DSFB precursor: {:.4}\n- Mean lead delta vs threshold (runs): {}\n- Mean lead delta vs EWMA (runs): {}\n\n{}\n\n",
+        precursor.comparison_summary.precursor.failure_run_recall,
+        precursor.comparison_summary.precursor.failure_runs,
+        precursor.comparison_summary.threshold.failure_run_recall,
+        precursor.comparison_summary.threshold.failure_runs,
+        precursor.comparison_summary.ewma.failure_run_recall,
+        precursor.comparison_summary.ewma.failure_runs,
+        format_option_f64(precursor.comparison_summary.precursor.mean_lead_time_runs),
+        format_option_f64(precursor.comparison_summary.precursor.median_lead_time_runs),
+        precursor.comparison_summary.precursor.pass_run_nuisance_proxy,
+        format_option_f64(
+            precursor
+                .comparison_summary
+                .precursor
+                .mean_lead_delta_vs_threshold_runs,
+        ),
+        format_option_f64(
+            precursor
+                .comparison_summary
+                .precursor
+                .mean_lead_delta_vs_ewma_runs,
+        ),
+        precursor.comparison_summary.conclusion,
+    ));
+    out.push_str(&format!(
+        "## Density Summary\n\n- Density window: {} runs\n- Mean persistent boundary density, failure-labeled runs: {:.4}\n- Mean persistent boundary density, pass-labeled runs: {:.4}\n- Mean persistent violation density, failure-labeled runs: {:.4}\n- Mean persistent violation density, pass-labeled runs: {:.4}\n- Mean threshold density, failure-labeled runs: {:.4}\n- Mean threshold density, pass-labeled runs: {:.4}\n- Mean EWMA density, failure-labeled runs: {:.4}\n- Mean EWMA density, pass-labeled runs: {:.4}\n\n",
+        metrics.density_summary.density_window,
+        metrics.density_summary.mean_persistent_boundary_density_failure,
+        metrics.density_summary.mean_persistent_boundary_density_pass,
+        metrics.density_summary.mean_persistent_violation_density_failure,
+        metrics.density_summary.mean_persistent_violation_density_pass,
+        metrics.density_summary.mean_threshold_density_failure,
+        metrics.density_summary.mean_threshold_density_pass,
+        metrics.density_summary.mean_ewma_density_failure,
+        metrics.density_summary.mean_ewma_density_pass,
+    ));
+    out.push_str(&format!("{}\n\n", precursor_statement(precursor)));
 
     if let Some(drsc) = &figures.drsc {
         out.push_str("## Deterministic Residual Stateflow Chart (DRSC)\n\n");
         out.push_str(&format!(
-            "The crate now emits an operator-facing DRSC figure and aligned trace CSV for the top boundary-activity feature in the current run (`{}`). The top layer plots normalized residual, drift, and slew; the middle layer is the deterministic grammar-state band; and the bottom layer shows normalized envelope occupancy together with normalized EWMA occupancy. This implementation does not have a trust scalar, so the lower layer is an admissibility overlay rather than a trust plot.\n\n- Figure: figures/{}\n- Trace CSV: {}\n\n",
+            "The crate now emits an operator-facing DRSC figure and aligned trace CSV for the top persistent-boundary feature in the current run (`{}`). The chart is cropped to the selected failure window ending at run {}. The top layer plots normalized residual, drift, and slew; the middle layer uses persistent deterministic states; and the bottom layer shows normalized envelope occupancy together with normalized EWMA occupancy. The figure annotates the first persistent boundary, the first persistent violation when present, and the failure-labeled run. This implementation does not have a trust scalar, so the lower layer is an admissibility overlay rather than a trust plot.\n\n- Figure: figures/{}\n- Trace CSV: {}\n\n",
             drsc.feature_name,
+            drsc.failure_run_index,
             drsc.figure_file,
             drsc.trace_csv,
         ));
@@ -208,6 +302,13 @@ fn markdown_report(
         out.push_str(&format!("- figures/{}\n", file));
     }
 
+    out.push_str("\n## Artifact Inventory\n\n");
+    out.push_str("| Path | Role |\n|---|---|\n");
+    for entry in &artifact_inventory {
+        out.push_str(&format!("| {} | {} |\n", entry.path, entry.role));
+    }
+    out.push('\n');
+
     out.push_str("\n## PHM 2018 Status\n\n");
     out.push_str(&format!(
         "- Official page: {}\n- Manual archive path: {}\n- Implemented now: {}\n- Blocker: {}\n\n",
@@ -238,11 +339,13 @@ fn markdown_report(
 fn latex_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
+    precursor: &PrecursorEvaluation,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
     secom_layout: &SecomArchiveLayout,
 ) -> String {
+    let artifact_inventory = artifact_inventory(figures);
     let figure_blocks = figures
         .files
         .iter()
@@ -254,7 +357,7 @@ fn latex_report(
                 .unwrap_or(false)
             {
                 format!(
-                    "Deterministic Residual Stateflow Chart (DRSC) for the top boundary-activity feature in the current run: synchronized residual/drift/slew structure, deterministic grammar state, and admissibility/EWMA occupancy."
+                    "Deterministic Residual Stateflow Chart (DRSC) for the top persistent-boundary feature in the current run: synchronized residual/drift/slew structure, persistent deterministic state band, and admissibility/EWMA occupancy."
                 )
             } else {
                 format!("Generated artifact: {}", file)
@@ -284,6 +387,16 @@ fn latex_report(
         .motif_metrics
         .iter()
         .map(|metric| motif_row(metric))
+        .collect::<String>();
+    let artifact_rows = artifact_inventory
+        .iter()
+        .map(|entry| {
+            format!(
+                "{} & {} \\\\\n",
+                latex_escape(&entry.path),
+                latex_escape(&entry.role)
+            )
+        })
         .collect::<String>();
 
     format!(
@@ -319,7 +432,7 @@ Healthy passing runs found & {} \\\\
 \\end{{tabular}}
 
 \\section*{{DSFB instantiation}}
-The nominal reference is the healthy-window mean over the first {} passing runs. Residuals are defined as $x(k) - \\hat{{x}}(k)$. The admissibility envelope radius is {:.1}$\\sigma$ on the healthy residual distribution. The drift window is $W = {}$. The boundary rule in this implementation is $|r| > {:.1}\\rho$ with drift above {:.1}$\\sigma_{{\\mathrm{{healthy\\ drift}}}}$. Abrupt slew tags use {:.1}$\\sigma_{{\\mathrm{{healthy\\ slew}}}}$. The scalar comparator set contains a raw residual threshold and a univariate EWMA on residual norms with $\\alpha = {:.2}$ and a threshold at the healthy-window EWMA mean plus {:.1}$\\sigma$.
+The nominal reference is the healthy-window mean over the first {} passing runs. Residuals are defined as $x(k) - \\hat{{x}}(k)$. The admissibility envelope radius is {:.1}$\\sigma$ on the healthy residual distribution. The drift window is $W = {}$. The boundary rule in this implementation is $|r| > {:.1}\\rho$ with drift above {:.1}$\\sigma_{{\\mathrm{{healthy\\ drift}}}}$. Abrupt slew tags use {:.1}$\\sigma_{{\\mathrm{{healthy\\ slew}}}}$. Hysteresis-confirmed state changes require {} confirmations, persistent-state alarms require {} consecutive confirmed steps, and density metrics use a {}-run sliding window. The scalar comparator set contains a raw residual threshold and a univariate EWMA on residual norms with $\\alpha = {:.2}$ and a threshold at the healthy-window EWMA mean plus {:.1}$\\sigma$. In this crate, \\texttt{{DSFB Violation}} remains the hard envelope exit state, while \\texttt{{DSFB Precursor}} is a separate persistence-gated structural early warning with $W = {}$, $K = {}$, $\\tau_b = {:.2}$, $\\tau_d = {:.2}$, $\\tau_s = {}$, $\\tau_e = {:.2}$, $\\tau = {:.2}$, and fixed equal weights across the five scored precursor terms.
 
 \\section*{{Quantitative summary}}
 \\begin{{tabular}}{{lr}}
@@ -327,37 +440,82 @@ The nominal reference is the healthy-window mean over the first {} passing runs.
 Analyzable features & {} \\\\
 Threshold alarm points & {} \\\\
 EWMA alarm points & {} \\\\
-DSFB boundary points & {} \\\\
-DSFB violation points & {} \\\\
-Failure runs with preceding DSFB boundary signal & {} \\\\
-Failure runs with preceding DSFB violation signal & {} \\\\
+DSFB raw boundary points & {} \\\\
+DSFB persistent boundary points & {} \\\\
+DSFB raw violation points & {} \\\\
+DSFB persistent violation points & {} \\\\
+DSFB precursor alert points & {} \\\\
+DSFB precursor alert runs & {} \\\\
+Failure runs with preceding DSFB precursor signal & {} \\\\
+Failure runs with preceding persistent DSFB boundary signal & {} \\\\
+Failure runs with preceding persistent DSFB violation signal & {} \\\\
 Failure runs with preceding EWMA signal & {} \\\\
 Failure runs with preceding threshold signal & {} \\\\
 \\bottomrule
 \\end{{tabular}}
 
-In the current implementation, the DSFB \\texttt{{Violation}} state and the raw threshold share the same envelope-exit condition $|r| > \\rho$, so identical counts between those two columns are expected.
+In the current implementation, the raw DSFB \\texttt{{Violation}} state and the raw threshold share the same envelope-exit condition $|r| > \\rho$, so raw violation/threshold coincidences are expected before persistence filtering. The precursor layer is evaluated separately as an early-warning overlay and is not a redefinition of the violation state.
 
 \\section*{{Lead-time and nuisance proxies}}
 \\begin{{tabular}}{{lr}}
 \\toprule
-Mean DSFB boundary lead (runs) & {} \\\\
-Mean DSFB violation lead (runs) & {} \\\\
+Mean DSFB precursor lead (runs) & {} \\\\
+Median DSFB precursor lead (runs) & {} \\\\
+Mean raw DSFB boundary lead (runs) & {} \\\\
+Mean persistent DSFB boundary lead (runs) & {} \\\\
+Mean raw DSFB violation lead (runs) & {} \\\\
+Mean persistent DSFB violation lead (runs) & {} \\\\
 Mean EWMA lead (runs) & {} \\\\
 Mean threshold lead (runs) & {} \\\\
-Mean DSFB boundary minus EWMA lead delta & {} \\\\
-Mean DSFB boundary minus threshold lead delta & {} \\\\
-Pass-run nuisance proxy, DSFB boundary & {:.4} \\\\
-Pass-run nuisance proxy, DSFB violation & {:.4} \\\\
+Mean DSFB precursor minus EWMA lead delta & {} \\\\
+Mean DSFB precursor minus threshold lead delta & {} \\\\
+Mean persistent DSFB boundary minus EWMA lead delta & {} \\\\
+Mean persistent DSFB boundary minus threshold lead delta & {} \\\\
+Pass-run nuisance proxy, DSFB precursor & {:.4} \\\\
+Pass-run nuisance proxy, persistent DSFB boundary & {:.4} \\\\
+Pass-run nuisance proxy, persistent DSFB violation & {:.4} \\\\
 Pass-run nuisance proxy, EWMA & {:.4} \\\\
 Pass-run nuisance proxy, threshold & {:.4} \\\\
-Boundary episodes & {} \\\\
-Mean boundary episode length & {} \\\\
-Non-escalating boundary episode fraction & {} \\\\
+Persistent boundary episodes & {} \\\\
+Mean persistent boundary episode length & {} \\\\
+Persistent non-escalating boundary episode fraction & {} \\\\
 \\bottomrule
 \\end{{tabular}}
 
 These nuisance values are pass-run proxies on SECOM labels, not fab-qualified false-alarm-rate certification metrics.
+
+\\section*{{Precursor comparison}}
+\\begin{{tabular}}{{lr}}
+\\toprule
+Failure-run recall, DSFB precursor & {}/{} \\\\
+Failure-run recall, threshold & {}/{} \\\\
+Failure-run recall, EWMA & {}/{} \\\\
+Mean lead time, DSFB precursor & {} \\\\
+Median lead time, DSFB precursor & {} \\\\
+Pass-run nuisance proxy, DSFB precursor & {:.4} \\\\
+Mean lead delta vs threshold & {} \\\\
+Mean lead delta vs EWMA & {} \\\\
+\\bottomrule
+\\end{{tabular}}
+
+{}
+
+\\section*{{Density summary}}
+\\begin{{tabular}}{{lr}}
+\\toprule
+Density window (runs) & {} \\\\
+Mean persistent boundary density, failure-labeled runs & {:.4} \\\\
+Mean persistent boundary density, pass-labeled runs & {:.4} \\\\
+Mean persistent violation density, failure-labeled runs & {:.4} \\\\
+Mean persistent violation density, pass-labeled runs & {:.4} \\\\
+Mean threshold density, failure-labeled runs & {:.4} \\\\
+Mean threshold density, pass-labeled runs & {:.4} \\\\
+Mean EWMA density, failure-labeled runs & {:.4} \\\\
+Mean EWMA density, pass-labeled runs & {:.4} \\\\
+\\bottomrule
+\\end{{tabular}}
+
+{}
 
 {}
 
@@ -374,6 +532,15 @@ Motif & Point hits & Run hits & Pre-failure run hits & Precision proxy \\\\
 \\begin{{longtable}}{{p{{0.18\\linewidth}}p{{0.15\\linewidth}}p{{0.12\\linewidth}}p{{0.42\\linewidth}}}}
 \\toprule
 Motif & Provenance & Severity & Recommended action \\\\
+\\midrule
+{}
+\\bottomrule
+\\end{{longtable}}
+
+\\section*{{Artifact inventory}}
+\\begin{{longtable}}{{p{{0.38\\linewidth}}p{{0.52\\linewidth}}}}
+\\toprule
+Path & Role \\\\
 \\midrule
 {}
 \\bottomrule
@@ -423,33 +590,108 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
         config.boundary_fraction_of_rho,
         config.drift_sigma_multiplier,
         config.slew_sigma_multiplier,
+        config.state_confirmation_steps,
+        config.persistent_state_steps,
+        config.density_window,
         config.ewma_alpha,
         config.ewma_sigma_multiplier,
+        config.precursor.window,
+        config.precursor.persistence_runs,
+        config.precursor.boundary_density_tau,
+        config.precursor.drift_persistence_tau,
+        config.precursor.transition_cluster_tau,
+        config.precursor.ewma_occupancy_tau,
+        config.precursor.alert_tau,
         metrics.summary.analyzable_feature_count,
         metrics.summary.threshold_alarm_points,
         metrics.summary.ewma_alarm_points,
-        metrics.summary.dsfb_boundary_points,
-        metrics.summary.dsfb_violation_points,
-        metrics.summary.failure_runs_with_preceding_dsfb_boundary_signal,
-        metrics.summary.failure_runs_with_preceding_dsfb_violation_signal,
+        metrics.summary.dsfb_raw_boundary_points,
+        metrics.summary.dsfb_persistent_boundary_points,
+        metrics.summary.dsfb_raw_violation_points,
+        metrics.summary.dsfb_persistent_violation_points,
+        precursor.summary.alert_point_count,
+        precursor.summary.alert_run_count,
+        precursor.summary.failure_run_recall,
+        metrics
+            .summary
+            .failure_runs_with_preceding_dsfb_persistent_boundary_signal,
+        metrics
+            .summary
+            .failure_runs_with_preceding_dsfb_persistent_violation_signal,
         metrics.summary.failure_runs_with_preceding_ewma_signal,
         metrics.summary.failure_runs_with_preceding_threshold_signal,
-        format_option_f64(metrics.lead_time_summary.mean_boundary_lead_runs),
-        format_option_f64(metrics.lead_time_summary.mean_violation_lead_runs),
+        format_option_f64(precursor.summary.mean_lead_time_runs),
+        format_option_f64(precursor.summary.median_lead_time_runs),
+        format_option_f64(metrics.lead_time_summary.mean_raw_boundary_lead_runs),
+        format_option_f64(metrics.lead_time_summary.mean_persistent_boundary_lead_runs),
+        format_option_f64(metrics.lead_time_summary.mean_raw_violation_lead_runs),
+        format_option_f64(metrics.lead_time_summary.mean_persistent_violation_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_ewma_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_threshold_lead_runs),
-        format_option_f64(metrics.lead_time_summary.mean_boundary_minus_ewma_delta_runs),
-        format_option_f64(metrics.lead_time_summary.mean_boundary_minus_threshold_delta_runs),
-        metrics.summary.pass_run_dsfb_boundary_nuisance_rate,
-        metrics.summary.pass_run_dsfb_violation_nuisance_rate,
+        format_option_f64(precursor.summary.mean_lead_delta_vs_ewma_runs),
+        format_option_f64(precursor.summary.mean_lead_delta_vs_threshold_runs),
+        format_option_f64(
+            metrics
+                .lead_time_summary
+                .mean_persistent_boundary_minus_ewma_delta_runs,
+        ),
+        format_option_f64(
+            metrics
+                .lead_time_summary
+                .mean_persistent_boundary_minus_threshold_delta_runs,
+        ),
+        precursor.summary.pass_run_nuisance_proxy,
+        metrics
+            .summary
+            .pass_run_dsfb_persistent_boundary_nuisance_rate,
+        metrics
+            .summary
+            .pass_run_dsfb_persistent_violation_nuisance_rate,
         metrics.summary.pass_run_ewma_nuisance_rate,
         metrics.summary.pass_run_threshold_nuisance_rate,
-        metrics.boundary_episode_summary.episode_count,
-        format_option_f64(metrics.boundary_episode_summary.mean_episode_length),
-        format_option_f64(metrics.boundary_episode_summary.non_escalating_episode_fraction),
+        metrics.boundary_episode_summary.persistent_episode_count,
+        format_option_f64(metrics.boundary_episode_summary.mean_persistent_episode_length),
+        format_option_f64(
+            metrics
+                .boundary_episode_summary
+                .persistent_non_escalating_episode_fraction,
+        ),
+        precursor.comparison_summary.precursor.failure_run_recall,
+        precursor.comparison_summary.precursor.failure_runs,
+        precursor.comparison_summary.threshold.failure_run_recall,
+        precursor.comparison_summary.threshold.failure_runs,
+        precursor.comparison_summary.ewma.failure_run_recall,
+        precursor.comparison_summary.ewma.failure_runs,
+        format_option_f64(precursor.comparison_summary.precursor.mean_lead_time_runs),
+        format_option_f64(precursor.comparison_summary.precursor.median_lead_time_runs),
+        precursor.comparison_summary.precursor.pass_run_nuisance_proxy,
+        format_option_f64(
+            precursor
+                .comparison_summary
+                .precursor
+                .mean_lead_delta_vs_threshold_runs,
+        ),
+        format_option_f64(
+            precursor
+                .comparison_summary
+                .precursor
+                .mean_lead_delta_vs_ewma_runs,
+        ),
+        latex_escape(&precursor.comparison_summary.conclusion),
+        metrics.density_summary.density_window,
+        metrics.density_summary.mean_persistent_boundary_density_failure,
+        metrics.density_summary.mean_persistent_boundary_density_pass,
+        metrics.density_summary.mean_persistent_violation_density_failure,
+        metrics.density_summary.mean_persistent_violation_density_pass,
+        metrics.density_summary.mean_threshold_density_failure,
+        metrics.density_summary.mean_threshold_density_pass,
+        metrics.density_summary.mean_ewma_density_failure,
+        metrics.density_summary.mean_ewma_density_pass,
+        latex_escape(&precursor_statement(precursor)),
         drsc_latex_section(figures),
         motif_rows,
         heuristic_rows,
+        artifact_rows,
         phm_status.official_page,
         latex_escape(&phm_status.manual_placement_path.display().to_string()),
         latex_escape(phm_status.blocker),
@@ -457,16 +699,142 @@ The official PHM 2018 ion mill etch dataset path is \\url{{{}}}. The manual arch
     )
 }
 
+fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
+    let mut entries = vec![
+        ArtifactInventoryEntry {
+            path: "dataset_summary.json".into(),
+            role: "Dataset summary and healthy-window counts.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "parameter_manifest.json".into(),
+            role: "Saved deterministic DSFB and precursor parameter values.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "run_configuration.json".into(),
+            role: "CLI/data-root/output-root run configuration.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "benchmark_metrics.json".into(),
+            role: "Top-level benchmark metrics, summaries, and feature metrics.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "baseline_comparison_summary.json".into(),
+            role: "DSFB state-layer comparison against threshold and EWMA baselines.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "precursor_vs_baselines_summary.json".into(),
+            role: "Saved precursor recall, lead-time, nuisance, and delta comparison summary.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "feature_metrics.csv".into(),
+            role: "Per-feature DSFB and baseline point counts.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "precursor_metrics.csv".into(),
+            role: "Per-feature, per-run precursor structural features, scores, and alerts.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "per_failure_run_signals.csv".into(),
+            role: "Per-failure DSFB state-layer earliest-signal and lead-time records.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "per_failure_run_precursor_signals.csv".into(),
+            role: "Per-failure precursor earliest-signal and lead-time records.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "lead_time_metrics.csv".into(),
+            role: "Flattened lead-time comparison table.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "density_metrics.csv".into(),
+            role: "Sliding-window density metrics per run.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "residuals.csv".into(),
+            role: "Residual trace export.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "drifts.csv".into(),
+            role: "Drift trace export.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "slews.csv".into(),
+            role: "Slew trace export.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "ewma_baseline.csv".into(),
+            role: "EWMA baseline trace export.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "grammar_states.csv".into(),
+            role: "Raw and confirmed DSFB grammar states per feature and run.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "heuristics_bank.json".into(),
+            role: "Provenance-aware heuristic guidance derived from observed motifs.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "secom_archive_layout.json".into(),
+            role: "Archive-layout inspection and metadata mismatch note.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "phm2018_support_status.json".into(),
+            role: "PHM 2018 manual-placement and support-status record.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "engineering_report.md".into(),
+            role: "Markdown engineering report with metrics, figures, and artifact inventory.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "engineering_report.tex".into(),
+            role: "LaTeX source for the report and figure bundle PDF.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "engineering_report.pdf".into(),
+            role: "PDF report artifact catalog and figure bundle, when pdflatex is available.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "artifact_manifest.json".into(),
+            role: "Machine-readable manifest of output artifact paths.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "run_bundle.zip".into(),
+            role: "ZIP archive containing the complete run directory.".into(),
+        },
+    ];
+
+    if figures.drsc.is_some() {
+        entries.push(ArtifactInventoryEntry {
+            path: "drsc_top_feature.csv".into(),
+            role: "Aligned DRSC trace export for the selected feature window.".into(),
+        });
+    }
+
+    for file in &figures.files {
+        entries.push(ArtifactInventoryEntry {
+            path: format!("figures/{file}"),
+            role: "Notebook-parity PNG figure emitted directly by the crate.".into(),
+        });
+    }
+
+    entries
+}
+
 fn drsc_latex_section(figures: &FigureManifest) -> String {
     if let Some(drsc) = &figures.drsc {
         format!(
-            "\\section*{{Deterministic Residual Stateflow Chart (DRSC)}}\nThe crate emits a deterministic operator-facing DRSC artifact for the top boundary-activity feature in the current run (\\texttt{{{}}}). The upper layer plots normalized residual, drift, and slew; the middle layer is the deterministic grammar-state band; and the lower layer shows normalized admissibility-envelope occupancy together with normalized EWMA occupancy. This version does not implement a trust scalar, so the lower layer is an admissibility overlay rather than a trust plot. The aligned trace CSV is \\texttt{{{}}}.\n\n",
+            "\\section*{{Deterministic Residual Stateflow Chart (DRSC)}}\nThe crate emits a deterministic operator-facing DRSC artifact for the top persistent-boundary feature in the current run (\\texttt{{{}}}). The chart is cropped to the selected failure window ending at run {}. The upper layer plots normalized residual, drift, and slew; the middle layer is the persistent deterministic state band; and the lower layer shows normalized admissibility-envelope occupancy together with normalized EWMA occupancy. The figure annotates the first persistent boundary, the first persistent violation when present, and the failure-labeled run. This version does not implement a trust scalar, so the lower layer is an admissibility overlay rather than a trust plot. The aligned trace CSV is \\texttt{{{}}}.\n\n",
             latex_escape(&drsc.feature_name),
+            drsc.failure_run_index,
             latex_escape(&drsc.trace_csv),
         )
     } else {
         String::new()
     }
+}
+
+fn precursor_statement(precursor: &PrecursorEvaluation) -> String {
+    precursor.comparison_summary.conclusion.clone()
 }
 
 fn motif_row(metric: &MotifMetric) -> String {
@@ -487,29 +855,47 @@ fn compile_pdf(tex_path: &Path, output_dir: &Path) -> (Option<PathBuf>, Option<S
         .file_name()
         .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_else(|| "engineering_report.tex".into());
-    let status = Command::new("pdflatex")
-        .arg("-interaction=nonstopmode")
-        .arg("-halt-on-error")
-        .arg("-output-directory")
-        .arg(output_dir)
-        .arg(&filename)
-        .current_dir(output_dir)
-        .output();
+    let pdf_path = output_dir.join(filename.replace(".tex", ".pdf"));
+    let mut combined_output = String::new();
+    let mut any_success = false;
 
-    match status {
-        Ok(output) if output.status.success() => {
-            let pdf_path = output_dir.join(filename.replace(".tex", ".pdf"));
-            (Some(pdf_path), None)
+    for _ in 0..2 {
+        match Command::new("pdflatex")
+            .arg("-interaction=nonstopmode")
+            .arg("-halt-on-error")
+            .arg("-output-directory")
+            .arg(".")
+            .arg(&filename)
+            .current_dir(output_dir)
+            .output()
+        {
+            Ok(output) => {
+                combined_output.push_str(&String::from_utf8_lossy(&output.stderr));
+                combined_output.push_str(&String::from_utf8_lossy(&output.stdout));
+                if output.status.success() {
+                    any_success = true;
+                }
+            }
+            Err(err) => {
+                if pdf_path.exists() {
+                    return (Some(pdf_path), Some(err.to_string()));
+                }
+                return (None, Some(err.to_string()));
+            }
         }
-        Ok(output) => (
-            None,
-            Some(
-                String::from_utf8_lossy(&output.stderr).to_string()
-                    + &String::from_utf8_lossy(&output.stdout),
-            ),
-        ),
-        Err(err) => (None, Some(err.to_string())),
     }
+
+    if any_success && pdf_path.exists() {
+        return (Some(pdf_path), None);
+    }
+    if pdf_path.exists() {
+        return (
+            Some(pdf_path),
+            (!combined_output.trim().is_empty()).then_some(combined_output),
+        );
+    }
+
+    (None, (!combined_output.trim().is_empty()).then_some(combined_output))
 }
 
 fn format_option_f64(value: Option<f64>) -> String {

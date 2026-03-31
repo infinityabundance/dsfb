@@ -1,4 +1,6 @@
-use crate::calibration::{run_secom_calibration, CalibrationGrid};
+use crate::calibration::{
+    run_secom_calibration, run_secom_precursor_calibration, CalibrationGrid,
+};
 use crate::config::PipelineConfig;
 use crate::dataset::phm2018;
 use crate::dataset::secom;
@@ -21,6 +23,7 @@ enum Command {
     FetchSecom(DataArgs),
     RunSecom(RunSecomArgs),
     CalibrateSecom(CalibrateSecomArgs),
+    CalibrateSecomPrecursor(CalibrateSecomPrecursorArgs),
     ProbePhm2018(ProbePhm2018Args),
 }
 
@@ -46,6 +49,12 @@ struct RunSecomArgs {
     envelope_sigma: f64,
     #[arg(long, default_value_t = 0.5)]
     boundary_fraction_of_rho: f64,
+    #[arg(long, default_value_t = 2)]
+    state_confirmation_steps: usize,
+    #[arg(long, default_value_t = 2)]
+    persistent_state_steps: usize,
+    #[arg(long, default_value_t = 10)]
+    density_window: usize,
     #[arg(long, default_value_t = 0.2)]
     ewma_alpha: f64,
     #[arg(long, default_value_t = 3.0)]
@@ -60,6 +69,20 @@ struct RunSecomArgs {
     grazing_min_hits: usize,
     #[arg(long, default_value_t = 20)]
     pre_failure_lookback_runs: usize,
+    #[arg(long, default_value_t = 10)]
+    precursor_window: usize,
+    #[arg(long, default_value_t = 2)]
+    precursor_persistence_runs: usize,
+    #[arg(long, default_value_t = 0.3)]
+    precursor_boundary_density_tau: f64,
+    #[arg(long, default_value_t = 0.3)]
+    precursor_drift_persistence_tau: f64,
+    #[arg(long, default_value_t = 2)]
+    precursor_transition_cluster_tau: usize,
+    #[arg(long, default_value_t = 0.8)]
+    precursor_ewma_occupancy_tau: f64,
+    #[arg(long, default_value_t = 2.5)]
+    precursor_alert_tau: f64,
 }
 
 #[derive(Debug, Args)]
@@ -78,6 +101,12 @@ struct CalibrateSecomArgs {
     envelope_sigma_grid: Vec<f64>,
     #[arg(long, value_delimiter = ',', default_value = "0.5")]
     boundary_fraction_of_rho_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "2")]
+    state_confirmation_steps_grid: Vec<usize>,
+    #[arg(long, value_delimiter = ',', default_value = "2")]
+    persistent_state_steps_grid: Vec<usize>,
+    #[arg(long, value_delimiter = ',', default_value = "10")]
+    density_window_grid: Vec<usize>,
     #[arg(long, value_delimiter = ',', default_value = "0.2")]
     ewma_alpha_grid: Vec<f64>,
     #[arg(long, value_delimiter = ',', default_value = "3.0")]
@@ -92,6 +121,44 @@ struct CalibrateSecomArgs {
     grazing_min_hits_grid: Vec<usize>,
     #[arg(long, value_delimiter = ',', default_value = "20")]
     pre_failure_lookback_runs_grid: Vec<usize>,
+}
+
+#[derive(Debug, Args)]
+struct CalibrateSecomPrecursorArgs {
+    #[command(flatten)]
+    data: DataArgs,
+    #[arg(long)]
+    output_root: Option<PathBuf>,
+    #[arg(long, default_value_t = false)]
+    fetch_if_missing: bool,
+    #[arg(long, default_value_t = 100)]
+    healthy_pass_runs: usize,
+    #[arg(long, default_value_t = 5)]
+    drift_window: usize,
+    #[arg(long, default_value_t = 3.0)]
+    envelope_sigma: f64,
+    #[arg(long, default_value_t = 0.5)]
+    boundary_fraction_of_rho: f64,
+    #[arg(long, default_value_t = 2)]
+    state_confirmation_steps: usize,
+    #[arg(long, default_value_t = 2)]
+    persistent_state_steps: usize,
+    #[arg(long, default_value_t = 10)]
+    density_window: usize,
+    #[arg(long, default_value_t = 0.2)]
+    ewma_alpha: f64,
+    #[arg(long, default_value_t = 3.0)]
+    ewma_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 3.0)]
+    drift_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 3.0)]
+    slew_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 10)]
+    grazing_window: usize,
+    #[arg(long, default_value_t = 3)]
+    grazing_min_hits: usize,
+    #[arg(long, default_value_t = 20)]
+    pre_failure_lookback_runs: usize,
 }
 
 #[derive(Debug, Args)]
@@ -120,6 +187,9 @@ pub fn run() -> Result<()> {
                 drift_window: args.drift_window,
                 envelope_sigma: args.envelope_sigma,
                 boundary_fraction_of_rho: args.boundary_fraction_of_rho,
+                state_confirmation_steps: args.state_confirmation_steps,
+                persistent_state_steps: args.persistent_state_steps,
+                density_window: args.density_window,
                 ewma_alpha: args.ewma_alpha,
                 ewma_sigma_multiplier: args.ewma_sigma_multiplier,
                 drift_sigma_multiplier: args.drift_sigma_multiplier,
@@ -127,6 +197,15 @@ pub fn run() -> Result<()> {
                 grazing_window: args.grazing_window,
                 grazing_min_hits: args.grazing_min_hits,
                 pre_failure_lookback_runs: args.pre_failure_lookback_runs,
+                precursor: crate::precursor::PrecursorConfig {
+                    window: args.precursor_window,
+                    persistence_runs: args.precursor_persistence_runs,
+                    boundary_density_tau: args.precursor_boundary_density_tau,
+                    drift_persistence_tau: args.precursor_drift_persistence_tau,
+                    transition_cluster_tau: args.precursor_transition_cluster_tau,
+                    ewma_occupancy_tau: args.precursor_ewma_occupancy_tau,
+                    alert_tau: args.precursor_alert_tau,
+                },
                 ..PipelineConfig::default()
             };
             let artifacts = run_secom_benchmark(
@@ -156,6 +235,9 @@ pub fn run() -> Result<()> {
                 drift_window: args.drift_window_grid,
                 envelope_sigma: args.envelope_sigma_grid,
                 boundary_fraction_of_rho: args.boundary_fraction_of_rho_grid,
+                state_confirmation_steps: args.state_confirmation_steps_grid,
+                persistent_state_steps: args.persistent_state_steps_grid,
+                density_window: args.density_window_grid,
                 ewma_alpha: args.ewma_alpha_grid,
                 ewma_sigma_multiplier: args.ewma_sigma_multiplier_grid,
                 drift_sigma_multiplier: args.drift_sigma_multiplier_grid,
@@ -175,6 +257,42 @@ pub fn run() -> Result<()> {
             println!(
                 "Calibration report: {}",
                 artifacts.report_markdown.display()
+            );
+            Ok(())
+        }
+        Command::CalibrateSecomPrecursor(args) => {
+            let data_root = args.data.data_root.unwrap_or_else(default_data_root);
+            let output_root = args.output_root.unwrap_or_else(default_output_root);
+            let config = PipelineConfig {
+                healthy_pass_runs: args.healthy_pass_runs,
+                drift_window: args.drift_window,
+                envelope_sigma: args.envelope_sigma,
+                boundary_fraction_of_rho: args.boundary_fraction_of_rho,
+                state_confirmation_steps: args.state_confirmation_steps,
+                persistent_state_steps: args.persistent_state_steps,
+                density_window: args.density_window,
+                ewma_alpha: args.ewma_alpha,
+                ewma_sigma_multiplier: args.ewma_sigma_multiplier,
+                drift_sigma_multiplier: args.drift_sigma_multiplier,
+                slew_sigma_multiplier: args.slew_sigma_multiplier,
+                grazing_window: args.grazing_window,
+                grazing_min_hits: args.grazing_min_hits,
+                pre_failure_lookback_runs: args.pre_failure_lookback_runs,
+                ..PipelineConfig::default()
+            };
+            let artifacts = run_secom_precursor_calibration(
+                &data_root,
+                Some(&output_root),
+                config,
+                args.fetch_if_missing,
+            )?;
+            println!(
+                "Precursor calibration run directory: {}",
+                artifacts.run_dir.display()
+            );
+            println!(
+                "Precursor calibration grid: {}",
+                artifacts.grid_results_csv.display()
             );
             Ok(())
         }

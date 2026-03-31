@@ -1,8 +1,10 @@
 use crate::baselines::BaselineSet;
+use crate::config::PipelineConfig;
 use crate::error::{DsfbSemiconductorError, Result};
 use crate::grammar::{GrammarSet, GrammarState};
 use crate::metrics::BenchmarkMetrics;
 use crate::nominal::NominalModel;
+use crate::precursor::PrecursorEvaluation;
 use crate::preprocessing::PreparedDataset;
 use crate::residual::ResidualSet;
 use crate::signs::SignSet;
@@ -20,6 +22,11 @@ pub struct DrscManifest {
     pub trace_csv: String,
     pub feature_index: usize,
     pub feature_name: String,
+    pub failure_run_index: usize,
+    pub window_start_run_index: usize,
+    pub window_end_run_index: usize,
+    pub first_persistent_boundary_run: Option<usize>,
+    pub first_persistent_violation_run: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -38,6 +45,8 @@ pub fn generate_figures(
     baselines: &BaselineSet,
     grammar: &GrammarSet,
     metrics: &BenchmarkMetrics,
+    precursor: &PrecursorEvaluation,
+    config: &PipelineConfig,
 ) -> Result<FigureManifest> {
     let figure_dir = run_dir.join("figures");
     std::fs::create_dir_all(&figure_dir)?;
@@ -101,12 +110,13 @@ pub fn generate_figures(
     draw_grammar_timeline(&figure_dir, metrics, grammar)?;
     files.push("grammar_timeline.png".into());
 
-    draw_baseline_comparison(&figure_dir, metrics)?;
+    draw_baseline_comparison(&figure_dir, metrics, precursor)?;
     files.push("benchmark_comparison.png".into());
 
     let drsc = if let Some(feature_index) = metrics.top_feature_indices.first().copied() {
         let figure_file = "drsc_top_feature.png".to_string();
         let trace_csv = "drsc_top_feature.csv".to_string();
+        let drsc_window = drsc_window(dataset, grammar, feature_index, config.pre_failure_lookback_runs);
         draw_drsc_chart(
             &figure_dir.join(&figure_file),
             dataset,
@@ -116,6 +126,8 @@ pub fn generate_figures(
             baselines,
             grammar,
             feature_index,
+            config,
+            &drsc_window,
         )?;
         write_drsc_trace_csv(
             &run_dir.join(&trace_csv),
@@ -126,6 +138,7 @@ pub fn generate_figures(
             baselines,
             grammar,
             feature_index,
+            &drsc_window,
         )?;
         files.push(figure_file.clone());
         Some(DrscManifest {
@@ -133,6 +146,11 @@ pub fn generate_figures(
             trace_csv,
             feature_index,
             feature_name: nominal.features[feature_index].feature_name.clone(),
+            failure_run_index: drsc_window.failure_run_index,
+            window_start_run_index: drsc_window.window_start,
+            window_end_run_index: drsc_window.window_end,
+            first_persistent_boundary_run: drsc_window.first_persistent_boundary_run,
+            first_persistent_violation_run: drsc_window.first_persistent_violation_run,
         })
     } else {
         None
@@ -334,12 +352,8 @@ fn draw_grammar_timeline(
 
     for (row_index, feature_index) in feature_indices.iter().enumerate() {
         let trace = &grammar.traces[*feature_index];
-        for (run_index, state) in trace.states.iter().enumerate() {
-            let color = match state {
-                GrammarState::Admissible => RGBColor(220, 220, 220),
-                GrammarState::Boundary => RGBColor(255, 179, 0),
-                GrammarState::Violation => RGBColor(200, 0, 0),
-            };
+        for run_index in 0..trace.states.len() {
+            let color = state_color(display_state(trace, run_index));
             chart
                 .draw_series(std::iter::once(Rectangle::new(
                     [(run_index, row_index), (run_index + 1, row_index + 1)],
@@ -353,46 +367,72 @@ fn draw_grammar_timeline(
     Ok(())
 }
 
-fn draw_baseline_comparison(figure_dir: &Path, metrics: &BenchmarkMetrics) -> Result<()> {
+fn draw_baseline_comparison(
+    figure_dir: &Path,
+    metrics: &BenchmarkMetrics,
+    precursor: &PrecursorEvaluation,
+) -> Result<()> {
     let out_path = figure_dir.join("benchmark_comparison.png");
     let root = BitMapBackend::new(&out_path, (WIDTH, HEIGHT)).into_drawing_area();
     root.fill(&WHITE).map_err(plot_error)?;
     let areas = root.split_evenly((1, 2));
-    let recall_labels = [
+    let lead_labels = [
         (
-            "DSFB boundary",
+            "DSFB precursor",
+            precursor.summary.mean_lead_time_runs.unwrap_or(0.0),
+            MAGENTA.mix(0.7),
+        ),
+        (
+            "DSFB persistent boundary",
             metrics
-                .summary
-                .failure_runs_with_preceding_dsfb_boundary_signal,
+                .lead_time_summary
+                .mean_persistent_boundary_lead_runs
+                .unwrap_or(0.0),
             BLUE.mix(0.7),
         ),
         (
-            "DSFB violation",
+            "DSFB persistent violation",
             metrics
-                .summary
-                .failure_runs_with_preceding_dsfb_violation_signal,
+                .lead_time_summary
+                .mean_persistent_violation_lead_runs
+                .unwrap_or(0.0),
             CYAN.mix(0.7),
         ),
         (
             "EWMA",
-            metrics.summary.failure_runs_with_preceding_ewma_signal,
+            metrics
+                .lead_time_summary
+                .mean_ewma_lead_runs
+                .unwrap_or(0.0),
             GREEN.mix(0.7),
         ),
         (
             "Threshold",
-            metrics.summary.failure_runs_with_preceding_threshold_signal,
+            metrics
+                .lead_time_summary
+                .mean_threshold_lead_runs
+                .unwrap_or(0.0),
             RED.mix(0.7),
         ),
     ];
     let nuisance_labels = [
         (
-            "DSFB boundary",
-            metrics.summary.pass_run_dsfb_boundary_nuisance_rate,
+            "DSFB precursor",
+            precursor.summary.pass_run_nuisance_proxy,
+            MAGENTA.mix(0.7),
+        ),
+        (
+            "DSFB persistent boundary",
+            metrics
+                .summary
+                .pass_run_dsfb_persistent_boundary_nuisance_rate,
             BLUE.mix(0.7),
         ),
         (
-            "DSFB violation",
-            metrics.summary.pass_run_dsfb_violation_nuisance_rate,
+            "DSFB persistent violation",
+            metrics
+                .summary
+                .pass_run_dsfb_persistent_violation_nuisance_rate,
             CYAN.mix(0.7),
         ),
         (
@@ -407,45 +447,44 @@ fn draw_baseline_comparison(figure_dir: &Path, metrics: &BenchmarkMetrics) -> Re
         ),
     ];
 
-    let max_recall = recall_labels
+    let max_lead = lead_labels
         .iter()
         .map(|(_, value, _)| *value)
-        .max()
-        .unwrap_or(1)
-        .max(1);
+        .fold(0.0_f64, f64::max)
+        .max(1.0);
     let max_nuisance = nuisance_labels
         .iter()
         .map(|(_, value, _)| *value)
         .fold(0.0_f64, f64::max)
         .max(0.05);
 
-    let mut recall_chart = ChartBuilder::on(&areas[0])
-        .caption("Failure-window recall", ("sans-serif", 24))
+    let mut lead_chart = ChartBuilder::on(&areas[0])
+        .caption("Mean pre-failure lead", ("sans-serif", 24))
         .margin(20)
         .x_label_area_size(50)
         .y_label_area_size(60)
-        .build_cartesian_2d(0..recall_labels.len(), 0usize..(max_recall + 5))
+        .build_cartesian_2d(0..lead_labels.len(), 0.0f64..(max_lead * 1.1))
         .map_err(plot_error)?;
-    recall_chart
+    lead_chart
         .configure_mesh()
         .disable_mesh()
-        .x_labels(recall_labels.len())
+        .x_labels(lead_labels.len())
         .x_label_formatter(&|idx| {
-            recall_labels
+            lead_labels
                 .get(*idx)
                 .map(|row| row.0.to_string())
                 .unwrap_or_default()
         })
-        .y_desc("Failure runs with preceding signal")
+        .y_desc("Mean lead runs")
         .draw()
         .map_err(plot_error)?;
-    recall_chart
+    lead_chart
         .draw_series(
-            recall_labels
+            lead_labels
                 .iter()
                 .enumerate()
-                .map(|(index, (_, value, color))| {
-                    Rectangle::new([(index, 0usize), (index + 1, *value)], color.filled())
+                .map(|(index, (_label, value, color))| {
+                    Rectangle::new([(index, 0.0f64), (index + 1, *value)], color.filled())
                 }),
         )
         .map_err(plot_error)?;
@@ -475,7 +514,7 @@ fn draw_baseline_comparison(figure_dir: &Path, metrics: &BenchmarkMetrics) -> Re
             nuisance_labels
                 .iter()
                 .enumerate()
-                .map(|(index, (_, value, color))| {
+                .map(|(index, (_label, value, color))| {
                     Rectangle::new([(index, 0.0f64), (index + 1, *value)], color.filled())
                 }),
         )
@@ -494,6 +533,8 @@ fn draw_drsc_chart(
     baselines: &BaselineSet,
     grammar: &GrammarSet,
     feature_index: usize,
+    config: &PipelineConfig,
+    drsc_window: &DrscWindow,
 ) -> Result<()> {
     let feature = &nominal.features[feature_index];
     let residual_trace = &residuals.traces[feature_index];
@@ -501,7 +542,9 @@ fn draw_drsc_chart(
     let ewma_trace = &baselines.ewma[feature_index];
     let grammar_trace = &grammar.traces[feature_index];
 
-    let run_count = residual_trace.norms.len();
+    let window_start = drsc_window.window_start;
+    let window_end = drsc_window.window_end;
+    let window_runs = window_end.saturating_sub(window_start);
     let residual_scale = positive_or_one(feature.rho);
     let drift_scale = positive_or_one(sign_trace.drift_threshold);
     let slew_scale = positive_or_one(sign_trace.slew_threshold);
@@ -510,26 +553,36 @@ fn draw_drsc_chart(
     let residual_series = residual_trace
         .residuals
         .iter()
+        .skip(window_start)
+        .take(window_runs)
         .map(|value| *value / residual_scale)
         .collect::<Vec<_>>();
     let drift_series = sign_trace
         .drift
         .iter()
+        .skip(window_start)
+        .take(window_runs)
         .map(|value| *value / drift_scale)
         .collect::<Vec<_>>();
     let slew_series = sign_trace
         .slew
         .iter()
+        .skip(window_start)
+        .take(window_runs)
         .map(|value| *value / slew_scale)
         .collect::<Vec<_>>();
     let occupancy_series = residual_trace
         .norms
         .iter()
+        .skip(window_start)
+        .take(window_runs)
         .map(|value| *value / residual_scale)
         .collect::<Vec<_>>();
     let ewma_series = ewma_trace
         .ewma
         .iter()
+        .skip(window_start)
+        .take(window_runs)
         .map(|value| *value / ewma_scale)
         .collect::<Vec<_>>();
 
@@ -547,15 +600,15 @@ fn draw_drsc_chart(
     let mut structure_chart = ChartBuilder::on(&areas[0])
         .caption(
             format!(
-                "DRSC: residual structure for top boundary-activity feature {}",
-                feature.feature_name
+                "DRSC: persistent-state view for feature {} around failure run {}",
+                feature.feature_name, drsc_window.failure_run_index
             ),
             ("sans-serif", 26),
         )
         .margin(15)
         .x_label_area_size(40)
         .y_label_area_size(70)
-        .build_cartesian_2d(0..run_count, -structure_max..structure_max)
+        .build_cartesian_2d(window_start..window_end, -structure_max..structure_max)
         .map_err(plot_error)?;
     structure_chart
         .configure_mesh()
@@ -565,7 +618,7 @@ fn draw_drsc_chart(
         .map_err(plot_error)?;
     structure_chart
         .draw_series(LineSeries::new(
-            residual_series.iter().copied().enumerate(),
+            (window_start..window_end).zip(residual_series.iter().copied()),
             ShapeStyle::from(BLUE).stroke_width(2),
         ))
         .map_err(plot_error)?
@@ -573,7 +626,7 @@ fn draw_drsc_chart(
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 18, y)], BLUE.stroke_width(2)));
     structure_chart
         .draw_series(LineSeries::new(
-            drift_series.iter().copied().enumerate(),
+            (window_start..window_end).zip(drift_series.iter().copied()),
             ShapeStyle::from(GREEN).stroke_width(2),
         ))
         .map_err(plot_error)?
@@ -581,7 +634,7 @@ fn draw_drsc_chart(
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 18, y)], GREEN.stroke_width(2)));
     structure_chart
         .draw_series(LineSeries::new(
-            slew_series.iter().copied().enumerate(),
+            (window_start..window_end).zip(slew_series.iter().copied()),
             ShapeStyle::from(MAGENTA).stroke_width(2),
         ))
         .map_err(plot_error)?
@@ -596,13 +649,13 @@ fn draw_drsc_chart(
 
     let mut state_chart = ChartBuilder::on(&areas[1])
         .caption(
-            "Deterministic state band (Admissible / Boundary / Violation)",
+            "Persistent deterministic state band (hysteresis confirmed)",
             ("sans-serif", 24),
         )
         .margin(15)
         .x_label_area_size(40)
         .y_label_area_size(70)
-        .build_cartesian_2d(0.0f64..run_count as f64, 0.0f64..3.0f64)
+        .build_cartesian_2d(window_start as f64..window_end as f64, 0.0f64..3.0f64)
         .map_err(plot_error)?;
     state_chart
         .configure_mesh()
@@ -612,12 +665,8 @@ fn draw_drsc_chart(
         .y_labels(0)
         .draw()
         .map_err(plot_error)?;
-    for (run_index, state) in grammar_trace.states.iter().enumerate() {
-        let color = match state {
-            GrammarState::Admissible => RGBColor(215, 215, 215),
-            GrammarState::Boundary => RGBColor(255, 179, 0),
-            GrammarState::Violation => RGBColor(200, 0, 0),
-        };
+    for run_index in window_start..window_end {
+        let color = state_color(display_state(grammar_trace, run_index));
         state_chart
             .draw_series(std::iter::once(Rectangle::new(
                 [(run_index as f64, 0.0), ((run_index + 1) as f64, 3.0)],
@@ -634,13 +683,13 @@ fn draw_drsc_chart(
         .max(1.2);
     let mut occupancy_chart = ChartBuilder::on(&areas[2])
         .caption(
-            "Admissibility overlay (normalized envelope occupancy and EWMA occupancy)",
+            "Admissibility overlay (persistent-state context)",
             ("sans-serif", 24),
         )
         .margin(15)
         .x_label_area_size(45)
         .y_label_area_size(70)
-        .build_cartesian_2d(0..run_count, 0.0f64..occupancy_max * 1.1)
+        .build_cartesian_2d(window_start..window_end, 0.0f64..occupancy_max * 1.1)
         .map_err(plot_error)?;
     occupancy_chart
         .configure_mesh()
@@ -648,8 +697,8 @@ fn draw_drsc_chart(
         .y_desc("Normalized occupancy")
         .draw()
         .map_err(plot_error)?;
-    for (run_index, label) in dataset.labels.iter().enumerate() {
-        if *label == 1 {
+    for run_index in window_start..window_end {
+        if dataset.labels[run_index] == 1 {
             occupancy_chart
                 .draw_series(std::iter::once(Rectangle::new(
                     [(run_index, 0.0), (run_index + 1, occupancy_max * 1.1)],
@@ -660,7 +709,7 @@ fn draw_drsc_chart(
     }
     occupancy_chart
         .draw_series(LineSeries::new(
-            occupancy_series.iter().copied().enumerate(),
+            (window_start..window_end).zip(occupancy_series.iter().copied()),
             ShapeStyle::from(BLUE).stroke_width(2),
         ))
         .map_err(plot_error)?
@@ -668,7 +717,7 @@ fn draw_drsc_chart(
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 18, y)], BLUE.stroke_width(2)));
     occupancy_chart
         .draw_series(LineSeries::new(
-            ewma_series.iter().copied().enumerate(),
+            (window_start..window_end).zip(ewma_series.iter().copied()),
             ShapeStyle::from(GREEN).stroke_width(2),
         ))
         .map_err(plot_error)?
@@ -677,8 +726,8 @@ fn draw_drsc_chart(
     occupancy_chart
         .draw_series(std::iter::once(PathElement::new(
             vec![
-                (0, nominal.features[feature_index].rho * 0.0 + 1.0),
-                (run_count, 1.0),
+                (window_start, nominal.features[feature_index].rho * 0.0 + 1.0),
+                (window_end, 1.0),
             ],
             RED.mix(0.6).stroke_width(2),
         )))
@@ -687,7 +736,10 @@ fn draw_drsc_chart(
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 18, y)], RED.mix(0.6).stroke_width(2)));
     occupancy_chart
         .draw_series(std::iter::once(PathElement::new(
-            vec![(0, 0.5), (run_count, 0.5)],
+            vec![
+                (window_start, config.boundary_fraction_of_rho),
+                (window_end, config.boundary_fraction_of_rho),
+            ],
             RGBColor(255, 179, 0).mix(0.8).stroke_width(2),
         )))
         .map_err(plot_error)?
@@ -698,6 +750,58 @@ fn draw_drsc_chart(
                 RGBColor(255, 179, 0).mix(0.8).stroke_width(2),
             )
         });
+
+    for (run_index, label, color) in [
+        (
+            drsc_window.first_persistent_boundary_run,
+            "first persistent boundary",
+            RGBColor(255, 179, 0),
+        ),
+        (
+            drsc_window.first_persistent_violation_run,
+            "first persistent violation",
+            RGBColor(200, 0, 0),
+        ),
+        (
+            Some(drsc_window.failure_run_index),
+            "failure label",
+            RGBColor(90, 90, 90),
+        ),
+    ] {
+        if let Some(run_index) = run_index {
+            structure_chart
+                .draw_series(std::iter::once(PathElement::new(
+                    vec![(run_index, -structure_max), (run_index, structure_max)],
+                    color.mix(0.55).stroke_width(2),
+                )))
+                .map_err(plot_error)?;
+            occupancy_chart
+                .draw_series(std::iter::once(PathElement::new(
+                    vec![(run_index, 0.0f64), (run_index, occupancy_max * 1.1)],
+                    color.mix(0.55).stroke_width(2),
+                )))
+                .map_err(plot_error)?;
+            state_chart
+                .draw_series(std::iter::once(PathElement::new(
+                    vec![
+                        (run_index as f64, 0.0f64),
+                        (run_index as f64, 3.0f64),
+                    ],
+                    color.mix(0.7).stroke_width(2),
+                )))
+                .map_err(plot_error)?
+                .label(label)
+                .legend(move |(x, y)| {
+                    PathElement::new(vec![(x, y), (x + 18, y)], color.mix(0.7).stroke_width(2))
+                });
+        }
+    }
+    state_chart
+        .configure_series_labels()
+        .background_style(WHITE.mix(0.9))
+        .border_style(BLACK)
+        .draw()
+        .map_err(plot_error)?;
     occupancy_chart
         .configure_series_labels()
         .background_style(WHITE.mix(0.9))
@@ -718,6 +822,7 @@ fn write_drsc_trace_csv(
     baselines: &BaselineSet,
     grammar: &GrammarSet,
     feature_index: usize,
+    drsc_window: &DrscWindow,
 ) -> Result<()> {
     let feature = &nominal.features[feature_index];
     let residual_trace = &residuals.traces[feature_index];
@@ -746,11 +851,19 @@ fn write_drsc_trace_csv(
         "ewma_over_threshold",
         "threshold_alarm",
         "ewma_alarm",
-        "state",
-        "reason",
+        "raw_state",
+        "confirmed_state",
+        "persistent_state",
+        "raw_reason",
+        "confirmed_reason",
+        "persistent_boundary",
+        "persistent_violation",
+        "is_failure_run",
+        "is_first_persistent_boundary_before_failure",
+        "is_first_persistent_violation_before_failure",
     ])?;
 
-    for run_index in 0..dataset.timestamps.len() {
+    for run_index in drsc_window.window_start..drsc_window.window_end {
         writer.write_record([
             run_index.to_string(),
             dataset.timestamps[run_index]
@@ -769,12 +882,92 @@ fn write_drsc_trace_csv(
             (ewma_trace.ewma[run_index] / ewma_scale).to_string(),
             residual_trace.threshold_alarm[run_index].to_string(),
             ewma_trace.alarm[run_index].to_string(),
+            format!("{:?}", grammar_trace.raw_states[run_index]),
             format!("{:?}", grammar_trace.states[run_index]),
+            format!("{:?}", display_state(grammar_trace, run_index)),
+            format!("{:?}", grammar_trace.raw_reasons[run_index]),
             format!("{:?}", grammar_trace.reasons[run_index]),
+            grammar_trace.persistent_boundary[run_index].to_string(),
+            grammar_trace.persistent_violation[run_index].to_string(),
+            (run_index == drsc_window.failure_run_index).to_string(),
+            (Some(run_index) == drsc_window.first_persistent_boundary_run).to_string(),
+            (Some(run_index) == drsc_window.first_persistent_violation_run).to_string(),
         ])?;
     }
     writer.flush()?;
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct DrscWindow {
+    failure_run_index: usize,
+    window_start: usize,
+    window_end: usize,
+    first_persistent_boundary_run: Option<usize>,
+    first_persistent_violation_run: Option<usize>,
+}
+
+fn drsc_window(
+    dataset: &PreparedDataset,
+    grammar: &GrammarSet,
+    feature_index: usize,
+    lookback_runs: usize,
+) -> DrscWindow {
+    let trace = &grammar.traces[feature_index];
+    let failure_run_index = dataset
+        .labels
+        .iter()
+        .enumerate()
+        .filter_map(|(index, label)| (*label == 1).then_some(index))
+        .find(|&failure_index| {
+            let start = failure_index.saturating_sub(lookback_runs);
+            trace.persistent_boundary[start..failure_index]
+                .iter()
+                .any(|flag| *flag)
+                || trace.persistent_violation[start..failure_index]
+                    .iter()
+                    .any(|flag| *flag)
+        })
+        .or_else(|| {
+            dataset
+                .labels
+                .iter()
+                .enumerate()
+                .find_map(|(index, label)| (*label == 1).then_some(index))
+        })
+        .unwrap_or_else(|| dataset.labels.len().saturating_sub(1));
+    let window_start = failure_run_index.saturating_sub(lookback_runs);
+    let window_end = (failure_run_index + 1).min(dataset.labels.len());
+    let first_persistent_boundary_run = (window_start..failure_run_index)
+        .find(|&run_index| trace.persistent_boundary[run_index]);
+    let first_persistent_violation_run = (window_start..failure_run_index)
+        .find(|&run_index| trace.persistent_violation[run_index]);
+
+    DrscWindow {
+        failure_run_index,
+        window_start,
+        window_end,
+        first_persistent_boundary_run,
+        first_persistent_violation_run,
+    }
+}
+
+fn display_state(trace: &crate::grammar::FeatureGrammarTrace, run_index: usize) -> GrammarState {
+    if trace.persistent_violation[run_index] {
+        GrammarState::Violation
+    } else if trace.persistent_boundary[run_index] {
+        GrammarState::Boundary
+    } else {
+        GrammarState::Admissible
+    }
+}
+
+fn state_color(state: GrammarState) -> RGBColor {
+    match state {
+        GrammarState::Admissible => RGBColor(220, 220, 220),
+        GrammarState::Boundary => RGBColor(255, 179, 0),
+        GrammarState::Violation => RGBColor(200, 0, 0),
+    }
 }
 
 fn value_range(values: &[f64]) -> (f64, f64) {
