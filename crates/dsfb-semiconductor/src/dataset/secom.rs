@@ -13,6 +13,15 @@ pub const SECOM_LABELS_FILE: &str = "secom_labels.data";
 pub const SECOM_NAMES_FILE: &str = "secom.names";
 
 #[derive(Debug, Clone, Serialize)]
+pub struct SecomArchiveLayout {
+    pub data_file_numeric_column_count: usize,
+    pub metadata_attribute_count_claim: Option<usize>,
+    pub label_row_count: usize,
+    pub label_file_includes_timestamp: bool,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SecomRun {
     pub index: usize,
     pub label: i8,
@@ -82,6 +91,62 @@ pub fn ensure_present(data_root: &Path) -> Result<SecomDataPaths> {
 pub fn load_from_root(data_root: &Path) -> Result<SecomDataset> {
     let paths = ensure_present(data_root)?;
     load_from_paths(&paths)
+}
+
+pub fn inspect_archive_layout(paths: &SecomDataPaths) -> Result<SecomArchiveLayout> {
+    let mut data_file_numeric_column_count = 0usize;
+    let reader = BufReader::new(File::open(&paths.data_file)?);
+    for line in reader.lines() {
+        let line = line?;
+        let trimmed = line.trim();
+        if !trimmed.is_empty() {
+            data_file_numeric_column_count = trimmed.split_whitespace().count();
+            break;
+        }
+    }
+
+    let label_rows = read_labels(&paths.labels_file)?;
+    let names_text = fs::read_to_string(&paths.names_file)?;
+    let metadata_attribute_count_claim = names_text
+        .lines()
+        .find_map(|line| {
+            let normalized = line.trim().to_ascii_lowercase();
+            normalized
+                .strip_prefix("number of attributes:")
+                .and_then(|value| value.trim().parse::<usize>().ok())
+        })
+        .or_else(|| {
+            names_text.lines().find_map(|line| {
+                let normalized = line.to_ascii_lowercase();
+                let prefix = "consisting of 1567 examples each with ";
+                normalized.find(prefix).and_then(|start| {
+                    normalized[start + prefix.len()..]
+                        .split_whitespace()
+                        .next()
+                        .and_then(|token| token.parse::<usize>().ok())
+                })
+            })
+        });
+
+    let note = match metadata_attribute_count_claim {
+        Some(claim) if claim != data_file_numeric_column_count => format!(
+            "The distributed UCI archive currently parses as {data_file_numeric_column_count} whitespace-delimited numeric columns in {SECOM_DATA_FILE}, while {SECOM_NAMES_FILE} states {claim} attributes. This crate uses the {data_file_numeric_column_count} numeric columns actually present in {SECOM_DATA_FILE} and reads labels plus timestamps separately from {SECOM_LABELS_FILE}."
+        ),
+        Some(claim) => format!(
+            "The distributed UCI archive parses as {data_file_numeric_column_count} numeric columns in {SECOM_DATA_FILE}, matching the {claim}-attribute claim in {SECOM_NAMES_FILE}. Labels and timestamps are read separately from {SECOM_LABELS_FILE}."
+        ),
+        None => format!(
+            "The distributed UCI archive parses as {data_file_numeric_column_count} numeric columns in {SECOM_DATA_FILE}. Labels and timestamps are read separately from {SECOM_LABELS_FILE}."
+        ),
+    };
+
+    Ok(SecomArchiveLayout {
+        data_file_numeric_column_count,
+        metadata_attribute_count_claim,
+        label_row_count: label_rows.len(),
+        label_file_includes_timestamp: !label_rows.is_empty(),
+        note,
+    })
 }
 
 pub fn load_from_paths(paths: &SecomDataPaths) -> Result<SecomDataset> {
@@ -219,5 +284,40 @@ mod tests {
         fs::write(&path, "1.0 NaN 2.5\n").unwrap();
         let rows = read_data(&path).unwrap();
         assert_eq!(rows[0], vec![Some(1.0), None, Some(2.5)]);
+    }
+
+    #[test]
+    fn archive_layout_reports_mismatch_when_names_claim_exceeds_numeric_columns() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("secom");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join(SECOM_DATA_FILE), "1.0 2.0 3.0\n4.0 5.0 6.0\n").unwrap();
+        fs::write(
+            root.join(SECOM_LABELS_FILE),
+            "-1 \"01/01/2008 00:00:00\"\n1 \"01/01/2008 01:00:00\"\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join(SECOM_NAMES_FILE),
+            "Number of Attributes: 4\nData Structure: 2 examples each with 4 features\n",
+        )
+        .unwrap();
+
+        let layout = inspect_archive_layout(&SecomDataPaths {
+            root: root.clone(),
+            archive: root.join(SECOM_ARCHIVE_NAME),
+            data_file: root.join(SECOM_DATA_FILE),
+            labels_file: root.join(SECOM_LABELS_FILE),
+            names_file: root.join(SECOM_NAMES_FILE),
+        })
+        .unwrap();
+
+        assert_eq!(layout.data_file_numeric_column_count, 3);
+        assert_eq!(layout.metadata_attribute_count_claim, Some(4));
+        assert_eq!(layout.label_row_count, 2);
+        assert!(layout.label_file_includes_timestamp);
+        assert!(layout
+            .note
+            .contains("3 whitespace-delimited numeric columns"));
     }
 }

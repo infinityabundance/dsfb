@@ -1,4 +1,5 @@
 use dsfb_semiconductor::baselines::{compute_baselines, ewma_series};
+use dsfb_semiconductor::calibration::{run_secom_calibration, CalibrationGrid};
 use dsfb_semiconductor::config::PipelineConfig;
 use dsfb_semiconductor::dataset::secom;
 use dsfb_semiconductor::grammar::evaluate_grammar;
@@ -10,6 +11,7 @@ use dsfb_semiconductor::signs::compute_signs;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
+use zip::ZipArchive;
 
 fn write_fixture_dataset(root: &Path) -> PathBuf {
     let secom_root = root.join("secom");
@@ -121,8 +123,10 @@ fn benchmark_run_writes_expected_core_artifacts() {
 
     let expected_files = [
         "artifact_manifest.json",
+        "baseline_comparison_summary.json",
         "benchmark_metrics.json",
         "dataset_summary.json",
+        "drsc_top_feature.csv",
         "drifts.csv",
         "ewma_baseline.csv",
         "engineering_report.md",
@@ -130,11 +134,14 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "feature_metrics.csv",
         "grammar_states.csv",
         "heuristics_bank.json",
+        "lead_time_metrics.csv",
         "parameter_manifest.json",
+        "per_failure_run_signals.csv",
         "phm2018_support_status.json",
         "residuals.csv",
         "run_bundle.zip",
         "run_configuration.json",
+        "secom_archive_layout.json",
         "slews.csv",
     ];
 
@@ -152,6 +159,11 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(artifacts
         .run_dir
         .join("figures")
+        .join("drsc_top_feature.png")
+        .exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures")
         .join("grammar_timeline.png")
         .exists());
     assert!(artifacts
@@ -159,6 +171,81 @@ fn benchmark_run_writes_expected_core_artifacts() {
         .join("figures")
         .join("top_feature_ewma.png")
         .exists());
+
+    let archive = fs::File::open(artifacts.run_dir.join("run_bundle.zip")).unwrap();
+    let mut zip = ZipArchive::new(archive).unwrap();
+    assert!(zip.by_name("artifact_manifest.json").is_ok());
+    assert!(zip.by_name("drsc_top_feature.csv").is_ok());
+    assert!(zip.by_name("figures/drsc_top_feature.png").is_ok());
+}
+
+#[test]
+fn heuristics_bank_entries_include_operational_fields() {
+    let data_temp = tempfile::tempdir().unwrap();
+    let output_temp = tempfile::tempdir().unwrap();
+    let data_root = write_fixture_dataset(data_temp.path());
+
+    let artifacts =
+        run_secom_benchmark(&data_root, Some(output_temp.path()), test_config(), false).unwrap();
+    let heuristics: Value = serde_json::from_str(
+        &fs::read_to_string(artifacts.run_dir.join("heuristics_bank.json")).unwrap(),
+    )
+    .unwrap();
+
+    let first = &heuristics.as_array().unwrap()[0];
+    for key in [
+        "severity",
+        "confidence",
+        "recommended_action",
+        "escalation_policy",
+        "non_unique_warning",
+        "known_limitations",
+        "observed_point_hits",
+        "observed_run_hits",
+        "pre_failure_window_run_hits",
+    ] {
+        assert!(first.get(key).is_some(), "missing heuristics field {key}");
+    }
+}
+
+#[test]
+fn calibration_grid_writes_expected_artifacts() {
+    let data_temp = tempfile::tempdir().unwrap();
+    let output_temp = tempfile::tempdir().unwrap();
+    let data_root = write_fixture_dataset(data_temp.path());
+
+    let artifacts = run_secom_calibration(
+        &data_root,
+        Some(output_temp.path()),
+        CalibrationGrid {
+            healthy_pass_runs: vec![3, 4],
+            drift_window: vec![2],
+            envelope_sigma: vec![2.0],
+            boundary_fraction_of_rho: vec![0.5],
+            ewma_alpha: vec![0.3],
+            ewma_sigma_multiplier: vec![2.0],
+            drift_sigma_multiplier: vec![2.0],
+            slew_sigma_multiplier: vec![2.0],
+            grazing_window: vec![3],
+            grazing_min_hits: vec![2],
+            pre_failure_lookback_runs: vec![2],
+        },
+        false,
+    )
+    .unwrap();
+
+    for file in [
+        "calibration_grid_results.csv",
+        "calibration_best_by_metric.json",
+        "calibration_report.md",
+        "calibration_run_configuration.json",
+        "parameter_grid_manifest.json",
+    ] {
+        assert!(
+            artifacts.run_dir.join(file).exists(),
+            "missing calibration artifact {file}"
+        );
+    }
 }
 
 #[test]

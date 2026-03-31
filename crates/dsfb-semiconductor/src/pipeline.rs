@@ -1,11 +1,13 @@
 use crate::baselines::compute_baselines;
 use crate::config::{PipelineConfig, RunConfiguration};
 use crate::dataset::phm2018::{support_status as phm_support_status, Phm2018SupportStatus};
-use crate::dataset::secom;
+use crate::dataset::secom::{self, SecomArchiveLayout};
 use crate::error::{DsfbSemiconductorError, Result};
 use crate::grammar::evaluate_grammar;
 use crate::heuristics::build_heuristics_bank;
-use crate::metrics::{compute_metrics, BenchmarkMetrics};
+use crate::metrics::{
+    compute_metrics, BenchmarkMetrics, BoundaryEpisodeSummary, LeadTimeSummary, PerFailureRunSignal,
+};
 use crate::nominal::build_nominal_model;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
 use crate::plots::{generate_figures, FigureManifest};
@@ -35,10 +37,51 @@ struct ArtifactManifest {
     dataset: String,
     run_dir: String,
     metrics_summary_path: String,
+    baseline_comparison_summary_path: String,
+    lead_time_metrics_path: String,
+    per_failure_run_signals_path: String,
+    secom_archive_layout_path: String,
+    drsc_trace_path: Option<String>,
+    drsc_figure_path: Option<String>,
     report_markdown_path: String,
     report_tex_path: String,
     report_pdf_path: Option<String>,
     zip_path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct BaselineComparisonSummary {
+    dataset: String,
+    secom_archive_layout_note: String,
+    feature_count_used_by_crate: usize,
+    failure_runs: usize,
+    analyzable_feature_count: usize,
+    lookback_runs: usize,
+    failure_run_recall: FailureRunRecallSummary,
+    pass_run_nuisance_proxy: PassRunNuisanceSummary,
+    lead_time_summary: LeadTimeSummary,
+    boundary_episode_summary: BoundaryEpisodeSummary,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct FailureRunRecallSummary {
+    dsfb_any_signal: usize,
+    dsfb_boundary_signal: usize,
+    dsfb_violation_signal: usize,
+    ewma_signal: usize,
+    threshold_signal: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct PassRunNuisanceSummary {
+    dsfb_boundary_signal_runs: usize,
+    dsfb_violation_signal_runs: usize,
+    ewma_signal_runs: usize,
+    threshold_signal_runs: usize,
+    dsfb_boundary_signal_rate: f64,
+    dsfb_violation_signal_rate: f64,
+    ewma_signal_rate: f64,
+    threshold_signal_rate: f64,
 }
 
 pub fn run_secom_benchmark(
@@ -51,11 +94,12 @@ pub fn run_secom_benchmark(
         .validate()
         .map_err(DsfbSemiconductorError::DatasetFormat)?;
 
-    let _paths = if fetch_if_missing {
+    let paths = if fetch_if_missing {
         secom::fetch_if_missing(data_root)?
     } else {
         secom::ensure_present(data_root)?
     };
+    let secom_archive_layout = secom::inspect_archive_layout(&paths)?;
     let dataset = secom::load_from_root(data_root)?;
     let prepared = prepare_secom(&dataset, &config)?;
     let nominal = build_nominal_model(&prepared, &config);
@@ -72,7 +116,7 @@ pub fn run_secom_benchmark(
         &grammar,
         config.pre_failure_lookback_runs,
     );
-    let heuristics = build_heuristics_bank(&grammar, "SECOM");
+    let heuristics = build_heuristics_bank(&metrics, "SECOM");
 
     let output_root = output_root
         .map(Path::to_path_buf)
@@ -94,12 +138,28 @@ pub fn run_secom_benchmark(
     )?;
     write_json_pretty(&run_dir.join("benchmark_metrics.json"), &metrics)?;
     write_json_pretty(
+        &run_dir.join("secom_archive_layout.json"),
+        &secom_archive_layout,
+    )?;
+    write_json_pretty(
         &run_dir.join("phm2018_support_status.json"),
         &phm_support_status(data_root),
     )?;
     write_json_pretty(&run_dir.join("heuristics_bank.json"), &heuristics)?;
+    write_json_pretty(
+        &run_dir.join("baseline_comparison_summary.json"),
+        &build_baseline_comparison_summary(&metrics, &secom_archive_layout, &config),
+    )?;
 
     write_feature_metrics_csv(&run_dir.join("feature_metrics.csv"), &metrics)?;
+    write_per_failure_run_signals_csv(
+        &run_dir.join("per_failure_run_signals.csv"),
+        &metrics.per_failure_run_signals,
+    )?;
+    write_lead_time_metrics_csv(
+        &run_dir.join("lead_time_metrics.csv"),
+        &metrics.per_failure_run_signals,
+    )?;
     write_trace_csvs(
         &run_dir, &prepared, &residuals, &signs, &baselines, &grammar,
     )?;
@@ -113,20 +173,43 @@ pub fn run_secom_benchmark(
         &figures,
         &heuristics,
         &phm_support_status(data_root),
+        &secom_archive_layout,
     )?;
-
-    let zip_path = run_dir.join("run_bundle.zip");
-    zip_directory(&run_dir, &zip_path)?;
 
     let manifest_path = run_dir.join("artifact_manifest.json");
     let metrics_path = run_dir.join("benchmark_metrics.json");
     let phm2018_status = phm_support_status(data_root);
+    let zip_path = run_dir.join("run_bundle.zip");
     write_json_pretty(
         &manifest_path,
         &ArtifactManifest {
             dataset: "SECOM".into(),
             run_dir: run_dir.display().to_string(),
             metrics_summary_path: metrics_path.display().to_string(),
+            baseline_comparison_summary_path: run_dir
+                .join("baseline_comparison_summary.json")
+                .display()
+                .to_string(),
+            lead_time_metrics_path: run_dir.join("lead_time_metrics.csv").display().to_string(),
+            per_failure_run_signals_path: run_dir
+                .join("per_failure_run_signals.csv")
+                .display()
+                .to_string(),
+            secom_archive_layout_path: run_dir
+                .join("secom_archive_layout.json")
+                .display()
+                .to_string(),
+            drsc_trace_path: figures
+                .drsc
+                .as_ref()
+                .map(|drsc| run_dir.join(&drsc.trace_csv).display().to_string()),
+            drsc_figure_path: figures.drsc.as_ref().map(|drsc| {
+                run_dir
+                    .join("figures")
+                    .join(&drsc.figure_file)
+                    .display()
+                    .to_string()
+            }),
             report_markdown_path: report.markdown_path.display().to_string(),
             report_tex_path: report.tex_path.display().to_string(),
             report_pdf_path: report
@@ -136,6 +219,7 @@ pub fn run_secom_benchmark(
             zip_path: zip_path.display().to_string(),
         },
     )?;
+    zip_directory(&run_dir, &zip_path)?;
 
     Ok(SecomRunArtifacts {
         run_dir,
@@ -146,6 +230,44 @@ pub fn run_secom_benchmark(
         zip_path,
         phm2018_status,
     })
+}
+
+fn build_baseline_comparison_summary(
+    metrics: &BenchmarkMetrics,
+    secom_archive_layout: &SecomArchiveLayout,
+    config: &PipelineConfig,
+) -> BaselineComparisonSummary {
+    BaselineComparisonSummary {
+        dataset: "SECOM".into(),
+        secom_archive_layout_note: secom_archive_layout.note.clone(),
+        feature_count_used_by_crate: metrics.summary.dataset_summary.feature_count,
+        failure_runs: metrics.summary.failure_runs,
+        analyzable_feature_count: metrics.summary.analyzable_feature_count,
+        lookback_runs: config.pre_failure_lookback_runs,
+        failure_run_recall: FailureRunRecallSummary {
+            dsfb_any_signal: metrics.summary.failure_runs_with_preceding_dsfb_signal,
+            dsfb_boundary_signal: metrics
+                .summary
+                .failure_runs_with_preceding_dsfb_boundary_signal,
+            dsfb_violation_signal: metrics
+                .summary
+                .failure_runs_with_preceding_dsfb_violation_signal,
+            ewma_signal: metrics.summary.failure_runs_with_preceding_ewma_signal,
+            threshold_signal: metrics.summary.failure_runs_with_preceding_threshold_signal,
+        },
+        pass_run_nuisance_proxy: PassRunNuisanceSummary {
+            dsfb_boundary_signal_runs: metrics.summary.pass_runs_with_dsfb_boundary_signal,
+            dsfb_violation_signal_runs: metrics.summary.pass_runs_with_dsfb_violation_signal,
+            ewma_signal_runs: metrics.summary.pass_runs_with_ewma_signal,
+            threshold_signal_runs: metrics.summary.pass_runs_with_threshold_signal,
+            dsfb_boundary_signal_rate: metrics.summary.pass_run_dsfb_boundary_nuisance_rate,
+            dsfb_violation_signal_rate: metrics.summary.pass_run_dsfb_violation_nuisance_rate,
+            ewma_signal_rate: metrics.summary.pass_run_ewma_nuisance_rate,
+            threshold_signal_rate: metrics.summary.pass_run_threshold_nuisance_rate,
+        },
+        lead_time_summary: metrics.lead_time_summary.clone(),
+        boundary_episode_summary: metrics.boundary_episode_summary.clone(),
+    }
 }
 
 fn write_json_pretty<T: Serialize>(path: &Path, value: &T) -> Result<()> {
@@ -159,6 +281,49 @@ fn write_feature_metrics_csv(path: &Path, metrics: &BenchmarkMetrics) -> Result<
     for feature in &metrics.feature_metrics {
         writer.serialize(feature)?;
     }
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_per_failure_run_signals_csv(path: &Path, records: &[PerFailureRunSignal]) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    for record in records {
+        writer.serialize(record)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_lead_time_metrics_csv(path: &Path, records: &[PerFailureRunSignal]) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    writer.write_record([
+        "failure_run_index",
+        "failure_timestamp",
+        "dsfb_boundary_lead_runs",
+        "dsfb_violation_lead_runs",
+        "threshold_lead_runs",
+        "ewma_lead_runs",
+        "dsfb_boundary_minus_threshold_delta_runs",
+        "dsfb_boundary_minus_ewma_delta_runs",
+        "dsfb_violation_minus_threshold_delta_runs",
+        "dsfb_violation_minus_ewma_delta_runs",
+    ])?;
+
+    for record in records {
+        writer.write_record([
+            record.failure_run_index.to_string(),
+            record.failure_timestamp.clone(),
+            option_to_string(record.dsfb_boundary_lead_runs),
+            option_to_string(record.dsfb_violation_lead_runs),
+            option_to_string(record.threshold_lead_runs),
+            option_to_string(record.ewma_lead_runs),
+            option_to_string(record.dsfb_boundary_minus_threshold_delta_runs),
+            option_to_string(record.dsfb_boundary_minus_ewma_delta_runs),
+            option_to_string(record.dsfb_violation_minus_threshold_delta_runs),
+            option_to_string(record.dsfb_violation_minus_ewma_delta_runs),
+        ])?;
+    }
+
     writer.flush()?;
     Ok(())
 }
@@ -258,6 +423,10 @@ fn write_trace_csvs(
     ewma_writer.flush()?;
     grammar_writer.flush()?;
     Ok(())
+}
+
+fn option_to_string<T: ToString>(value: Option<T>) -> String {
+    value.map(|value| value.to_string()).unwrap_or_default()
 }
 
 fn zip_directory(run_dir: &Path, zip_path: &Path) -> Result<()> {
