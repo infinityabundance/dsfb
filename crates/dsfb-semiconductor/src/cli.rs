@@ -1,6 +1,4 @@
-use crate::calibration::{
-    run_secom_calibration, run_secom_dsa_calibration, CalibrationGrid,
-};
+use crate::calibration::{run_secom_calibration, run_secom_dsa_calibration, CalibrationGrid};
 use crate::config::PipelineConfig;
 use crate::dataset::phm2018;
 use crate::dataset::secom;
@@ -341,8 +339,7 @@ pub fn run() -> Result<()> {
                     window: args.dsa_window_grid,
                     persistence_runs: args.dsa_persistence_runs_grid,
                     alert_tau: args.dsa_alert_tau_grid,
-                    corroborating_feature_count_min: args
-                        .dsa_corroborating_feature_count_min_grid,
+                    corroborating_feature_count_min: args.dsa_corroborating_feature_count_min_grid,
                 },
                 args.fetch_if_missing,
             )?;
@@ -350,9 +347,18 @@ pub fn run() -> Result<()> {
                 "DSA calibration run directory: {}",
                 artifacts.run_dir.display()
             );
-            println!("DSA calibration grid: {}", artifacts.grid_results_csv.display());
-            println!("DSA calibration summary: {}", artifacts.summary_json.display());
-            println!("DSA calibration report: {}", artifacts.report_markdown.display());
+            println!(
+                "DSA calibration grid: {}",
+                artifacts.grid_results_csv.display()
+            );
+            println!(
+                "DSA calibration summary: {}",
+                artifacts.summary_json.display()
+            );
+            println!(
+                "DSA calibration report: {}",
+                artifacts.report_markdown.display()
+            );
             Ok(())
         }
         Command::ProbePhm2018(args) => {
@@ -370,9 +376,12 @@ pub fn run() -> Result<()> {
             );
             println!("Implemented now: {}", status.fully_implemented);
             println!("Blocker: {}", status.blocker);
-            let archive = args
-                .archive
-                .or_else(|| status.manual_placement_path.exists().then_some(status.manual_placement_path.clone()));
+            let archive = args.archive.or_else(|| {
+                status
+                    .manual_placement_path
+                    .exists()
+                    .then_some(status.manual_placement_path.clone())
+            });
             if let Some(archive) = archive {
                 println!("Inspecting archive: {}", archive.display());
                 let manifest = phm2018::inspect_archive(&archive)?;

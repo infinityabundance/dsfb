@@ -49,15 +49,18 @@ pub fn evaluate_grammar(
         let feature = &nominal.features[residual_trace.feature_index];
         let (raw_states, raw_reasons) =
             evaluate_raw_trace(residual_trace, sign_trace, feature, config);
-        let (states, reasons) = apply_hysteresis(
-            &raw_states,
-            &raw_reasons,
-            config.state_confirmation_steps,
+        let (states, reasons) =
+            apply_hysteresis(&raw_states, &raw_reasons, config.state_confirmation_steps);
+        let persistent_boundary = persistent_mask(
+            &states,
+            GrammarState::Boundary,
+            config.persistent_state_steps,
         );
-        let persistent_boundary =
-            persistent_mask(&states, GrammarState::Boundary, config.persistent_state_steps);
-        let persistent_violation =
-            persistent_mask(&states, GrammarState::Violation, config.persistent_state_steps);
+        let persistent_violation = persistent_mask(
+            &states,
+            GrammarState::Violation,
+            config.persistent_state_steps,
+        );
 
         traces.push(FeatureGrammarTrace {
             feature_index: residual_trace.feature_index,
@@ -181,7 +184,11 @@ fn apply_hysteresis(
     (states, reasons)
 }
 
-fn persistent_mask(states: &[GrammarState], target: GrammarState, minimum_steps: usize) -> Vec<bool> {
+fn persistent_mask(
+    states: &[GrammarState],
+    target: GrammarState,
+    minimum_steps: usize,
+) -> Vec<bool> {
     let mut out = Vec::with_capacity(states.len());
     let mut consecutive = 0usize;
 

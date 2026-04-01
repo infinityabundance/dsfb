@@ -345,6 +345,12 @@ fn markdown_report(
     }
     out.push_str("- Saved grid artifacts: `dsa_grid_results.csv` and `dsa_grid_summary.json`\n\n");
     out.push_str(&cohort_report_section(feature_cohorts, cohort_summary));
+    out.push_str(&heuristics_policy_engine_markdown_section(
+        heuristics,
+        dsa,
+        cohort_summary,
+    ));
+    out.push_str(&semantics_of_silence_markdown_section(dsa));
     out.push_str(&rating_forecast_report_section(rating_delta_forecast));
 
     out.push_str("## Density Summary\n\n");
@@ -595,6 +601,12 @@ fn latex_report(
         feature_cohorts,
         cohort_summary,
     ));
+    out.push_str(&heuristics_policy_engine_latex_section(
+        heuristics,
+        dsa,
+        cohort_summary,
+    ));
+    out.push_str(&semantics_of_silence_latex_section(dsa));
     out.push_str(&rating_forecast_latex_section(rating_delta_forecast));
 
     out.push_str("\\section*{Motif metrics}\n");
@@ -668,6 +680,200 @@ fn latex_report(
     out
 }
 
+fn heuristics_policy_engine_markdown_section(
+    heuristics: &[HeuristicEntry],
+    dsa: &DsaEvaluation,
+    cohort_summary: &CohortDsaSummary,
+) -> String {
+    let mut out = String::new();
+    out.push_str("## Heuristics-Governed DSA Policy Engine\n\n");
+    out.push_str("- Current motif set used: ");
+    out.push_str(
+        &heuristics
+            .iter()
+            .map(|entry| entry.motif_name.clone())
+            .collect::<Vec<_>>()
+            .join(", "),
+    );
+    out.push_str("\n");
+    out.push_str("- Policy fields used: `alert_class_default`, `requires_persistence`, `requires_corroboration`, `minimum_window`, `minimum_hits`, `maximum_allowed_fragmentation`, `suppresses_alert`, `promotes_alert`\n");
+    out.push_str("- Primary success condition: ");
+    out.push_str(&cohort_summary.primary_success_condition);
+    out.push_str("\n\n");
+    out.push_str("| Motif | Default class | Persistence | Corroboration | Min window | Min hits | Max fragmentation | Suppresses | Promotes |\n");
+    out.push_str("|---|---|---|---|---:|---:|---:|---|---|\n");
+    for entry in heuristics {
+        out.push_str(&format!(
+            "| {} | {:?} | {} | {} | {} | {} | {:.4} | {} | {} |\n",
+            entry.motif_name,
+            entry.alert_class_default,
+            entry.requires_persistence,
+            entry.requires_corroboration,
+            entry.minimum_window,
+            entry.minimum_hits,
+            entry.maximum_allowed_fragmentation,
+            entry.suppresses_alert,
+            entry.promotes_alert,
+        ));
+    }
+    out.push('\n');
+    if let Some(selected) = &cohort_summary.selected_configuration {
+        out.push_str(&format!(
+            "- Best cohort result: {} with recall {}/{}, nuisance {:.4}, numeric-only nuisance {:.4}, mean lead {}, precursor quality {}, and compression {}\n",
+            selected.cohort_name,
+            selected.failure_recall,
+            selected.failure_runs,
+            selected.pass_run_nuisance_proxy,
+            selected.numeric_pass_run_nuisance_proxy,
+            format_option_f64(selected.mean_lead_time_runs),
+            format_option_f64(selected.precursor_quality),
+            format_option_f64(selected.compression_ratio),
+        ));
+    }
+    out.push_str(&format!(
+        "- Primary success met: {}\n",
+        cohort_summary.any_primary_success
+    ));
+    if let Some(analysis) = &cohort_summary.failure_analysis {
+        out.push_str(&format!(
+            "- Failure analysis: {}\n- Policy vs numeric-only DSA: {}\n- Nuisance-dominant motif class: {}\n- Useful precursor motif class: {}\n",
+            analysis.limiting_factor,
+            analysis.policy_vs_numeric_note,
+            analysis.nuisance_motif_classes,
+            analysis.useful_precursor_motif_classes,
+        ));
+    }
+    out.push_str(&format!(
+        "- Feature-state counts in selected evaluation: Watch={}, Review={}, Escalate={}, Silent suppression points={}\n\n",
+        dsa.summary.watch_point_count,
+        dsa.summary.review_point_count,
+        dsa.summary.escalate_point_count,
+        dsa.summary.silenced_point_count,
+    ));
+    out
+}
+
+fn semantics_of_silence_markdown_section(dsa: &DsaEvaluation) -> String {
+    format!(
+        "## Semantics of Silence\n\n- Silence rule: {}\n- Numeric-only DSA alert points: {}\n- Policy-governed Review/Escalate alert points: {}\n- Explicitly silenced points: {}\n- Policy nuisance: {:.4} versus numeric-only DSA {:.4} and EWMA {:.4}\n- Policy recall: {}/{} versus numeric-only DSA {}/{}\n- Watch/Review/Escalate points: {}/{}/{}\n- Raw boundary episodes: {}\n- Policy-governed DSA episodes: {}\n- Compression ratio: {}\n- Precursor quality: {}\n\n",
+        dsa.parameter_manifest.silence_rule,
+        dsa.summary.numeric_alert_point_count,
+        dsa.summary.alert_point_count,
+        dsa.summary.silenced_point_count,
+        dsa.summary.pass_run_nuisance_proxy,
+        dsa.summary.numeric_primary_pass_run_nuisance_proxy,
+        dsa.comparison_summary.ewma.pass_run_nuisance_proxy,
+        dsa.summary.failure_run_recall,
+        dsa.summary.failure_runs,
+        dsa.summary.numeric_primary_failure_run_recall,
+        dsa.summary.failure_runs,
+        dsa.summary.watch_point_count,
+        dsa.summary.review_point_count,
+        dsa.summary.escalate_point_count,
+        dsa.episode_summary.raw_boundary_episode_count,
+        dsa.episode_summary.dsa_episode_count,
+        format_option_f64(dsa.episode_summary.compression_ratio),
+        format_option_f64(dsa.episode_summary.precursor_quality),
+    )
+}
+
+fn heuristics_policy_engine_latex_section(
+    heuristics: &[HeuristicEntry],
+    dsa: &DsaEvaluation,
+    cohort_summary: &CohortDsaSummary,
+) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Heuristics-Governed DSA Policy Engine}\n");
+    out.push_str(&latex_escape(&format!(
+        "Current motif set: {}. Policy fields used: alert_class_default, requires_persistence, requires_corroboration, minimum_window, minimum_hits, maximum_allowed_fragmentation, suppresses_alert, and promotes_alert. Primary success condition: {}.",
+        heuristics
+            .iter()
+            .map(|entry| entry.motif_name.clone())
+            .collect::<Vec<_>>()
+            .join(", "),
+        cohort_summary.primary_success_condition,
+    )));
+    out.push_str("\n\n");
+    out.push_str("\\begin{longtable}{p{0.22\\linewidth}p{0.12\\linewidth}ccrrcc}\n\\toprule\n");
+    out.push_str("Motif & Default class & Persist & Corrob & Window & Hits & Suppress & Promote \\\\\n\\midrule\n");
+    for entry in heuristics {
+        out.push_str(&format!(
+            "{} & {} & {} & {} & {} & {} & {} & {} \\\\\n",
+            latex_escape(&entry.motif_name),
+            latex_escape(&format!("{:?}", entry.alert_class_default)),
+            latex_escape(&entry.requires_persistence.to_string()),
+            latex_escape(&entry.requires_corroboration.to_string()),
+            entry.minimum_window,
+            entry.minimum_hits,
+            latex_escape(&entry.suppresses_alert.to_string()),
+            latex_escape(&entry.promotes_alert.to_string()),
+        ));
+    }
+    out.push_str("\\bottomrule\n\\end{longtable}\n\n");
+    if let Some(selected) = &cohort_summary.selected_configuration {
+        out.push_str(&latex_escape(&format!(
+            "Best cohort result: {} with recall {}/{}, nuisance {:.4}, numeric-only nuisance {:.4}, mean lead {}, precursor quality {}, and compression {}. Primary success met: {}.",
+            selected.cohort_name,
+            selected.failure_recall,
+            selected.failure_runs,
+            selected.pass_run_nuisance_proxy,
+            selected.numeric_pass_run_nuisance_proxy,
+            format_option_f64(selected.mean_lead_time_runs),
+            format_option_f64(selected.precursor_quality),
+            format_option_f64(selected.compression_ratio),
+            cohort_summary.any_primary_success,
+        )));
+        out.push_str("\n\n");
+    }
+    if let Some(analysis) = &cohort_summary.failure_analysis {
+        out.push_str(&latex_escape(&format!(
+            "Failure analysis: {}. Policy vs numeric-only DSA: {}. Nuisance-dominant motif class: {}. Useful precursor motif class: {}.",
+            analysis.limiting_factor,
+            analysis.policy_vs_numeric_note,
+            analysis.nuisance_motif_classes,
+            analysis.useful_precursor_motif_classes,
+        )));
+        out.push_str("\n\n");
+    }
+    out.push_str(&latex_escape(&format!(
+        "Selected-evaluation state counts: Watch={}, Review={}, Escalate={}, Silent suppression points={}.",
+        dsa.summary.watch_point_count,
+        dsa.summary.review_point_count,
+        dsa.summary.escalate_point_count,
+        dsa.summary.silenced_point_count,
+    )));
+    out.push_str("\n\n");
+    out
+}
+
+fn semantics_of_silence_latex_section(dsa: &DsaEvaluation) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Semantics of Silence}\n");
+    out.push_str(&latex_escape(&format!(
+        "Silence rule: {}. Numeric-only DSA alert points: {}. Policy-governed Review/Escalate alert points: {}. Explicitly silenced points: {}. Policy nuisance is {:.4} versus numeric-only DSA {:.4} and EWMA {:.4}. Policy recall is {}/{} versus numeric-only DSA {}/{}. Watch/Review/Escalate points are {}/{}/{}. Raw boundary episodes: {}. Policy-governed DSA episodes: {}. Compression ratio: {}. Precursor quality: {}.",
+        dsa.parameter_manifest.silence_rule,
+        dsa.summary.numeric_alert_point_count,
+        dsa.summary.alert_point_count,
+        dsa.summary.silenced_point_count,
+        dsa.summary.pass_run_nuisance_proxy,
+        dsa.summary.numeric_primary_pass_run_nuisance_proxy,
+        dsa.comparison_summary.ewma.pass_run_nuisance_proxy,
+        dsa.summary.failure_run_recall,
+        dsa.summary.failure_runs,
+        dsa.summary.numeric_primary_failure_run_recall,
+        dsa.summary.failure_runs,
+        dsa.summary.watch_point_count,
+        dsa.summary.review_point_count,
+        dsa.summary.escalate_point_count,
+        dsa.episode_summary.raw_boundary_episode_count,
+        dsa.episode_summary.dsa_episode_count,
+        format_option_f64(dsa.episode_summary.compression_ratio),
+        format_option_f64(dsa.episode_summary.precursor_quality),
+    )));
+    out.push_str("\n\n");
+    out
+}
+
 fn artifact_inventory(
     figures: &FigureManifest,
     include_cohort_failure_analysis: bool,
@@ -735,6 +941,10 @@ fn artifact_inventory(
             role: "Cohort-level precursor-quality table across the corroboration sweep.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_motif_policy_contributions.csv".into(),
+            role: "Per-grid motif contributions to Watch/Review/Escalate and explicit silent suppression.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_rating_delta_forecast.json".into(),
             role: "Bounded rating-delta forecast grounded in the saved DSA nuisance, recall, lead-time, and cohort metrics.".into(),
         },
@@ -800,7 +1010,7 @@ fn artifact_inventory(
         },
         ArtifactInventoryEntry {
             path: "heuristics_bank.json".into(),
-            role: "Provenance-aware heuristic guidance and DSA motif participation flags.".into(),
+            role: "Provenance-aware heuristic guidance and active DSA policy-engine defaults.".into(),
         },
         ArtifactInventoryEntry {
             path: "secom_archive_layout.json".into(),
@@ -836,6 +1046,10 @@ fn artifact_inventory(
         entries.push(ArtifactInventoryEntry {
             path: "dsa_cohort_failure_analysis.md".into(),
             role: "Closest-cohort, corroboration, ranking-quality, and all-feature-vs-cohort failure analysis.".into(),
+        });
+        entries.push(ArtifactInventoryEntry {
+            path: "dsa_heuristic_policy_failure_analysis.md".into(),
+            role: "Heuristics-governed DSA policy failure analysis, including policy-vs-numeric and motif-class diagnostics.".into(),
         });
     }
     if include_rating_failure_analysis {
