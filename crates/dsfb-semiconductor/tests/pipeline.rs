@@ -191,10 +191,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_motif_policy_contributions.csv",
         "dsa_policy_contribution_analysis.csv",
         "dsa_recall_rescue_results.csv",
+        "dsa_recall_critical_features.csv",
         "dsa_pareto_frontier.csv",
         "dsa_stage_a_candidates.csv",
         "dsa_stage_b_candidates.csv",
         "dsa_missed_failure_diagnostics.csv",
+        "dsa_delta_target_assessment.json",
         "dsa_heuristic_policy_failure_analysis.md",
         "dsa_parameter_manifest.json",
         "dsa_seed_feature_check.json",
@@ -317,10 +319,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_motif_policy_contributions.csv").is_ok());
     assert!(zip.by_name("dsa_policy_contribution_analysis.csv").is_ok());
     assert!(zip.by_name("dsa_recall_rescue_results.csv").is_ok());
+    assert!(zip.by_name("dsa_recall_critical_features.csv").is_ok());
     assert!(zip.by_name("dsa_pareto_frontier.csv").is_ok());
     assert!(zip.by_name("dsa_stage_a_candidates.csv").is_ok());
     assert!(zip.by_name("dsa_stage_b_candidates.csv").is_ok());
     assert!(zip.by_name("dsa_missed_failure_diagnostics.csv").is_ok());
+    assert!(zip.by_name("dsa_delta_target_assessment.json").is_ok());
     assert!(zip.by_name("dsa_seed_feature_check.json").is_ok());
     assert!(zip.by_name("dsa_run_signals.csv").is_ok());
     assert!(zip.by_name("dsa_top_feature.csv").is_ok());
@@ -340,10 +344,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("## Feature-Cohort DSA Selection"));
     assert!(report.contains("## Heuristics-Governed DSA Policy Engine"));
     assert!(report.contains("## Semantics of Silence"));
-    assert!(report.contains("## Recall Recovery Optimization"));
+    assert!(report.contains("## Predeclared Delta Target"));
+    assert!(report.contains("## Recall Recovery Diagnostics"));
     assert!(report.contains("## Feature-Aware Heuristic Governance"));
     assert!(report.contains("## Missed-Failure Diagnostics"));
-    assert!(report.contains("## Optimization Frontier"));
+    assert!(report.contains("## Two-Stage Optimization Frontier"));
+    assert!(report.contains("## Target Attainment Assessment"));
     assert!(report.contains("## Rating Delta Forecast"));
     assert!(report.contains(
         "## Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA)"
@@ -363,6 +369,8 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(manifest
         .get("dsa_missed_failure_diagnostics_path")
         .is_some());
+    assert!(manifest.get("dsa_recall_critical_features_path").is_some());
+    assert!(manifest.get("dsa_delta_target_assessment_path").is_some());
 }
 
 #[test]

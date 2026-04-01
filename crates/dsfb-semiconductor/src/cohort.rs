@@ -22,10 +22,12 @@ use std::path::Path;
 const RANKING_FORMULA: &str =
     "candidate_score = z(dsfb_raw_boundary_points) - z(dsfb_raw_violation_points) + z(ewma_alarm_points) - I(missing_fraction > 0.50) * 2.0";
 const RECALL_AWARE_RANKING_FORMULA: &str =
-    "candidate_score_recall = z(pre_failure_run_hits) + z(motif_precision_proxy) + z(ewma_alarm_points) + 0.5 * z(dsfb_raw_boundary_points) - 0.5 * z(dsfb_raw_violation_points) - I(missing_fraction > 0.50) * 2.0";
+    "candidate_score_recall = z(pre_failure_run_hits) + z(motif_precision_proxy) + z(ewma_alarm_points) + 0.5 * z(dsfb_raw_boundary_points) + 0.5 * z(recall_rescue_contribution) - 0.5 * z(dsfb_raw_violation_points) - I(missing_fraction > 0.50) * 2.0";
 const MISSINGNESS_PENALTY_THRESHOLD: f64 = 0.50;
 const MISSINGNESS_PENALTY_VALUE: f64 = 2.0;
 const RECALL_TOLERANCE: usize = 1;
+const PRIMARY_DELTA_TARGET: f64 = 0.40;
+const SECONDARY_DELTA_TARGET: f64 = 0.40;
 const CORROBORATION_SWEEP: &[usize] = &[1, 2, 3, 5];
 const DSA_WINDOW_SWEEP: &[usize] = &[5, 10, 15];
 const DSA_PERSISTENCE_SWEEP: &[usize] = &[2, 3, 4];
@@ -54,9 +56,11 @@ pub struct FeatureRankingRow {
     pub threshold_alarm_points: usize,
     pub pre_failure_run_hits: usize,
     pub motif_precision_proxy: Option<f64>,
+    pub recall_rescue_contribution: Option<f64>,
     pub missing_fraction: f64,
     pub z_pre_failure_run_hits: Option<f64>,
     pub z_motif_precision_proxy: Option<f64>,
+    pub z_recall_rescue_contribution: Option<f64>,
     pub z_boundary: f64,
     pub z_violation: f64,
     pub z_ewma: f64,
@@ -198,6 +202,9 @@ pub struct FeaturePolicySummaryRow {
     pub minimum_hits_override: Option<usize>,
     pub maximum_allowed_fragmentation_override: Option<f64>,
     pub override_reason: String,
+    pub allow_watch_only: Option<bool>,
+    pub allow_review_without_escalate: Option<bool>,
+    pub suppress_if_isolated: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -239,6 +246,31 @@ pub struct MissedFailureDiagnosticRow {
     pub bounded_rescue_would_recover: bool,
     pub recovered_after_optimization: bool,
     pub optimized_feature_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RecallCriticalFeatureRow {
+    pub failure_run_index: usize,
+    pub feature_index: Option<usize>,
+    pub feature_name: Option<String>,
+    pub compression_rank: Option<usize>,
+    pub recall_aware_rank: Option<usize>,
+    pub max_structural_score: Option<f64>,
+    pub resolved_alert_class: Option<String>,
+    pub policy_state: Option<String>,
+    pub boundary_density_w: Option<f64>,
+    pub ewma_occupancy_w: Option<f64>,
+    pub motif_recurrence_w: Option<f64>,
+    pub fragmentation_proxy_w: Option<f64>,
+    pub consistent: Option<bool>,
+    pub exact_miss_rule: String,
+    pub feature_override_exists: bool,
+    pub rescue_priority: Option<usize>,
+    pub allow_review_without_escalate: Option<bool>,
+    pub bounded_feature_override_would_recover: bool,
+    pub recovered_after_optimization: bool,
+    pub optimized_feature_name: Option<String>,
+    pub recall_rescue_contribution: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -355,7 +387,52 @@ pub struct OptimizationExecution {
     pub stage_b_candidates: Vec<CohortGridResult>,
     pub recall_rescue_results: Vec<RecallRescueResultRow>,
     pub missed_failure_diagnostics: Vec<MissedFailureDiagnosticRow>,
+    pub recall_critical_features: Vec<RecallCriticalFeatureRow>,
     pub policy_contribution_analysis: Vec<PolicyContributionAnalysisRow>,
+    pub delta_target_assessment: DeltaTargetAssessment,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeltaCandidateSummary {
+    pub configuration: String,
+    pub ranking_strategy: String,
+    pub cohort_name: String,
+    pub window: usize,
+    pub persistence_runs: usize,
+    pub alert_tau: f64,
+    pub corroborating_m: usize,
+    pub failure_recall: usize,
+    pub failure_runs: usize,
+    pub pass_run_nuisance_proxy: f64,
+    pub delta_nuisance_vs_ewma: f64,
+    pub delta_nuisance_vs_current_dsa: f64,
+    pub mean_lead_time_runs: Option<f64>,
+    pub precursor_quality: Option<f64>,
+    pub compression_ratio: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DeltaTargetAssessment {
+    pub primary_target_definition: String,
+    pub secondary_target_definition: String,
+    pub ewma_nuisance_baseline: f64,
+    pub current_policy_dsa_nuisance_baseline: f64,
+    pub primary_delta_target: f64,
+    pub secondary_delta_target: f64,
+    pub primary_target_nuisance_ceiling: f64,
+    pub secondary_target_nuisance_ceiling: f64,
+    pub selected_configuration: DeltaCandidateSummary,
+    pub primary_target_met: bool,
+    pub ideal_target_met: bool,
+    pub secondary_target_met: bool,
+    pub mean_lead_time_ge_ewma: bool,
+    pub mean_lead_time_ge_threshold: bool,
+    pub best_recall_103_candidate: Option<DeltaCandidateSummary>,
+    pub best_recall_104_candidate: Option<DeltaCandidateSummary>,
+    pub best_secondary_target_candidate: Option<DeltaCandidateSummary>,
+    pub best_stage_a_delta_candidate: Option<DeltaCandidateSummary>,
+    pub best_reachable_pareto_point: DeltaCandidateSummary,
+    pub assessment_note: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -479,9 +556,11 @@ pub fn compute_feature_ranking(metrics: &BenchmarkMetrics) -> Vec<FeatureRanking
                 threshold_alarm_points: feature.threshold_alarm_points,
                 pre_failure_run_hits: feature.pre_failure_run_hits,
                 motif_precision_proxy: feature.motif_precision_proxy,
+                recall_rescue_contribution: None,
                 missing_fraction: feature.missing_fraction,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
+                z_recall_rescue_contribution: None,
                 z_boundary,
                 z_violation,
                 z_ewma,
@@ -511,7 +590,10 @@ pub fn compute_feature_ranking(metrics: &BenchmarkMetrics) -> Vec<FeatureRanking
     ranking
 }
 
-pub fn compute_feature_ranking_recall_aware(metrics: &BenchmarkMetrics) -> Vec<FeatureRankingRow> {
+pub fn compute_feature_ranking_recall_aware(
+    metrics: &BenchmarkMetrics,
+    recall_rescue_contributions: &BTreeMap<usize, f64>,
+) -> Vec<FeatureRankingRow> {
     let analyzable = metrics
         .feature_metrics
         .iter()
@@ -541,12 +623,22 @@ pub fn compute_feature_ranking_recall_aware(metrics: &BenchmarkMetrics) -> Vec<F
         .iter()
         .map(|feature| feature.dsfb_raw_violation_points as f64)
         .collect::<Vec<_>>();
+    let recall_rescue_values = analyzable
+        .iter()
+        .map(|feature| {
+            recall_rescue_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0)
+        })
+        .collect::<Vec<_>>();
 
     let (pre_failure_mean, pre_failure_std) = mean_std(&pre_failure_values);
     let (motif_precision_mean, motif_precision_std) = mean_std(&motif_precision_values);
     let (ewma_mean, ewma_std) = mean_std(&ewma_values);
     let (boundary_mean, boundary_std) = mean_std(&boundary_values);
     let (violation_mean, violation_std) = mean_std(&violation_values);
+    let (recall_rescue_mean, recall_rescue_std) = mean_std(&recall_rescue_values);
 
     let mut ranking = analyzable
         .iter()
@@ -572,6 +664,15 @@ pub fn compute_feature_ranking_recall_aware(metrics: &BenchmarkMetrics) -> Vec<F
                 violation_mean,
                 violation_std,
             );
+            let recall_rescue_contribution = recall_rescue_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0);
+            let z_recall_rescue_contribution = z_score(
+                recall_rescue_contribution,
+                recall_rescue_mean,
+                recall_rescue_std,
+            );
             let missingness_penalty = if feature.missing_fraction > MISSINGNESS_PENALTY_THRESHOLD {
                 MISSINGNESS_PENALTY_VALUE
             } else {
@@ -581,6 +682,7 @@ pub fn compute_feature_ranking_recall_aware(metrics: &BenchmarkMetrics) -> Vec<F
                 + z_motif_precision_proxy
                 + z_ewma
                 + 0.5 * z_boundary
+                + 0.5 * z_recall_rescue_contribution
                 - 0.5 * z_violation
                 - missingness_penalty;
 
@@ -597,20 +699,23 @@ pub fn compute_feature_ranking_recall_aware(metrics: &BenchmarkMetrics) -> Vec<F
                 threshold_alarm_points: feature.threshold_alarm_points,
                 pre_failure_run_hits: feature.pre_failure_run_hits,
                 motif_precision_proxy: feature.motif_precision_proxy,
+                recall_rescue_contribution: Some(recall_rescue_contribution),
                 missing_fraction: feature.missing_fraction,
                 z_pre_failure_run_hits: Some(z_pre_failure_run_hits),
                 z_motif_precision_proxy: Some(z_motif_precision_proxy),
+                z_recall_rescue_contribution: Some(z_recall_rescue_contribution),
                 z_boundary,
                 z_violation,
                 z_ewma,
                 missingness_penalty,
                 candidate_score,
                 score_breakdown: format!(
-                    "{:+.4} pre_failure + {:+.4} motif_precision + {:+.4} ewma + 0.5*{:+.4} boundary - 0.5*{:+.4} violation - {:.1} missingness",
+                    "{:+.4} pre_failure + {:+.4} motif_precision + {:+.4} ewma + 0.5*{:+.4} boundary + 0.5*{:+.4} recall_rescue - 0.5*{:+.4} violation - {:.1} missingness",
                     z_pre_failure_run_hits,
                     z_motif_precision_proxy,
                     z_ewma,
                     z_boundary,
+                    z_recall_rescue_contribution,
                     z_violation,
                     missingness_penalty
                 ),
@@ -650,9 +755,11 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
         "threshold_alarm_points",
         "pre_failure_run_hits",
         "motif_precision_proxy",
+        "recall_rescue_contribution",
         "missing_fraction",
         "z_pre_failure_run_hits",
         "z_motif_precision_proxy",
+        "z_recall_rescue_contribution",
         "z_boundary",
         "z_violation",
         "z_ewma",
@@ -675,9 +782,11 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
             row.threshold_alarm_points.to_string(),
             row.pre_failure_run_hits.to_string(),
             format_option_csv(row.motif_precision_proxy),
+            format_option_csv(row.recall_rescue_contribution),
             format!("{:.6}", row.missing_fraction),
             format_option_csv(row.z_pre_failure_run_hits),
             format_option_csv(row.z_motif_precision_proxy),
+            format_option_csv(row.z_recall_rescue_contribution),
             format!("{:.6}", row.z_boundary),
             format!("{:.6}", row.z_violation),
             format!("{:.6}", row.z_ewma),
@@ -773,6 +882,18 @@ pub fn write_recall_rescue_results_csv(path: &Path, rows: &[RecallRescueResultRo
 pub fn write_missed_failure_diagnostics_csv(
     path: &Path,
     rows: &[MissedFailureDiagnosticRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_recall_critical_features_csv(
+    path: &Path,
+    rows: &[RecallCriticalFeatureRow],
 ) -> Result<()> {
     let mut writer = Writer::from_path(path)?;
     for row in rows {
@@ -1119,7 +1240,10 @@ pub fn run_recall_optimization(
         metrics,
     )?;
 
-    let recall_aware_feature_ranking = compute_feature_ranking_recall_aware(metrics);
+    let recall_rescue_contributions =
+        recall_rescue_contribution_by_feature(&baseline_execution.selected_evaluation);
+    let recall_aware_feature_ranking =
+        compute_feature_ranking_recall_aware(metrics, &recall_rescue_contributions);
     let ranking_comparison =
         compare_feature_rankings(&baseline_feature_ranking, &recall_aware_feature_ranking);
     let recall_aware_feature_cohorts = build_feature_cohorts(&recall_aware_feature_ranking);
@@ -1182,20 +1306,33 @@ pub fn run_recall_optimization(
         .clone();
     union_rows.extend(recall_aware_execution.summary.cohort_results.clone());
 
+    let current_policy_dsa_nuisance = baseline_execution
+        .summary
+        .selected_configuration
+        .as_ref()
+        .map(|row| row.pass_run_nuisance_proxy)
+        .unwrap_or(
+            metrics
+                .summary
+                .pass_run_dsfb_persistent_boundary_nuisance_rate,
+        );
     let pareto_frontier = pareto_frontier(&union_rows);
     let stage_a_candidates = stage_a_candidates(
         &union_rows,
         metrics.summary.pass_run_dsfb_raw_boundary_nuisance_rate,
+        current_policy_dsa_nuisance,
     );
     let stage_b_candidates = stage_b_candidates(
         &stage_a_candidates,
         metrics.summary.pass_run_ewma_nuisance_rate,
+        current_policy_dsa_nuisance,
     );
     let selected_row = choose_optimized_row(
         &stage_b_candidates,
         &union_rows,
         metrics.summary.pass_run_ewma_nuisance_rate,
         metrics.summary.failure_runs_with_preceding_threshold_signal,
+        current_policy_dsa_nuisance,
     )
     .ok_or_else(|| {
         DsfbSemiconductorError::DatasetFormat(
@@ -1246,10 +1383,31 @@ pub fn run_recall_optimization(
         &selected_evaluation,
         &feature_policy_overrides,
     );
+    let recall_critical_features = build_recall_critical_features(
+        &baseline_execution.selected_evaluation,
+        &selected_evaluation,
+        &baseline_feature_ranking,
+        &recall_aware_feature_ranking,
+        &feature_policy_overrides,
+        &recall_rescue_contributions,
+    );
     let policy_contribution_analysis = build_policy_contribution_analysis(
         &baseline_execution.selected_evaluation,
         &selected_evaluation,
         &selected_row,
+    );
+    let delta_target_assessment = compute_delta_target_assessment(
+        &selected_row,
+        &stage_a_candidates,
+        &union_rows,
+        baseline_execution
+            .summary
+            .selected_configuration
+            .as_ref()
+            .unwrap_or_else(|| {
+                panic!("baseline cohort execution must provide a selected configuration")
+            }),
+        metrics,
     );
 
     Ok(OptimizationExecution {
@@ -1268,7 +1426,9 @@ pub fn run_recall_optimization(
         stage_b_candidates,
         recall_rescue_results,
         missed_failure_diagnostics,
+        recall_critical_features,
         policy_contribution_analysis,
+        delta_target_assessment,
     })
 }
 
@@ -1348,6 +1508,9 @@ fn build_feature_policy_overrides(
                 maximum_allowed_fragmentation_override: Some(fragmentation_override),
                 rescue_eligible: true,
                 rescue_priority,
+                allow_watch_only: Some(false),
+                allow_review_without_escalate: Some(true),
+                suppress_if_isolated: Some(false),
                 override_reason: format!(
                     "Feature was the nearest current-DSA miss on {} failure run(s), max near-miss score {:.4}, recall-aware rank {}, pre_failure_run_hits={}, motif_precision_proxy={}, rescue_fragmentation_ceiling={:.2}.",
                     miss_count,
@@ -1418,32 +1581,158 @@ fn build_feature_policy_summary(
                 maximum_allowed_fragmentation_override: override_entry
                     .maximum_allowed_fragmentation_override,
                 override_reason: override_entry.override_reason.clone(),
+                allow_watch_only: override_entry.allow_watch_only,
+                allow_review_without_escalate: override_entry.allow_review_without_escalate,
+                suppress_if_isolated: override_entry.suppress_if_isolated,
             })
         })
         .collect()
 }
 
+fn recall_rescue_contribution_by_feature(
+    baseline_evaluation: &DsaEvaluation,
+) -> BTreeMap<usize, f64> {
+    let mut contributions = BTreeMap::<usize, f64>::new();
+    for signal in baseline_evaluation
+        .per_failure_run_signals
+        .iter()
+        .filter(|signal| signal.earliest_dsa_run.is_none())
+    {
+        let Some(feature_index) = signal.max_dsa_score_feature_index else {
+            continue;
+        };
+        *contributions.entry(feature_index).or_default() += 1.0;
+    }
+    contributions
+}
+
+fn build_recall_critical_features(
+    baseline: &DsaEvaluation,
+    optimized: &DsaEvaluation,
+    baseline_ranking: &[FeatureRankingRow],
+    recall_aware_ranking: &[FeatureRankingRow],
+    feature_policy_overrides: &[FeaturePolicyOverride],
+    recall_rescue_contributions: &BTreeMap<usize, f64>,
+) -> Vec<RecallCriticalFeatureRow> {
+    let optimized_by_failure = optimized
+        .per_failure_run_signals
+        .iter()
+        .map(|row| (row.failure_run_index, row))
+        .collect::<BTreeMap<_, _>>();
+    let baseline_rank_by_feature = baseline_ranking
+        .iter()
+        .map(|row| (row.feature_index, row.rank))
+        .collect::<BTreeMap<_, _>>();
+    let recall_rank_by_feature = recall_aware_ranking
+        .iter()
+        .map(|row| (row.feature_index, row.rank))
+        .collect::<BTreeMap<_, _>>();
+    let overrides_by_feature = feature_policy_overrides
+        .iter()
+        .map(|override_entry| (override_entry.feature_index, override_entry))
+        .collect::<BTreeMap<_, _>>();
+
+    baseline
+        .per_failure_run_signals
+        .iter()
+        .filter(|row| row.earliest_dsa_run.is_none())
+        .map(|row| {
+            let feature_index = row.max_dsa_score_feature_index;
+            let override_entry = feature_index
+                .and_then(|feature_index| overrides_by_feature.get(&feature_index).copied());
+            let optimized_row = optimized_by_failure.get(&row.failure_run_index).copied();
+
+            RecallCriticalFeatureRow {
+                failure_run_index: row.failure_run_index,
+                feature_index,
+                feature_name: row.max_dsa_score_feature_name.clone(),
+                compression_rank: feature_index.and_then(|feature_index| {
+                    baseline_rank_by_feature.get(&feature_index).copied()
+                }),
+                recall_aware_rank: feature_index
+                    .and_then(|feature_index| recall_rank_by_feature.get(&feature_index).copied()),
+                max_structural_score: row.max_dsa_score_in_lookback,
+                resolved_alert_class: row.max_dsa_score_resolved_alert_class.clone(),
+                policy_state: row.max_dsa_score_policy_state.clone(),
+                boundary_density_w: row.max_dsa_score_boundary_density_w,
+                ewma_occupancy_w: row.max_dsa_score_ewma_occupancy_w,
+                motif_recurrence_w: row.max_dsa_score_motif_recurrence_w,
+                fragmentation_proxy_w: row.max_dsa_score_fragmentation_proxy_w,
+                consistent: row.max_dsa_score_consistent,
+                exact_miss_rule: if row
+                    .max_dsa_score_consistent
+                    .is_some_and(|consistent| !consistent)
+                    && row
+                        .max_dsa_score_resolved_alert_class
+                        .as_deref()
+                        .is_some_and(|class| class == "Watch" || class == "Review")
+                {
+                    "directional_consistency_gate".into()
+                } else if row.max_dsa_score_numeric_dsa_alert == Some(false)
+                    && row.max_dsa_score_in_lookback.is_some()
+                {
+                    "watch_class_near_miss_below_numeric_gate".into()
+                } else if row.max_dsa_score_in_lookback.unwrap_or(0.0) < 2.0 {
+                    "numeric_score_below_tau".into()
+                } else {
+                    "policy_state_never_reached_review".into()
+                },
+                feature_override_exists: override_entry.is_some(),
+                rescue_priority: override_entry
+                    .map(|override_entry| override_entry.rescue_priority),
+                allow_review_without_escalate: override_entry
+                    .and_then(|override_entry| override_entry.allow_review_without_escalate),
+                bounded_feature_override_would_recover: optimized_row
+                    .is_some_and(|optimized_row| optimized_row.earliest_dsa_run.is_some()),
+                recovered_after_optimization: optimized_row
+                    .is_some_and(|optimized_row| optimized_row.earliest_dsa_run.is_some()),
+                optimized_feature_name: optimized_row
+                    .and_then(|optimized_row| optimized_row.earliest_dsa_feature_name.clone()),
+                recall_rescue_contribution: feature_index
+                    .and_then(|feature_index| {
+                        recall_rescue_contributions.get(&feature_index).copied()
+                    })
+                    .unwrap_or(0.0),
+            }
+        })
+        .collect()
+}
+
 fn pareto_frontier(rows: &[CohortGridResult]) -> Vec<CohortGridResult> {
-    let mut frontier = rows
+    let recall_floor = 100usize;
+    let candidate_pool = rows
+        .iter()
+        .filter(|row| row.failure_recall >= recall_floor)
+        .collect::<Vec<_>>();
+    let candidate_pool = if candidate_pool.is_empty() {
+        rows.iter().collect::<Vec<_>>()
+    } else {
+        candidate_pool
+    };
+
+    let mut frontier = candidate_pool
         .iter()
         .filter(|row| {
-            !rows.iter().any(|other| {
+            !candidate_pool.iter().any(|other| {
                 other.grid_row_id != row.grid_row_id
-                    && other.pass_run_nuisance_proxy <= row.pass_run_nuisance_proxy
+                    && delta_nuisance_relative(row.ewma_nuisance, other.pass_run_nuisance_proxy)
+                        >= delta_nuisance_relative(row.ewma_nuisance, row.pass_run_nuisance_proxy)
                     && other.failure_recall >= row.failure_recall
-                    && (other.pass_run_nuisance_proxy < row.pass_run_nuisance_proxy
+                    && (delta_nuisance_relative(row.ewma_nuisance, other.pass_run_nuisance_proxy)
+                        > delta_nuisance_relative(row.ewma_nuisance, row.pass_run_nuisance_proxy)
                         || other.failure_recall > row.failure_recall)
             })
         })
-        .cloned()
+        .map(|row| (*row).clone())
         .collect::<Vec<_>>();
-    frontier.sort_by(compare_successful_rows);
+    frontier.sort_by(|left, right| compare_stage_b_rows(left, right, left.ewma_nuisance));
     frontier
 }
 
 fn stage_a_candidates(
     rows: &[CohortGridResult],
     raw_boundary_nuisance: f64,
+    current_policy_dsa_nuisance: f64,
 ) -> Vec<CohortGridResult> {
     let mut candidates = rows
         .iter()
@@ -1452,29 +1741,22 @@ fn stage_a_candidates(
         })
         .cloned()
         .collect::<Vec<_>>();
-    candidates.sort_by(|left, right| {
-        left.pass_run_nuisance_proxy
-            .partial_cmp(&right.pass_run_nuisance_proxy)
-            .unwrap_or(Ordering::Equal)
-            .then_with(|| right.failure_recall.cmp(&left.failure_recall))
-            .then_with(|| compare_option_f64(right.mean_lead_time_runs, left.mean_lead_time_runs))
-    });
+    candidates
+        .sort_by(|left, right| compare_stage_a_rows(left, right, current_policy_dsa_nuisance));
     candidates
 }
 
-fn stage_b_candidates(rows: &[CohortGridResult], ewma_nuisance: f64) -> Vec<CohortGridResult> {
+fn stage_b_candidates(
+    rows: &[CohortGridResult],
+    ewma_nuisance: f64,
+    current_policy_dsa_nuisance: f64,
+) -> Vec<CohortGridResult> {
     let mut candidates = rows.to_vec();
     candidates.sort_by(|left, right| {
         (left.pass_run_nuisance_proxy < ewma_nuisance)
             .cmp(&(right.pass_run_nuisance_proxy < ewma_nuisance))
             .reverse()
-            .then_with(|| right.failure_recall.cmp(&left.failure_recall))
-            .then_with(|| {
-                left.pass_run_nuisance_proxy
-                    .partial_cmp(&right.pass_run_nuisance_proxy)
-                    .unwrap_or(Ordering::Equal)
-            })
-            .then_with(|| compare_option_f64(right.mean_lead_time_runs, left.mean_lead_time_runs))
+            .then_with(|| compare_stage_b_rows(left, right, current_policy_dsa_nuisance))
     });
     candidates
 }
@@ -1484,6 +1766,7 @@ fn choose_optimized_row(
     all_rows: &[CohortGridResult],
     ewma_nuisance: f64,
     threshold_recall: usize,
+    current_policy_dsa_nuisance: f64,
 ) -> Option<CohortGridResult> {
     stage_b_candidates.first().cloned().or_else(|| {
         all_rows.iter().cloned().min_by(|left, right| {
@@ -1502,9 +1785,63 @@ fn choose_optimized_row(
                     let right_recall_gap = threshold_recall.saturating_sub(right.failure_recall);
                     left_recall_gap.cmp(&right_recall_gap)
                 })
-                .then_with(|| compare_successful_rows(left, right))
+                .then_with(|| compare_stage_b_rows(left, right, current_policy_dsa_nuisance))
         })
     })
+}
+
+fn compare_stage_a_rows(
+    left: &CohortGridResult,
+    right: &CohortGridResult,
+    current_policy_dsa_nuisance: f64,
+) -> Ordering {
+    delta_nuisance_relative(right.ewma_nuisance, right.pass_run_nuisance_proxy)
+        .partial_cmp(&delta_nuisance_relative(
+            left.ewma_nuisance,
+            left.pass_run_nuisance_proxy,
+        ))
+        .unwrap_or(Ordering::Equal)
+        .then_with(|| {
+            delta_nuisance_relative(current_policy_dsa_nuisance, right.pass_run_nuisance_proxy)
+                .partial_cmp(&delta_nuisance_relative(
+                    current_policy_dsa_nuisance,
+                    left.pass_run_nuisance_proxy,
+                ))
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| right.failure_recall.cmp(&left.failure_recall))
+        .then_with(|| compare_option_f64(right.precursor_quality, left.precursor_quality))
+        .then_with(|| compare_option_f64(right.mean_lead_time_runs, left.mean_lead_time_runs))
+        .then_with(|| compare_option_f64(right.compression_ratio, left.compression_ratio))
+}
+
+fn compare_stage_b_rows(
+    left: &CohortGridResult,
+    right: &CohortGridResult,
+    current_policy_dsa_nuisance: f64,
+) -> Ordering {
+    right
+        .failure_recall
+        .cmp(&left.failure_recall)
+        .then_with(|| {
+            delta_nuisance_relative(right.ewma_nuisance, right.pass_run_nuisance_proxy)
+                .partial_cmp(&delta_nuisance_relative(
+                    left.ewma_nuisance,
+                    left.pass_run_nuisance_proxy,
+                ))
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| compare_option_f64(right.precursor_quality, left.precursor_quality))
+        .then_with(|| compare_option_f64(right.mean_lead_time_runs, left.mean_lead_time_runs))
+        .then_with(|| compare_option_f64(right.compression_ratio, left.compression_ratio))
+        .then_with(|| {
+            delta_nuisance_relative(current_policy_dsa_nuisance, right.pass_run_nuisance_proxy)
+                .partial_cmp(&delta_nuisance_relative(
+                    current_policy_dsa_nuisance,
+                    left.pass_run_nuisance_proxy,
+                ))
+                .unwrap_or(Ordering::Equal)
+        })
 }
 
 fn rebuild_selected_evaluation_with_policy(
@@ -1747,6 +2084,164 @@ fn build_policy_contribution_analysis(
     }
 
     rows
+}
+
+fn compute_delta_target_assessment(
+    selected_row: &CohortGridResult,
+    stage_a_candidates: &[CohortGridResult],
+    all_rows: &[CohortGridResult],
+    current_policy_baseline_row: &CohortGridResult,
+    metrics: &BenchmarkMetrics,
+) -> DeltaTargetAssessment {
+    let ewma_nuisance = metrics.summary.pass_run_ewma_nuisance_rate;
+    let current_policy_dsa_nuisance = current_policy_baseline_row.pass_run_nuisance_proxy;
+    let primary_target_nuisance_ceiling = ewma_nuisance * (1.0 - PRIMARY_DELTA_TARGET);
+    let secondary_target_nuisance_ceiling =
+        current_policy_dsa_nuisance * (1.0 - SECONDARY_DELTA_TARGET);
+
+    let selected_configuration =
+        delta_candidate_summary(selected_row, ewma_nuisance, current_policy_dsa_nuisance);
+    let best_recall_103_candidate = all_rows
+        .iter()
+        .filter(|row| row.failure_recall >= 103)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .min_by(|left, right| compare_stage_a_rows(left, right, current_policy_dsa_nuisance))
+        .map(|row| delta_candidate_summary(&row, ewma_nuisance, current_policy_dsa_nuisance));
+    let best_recall_104_candidate = all_rows
+        .iter()
+        .filter(|row| row.failure_recall >= 104)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .min_by(|left, right| compare_stage_a_rows(left, right, current_policy_dsa_nuisance))
+        .map(|row| delta_candidate_summary(&row, ewma_nuisance, current_policy_dsa_nuisance));
+    let best_secondary_target_candidate = all_rows
+        .iter()
+        .filter(|row| row.failure_recall >= 100)
+        .cloned()
+        .max_by(|left, right| {
+            delta_nuisance_relative(current_policy_dsa_nuisance, left.pass_run_nuisance_proxy)
+                .partial_cmp(&delta_nuisance_relative(
+                    current_policy_dsa_nuisance,
+                    right.pass_run_nuisance_proxy,
+                ))
+                .unwrap_or(Ordering::Equal)
+        })
+        .map(|row| delta_candidate_summary(&row, ewma_nuisance, current_policy_dsa_nuisance));
+    let best_stage_a_delta_candidate = stage_a_candidates
+        .first()
+        .map(|row| delta_candidate_summary(row, ewma_nuisance, current_policy_dsa_nuisance));
+    let best_reachable_pareto_point = best_recall_103_candidate
+        .clone()
+        .or_else(|| best_stage_a_delta_candidate.clone())
+        .unwrap_or_else(|| selected_configuration.clone());
+
+    let primary_target_met = selected_configuration.delta_nuisance_vs_ewma >= PRIMARY_DELTA_TARGET
+        && selected_configuration.failure_recall >= 103;
+    let ideal_target_met = selected_configuration.delta_nuisance_vs_ewma >= PRIMARY_DELTA_TARGET
+        && selected_configuration.failure_recall >= 104;
+    let secondary_target_met = selected_configuration.delta_nuisance_vs_current_dsa
+        >= SECONDARY_DELTA_TARGET
+        && selected_configuration.failure_recall >= 100;
+    let mean_lead_time_ge_ewma = paired_ge(
+        selected_row.mean_lead_time_runs,
+        metrics.lead_time_summary.mean_ewma_lead_runs,
+    );
+    let mean_lead_time_ge_threshold = paired_ge(
+        selected_row.mean_lead_time_runs,
+        metrics.lead_time_summary.mean_threshold_lead_runs,
+    );
+
+    let assessment_note = if primary_target_met {
+        format!(
+            "Primary 40% nuisance-reduction target reached on {} with delta_nuisance_vs_ewma {:.4} and recall {}/{}.",
+            selected_configuration.configuration,
+            selected_configuration.delta_nuisance_vs_ewma,
+            selected_configuration.failure_recall,
+            selected_configuration.failure_runs,
+        )
+    } else if let Some(best_recall_103_candidate) = &best_recall_103_candidate {
+        format!(
+            "Primary 40% nuisance-reduction target was not reachable in the saved deterministic sweep. The best row retaining recall >= 103/104 was {} with nuisance {:.4}, delta_nuisance_vs_ewma {:.4}, and delta_nuisance_vs_current_dsa {:.4}. Reaching the primary target would require nuisance <= {:.4}; no recall >= 103 row achieved that ceiling.",
+            best_recall_103_candidate.configuration,
+            best_recall_103_candidate.pass_run_nuisance_proxy,
+            best_recall_103_candidate.delta_nuisance_vs_ewma,
+            best_recall_103_candidate.delta_nuisance_vs_current_dsa,
+            primary_target_nuisance_ceiling,
+        )
+    } else if let Some(best_secondary_target_candidate) = &best_secondary_target_candidate {
+        format!(
+            "No recall-preserving row reached the primary 40% delta target. The best row with recall >= 100/104 was {} with delta_nuisance_vs_ewma {:.4} and delta_nuisance_vs_current_dsa {:.4}; the secondary 40% target would require nuisance <= {:.4}.",
+            best_secondary_target_candidate.configuration,
+            best_secondary_target_candidate.delta_nuisance_vs_ewma,
+            best_secondary_target_candidate.delta_nuisance_vs_current_dsa,
+            secondary_target_nuisance_ceiling,
+        )
+    } else {
+        format!(
+            "No saved row satisfied even the Stage A recall floor, so the 40% target is unachievable under the current deterministic search."
+        )
+    };
+
+    DeltaTargetAssessment {
+        primary_target_definition: predeclared_primary_target(),
+        secondary_target_definition: predeclared_secondary_target(),
+        ewma_nuisance_baseline: ewma_nuisance,
+        current_policy_dsa_nuisance_baseline: current_policy_dsa_nuisance,
+        primary_delta_target: PRIMARY_DELTA_TARGET,
+        secondary_delta_target: SECONDARY_DELTA_TARGET,
+        primary_target_nuisance_ceiling,
+        secondary_target_nuisance_ceiling,
+        selected_configuration,
+        primary_target_met,
+        ideal_target_met,
+        secondary_target_met,
+        mean_lead_time_ge_ewma,
+        mean_lead_time_ge_threshold,
+        best_recall_103_candidate,
+        best_recall_104_candidate,
+        best_secondary_target_candidate,
+        best_stage_a_delta_candidate,
+        best_reachable_pareto_point,
+        assessment_note,
+    }
+}
+
+fn delta_candidate_summary(
+    row: &CohortGridResult,
+    ewma_nuisance: f64,
+    current_policy_dsa_nuisance: f64,
+) -> DeltaCandidateSummary {
+    DeltaCandidateSummary {
+        configuration: row_label(row),
+        ranking_strategy: row.ranking_strategy.clone(),
+        cohort_name: row.cohort_name.clone(),
+        window: row.window,
+        persistence_runs: row.persistence_runs,
+        alert_tau: row.alert_tau,
+        corroborating_m: row.corroborating_m,
+        failure_recall: row.failure_recall,
+        failure_runs: row.failure_runs,
+        pass_run_nuisance_proxy: row.pass_run_nuisance_proxy,
+        delta_nuisance_vs_ewma: delta_nuisance_relative(ewma_nuisance, row.pass_run_nuisance_proxy),
+        delta_nuisance_vs_current_dsa: delta_nuisance_relative(
+            current_policy_dsa_nuisance,
+            row.pass_run_nuisance_proxy,
+        ),
+        mean_lead_time_runs: row.mean_lead_time_runs,
+        precursor_quality: row.precursor_quality,
+        compression_ratio: row.compression_ratio,
+    }
+}
+
+fn delta_nuisance_relative(baseline_nuisance: f64, dsa_nuisance: f64) -> f64 {
+    if baseline_nuisance.abs() <= f64::EPSILON {
+        0.0
+    } else {
+        (baseline_nuisance - dsa_nuisance) / baseline_nuisance
+    }
 }
 
 pub fn write_cohort_results_csv(path: &Path, results: &[CohortGridResult]) -> Result<()> {
@@ -2216,7 +2711,7 @@ pub fn cohort_report_section(cohorts: &FeatureCohorts, summary: &CohortDsaSummar
     let mut out = String::new();
     out.push_str("## Feature-Cohort DSA Selection\n\n");
     out.push_str(&format!(
-        "- Ranking formula: `{}`\n- Missingness penalty: {:.1} when `missing_fraction > {:.2}`\n- Selected cohorts: top_4={}, top_8={}, top_16={}, all_features={}\n- Primary success condition: {}\n- Full bounded cohort grid: `W in {{5,10,15}}`, `K in {{2,3,4}}`, `tau in {{2.0,2.5,3.0}}`, `m in {{1,2,3,5}}` where valid\n\n",
+        "- Ranking formula: `{}`\n- Missingness penalty: {:.1} when `missing_fraction > {:.2}`\n- Selected cohorts: top_4={}, top_8={}, top_16={}, all_features={}\n- Legacy one-run-tolerance cohort gate used inside the bounded sweep: {}\n- Full bounded cohort grid: `W in {{5,10,15}}`, `K in {{2,3,4}}`, `tau in {{2.0,2.5,3.0}}`, `m in {{1,2,3,5}}` where valid\n\n",
         summary.ranking_formula,
         cohorts.missingness_penalty_value,
         cohorts.missingness_penalty_threshold,
@@ -2249,7 +2744,7 @@ pub fn cohort_report_section(cohorts: &FeatureCohorts, summary: &CohortDsaSummar
     out.push('\n');
 
     out.push_str("### Best row per cohort\n\n");
-    out.push_str("| Cohort | W | K | tau | m | Recall | Mean lead | Nuisance | Episodes | Compression | Precursor quality | Success |\n");
+    out.push_str("| Cohort | W | K | tau | m | Recall | Mean lead | Nuisance | Episodes | Compression | Precursor quality | Legacy gate |\n");
     out.push_str("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n");
     for best in &summary.best_by_cohort {
         let row = &best.best_row;
@@ -2275,7 +2770,7 @@ pub fn cohort_report_section(cohorts: &FeatureCohorts, summary: &CohortDsaSummar
     if let Some(selected) = &summary.selected_configuration {
         out.push_str("### Best cohort/grid result\n\n");
         out.push_str(&format!(
-            "- Selected configuration: {}\n- Recall: {}/{}\n- Mean lead: {}\n- Median lead: {}\n- Nuisance: {:.4} versus EWMA {:.4}\n- Compression ratio: {}\n- Precursor quality: {}\n- Primary success met: {}\n\n",
+            "- Selected configuration: {}\n- Recall: {}/{}\n- Mean lead: {}\n- Median lead: {}\n- Nuisance: {:.4} versus EWMA {:.4}\n- Compression ratio: {}\n- Precursor quality: {}\n- Legacy one-run-tolerance cohort gate met: {}\n\n",
             row_label(selected),
             selected.failure_recall,
             selected.failure_runs,
@@ -2598,7 +3093,7 @@ fn limiting_factor_from_row(
         (false, true) => "Nuisance was the limiting factor.".into(),
         (true, false) => "Recall was the limiting factor.".into(),
         (false, false) => "Both nuisance and recall remained limiting factors.".into(),
-        (true, true) => "The primary success condition was met.".into(),
+        (true, true) => "The legacy one-run-tolerance cohort gate was met on this row.".into(),
     }
 }
 
@@ -3258,11 +3753,26 @@ fn row_label(row: &CohortGridResult) -> String {
 
 fn optimization_priority_order() -> Vec<String> {
     vec![
-        "1. Reduce nuisance vs raw DSFB boundary".into(),
-        "2. Reduce nuisance vs EWMA".into(),
-        "3. Preserve recall relative to threshold within tolerance".into(),
-        "4. Improve lead time if possible".into(),
+        "1. Maximize delta_nuisance_vs_ewma".into(),
+        "2. Preserve or improve recall toward 103/104 and ideally 104/104".into(),
+        "3. Maximize precursor quality".into(),
+        "4. Preserve or improve mean lead time vs EWMA/threshold".into(),
+        "5. Maintain or improve compression ratio without sacrificing recall badly".into(),
     ]
+}
+
+fn predeclared_primary_target() -> String {
+    format!(
+        "delta_nuisance_vs_ewma >= {:.2} AND DSA recall >= 103/104, where delta_nuisance_vs_ewma = (EWMA_nuisance - DSA_nuisance) / EWMA_nuisance",
+        PRIMARY_DELTA_TARGET
+    )
+}
+
+fn predeclared_secondary_target() -> String {
+    format!(
+        "delta_nuisance_vs_current_dsa >= {:.2} AND DSA recall >= 100/104, where delta_nuisance_vs_current_dsa = (current_policy_dsa_nuisance - optimized_dsa_nuisance) / current_policy_dsa_nuisance",
+        SECONDARY_DELTA_TARGET
+    )
 }
 
 fn primary_success_condition() -> String {
@@ -3345,6 +3855,10 @@ fn z_score(value: f64, mean: f64, std: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::metrics::{
+        BenchmarkMetrics, BenchmarkSummary, BoundaryEpisodeSummary, DensitySummary, LeadTimeSummary,
+    };
+    use crate::preprocessing::DatasetSummary;
 
     fn sample_ranking() -> Vec<FeatureRankingRow> {
         vec![
@@ -3361,9 +3875,11 @@ mod tests {
                 threshold_alarm_points: 31,
                 pre_failure_run_hits: 20,
                 motif_precision_proxy: Some(0.6),
+                recall_rescue_contribution: None,
                 missing_fraction: 0.0025,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
+                z_recall_rescue_contribution: None,
                 z_boundary: 5.0,
                 z_violation: -0.1,
                 z_ewma: 3.0,
@@ -3385,9 +3901,11 @@ mod tests {
                 threshold_alarm_points: 18,
                 pre_failure_run_hits: 14,
                 motif_precision_proxy: Some(0.5),
+                recall_rescue_contribution: None,
                 missing_fraction: 0.01,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
+                z_recall_rescue_contribution: None,
                 z_boundary: 1.2,
                 z_violation: -0.5,
                 z_ewma: 0.9,
@@ -3409,9 +3927,11 @@ mod tests {
                 threshold_alarm_points: 18,
                 pre_failure_run_hits: 12,
                 motif_precision_proxy: Some(0.45),
+                recall_rescue_contribution: None,
                 missing_fraction: 0.01,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
+                z_recall_rescue_contribution: None,
                 z_boundary: 1.0,
                 z_violation: -0.5,
                 z_ewma: 0.8,
@@ -3433,9 +3953,11 @@ mod tests {
                 threshold_alarm_points: 7,
                 pre_failure_run_hits: 11,
                 motif_precision_proxy: Some(0.55),
+                recall_rescue_contribution: None,
                 missing_fraction: 0.02,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
+                z_recall_rescue_contribution: None,
                 z_boundary: 1.1,
                 z_violation: -0.8,
                 z_ewma: 0.6,
@@ -3445,6 +3967,137 @@ mod tests {
                 rank: 4,
             },
         ]
+    }
+
+    fn sample_metrics_for_delta_target() -> BenchmarkMetrics {
+        BenchmarkMetrics {
+            summary: BenchmarkSummary {
+                dataset_summary: DatasetSummary {
+                    run_count: 10,
+                    feature_count: 3,
+                    pass_count: 8,
+                    fail_count: 2,
+                    dataset_missing_fraction: 0.0,
+                    healthy_pass_runs_requested: 3,
+                    healthy_pass_runs_found: 3,
+                },
+                analyzable_feature_count: 3,
+                grammar_imputation_suppression_points: 0,
+                threshold_alarm_points: 0,
+                ewma_alarm_points: 0,
+                cusum_alarm_points: 0,
+                run_energy_alarm_points: 0,
+                pca_fdc_alarm_points: 0,
+                dsfb_raw_boundary_points: 0,
+                dsfb_persistent_boundary_points: 0,
+                dsfb_raw_violation_points: 0,
+                dsfb_persistent_violation_points: 0,
+                failure_runs: 104,
+                failure_runs_with_preceding_dsfb_raw_signal: 0,
+                failure_runs_with_preceding_dsfb_persistent_signal: 0,
+                failure_runs_with_preceding_dsfb_raw_boundary_signal: 0,
+                failure_runs_with_preceding_dsfb_persistent_boundary_signal: 0,
+                failure_runs_with_preceding_dsfb_raw_violation_signal: 0,
+                failure_runs_with_preceding_dsfb_persistent_violation_signal: 0,
+                failure_runs_with_preceding_ewma_signal: 104,
+                failure_runs_with_preceding_cusum_signal: 104,
+                failure_runs_with_preceding_run_energy_signal: 0,
+                failure_runs_with_preceding_pca_fdc_signal: 103,
+                failure_runs_with_preceding_threshold_signal: 104,
+                pass_runs: 731,
+                pass_runs_with_dsfb_raw_boundary_signal: 0,
+                pass_runs_with_dsfb_persistent_boundary_signal: 0,
+                pass_runs_with_dsfb_raw_violation_signal: 0,
+                pass_runs_with_dsfb_persistent_violation_signal: 0,
+                pass_runs_with_ewma_signal: 0,
+                pass_runs_with_cusum_signal: 0,
+                pass_runs_with_run_energy_signal: 0,
+                pass_runs_with_pca_fdc_signal: 0,
+                pass_runs_with_threshold_signal: 0,
+                pass_run_dsfb_raw_boundary_nuisance_rate: 0.9986329460,
+                pass_run_dsfb_persistent_boundary_nuisance_rate: 0.9904,
+                pass_run_dsfb_raw_violation_nuisance_rate: 0.9740259740,
+                pass_run_dsfb_persistent_violation_nuisance_rate: 0.7724,
+                pass_run_ewma_nuisance_rate: 0.9863294600136705,
+                pass_run_cusum_nuisance_rate: 1.0,
+                pass_run_run_energy_nuisance_rate: 0.5263,
+                pass_run_pca_fdc_nuisance_rate: 0.9316,
+                pass_run_threshold_nuisance_rate: 0.974025974025974,
+            },
+            lead_time_summary: LeadTimeSummary {
+                failure_runs_with_raw_boundary_lead: 103,
+                failure_runs_with_persistent_boundary_lead: 103,
+                failure_runs_with_raw_violation_lead: 104,
+                failure_runs_with_persistent_violation_lead: 104,
+                failure_runs_with_threshold_lead: 104,
+                failure_runs_with_ewma_lead: 104,
+                failure_runs_with_cusum_lead: 104,
+                failure_runs_with_run_energy_lead: 0,
+                failure_runs_with_pca_fdc_lead: 103,
+                mean_raw_boundary_lead_runs: Some(19.67),
+                mean_persistent_boundary_lead_runs: Some(19.54),
+                mean_raw_violation_lead_runs: Some(19.56),
+                mean_persistent_violation_lead_runs: Some(18.0),
+                mean_threshold_lead_runs: Some(19.557692307692307),
+                mean_ewma_lead_runs: Some(19.576923076923077),
+                mean_cusum_lead_runs: Some(19.58653846153846),
+                mean_run_energy_lead_runs: Some(16.31),
+                mean_pca_fdc_lead_runs: Some(19.009708737864077),
+                mean_raw_boundary_minus_cusum_delta_runs: None,
+                mean_raw_boundary_minus_run_energy_delta_runs: None,
+                mean_raw_boundary_minus_pca_fdc_delta_runs: None,
+                mean_raw_boundary_minus_threshold_delta_runs: None,
+                mean_raw_boundary_minus_ewma_delta_runs: None,
+                mean_persistent_boundary_minus_cusum_delta_runs: None,
+                mean_persistent_boundary_minus_run_energy_delta_runs: None,
+                mean_persistent_boundary_minus_pca_fdc_delta_runs: None,
+                mean_persistent_boundary_minus_threshold_delta_runs: None,
+                mean_persistent_boundary_minus_ewma_delta_runs: None,
+                mean_raw_violation_minus_cusum_delta_runs: None,
+                mean_raw_violation_minus_run_energy_delta_runs: None,
+                mean_raw_violation_minus_pca_fdc_delta_runs: None,
+                mean_raw_violation_minus_threshold_delta_runs: None,
+                mean_raw_violation_minus_ewma_delta_runs: None,
+                mean_persistent_violation_minus_cusum_delta_runs: None,
+                mean_persistent_violation_minus_run_energy_delta_runs: None,
+                mean_persistent_violation_minus_pca_fdc_delta_runs: None,
+                mean_persistent_violation_minus_threshold_delta_runs: None,
+                mean_persistent_violation_minus_ewma_delta_runs: None,
+            },
+            density_summary: DensitySummary {
+                density_window: 5,
+                mean_raw_boundary_density_failure: 0.0,
+                mean_raw_boundary_density_pass: 0.0,
+                mean_persistent_boundary_density_failure: 0.0,
+                mean_persistent_boundary_density_pass: 0.0,
+                mean_raw_violation_density_failure: 0.0,
+                mean_raw_violation_density_pass: 0.0,
+                mean_persistent_violation_density_failure: 0.0,
+                mean_persistent_violation_density_pass: 0.0,
+                mean_threshold_density_failure: 0.0,
+                mean_threshold_density_pass: 0.0,
+                mean_ewma_density_failure: 0.0,
+                mean_ewma_density_pass: 0.0,
+                mean_cusum_density_failure: 0.0,
+                mean_cusum_density_pass: 0.0,
+            },
+            boundary_episode_summary: BoundaryEpisodeSummary {
+                raw_episode_count: 28607,
+                persistent_episode_count: 0,
+                mean_raw_episode_length: None,
+                mean_persistent_episode_length: None,
+                max_raw_episode_length: 0,
+                max_persistent_episode_length: 0,
+                raw_non_escalating_episode_fraction: None,
+                persistent_non_escalating_episode_fraction: None,
+            },
+            dsa_summary: None,
+            motif_metrics: Vec::new(),
+            per_failure_run_signals: Vec::new(),
+            density_metrics: Vec::new(),
+            feature_metrics: Vec::new(),
+            top_feature_indices: Vec::new(),
+        }
     }
 
     #[test]
@@ -3534,5 +4187,250 @@ mod tests {
         let content = std::fs::read_to_string(path).unwrap();
         assert!(content.contains("cohort_name,window,persistence_runs,alert_tau"));
         assert!(content.contains("top_4,5,2,2.000000,2,20,4,3,0.750000,5.000000"));
+    }
+
+    #[test]
+    fn delta_target_assessment_reports_unreached_forty_percent_goal() {
+        let baseline_row = CohortGridResult {
+            ranking_strategy: "compression_biased".into(),
+            ranking_formula: RANKING_FORMULA.into(),
+            grid_row_id: 0,
+            feature_trace_config_id: 0,
+            cohort_name: "all_features".into(),
+            cohort_size: 100,
+            window: 10,
+            persistence_runs: 2,
+            alert_tau: 2.0,
+            corroborating_m: 1,
+            primary_run_signal: "signal".into(),
+            failure_recall: 100,
+            failure_runs: 104,
+            failure_recall_rate: 100.0 / 104.0,
+            threshold_recall: 104,
+            ewma_recall: 104,
+            failure_recall_delta_vs_threshold: -4,
+            failure_recall_delta_vs_ewma: -4,
+            mean_lead_time_runs: Some(18.7),
+            median_lead_time_runs: Some(20.0),
+            threshold_mean_lead_time_runs: Some(19.557692307692307),
+            ewma_mean_lead_time_runs: Some(19.576923076923077),
+            mean_lead_delta_vs_threshold_runs: Some(-0.8577),
+            mean_lead_delta_vs_ewma_runs: Some(-0.8769),
+            pass_run_nuisance_proxy: 0.8311688311688312,
+            numeric_pass_run_nuisance_proxy: 0.9330,
+            ewma_nuisance: 0.9863294600136705,
+            threshold_nuisance: 0.974025974025974,
+            pass_run_nuisance_delta_vs_ewma: -0.15516062884483928,
+            pass_run_nuisance_delta_vs_threshold: -0.1428571428571428,
+            pass_run_nuisance_delta_vs_numeric_dsa: -0.10183116883116884,
+            raw_boundary_episode_count: 28607,
+            dsa_episode_count: 65,
+            dsa_episodes_preceding_failure: 52,
+            mean_dsa_episode_length_runs: Some(17.0),
+            max_dsa_episode_length_runs: 110,
+            compression_ratio: Some(440.10769230769233),
+            precursor_quality: Some(0.8),
+            non_escalating_dsa_episode_fraction: Some(0.0),
+            feature_level_active_points: 0,
+            feature_level_alert_points: 0,
+            persistence_suppression_fraction: None,
+            numeric_failure_recall: 99,
+            policy_vs_numeric_recall_delta: 1,
+            watch_point_count: 0,
+            review_point_count: 0,
+            escalate_point_count: 0,
+            silenced_point_count: 0,
+            rescued_point_count: 0,
+            rescued_watch_to_review_points: 0,
+            rescued_review_to_escalate_points: 0,
+            primary_success: false,
+            primary_success_reason: "baseline".into(),
+        };
+        let optimized_row = CohortGridResult {
+            ranking_strategy: "compression_biased".into(),
+            ranking_formula: RANKING_FORMULA.into(),
+            grid_row_id: 1,
+            feature_trace_config_id: 0,
+            cohort_name: "all_features".into(),
+            cohort_size: 100,
+            window: 10,
+            persistence_runs: 4,
+            alert_tau: 2.0,
+            corroborating_m: 1,
+            primary_run_signal: "signal".into(),
+            failure_recall: 103,
+            failure_runs: 104,
+            failure_recall_rate: 103.0 / 104.0,
+            threshold_recall: 104,
+            ewma_recall: 104,
+            failure_recall_delta_vs_threshold: -1,
+            failure_recall_delta_vs_ewma: -1,
+            mean_lead_time_runs: Some(17.980582524271846),
+            median_lead_time_runs: Some(20.0),
+            threshold_mean_lead_time_runs: Some(19.557692307692307),
+            ewma_mean_lead_time_runs: Some(19.576923076923077),
+            mean_lead_delta_vs_threshold_runs: Some(-1.7475728155339805),
+            mean_lead_delta_vs_ewma_runs: Some(-1.766990291262136),
+            pass_run_nuisance_proxy: 0.7997265892002734,
+            numeric_pass_run_nuisance_proxy: 0.9180,
+            ewma_nuisance: 0.9863294600136705,
+            threshold_nuisance: 0.974025974025974,
+            pass_run_nuisance_delta_vs_ewma: -0.1866028708133971,
+            pass_run_nuisance_delta_vs_threshold: -0.17429938482570062,
+            pass_run_nuisance_delta_vs_numeric_dsa: -0.11827341079972659,
+            raw_boundary_episode_count: 28607,
+            dsa_episode_count: 73,
+            dsa_episodes_preceding_failure: 57,
+            mean_dsa_episode_length_runs: Some(17.041095890410958),
+            max_dsa_episode_length_runs: 110,
+            compression_ratio: Some(391.8767123287671),
+            precursor_quality: Some(0.7808219178082192),
+            non_escalating_dsa_episode_fraction: Some(0.0),
+            feature_level_active_points: 0,
+            feature_level_alert_points: 0,
+            persistence_suppression_fraction: None,
+            numeric_failure_recall: 99,
+            policy_vs_numeric_recall_delta: 4,
+            watch_point_count: 0,
+            review_point_count: 0,
+            escalate_point_count: 0,
+            silenced_point_count: 0,
+            rescued_point_count: 57,
+            rescued_watch_to_review_points: 57,
+            rescued_review_to_escalate_points: 0,
+            primary_success: true,
+            primary_success_reason: "selected".into(),
+        };
+        let metrics = sample_metrics_for_delta_target();
+        let assessment = compute_delta_target_assessment(
+            &optimized_row,
+            std::slice::from_ref(&optimized_row),
+            std::slice::from_ref(&optimized_row),
+            &baseline_row,
+            &metrics,
+        );
+
+        assert!(!assessment.primary_target_met);
+        assert!(!assessment.ideal_target_met);
+        assert!(!assessment.secondary_target_met);
+        assert!(
+            (assessment.selected_configuration.delta_nuisance_vs_ewma - 0.18918918918918917).abs()
+                < 1.0e-9
+        );
+        assert!(
+            (assessment
+                .selected_configuration
+                .delta_nuisance_vs_current_dsa
+                - 0.037828947368421136)
+                .abs()
+                < 1.0e-9
+        );
+    }
+
+    #[test]
+    fn delta_target_assessment_prefers_best_recall_preserving_delta_row() {
+        let template_row = CohortGridResult {
+            ranking_strategy: "compression_biased".into(),
+            ranking_formula: RANKING_FORMULA.into(),
+            grid_row_id: 1,
+            feature_trace_config_id: 0,
+            cohort_name: "all_features".into(),
+            cohort_size: 100,
+            window: 10,
+            persistence_runs: 4,
+            alert_tau: 2.0,
+            corroborating_m: 1,
+            primary_run_signal: "signal".into(),
+            failure_recall: 103,
+            failure_runs: 104,
+            failure_recall_rate: 103.0 / 104.0,
+            threshold_recall: 104,
+            ewma_recall: 104,
+            failure_recall_delta_vs_threshold: -1,
+            failure_recall_delta_vs_ewma: -1,
+            mean_lead_time_runs: Some(17.980582524271846),
+            median_lead_time_runs: Some(20.0),
+            threshold_mean_lead_time_runs: Some(19.557692307692307),
+            ewma_mean_lead_time_runs: Some(19.576923076923077),
+            mean_lead_delta_vs_threshold_runs: Some(-1.7475728155339805),
+            mean_lead_delta_vs_ewma_runs: Some(-1.766990291262136),
+            pass_run_nuisance_proxy: 0.7997265892002734,
+            numeric_pass_run_nuisance_proxy: 0.9180,
+            ewma_nuisance: 0.9863294600136705,
+            threshold_nuisance: 0.974025974025974,
+            pass_run_nuisance_delta_vs_ewma: -0.1866028708133971,
+            pass_run_nuisance_delta_vs_threshold: -0.17429938482570062,
+            pass_run_nuisance_delta_vs_numeric_dsa: -0.11827341079972659,
+            raw_boundary_episode_count: 28607,
+            dsa_episode_count: 73,
+            dsa_episodes_preceding_failure: 57,
+            mean_dsa_episode_length_runs: Some(17.041095890410958),
+            max_dsa_episode_length_runs: 110,
+            compression_ratio: Some(391.8767123287671),
+            precursor_quality: Some(0.7808219178082192),
+            non_escalating_dsa_episode_fraction: Some(0.0),
+            feature_level_active_points: 0,
+            feature_level_alert_points: 0,
+            persistence_suppression_fraction: None,
+            numeric_failure_recall: 99,
+            policy_vs_numeric_recall_delta: 4,
+            watch_point_count: 0,
+            review_point_count: 0,
+            escalate_point_count: 0,
+            silenced_point_count: 0,
+            rescued_point_count: 57,
+            rescued_watch_to_review_points: 57,
+            rescued_review_to_escalate_points: 0,
+            primary_success: true,
+            primary_success_reason: "selected".into(),
+        };
+        let baseline_row = CohortGridResult {
+            failure_recall: 100,
+            failure_recall_rate: 100.0 / 104.0,
+            failure_recall_delta_vs_threshold: -4,
+            failure_recall_delta_vs_ewma: -4,
+            mean_lead_time_runs: Some(18.7),
+            mean_lead_delta_vs_threshold_runs: Some(-0.8577),
+            mean_lead_delta_vs_ewma_runs: Some(-0.8769),
+            pass_run_nuisance_proxy: 0.8311688311688312,
+            numeric_pass_run_nuisance_proxy: 0.9330,
+            dsa_episode_count: 65,
+            compression_ratio: Some(440.10769230769233),
+            precursor_quality: Some(0.8),
+            numeric_failure_recall: 99,
+            policy_vs_numeric_recall_delta: 1,
+            rescued_point_count: 0,
+            rescued_watch_to_review_points: 0,
+            primary_success: false,
+            primary_success_reason: "baseline".into(),
+            ..template_row.clone()
+        };
+        let selected_row = template_row.clone();
+        let weaker_recall_preserving_row = CohortGridResult {
+            ranking_strategy: "recall_aware".into(),
+            persistence_runs: 2,
+            pass_run_nuisance_proxy: 0.8386876281613124,
+            pass_run_nuisance_delta_vs_ewma: -0.14764183185235812,
+            pass_run_nuisance_delta_vs_threshold: -0.13533834586466164,
+            pass_run_nuisance_delta_vs_numeric_dsa: -0.09432679900680764,
+            dsa_episode_count: 67,
+            compression_ratio: Some(426.97014925373134),
+            precursor_quality: Some(0.8059701492537313),
+            ..template_row.clone()
+        };
+        let metrics = sample_metrics_for_delta_target();
+        let assessment = compute_delta_target_assessment(
+            &selected_row,
+            std::slice::from_ref(&selected_row),
+            &[selected_row.clone(), weaker_recall_preserving_row],
+            &baseline_row,
+            &metrics,
+        );
+
+        let best = assessment
+            .best_recall_103_candidate
+            .expect("best recall row");
+        assert_eq!(best.configuration, row_label(&selected_row));
+        assert!((best.delta_nuisance_vs_ewma - 0.18918918918918917).abs() < 1.0e-9);
     }
 }
