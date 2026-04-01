@@ -178,11 +178,23 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_grid_results.csv",
         "dsa_grid_summary.json",
         "dsa_feature_ranking.csv",
+        "dsa_feature_ranking_recall_aware.csv",
+        "dsa_feature_ranking_comparison.csv",
         "dsa_feature_cohorts.json",
+        "dsa_feature_policy_overrides.json",
+        "dsa_feature_policy_summary.csv",
         "dsa_cohort_results.csv",
+        "dsa_cohort_results_recall_aware.csv",
         "dsa_cohort_summary.json",
+        "dsa_cohort_summary_recall_aware.json",
         "dsa_cohort_precursor_quality.csv",
         "dsa_motif_policy_contributions.csv",
+        "dsa_policy_contribution_analysis.csv",
+        "dsa_recall_rescue_results.csv",
+        "dsa_pareto_frontier.csv",
+        "dsa_stage_a_candidates.csv",
+        "dsa_stage_b_candidates.csv",
+        "dsa_missed_failure_diagnostics.csv",
         "dsa_heuristic_policy_failure_analysis.md",
         "dsa_parameter_manifest.json",
         "dsa_seed_feature_check.json",
@@ -292,11 +304,23 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_grid_results.csv").is_ok());
     assert!(zip.by_name("dsa_grid_summary.json").is_ok());
     assert!(zip.by_name("dsa_feature_ranking.csv").is_ok());
+    assert!(zip.by_name("dsa_feature_ranking_recall_aware.csv").is_ok());
+    assert!(zip.by_name("dsa_feature_ranking_comparison.csv").is_ok());
     assert!(zip.by_name("dsa_feature_cohorts.json").is_ok());
+    assert!(zip.by_name("dsa_feature_policy_overrides.json").is_ok());
+    assert!(zip.by_name("dsa_feature_policy_summary.csv").is_ok());
     assert!(zip.by_name("dsa_cohort_results.csv").is_ok());
+    assert!(zip.by_name("dsa_cohort_results_recall_aware.csv").is_ok());
     assert!(zip.by_name("dsa_cohort_summary.json").is_ok());
+    assert!(zip.by_name("dsa_cohort_summary_recall_aware.json").is_ok());
     assert!(zip.by_name("dsa_cohort_precursor_quality.csv").is_ok());
     assert!(zip.by_name("dsa_motif_policy_contributions.csv").is_ok());
+    assert!(zip.by_name("dsa_policy_contribution_analysis.csv").is_ok());
+    assert!(zip.by_name("dsa_recall_rescue_results.csv").is_ok());
+    assert!(zip.by_name("dsa_pareto_frontier.csv").is_ok());
+    assert!(zip.by_name("dsa_stage_a_candidates.csv").is_ok());
+    assert!(zip.by_name("dsa_stage_b_candidates.csv").is_ok());
+    assert!(zip.by_name("dsa_missed_failure_diagnostics.csv").is_ok());
     assert!(zip.by_name("dsa_seed_feature_check.json").is_ok());
     assert!(zip.by_name("dsa_run_signals.csv").is_ok());
     assert!(zip.by_name("dsa_top_feature.csv").is_ok());
@@ -316,6 +340,10 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("## Feature-Cohort DSA Selection"));
     assert!(report.contains("## Heuristics-Governed DSA Policy Engine"));
     assert!(report.contains("## Semantics of Silence"));
+    assert!(report.contains("## Recall Recovery Optimization"));
+    assert!(report.contains("## Feature-Aware Heuristic Governance"));
+    assert!(report.contains("## Missed-Failure Diagnostics"));
+    assert!(report.contains("## Optimization Frontier"));
     assert!(report.contains("## Rating Delta Forecast"));
     assert!(report.contains(
         "## Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA)"
@@ -330,6 +358,10 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(manifest.get("drsc_dsa_combined_figure_path").is_some());
     assert!(manifest
         .get("dsa_motif_policy_contributions_path")
+        .is_some());
+    assert!(manifest.get("dsa_feature_policy_overrides_path").is_some());
+    assert!(manifest
+        .get("dsa_missed_failure_diagnostics_path")
         .is_some());
 }
 
