@@ -5,7 +5,7 @@ use crate::error::Result;
 use crate::heuristics::HeuristicEntry;
 use crate::metrics::{BenchmarkMetrics, MotifMetric};
 use crate::plots::FigureManifest;
-use crate::precursor::DsaEvaluation;
+use crate::precursor::{DsaEvaluation, DsaGridSummary};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -30,6 +30,7 @@ pub fn write_reports(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
+    dsa_grid_summary: &DsaGridSummary,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
@@ -43,6 +44,7 @@ pub fn write_reports(
             config,
             metrics,
             dsa,
+            dsa_grid_summary,
             figures,
             heuristics,
             phm_status,
@@ -55,6 +57,7 @@ pub fn write_reports(
             config,
             metrics,
             dsa,
+            dsa_grid_summary,
             figures,
             heuristics,
             phm_status,
@@ -76,6 +79,7 @@ fn markdown_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
+    dsa_grid_summary: &DsaGridSummary,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
@@ -121,7 +125,7 @@ fn markdown_report(
 
     out.push_str("## DSFB Instantiation\n\n");
     out.push_str(&format!(
-        "- Nominal reference: healthy-window mean over first {} passing runs\n- Residual: x(k) - x_hat\n- Envelope radius rho: {:.1} * healthy-window residual std\n- Drift window W: {}\n- Boundary condition: |r| > {:.1} * rho and drift > {:.1} * healthy drift std\n- Slew threshold: {:.1} * healthy slew std\n- Recurrent-boundary grazing: {} hits in a {}-run window\n- Hysteresis confirmations: {}\n- Persistent-state minimum length: {}\n- Density window: {}\n- Baseline comparators: raw residual threshold plus univariate EWMA on residual norms with alpha = {:.2} and threshold mean + {:.1} * healthy EWMA std\n\n",
+        "- Nominal reference: healthy-window mean over first {} passing runs\n- Residual: x(k) - x_hat\n- Envelope radius rho: {:.1} * healthy-window residual std\n- Drift window W: {}\n- Boundary condition: |r| > {:.1} * rho and drift > {:.1} * healthy drift std\n- Slew threshold: {:.1} * healthy slew std\n- Recurrent-boundary grazing: {} hits in a {}-run window\n- Hysteresis confirmations: {}\n- Persistent-state minimum length: {}\n- Density window: {}\n- Baseline comparators: raw residual threshold, univariate EWMA on residual norms with alpha = {:.2} and threshold mean + {:.1} * healthy EWMA std, positive CUSUM on residual norms with kappa = {:.1} * healthy std and alarm threshold = {:.1} * healthy std, run-level residual energy with threshold mean + {:.1} * healthy run-energy std, and PCA T2/SPE multivariate FDC retaining {:.0}% healthy variance with thresholds mean + {:.1}/{:.1} * healthy sigma\n\n",
         config.healthy_pass_runs,
         config.envelope_sigma,
         config.drift_window,
@@ -135,22 +139,32 @@ fn markdown_report(
         config.density_window,
         config.ewma_alpha,
         config.ewma_sigma_multiplier,
+        config.cusum_kappa_sigma_multiplier,
+        config.cusum_alarm_sigma_multiplier,
+        config.run_energy_sigma_multiplier,
+        config.pca_variance_explained * 100.0,
+        config.pca_t2_sigma_multiplier,
+        config.pca_spe_sigma_multiplier,
     ));
     out.push_str("The existing DSFB residual, drift, slew, grammar, envelope, and violation logic is unchanged in this pass.\n\n");
     out.push_str(&format!(
-        "In this crate, `DSFB Violation` remains instantaneous hard envelope exit (`|r| > rho`). `Deterministic Structural Accumulator (DSA)` is additive and sits above the existing DSFB outputs. The current DSA configuration uses `W = {}`, `K = {}`, `tau = {:.2}`, fixed unit weights, primary run signal `{}`, and a consistency rule that rejects any window with inward drift or drift-sign flips.\n\n",
+        "In this crate, `DSFB Violation` remains instantaneous hard envelope exit (`|r| > rho`). `Deterministic Structural Accumulator (DSA)` is additive and sits above the existing DSFB outputs. The feature-level DSA precursor itself remains persistence-constrained, and the run-level comparison signal is cross-feature corroboration: `{}`. The current DSA configuration uses `W = {}`, `K = {}`, `tau = {:.2}`, `m = {}`, fixed unit weights, and a consistency rule that rejects thresholded inward drift and thresholded drift-sign flips.\n\n",
+        dsa.run_signals.primary_run_signal,
         config.dsa.window,
         config.dsa.persistence_runs,
         config.dsa.alert_tau,
-        dsa.run_signals.primary_run_signal,
+        config.dsa.corroborating_feature_count_min,
     ));
 
     out.push_str("## Quantitative Summary\n\n");
     out.push_str(&format!(
-        "- Analyzable features: {}\n- Threshold alarm points: {}\n- EWMA alarm points: {}\n- DSFB raw boundary points: {}\n- DSFB persistent boundary points: {}\n- DSFB raw violation points: {}\n- DSFB persistent violation points: {}\n- DSA alert points: {}\n- DSA alert runs: {}\n- Failure runs with preceding DSA signal ({}-run lookback): {}\n- Failure runs with preceding DSFB Violation signal ({}-run lookback): {}\n- Failure runs with preceding raw DSFB boundary signal ({}-run lookback): {}\n- Failure runs with preceding EWMA signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
+        "- Analyzable features: {}\n- Threshold alarm points: {}\n- EWMA alarm points: {}\n- CUSUM alarm points: {}\n- Run-energy alarm points: {}\n- PCA T2/SPE alarm points: {}\n- DSFB raw boundary points: {}\n- DSFB persistent boundary points: {}\n- DSFB raw violation points: {}\n- DSFB persistent violation points: {}\n- DSA alert points: {}\n- DSA alert runs: {}\n- Failure runs with preceding DSA signal ({}-run lookback): {}\n- Failure runs with preceding DSFB Violation signal ({}-run lookback): {}\n- Failure runs with preceding raw DSFB boundary signal ({}-run lookback): {}\n- Failure runs with preceding EWMA signal ({}-run lookback): {}\n- Failure runs with preceding CUSUM signal ({}-run lookback): {}\n- Failure runs with preceding run-energy signal ({}-run lookback): {}\n- Failure runs with preceding PCA T2/SPE signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
         metrics.summary.analyzable_feature_count,
         metrics.summary.threshold_alarm_points,
         metrics.summary.ewma_alarm_points,
+        metrics.summary.cusum_alarm_points,
+        metrics.summary.run_energy_alarm_points,
+        metrics.summary.pca_fdc_alarm_points,
         metrics.summary.dsfb_raw_boundary_points,
         metrics.summary.dsfb_persistent_boundary_points,
         metrics.summary.dsfb_raw_violation_points,
@@ -166,25 +180,40 @@ fn markdown_report(
         config.pre_failure_lookback_runs,
         metrics.summary.failure_runs_with_preceding_ewma_signal,
         config.pre_failure_lookback_runs,
+        metrics.summary.failure_runs_with_preceding_cusum_signal,
+        config.pre_failure_lookback_runs,
+        metrics.summary.failure_runs_with_preceding_run_energy_signal,
+        config.pre_failure_lookback_runs,
+        metrics.summary.failure_runs_with_preceding_pca_fdc_signal,
+        config.pre_failure_lookback_runs,
         metrics.summary.failure_runs_with_preceding_threshold_signal,
     ));
-    out.push_str("The raw threshold baseline and the raw DSFB Violation state still share the same instantaneous envelope-exit condition. DSA is a separate structural compression layer, not a redefinition of threshold or violation.\n\n");
+    out.push_str("The raw threshold baseline and the raw DSFB Violation state still share the same instantaneous envelope-exit condition. The feature-level DSA precursor is separate structural compression logic, and the run-level primary DSA signal requires cross-feature corroboration without redefining either frozen baseline.\n\n");
 
     out.push_str("## Lead-Time and Nuisance Proxies\n\n");
     out.push_str(&format!(
-        "- Mean DSA lead (runs): {}\n- Median DSA lead (runs): {}\n- Mean raw DSFB boundary lead (runs): {}\n- Mean DSFB Violation lead (runs): {}\n- Mean EWMA lead (runs): {}\n- Mean threshold lead (runs): {}\n- Mean DSA minus threshold lead delta (runs): {}\n- Mean DSA minus EWMA lead delta (runs): {}\n- Pass-run nuisance proxy, DSA: {:.4}\n- Pass-run nuisance proxy, raw DSFB boundary: {:.4}\n- Pass-run nuisance proxy, DSFB Violation: {:.4}\n- Pass-run nuisance proxy, EWMA: {:.4}\n- Pass-run nuisance proxy, threshold: {:.4}\n\n",
+        "- Mean DSA lead (runs): {}\n- Median DSA lead (runs): {}\n- Mean raw DSFB boundary lead (runs): {}\n- Mean DSFB Violation lead (runs): {}\n- Mean EWMA lead (runs): {}\n- Mean CUSUM lead (runs): {}\n- Mean run-energy lead (runs): {}\n- Mean PCA T2/SPE lead (runs): {}\n- Mean threshold lead (runs): {}\n- Mean DSA minus CUSUM lead delta (runs): {}\n- Mean DSA minus run-energy lead delta (runs): {}\n- Mean DSA minus PCA T2/SPE lead delta (runs): {}\n- Mean DSA minus threshold lead delta (runs): {}\n- Mean DSA minus EWMA lead delta (runs): {}\n- Pass-run nuisance proxy, DSA: {:.4}\n- Pass-run nuisance proxy, raw DSFB boundary: {:.4}\n- Pass-run nuisance proxy, DSFB Violation: {:.4}\n- Pass-run nuisance proxy, EWMA: {:.4}\n- Pass-run nuisance proxy, CUSUM: {:.4}\n- Pass-run nuisance proxy, run energy: {:.4}\n- Pass-run nuisance proxy, PCA T2/SPE: {:.4}\n- Pass-run nuisance proxy, threshold: {:.4}\n\n",
         format_option_f64(dsa.summary.mean_lead_time_runs),
         format_option_f64(dsa.summary.median_lead_time_runs),
         format_option_f64(metrics.lead_time_summary.mean_raw_boundary_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_raw_violation_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_ewma_lead_runs),
+        format_option_f64(metrics.lead_time_summary.mean_cusum_lead_runs),
+        format_option_f64(metrics.lead_time_summary.mean_run_energy_lead_runs),
+        format_option_f64(metrics.lead_time_summary.mean_pca_fdc_lead_runs),
         format_option_f64(metrics.lead_time_summary.mean_threshold_lead_runs),
+        format_option_f64(dsa.summary.mean_lead_delta_vs_cusum_runs),
+        format_option_f64(dsa.summary.mean_lead_delta_vs_run_energy_runs),
+        format_option_f64(dsa.summary.mean_lead_delta_vs_pca_fdc_runs),
         format_option_f64(dsa.summary.mean_lead_delta_vs_threshold_runs),
         format_option_f64(dsa.summary.mean_lead_delta_vs_ewma_runs),
         dsa.comparison_summary.dsa.pass_run_nuisance_proxy,
         dsa.comparison_summary.dsfb_raw_boundary.pass_run_nuisance_proxy,
         dsa.comparison_summary.dsfb_violation.pass_run_nuisance_proxy,
         dsa.comparison_summary.ewma.pass_run_nuisance_proxy,
+        dsa.comparison_summary.cusum.pass_run_nuisance_proxy,
+        dsa.comparison_summary.run_energy.pass_run_nuisance_proxy,
+        dsa.comparison_summary.pca_fdc.pass_run_nuisance_proxy,
         dsa.comparison_summary.threshold.pass_run_nuisance_proxy,
     ));
     out.push_str("These nuisance values are pass-run proxies on SECOM labels, not fab-certified false-alarm metrics.\n\n");
@@ -193,32 +222,57 @@ fn markdown_report(
     out.push_str("- DSA is a persistence-constrained structural decision layer\n");
     out.push_str("- DSA is additive and sits above existing DSFB outputs\n");
     out.push_str("- DSFB Violation remains instantaneous envelope exit\n");
+    out.push_str("- The feature-level DSA precursor is structural accumulation; the run-level primary signal is a corroborated feature-count decision\n");
     out.push_str("- DSA is intended to reduce nuisance and stabilize precursor regimes\n");
     out.push_str(&format!(
-        "- Primary run-level comparison signal: `{}`\n- Secondary run-level signal emitted: `feature_count_dsa_alert(k)`\n- Failure-run recall, DSA: {}/{}\n- Failure-run recall, threshold: {}/{}\n- Failure-run recall, EWMA: {}/{}\n- Failure-run recall, DSFB Violation: {}/{}\n- Mean lead time, DSA: {}\n- Median lead time, DSA: {}\n- Pass-run nuisance proxy, DSA: {:.4}\n- Lead delta vs threshold (runs): {}\n- Lead delta vs EWMA (runs): {}\n- Nuisance delta vs threshold: {:.4}\n- Nuisance delta vs EWMA: {:.4}\n- Nuisance delta vs raw DSFB boundary: {:.4}\n- DSA episodes: {}\n- Mean DSA episode length (runs): {}\n- Max DSA episode length (runs): {}\n- Raw boundary episodes: {}\n- Compression ratio (raw boundary / DSA): {}\n- Non-escalating DSA episode fraction: {}\n- Nuisance improved: {}\n- Lead time improved: {}\n- Recall preserved: {}\n- Compression improved: {}\n- Nothing improved: {}\n- Threshold recall gate passed: {}\n- Boundary nuisance gate passed: {}\n- Validation passed: {}\n\n{}\n\n",
+        "- Primary run-level comparison signal: `{}`\n- Primary run-level signal definition: `{}`\n- Secondary run-level signal emitted: `{}`\n- Tertiary run-level signal emitted: `{}`\n- Failure-run recall, DSA: {}/{}\n- Failure-run recall, threshold: {}/{}\n- Failure-run recall, EWMA: {}/{}\n- Failure-run recall, CUSUM: {}/{}\n- Failure-run recall, run energy: {}/{}\n- Failure-run recall, PCA T2/SPE: {}/{}\n- Failure-run recall, DSFB Violation: {}/{}\n- Mean lead time, DSA: {}\n- Median lead time, DSA: {}\n- Pass-run nuisance proxy, DSA: {:.4}\n- Lead delta vs CUSUM (runs): {}\n- Lead delta vs run energy (runs): {}\n- Lead delta vs PCA T2/SPE (runs): {}\n- Lead delta vs threshold (runs): {}\n- Lead delta vs EWMA (runs): {}\n- Nuisance delta vs threshold: {:.4}\n- Nuisance delta vs EWMA: {:.4}\n- Nuisance delta vs DSFB Violation: {:.4}\n- Nuisance delta vs CUSUM: {:.4}\n- Nuisance delta vs run energy: {:.4}\n- Nuisance delta vs PCA T2/SPE: {:.4}\n- Nuisance delta vs raw DSFB boundary: {:.4}\n- DSA episodes: {}\n- DSA episodes preceding failure: {}\n- Precursor quality: {}\n- Mean DSA episode length (runs): {}\n- Max DSA episode length (runs): {}\n- Raw boundary episodes: {}\n- Compression ratio (raw boundary / DSA): {}\n- Non-escalating DSA episode fraction: {}\n- Primary success condition met: {}\n- Success-condition failures: {}\n- Nuisance improved: {}\n- Lead time improved: {}\n- Recall preserved: {}\n- Compression improved: {}\n- Nothing improved: {}\n- Threshold recall gate passed: {}\n- Boundary nuisance gate passed: {}\n- Validation passed: {}\n\n{}\n\n",
         dsa.run_signals.primary_run_signal,
+        dsa.parameter_manifest.primary_run_signal_definition,
+        dsa.parameter_manifest.secondary_run_signal,
+        dsa.parameter_manifest.tertiary_run_signal,
         dsa.comparison_summary.dsa.failure_run_recall,
         dsa.comparison_summary.dsa.failure_runs,
         dsa.comparison_summary.threshold.failure_run_recall,
         dsa.comparison_summary.threshold.failure_runs,
         dsa.comparison_summary.ewma.failure_run_recall,
         dsa.comparison_summary.ewma.failure_runs,
+        dsa.comparison_summary.cusum.failure_run_recall,
+        dsa.comparison_summary.cusum.failure_runs,
+        dsa.comparison_summary.run_energy.failure_run_recall,
+        dsa.comparison_summary.run_energy.failure_runs,
+        dsa.comparison_summary.pca_fdc.failure_run_recall,
+        dsa.comparison_summary.pca_fdc.failure_runs,
         dsa.comparison_summary.dsfb_violation.failure_run_recall,
         dsa.comparison_summary.dsfb_violation.failure_runs,
         format_option_f64(dsa.comparison_summary.dsa.mean_lead_time_runs),
         format_option_f64(dsa.comparison_summary.dsa.median_lead_time_runs),
         dsa.comparison_summary.dsa.pass_run_nuisance_proxy,
+        format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_cusum_runs),
+        format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_run_energy_runs),
+        format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_pca_fdc_runs),
         format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_threshold_runs),
         format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_ewma_runs),
         dsa.comparison_summary.pass_run_nuisance_delta_vs_threshold,
         dsa.comparison_summary.pass_run_nuisance_delta_vs_ewma,
+        dsa.comparison_summary.pass_run_nuisance_delta_vs_violation,
+        dsa.comparison_summary.pass_run_nuisance_delta_vs_cusum,
+        dsa.comparison_summary.pass_run_nuisance_delta_vs_run_energy,
+        dsa.comparison_summary.pass_run_nuisance_delta_vs_pca_fdc,
         dsa.comparison_summary.pass_run_nuisance_delta_vs_raw_boundary,
         dsa.episode_summary.dsa_episode_count,
+        dsa.episode_summary.dsa_episodes_preceding_failure,
+        format_option_f64(dsa.episode_summary.precursor_quality),
         format_option_f64(dsa.episode_summary.mean_dsa_episode_length_runs),
         dsa.episode_summary.max_dsa_episode_length_runs,
         dsa.episode_summary.raw_boundary_episode_count,
         format_option_f64(dsa.episode_summary.compression_ratio),
         format_option_f64(dsa.episode_summary.non_escalating_dsa_episode_fraction),
+        dsa.comparison_summary.primary_success_condition_met,
+        if dsa.comparison_summary.success_condition_failures.is_empty() {
+            "none".to_string()
+        } else {
+            dsa.comparison_summary.success_condition_failures.join("; ")
+        },
         dsa.comparison_summary.nuisance_improved,
         dsa.comparison_summary.lead_time_improved,
         dsa.comparison_summary.recall_preserved,
@@ -230,9 +284,48 @@ fn markdown_report(
         dsa.comparison_summary.conclusion,
     ));
 
+    out.push_str("## DSA Calibration Grid\n\n");
+    out.push_str(&format!(
+        "- Grid points evaluated: {}\n- Optimization priority order: {}\n- Primary success condition: {}\n- Success rows in bounded grid: {}\n- Cross-feature corroboration effect: {}\n- Limiting factor: {}\n",
+        dsa_grid_summary.grid_point_count,
+        dsa_grid_summary.optimization_priority_order.join(" | "),
+        dsa_grid_summary.primary_success_condition_definition,
+        dsa_grid_summary.success_row_count,
+        dsa_grid_summary.cross_feature_corroboration_effect,
+        dsa_grid_summary.limiting_factor,
+    ));
+    if let Some(row) = &dsa_grid_summary.closest_to_success {
+        out.push_str(&format!(
+            "- Closest to primary success: config_id={}, W={}, K={}, tau={:.2}, m={}, recall={}/{}, mean lead={}, nuisance={:.4}, precursor quality={}, compression ratio={}\n",
+            row.config_id,
+            row.window,
+            row.persistence_runs,
+            row.alert_tau,
+            row.corroborating_feature_count_min,
+            row.failure_run_recall,
+            row.failure_runs,
+            format_option_f64(row.mean_lead_time_runs),
+            row.pass_run_nuisance_proxy,
+            format_option_f64(row.precursor_quality),
+            format_option_f64(row.compression_ratio),
+        ));
+    }
+    if let Some(row) = &dsa_grid_summary.best_precursor_quality_row {
+        out.push_str(&format!(
+            "- Highest precursor-quality row: config_id={}, W={}, K={}, tau={:.2}, m={}, precursor quality={}\n",
+            row.config_id,
+            row.window,
+            row.persistence_runs,
+            row.alert_tau,
+            row.corroborating_feature_count_min,
+            format_option_f64(row.precursor_quality),
+        ));
+    }
+    out.push_str("- Saved grid artifacts: `dsa_grid_results.csv` and `dsa_grid_summary.json`\n\n");
+
     out.push_str("## Density Summary\n\n");
     out.push_str(&format!(
-        "- Density window: {} runs\n- Mean persistent boundary density, failure-labeled runs: {:.4}\n- Mean persistent boundary density, pass-labeled runs: {:.4}\n- Mean persistent violation density, failure-labeled runs: {:.4}\n- Mean persistent violation density, pass-labeled runs: {:.4}\n- Mean threshold density, failure-labeled runs: {:.4}\n- Mean threshold density, pass-labeled runs: {:.4}\n- Mean EWMA density, failure-labeled runs: {:.4}\n- Mean EWMA density, pass-labeled runs: {:.4}\n\n",
+        "- Density window: {} runs\n- Mean persistent boundary density, failure-labeled runs: {:.4}\n- Mean persistent boundary density, pass-labeled runs: {:.4}\n- Mean persistent violation density, failure-labeled runs: {:.4}\n- Mean persistent violation density, pass-labeled runs: {:.4}\n- Mean threshold density, failure-labeled runs: {:.4}\n- Mean threshold density, pass-labeled runs: {:.4}\n- Mean EWMA density, failure-labeled runs: {:.4}\n- Mean EWMA density, pass-labeled runs: {:.4}\n- Mean CUSUM density, failure-labeled runs: {:.4}\n- Mean CUSUM density, pass-labeled runs: {:.4}\n\n",
         metrics.density_summary.density_window,
         metrics.density_summary.mean_persistent_boundary_density_failure,
         metrics.density_summary.mean_persistent_boundary_density_pass,
@@ -242,9 +335,13 @@ fn markdown_report(
         metrics.density_summary.mean_threshold_density_pass,
         metrics.density_summary.mean_ewma_density_failure,
         metrics.density_summary.mean_ewma_density_pass,
+        metrics.density_summary.mean_cusum_density_failure,
+        metrics.density_summary.mean_cusum_density_pass,
     ));
 
+    out.push_str(&drsc_dsa_combined_markdown_section(figures));
     out.push_str(&drsc_markdown_section(figures));
+    out.push_str(&dsa_focus_markdown_section(figures));
 
     out.push_str("## Motif Calibration Summary\n\n");
     out.push_str("| Motif | Point hits | Run hits | Pre-failure window run hits | Precision proxy |\n");
@@ -291,19 +388,20 @@ fn markdown_report(
 
     out.push_str("## PHM 2018 Status\n\n");
     out.push_str(&format!(
-        "- Official page: {}\n- Manual archive path: {}\n- Implemented now: {}\n- Blocker: {}\n\n",
+        "- Official page: {}\n- Manual archive path: {}\n- Archive summary support implemented: {}\n- Implemented now: {}\n- Blocker: {}\n\n",
         phm_status.official_page,
         phm_status.manual_placement_path.display(),
+        phm_status.archive_summary_supported,
         phm_status.fully_implemented,
         phm_status.blocker,
     ));
 
     out.push_str("## Limitations of This Run\n\n");
     out.push_str("- SECOM is anonymized and instance-level; this run does not validate chamber-mechanism attribution or run-to-failure prognostics.\n");
-    out.push_str("- The comparator set is still narrow: raw threshold, EWMA, DSFB boundary, and DSFB Violation. Stronger multivariate FDC and ML baselines are intentionally not claimed here.\n");
+    out.push_str("- The comparator set is still intentionally bounded: raw threshold, EWMA, positive CUSUM, run-level residual energy, PCA T2/SPE multivariate FDC, DSFB boundary, and DSFB Violation. ML baselines are intentionally not claimed here.\n");
     out.push_str("- Lead-time and nuisance values are bounded proxy metrics derived from SECOM labels and a fixed lookback, not fab-qualified operational KPIs.\n");
-    out.push_str("- PHM 2018 support is still limited to the manual-placement contract and archive probe until the real archive is present and verified.\n");
-    out.push_str("- DRSC remains unchanged in semantics in this pass; DSA is not separately visualized there.\n");
+    out.push_str("- PHM 2018 support is still limited to the manual-placement contract, archive probe, grouped CSV-schema summary, and archive-shape ingestion summary until the real archive is present and verified end to end.\n");
+    out.push_str("- DRSC keeps the DSFB state semantics intact, but now overlays DSA/run-level comparator traces for the selected feature window.\n");
     out.push_str("- PDF generation depends on a local `pdflatex` installation.\n\n");
 
     out.push_str("## Explicit Non-Claims\n\n");
@@ -321,6 +419,7 @@ fn latex_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
+    dsa_grid_summary: &DsaGridSummary,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
@@ -369,7 +468,7 @@ fn latex_report(
 
     out.push_str("\\section*{DSFB instantiation}\n");
     out.push_str(&latex_escape(&format!(
-        "The nominal reference is the healthy-window mean over the first {} passing runs. Residuals are defined as x(k) - x_hat. The admissibility envelope radius is {:.1} sigma on the healthy residual distribution. The drift window is W = {}. The boundary rule in this implementation is |r| > {:.1} rho with drift above {:.1} healthy drift sigma. Abrupt slew tags use {:.1} healthy slew sigma. Hysteresis-confirmed state changes require {} confirmations, persistent-state alarms require {} consecutive confirmed steps, and density metrics use a {}-run sliding window. The scalar comparator set contains a raw residual threshold and a univariate EWMA on residual norms with alpha = {:.2} and a threshold at the healthy-window EWMA mean plus {:.1} sigma. DSFB Violation remains the instantaneous hard envelope exit state. DSA is additive, sits above the existing DSFB outputs, and uses W = {}, K = {}, tau = {:.2}, fixed unit weights, primary run signal {}, and a consistency rule that rejects any inward drift or drift-sign flip.",
+        "The nominal reference is the healthy-window mean over the first {} passing runs. Residuals are defined as x(k) - x_hat. The admissibility envelope radius is {:.1} sigma on the healthy residual distribution. The drift window is W = {}. The boundary rule in this implementation is |r| > {:.1} rho with drift above {:.1} healthy drift sigma. Abrupt slew tags use {:.1} healthy slew sigma. Hysteresis-confirmed state changes require {} confirmations, persistent-state alarms require {} consecutive confirmed steps, and density metrics use a {}-run sliding window. The comparator set contains a raw residual threshold, a univariate EWMA on residual norms with alpha = {:.2} and a threshold at the healthy-window EWMA mean plus {:.1} sigma, a positive CUSUM on residual norms with kappa = {:.1} healthy sigma and alarm threshold = {:.1} healthy sigma, a run-level residual-energy baseline with threshold mean plus {:.1} healthy run-energy sigma, and a PCA T2/SPE multivariate FDC baseline retaining {:.0}% healthy variance with T2/SPE thresholds at mean plus {:.1}/{:.1} healthy sigma. DSFB Violation remains the instantaneous hard envelope exit state. DSA is additive, sits above the existing DSFB outputs, and uses W = {}, K = {}, tau = {:.2}, m = {}, fixed unit weights, primary run signal {}, and a consistency rule that rejects thresholded inward drift and thresholded drift-sign flips.",
         config.healthy_pass_runs,
         config.envelope_sigma,
         config.drift_window,
@@ -381,9 +480,16 @@ fn latex_report(
         config.density_window,
         config.ewma_alpha,
         config.ewma_sigma_multiplier,
+        config.cusum_kappa_sigma_multiplier,
+        config.cusum_alarm_sigma_multiplier,
+        config.run_energy_sigma_multiplier,
+        config.pca_variance_explained * 100.0,
+        config.pca_t2_sigma_multiplier,
+        config.pca_spe_sigma_multiplier,
         config.dsa.window,
         config.dsa.persistence_runs,
         config.dsa.alert_tau,
+        config.dsa.corroborating_feature_count_min,
         dsa.run_signals.primary_run_signal,
     )));
     out.push_str("\n\n");
@@ -391,38 +497,61 @@ fn latex_report(
     out.push_str("\\section*{Deterministic Structural Accumulator (DSA)}\n");
     out.push_str("\\begin{tabular}{lr}\n\\toprule\n");
     out.push_str(&format!(
-        "Failure-run recall, DSA & {}/{} \\\\\nFailure-run recall, threshold & {}/{} \\\\\nFailure-run recall, EWMA & {}/{} \\\\\nFailure-run recall, DSFB Violation & {}/{} \\\\\nMean lead time, DSA & {} \\\\\nMedian lead time, DSA & {} \\\\\nPass-run nuisance proxy, DSA & {:.4} \\\\\nLead delta vs threshold & {} \\\\\nLead delta vs EWMA & {} \\\\\nNuisance delta vs threshold & {:.4} \\\\\nNuisance delta vs EWMA & {:.4} \\\\\nNuisance delta vs raw boundary & {:.4} \\\\\nRaw boundary episodes & {} \\\\\nDSA episodes & {} \\\\\nCompression ratio & {} \\\\\nNon-escalating DSA episode fraction & {} \\\\\nNuisance improved & {} \\\\\nLead time improved & {} \\\\\nRecall preserved & {} \\\\\nCompression improved & {} \\\\\nNothing improved & {} \\\\\nThreshold recall gate passed & {} \\\\\nBoundary nuisance gate passed & {} \\\\\nValidation passed & {} \\\\\n",
+        "Failure-run recall, DSA & {}/{} \\\\\nFailure-run recall, threshold & {}/{} \\\\\nFailure-run recall, EWMA & {}/{} \\\\\nFailure-run recall, CUSUM & {}/{} \\\\\nFailure-run recall, run energy & {}/{} \\\\\nFailure-run recall, PCA T2/SPE & {}/{} \\\\\nFailure-run recall, DSFB Violation & {}/{} \\\\\nMean lead time, DSA & {} \\\\\nMedian lead time, DSA & {} \\\\\nPass-run nuisance proxy, DSA & {:.4} \\\\\nLead delta vs CUSUM & {} \\\\\nLead delta vs run energy & {} \\\\\nLead delta vs PCA T2/SPE & {} \\\\\nLead delta vs threshold & {} \\\\\nLead delta vs EWMA & {} \\\\\nNuisance delta vs threshold & {:.4} \\\\\nNuisance delta vs EWMA & {:.4} \\\\\nNuisance delta vs DSFB Violation & {:.4} \\\\\nNuisance delta vs CUSUM & {:.4} \\\\\nNuisance delta vs run energy & {:.4} \\\\\nNuisance delta vs PCA T2/SPE & {:.4} \\\\\nNuisance delta vs raw boundary & {:.4} \\\\\nRaw boundary episodes & {} \\\\\nDSA episodes & {} \\\\\nDSA episodes preceding failure & {} \\\\\nPrecursor quality & {} \\\\\nCompression ratio & {} \\\\\nNon-escalating DSA episode fraction & {} \\\\\nPrimary success condition met & {} \\\\\nThreshold recall gate passed & {} \\\\\nBoundary nuisance gate passed & {} \\\\\nValidation passed & {} \\\\\n",
         dsa.comparison_summary.dsa.failure_run_recall,
         dsa.comparison_summary.dsa.failure_runs,
         dsa.comparison_summary.threshold.failure_run_recall,
         dsa.comparison_summary.threshold.failure_runs,
         dsa.comparison_summary.ewma.failure_run_recall,
         dsa.comparison_summary.ewma.failure_runs,
+        dsa.comparison_summary.cusum.failure_run_recall,
+        dsa.comparison_summary.cusum.failure_runs,
+        dsa.comparison_summary.run_energy.failure_run_recall,
+        dsa.comparison_summary.run_energy.failure_runs,
+        dsa.comparison_summary.pca_fdc.failure_run_recall,
+        dsa.comparison_summary.pca_fdc.failure_runs,
         dsa.comparison_summary.dsfb_violation.failure_run_recall,
         dsa.comparison_summary.dsfb_violation.failure_runs,
         format_option_f64(dsa.comparison_summary.dsa.mean_lead_time_runs),
         format_option_f64(dsa.comparison_summary.dsa.median_lead_time_runs),
         dsa.comparison_summary.dsa.pass_run_nuisance_proxy,
+        format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_cusum_runs),
+        format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_run_energy_runs),
+        format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_pca_fdc_runs),
         format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_threshold_runs),
         format_option_f64(dsa.comparison_summary.dsa.mean_lead_delta_vs_ewma_runs),
         dsa.comparison_summary.pass_run_nuisance_delta_vs_threshold,
         dsa.comparison_summary.pass_run_nuisance_delta_vs_ewma,
+        dsa.comparison_summary.pass_run_nuisance_delta_vs_violation,
+        dsa.comparison_summary.pass_run_nuisance_delta_vs_cusum,
+        dsa.comparison_summary.pass_run_nuisance_delta_vs_run_energy,
+        dsa.comparison_summary.pass_run_nuisance_delta_vs_pca_fdc,
         dsa.comparison_summary.pass_run_nuisance_delta_vs_raw_boundary,
         dsa.episode_summary.raw_boundary_episode_count,
         dsa.episode_summary.dsa_episode_count,
+        dsa.episode_summary.dsa_episodes_preceding_failure,
+        format_option_f64(dsa.episode_summary.precursor_quality),
         format_option_f64(dsa.episode_summary.compression_ratio),
         format_option_f64(dsa.episode_summary.non_escalating_dsa_episode_fraction),
-        dsa.comparison_summary.nuisance_improved,
-        dsa.comparison_summary.lead_time_improved,
-        dsa.comparison_summary.recall_preserved,
-        dsa.comparison_summary.compression_improved,
-        dsa.comparison_summary.nothing_improved,
+        dsa.comparison_summary.primary_success_condition_met,
         dsa.comparison_summary.threshold_recall_gate_passed,
         dsa.comparison_summary.boundary_nuisance_gate_passed,
         dsa.comparison_summary.validation_passed,
     ));
     out.push_str("\\bottomrule\n\\end{tabular}\n\n");
     out.push_str(&latex_escape(&dsa.comparison_summary.conclusion));
+    out.push_str("\n\n");
+
+    out.push_str("\\section*{DSA calibration grid}\n");
+    out.push_str(&latex_escape(&format!(
+        "Grid points evaluated: {}. Optimization priority order: {}. Primary success condition: {}. Success rows in bounded grid: {}. Cross-feature corroboration effect: {}. Limiting factor: {}.",
+        dsa_grid_summary.grid_point_count,
+        dsa_grid_summary.optimization_priority_order.join(" | "),
+        dsa_grid_summary.primary_success_condition_definition,
+        dsa_grid_summary.success_row_count,
+        dsa_grid_summary.cross_feature_corroboration_effect,
+        dsa_grid_summary.limiting_factor,
+    )));
     out.push_str("\n\n");
 
     out.push_str("\\section*{Motif metrics}\n");
@@ -447,7 +576,9 @@ fn latex_report(
     }
     out.push_str("\\bottomrule\n\\end{longtable}\n\n");
 
+    out.push_str(&drsc_dsa_combined_latex_section(figures));
     out.push_str(&drsc_latex_section(figures));
+    out.push_str(&dsa_focus_latex_section(figures));
 
     out.push_str("\\section*{Artifact inventory}\n");
     out.push_str("\\begin{longtable}{p{0.38\\linewidth}p{0.52\\linewidth}}\n\\toprule\n");
@@ -463,9 +594,10 @@ fn latex_report(
 
     out.push_str("\\section*{PHM 2018 status}\n");
     out.push_str(&latex_escape(&format!(
-        "Official page: {}. Manual archive path: {}. Implemented now: {}. Blocker: {}.",
+        "Official page: {}. Manual archive path: {}. Archive summary support implemented: {}. Implemented now: {}. Blocker: {}.",
         phm_status.official_page,
         phm_status.manual_placement_path.display(),
+        phm_status.archive_summary_supported,
         phm_status.fully_implemented,
         phm_status.blocker,
     )));
@@ -509,11 +641,19 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
         },
         ArtifactInventoryEntry {
             path: "baseline_comparison_summary.json".into(),
-            role: "Baseline comparison summary across DSFB, threshold, EWMA, and DSA.".into(),
+            role: "Baseline comparison summary across DSFB, threshold, EWMA, CUSUM, run energy, PCA T2/SPE, and DSA.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_vs_baselines.json".into(),
             role: "Saved DSA recall, lead-time, nuisance, validation, and compression summary.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_grid_results.csv".into(),
+            role: "Full bounded DSA calibration grid with W, K, tau, and corroboration m.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_grid_summary.json".into(),
+            role: "Saved DSA grid summary, closest-to-success row, corroboration effect, and limiting-factor analysis.".into(),
         },
         ArtifactInventoryEntry {
             path: "feature_metrics.csv".into(),
@@ -537,7 +677,7 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
         },
         ArtifactInventoryEntry {
             path: "lead_time_metrics.csv".into(),
-            role: "Flattened DSFB, threshold, and EWMA lead-time table.".into(),
+            role: "Flattened DSFB, threshold, EWMA, CUSUM, and run-energy lead-time table.".into(),
         },
         ArtifactInventoryEntry {
             path: "density_metrics.csv".into(),
@@ -558,6 +698,18 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
         ArtifactInventoryEntry {
             path: "ewma_baseline.csv".into(),
             role: "EWMA baseline trace export.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "cusum_baseline.csv".into(),
+            role: "Positive CUSUM baseline trace export.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "run_energy_baseline.csv".into(),
+            role: "Run-level residual-energy baseline trace export.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "pca_fdc_baseline.csv".into(),
+            role: "PCA T2/SPE multivariate FDC baseline trace export.".into(),
         },
         ArtifactInventoryEntry {
             path: "grammar_states.csv".into(),
@@ -603,6 +755,18 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
             role: "Aligned DRSC trace export for the selected feature window.".into(),
         });
     }
+    if figures.drsc_dsa_combined.is_some() {
+        entries.push(ArtifactInventoryEntry {
+            path: "drsc_dsa_combined.csv".into(),
+            role: "Aligned DRSC+DSA publication figure trace export for the selected feature window.".into(),
+        });
+    }
+    if figures.dsa_focus.is_some() {
+        entries.push(ArtifactInventoryEntry {
+            path: "dsa_top_feature.csv".into(),
+            role: "Aligned DSA structural-focus trace export for the selected feature window.".into(),
+        });
+    }
 
     for file in &figures.files {
         entries.push(ArtifactInventoryEntry {
@@ -614,11 +778,52 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
     entries
 }
 
+fn drsc_dsa_combined_markdown_section(figures: &FigureManifest) -> String {
+    if let Some(combined) = &figures.drsc_dsa_combined {
+        format!(
+            "## Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA)\n\nThe crate emits a publication-oriented combined figure and aligned trace CSV for the representative top boundary-activity feature in the current run (`{}`). The figure keeps the DSFB semantics frozen while making four aligned layers readable in one glance: normalized residual / drift / slew; the actual persistent DSFB state band (`Admissible`, `Boundary`, `Violation`); the DSA precursor layer rendered as feature-level plus corroborated run-level activation; and run-level threshold / EWMA scalar trigger timing. This figure is grayscale-safe, generated from crate outputs, and does not claim scalar lag unless it is visible in the saved traces.\n\n- Figure: figures/{}\n- Trace CSV: {}\n- Feature selection basis: {}\n- Normalization: {}\n- State display: {}\n- DSA rendering: {}\n- Baseline rendering: {}\n\n",
+            combined.feature_name,
+            combined.figure_file,
+            combined.trace_csv,
+            combined.feature_selection_basis,
+            combined.normalization_note,
+            combined.state_display_note,
+            combined.dsa_rendering_note,
+            combined.baseline_rendering_note,
+        )
+    } else {
+        String::new()
+    }
+}
+
 fn drsc_markdown_section(figures: &FigureManifest) -> String {
     if let Some(drsc) = &figures.drsc {
         format!(
-            "## Deterministic Residual Stateflow Chart (DRSC)\n\nThe crate emits a DRSC figure and aligned trace CSV for the top persistent-boundary feature in the current run (`{}`). The chart is unchanged in semantics in this pass: top layer residual/drift/slew, middle persistent DSFB states, bottom admissibility and EWMA occupancy. DSA is not separately visualized here.\n\n- Figure: figures/{}\n- Trace CSV: {}\n\n",
+            "## Deterministic Residual Stateflow Chart (DRSC)\n\nThe crate emits a DRSC figure and aligned trace CSV for the top persistent-boundary feature in the current run (`{}`). The chart keeps the DSFB state semantics intact: top layer residual/drift/slew, middle persistent DSFB states, bottom admissibility and comparator occupancy. DSA and run-level comparator overlays are added to the same selected feature window without redefining DSFB state semantics.\n\n- Figure: figures/{}\n- Trace CSV: {}\n\n",
             drsc.feature_name, drsc.figure_file, drsc.trace_csv,
+        )
+    } else {
+        String::new()
+    }
+}
+
+fn dsa_focus_markdown_section(figures: &FigureManifest) -> String {
+    if let Some(dsa_focus) = &figures.dsa_focus {
+        format!(
+            "## DSA Structural Focus Figure\n\nThe crate emits a DSA-specific figure and aligned trace CSV for the selected feature window (`{}`). This separate chart exposes the rolling structural inputs, DSA score, persistence gate, and feature-level comparator band, including run energy and PCA T2/SPE overlays.\n\n- Figure: figures/{}\n- Trace CSV: {}\n\n",
+            dsa_focus.feature_name, dsa_focus.figure_file, dsa_focus.trace_csv,
+        )
+    } else {
+        String::new()
+    }
+}
+
+fn drsc_dsa_combined_latex_section(figures: &FigureManifest) -> String {
+    if let Some(combined) = &figures.drsc_dsa_combined {
+        format!(
+            "\\section*{{Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA)}}\nThe crate emits a publication-oriented combined figure and aligned trace CSV for the representative top boundary-activity feature in the current run (\\texttt{{{}}}). The figure keeps the DSFB semantics frozen while making four aligned layers readable in one glance: normalized residual / drift / slew; the actual persistent DSFB state band (\\texttt{{Admissible}}, \\texttt{{Boundary}}, \\texttt{{Violation}}); the DSA precursor layer rendered as feature-level plus corroborated run-level activation; and run-level threshold / EWMA scalar trigger timing. The figure is generated from crate outputs and does not claim scalar lag unless it is visible in the saved traces. The aligned trace CSV is \\texttt{{{}}}.\n\n",
+            latex_escape(&combined.feature_name),
+            latex_escape(&combined.trace_csv),
         )
     } else {
         String::new()
@@ -628,9 +833,21 @@ fn drsc_markdown_section(figures: &FigureManifest) -> String {
 fn drsc_latex_section(figures: &FigureManifest) -> String {
     if let Some(drsc) = &figures.drsc {
         format!(
-            "\\section*{{Deterministic Residual Stateflow Chart (DRSC)}}\nThe crate emits a DRSC figure and aligned trace CSV for the top persistent-boundary feature in the current run (\\texttt{{{}}}). The chart is unchanged in semantics in this pass: top layer residual, drift, and slew; middle layer persistent DSFB states; bottom layer admissibility and EWMA occupancy. DSA is not separately visualized here. The aligned trace CSV is \\texttt{{{}}}.\n\n",
+            "\\section*{{Deterministic Residual Stateflow Chart (DRSC)}}\nThe crate emits a DRSC figure and aligned trace CSV for the top persistent-boundary feature in the current run (\\texttt{{{}}}). The chart keeps the DSFB state semantics intact: top layer residual, drift, and slew; middle layer persistent DSFB states; bottom layer admissibility and comparator occupancy. DSA and run-level comparator overlays are added to the same selected feature window without redefining DSFB state semantics. The aligned trace CSV is \\texttt{{{}}}.\n\n",
             latex_escape(&drsc.feature_name),
             latex_escape(&drsc.trace_csv),
+        )
+    } else {
+        String::new()
+    }
+}
+
+fn dsa_focus_latex_section(figures: &FigureManifest) -> String {
+    if let Some(dsa_focus) = &figures.dsa_focus {
+        format!(
+            "\\section*{{DSA structural focus figure}}\nThe crate emits a DSA-specific figure and aligned trace CSV for the selected feature window (\\texttt{{{}}}). This separate chart exposes the rolling structural inputs, DSA score, persistence gate, and feature-level comparator band, including run energy and PCA T2/SPE overlays. The aligned trace CSV is \\texttt{{{}}}.\n\n",
+            latex_escape(&dsa_focus.feature_name),
+            latex_escape(&dsa_focus.trace_csv),
         )
     } else {
         String::new()
@@ -643,6 +860,14 @@ fn figure_blocks(figures: &FigureManifest) -> String {
         .iter()
         .map(|file| {
             let caption = if figures
+                .drsc_dsa_combined
+                .as_ref()
+                .map(|combined| combined.figure_file == *file)
+                .unwrap_or(false)
+            {
+                "Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA) for the representative SECOM feature selected by the current run. Top: normalized residual, drift, and slew. Second: persistent deterministic DSFB state evolution. Third: feature-level and corroborated run-level DSA activation. Bottom: run-level threshold and EWMA trigger timing. The figure is generated from crate outputs and is intended to expose the difference between raw structural activity and persistence-constrained precursor regimes."
+                    .to_string()
+            } else if figures
                 .drsc
                 .as_ref()
                 .map(|drsc| drsc.figure_file == *file)
@@ -650,6 +875,13 @@ fn figure_blocks(figures: &FigureManifest) -> String {
             {
                 "Deterministic Residual Stateflow Chart (DRSC) for the selected feature window."
                     .to_string()
+            } else if figures
+                .dsa_focus
+                .as_ref()
+                .map(|dsa_focus| dsa_focus.figure_file == *file)
+                .unwrap_or(false)
+            {
+                "DSA structural focus figure for the selected feature window.".to_string()
             } else {
                 format!("Generated artifact: {}", file)
             };
@@ -682,7 +914,7 @@ fn compile_pdf(tex_path: &Path, output_dir: &Path) -> (Option<PathBuf>, Option<S
     let mut combined_output = String::new();
     let mut any_success = false;
 
-    for _ in 0..2 {
+    for _ in 0..3 {
         match Command::new("pdflatex")
             .arg("-interaction=nonstopmode")
             .arg("-halt-on-error")
@@ -693,10 +925,21 @@ fn compile_pdf(tex_path: &Path, output_dir: &Path) -> (Option<PathBuf>, Option<S
             .output()
         {
             Ok(output) => {
+                let pass_output = format!(
+                    "{}{}",
+                    String::from_utf8_lossy(&output.stderr),
+                    String::from_utf8_lossy(&output.stdout)
+                );
+                let needs_rerun = pass_output.contains("Rerun to get outlines right")
+                    || pass_output.contains("Label(s) may have changed")
+                    || pass_output.contains("Rerun to get cross-references right");
                 combined_output.push_str(&String::from_utf8_lossy(&output.stderr));
                 combined_output.push_str(&String::from_utf8_lossy(&output.stdout));
                 if output.status.success() {
                     any_success = true;
+                    if !needs_rerun {
+                        break;
+                    }
                 }
             }
             Err(err) => {

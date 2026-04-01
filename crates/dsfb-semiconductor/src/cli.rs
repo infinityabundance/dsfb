@@ -59,6 +59,18 @@ struct RunSecomArgs {
     ewma_alpha: f64,
     #[arg(long, default_value_t = 3.0)]
     ewma_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 0.5)]
+    cusum_kappa_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 5.0)]
+    cusum_alarm_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 3.0)]
+    run_energy_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 0.95)]
+    pca_variance_explained: f64,
+    #[arg(long, default_value_t = 3.0)]
+    pca_t2_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 3.0)]
+    pca_spe_sigma_multiplier: f64,
     #[arg(long, default_value_t = 3.0)]
     drift_sigma_multiplier: f64,
     #[arg(long, default_value_t = 3.0)]
@@ -69,12 +81,14 @@ struct RunSecomArgs {
     grazing_min_hits: usize,
     #[arg(long, default_value_t = 20)]
     pre_failure_lookback_runs: usize,
-    #[arg(long, default_value_t = 10)]
+    #[arg(long, default_value_t = 5)]
     dsa_window: usize,
     #[arg(long, default_value_t = 2)]
     dsa_persistence_runs: usize,
-    #[arg(long, default_value_t = 2.5)]
+    #[arg(long, default_value_t = 2.0)]
     dsa_alert_tau: f64,
+    #[arg(long, default_value_t = 2)]
+    dsa_corroborating_feature_count_min: usize,
 }
 
 #[derive(Debug, Args)]
@@ -103,6 +117,18 @@ struct CalibrateSecomArgs {
     ewma_alpha_grid: Vec<f64>,
     #[arg(long, value_delimiter = ',', default_value = "3.0")]
     ewma_sigma_multiplier_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "0.5")]
+    cusum_kappa_sigma_multiplier_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "5.0")]
+    cusum_alarm_sigma_multiplier_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "3.0")]
+    run_energy_sigma_multiplier_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "0.95")]
+    pca_variance_explained_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "3.0")]
+    pca_t2_sigma_multiplier_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "3.0")]
+    pca_spe_sigma_multiplier_grid: Vec<f64>,
     #[arg(long, value_delimiter = ',', default_value = "3.0")]
     drift_sigma_multiplier_grid: Vec<f64>,
     #[arg(long, value_delimiter = ',', default_value = "3.0")]
@@ -141,6 +167,18 @@ struct CalibrateSecomDsaArgs {
     ewma_alpha: f64,
     #[arg(long, default_value_t = 3.0)]
     ewma_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 0.5)]
+    cusum_kappa_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 5.0)]
+    cusum_alarm_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 3.0)]
+    run_energy_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 0.95)]
+    pca_variance_explained: f64,
+    #[arg(long, default_value_t = 3.0)]
+    pca_t2_sigma_multiplier: f64,
+    #[arg(long, default_value_t = 3.0)]
+    pca_spe_sigma_multiplier: f64,
     #[arg(long, default_value_t = 3.0)]
     drift_sigma_multiplier: f64,
     #[arg(long, default_value_t = 3.0)]
@@ -151,6 +189,14 @@ struct CalibrateSecomDsaArgs {
     grazing_min_hits: usize,
     #[arg(long, default_value_t = 20)]
     pre_failure_lookback_runs: usize,
+    #[arg(long, value_delimiter = ',', default_value = "5,10,15")]
+    dsa_window_grid: Vec<usize>,
+    #[arg(long, value_delimiter = ',', default_value = "2,3,4")]
+    dsa_persistence_runs_grid: Vec<usize>,
+    #[arg(long, value_delimiter = ',', default_value = "2.0,2.5,3.0")]
+    dsa_alert_tau_grid: Vec<f64>,
+    #[arg(long, value_delimiter = ',', default_value = "2,3,5")]
+    dsa_corroborating_feature_count_min_grid: Vec<usize>,
 }
 
 #[derive(Debug, Args)]
@@ -184,6 +230,12 @@ pub fn run() -> Result<()> {
                 density_window: args.density_window,
                 ewma_alpha: args.ewma_alpha,
                 ewma_sigma_multiplier: args.ewma_sigma_multiplier,
+                cusum_kappa_sigma_multiplier: args.cusum_kappa_sigma_multiplier,
+                cusum_alarm_sigma_multiplier: args.cusum_alarm_sigma_multiplier,
+                run_energy_sigma_multiplier: args.run_energy_sigma_multiplier,
+                pca_variance_explained: args.pca_variance_explained,
+                pca_t2_sigma_multiplier: args.pca_t2_sigma_multiplier,
+                pca_spe_sigma_multiplier: args.pca_spe_sigma_multiplier,
                 drift_sigma_multiplier: args.drift_sigma_multiplier,
                 slew_sigma_multiplier: args.slew_sigma_multiplier,
                 grazing_window: args.grazing_window,
@@ -193,6 +245,7 @@ pub fn run() -> Result<()> {
                     window: args.dsa_window,
                     persistence_runs: args.dsa_persistence_runs,
                     alert_tau: args.dsa_alert_tau,
+                    corroborating_feature_count_min: args.dsa_corroborating_feature_count_min,
                 },
                 ..PipelineConfig::default()
             };
@@ -228,6 +281,12 @@ pub fn run() -> Result<()> {
                 density_window: args.density_window_grid,
                 ewma_alpha: args.ewma_alpha_grid,
                 ewma_sigma_multiplier: args.ewma_sigma_multiplier_grid,
+                cusum_kappa_sigma_multiplier: args.cusum_kappa_sigma_multiplier_grid,
+                cusum_alarm_sigma_multiplier: args.cusum_alarm_sigma_multiplier_grid,
+                run_energy_sigma_multiplier: args.run_energy_sigma_multiplier_grid,
+                pca_variance_explained: args.pca_variance_explained_grid,
+                pca_t2_sigma_multiplier: args.pca_t2_sigma_multiplier_grid,
+                pca_spe_sigma_multiplier: args.pca_spe_sigma_multiplier_grid,
                 drift_sigma_multiplier: args.drift_sigma_multiplier_grid,
                 slew_sigma_multiplier: args.slew_sigma_multiplier_grid,
                 grazing_window: args.grazing_window_grid,
@@ -261,6 +320,12 @@ pub fn run() -> Result<()> {
                 density_window: args.density_window,
                 ewma_alpha: args.ewma_alpha,
                 ewma_sigma_multiplier: args.ewma_sigma_multiplier,
+                cusum_kappa_sigma_multiplier: args.cusum_kappa_sigma_multiplier,
+                cusum_alarm_sigma_multiplier: args.cusum_alarm_sigma_multiplier,
+                run_energy_sigma_multiplier: args.run_energy_sigma_multiplier,
+                pca_variance_explained: args.pca_variance_explained,
+                pca_t2_sigma_multiplier: args.pca_t2_sigma_multiplier,
+                pca_spe_sigma_multiplier: args.pca_spe_sigma_multiplier,
                 drift_sigma_multiplier: args.drift_sigma_multiplier,
                 slew_sigma_multiplier: args.slew_sigma_multiplier,
                 grazing_window: args.grazing_window,
@@ -272,6 +337,13 @@ pub fn run() -> Result<()> {
                 &data_root,
                 Some(&output_root),
                 config,
+                crate::precursor::DsaCalibrationGrid {
+                    window: args.dsa_window_grid,
+                    persistence_runs: args.dsa_persistence_runs_grid,
+                    alert_tau: args.dsa_alert_tau_grid,
+                    corroborating_feature_count_min: args
+                        .dsa_corroborating_feature_count_min_grid,
+                },
                 args.fetch_if_missing,
             )?;
             println!(
@@ -279,6 +351,8 @@ pub fn run() -> Result<()> {
                 artifacts.run_dir.display()
             );
             println!("DSA calibration grid: {}", artifacts.grid_results_csv.display());
+            println!("DSA calibration summary: {}", artifacts.summary_json.display());
+            println!("DSA calibration report: {}", artifacts.report_markdown.display());
             Ok(())
         }
         Command::ProbePhm2018(args) => {
@@ -290,9 +364,17 @@ pub fn run() -> Result<()> {
             );
             println!("Official page: {}", status.official_page);
             println!("Official link: {}", status.official_download_link);
+            println!(
+                "Archive summary support implemented: {}",
+                status.archive_summary_supported
+            );
             println!("Implemented now: {}", status.fully_implemented);
             println!("Blocker: {}", status.blocker);
-            if let Some(archive) = args.archive {
+            let archive = args
+                .archive
+                .or_else(|| status.manual_placement_path.exists().then_some(status.manual_placement_path.clone()));
+            if let Some(archive) = archive {
+                println!("Inspecting archive: {}", archive.display());
                 let manifest = phm2018::inspect_archive(&archive)?;
                 println!("{}", serde_json::to_string_pretty(&manifest)?);
             }

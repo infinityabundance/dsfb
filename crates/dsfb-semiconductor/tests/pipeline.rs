@@ -57,6 +57,12 @@ fn test_config() -> PipelineConfig {
         density_window: 3,
         ewma_alpha: 0.3,
         ewma_sigma_multiplier: 2.0,
+        cusum_kappa_sigma_multiplier: 0.5,
+        cusum_alarm_sigma_multiplier: 4.0,
+        run_energy_sigma_multiplier: 3.0,
+        pca_variance_explained: 0.95,
+        pca_t2_sigma_multiplier: 3.0,
+        pca_spe_sigma_multiplier: 3.0,
         drift_sigma_multiplier: 2.0,
         slew_sigma_multiplier: 2.0,
         grazing_window: 3,
@@ -68,6 +74,7 @@ fn test_config() -> PipelineConfig {
             window: 3,
             persistence_runs: 2,
             alert_tau: 1.5,
+            corroborating_feature_count_min: 2,
         },
     }
 }
@@ -95,7 +102,17 @@ fn pipeline_outputs_are_deterministic_for_fixed_input() {
         serde_json::from_str(&fs::read_to_string(&first.metrics_path).unwrap()).unwrap();
     let second_metrics: Value =
         serde_json::from_str(&fs::read_to_string(&second.metrics_path).unwrap()).unwrap();
+    let first_combined_csv =
+        fs::read_to_string(first.run_dir.join("drsc_dsa_combined.csv")).unwrap();
+    let second_combined_csv =
+        fs::read_to_string(second.run_dir.join("drsc_dsa_combined.csv")).unwrap();
+    let first_combined_png =
+        fs::read(first.run_dir.join("figures").join("drsc_dsa_combined.png")).unwrap();
+    let second_combined_png =
+        fs::read(second.run_dir.join("figures").join("drsc_dsa_combined.png")).unwrap();
     assert_eq!(first_metrics, second_metrics);
+    assert_eq!(first_combined_csv, second_combined_csv);
+    assert_eq!(first_combined_png, second_combined_png);
     assert_ne!(first.run_dir, second.run_dir);
     let first_name = first.run_dir.file_name().unwrap().to_string_lossy();
     let second_name = second.run_dir.file_name().unwrap().to_string_lossy();
@@ -154,10 +171,17 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "benchmark_metrics.json",
         "dataset_summary.json",
         "density_metrics.csv",
+        "dsa_grid_results.csv",
+        "dsa_grid_summary.json",
         "dsa_parameter_manifest.json",
+        "drsc_dsa_combined.csv",
         "drsc_top_feature.csv",
+        "dsa_top_feature.csv",
         "drifts.csv",
         "dsa_run_signals.csv",
+        "cusum_baseline.csv",
+        "run_energy_baseline.csv",
+        "pca_fdc_baseline.csv",
         "ewma_baseline.csv",
         "engineering_report.md",
         "engineering_report.tex",
@@ -202,6 +226,16 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(artifacts
         .run_dir
         .join("figures")
+        .join("drsc_dsa_combined.png")
+        .exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures")
+        .join("dsa_top_feature.png")
+        .exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures")
         .join("grammar_timeline.png")
         .exists());
     assert!(artifacts
@@ -229,16 +263,24 @@ fn benchmark_run_writes_expected_core_artifacts() {
     let mut zip = ZipArchive::new(archive).unwrap();
     assert!(zip.by_name("artifact_manifest.json").is_ok());
     assert!(zip.by_name("drsc_top_feature.csv").is_ok());
+    assert!(zip.by_name("drsc_dsa_combined.csv").is_ok());
     assert!(zip.by_name("figures/missingness_top20.png").is_ok());
     assert!(zip.by_name("figures/benchmark_comparison.png").is_ok());
     assert!(zip.by_name("figures/drsc_top_feature.png").is_ok());
+    assert!(zip.by_name("figures/drsc_dsa_combined.png").is_ok());
+    assert!(zip.by_name("figures/dsa_top_feature.png").is_ok());
     assert!(zip.by_name("figures/grammar_timeline.png").is_ok());
     assert!(zip.by_name("figures/top_feature_residual_norms.png").is_ok());
     assert!(zip.by_name("figures/top_feature_drift.png").is_ok());
     assert!(zip.by_name("figures/top_feature_ewma.png").is_ok());
     assert!(zip.by_name("figures/top_feature_slew.png").is_ok());
     assert!(zip.by_name("dsa_metrics.csv").is_ok());
+    assert!(zip.by_name("dsa_grid_results.csv").is_ok());
+    assert!(zip.by_name("dsa_grid_summary.json").is_ok());
     assert!(zip.by_name("dsa_run_signals.csv").is_ok());
+    assert!(zip.by_name("dsa_top_feature.csv").is_ok());
+    assert!(zip.by_name("cusum_baseline.csv").is_ok());
+    assert!(zip.by_name("run_energy_baseline.csv").is_ok());
     assert!(zip.by_name("per_failure_run_dsa_signals.csv").is_ok());
     if pdflatex_available() {
         assert!(artifacts.run_dir.join("engineering_report.pdf").exists());
@@ -246,12 +288,21 @@ fn benchmark_run_writes_expected_core_artifacts() {
     }
 
     let report = fs::read_to_string(artifacts.run_dir.join("engineering_report.md")).unwrap();
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(artifacts.manifest_path).unwrap()).unwrap();
     assert!(report.contains("## Artifact Inventory"));
     assert!(report.contains("## Deterministic Structural Accumulator (DSA)"));
+    assert!(report.contains(
+        "## Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA)"
+    ));
     assert!(report.contains("DSFB Violation remains instantaneous envelope exit"));
+    assert!(report.contains("drsc_dsa_combined.csv"));
+    assert!(report.contains("figures/drsc_dsa_combined.png"));
     assert!(report.contains("dsa_vs_baselines.json"));
     assert!(report.contains("engineering_report.pdf"));
     assert!(report.contains("run_bundle.zip"));
+    assert!(manifest.get("drsc_dsa_combined_trace_path").is_some());
+    assert!(manifest.get("drsc_dsa_combined_figure_path").is_some());
 }
 
 #[test]
@@ -303,6 +354,12 @@ fn calibration_grid_writes_expected_artifacts() {
             density_window: vec![3],
             ewma_alpha: vec![0.3],
             ewma_sigma_multiplier: vec![2.0],
+            cusum_kappa_sigma_multiplier: vec![0.5],
+            cusum_alarm_sigma_multiplier: vec![4.0],
+            run_energy_sigma_multiplier: vec![3.0],
+            pca_variance_explained: vec![0.95],
+            pca_t2_sigma_multiplier: vec![3.0],
+            pca_spe_sigma_multiplier: vec![3.0],
             drift_sigma_multiplier: vec![2.0],
             slew_sigma_multiplier: vec![2.0],
             grazing_window: vec![3],
@@ -337,12 +394,15 @@ fn dsa_calibration_writes_expected_artifacts() {
         &data_root,
         Some(output_temp.path()),
         test_config(),
+        dsfb_semiconductor::precursor::DsaCalibrationGrid::bounded_default(),
         false,
     )
     .unwrap();
 
     for file in [
         "dsa_grid_results.csv",
+        "dsa_grid_summary.json",
+        "dsa_calibration_report.md",
         "dsa_calibration_run_configuration.json",
         "dsa_parameter_grid_manifest.json",
     ] {
@@ -410,6 +470,11 @@ fn dsa_outputs_are_finite_and_reproducible() {
     let first_json = serde_json::to_value(&first.summary).unwrap();
     let second_json = serde_json::to_value(&second.summary).unwrap();
     assert_eq!(first_json, second_json);
+    assert_eq!(first.run_signals.corroborating_feature_count_min, 2);
+    assert!(first
+        .run_signals
+        .primary_run_signal
+        .contains("feature_count_dsa_alert"));
 
     for trace in &first.traces {
         assert!(trace.boundary_density_w.iter().all(|value| value.is_finite()));

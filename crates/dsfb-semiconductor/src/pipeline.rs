@@ -13,7 +13,9 @@ use crate::nominal::build_nominal_model;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
 use crate::plots::{generate_figures, FigureManifest};
 use crate::precursor::{
-    evaluate_dsa, DsaEvaluation, DsaRunSignals, DsaVsBaselinesSummary, PerFailureRunDsaSignal,
+    evaluate_dsa, run_dsa_calibration_grid, summarize_dsa_grid, DsaCalibrationGrid,
+    DsaCalibrationRow, DsaEvaluation, DsaRunSignals, DsaVsBaselinesSummary,
+    PerFailureRunDsaSignal,
 };
 use crate::preprocessing::prepare_secom;
 use crate::report::{write_reports, ReportArtifacts};
@@ -44,8 +46,13 @@ struct ArtifactManifest {
     baseline_comparison_summary_path: String,
     dsa_vs_baselines_summary_path: String,
     dsa_parameter_manifest_path: String,
+    dsa_grid_results_path: String,
+    dsa_grid_summary_path: String,
     lead_time_metrics_path: String,
     density_metrics_path: String,
+    cusum_baseline_path: String,
+    run_energy_baseline_path: String,
+    pca_fdc_baseline_path: String,
     per_failure_run_signals_path: String,
     dsa_metrics_path: String,
     dsa_run_signals_path: String,
@@ -53,6 +60,10 @@ struct ArtifactManifest {
     secom_archive_layout_path: String,
     drsc_trace_path: Option<String>,
     drsc_figure_path: Option<String>,
+    drsc_dsa_combined_trace_path: Option<String>,
+    drsc_dsa_combined_figure_path: Option<String>,
+    dsa_focus_trace_path: Option<String>,
+    dsa_focus_figure_path: Option<String>,
     report_markdown_path: String,
     report_tex_path: String,
     report_pdf_path: Option<String>,
@@ -85,6 +96,9 @@ struct FailureRunRecallSummary {
     dsfb_persistent_violation_signal: usize,
     dsfb_dsa_signal: usize,
     ewma_signal: usize,
+    cusum_signal: usize,
+    run_energy_signal: usize,
+    pca_fdc_signal: usize,
     threshold_signal: usize,
 }
 
@@ -96,6 +110,9 @@ struct PassRunNuisanceSummary {
     dsfb_persistent_violation_signal_runs: usize,
     dsfb_dsa_signal_runs: usize,
     ewma_signal_runs: usize,
+    cusum_signal_runs: usize,
+    run_energy_signal_runs: usize,
+    pca_fdc_signal_runs: usize,
     threshold_signal_runs: usize,
     dsfb_raw_boundary_signal_rate: f64,
     dsfb_persistent_boundary_signal_rate: f64,
@@ -103,6 +120,9 @@ struct PassRunNuisanceSummary {
     dsfb_persistent_violation_signal_rate: f64,
     dsfb_dsa_signal_rate: f64,
     ewma_signal_rate: f64,
+    cusum_signal_rate: f64,
+    run_energy_signal_rate: f64,
+    pca_fdc_signal_rate: f64,
     threshold_signal_rate: f64,
 }
 
@@ -148,6 +168,18 @@ pub fn run_secom_benchmark(
         &config.dsa,
         config.pre_failure_lookback_runs,
     )?;
+    let dsa_grid = DsaCalibrationGrid::bounded_default();
+    let dsa_grid_rows = run_dsa_calibration_grid(
+        &prepared,
+        &nominal,
+        &residuals,
+        &signs,
+        &baselines,
+        &grammar,
+        &dsa_grid,
+        config.pre_failure_lookback_runs,
+    )?;
+    let dsa_grid_summary = summarize_dsa_grid(&dsa_grid_rows);
     metrics.dsa_summary = Some(dsa.summary.clone());
     let heuristics = build_heuristics_bank(&metrics, "SECOM");
 
@@ -196,6 +228,10 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsa_parameter_manifest.json"),
         &dsa.parameter_manifest,
     )?;
+    write_json_pretty(
+        &run_dir.join("dsa_grid_summary.json"),
+        &dsa_grid_summary,
+    )?;
 
     write_feature_metrics_csv(&run_dir.join("feature_metrics.csv"), &metrics)?;
     write_per_failure_run_signals_csv(
@@ -217,6 +253,7 @@ pub fn run_secom_benchmark(
         &run_dir.join("per_failure_run_dsa_signals.csv"),
         &dsa.per_failure_run_signals,
     )?;
+    write_dsa_grid_results_csv(&run_dir.join("dsa_grid_results.csv"), &dsa_grid_rows)?;
     write_lead_time_metrics_csv(
         &run_dir.join("lead_time_metrics.csv"),
         &metrics.per_failure_run_signals,
@@ -245,6 +282,7 @@ pub fn run_secom_benchmark(
         &config,
         &metrics,
         &dsa,
+        &dsa_grid_summary,
         &figures,
         &heuristics,
         &phm_support_status(data_root),
@@ -273,8 +311,19 @@ pub fn run_secom_benchmark(
                 .join("dsa_parameter_manifest.json")
                 .display()
                 .to_string(),
+            dsa_grid_results_path: run_dir.join("dsa_grid_results.csv").display().to_string(),
+            dsa_grid_summary_path: run_dir.join("dsa_grid_summary.json").display().to_string(),
             lead_time_metrics_path: run_dir.join("lead_time_metrics.csv").display().to_string(),
             density_metrics_path: run_dir.join("density_metrics.csv").display().to_string(),
+            cusum_baseline_path: run_dir.join("cusum_baseline.csv").display().to_string(),
+            run_energy_baseline_path: run_dir
+                .join("run_energy_baseline.csv")
+                .display()
+                .to_string(),
+            pca_fdc_baseline_path: run_dir
+                .join("pca_fdc_baseline.csv")
+                .display()
+                .to_string(),
             per_failure_run_signals_path: run_dir
                 .join("per_failure_run_signals.csv")
                 .display()
@@ -300,6 +349,30 @@ pub fn run_secom_benchmark(
                 run_dir
                     .join("figures")
                     .join(&drsc.figure_file)
+                    .display()
+                    .to_string()
+            }),
+            drsc_dsa_combined_trace_path: figures.drsc_dsa_combined.as_ref().map(|combined| {
+                run_dir.join(&combined.trace_csv).display().to_string()
+            }),
+            drsc_dsa_combined_figure_path: figures
+                .drsc_dsa_combined
+                .as_ref()
+                .map(|combined| {
+                    run_dir
+                        .join("figures")
+                        .join(&combined.figure_file)
+                        .display()
+                        .to_string()
+                }),
+            dsa_focus_trace_path: figures
+                .dsa_focus
+                .as_ref()
+                .map(|dsa_focus| run_dir.join(&dsa_focus.trace_csv).display().to_string()),
+            dsa_focus_figure_path: figures.dsa_focus.as_ref().map(|dsa_focus| {
+                run_dir
+                    .join("figures")
+                    .join(&dsa_focus.figure_file)
                     .display()
                     .to_string()
             }),
@@ -357,6 +430,9 @@ fn build_baseline_comparison_summary(
                 .failure_runs_with_preceding_dsfb_persistent_violation_signal,
             dsfb_dsa_signal: dsa.summary.failure_run_recall,
             ewma_signal: metrics.summary.failure_runs_with_preceding_ewma_signal,
+            cusum_signal: metrics.summary.failure_runs_with_preceding_cusum_signal,
+            run_energy_signal: metrics.summary.failure_runs_with_preceding_run_energy_signal,
+            pca_fdc_signal: metrics.summary.failure_runs_with_preceding_pca_fdc_signal,
             threshold_signal: metrics.summary.failure_runs_with_preceding_threshold_signal,
         },
         pass_run_nuisance_proxy: PassRunNuisanceSummary {
@@ -372,6 +448,9 @@ fn build_baseline_comparison_summary(
                 * metrics.summary.pass_runs as f64)
                 .round() as usize,
             ewma_signal_runs: metrics.summary.pass_runs_with_ewma_signal,
+            cusum_signal_runs: metrics.summary.pass_runs_with_cusum_signal,
+            run_energy_signal_runs: metrics.summary.pass_runs_with_run_energy_signal,
+            pca_fdc_signal_runs: metrics.summary.pass_runs_with_pca_fdc_signal,
             threshold_signal_runs: metrics.summary.pass_runs_with_threshold_signal,
             dsfb_raw_boundary_signal_rate: metrics.summary.pass_run_dsfb_raw_boundary_nuisance_rate,
             dsfb_persistent_boundary_signal_rate: metrics
@@ -385,6 +464,9 @@ fn build_baseline_comparison_summary(
                 .pass_run_dsfb_persistent_violation_nuisance_rate,
             dsfb_dsa_signal_rate: dsa.summary.pass_run_nuisance_proxy,
             ewma_signal_rate: metrics.summary.pass_run_ewma_nuisance_rate,
+            cusum_signal_rate: metrics.summary.pass_run_cusum_nuisance_rate,
+            run_energy_signal_rate: metrics.summary.pass_run_run_energy_nuisance_rate,
+            pca_fdc_signal_rate: metrics.summary.pass_run_pca_fdc_nuisance_rate,
             threshold_signal_rate: metrics.summary.pass_run_threshold_nuisance_rate,
         },
         lead_time_summary: metrics.lead_time_summary.clone(),
@@ -491,7 +573,10 @@ fn write_dsa_run_signals_csv(
         "timestamp",
         "label",
         "primary_run_signal",
+        "corroborating_feature_count_min",
+        "primary_run_alert",
         "any_feature_dsa_alert",
+        "any_feature_raw_violation",
         "feature_count_dsa_alert",
     ])?;
 
@@ -503,7 +588,10 @@ fn write_dsa_run_signals_csv(
                 .to_string(),
             prepared.labels[run_index].to_string(),
             run_signals.primary_run_signal.clone(),
+            run_signals.corroborating_feature_count_min.to_string(),
+            run_signals.primary_run_alert[run_index].to_string(),
             run_signals.any_feature_dsa_alert[run_index].to_string(),
+            run_signals.any_feature_raw_violation[run_index].to_string(),
             run_signals.feature_count_dsa_alert[run_index].to_string(),
         ])?;
     }
@@ -524,6 +612,15 @@ fn write_per_failure_run_dsa_signals_csv(
     Ok(())
 }
 
+fn write_dsa_grid_results_csv(path: &Path, rows: &[DsaCalibrationRow]) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
 fn write_lead_time_metrics_csv(path: &Path, records: &[PerFailureRunSignal]) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     writer.write_record([
@@ -535,18 +632,36 @@ fn write_lead_time_metrics_csv(path: &Path, records: &[PerFailureRunSignal]) -> 
         "earliest_dsfb_persistent_violation_run",
         "earliest_threshold_run",
         "earliest_ewma_run",
+        "earliest_cusum_run",
+        "earliest_run_energy_run",
+        "earliest_pca_fdc_run",
         "dsfb_raw_boundary_lead_runs",
         "dsfb_persistent_boundary_lead_runs",
         "dsfb_raw_violation_lead_runs",
         "dsfb_persistent_violation_lead_runs",
         "threshold_lead_runs",
         "ewma_lead_runs",
+        "cusum_lead_runs",
+        "run_energy_lead_runs",
+        "pca_fdc_lead_runs",
+        "dsfb_raw_boundary_minus_cusum_delta_runs",
+        "dsfb_raw_boundary_minus_run_energy_delta_runs",
+        "dsfb_raw_boundary_minus_pca_fdc_delta_runs",
         "dsfb_raw_boundary_minus_threshold_delta_runs",
         "dsfb_raw_boundary_minus_ewma_delta_runs",
+        "dsfb_persistent_boundary_minus_cusum_delta_runs",
+        "dsfb_persistent_boundary_minus_run_energy_delta_runs",
+        "dsfb_persistent_boundary_minus_pca_fdc_delta_runs",
         "dsfb_persistent_boundary_minus_threshold_delta_runs",
         "dsfb_persistent_boundary_minus_ewma_delta_runs",
+        "dsfb_raw_violation_minus_cusum_delta_runs",
+        "dsfb_raw_violation_minus_run_energy_delta_runs",
+        "dsfb_raw_violation_minus_pca_fdc_delta_runs",
         "dsfb_raw_violation_minus_threshold_delta_runs",
         "dsfb_raw_violation_minus_ewma_delta_runs",
+        "dsfb_persistent_violation_minus_cusum_delta_runs",
+        "dsfb_persistent_violation_minus_run_energy_delta_runs",
+        "dsfb_persistent_violation_minus_pca_fdc_delta_runs",
         "dsfb_persistent_violation_minus_threshold_delta_runs",
         "dsfb_persistent_violation_minus_ewma_delta_runs",
     ])?;
@@ -561,18 +676,36 @@ fn write_lead_time_metrics_csv(path: &Path, records: &[PerFailureRunSignal]) -> 
             option_to_string(record.earliest_dsfb_persistent_violation_run),
             option_to_string(record.earliest_threshold_run),
             option_to_string(record.earliest_ewma_run),
+            option_to_string(record.earliest_cusum_run),
+            option_to_string(record.earliest_run_energy_run),
+            option_to_string(record.earliest_pca_fdc_run),
             option_to_string(record.dsfb_raw_boundary_lead_runs),
             option_to_string(record.dsfb_persistent_boundary_lead_runs),
             option_to_string(record.dsfb_raw_violation_lead_runs),
             option_to_string(record.dsfb_persistent_violation_lead_runs),
             option_to_string(record.threshold_lead_runs),
             option_to_string(record.ewma_lead_runs),
+            option_to_string(record.cusum_lead_runs),
+            option_to_string(record.run_energy_lead_runs),
+            option_to_string(record.pca_fdc_lead_runs),
+            option_to_string(record.dsfb_raw_boundary_minus_cusum_delta_runs),
+            option_to_string(record.dsfb_raw_boundary_minus_run_energy_delta_runs),
+            option_to_string(record.dsfb_raw_boundary_minus_pca_fdc_delta_runs),
             option_to_string(record.dsfb_raw_boundary_minus_threshold_delta_runs),
             option_to_string(record.dsfb_raw_boundary_minus_ewma_delta_runs),
+            option_to_string(record.dsfb_persistent_boundary_minus_cusum_delta_runs),
+            option_to_string(record.dsfb_persistent_boundary_minus_run_energy_delta_runs),
+            option_to_string(record.dsfb_persistent_boundary_minus_pca_fdc_delta_runs),
             option_to_string(record.dsfb_persistent_boundary_minus_threshold_delta_runs),
             option_to_string(record.dsfb_persistent_boundary_minus_ewma_delta_runs),
+            option_to_string(record.dsfb_raw_violation_minus_cusum_delta_runs),
+            option_to_string(record.dsfb_raw_violation_minus_run_energy_delta_runs),
+            option_to_string(record.dsfb_raw_violation_minus_pca_fdc_delta_runs),
             option_to_string(record.dsfb_raw_violation_minus_threshold_delta_runs),
             option_to_string(record.dsfb_raw_violation_minus_ewma_delta_runs),
+            option_to_string(record.dsfb_persistent_violation_minus_cusum_delta_runs),
+            option_to_string(record.dsfb_persistent_violation_minus_run_energy_delta_runs),
+            option_to_string(record.dsfb_persistent_violation_minus_pca_fdc_delta_runs),
             option_to_string(record.dsfb_persistent_violation_minus_threshold_delta_runs),
             option_to_string(record.dsfb_persistent_violation_minus_ewma_delta_runs),
         ])?;
@@ -603,6 +736,9 @@ fn write_trace_csvs(
     let mut drift_writer = csv::Writer::from_path(run_dir.join("drifts.csv"))?;
     let mut slew_writer = csv::Writer::from_path(run_dir.join("slews.csv"))?;
     let mut ewma_writer = csv::Writer::from_path(run_dir.join("ewma_baseline.csv"))?;
+    let mut cusum_writer = csv::Writer::from_path(run_dir.join("cusum_baseline.csv"))?;
+    let mut run_energy_writer = csv::Writer::from_path(run_dir.join("run_energy_baseline.csv"))?;
+    let mut pca_fdc_writer = csv::Writer::from_path(run_dir.join("pca_fdc_baseline.csv"))?;
     let mut grammar_writer = csv::Writer::from_path(run_dir.join("grammar_states.csv"))?;
 
     residual_writer.write_record([
@@ -627,6 +763,46 @@ fn write_trace_csvs(
         "threshold",
         "alarm",
     ])?;
+    cusum_writer.write_record([
+        "run_index",
+        "timestamp",
+        "feature",
+        "cusum",
+        "healthy_mean",
+        "healthy_std",
+        "kappa",
+        "alarm_threshold",
+        "alarm",
+    ])?;
+    run_energy_writer.write_record([
+        "run_index",
+        "timestamp",
+        "label",
+        "run_energy",
+        "healthy_mean",
+        "healthy_std",
+        "threshold",
+        "analyzable_feature_count",
+        "alarm",
+    ])?;
+    pca_fdc_writer.write_record([
+        "run_index",
+        "timestamp",
+        "label",
+        "pca_t2",
+        "pca_t2_healthy_mean",
+        "pca_t2_healthy_std",
+        "pca_t2_threshold",
+        "pca_spe",
+        "pca_spe_healthy_mean",
+        "pca_spe_healthy_std",
+        "pca_spe_threshold",
+        "retained_components",
+        "explained_variance_fraction",
+        "target_variance_explained",
+        "analyzable_feature_count",
+        "alarm",
+    ])?;
     grammar_writer.write_record([
         "run_index",
         "timestamp",
@@ -643,6 +819,7 @@ fn write_trace_csvs(
         let residual_trace = &residuals.traces[feature_index];
         let sign_trace = &signs.traces[feature_index];
         let ewma_trace = &baselines.ewma[feature_index];
+        let cusum_trace = &baselines.cusum[feature_index];
         let grammar_trace = &grammar.traces[feature_index];
         for run_index in 0..prepared.timestamps.len() {
             let timestamp = prepared.timestamps[run_index]
@@ -680,6 +857,17 @@ fn write_trace_csvs(
                 ewma_trace.threshold.to_string(),
                 ewma_trace.alarm[run_index].to_string(),
             ])?;
+            cusum_writer.write_record([
+                run_index.to_string(),
+                timestamp.clone(),
+                residual_trace.feature_name.clone(),
+                cusum_trace.cusum[run_index].to_string(),
+                cusum_trace.healthy_mean.to_string(),
+                cusum_trace.healthy_std.to_string(),
+                cusum_trace.kappa.to_string(),
+                cusum_trace.alarm_threshold.to_string(),
+                cusum_trace.alarm[run_index].to_string(),
+            ])?;
             grammar_writer.write_record([
                 run_index.to_string(),
                 timestamp,
@@ -694,10 +882,49 @@ fn write_trace_csvs(
         }
     }
 
+    for run_index in 0..prepared.timestamps.len() {
+        run_energy_writer.write_record([
+            run_index.to_string(),
+            prepared.timestamps[run_index]
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
+            prepared.labels[run_index].to_string(),
+            baselines.run_energy.energy[run_index].to_string(),
+            baselines.run_energy.healthy_mean.to_string(),
+            baselines.run_energy.healthy_std.to_string(),
+            baselines.run_energy.threshold.to_string(),
+            baselines.run_energy.analyzable_feature_count.to_string(),
+            baselines.run_energy.alarm[run_index].to_string(),
+        ])?;
+        pca_fdc_writer.write_record([
+            run_index.to_string(),
+            prepared.timestamps[run_index]
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
+            prepared.labels[run_index].to_string(),
+            baselines.pca_fdc.t2[run_index].to_string(),
+            baselines.pca_fdc.t2_healthy_mean.to_string(),
+            baselines.pca_fdc.t2_healthy_std.to_string(),
+            baselines.pca_fdc.t2_threshold.to_string(),
+            baselines.pca_fdc.spe[run_index].to_string(),
+            baselines.pca_fdc.spe_healthy_mean.to_string(),
+            baselines.pca_fdc.spe_healthy_std.to_string(),
+            baselines.pca_fdc.spe_threshold.to_string(),
+            baselines.pca_fdc.retained_components.to_string(),
+            baselines.pca_fdc.explained_variance_fraction.to_string(),
+            baselines.pca_fdc.target_variance_explained.to_string(),
+            baselines.pca_fdc.analyzable_feature_count.to_string(),
+            baselines.pca_fdc.alarm[run_index].to_string(),
+        ])?;
+    }
+
     residual_writer.flush()?;
     drift_writer.flush()?;
     slew_writer.flush()?;
     ewma_writer.flush()?;
+    cusum_writer.flush()?;
+    run_energy_writer.flush()?;
+    pca_fdc_writer.flush()?;
     grammar_writer.flush()?;
     Ok(())
 }
