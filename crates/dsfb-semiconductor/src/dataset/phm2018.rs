@@ -156,9 +156,7 @@ enum CsvClass {
 }
 
 fn classify_csv_path(path: &str) -> CsvClass {
-    if path.contains("/train/")
-        && !path.contains("/train_faults/")
-        && !path.contains("/train_ttf/")
+    if path.contains("/train/") && !path.contains("/train_faults/") && !path.contains("/train_ttf/")
     {
         CsvClass::TrainSensor
     } else if path.contains("/test/") {
@@ -188,12 +186,12 @@ fn schema_consistency_note(summary: &Phm2018CsvGroupSummary) -> String {
     if summary.file_count == 0 {
         "not present".into()
     } else if summary.distinct_column_counts.len() == 1 {
-        format!("column-consistent at width {}", summary.distinct_column_counts[0])
-    } else {
         format!(
-            "mixed column widths {:?}",
-            summary.distinct_column_counts
+            "column-consistent at width {}",
+            summary.distinct_column_counts[0]
         )
+    } else {
+        format!("mixed column widths {:?}", summary.distinct_column_counts)
     }
 }
 

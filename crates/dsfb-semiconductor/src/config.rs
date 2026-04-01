@@ -96,8 +96,7 @@ impl PipelineConfig {
         if self.run_energy_sigma_multiplier <= 0.0 {
             return Err("run_energy_sigma_multiplier must be positive".into());
         }
-        if !(0.0..=1.0).contains(&self.pca_variance_explained)
-            || self.pca_variance_explained == 0.0
+        if !(0.0..=1.0).contains(&self.pca_variance_explained) || self.pca_variance_explained == 0.0
         {
             return Err("pca_variance_explained must be in (0, 1]".into());
         }
@@ -110,9 +109,7 @@ impl PipelineConfig {
         if self.minimum_healthy_observations < 2 {
             return Err("minimum_healthy_observations must be at least 2".into());
         }
-        self.dsa
-            .validate()
-            .map_err(|err| err.to_string())?;
+        self.dsa.validate().map_err(|err| err.to_string())?;
         Ok(())
     }
 }

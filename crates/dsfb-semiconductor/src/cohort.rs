@@ -2,6 +2,7 @@
 
 use crate::baselines::BaselineSet;
 use crate::error::Result;
+use crate::heuristics::HeuristicAlertClass;
 use crate::metrics::BenchmarkMetrics;
 use crate::nominal::NominalModel;
 use crate::precursor::{evaluate_dsa, project_dsa_to_cohort, DsaConfig, DsaEvaluation};
@@ -121,10 +122,12 @@ pub struct CohortGridResult {
     pub mean_lead_delta_vs_threshold_runs: Option<f64>,
     pub mean_lead_delta_vs_ewma_runs: Option<f64>,
     pub pass_run_nuisance_proxy: f64,
+    pub numeric_pass_run_nuisance_proxy: f64,
     pub ewma_nuisance: f64,
     pub threshold_nuisance: f64,
     pub pass_run_nuisance_delta_vs_ewma: f64,
     pub pass_run_nuisance_delta_vs_threshold: f64,
+    pub pass_run_nuisance_delta_vs_numeric_dsa: f64,
     pub raw_boundary_episode_count: usize,
     pub dsa_episode_count: usize,
     pub dsa_episodes_preceding_failure: usize,
@@ -136,8 +139,33 @@ pub struct CohortGridResult {
     pub feature_level_active_points: usize,
     pub feature_level_alert_points: usize,
     pub persistence_suppression_fraction: Option<f64>,
+    pub numeric_failure_recall: usize,
+    pub policy_vs_numeric_recall_delta: i64,
+    pub watch_point_count: usize,
+    pub review_point_count: usize,
+    pub escalate_point_count: usize,
+    pub silenced_point_count: usize,
     pub primary_success: bool,
     pub primary_success_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CohortMotifPolicyContributionRow {
+    pub grid_row_id: usize,
+    pub cohort_name: String,
+    pub cohort_size: usize,
+    pub window: usize,
+    pub persistence_runs: usize,
+    pub alert_tau: f64,
+    pub corroborating_m: usize,
+    pub motif_name: String,
+    pub alert_class_default: HeuristicAlertClass,
+    pub watch_points: usize,
+    pub review_points: usize,
+    pub escalate_points: usize,
+    pub silent_suppression_points: usize,
+    pub pass_review_or_escalate_points: usize,
+    pub pre_failure_review_or_escalate_points: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -150,15 +178,19 @@ pub struct CohortBestRow {
 pub struct CohortFailureAnalysis {
     pub closest_cohort: String,
     pub closest_grid_point: String,
+    pub closest_policy_setting: String,
     pub closest_nuisance: f64,
     pub closest_recall: usize,
     pub ewma_nuisance: f64,
     pub threshold_recall: usize,
     pub limiting_factor: String,
     pub corroboration_effect: String,
+    pub policy_vs_numeric_note: String,
     pub ranking_quality_note: String,
     pub all_feature_dsa_vs_cohort_note: String,
     pub best_near_success_source: String,
+    pub nuisance_motif_classes: String,
+    pub useful_precursor_motif_classes: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -201,6 +233,7 @@ pub struct CohortDsaSummary {
 pub struct CohortExecution {
     pub grid_summary: CohortGridSummary,
     pub summary: CohortDsaSummary,
+    pub motif_policy_contributions: Vec<CohortMotifPolicyContributionRow>,
     pub selected_evaluation: DsaEvaluation,
 }
 
@@ -498,6 +531,7 @@ pub fn run_cohort_dsa_grid(
     let threshold_recall = metrics.summary.failure_runs_with_preceding_threshold_signal;
     let ewma_nuisance = metrics.summary.pass_run_ewma_nuisance_rate;
     let mut grid_rows = Vec::new();
+    let mut motif_policy_rows = Vec::new();
     let mut feature_trace_config_id = 0usize;
     let mut grid_row_id = 0usize;
 
@@ -547,7 +581,7 @@ pub fn run_cohort_dsa_grid(
                             cohort_name,
                         )?;
 
-                        grid_rows.push(build_grid_row(
+                        let row = build_grid_row(
                             grid_row_id,
                             feature_trace_config_id,
                             cohort_name,
@@ -556,7 +590,9 @@ pub fn run_cohort_dsa_grid(
                             corroborating_m,
                             &evaluation,
                             metrics,
-                        ));
+                        );
+                        motif_policy_rows.extend(build_motif_policy_rows(&row, &evaluation));
+                        grid_rows.push(row);
                         grid_row_id += 1;
                     }
                 }
@@ -593,6 +629,7 @@ pub fn run_cohort_dsa_grid(
     } else {
         build_failure_analysis(
             &grid_rows,
+            &motif_policy_rows,
             cohorts,
             ewma_nuisance,
             threshold_recall,
@@ -654,6 +691,7 @@ pub fn run_cohort_dsa_grid(
     Ok(CohortExecution {
         grid_summary,
         summary,
+        motif_policy_contributions: motif_policy_rows,
         selected_evaluation,
     })
 }
@@ -684,10 +722,12 @@ pub fn write_cohort_results_csv(path: &Path, results: &[CohortGridResult]) -> Re
         "mean_lead_delta_vs_threshold_runs",
         "mean_lead_delta_vs_ewma_runs",
         "pass_run_nuisance_proxy",
+        "numeric_pass_run_nuisance_proxy",
         "ewma_nuisance",
         "threshold_nuisance",
         "pass_run_nuisance_delta_vs_ewma",
         "pass_run_nuisance_delta_vs_threshold",
+        "pass_run_nuisance_delta_vs_numeric_dsa",
         "raw_boundary_episode_count",
         "dsa_episode_count",
         "dsa_episodes_preceding_failure",
@@ -699,6 +739,12 @@ pub fn write_cohort_results_csv(path: &Path, results: &[CohortGridResult]) -> Re
         "feature_level_active_points",
         "feature_level_alert_points",
         "persistence_suppression_fraction",
+        "numeric_failure_recall",
+        "policy_vs_numeric_recall_delta",
+        "watch_point_count",
+        "review_point_count",
+        "escalate_point_count",
+        "silenced_point_count",
         "primary_success",
         "primary_success_reason",
     ])?;
@@ -727,10 +773,12 @@ pub fn write_cohort_results_csv(path: &Path, results: &[CohortGridResult]) -> Re
             format_option_csv(row.mean_lead_delta_vs_threshold_runs),
             format_option_csv(row.mean_lead_delta_vs_ewma_runs),
             format!("{:.6}", row.pass_run_nuisance_proxy),
+            format!("{:.6}", row.numeric_pass_run_nuisance_proxy),
             format!("{:.6}", row.ewma_nuisance),
             format!("{:.6}", row.threshold_nuisance),
             format!("{:.6}", row.pass_run_nuisance_delta_vs_ewma),
             format!("{:.6}", row.pass_run_nuisance_delta_vs_threshold),
+            format!("{:.6}", row.pass_run_nuisance_delta_vs_numeric_dsa),
             row.raw_boundary_episode_count.to_string(),
             row.dsa_episode_count.to_string(),
             row.dsa_episodes_preceding_failure.to_string(),
@@ -742,8 +790,59 @@ pub fn write_cohort_results_csv(path: &Path, results: &[CohortGridResult]) -> Re
             row.feature_level_active_points.to_string(),
             row.feature_level_alert_points.to_string(),
             format_option_csv(row.persistence_suppression_fraction),
+            row.numeric_failure_recall.to_string(),
+            row.policy_vs_numeric_recall_delta.to_string(),
+            row.watch_point_count.to_string(),
+            row.review_point_count.to_string(),
+            row.escalate_point_count.to_string(),
+            row.silenced_point_count.to_string(),
             row.primary_success.to_string(),
             row.primary_success_reason.clone(),
+        ])?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_motif_policy_contributions_csv(
+    path: &Path,
+    rows: &[CohortMotifPolicyContributionRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    writer.write_record([
+        "grid_row_id",
+        "cohort_name",
+        "cohort_size",
+        "window",
+        "persistence_runs",
+        "alert_tau",
+        "corroborating_m",
+        "motif_name",
+        "alert_class_default",
+        "watch_points",
+        "review_points",
+        "escalate_points",
+        "silent_suppression_points",
+        "pass_review_or_escalate_points",
+        "pre_failure_review_or_escalate_points",
+    ])?;
+    for row in rows {
+        writer.write_record([
+            row.grid_row_id.to_string(),
+            row.cohort_name.clone(),
+            row.cohort_size.to_string(),
+            row.window.to_string(),
+            row.persistence_runs.to_string(),
+            format!("{:.6}", row.alert_tau),
+            row.corroborating_m.to_string(),
+            row.motif_name.clone(),
+            format!("{:?}", row.alert_class_default),
+            row.watch_points.to_string(),
+            row.review_points.to_string(),
+            row.escalate_points.to_string(),
+            row.silent_suppression_points.to_string(),
+            row.pass_review_or_escalate_points.to_string(),
+            row.pre_failure_review_or_escalate_points.to_string(),
         ])?;
     }
     writer.flush()?;
@@ -788,6 +887,7 @@ pub fn write_failure_analysis_md(path: &Path, analysis: &CohortFailureAnalysis) 
          ## Closest near-success configuration\n\n\
          - Cohort: {}\n\
          - Grid point: {}\n\
+         - Policy setting: {}\n\
          - Nuisance: {:.6}\n\
          - Recall: {}\n\
          - EWMA nuisance target: {:.6}\n\
@@ -796,26 +896,43 @@ pub fn write_failure_analysis_md(path: &Path, analysis: &CohortFailureAnalysis) 
          {}\n\n\
          ## Cross-feature corroboration effect\n\n\
          {}\n\n\
+         ## Policy vs numeric-only DSA\n\n\
+         {}\n\n\
          ## Ranking quality\n\n\
          {}\n\n\
          ## All-feature DSA vs cohort DSA\n\n\
+         {}\n\n\
+         ## Motif classes most responsible for nuisance\n\n\
+         {}\n\n\
+         ## Motif classes most responsible for useful precursor episodes\n\n\
          {}\n\n\
          ## Best near-success source\n\n\
          {}\n",
         analysis.closest_cohort,
         analysis.closest_grid_point,
+        analysis.closest_policy_setting,
         analysis.closest_nuisance,
         analysis.closest_recall,
         analysis.ewma_nuisance,
         analysis.threshold_recall,
         analysis.limiting_factor,
         analysis.corroboration_effect,
+        analysis.policy_vs_numeric_note,
         analysis.ranking_quality_note,
         analysis.all_feature_dsa_vs_cohort_note,
+        analysis.nuisance_motif_classes,
+        analysis.useful_precursor_motif_classes,
         analysis.best_near_success_source,
     );
     std::fs::write(path, content)?;
     Ok(())
+}
+
+pub fn write_heuristic_policy_failure_analysis_md(
+    path: &Path,
+    analysis: &CohortFailureAnalysis,
+) -> Result<()> {
+    write_failure_analysis_md(path, analysis)
 }
 
 pub fn compute_rating_delta_forecast(
@@ -1216,11 +1333,15 @@ fn build_grid_row(
         mean_lead_delta_vs_threshold_runs: evaluation.summary.mean_lead_delta_vs_threshold_runs,
         mean_lead_delta_vs_ewma_runs: evaluation.summary.mean_lead_delta_vs_ewma_runs,
         pass_run_nuisance_proxy: evaluation.summary.pass_run_nuisance_proxy,
+        numeric_pass_run_nuisance_proxy: evaluation.summary.numeric_primary_pass_run_nuisance_proxy,
         ewma_nuisance,
         threshold_nuisance,
         pass_run_nuisance_delta_vs_ewma: evaluation.summary.pass_run_nuisance_proxy - ewma_nuisance,
         pass_run_nuisance_delta_vs_threshold: evaluation.summary.pass_run_nuisance_proxy
             - threshold_nuisance,
+        pass_run_nuisance_delta_vs_numeric_dsa: evaluation
+            .comparison_summary
+            .pass_run_nuisance_delta_vs_numeric_dsa,
         raw_boundary_episode_count: evaluation.episode_summary.raw_boundary_episode_count,
         dsa_episode_count: evaluation.episode_summary.dsa_episode_count,
         dsa_episodes_preceding_failure: evaluation.episode_summary.dsa_episodes_preceding_failure,
@@ -1238,6 +1359,14 @@ fn build_grid_row(
         } else {
             Some(1.0 - feature_level_alert_points as f64 / feature_level_active_points as f64)
         },
+        numeric_failure_recall: evaluation.summary.numeric_primary_failure_run_recall,
+        policy_vs_numeric_recall_delta: evaluation
+            .comparison_summary
+            .policy_vs_numeric_recall_delta,
+        watch_point_count: evaluation.summary.watch_point_count,
+        review_point_count: evaluation.summary.review_point_count,
+        escalate_point_count: evaluation.summary.escalate_point_count,
+        silenced_point_count: evaluation.summary.silenced_point_count,
         primary_success,
         primary_success_reason: primary_success_reason(
             evaluation.summary.failure_run_recall,
@@ -1246,6 +1375,34 @@ fn build_grid_row(
             ewma_nuisance,
         ),
     }
+}
+
+fn build_motif_policy_rows(
+    row: &CohortGridResult,
+    evaluation: &DsaEvaluation,
+) -> Vec<CohortMotifPolicyContributionRow> {
+    evaluation
+        .motif_policy_contributions
+        .iter()
+        .map(|contribution| CohortMotifPolicyContributionRow {
+            grid_row_id: row.grid_row_id,
+            cohort_name: row.cohort_name.clone(),
+            cohort_size: row.cohort_size,
+            window: row.window,
+            persistence_runs: row.persistence_runs,
+            alert_tau: row.alert_tau,
+            corroborating_m: row.corroborating_m,
+            motif_name: contribution.motif_name.clone(),
+            alert_class_default: contribution.alert_class_default,
+            watch_points: contribution.watch_points,
+            review_points: contribution.review_points,
+            escalate_points: contribution.escalate_points,
+            silent_suppression_points: contribution.silent_suppression_points,
+            pass_review_or_escalate_points: contribution.pass_review_or_escalate_points,
+            pre_failure_review_or_escalate_points: contribution
+                .pre_failure_review_or_escalate_points,
+        })
+        .collect()
 }
 
 fn build_best_by_cohort(rows: &[CohortGridResult]) -> Vec<CohortBestRow> {
@@ -1377,6 +1534,7 @@ fn limiting_factor_from_row(
 
 fn build_failure_analysis(
     rows: &[CohortGridResult],
+    motif_policy_rows: &[CohortMotifPolicyContributionRow],
     cohorts: &FeatureCohorts,
     ewma_nuisance: f64,
     threshold_recall: usize,
@@ -1430,20 +1588,101 @@ fn build_failure_analysis(
     let best_near_success_source = selected_row
         .map(row_label)
         .unwrap_or_else(|| row_label(&closest));
+    let policy_vs_numeric_note = policy_vs_numeric_note(&closest);
+    let nuisance_motif_classes = dominant_motif_note(motif_policy_rows, closest.grid_row_id, true);
+    let useful_precursor_motif_classes =
+        dominant_motif_note(motif_policy_rows, closest.grid_row_id, false);
 
     Some(CohortFailureAnalysis {
         closest_cohort: closest.cohort_name.clone(),
         closest_grid_point: row_grid_point(&closest),
+        closest_policy_setting: row_label(&closest),
         closest_nuisance: closest.pass_run_nuisance_proxy,
         closest_recall: closest.failure_recall,
         ewma_nuisance,
         threshold_recall,
         limiting_factor: limiting_factor.to_string(),
         corroboration_effect: corroboration_effect.to_string(),
+        policy_vs_numeric_note,
         ranking_quality_note,
         all_feature_dsa_vs_cohort_note,
         best_near_success_source,
+        nuisance_motif_classes,
+        useful_precursor_motif_classes,
     })
+}
+
+fn policy_vs_numeric_note(row: &CohortGridResult) -> String {
+    if row.pass_run_nuisance_delta_vs_numeric_dsa < 0.0 && row.policy_vs_numeric_recall_delta >= 0 {
+        format!(
+            "Policy suppression helped relative to numeric-only DSA: nuisance improved from {:.4} to {:.4} without recall loss ({} to {}).",
+            row.numeric_pass_run_nuisance_proxy,
+            row.pass_run_nuisance_proxy,
+            row.numeric_failure_recall,
+            row.failure_recall,
+        )
+    } else if row.pass_run_nuisance_delta_vs_numeric_dsa < 0.0 {
+        format!(
+            "Policy suppression reduced nuisance relative to numeric-only DSA ({:.4} to {:.4}) but lost recall ({} to {}).",
+            row.numeric_pass_run_nuisance_proxy,
+            row.pass_run_nuisance_proxy,
+            row.numeric_failure_recall,
+            row.failure_recall,
+        )
+    } else if row.pass_run_nuisance_delta_vs_numeric_dsa > 0.0 {
+        format!(
+            "Policy suppression hurt nuisance relative to numeric-only DSA: {:.4} vs {:.4}.",
+            row.pass_run_nuisance_proxy, row.numeric_pass_run_nuisance_proxy,
+        )
+    } else {
+        "Policy suppression and numeric-only DSA were effectively tied on pass-run nuisance.".into()
+    }
+}
+
+fn dominant_motif_note(
+    motif_policy_rows: &[CohortMotifPolicyContributionRow],
+    grid_row_id: usize,
+    nuisance: bool,
+) -> String {
+    let mut rows = motif_policy_rows
+        .iter()
+        .filter(|row| row.grid_row_id == grid_row_id)
+        .collect::<Vec<_>>();
+    if rows.is_empty() {
+        return "No motif-policy contribution rows were available.".into();
+    }
+    rows.sort_by(|left, right| {
+        let left_score = if nuisance {
+            left.pass_review_or_escalate_points
+        } else {
+            left.pre_failure_review_or_escalate_points
+        };
+        let right_score = if nuisance {
+            right.pass_review_or_escalate_points
+        } else {
+            right.pre_failure_review_or_escalate_points
+        };
+        right_score
+            .cmp(&left_score)
+            .then_with(|| left.motif_name.cmp(&right.motif_name))
+    });
+    let top = rows[0];
+    let score = if nuisance {
+        top.pass_review_or_escalate_points
+    } else {
+        top.pre_failure_review_or_escalate_points
+    };
+    if nuisance {
+        format!(
+            "{} ({:?}) contributed the most pass-run Review/Escalate points: {}.",
+            top.motif_name, top.alert_class_default, score
+        )
+    } else {
+        format!(
+            "{} ({:?}) contributed the most pre-failure Review/Escalate points: {}.",
+            top.motif_name, top.alert_class_default, score
+        )
+    }
 }
 
 fn ranking_quality_note(cohorts: &FeatureCohorts, cohort_name: &str) -> String {
@@ -1565,12 +1804,16 @@ fn fallback_row_from_dsa(dsa: &DsaEvaluation, metrics: &BenchmarkMetrics) -> Coh
         mean_lead_delta_vs_threshold_runs: dsa.summary.mean_lead_delta_vs_threshold_runs,
         mean_lead_delta_vs_ewma_runs: dsa.summary.mean_lead_delta_vs_ewma_runs,
         pass_run_nuisance_proxy: dsa.summary.pass_run_nuisance_proxy,
+        numeric_pass_run_nuisance_proxy: dsa.summary.numeric_primary_pass_run_nuisance_proxy,
         ewma_nuisance: metrics.summary.pass_run_ewma_nuisance_rate,
         threshold_nuisance: metrics.summary.pass_run_threshold_nuisance_rate,
         pass_run_nuisance_delta_vs_ewma: dsa.comparison_summary.pass_run_nuisance_delta_vs_ewma,
         pass_run_nuisance_delta_vs_threshold: dsa
             .comparison_summary
             .pass_run_nuisance_delta_vs_threshold,
+        pass_run_nuisance_delta_vs_numeric_dsa: dsa
+            .comparison_summary
+            .pass_run_nuisance_delta_vs_numeric_dsa,
         raw_boundary_episode_count: dsa.episode_summary.raw_boundary_episode_count,
         dsa_episode_count: dsa.episode_summary.dsa_episode_count,
         dsa_episodes_preceding_failure: dsa.episode_summary.dsa_episodes_preceding_failure,
@@ -1592,6 +1835,12 @@ fn fallback_row_from_dsa(dsa: &DsaEvaluation, metrics: &BenchmarkMetrics) -> Coh
             .map(|trace| trace.dsa_alert.iter().filter(|flag| **flag).count())
             .sum(),
         persistence_suppression_fraction: overall_persistence_suppression_fraction(dsa),
+        numeric_failure_recall: dsa.summary.numeric_primary_failure_run_recall,
+        policy_vs_numeric_recall_delta: dsa.comparison_summary.policy_vs_numeric_recall_delta,
+        watch_point_count: dsa.summary.watch_point_count,
+        review_point_count: dsa.summary.review_point_count,
+        escalate_point_count: dsa.summary.escalate_point_count,
+        silenced_point_count: dsa.summary.silenced_point_count,
         primary_success: dsa.summary.pass_run_nuisance_proxy
             < metrics.summary.pass_run_ewma_nuisance_rate
             && dsa.summary.failure_run_recall + RECALL_TOLERANCE
@@ -2144,10 +2393,12 @@ mod tests {
             mean_lead_delta_vs_threshold_runs: Some(1.0),
             mean_lead_delta_vs_ewma_runs: Some(1.0),
             pass_run_nuisance_proxy: 0.1,
+            numeric_pass_run_nuisance_proxy: 0.15,
             ewma_nuisance: 0.2,
             threshold_nuisance: 0.3,
             pass_run_nuisance_delta_vs_ewma: -0.1,
             pass_run_nuisance_delta_vs_threshold: -0.2,
+            pass_run_nuisance_delta_vs_numeric_dsa: -0.05,
             raw_boundary_episode_count: 20,
             dsa_episode_count: 4,
             dsa_episodes_preceding_failure: 3,
@@ -2159,6 +2410,12 @@ mod tests {
             feature_level_active_points: 8,
             feature_level_alert_points: 4,
             persistence_suppression_fraction: Some(0.5),
+            numeric_failure_recall: 11,
+            policy_vs_numeric_recall_delta: -1,
+            watch_point_count: 3,
+            review_point_count: 3,
+            escalate_point_count: 1,
+            silenced_point_count: 2,
             primary_success: true,
             primary_success_reason: "ok".into(),
         };

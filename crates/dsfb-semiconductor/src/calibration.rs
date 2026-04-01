@@ -6,11 +6,11 @@ use crate::grammar::evaluate_grammar;
 use crate::metrics::compute_metrics;
 use crate::nominal::build_nominal_model;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
-use crate::preprocessing::prepare_secom;
 use crate::precursor::{
     run_dsa_calibration_grid, summarize_dsa_grid, DsaCalibrationGrid, DsaCalibrationRow,
     DsaGridSummary,
 };
+use crate::preprocessing::prepare_secom;
 use crate::residual::compute_residuals;
 use crate::signs::compute_signs;
 use serde::Serialize;
@@ -202,13 +202,27 @@ impl CalibrationGrid {
                                 for &density_window in &self.density_window {
                                     for &ewma_alpha in &self.ewma_alpha {
                                         for &ewma_sigma_multiplier in &self.ewma_sigma_multiplier {
-                                            for &cusum_kappa_sigma_multiplier in &self.cusum_kappa_sigma_multiplier {
-                                                for &cusum_alarm_sigma_multiplier in &self.cusum_alarm_sigma_multiplier {
-                                                    for &run_energy_sigma_multiplier in &self.run_energy_sigma_multiplier {
-                                                        for &pca_variance_explained in &self.pca_variance_explained {
-                                                            for &pca_t2_sigma_multiplier in &self.pca_t2_sigma_multiplier {
-                                                                for &pca_spe_sigma_multiplier in &self.pca_spe_sigma_multiplier {
-                                                                    for &drift_sigma_multiplier in &self.drift_sigma_multiplier {
+                                            for &cusum_kappa_sigma_multiplier in
+                                                &self.cusum_kappa_sigma_multiplier
+                                            {
+                                                for &cusum_alarm_sigma_multiplier in
+                                                    &self.cusum_alarm_sigma_multiplier
+                                                {
+                                                    for &run_energy_sigma_multiplier in
+                                                        &self.run_energy_sigma_multiplier
+                                                    {
+                                                        for &pca_variance_explained in
+                                                            &self.pca_variance_explained
+                                                        {
+                                                            for &pca_t2_sigma_multiplier in
+                                                                &self.pca_t2_sigma_multiplier
+                                                            {
+                                                                for &pca_spe_sigma_multiplier in
+                                                                    &self.pca_spe_sigma_multiplier
+                                                                {
+                                                                    for &drift_sigma_multiplier in
+                                                                        &self.drift_sigma_multiplier
+                                                                    {
                                                                         for &slew_sigma_multiplier in &self.slew_sigma_multiplier {
                                                                             for &grazing_window in &self.grazing_window {
                                                                                 for &grazing_min_hits in &self.grazing_min_hits {
@@ -294,13 +308,7 @@ pub fn run_secom_calibration(
         let baselines = compute_baselines(&prepared, &nominal, &residuals, config);
         let grammar = evaluate_grammar(&residuals, &signs, &nominal, config);
         let metrics = compute_metrics(
-            &prepared,
-            &nominal,
-            &residuals,
-            &signs,
-            &baselines,
-            &grammar,
-            config,
+            &prepared, &nominal, &residuals, &signs, &baselines, &grammar, config,
         );
 
         rows.push(CalibrationResultRow {
@@ -345,7 +353,9 @@ pub fn run_secom_calibration(
                 .failure_runs_with_preceding_dsfb_persistent_violation_signal,
             ewma_recall: metrics.summary.failure_runs_with_preceding_ewma_signal,
             cusum_recall: metrics.summary.failure_runs_with_preceding_cusum_signal,
-            run_energy_recall: metrics.summary.failure_runs_with_preceding_run_energy_signal,
+            run_energy_recall: metrics
+                .summary
+                .failure_runs_with_preceding_run_energy_signal,
             pca_fdc_recall: metrics.summary.failure_runs_with_preceding_pca_fdc_signal,
             threshold_recall: metrics.summary.failure_runs_with_preceding_threshold_signal,
             mean_raw_boundary_lead_runs: metrics.lead_time_summary.mean_raw_boundary_lead_runs,
@@ -619,7 +629,9 @@ fn write_summary(path: &Path, summary: &CalibrationSummary) -> Result<()> {
     Ok(())
 }
 
-fn best_by_persistent_boundary_recall(rows: &[CalibrationResultRow]) -> Option<CalibrationResultRow> {
+fn best_by_persistent_boundary_recall(
+    rows: &[CalibrationResultRow],
+) -> Option<CalibrationResultRow> {
     rows.iter().cloned().max_by(|left, right| {
         left.dsfb_persistent_boundary_recall
             .cmp(&right.dsfb_persistent_boundary_recall)

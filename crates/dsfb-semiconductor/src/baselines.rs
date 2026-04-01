@@ -183,9 +183,7 @@ pub fn compute_baselines(
         + config.run_energy_sigma_multiplier * run_energy_healthy_std.max(config.epsilon);
     let run_energy_alarm = run_energy_series
         .iter()
-        .map(|value| {
-            !analyzable_feature_indices.is_empty() && *value > run_energy_threshold
-        })
+        .map(|value| !analyzable_feature_indices.is_empty() && *value > run_energy_threshold)
         .collect::<Vec<_>>();
 
     let pca_fdc = compute_pca_fdc(
@@ -288,7 +286,9 @@ fn compute_pca_fdc(
         .map(|&run_index| {
             analyzable_feature_indices
                 .iter()
-                .map(|&feature_index| standardized_residual(nominal, residuals, feature_index, run_index, config))
+                .map(|&feature_index| {
+                    standardized_residual(nominal, residuals, feature_index, run_index, config)
+                })
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
@@ -304,14 +304,16 @@ fn compute_pca_fdc(
         .collect::<Vec<_>>();
 
     let gram = gram_matrix(&centered_healthy);
-    let (eigenvalues, eigenvectors) = jacobi_eigen_symmetric(&gram, 64 * gram.len().max(1).pow(2), 1.0e-10);
+    let (eigenvalues, eigenvectors) =
+        jacobi_eigen_symmetric(&gram, 64 * gram.len().max(1).pow(2), 1.0e-10);
     let mut components = eigenvalues
         .iter()
         .copied()
         .zip(eigenvectors)
         .filter(|(eigenvalue, _)| *eigenvalue > config.epsilon)
         .collect::<Vec<_>>();
-    components.sort_by(|(lhs, _), (rhs, _)| rhs.partial_cmp(lhs).unwrap_or(std::cmp::Ordering::Equal));
+    components
+        .sort_by(|(lhs, _), (rhs, _)| rhs.partial_cmp(lhs).unwrap_or(std::cmp::Ordering::Equal));
 
     let total_variance = components.iter().map(|(value, _)| *value).sum::<f64>();
     let mut retained = Vec::new();
@@ -368,10 +370,10 @@ fn compute_pca_fdc(
     let t2_healthy_std = sample_std(&healthy_t2, t2_healthy_mean).unwrap_or(0.0);
     let spe_healthy_mean = mean(&healthy_spe).unwrap_or(0.0);
     let spe_healthy_std = sample_std(&healthy_spe, spe_healthy_mean).unwrap_or(0.0);
-    let t2_threshold = t2_healthy_mean
-        + config.pca_t2_sigma_multiplier * t2_healthy_std.max(config.epsilon);
-    let spe_threshold = spe_healthy_mean
-        + config.pca_spe_sigma_multiplier * spe_healthy_std.max(config.epsilon);
+    let t2_threshold =
+        t2_healthy_mean + config.pca_t2_sigma_multiplier * t2_healthy_std.max(config.epsilon);
+    let spe_threshold =
+        spe_healthy_mean + config.pca_spe_sigma_multiplier * spe_healthy_std.max(config.epsilon);
     let alarm = (0..run_count)
         .map(|run_index| t2[run_index] > t2_threshold || spe[run_index] > spe_threshold)
         .collect::<Vec<_>>();
@@ -477,8 +479,7 @@ fn jacobi_eigen_symmetric(
         let app = a[p][p];
         let aqq = a[q][q];
         let apq = a[p][q];
-        a[p][p] = cos_theta * cos_theta * app
-            - 2.0 * sin_theta * cos_theta * apq
+        a[p][p] = cos_theta * cos_theta * app - 2.0 * sin_theta * cos_theta * apq
             + sin_theta * sin_theta * aqq;
         a[q][q] = sin_theta * sin_theta * app
             + 2.0 * sin_theta * cos_theta * apq

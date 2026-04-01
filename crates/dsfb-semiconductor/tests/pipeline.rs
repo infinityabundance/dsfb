@@ -177,6 +177,13 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "density_metrics.csv",
         "dsa_grid_results.csv",
         "dsa_grid_summary.json",
+        "dsa_feature_ranking.csv",
+        "dsa_feature_cohorts.json",
+        "dsa_cohort_results.csv",
+        "dsa_cohort_summary.json",
+        "dsa_cohort_precursor_quality.csv",
+        "dsa_motif_policy_contributions.csv",
+        "dsa_heuristic_policy_failure_analysis.md",
         "dsa_parameter_manifest.json",
         "dsa_seed_feature_check.json",
         "drsc_dsa_combined.csv",
@@ -284,6 +291,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_metrics.csv").is_ok());
     assert!(zip.by_name("dsa_grid_results.csv").is_ok());
     assert!(zip.by_name("dsa_grid_summary.json").is_ok());
+    assert!(zip.by_name("dsa_feature_ranking.csv").is_ok());
+    assert!(zip.by_name("dsa_feature_cohorts.json").is_ok());
+    assert!(zip.by_name("dsa_cohort_results.csv").is_ok());
+    assert!(zip.by_name("dsa_cohort_summary.json").is_ok());
+    assert!(zip.by_name("dsa_cohort_precursor_quality.csv").is_ok());
+    assert!(zip.by_name("dsa_motif_policy_contributions.csv").is_ok());
     assert!(zip.by_name("dsa_seed_feature_check.json").is_ok());
     assert!(zip.by_name("dsa_run_signals.csv").is_ok());
     assert!(zip.by_name("dsa_top_feature.csv").is_ok());
@@ -301,6 +314,8 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("## Artifact Inventory"));
     assert!(report.contains("## Deterministic Structural Accumulator (DSA)"));
     assert!(report.contains("## Feature-Cohort DSA Selection"));
+    assert!(report.contains("## Heuristics-Governed DSA Policy Engine"));
+    assert!(report.contains("## Semantics of Silence"));
     assert!(report.contains("## Rating Delta Forecast"));
     assert!(report.contains(
         "## Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA)"
@@ -313,6 +328,9 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("run_bundle.zip"));
     assert!(manifest.get("drsc_dsa_combined_trace_path").is_some());
     assert!(manifest.get("drsc_dsa_combined_figure_path").is_some());
+    assert!(manifest
+        .get("dsa_motif_policy_contributions_path")
+        .is_some());
 }
 
 #[test]
@@ -332,7 +350,16 @@ fn heuristics_bank_entries_include_operational_fields() {
     for key in [
         "severity",
         "confidence",
+        "alert_class_default",
+        "requires_persistence",
+        "requires_corroboration",
+        "minimum_window",
+        "minimum_hits",
+        "maximum_allowed_fragmentation",
         "contributes_to_dsa_scoring",
+        "contributes_to_dsa",
+        "suppresses_alert",
+        "promotes_alert",
         "recommended_action",
         "escalation_policy",
         "non_unique_warning",
@@ -484,7 +511,7 @@ fn dsa_outputs_are_finite_and_reproducible() {
     assert!(first
         .run_signals
         .primary_run_signal
-        .contains("feature_count_dsa_alert"));
+        .contains("feature_count_review_or_escalate"));
 
     for trace in &first.traces {
         assert!(trace
@@ -499,6 +526,10 @@ fn dsa_outputs_are_finite_and_reproducible() {
         assert!(trace.ewma_occupancy_w.iter().all(|value| value.is_finite()));
         assert!(trace
             .motif_recurrence_w
+            .iter()
+            .all(|value| value.is_finite()));
+        assert!(trace
+            .fragmentation_proxy_w
             .iter()
             .all(|value| value.is_finite()));
         assert!(trace.dsa_score.iter().all(|value| value.is_finite()));

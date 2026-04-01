@@ -3,7 +3,8 @@ use crate::cohort::{
     build_feature_cohorts, build_seed_feature_check, compute_feature_ranking,
     compute_rating_delta_forecast, compute_rating_failure_analysis, run_cohort_dsa_grid,
     write_cohort_results_csv, write_failure_analysis_md as write_cohort_failure_analysis_md,
-    write_feature_ranking_csv, write_precursor_quality_csv,
+    write_feature_ranking_csv, write_heuristic_policy_failure_analysis_md,
+    write_motif_policy_contributions_csv, write_precursor_quality_csv,
 };
 use crate::config::{PipelineConfig, RunConfiguration};
 use crate::dataset::phm2018::{support_status as phm_support_status, Phm2018SupportStatus};
@@ -59,6 +60,8 @@ struct ArtifactManifest {
     dsa_cohort_summary_path: String,
     dsa_cohort_precursor_quality_path: String,
     dsa_cohort_failure_analysis_path: Option<String>,
+    dsa_heuristic_policy_failure_analysis_path: Option<String>,
+    dsa_motif_policy_contributions_path: String,
     dsa_rating_delta_forecast_path: String,
     dsa_rating_delta_failure_analysis_path: Option<String>,
     lead_time_metrics_path: String,
@@ -249,6 +252,10 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsa_cohort_precursor_quality.csv"),
         &cohort_summary.cohort_results,
     )?;
+    write_motif_policy_contributions_csv(
+        &run_dir.join("dsa_motif_policy_contributions.csv"),
+        &cohort_execution.motif_policy_contributions,
+    )?;
     write_json_pretty(
         &run_dir.join("dsa_rating_delta_forecast.json"),
         &rating_delta_forecast,
@@ -256,6 +263,10 @@ pub fn run_secom_benchmark(
     if let Some(analysis) = &cohort_summary.failure_analysis {
         write_cohort_failure_analysis_md(
             &run_dir.join("dsa_cohort_failure_analysis.md"),
+            analysis,
+        )?;
+        write_heuristic_policy_failure_analysis_md(
+            &run_dir.join("dsa_heuristic_policy_failure_analysis.md"),
             analysis,
         )?;
     }
@@ -361,6 +372,19 @@ pub fn run_secom_benchmark(
                     .display()
                     .to_string()
             }),
+            dsa_heuristic_policy_failure_analysis_path: cohort_summary
+                .failure_analysis
+                .as_ref()
+                .map(|_| {
+                    run_dir
+                        .join("dsa_heuristic_policy_failure_analysis.md")
+                        .display()
+                        .to_string()
+                }),
+            dsa_motif_policy_contributions_path: run_dir
+                .join("dsa_motif_policy_contributions.csv")
+                .display()
+                .to_string(),
             dsa_rating_delta_forecast_path: run_dir
                 .join("dsa_rating_delta_forecast.json")
                 .display()
@@ -578,10 +602,15 @@ fn write_dsa_metrics_csv(
         "slew_density_W",
         "ewma_occupancy_W",
         "motif_recurrence_W",
+        "fragmentation_proxy_W",
         "consistent",
         "dsa_score",
         "dsa_active",
+        "numeric_dsa_alert",
         "dsa_alert",
+        "resolved_alert_class",
+        "policy_state",
+        "policy_suppressed_to_silent",
     ])?;
 
     for trace in &dsa.traces {
@@ -606,10 +635,15 @@ fn write_dsa_metrics_csv(
                 trace.slew_density_w[run_index].to_string(),
                 trace.ewma_occupancy_w[run_index].to_string(),
                 trace.motif_recurrence_w[run_index].to_string(),
+                trace.fragmentation_proxy_w[run_index].to_string(),
                 trace.consistent[run_index].to_string(),
                 trace.dsa_score[run_index].to_string(),
                 trace.dsa_active[run_index].to_string(),
+                trace.numeric_dsa_alert[run_index].to_string(),
                 trace.dsa_alert[run_index].to_string(),
+                format!("{:?}", trace.resolved_alert_class[run_index]),
+                trace.policy_state[run_index].as_lowercase().to_string(),
+                trace.policy_suppressed_to_silent[run_index].to_string(),
             ])?;
         }
     }
@@ -634,6 +668,12 @@ fn write_dsa_run_signals_csv(
         "any_feature_dsa_alert",
         "any_feature_raw_violation",
         "feature_count_dsa_alert",
+        "watch_feature_count",
+        "review_feature_count",
+        "escalate_feature_count",
+        "strict_escalate_run_alert",
+        "numeric_primary_run_alert",
+        "numeric_feature_count_dsa_alert",
     ])?;
 
     for run_index in 0..prepared.labels.len() {
@@ -649,6 +689,12 @@ fn write_dsa_run_signals_csv(
             run_signals.any_feature_dsa_alert[run_index].to_string(),
             run_signals.any_feature_raw_violation[run_index].to_string(),
             run_signals.feature_count_dsa_alert[run_index].to_string(),
+            run_signals.watch_feature_count[run_index].to_string(),
+            run_signals.review_feature_count[run_index].to_string(),
+            run_signals.escalate_feature_count[run_index].to_string(),
+            run_signals.strict_escalate_run_alert[run_index].to_string(),
+            run_signals.numeric_primary_run_alert[run_index].to_string(),
+            run_signals.numeric_feature_count_dsa_alert[run_index].to_string(),
         ])?;
     }
 

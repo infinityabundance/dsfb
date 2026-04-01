@@ -170,11 +170,17 @@ pub fn generate_figures(
     draw_baseline_comparison(&figure_dir, metrics, dsa)?;
     files.push("benchmark_comparison.png".into());
 
-    let (drsc, drsc_dsa_combined, dsa_focus) =
-        if let Some(feature_index) = metrics.top_feature_indices.first().copied() {
+    let (drsc, drsc_dsa_combined, dsa_focus) = if let Some(feature_index) =
+        metrics.top_feature_indices.first().copied()
+    {
         let figure_file = "drsc_top_feature.png".to_string();
         let trace_csv = "drsc_top_feature.csv".to_string();
-        let drsc_window = drsc_window(dataset, grammar, feature_index, config.pre_failure_lookback_runs);
+        let drsc_window = drsc_window(
+            dataset,
+            grammar,
+            feature_index,
+            config.pre_failure_lookback_runs,
+        );
         draw_drsc_chart(
             &figure_dir.join(&figure_file),
             dataset,
@@ -558,10 +564,7 @@ fn draw_baseline_comparison(
         ),
         (
             "EWMA",
-            metrics
-                .lead_time_summary
-                .mean_ewma_lead_runs
-                .unwrap_or(0.0),
+            metrics.lead_time_summary.mean_ewma_lead_runs.unwrap_or(0.0),
             GREEN.mix(0.7),
         ),
         (
@@ -574,12 +577,18 @@ fn draw_baseline_comparison(
         ),
         (
             "Run energy",
-            dsa.comparison_summary.run_energy.mean_lead_time_runs.unwrap_or(0.0),
+            dsa.comparison_summary
+                .run_energy
+                .mean_lead_time_runs
+                .unwrap_or(0.0),
             RGBColor(90, 90, 90).mix(0.7),
         ),
         (
             "PCA T2/SPE",
-            dsa.comparison_summary.pca_fdc.mean_lead_time_runs.unwrap_or(0.0),
+            dsa.comparison_summary
+                .pca_fdc
+                .mean_lead_time_runs
+                .unwrap_or(0.0),
             RGBColor(80, 40, 140).mix(0.7),
         ),
         (
@@ -592,23 +601,15 @@ fn draw_baseline_comparison(
         ),
     ];
     let nuisance_labels = [
-        (
-            "DSA",
-            dsa.summary.pass_run_nuisance_proxy,
-            MAGENTA.mix(0.7),
-        ),
+        ("DSA", dsa.summary.pass_run_nuisance_proxy, MAGENTA.mix(0.7)),
         (
             "DSFB raw boundary",
-            metrics
-                .summary
-                .pass_run_dsfb_raw_boundary_nuisance_rate,
+            metrics.summary.pass_run_dsfb_raw_boundary_nuisance_rate,
             BLUE.mix(0.7),
         ),
         (
             "DSFB Violation",
-            metrics
-                .summary
-                .pass_run_dsfb_raw_violation_nuisance_rate,
+            metrics.summary.pass_run_dsfb_raw_violation_nuisance_rate,
             CYAN.mix(0.7),
         ),
         (
@@ -928,7 +929,10 @@ fn draw_drsc_chart(
         });
     dsa_chart
         .draw_series(std::iter::once(PathElement::new(
-            vec![(window_start, config.dsa.alert_tau), (window_end, config.dsa.alert_tau)],
+            vec![
+                (window_start, config.dsa.alert_tau),
+                (window_end, config.dsa.alert_tau),
+            ],
             RED.mix(0.8).stroke_width(2),
         )))
         .map_err(plot_error)?
@@ -947,10 +951,10 @@ fn draw_drsc_chart(
         .collect::<Vec<_>>();
     let pca_fdc_series = (window_start..window_end)
         .map(|run_index| {
-            let t2 = baselines.pca_fdc.t2[run_index]
-                / positive_or_one(baselines.pca_fdc.t2_threshold);
-            let spe = baselines.pca_fdc.spe[run_index]
-                / positive_or_one(baselines.pca_fdc.spe_threshold);
+            let t2 =
+                baselines.pca_fdc.t2[run_index] / positive_or_one(baselines.pca_fdc.t2_threshold);
+            let spe =
+                baselines.pca_fdc.spe[run_index] / positive_or_one(baselines.pca_fdc.spe_threshold);
             t2.max(spe)
         })
         .collect::<Vec<_>>();
@@ -1030,7 +1034,10 @@ fn draw_drsc_chart(
     occupancy_chart
         .draw_series(std::iter::once(PathElement::new(
             vec![
-                (window_start, nominal.features[feature_index].rho * 0.0 + 1.0),
+                (
+                    window_start,
+                    nominal.features[feature_index].rho * 0.0 + 1.0,
+                ),
                 (window_end, 1.0),
             ],
             RED.mix(0.6).stroke_width(2),
@@ -1087,10 +1094,7 @@ fn draw_drsc_chart(
                 .map_err(plot_error)?;
             state_chart
                 .draw_series(std::iter::once(PathElement::new(
-                    vec![
-                        (run_index as f64, 0.0f64),
-                        (run_index as f64, 3.0f64),
-                    ],
+                    vec![(run_index as f64, 0.0f64), (run_index as f64, 3.0f64)],
                     color.mix(0.7).stroke_width(2),
                 )))
                 .map_err(plot_error)?
@@ -1301,10 +1305,7 @@ fn draw_drsc_dsa_combined_chart(
     let mut panel_areas = Vec::with_capacity(4);
     let mut y_offset = 0;
     for h in &panel_heights {
-        panel_areas.push(root.clone().shrink(
-            (0u32, y_offset),
-            (COMBINED_WIDTH, *h),
-        ));
+        panel_areas.push(root.clone().shrink((0u32, y_offset), (COMBINED_WIDTH, *h)));
         y_offset += h;
     }
 
@@ -1838,7 +1839,10 @@ fn draw_dsa_focus_chart(
         .fold(config.dsa.alert_tau.max(1.0), f64::max)
         .max(config.dsa.alert_tau);
     let mut score_chart = ChartBuilder::on(&areas[1])
-        .caption("DSA score, consistency, and persistence gate", ("sans-serif", 24))
+        .caption(
+            "DSA score, consistency, and persistence gate",
+            ("sans-serif", 24),
+        )
         .margin(15)
         .x_label_area_size(40)
         .y_label_area_size(70)
@@ -1876,7 +1880,10 @@ fn draw_dsa_focus_chart(
     )?;
     score_chart
         .draw_series(std::iter::once(PathElement::new(
-            vec![(window_start, config.dsa.alert_tau), (window_end, config.dsa.alert_tau)],
+            vec![
+                (window_start, config.dsa.alert_tau),
+                (window_end, config.dsa.alert_tau),
+            ],
             RED.mix(0.8).stroke_width(2),
         )))
         .map_err(plot_error)?
@@ -1907,10 +1914,17 @@ fn draw_dsa_focus_chart(
         ("EWMA", GREEN, &ewma_trace.alarm),
         ("CUSUM", RGBColor(120, 70, 20), &cusum_trace.alarm),
         ("run energy", BLACK, &baselines.run_energy.alarm),
-        ("PCA T2/SPE", RGBColor(80, 40, 140), &baselines.pca_fdc.alarm),
+        (
+            "PCA T2/SPE",
+            RGBColor(80, 40, 140),
+            &baselines.pca_fdc.alarm,
+        ),
     ];
     let mut band_chart = ChartBuilder::on(&areas[2])
-        .caption("Feature-level alert band across DSA and comparators", ("sans-serif", 24))
+        .caption(
+            "Feature-level alert band across DSA and comparators",
+            ("sans-serif", 24),
+        )
         .margin(15)
         .x_label_area_size(45)
         .y_label_area_size(100)
@@ -2020,13 +2034,11 @@ fn write_dsa_focus_trace_csv(
             .to_string(),
             baselines.run_energy.alarm[run_index].to_string(),
             baselines.pca_fdc.t2[run_index].to_string(),
-            (baselines.pca_fdc.t2[run_index]
-                / positive_or_one(baselines.pca_fdc.t2_threshold))
-            .to_string(),
+            (baselines.pca_fdc.t2[run_index] / positive_or_one(baselines.pca_fdc.t2_threshold))
+                .to_string(),
             baselines.pca_fdc.spe[run_index].to_string(),
-            (baselines.pca_fdc.spe[run_index]
-                / positive_or_one(baselines.pca_fdc.spe_threshold))
-            .to_string(),
+            (baselines.pca_fdc.spe[run_index] / positive_or_one(baselines.pca_fdc.spe_threshold))
+                .to_string(),
             baselines.pca_fdc.alarm[run_index].to_string(),
             format!("{:?}", grammar_trace.raw_states[run_index]),
             grammar_trace.persistent_boundary[run_index].to_string(),
@@ -2077,10 +2089,10 @@ fn drsc_window(
         .unwrap_or_else(|| dataset.labels.len().saturating_sub(1));
     let window_start = failure_run_index.saturating_sub(lookback_runs);
     let window_end = (failure_run_index + 1).min(dataset.labels.len());
-    let first_persistent_boundary_run = (window_start..failure_run_index)
-        .find(|&run_index| trace.persistent_boundary[run_index]);
-    let first_persistent_violation_run = (window_start..failure_run_index)
-        .find(|&run_index| trace.persistent_violation[run_index]);
+    let first_persistent_boundary_run =
+        (window_start..failure_run_index).find(|&run_index| trace.persistent_boundary[run_index]);
+    let first_persistent_violation_run =
+        (window_start..failure_run_index).find(|&run_index| trace.persistent_violation[run_index]);
 
     DrscWindow {
         failure_run_index,

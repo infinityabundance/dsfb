@@ -1,7 +1,10 @@
 use crate::baselines::BaselineSet;
 use crate::error::{DsfbSemiconductorError, Result};
 use crate::grammar::{GrammarReason, GrammarSet, GrammarState};
-use crate::heuristics::dsa_contributing_motif_names;
+use crate::heuristics::{
+    dsa_contributing_motif_names, heuristic_policy_definition, HeuristicAlertClass,
+    HeuristicPolicyDefinition,
+};
 use crate::nominal::NominalModel;
 use crate::preprocessing::PreparedDataset;
 use crate::residual::ResidualSet;
@@ -75,14 +78,64 @@ impl Default for DsaWeights {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DsaPolicyState {
+    Silent,
+    Watch,
+    Review,
+    Escalate,
+}
+
+impl DsaPolicyState {
+    fn is_review_or_escalate(self) -> bool {
+        matches!(self, Self::Review | Self::Escalate)
+    }
+
+    pub fn as_lowercase(self) -> &'static str {
+        match self {
+            Self::Silent => "silent",
+            Self::Watch => "watch",
+            Self::Review => "review",
+            Self::Escalate => "escalate",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FeatureMotifPolicyContribution {
+    pub motif_name: String,
+    pub alert_class_default: HeuristicAlertClass,
+    pub watch_points: usize,
+    pub review_points: usize,
+    pub escalate_points: usize,
+    pub silent_suppression_points: usize,
+    pub pass_review_or_escalate_points: usize,
+    pub pre_failure_review_or_escalate_points: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DsaMotifPolicyContribution {
+    pub motif_name: String,
+    pub alert_class_default: HeuristicAlertClass,
+    pub watch_points: usize,
+    pub review_points: usize,
+    pub escalate_points: usize,
+    pub silent_suppression_points: usize,
+    pub pass_review_or_escalate_points: usize,
+    pub pre_failure_review_or_escalate_points: usize,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DsaParameterManifest {
     pub config: DsaConfig,
     pub weights: DsaWeights,
+    pub policy_engine_definition: String,
+    pub feature_level_state_definition: String,
     pub primary_run_signal: String,
     pub primary_run_signal_definition: String,
     pub secondary_run_signal: String,
     pub tertiary_run_signal: String,
+    pub strict_escalate_signal: String,
     pub rolling_window_definition: String,
     pub boundary_density_basis: String,
     pub drift_persistence_definition: String,
@@ -90,6 +143,7 @@ pub struct DsaParameterManifest {
     pub ewma_occupancy_formula: String,
     pub motif_names_used_for_recurrence: Vec<String>,
     pub directional_consistency_rule: String,
+    pub silence_rule: String,
     pub corroboration_rule: String,
     pub recall_tolerance_runs_for_primary_success: usize,
     pub primary_success_condition_definition: String,
@@ -109,10 +163,16 @@ pub struct DsaFeatureTrace {
     pub slew_density_w: Vec<f64>,
     pub ewma_occupancy_w: Vec<f64>,
     pub motif_recurrence_w: Vec<f64>,
+    pub fragmentation_proxy_w: Vec<f64>,
     pub consistent: Vec<bool>,
     pub dsa_score: Vec<f64>,
     pub dsa_active: Vec<bool>,
+    pub numeric_dsa_alert: Vec<bool>,
     pub dsa_alert: Vec<bool>,
+    pub resolved_alert_class: Vec<HeuristicAlertClass>,
+    pub policy_state: Vec<DsaPolicyState>,
+    pub policy_suppressed_to_silent: Vec<bool>,
+    pub motif_policy_contributions: Vec<FeatureMotifPolicyContribution>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -123,6 +183,12 @@ pub struct DsaRunSignals {
     pub any_feature_dsa_alert: Vec<bool>,
     pub any_feature_raw_violation: Vec<bool>,
     pub feature_count_dsa_alert: Vec<usize>,
+    pub watch_feature_count: Vec<usize>,
+    pub review_feature_count: Vec<usize>,
+    pub escalate_feature_count: Vec<usize>,
+    pub strict_escalate_run_alert: Vec<bool>,
+    pub numeric_primary_run_alert: Vec<bool>,
+    pub numeric_feature_count_dsa_alert: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -146,12 +212,20 @@ pub struct DsaSignalSummary {
     pub analyzable_feature_count: usize,
     pub alert_point_count: usize,
     pub alert_run_count: usize,
+    pub numeric_alert_point_count: usize,
+    pub numeric_alert_run_count: usize,
+    pub watch_point_count: usize,
+    pub review_point_count: usize,
+    pub escalate_point_count: usize,
+    pub silenced_point_count: usize,
     pub failure_runs: usize,
     pub failure_run_recall: usize,
     pub failure_run_recall_rate: f64,
+    pub numeric_primary_failure_run_recall: usize,
     pub mean_lead_time_runs: Option<f64>,
     pub median_lead_time_runs: Option<f64>,
     pub pass_run_nuisance_proxy: f64,
+    pub numeric_primary_pass_run_nuisance_proxy: f64,
     pub mean_lead_delta_vs_cusum_runs: Option<f64>,
     pub mean_lead_delta_vs_run_energy_runs: Option<f64>,
     pub mean_lead_delta_vs_pca_fdc_runs: Option<f64>,
@@ -204,6 +278,7 @@ pub struct DsaVsBaselinesSummary {
     pub dataset: String,
     pub primary_run_signal: String,
     pub dsa: SignalComparisonRow,
+    pub numeric_dsa: SignalComparisonRow,
     pub threshold: SignalComparisonRow,
     pub ewma: SignalComparisonRow,
     pub cusum: SignalComparisonRow,
@@ -225,9 +300,16 @@ pub struct DsaVsBaselinesSummary {
     pub pass_run_nuisance_delta_vs_run_energy: f64,
     pub pass_run_nuisance_delta_vs_pca_fdc: f64,
     pub pass_run_nuisance_delta_vs_raw_boundary: f64,
+    pub pass_run_nuisance_delta_vs_numeric_dsa: f64,
     pub precursor_quality: Option<f64>,
     pub dsa_episodes_preceding_failure: usize,
     pub component_contributions: Vec<DsaComponentContribution>,
+    pub motif_policy_contributions: Vec<DsaMotifPolicyContribution>,
+    pub policy_vs_numeric_recall_delta: i64,
+    pub watch_point_count: usize,
+    pub review_point_count: usize,
+    pub escalate_point_count: usize,
+    pub silenced_point_count: usize,
     pub nuisance_improved: bool,
     pub lead_time_improved: bool,
     pub recall_preserved: bool,
@@ -276,6 +358,7 @@ pub struct DsaEvaluation {
     pub parameter_manifest: DsaParameterManifest,
     pub summary: DsaSignalSummary,
     pub comparison_summary: DsaVsBaselinesSummary,
+    pub motif_policy_contributions: Vec<DsaMotifPolicyContribution>,
     pub per_failure_run_signals: Vec<PerFailureRunDsaSignal>,
 }
 
@@ -415,6 +498,16 @@ pub struct DsaGridSummary {
 }
 
 const DSA_PRIMARY_SUCCESS_RECALL_TOLERANCE_RUNS: usize = 1;
+const POLICY_LOCAL_EWMA_CORROBORATION_MIN: f64 = 0.75;
+
+#[derive(Debug, Clone)]
+struct MotifContributionState {
+    motif_name: &'static str,
+    default_alert_class: HeuristicAlertClass,
+    contribution_state: DsaPolicyState,
+    fragmentation_proxy: f64,
+    suppressed_to_silent: bool,
+}
 
 fn dsa_optimization_priority_order() -> Vec<String> {
     vec![
@@ -445,10 +538,14 @@ pub fn evaluate_dsa(
     config.validate()?;
     let weights = DsaWeights::default();
     let run_count = dataset.labels.len();
-    let motif_names = dsa_contributing_motif_names()
+    let failure_indices = dataset
+        .labels
         .iter()
-        .map(|name| (*name).to_string())
+        .enumerate()
+        .filter_map(|(index, label)| (*label == 1).then_some(index))
         .collect::<Vec<_>>();
+    let failure_window_mask =
+        build_failure_window_mask(run_count, &failure_indices, pre_failure_lookback_runs);
     let mut traces = Vec::with_capacity(residuals.traces.len());
 
     for (((residual_trace, sign_trace), ewma_trace), grammar_trace) in residuals
@@ -473,6 +570,11 @@ pub fn evaluate_dsa(
             .iter()
             .map(|state| *state == GrammarState::Boundary)
             .collect::<Vec<_>>();
+        let raw_violation_hit = grammar_trace
+            .raw_states
+            .iter()
+            .map(|state| *state == GrammarState::Violation)
+            .collect::<Vec<_>>();
         let drift_outward_hit = sign_trace
             .drift
             .iter()
@@ -483,14 +585,19 @@ pub fn evaluate_dsa(
             .iter()
             .map(|slew| slew.abs() >= sign_trace.slew_threshold)
             .collect::<Vec<_>>();
-        let motif_hit = grammar_trace
-            .raw_reasons
+        let motif_flags = dsa_contributing_motif_names()
             .iter()
-            .map(|reason| {
-                dsa_motif_name(reason)
-                    .map(|name| motif_names.iter().any(|candidate| candidate == name))
-                    .unwrap_or(false)
+            .map(|&motif_name| {
+                let flags = grammar_trace
+                    .raw_reasons
+                    .iter()
+                    .map(|reason| dsa_motif_name(reason) == Some(motif_name))
+                    .collect::<Vec<_>>();
+                (motif_name, flags)
             })
+            .collect::<Vec<_>>();
+        let motif_hit = (0..run_count)
+            .map(|run_index| motif_flags.iter().any(|(_, flags)| flags[run_index]))
             .collect::<Vec<_>>();
         let ewma_normalized = ewma_trace
             .ewma
@@ -499,6 +606,7 @@ pub fn evaluate_dsa(
             .collect::<Vec<_>>();
 
         let boundary_prefix = bool_prefix_sum(&boundary_basis_hit);
+        let raw_violation_prefix = bool_prefix_sum(&raw_violation_hit);
         let drift_prefix = bool_prefix_sum(&drift_outward_hit);
         let slew_prefix = bool_prefix_sum(&slew_hit);
         let motif_prefix = bool_prefix_sum(&motif_hit);
@@ -542,7 +650,94 @@ pub fn evaluate_dsa(
             dsa_active.push(score >= config.alert_tau && consistent_window);
         }
 
-        let dsa_alert = persistence_mask(&dsa_active, config.persistence_runs);
+        let numeric_dsa_alert = persistence_mask(&dsa_active, config.persistence_runs);
+        let mut dsa_alert = Vec::with_capacity(run_count);
+        let mut fragmentation_proxy_w = Vec::with_capacity(run_count);
+        let mut resolved_alert_class = Vec::with_capacity(run_count);
+        let mut policy_state = Vec::with_capacity(run_count);
+        let mut policy_suppressed_to_silent = Vec::with_capacity(run_count);
+        let mut motif_policy_contributions = dsa_contributing_motif_names()
+            .iter()
+            .map(|motif_name| {
+                let policy = heuristic_policy_definition(motif_name)
+                    .unwrap_or_else(|| panic!("missing heuristic policy for {motif_name}"));
+                (
+                    (*motif_name).to_string(),
+                    FeatureMotifPolicyContribution {
+                        motif_name: (*motif_name).into(),
+                        alert_class_default: policy.alert_class_default,
+                        watch_points: 0,
+                        review_points: 0,
+                        escalate_points: 0,
+                        silent_suppression_points: 0,
+                        pass_review_or_escalate_points: 0,
+                        pre_failure_review_or_escalate_points: 0,
+                    },
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        for run_index in 0..run_count {
+            let start = run_index.saturating_sub(config.window.saturating_sub(1));
+            let raw_violation_recent = window_count(&raw_violation_prefix, start, run_index) > 0;
+            let local_corroboration = raw_violation_recent
+                || ewma_occupancy_w[run_index] >= POLICY_LOCAL_EWMA_CORROBORATION_MIN;
+            let contributions = motif_flags
+                .iter()
+                .filter_map(|(motif_name, flags)| {
+                    let policy = heuristic_policy_definition(motif_name)?;
+                    let contribution = motif_contribution_state(
+                        policy,
+                        flags,
+                        run_index,
+                        dsa_active[run_index],
+                        numeric_dsa_alert[run_index],
+                        local_corroboration,
+                        raw_violation_recent,
+                    )?;
+                    Some(contribution)
+                })
+                .collect::<Vec<_>>();
+
+            let dominant_class = dominant_alert_class(&contributions);
+            let dominant_state = dominant_policy_state(&contributions);
+            let fragmentation = contributions
+                .iter()
+                .map(|contribution| contribution.fragmentation_proxy)
+                .fold(0.0, f64::max);
+            let silenced =
+                numeric_dsa_alert[run_index] && matches!(dominant_state, DsaPolicyState::Silent);
+
+            for contribution in &contributions {
+                if let Some(row) = motif_policy_contributions.get_mut(contribution.motif_name) {
+                    match contribution.contribution_state {
+                        DsaPolicyState::Silent => {
+                            if contribution.suppressed_to_silent {
+                                row.silent_suppression_points += 1;
+                            }
+                        }
+                        DsaPolicyState::Watch => row.watch_points += 1,
+                        DsaPolicyState::Review => row.review_points += 1,
+                        DsaPolicyState::Escalate => row.escalate_points += 1,
+                    }
+                    if contribution.contribution_state.is_review_or_escalate() {
+                        if dataset.labels[run_index] == -1 {
+                            row.pass_review_or_escalate_points += 1;
+                        }
+                        if failure_window_mask[run_index] {
+                            row.pre_failure_review_or_escalate_points += 1;
+                        }
+                    }
+                }
+            }
+
+            dsa_alert.push(dominant_state.is_review_or_escalate());
+            fragmentation_proxy_w.push(fragmentation);
+            resolved_alert_class.push(dominant_class);
+            policy_state.push(dominant_state);
+            policy_suppressed_to_silent.push(silenced);
+        }
+
         traces.push(DsaFeatureTrace {
             feature_index: feature.feature_index,
             feature_name: feature.feature_name.clone(),
@@ -555,10 +750,16 @@ pub fn evaluate_dsa(
             slew_density_w,
             ewma_occupancy_w,
             motif_recurrence_w,
+            fragmentation_proxy_w,
             consistent,
             dsa_score,
             dsa_active,
+            numeric_dsa_alert,
             dsa_alert,
+            resolved_alert_class,
+            policy_state,
+            policy_suppressed_to_silent,
+            motif_policy_contributions: motif_policy_contributions.into_values().collect(),
         });
     }
 
@@ -607,7 +808,19 @@ pub fn project_dsa_to_cohort(
         if !selected_mask[feature_index] {
             trace.dsa_score.fill(0.0);
             trace.dsa_active.fill(false);
+            trace.numeric_dsa_alert.fill(false);
             trace.dsa_alert.fill(false);
+            trace.resolved_alert_class.fill(HeuristicAlertClass::Silent);
+            trace.policy_state.fill(DsaPolicyState::Silent);
+            trace.policy_suppressed_to_silent.fill(false);
+            for contribution in &mut trace.motif_policy_contributions {
+                contribution.watch_points = 0;
+                contribution.review_points = 0;
+                contribution.escalate_points = 0;
+                contribution.silent_suppression_points = 0;
+                contribution.pass_review_or_escalate_points = 0;
+                contribution.pre_failure_review_or_escalate_points = 0;
+            }
         }
     }
 
@@ -630,7 +843,7 @@ pub fn project_dsa_to_cohort(
     );
 
     let primary_signal = format!(
-        "cohort {}: feature_count_dsa_alert(k) >= {}",
+        "cohort {}: feature_count_review_or_escalate(k) >= {}",
         cohort_name, corroborating_feature_count_min
     );
     evaluation.run_signals.primary_run_signal = primary_signal.clone();
@@ -648,7 +861,7 @@ pub fn project_dsa_to_cohort(
         primary_signal
     );
     evaluation.parameter_manifest.corroboration_rule = format!(
-        "RUN_LEVEL_DSA(k) is true only when the count of selected cohort features with DSA_ALERT_i(k) is at least {}.",
+        "RUN_LEVEL_DSA(k) is true only when the count of selected cohort features in Review or Escalate is at least {}.",
         corroborating_feature_count_min
     );
 
@@ -770,10 +983,16 @@ fn empty_trace(feature_index: usize, feature_name: &str, run_count: usize) -> Ds
         slew_density_w: vec![0.0; run_count],
         ewma_occupancy_w: vec![0.0; run_count],
         motif_recurrence_w: vec![0.0; run_count],
+        fragmentation_proxy_w: vec![0.0; run_count],
         consistent: vec![true; run_count],
         dsa_score: vec![0.0; run_count],
         dsa_active: vec![false; run_count],
+        numeric_dsa_alert: vec![false; run_count],
         dsa_alert: vec![false; run_count],
+        resolved_alert_class: vec![HeuristicAlertClass::Silent; run_count],
+        policy_state: vec![DsaPolicyState::Silent; run_count],
+        policy_suppressed_to_silent: vec![false; run_count],
+        motif_policy_contributions: Vec::new(),
     }
 }
 
@@ -900,6 +1119,18 @@ fn assemble_dsa_evaluation(
                 .map(|run_index| failure_index - run_index)
         })
         .collect::<Vec<_>>();
+    let numeric_dsa_leads = failure_indices
+        .iter()
+        .map(|&failure_index| {
+            let window_start = failure_index.saturating_sub(pre_failure_lookback_runs);
+            earliest_run_signal(
+                &run_signals.numeric_primary_run_alert,
+                window_start,
+                failure_index,
+            )
+            .map(|run_index| failure_index - run_index)
+        })
+        .collect::<Vec<_>>();
 
     let per_failure_run_signals = failure_indices
         .iter()
@@ -982,6 +1213,55 @@ fn assemble_dsa_evaluation(
         .iter()
         .filter(|flag| **flag)
         .count();
+    let numeric_alert_point_count = traces
+        .iter()
+        .map(|trace| trace.numeric_dsa_alert.iter().filter(|flag| **flag).count())
+        .sum::<usize>();
+    let numeric_alert_run_count = run_signals
+        .numeric_primary_run_alert
+        .iter()
+        .filter(|flag| **flag)
+        .count();
+    let watch_point_count = traces
+        .iter()
+        .map(|trace| {
+            trace
+                .policy_state
+                .iter()
+                .filter(|state| **state == DsaPolicyState::Watch)
+                .count()
+        })
+        .sum::<usize>();
+    let review_point_count = traces
+        .iter()
+        .map(|trace| {
+            trace
+                .policy_state
+                .iter()
+                .filter(|state| **state == DsaPolicyState::Review)
+                .count()
+        })
+        .sum::<usize>();
+    let escalate_point_count = traces
+        .iter()
+        .map(|trace| {
+            trace
+                .policy_state
+                .iter()
+                .filter(|state| **state == DsaPolicyState::Escalate)
+                .count()
+        })
+        .sum::<usize>();
+    let silenced_point_count = traces
+        .iter()
+        .map(|trace| {
+            trace
+                .policy_suppressed_to_silent
+                .iter()
+                .filter(|flag| **flag)
+                .count()
+        })
+        .sum::<usize>();
     let failure_run_recall = per_failure_run_signals
         .iter()
         .filter(|signal| signal.earliest_dsa_run.is_some())
@@ -1041,6 +1321,30 @@ fn assemble_dsa_evaluation(
                 .collect::<Vec<_>>(),
         ),
     };
+    let numeric_dsa_row = SignalComparisonRow {
+        signal: "Numeric-only DSA".into(),
+        failure_run_recall: count_present(numeric_dsa_leads.iter().copied()),
+        failure_runs: failure_indices.len(),
+        failure_run_recall_rate: rate(
+            count_present(numeric_dsa_leads.iter().copied()),
+            failure_indices.len(),
+        ),
+        mean_lead_time_runs: mean_option_usize(&numeric_dsa_leads),
+        median_lead_time_runs: median_option_usize(&numeric_dsa_leads),
+        pass_run_nuisance_proxy: rate(
+            pass_indices
+                .iter()
+                .filter(|&&run_index| run_signals.numeric_primary_run_alert[run_index])
+                .count(),
+            pass_indices.len(),
+        ),
+        mean_lead_delta_vs_cusum_runs: None,
+        mean_lead_delta_vs_run_energy_runs: None,
+        mean_lead_delta_vs_pca_fdc_runs: None,
+        mean_lead_delta_vs_threshold_runs: None,
+        mean_lead_delta_vs_ewma_runs: None,
+    };
+    let motif_policy_contributions = aggregate_motif_policy_contributions(&traces);
     let threshold_row = baseline_row(
         "Threshold",
         failure_indices.len(),
@@ -1211,6 +1515,7 @@ fn assemble_dsa_evaluation(
         dataset: "SECOM".into(),
         primary_run_signal: run_signals.primary_run_signal.clone(),
         dsa: dsa_row.clone(),
+        numeric_dsa: numeric_dsa_row.clone(),
         threshold: threshold_row.clone(),
         ewma: ewma_row.clone(),
         cusum: cusum_row.clone(),
@@ -1245,9 +1550,18 @@ fn assemble_dsa_evaluation(
             - pca_fdc_row.pass_run_nuisance_proxy,
         pass_run_nuisance_delta_vs_raw_boundary: dsa_row.pass_run_nuisance_proxy
             - dsfb_raw_boundary_row.pass_run_nuisance_proxy,
+        pass_run_nuisance_delta_vs_numeric_dsa: dsa_row.pass_run_nuisance_proxy
+            - numeric_dsa_row.pass_run_nuisance_proxy,
         precursor_quality: episode_summary.precursor_quality,
         dsa_episodes_preceding_failure: episode_summary.dsa_episodes_preceding_failure,
         component_contributions: component_contributions.clone(),
+        motif_policy_contributions: motif_policy_contributions.clone(),
+        policy_vs_numeric_recall_delta: dsa_row.failure_run_recall as i64
+            - numeric_dsa_row.failure_run_recall as i64,
+        watch_point_count,
+        review_point_count,
+        escalate_point_count,
+        silenced_point_count,
         nuisance_improved,
         lead_time_improved,
         recall_preserved,
@@ -1265,13 +1579,23 @@ fn assemble_dsa_evaluation(
     let parameter_manifest = DsaParameterManifest {
         config: config.clone(),
         weights: weights.clone(),
+        policy_engine_definition:
+            "Deterministic heuristics-governed policy engine over structural DSA candidates with explicit Silent/Watch/Review/Escalate feature states."
+                .into(),
+        feature_level_state_definition:
+            "Feature state is resolved from active motif policies, structural score >= tau, persistence gating, directional consistency, local corroboration, and explicit silence suppression."
+                .into(),
         primary_run_signal: run_signals.primary_run_signal.clone(),
         primary_run_signal_definition: format!(
-            "Primary run-level DSA decision is feature_count_dsa_alert(k) >= {}. This is a cross-feature corroboration gate above the frozen DSFB states and scalar baselines.",
+            "Primary run-level DSA decision is feature_count_review_or_escalate(k) >= {}. This is a cross-feature corroboration gate above the frozen DSFB states and scalar baselines.",
             config.corroborating_feature_count_min
         ),
-        secondary_run_signal: "any_feature_dsa_alert(k)".into(),
-        tertiary_run_signal: "feature_count_dsa_alert(k)".into(),
+        secondary_run_signal: "any_feature_review_or_escalate(k)".into(),
+        tertiary_run_signal: "feature_count_escalate(k)".into(),
+        strict_escalate_signal: format!(
+            "feature_count_escalate(k) >= {}",
+            config.corroborating_feature_count_min
+        ),
         rolling_window_definition: format!(
             "Trailing inclusive rolling window of up to {} runs per analyzable feature.",
             config.window
@@ -1290,8 +1614,11 @@ fn assemble_dsa_evaluation(
         directional_consistency_rule:
             "CONSISTENT is true only when thresholded drift signs in the window are never inward and the nonzero drift sign never flips within the window."
                 .into(),
+        silence_rule:
+            "A structural candidate remains Silent when no motif policy activates, when motif hits stay below deterministic minimum_hits/minimum_window rules, when fragmentation exceeds the motif ceiling, or when persistence/corroboration gates fail."
+                .into(),
         corroboration_rule: format!(
-            "RUN_LEVEL_DSA(k) is true only when the count of features with DSA_ALERT_i(k) is at least {}.",
+            "RUN_LEVEL_DSA(k) is true only when the count of features in Review or Escalate is at least {}.",
             config.corroborating_feature_count_min
         ),
         recall_tolerance_runs_for_primary_success: DSA_PRIMARY_SUCCESS_RECALL_TOLERANCE_RUNS,
@@ -1317,12 +1644,20 @@ fn assemble_dsa_evaluation(
             }),
             alert_point_count,
             alert_run_count,
+            numeric_alert_point_count,
+            numeric_alert_run_count,
+            watch_point_count,
+            review_point_count,
+            escalate_point_count,
+            silenced_point_count,
             failure_runs: failure_indices.len(),
             failure_run_recall,
             failure_run_recall_rate: dsa_row.failure_run_recall_rate,
+            numeric_primary_failure_run_recall: numeric_dsa_row.failure_run_recall,
             mean_lead_time_runs: dsa_row.mean_lead_time_runs,
             median_lead_time_runs: dsa_row.median_lead_time_runs,
             pass_run_nuisance_proxy: dsa_row.pass_run_nuisance_proxy,
+            numeric_primary_pass_run_nuisance_proxy: numeric_dsa_row.pass_run_nuisance_proxy,
             mean_lead_delta_vs_cusum_runs: dsa_row.mean_lead_delta_vs_cusum_runs,
             mean_lead_delta_vs_run_energy_runs: dsa_row.mean_lead_delta_vs_run_energy_runs,
             mean_lead_delta_vs_pca_fdc_runs: dsa_row.mean_lead_delta_vs_pca_fdc_runs,
@@ -1347,6 +1682,7 @@ fn assemble_dsa_evaluation(
             validation_failures,
         },
         comparison_summary,
+        motif_policy_contributions,
         per_failure_run_signals,
     }
 }
@@ -1358,6 +1694,115 @@ fn dsa_motif_name(reason: &GrammarReason) -> Option<&'static str> {
         GrammarReason::RecurrentBoundaryGrazing => Some("recurrent_boundary_approach"),
         GrammarReason::Admissible | GrammarReason::EnvelopeViolation => None,
     }
+}
+
+fn motif_contribution_state(
+    policy: HeuristicPolicyDefinition,
+    flags: &[bool],
+    run_index: usize,
+    structural_active: bool,
+    numeric_alert: bool,
+    local_corroboration: bool,
+    raw_violation_recent: bool,
+) -> Option<MotifContributionState> {
+    let start = run_index.saturating_sub(policy.minimum_window.saturating_sub(1));
+    let hits = flags[start..=run_index]
+        .iter()
+        .filter(|flag| **flag)
+        .count();
+    if hits == 0 {
+        return None;
+    }
+
+    let fragmentation_proxy = episode_ranges(&flags[start..=run_index]).len() as f64 / hits as f64;
+    let policy_active = hits >= policy.minimum_hits
+        && fragmentation_proxy <= policy.maximum_allowed_fragmentation();
+    let suppressed_to_silent = structural_active && !policy_active;
+    let mut contribution_state = if !structural_active || !policy_active {
+        DsaPolicyState::Silent
+    } else {
+        match policy.alert_class_default {
+            HeuristicAlertClass::Silent => {
+                if policy.promotes_alert && numeric_alert && local_corroboration {
+                    if raw_violation_recent {
+                        DsaPolicyState::Review
+                    } else {
+                        DsaPolicyState::Watch
+                    }
+                } else {
+                    DsaPolicyState::Silent
+                }
+            }
+            HeuristicAlertClass::Watch => {
+                if policy.requires_persistence && !numeric_alert {
+                    DsaPolicyState::Silent
+                } else if policy.requires_corroboration && !local_corroboration {
+                    if policy.suppresses_alert {
+                        DsaPolicyState::Silent
+                    } else {
+                        DsaPolicyState::Watch
+                    }
+                } else if policy.promotes_alert && numeric_alert && hits > policy.minimum_hits {
+                    DsaPolicyState::Review
+                } else {
+                    DsaPolicyState::Watch
+                }
+            }
+            HeuristicAlertClass::Review => {
+                if policy.requires_persistence && !numeric_alert {
+                    if policy.suppresses_alert {
+                        DsaPolicyState::Silent
+                    } else {
+                        DsaPolicyState::Watch
+                    }
+                } else {
+                    DsaPolicyState::Review
+                }
+            }
+            HeuristicAlertClass::Escalate => {
+                if numeric_alert && local_corroboration {
+                    DsaPolicyState::Escalate
+                } else if numeric_alert {
+                    DsaPolicyState::Review
+                } else {
+                    DsaPolicyState::Watch
+                }
+            }
+        }
+    };
+
+    if contribution_state == DsaPolicyState::Review
+        && policy.promotes_alert
+        && numeric_alert
+        && local_corroboration
+        && raw_violation_recent
+    {
+        contribution_state = DsaPolicyState::Escalate;
+    }
+
+    Some(MotifContributionState {
+        motif_name: policy.motif_name,
+        default_alert_class: policy.alert_class_default,
+        contribution_state,
+        fragmentation_proxy,
+        suppressed_to_silent,
+    })
+}
+
+fn dominant_alert_class(contributions: &[MotifContributionState]) -> HeuristicAlertClass {
+    contributions
+        .iter()
+        .map(|contribution| contribution.default_alert_class)
+        .max()
+        .unwrap_or(HeuristicAlertClass::Silent)
+}
+
+fn dominant_policy_state(contributions: &[MotifContributionState]) -> DsaPolicyState {
+    contributions
+        .iter()
+        .map(|contribution| contribution.contribution_state)
+        .max()
+        .unwrap_or(DsaPolicyState::Silent)
 }
 
 fn normalize_to_threshold(value: f64, threshold: f64) -> f64 {
@@ -1441,21 +1886,45 @@ fn build_run_signals(
     let mut any_feature_dsa_alert = Vec::with_capacity(run_count);
     let mut primary_run_alert = Vec::with_capacity(run_count);
     let mut feature_count_dsa_alert = Vec::with_capacity(run_count);
+    let mut watch_feature_count = Vec::with_capacity(run_count);
+    let mut review_feature_count = Vec::with_capacity(run_count);
+    let mut escalate_feature_count = Vec::with_capacity(run_count);
+    let mut strict_escalate_run_alert = Vec::with_capacity(run_count);
+    let mut numeric_primary_run_alert = Vec::with_capacity(run_count);
+    let mut numeric_feature_count_dsa_alert = Vec::with_capacity(run_count);
 
     for run_index in 0..run_count {
-        let count = traces
+        let review_count = traces
             .iter()
             .filter(|trace| trace.dsa_alert[run_index])
             .count();
-        feature_count_dsa_alert.push(count);
-        let any_dsa = count > 0;
+        let watch_count = traces
+            .iter()
+            .filter(|trace| trace.policy_state[run_index] == DsaPolicyState::Watch)
+            .count();
+        let escalate_count = traces
+            .iter()
+            .filter(|trace| trace.policy_state[run_index] == DsaPolicyState::Escalate)
+            .count();
+        let numeric_count = traces
+            .iter()
+            .filter(|trace| trace.numeric_dsa_alert[run_index])
+            .count();
+        feature_count_dsa_alert.push(review_count);
+        watch_feature_count.push(watch_count);
+        review_feature_count.push(review_count.saturating_sub(escalate_count));
+        escalate_feature_count.push(escalate_count);
+        numeric_feature_count_dsa_alert.push(numeric_count);
+        strict_escalate_run_alert.push(escalate_count >= config.corroborating_feature_count_min);
+        numeric_primary_run_alert.push(numeric_count >= config.corroborating_feature_count_min);
+        let any_dsa = review_count > 0;
         any_feature_dsa_alert.push(any_dsa);
-        primary_run_alert.push(count >= config.corroborating_feature_count_min);
+        primary_run_alert.push(review_count >= config.corroborating_feature_count_min);
     }
 
     DsaRunSignals {
         primary_run_signal: format!(
-            "feature_count_dsa_alert(k) >= {}",
+            "feature_count_review_or_escalate(k) >= {}",
             config.corroborating_feature_count_min
         ),
         corroborating_feature_count_min: config.corroborating_feature_count_min,
@@ -1463,6 +1932,12 @@ fn build_run_signals(
         any_feature_dsa_alert,
         any_feature_raw_violation: raw_violation_run_signal.to_vec(),
         feature_count_dsa_alert,
+        watch_feature_count,
+        review_feature_count,
+        escalate_feature_count,
+        strict_escalate_run_alert,
+        numeric_primary_run_alert,
+        numeric_feature_count_dsa_alert,
     }
 }
 
@@ -1771,6 +2246,37 @@ fn component_contributions(traces: &[DsaFeatureTrace]) -> Vec<DsaComponentContri
             .then_with(|| left.component.cmp(&right.component))
     });
     out
+}
+
+fn aggregate_motif_policy_contributions(
+    traces: &[DsaFeatureTrace],
+) -> Vec<DsaMotifPolicyContribution> {
+    let mut aggregated = BTreeMap::<String, DsaMotifPolicyContribution>::new();
+    for trace in traces {
+        for contribution in &trace.motif_policy_contributions {
+            let entry = aggregated
+                .entry(contribution.motif_name.clone())
+                .or_insert_with(|| DsaMotifPolicyContribution {
+                    motif_name: contribution.motif_name.clone(),
+                    alert_class_default: contribution.alert_class_default,
+                    watch_points: 0,
+                    review_points: 0,
+                    escalate_points: 0,
+                    silent_suppression_points: 0,
+                    pass_review_or_escalate_points: 0,
+                    pre_failure_review_or_escalate_points: 0,
+                });
+            entry.watch_points += contribution.watch_points;
+            entry.review_points += contribution.review_points;
+            entry.escalate_points += contribution.escalate_points;
+            entry.silent_suppression_points += contribution.silent_suppression_points;
+            entry.pass_review_or_escalate_points += contribution.pass_review_or_escalate_points;
+            entry.pre_failure_review_or_escalate_points +=
+                contribution.pre_failure_review_or_escalate_points;
+        }
+    }
+
+    aggregated.into_values().collect::<Vec<_>>()
 }
 
 fn success_condition_failures(
@@ -2225,6 +2731,13 @@ fn rate(count: usize, total: usize) -> f64 {
     }
 }
 
+fn count_present<I, T>(iter: I) -> usize
+where
+    I: Iterator<Item = Option<T>>,
+{
+    iter.filter(|value| value.is_some()).count()
+}
+
 fn mean_usize(values: &[usize]) -> Option<f64> {
     (!values.is_empty()).then_some(values.iter().sum::<usize>() as f64 / values.len() as f64)
 }
@@ -2400,5 +2913,70 @@ mod tests {
         ]);
 
         assert_eq!(summary.closest_to_success.unwrap().config_id, 0);
+    }
+
+    #[test]
+    fn policy_suppression_is_triggered_for_fragmented_recurrent_hits() {
+        let policy = heuristic_policy_definition("recurrent_boundary_approach").unwrap();
+        let flags = vec![
+            true, false, false, true, false, false, false, false, false, true,
+        ];
+        let contribution =
+            motif_contribution_state(policy, &flags, 9, true, true, true, false).unwrap();
+
+        assert_eq!(contribution.contribution_state, DsaPolicyState::Silent);
+        assert!(contribution.suppressed_to_silent);
+        assert!(contribution.fragmentation_proxy > policy.maximum_allowed_fragmentation());
+    }
+
+    #[test]
+    fn silent_motif_promotes_to_escalate_under_numeric_and_violation_corroboration() {
+        let policy = heuristic_policy_definition("transient_excursion").unwrap();
+        let flags = vec![false, false, true, true, true];
+        let contribution =
+            motif_contribution_state(policy, &flags, 4, true, true, true, true).unwrap();
+
+        assert_eq!(contribution.contribution_state, DsaPolicyState::Escalate);
+        assert!(!contribution.suppressed_to_silent);
+    }
+
+    #[test]
+    fn corroboration_counts_only_review_or_escalate_states() {
+        let run_count = 2;
+        let config = DsaConfig {
+            corroborating_feature_count_min: 2,
+            ..DsaConfig::default()
+        };
+
+        let mut review_trace = empty_trace(0, "S000", run_count);
+        review_trace.dsa_alert = vec![true, false];
+        review_trace.numeric_dsa_alert = vec![true, false];
+        review_trace.policy_state = vec![DsaPolicyState::Review, DsaPolicyState::Silent];
+
+        let mut escalate_trace = empty_trace(1, "S001", run_count);
+        escalate_trace.dsa_alert = vec![true, false];
+        escalate_trace.numeric_dsa_alert = vec![true, false];
+        escalate_trace.policy_state = vec![DsaPolicyState::Escalate, DsaPolicyState::Silent];
+
+        let mut watch_trace = empty_trace(2, "S002", run_count);
+        watch_trace.dsa_alert = vec![false, false];
+        watch_trace.numeric_dsa_alert = vec![true, true];
+        watch_trace.policy_state = vec![DsaPolicyState::Watch, DsaPolicyState::Watch];
+
+        let signals = build_run_signals(
+            &[review_trace, escalate_trace, watch_trace],
+            &[false, false],
+            &config,
+            run_count,
+        );
+
+        assert_eq!(signals.primary_run_alert, vec![true, false]);
+        assert_eq!(signals.feature_count_dsa_alert, vec![2, 0]);
+        assert_eq!(signals.watch_feature_count, vec![1, 1]);
+        assert_eq!(signals.review_feature_count, vec![1, 0]);
+        assert_eq!(signals.escalate_feature_count, vec![1, 0]);
+        assert_eq!(signals.strict_escalate_run_alert, vec![false, false]);
+        assert_eq!(signals.numeric_primary_run_alert, vec![true, false]);
+        assert_eq!(signals.numeric_feature_count_dsa_alert, vec![3, 1]);
     }
 }
