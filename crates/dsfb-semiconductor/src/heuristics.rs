@@ -264,6 +264,7 @@ mod tests {
                     healthy_pass_runs_found: 3,
                 },
                 analyzable_feature_count: 3,
+                grammar_imputation_suppression_points: 0,
                 threshold_alarm_points: 0,
                 ewma_alarm_points: 0,
                 cusum_alarm_points: 0,

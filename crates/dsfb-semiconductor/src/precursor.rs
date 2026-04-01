@@ -610,6 +610,13 @@ pub fn evaluate_dsa(
         let drift_prefix = bool_prefix_sum(&drift_outward_hit);
         let slew_prefix = bool_prefix_sum(&slew_hit);
         let motif_prefix = bool_prefix_sum(&motif_hit);
+        let non_imputed_prefix = bool_prefix_sum(
+            &residual_trace
+                .is_imputed
+                .iter()
+                .map(|is_imputed| !*is_imputed)
+                .collect::<Vec<_>>(),
+        );
 
         let mut boundary_density_w = Vec::with_capacity(run_count);
         let mut drift_persistence_w = Vec::with_capacity(run_count);
@@ -623,8 +630,10 @@ pub fn evaluate_dsa(
         for run_index in 0..run_count {
             let start = run_index.saturating_sub(config.window.saturating_sub(1));
             let window_len = (run_index - start + 1) as f64;
-            let boundary_density = window_fraction(&boundary_prefix, start, run_index, window_len);
-            let drift_persistence = window_fraction(&drift_prefix, start, run_index, window_len);
+            let boundary_density =
+                window_fraction_nonimputed(&boundary_prefix, &non_imputed_prefix, start, run_index);
+            let drift_persistence =
+                window_fraction_nonimputed(&drift_prefix, &non_imputed_prefix, start, run_index);
             let slew_density = window_fraction(&slew_prefix, start, run_index, window_len);
             let ewma_occupancy = window_mean(&ewma_normalized, start, run_index);
             let motif_recurrence = window_fraction(&motif_prefix, start, run_index, window_len);
@@ -1830,6 +1839,20 @@ fn window_count(prefix: &[usize], start: usize, end: usize) -> usize {
 
 fn window_fraction(prefix: &[usize], start: usize, end: usize, window_len: f64) -> f64 {
     window_count(prefix, start, end) as f64 / window_len
+}
+
+fn window_fraction_nonimputed(
+    hit_prefix: &[usize],
+    non_imputed_prefix: &[usize],
+    start: usize,
+    end: usize,
+) -> f64 {
+    let total_non_imputed = window_count(non_imputed_prefix, start, end);
+    if total_non_imputed == 0 {
+        0.0
+    } else {
+        window_count(hit_prefix, start, end) as f64 / total_non_imputed as f64
+    }
 }
 
 fn window_mean(values: &[f64], start: usize, end: usize) -> f64 {

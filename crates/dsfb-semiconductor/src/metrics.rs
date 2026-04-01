@@ -40,6 +40,7 @@ pub struct FeatureMetrics {
 pub struct BenchmarkSummary {
     pub dataset_summary: DatasetSummary,
     pub analyzable_feature_count: usize,
+    pub grammar_imputation_suppression_points: usize,
     pub threshold_alarm_points: usize,
     pub ewma_alarm_points: usize,
     pub cusum_alarm_points: usize,
@@ -261,6 +262,7 @@ pub fn compute_metrics(
     let mut dsfb_persistent_boundary_points = 0usize;
     let mut dsfb_raw_violation_points = 0usize;
     let mut dsfb_persistent_violation_points = 0usize;
+    let mut grammar_imputation_suppression_points = 0usize;
 
     for (((((feature, residual_trace), sign_trace), ewma_trace), cusum_trace), grammar_trace) in
         nominal
@@ -307,6 +309,11 @@ pub fn compute_metrics(
         dsfb_persistent_boundary_points += persistent_boundary_points;
         dsfb_raw_violation_points += raw_violation_points;
         dsfb_persistent_violation_points += persistent_violation_points;
+        grammar_imputation_suppression_points += grammar_trace
+            .suppressed_by_imputation
+            .iter()
+            .filter(|flag| **flag)
+            .count();
 
         feature_metrics.push(FeatureMetrics {
             feature_index: feature.feature_index,
@@ -499,6 +506,7 @@ pub fn compute_metrics(
                 .iter()
                 .filter(|feature| feature.analyzable)
                 .count(),
+            grammar_imputation_suppression_points,
             threshold_alarm_points,
             ewma_alarm_points,
             cusum_alarm_points,

@@ -24,6 +24,7 @@ pub enum GrammarReason {
 pub struct FeatureGrammarTrace {
     pub feature_index: usize,
     pub feature_name: String,
+    pub suppressed_by_imputation: Vec<bool>,
     pub raw_states: Vec<GrammarState>,
     pub raw_reasons: Vec<GrammarReason>,
     pub states: Vec<GrammarState>,
@@ -47,7 +48,7 @@ pub fn evaluate_grammar(
 
     for (residual_trace, sign_trace) in residuals.traces.iter().zip(&signs.traces) {
         let feature = &nominal.features[residual_trace.feature_index];
-        let (raw_states, raw_reasons) =
+        let (raw_states, raw_reasons, suppressed_by_imputation) =
             evaluate_raw_trace(residual_trace, sign_trace, feature, config);
         let (states, reasons) =
             apply_hysteresis(&raw_states, &raw_reasons, config.state_confirmation_steps);
@@ -65,6 +66,7 @@ pub fn evaluate_grammar(
         traces.push(FeatureGrammarTrace {
             feature_index: residual_trace.feature_index,
             feature_name: residual_trace.feature_name.clone(),
+            suppressed_by_imputation,
             raw_states,
             raw_reasons,
             states,
@@ -82,9 +84,10 @@ fn evaluate_raw_trace(
     sign_trace: &crate::signs::FeatureSigns,
     feature: &crate::nominal::NominalFeature,
     config: &PipelineConfig,
-) -> (Vec<GrammarState>, Vec<GrammarReason>) {
+) -> (Vec<GrammarState>, Vec<GrammarReason>, Vec<bool>) {
     let mut states = Vec::with_capacity(residual_trace.norms.len());
     let mut reasons = Vec::with_capacity(residual_trace.norms.len());
+    let mut suppressed_by_imputation = Vec::with_capacity(residual_trace.norms.len());
 
     for index in 0..residual_trace.norms.len() {
         let zone_start = index.saturating_sub(config.grazing_window.saturating_sub(1));
@@ -96,8 +99,9 @@ fn evaluate_raw_trace(
         let norm = residual_trace.norms[index];
         let drift = sign_trace.drift[index];
         let slew = sign_trace.slew[index].abs();
+        let state_suppressed_by_imputation = feature.analyzable && residual_trace.is_imputed[index];
 
-        let (state, reason) = if !feature.analyzable {
+        let (state, reason) = if !feature.analyzable || state_suppressed_by_imputation {
             (GrammarState::Admissible, GrammarReason::Admissible)
         } else if norm > feature.rho {
             (GrammarState::Violation, GrammarReason::EnvelopeViolation)
@@ -123,9 +127,10 @@ fn evaluate_raw_trace(
 
         states.push(state);
         reasons.push(reason);
+        suppressed_by_imputation.push(state_suppressed_by_imputation);
     }
 
-    (states, reasons)
+    (states, reasons, suppressed_by_imputation)
 }
 
 fn apply_hysteresis(
@@ -230,6 +235,7 @@ mod tests {
                 residuals: vec![0.0, 2.0],
                 norms: vec![0.0, 2.0],
                 threshold_alarm: vec![false, true],
+                is_imputed: vec![false, false],
             }],
         };
         let signs = SignSet {
@@ -302,5 +308,46 @@ mod tests {
         ];
         let mask = persistent_mask(&states, GrammarState::Boundary, 2);
         assert_eq!(mask, vec![false, false, true, true, false]);
+    }
+
+    #[test]
+    fn imputed_runs_are_suppressed_to_admissible() {
+        let residuals = ResidualSet {
+            traces: vec![ResidualFeatureTrace {
+                feature_index: 0,
+                feature_name: "S001".into(),
+                imputed_values: vec![0.0, 1.2],
+                residuals: vec![0.0, 1.2],
+                norms: vec![0.0, 1.2],
+                threshold_alarm: vec![false, false],
+                is_imputed: vec![false, true],
+            }],
+        };
+        let signs = SignSet {
+            traces: vec![FeatureSigns {
+                feature_index: 0,
+                feature_name: "S001".into(),
+                drift: vec![0.0, 1.0],
+                slew: vec![0.0, 1.0],
+                drift_threshold: 0.1,
+                slew_threshold: 0.1,
+            }],
+        };
+        let nominal = NominalModel {
+            features: vec![NominalFeature {
+                feature_index: 0,
+                feature_name: "S001".into(),
+                healthy_mean: 0.0,
+                healthy_std: 0.5,
+                rho: 1.5,
+                healthy_observations: 10,
+                analyzable: true,
+            }],
+        };
+
+        let grammar = evaluate_grammar(&residuals, &signs, &nominal, &test_config());
+        assert_eq!(grammar.traces[0].raw_states[1], GrammarState::Admissible);
+        assert_eq!(grammar.traces[0].raw_reasons[1], GrammarReason::Admissible);
+        assert!(grammar.traces[0].suppressed_by_imputation[1]);
     }
 }
