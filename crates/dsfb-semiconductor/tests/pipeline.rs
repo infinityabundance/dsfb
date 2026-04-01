@@ -122,7 +122,11 @@ fn pipeline_outputs_are_deterministic_for_fixed_input() {
     assert!(first.report.tex_path.exists());
     assert!(first.zip_path.exists());
     if pdflatex_available() {
-        assert!(first.report.pdf_path.as_ref().is_some_and(|path| path.exists()));
+        assert!(first
+            .report
+            .pdf_path
+            .as_ref()
+            .is_some_and(|path| path.exists()));
     }
 }
 
@@ -174,6 +178,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_grid_results.csv",
         "dsa_grid_summary.json",
         "dsa_parameter_manifest.json",
+        "dsa_seed_feature_check.json",
         "drsc_dsa_combined.csv",
         "drsc_top_feature.csv",
         "dsa_top_feature.csv",
@@ -270,13 +275,16 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("figures/drsc_dsa_combined.png").is_ok());
     assert!(zip.by_name("figures/dsa_top_feature.png").is_ok());
     assert!(zip.by_name("figures/grammar_timeline.png").is_ok());
-    assert!(zip.by_name("figures/top_feature_residual_norms.png").is_ok());
+    assert!(zip
+        .by_name("figures/top_feature_residual_norms.png")
+        .is_ok());
     assert!(zip.by_name("figures/top_feature_drift.png").is_ok());
     assert!(zip.by_name("figures/top_feature_ewma.png").is_ok());
     assert!(zip.by_name("figures/top_feature_slew.png").is_ok());
     assert!(zip.by_name("dsa_metrics.csv").is_ok());
     assert!(zip.by_name("dsa_grid_results.csv").is_ok());
     assert!(zip.by_name("dsa_grid_summary.json").is_ok());
+    assert!(zip.by_name("dsa_seed_feature_check.json").is_ok());
     assert!(zip.by_name("dsa_run_signals.csv").is_ok());
     assert!(zip.by_name("dsa_top_feature.csv").is_ok());
     assert!(zip.by_name("cusum_baseline.csv").is_ok());
@@ -292,6 +300,8 @@ fn benchmark_run_writes_expected_core_artifacts() {
         serde_json::from_str(&fs::read_to_string(artifacts.manifest_path).unwrap()).unwrap();
     assert!(report.contains("## Artifact Inventory"));
     assert!(report.contains("## Deterministic Structural Accumulator (DSA)"));
+    assert!(report.contains("## Feature-Cohort DSA Selection"));
+    assert!(report.contains("## Rating Delta Forecast"));
     assert!(report.contains(
         "## Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA)"
     ));
@@ -477,11 +487,20 @@ fn dsa_outputs_are_finite_and_reproducible() {
         .contains("feature_count_dsa_alert"));
 
     for trace in &first.traces {
-        assert!(trace.boundary_density_w.iter().all(|value| value.is_finite()));
-        assert!(trace.drift_persistence_w.iter().all(|value| value.is_finite()));
+        assert!(trace
+            .boundary_density_w
+            .iter()
+            .all(|value| value.is_finite()));
+        assert!(trace
+            .drift_persistence_w
+            .iter()
+            .all(|value| value.is_finite()));
         assert!(trace.slew_density_w.iter().all(|value| value.is_finite()));
         assert!(trace.ewma_occupancy_w.iter().all(|value| value.is_finite()));
-        assert!(trace.motif_recurrence_w.iter().all(|value| value.is_finite()));
+        assert!(trace
+            .motif_recurrence_w
+            .iter()
+            .all(|value| value.is_finite()));
         assert!(trace.dsa_score.iter().all(|value| value.is_finite()));
     }
 }

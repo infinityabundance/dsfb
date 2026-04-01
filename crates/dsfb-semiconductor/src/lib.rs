@@ -1,6 +1,7 @@
 pub mod baselines;
 pub mod calibration;
 pub mod cli;
+pub mod cohort;
 pub mod config;
 pub mod dataset;
 pub mod error;

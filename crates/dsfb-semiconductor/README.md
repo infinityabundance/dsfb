@@ -43,6 +43,7 @@ This crate implements the paper's core operator-facing objects with explicit sav
 - pass-run nuisance proxies derived from SECOM pass labels
 - a deterministic SECOM calibration workflow over explicit parameter grids
 - a bounded DSA calibration workflow over `W`, `K`, `tau`, and corroboration count `m`
+- a deterministic feature-ranking step plus explicit DSA cohorts over `top_4`, `top_8`, `top_16`, and `all_features`
 - a deterministic residual stateflow chart (DRSC) that synchronizes residual/drift/slew structure, confirmation-filtered grammar state, a DSA overlay band, and the run-level comparator overlay for one emitted feature trace without redefining DSFB state semantics
 - a publication-oriented DRSC+DSA figure that keeps the same selected feature but simplifies the view into four aligned grayscale panels: normalized residual / drift / slew, persistent deterministic DSFB state, DSA activation, and run-level threshold / EWMA trigger timing
 - a separate DSA structural-focus figure that exposes rolling DSA inputs, DSA score, persistence gating, and feature-level comparator bands for that same emitted feature trace
@@ -241,6 +242,15 @@ heuristics_bank.json
 lead_time_metrics.csv
 parameter_manifest.json
 dsa_parameter_manifest.json
+dsa_feature_ranking.csv
+dsa_seed_feature_check.json
+dsa_feature_cohorts.json
+dsa_cohort_results.csv
+dsa_cohort_summary.json
+dsa_cohort_precursor_quality.csv
+dsa_cohort_failure_analysis.md   # emitted when no cohort satisfies the primary success condition
+dsa_rating_delta_forecast.json
+dsa_rating_delta_failure_analysis.md  # emitted when the rating-delta primary success condition is not met
 dsa_grid_results.csv
 dsa_grid_summary.json
 per_failure_run_signals.csv
@@ -256,6 +266,19 @@ run_configuration.json
 secom_archive_layout.json
 slews.csv
 ```
+
+## Current feature-cohort DSA result
+
+The latest crate-local cohort run at `crates/dsfb-semiconductor/output-dsfb-semiconductor/20260401_032631_574_dsfb-semiconductor_secom/` keeps the empirical claim narrow.
+
+- Ranking formula: `candidate_score = z(dsfb_raw_boundary_points) - z(dsfb_raw_violation_points) + z(ewma_alarm_points) - I(missing_fraction > 0.50) * 2.0`
+- Seed-feature check: `S059` ranked 1 and `S044` ranked 6; `S061`, `S222`, `S354`, and `S173` ranked 19, 31, 49, and 88 respectively, so they were outside `top_16`
+- Full bounded cohort grid evaluated: `405` saved rows across `top_4`, `top_8`, `top_16`, and `all_features` with `W in {5,10,15}`, `K in {2,3,4}`, `tau in {2.0,2.5,3.0}`, and `m in {1,2,3,5}` where valid
+- No cohort/grid row satisfied the one-run primary success condition
+- The best ranked cohort was `top_16 (W=5, K=2, tau=2.0, m=1)` with recall `99/104`, pass-run nuisance `0.8982`, mean lead `18.94` runs, precursor quality `0.9545`, and compression ratio `164.36`
+- The overall selected configuration remained `all_features (W=5, K=2, tau=2.0, m=2)` with recall `102/104`, pass-run nuisance `0.9392` versus EWMA `0.9863`, mean lead `19.1961` runs versus threshold `19.5577` and EWMA `19.5769`, precursor quality `1.0000`, and compression ratio `1585.7222`
+- Under the stricter one-run recall tolerance used by the cohort and rating-delta addenda, the selected row still misses the recall floor (`103/104`) by one failure run, so no cohort-superiority claim is warranted
+- The saved forecast in `dsa_rating_delta_forecast.json` therefore stays bounded at `8.3` rather than the `8.8` primary-success forecast
 
 The current figure set includes:
 
@@ -335,10 +358,10 @@ The crate establishes deterministic structural artifact generation on real semic
 - `DSFB Violation` and feature-level `DSA` are intentionally different signals: violation is a hard envelope exit, while feature-level DSA is a persistence-constrained structural accumulator.
 - The primary run-level DSA comparison signal is fixed cross-feature corroboration: `feature_count_dsa_alert(k) >= m`.
 - The authoritative comparison artifact for the DSA layer is `dsa_vs_baselines.json`.
-- The fixed primary-success condition saved in `dsa_parameter_manifest.json` is: DSA pass-run nuisance below EWMA nuisance and DSA failure recall within `2` runs of threshold recall. The stricter validation gate remains exact threshold-recall preservation together with lower nuisance than raw DSFB boundary nuisance.
-- The current default SECOM run under `output-dsfb-semiconductor/20260401_001640_508_dsfb-semiconductor_secom/` uses `W=5`, `K=2`, `tau=2.0`, `m=2` and reports DSA recall `102/104`, mean lead `19.1961`, pass-run nuisance `0.9392`, mean lead deltas `-0.6275` vs threshold, `-0.6471` vs EWMA, `-0.6569` vs CUSUM, `+2.7976` vs run energy, and `+0.0784` vs PCA T2/SPE, with `18` DSA episodes, precursor quality `1.0000`, and compression ratio `1585.7222`.
-- On that saved run, nuisance improves versus raw DSFB boundary, threshold, EWMA, DSFB Violation, and CUSUM; compression improves strongly; the primary-success condition is met under the fixed 2-run recall tolerance; the stricter exact-threshold-recall validation gate still fails because recall is `102/104` rather than `104/104`; mean lead does not improve versus threshold or EWMA. No superiority claim is made.
-- The current bounded DSA grid under `output-dsfb-semiconductor/20260401_001615_819_dsfb-semiconductor_secom_dsa_calibration/` contains `81` saved rows over `W`, `K`, `tau`, and `m`. It has `1` row meeting the fixed primary-success condition and `0` rows passing the stricter exact-recall validation gate. The closest-to-primary-success row is the default `W=5`, `K=2`, `tau=2.0`, `m=2` setting. The saved grid summary also reports that higher corroboration `m>2` reduces nuisance but degrades recall relative to `m=2`.
+- The fixed primary-success condition saved in `dsa_parameter_manifest.json` is: DSA pass-run nuisance below EWMA nuisance and DSA failure recall within `1` run of threshold recall.
+- The current selected SECOM row under `output-dsfb-semiconductor/20260401_032631_574_dsfb-semiconductor_secom/` is `all_features (W=5, K=2, tau=2.0, m=2)` and reports DSA recall `102/104`, mean lead `19.1961`, pass-run nuisance `0.9392`, mean lead deltas `-0.6275` vs threshold, `-0.6471` vs EWMA, `-0.6569` vs CUSUM, `+2.7976` vs run energy, and `+0.0784` vs PCA T2/SPE, with `18` DSA episodes, precursor quality `1.0000`, and compression ratio `1585.7222`.
+- On that saved run, nuisance improves versus raw DSFB boundary, threshold, EWMA, DSFB Violation, and CUSUM, and compression improves strongly, but the one-run primary-success condition still fails because recall is `102/104` rather than the `103/104` floor. Mean lead still does not improve versus threshold or EWMA. No superiority claim is made.
+- The current bounded cohort DSA grid under `output-dsfb-semiconductor/20260401_032631_574_dsfb-semiconductor_secom/` contains `405` saved rows over cohort, `W`, `K`, `tau`, and `m`. It has `0` rows meeting the one-run primary-success condition. The closest row is the selected `all_features (W=5, K=2, tau=2.0, m=2)` setting, while the best ranked cohort is `top_16 (W=5, K=2, tau=2.0, m=1)` with lower nuisance but materially worse recall.
 - The lead-time, density, and nuisance values remain proxy metrics on SECOM labels, not fab-qualified false-alarm or economic metrics.
 - The DRSC and DSA figures are deterministic and replayable from saved traces, but they are operator-facing visualizations of current rule-based state evolution, not probabilistic explanation layers.
 

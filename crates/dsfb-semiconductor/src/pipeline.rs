@@ -1,4 +1,10 @@
 use crate::baselines::compute_baselines;
+use crate::cohort::{
+    build_feature_cohorts, build_seed_feature_check, compute_feature_ranking,
+    compute_rating_delta_forecast, compute_rating_failure_analysis, run_cohort_dsa_grid,
+    write_cohort_results_csv, write_failure_analysis_md as write_cohort_failure_analysis_md,
+    write_feature_ranking_csv, write_precursor_quality_csv,
+};
 use crate::config::{PipelineConfig, RunConfiguration};
 use crate::dataset::phm2018::{support_status as phm_support_status, Phm2018SupportStatus};
 use crate::dataset::secom::{self, SecomArchiveLayout};
@@ -13,9 +19,7 @@ use crate::nominal::build_nominal_model;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
 use crate::plots::{generate_figures, FigureManifest};
 use crate::precursor::{
-    evaluate_dsa, run_dsa_calibration_grid, summarize_dsa_grid, DsaCalibrationGrid,
-    DsaCalibrationRow, DsaEvaluation, DsaRunSignals, DsaVsBaselinesSummary,
-    PerFailureRunDsaSignal,
+    DsaEvaluation, DsaRunSignals, DsaVsBaselinesSummary, PerFailureRunDsaSignal,
 };
 use crate::preprocessing::prepare_secom;
 use crate::report::{write_reports, ReportArtifacts};
@@ -48,6 +52,15 @@ struct ArtifactManifest {
     dsa_parameter_manifest_path: String,
     dsa_grid_results_path: String,
     dsa_grid_summary_path: String,
+    dsa_feature_ranking_path: String,
+    dsa_seed_feature_check_path: String,
+    dsa_feature_cohorts_path: String,
+    dsa_cohort_results_path: String,
+    dsa_cohort_summary_path: String,
+    dsa_cohort_precursor_quality_path: String,
+    dsa_cohort_failure_analysis_path: Option<String>,
+    dsa_rating_delta_forecast_path: String,
+    dsa_rating_delta_failure_analysis_path: Option<String>,
     lead_time_metrics_path: String,
     density_metrics_path: String,
     cusum_baseline_path: String,
@@ -150,37 +163,30 @@ pub fn run_secom_benchmark(
     let baselines = compute_baselines(&prepared, &nominal, &residuals, &config);
     let grammar = evaluate_grammar(&residuals, &signs, &nominal, &config);
     let mut metrics = compute_metrics(
-        &prepared,
-        &nominal,
-        &residuals,
-        &signs,
-        &baselines,
-        &grammar,
-        &config,
+        &prepared, &nominal, &residuals, &signs, &baselines, &grammar, &config,
     );
-    let dsa = evaluate_dsa(
+    let feature_ranking = compute_feature_ranking(&metrics);
+    let feature_cohorts = build_feature_cohorts(&feature_ranking);
+    let seed_feature_check = build_seed_feature_check(&feature_cohorts);
+    let cohort_execution = run_cohort_dsa_grid(
         &prepared,
         &nominal,
         &residuals,
         &signs,
         &baselines,
         &grammar,
-        &config.dsa,
+        &feature_cohorts,
         config.pre_failure_lookback_runs,
+        &metrics,
     )?;
-    let dsa_grid = DsaCalibrationGrid::bounded_default();
-    let dsa_grid_rows = run_dsa_calibration_grid(
-        &prepared,
-        &nominal,
-        &residuals,
-        &signs,
-        &baselines,
-        &grammar,
-        &dsa_grid,
-        config.pre_failure_lookback_runs,
-    )?;
-    let dsa_grid_summary = summarize_dsa_grid(&dsa_grid_rows);
+    let dsa = cohort_execution.selected_evaluation;
+    let dsa_grid_summary = cohort_execution.grid_summary;
+    let cohort_summary = cohort_execution.summary;
     metrics.dsa_summary = Some(dsa.summary.clone());
+    let rating_delta_forecast =
+        compute_rating_delta_forecast(&dsa, &metrics, Some(&cohort_summary));
+    let rating_delta_failure_analysis =
+        compute_rating_failure_analysis(&dsa, &metrics, Some(&cohort_summary));
     let heuristics = build_heuristics_bank(&metrics, "SECOM");
 
     let output_root = output_root
@@ -213,12 +219,7 @@ pub fn run_secom_benchmark(
     write_json_pretty(&run_dir.join("heuristics_bank.json"), &heuristics)?;
     write_json_pretty(
         &run_dir.join("baseline_comparison_summary.json"),
-        &build_baseline_comparison_summary(
-            &metrics,
-            &dsa,
-            &secom_archive_layout,
-            &config,
-        ),
+        &build_baseline_comparison_summary(&metrics, &dsa, &secom_archive_layout, &config),
     )?;
     write_json_pretty(
         &run_dir.join("dsa_vs_baselines.json"),
@@ -228,22 +229,49 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsa_parameter_manifest.json"),
         &dsa.parameter_manifest,
     )?;
+    write_json_pretty(&run_dir.join("dsa_grid_summary.json"), &dsa_grid_summary)?;
+    write_feature_ranking_csv(&run_dir.join("dsa_feature_ranking.csv"), &feature_ranking)?;
     write_json_pretty(
-        &run_dir.join("dsa_grid_summary.json"),
-        &dsa_grid_summary,
+        &run_dir.join("dsa_seed_feature_check.json"),
+        &seed_feature_check,
     )?;
+    write_json_pretty(&run_dir.join("dsa_feature_cohorts.json"), &feature_cohorts)?;
+    write_cohort_results_csv(
+        &run_dir.join("dsa_cohort_results.csv"),
+        &cohort_summary.cohort_results,
+    )?;
+    write_cohort_results_csv(
+        &run_dir.join("dsa_grid_results.csv"),
+        &cohort_summary.cohort_results,
+    )?;
+    write_json_pretty(&run_dir.join("dsa_cohort_summary.json"), &cohort_summary)?;
+    write_precursor_quality_csv(
+        &run_dir.join("dsa_cohort_precursor_quality.csv"),
+        &cohort_summary.cohort_results,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsa_rating_delta_forecast.json"),
+        &rating_delta_forecast,
+    )?;
+    if let Some(analysis) = &cohort_summary.failure_analysis {
+        write_cohort_failure_analysis_md(
+            &run_dir.join("dsa_cohort_failure_analysis.md"),
+            analysis,
+        )?;
+    }
+    if let Some(analysis) = &rating_delta_failure_analysis {
+        crate::cohort::write_rating_failure_analysis_md(
+            &run_dir.join("dsa_rating_delta_failure_analysis.md"),
+            analysis,
+        )?;
+    }
 
     write_feature_metrics_csv(&run_dir.join("feature_metrics.csv"), &metrics)?;
     write_per_failure_run_signals_csv(
         &run_dir.join("per_failure_run_signals.csv"),
         &metrics.per_failure_run_signals,
     )?;
-    write_dsa_metrics_csv(
-        &run_dir.join("dsa_metrics.csv"),
-        &prepared,
-        &nominal,
-        &dsa,
-    )?;
+    write_dsa_metrics_csv(&run_dir.join("dsa_metrics.csv"), &prepared, &nominal, &dsa)?;
     write_dsa_run_signals_csv(
         &run_dir.join("dsa_run_signals.csv"),
         &prepared,
@@ -253,7 +281,6 @@ pub fn run_secom_benchmark(
         &run_dir.join("per_failure_run_dsa_signals.csv"),
         &dsa.per_failure_run_signals,
     )?;
-    write_dsa_grid_results_csv(&run_dir.join("dsa_grid_results.csv"), &dsa_grid_rows)?;
     write_lead_time_metrics_csv(
         &run_dir.join("lead_time_metrics.csv"),
         &metrics.per_failure_run_signals,
@@ -266,15 +293,7 @@ pub fn run_secom_benchmark(
         &run_dir, &prepared, &residuals, &signs, &baselines, &grammar,
     )?;
     let figures = generate_figures(
-        &run_dir,
-        &prepared,
-        &nominal,
-        &residuals,
-        &signs,
-        &baselines,
-        &grammar,
-        &metrics,
-        &dsa,
+        &run_dir, &prepared, &nominal, &residuals, &signs, &baselines, &grammar, &metrics, &dsa,
         &config,
     )?;
     let report = write_reports(
@@ -282,7 +301,9 @@ pub fn run_secom_benchmark(
         &config,
         &metrics,
         &dsa,
-        &dsa_grid_summary,
+        &feature_cohorts,
+        &cohort_summary,
+        &rating_delta_forecast,
         &figures,
         &heuristics,
         &phm_support_status(data_root),
@@ -313,6 +334,45 @@ pub fn run_secom_benchmark(
                 .to_string(),
             dsa_grid_results_path: run_dir.join("dsa_grid_results.csv").display().to_string(),
             dsa_grid_summary_path: run_dir.join("dsa_grid_summary.json").display().to_string(),
+            dsa_feature_ranking_path: run_dir
+                .join("dsa_feature_ranking.csv")
+                .display()
+                .to_string(),
+            dsa_seed_feature_check_path: run_dir
+                .join("dsa_seed_feature_check.json")
+                .display()
+                .to_string(),
+            dsa_feature_cohorts_path: run_dir
+                .join("dsa_feature_cohorts.json")
+                .display()
+                .to_string(),
+            dsa_cohort_results_path: run_dir.join("dsa_cohort_results.csv").display().to_string(),
+            dsa_cohort_summary_path: run_dir
+                .join("dsa_cohort_summary.json")
+                .display()
+                .to_string(),
+            dsa_cohort_precursor_quality_path: run_dir
+                .join("dsa_cohort_precursor_quality.csv")
+                .display()
+                .to_string(),
+            dsa_cohort_failure_analysis_path: cohort_summary.failure_analysis.as_ref().map(|_| {
+                run_dir
+                    .join("dsa_cohort_failure_analysis.md")
+                    .display()
+                    .to_string()
+            }),
+            dsa_rating_delta_forecast_path: run_dir
+                .join("dsa_rating_delta_forecast.json")
+                .display()
+                .to_string(),
+            dsa_rating_delta_failure_analysis_path: rating_delta_failure_analysis.as_ref().map(
+                |_| {
+                    run_dir
+                        .join("dsa_rating_delta_failure_analysis.md")
+                        .display()
+                        .to_string()
+                },
+            ),
             lead_time_metrics_path: run_dir.join("lead_time_metrics.csv").display().to_string(),
             density_metrics_path: run_dir.join("density_metrics.csv").display().to_string(),
             cusum_baseline_path: run_dir.join("cusum_baseline.csv").display().to_string(),
@@ -320,19 +380,13 @@ pub fn run_secom_benchmark(
                 .join("run_energy_baseline.csv")
                 .display()
                 .to_string(),
-            pca_fdc_baseline_path: run_dir
-                .join("pca_fdc_baseline.csv")
-                .display()
-                .to_string(),
+            pca_fdc_baseline_path: run_dir.join("pca_fdc_baseline.csv").display().to_string(),
             per_failure_run_signals_path: run_dir
                 .join("per_failure_run_signals.csv")
                 .display()
                 .to_string(),
             dsa_metrics_path: run_dir.join("dsa_metrics.csv").display().to_string(),
-            dsa_run_signals_path: run_dir
-                .join("dsa_run_signals.csv")
-                .display()
-                .to_string(),
+            dsa_run_signals_path: run_dir.join("dsa_run_signals.csv").display().to_string(),
             per_failure_run_dsa_signals_path: run_dir
                 .join("per_failure_run_dsa_signals.csv")
                 .display()
@@ -352,19 +406,17 @@ pub fn run_secom_benchmark(
                     .display()
                     .to_string()
             }),
-            drsc_dsa_combined_trace_path: figures.drsc_dsa_combined.as_ref().map(|combined| {
-                run_dir.join(&combined.trace_csv).display().to_string()
-            }),
-            drsc_dsa_combined_figure_path: figures
+            drsc_dsa_combined_trace_path: figures
                 .drsc_dsa_combined
                 .as_ref()
-                .map(|combined| {
-                    run_dir
-                        .join("figures")
-                        .join(&combined.figure_file)
-                        .display()
-                        .to_string()
-                }),
+                .map(|combined| run_dir.join(&combined.trace_csv).display().to_string()),
+            drsc_dsa_combined_figure_path: figures.drsc_dsa_combined.as_ref().map(|combined| {
+                run_dir
+                    .join("figures")
+                    .join(&combined.figure_file)
+                    .display()
+                    .to_string()
+            }),
             dsa_focus_trace_path: figures
                 .dsa_focus
                 .as_ref()
@@ -431,7 +483,9 @@ fn build_baseline_comparison_summary(
             dsfb_dsa_signal: dsa.summary.failure_run_recall,
             ewma_signal: metrics.summary.failure_runs_with_preceding_ewma_signal,
             cusum_signal: metrics.summary.failure_runs_with_preceding_cusum_signal,
-            run_energy_signal: metrics.summary.failure_runs_with_preceding_run_energy_signal,
+            run_energy_signal: metrics
+                .summary
+                .failure_runs_with_preceding_run_energy_signal,
             pca_fdc_signal: metrics.summary.failure_runs_with_preceding_pca_fdc_signal,
             threshold_signal: metrics.summary.failure_runs_with_preceding_threshold_signal,
         },
@@ -440,7 +494,9 @@ fn build_baseline_comparison_summary(
             dsfb_persistent_boundary_signal_runs: metrics
                 .summary
                 .pass_runs_with_dsfb_persistent_boundary_signal,
-            dsfb_raw_violation_signal_runs: metrics.summary.pass_runs_with_dsfb_raw_violation_signal,
+            dsfb_raw_violation_signal_runs: metrics
+                .summary
+                .pass_runs_with_dsfb_raw_violation_signal,
             dsfb_persistent_violation_signal_runs: metrics
                 .summary
                 .pass_runs_with_dsfb_persistent_violation_signal,
@@ -607,15 +663,6 @@ fn write_per_failure_run_dsa_signals_csv(
     let mut writer = csv::Writer::from_path(path)?;
     for record in records {
         writer.serialize(record)?;
-    }
-    writer.flush()?;
-    Ok(())
-}
-
-fn write_dsa_grid_results_csv(path: &Path, rows: &[DsaCalibrationRow]) -> Result<()> {
-    let mut writer = csv::Writer::from_path(path)?;
-    for row in rows {
-        writer.serialize(row)?;
     }
     writer.flush()?;
     Ok(())

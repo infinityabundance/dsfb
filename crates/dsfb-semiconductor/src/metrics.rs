@@ -13,6 +13,7 @@ use std::collections::BTreeSet;
 pub struct FeatureMetrics {
     pub feature_index: usize,
     pub feature_name: String,
+    pub analyzable: bool,
     pub healthy_mean: f64,
     pub healthy_std: f64,
     pub rho: f64,
@@ -249,21 +250,27 @@ pub fn compute_metrics(
     let mut threshold_alarm_points = 0usize;
     let mut ewma_alarm_points = 0usize;
     let mut cusum_alarm_points = 0usize;
-    let run_energy_alarm_points = baselines.run_energy.alarm.iter().filter(|flag| **flag).count();
+    let run_energy_alarm_points = baselines
+        .run_energy
+        .alarm
+        .iter()
+        .filter(|flag| **flag)
+        .count();
     let pca_fdc_alarm_points = baselines.pca_fdc.alarm.iter().filter(|flag| **flag).count();
     let mut dsfb_raw_boundary_points = 0usize;
     let mut dsfb_persistent_boundary_points = 0usize;
     let mut dsfb_raw_violation_points = 0usize;
     let mut dsfb_persistent_violation_points = 0usize;
 
-    for (((((feature, residual_trace), sign_trace), ewma_trace), cusum_trace), grammar_trace) in nominal
-        .features
-        .iter()
-        .zip(&residuals.traces)
-        .zip(&signs.traces)
-        .zip(&baselines.ewma)
-        .zip(&baselines.cusum)
-        .zip(&grammar.traces)
+    for (((((feature, residual_trace), sign_trace), ewma_trace), cusum_trace), grammar_trace) in
+        nominal
+            .features
+            .iter()
+            .zip(&residuals.traces)
+            .zip(&signs.traces)
+            .zip(&baselines.ewma)
+            .zip(&baselines.cusum)
+            .zip(&grammar.traces)
     {
         let threshold_points = residual_trace
             .threshold_alarm
@@ -304,6 +311,7 @@ pub fn compute_metrics(
         feature_metrics.push(FeatureMetrics {
             feature_index: feature.feature_index,
             feature_name: feature.feature_name.clone(),
+            analyzable: feature.analyzable,
             healthy_mean: feature.healthy_mean,
             healthy_std: feature.healthy_std,
             rho: feature.rho,
@@ -340,8 +348,11 @@ pub fn compute_metrics(
         .filter_map(|(index, label)| (*label == -1).then_some(index))
         .collect::<Vec<_>>();
 
-    let failure_window_mask =
-        failure_window_mask(dataset.labels.len(), &failure_indices, config.pre_failure_lookback_runs);
+    let failure_window_mask = failure_window_mask(
+        dataset.labels.len(),
+        &failure_indices,
+        config.pre_failure_lookback_runs,
+    );
     let motif_metrics = compute_motif_metrics(grammar, &failure_window_mask);
     let boundary_episode_summary = compute_boundary_episode_summary(grammar);
     let per_failure_run_signals = compute_per_failure_run_signals(
@@ -416,13 +427,21 @@ pub fn compute_metrics(
     }
 
     let pass_runs_with_dsfb_raw_boundary_signal =
-        count_runs_with_signal(&pass_indices, |run_index| any_trace_raw_state(grammar, run_index, GrammarState::Boundary));
+        count_runs_with_signal(&pass_indices, |run_index| {
+            any_trace_raw_state(grammar, run_index, GrammarState::Boundary)
+        });
     let pass_runs_with_dsfb_persistent_boundary_signal =
-        count_runs_with_signal(&pass_indices, |run_index| any_trace_persistent(grammar, run_index, GrammarState::Boundary));
+        count_runs_with_signal(&pass_indices, |run_index| {
+            any_trace_persistent(grammar, run_index, GrammarState::Boundary)
+        });
     let pass_runs_with_dsfb_raw_violation_signal =
-        count_runs_with_signal(&pass_indices, |run_index| any_trace_raw_state(grammar, run_index, GrammarState::Violation));
+        count_runs_with_signal(&pass_indices, |run_index| {
+            any_trace_raw_state(grammar, run_index, GrammarState::Violation)
+        });
     let pass_runs_with_dsfb_persistent_violation_signal =
-        count_runs_with_signal(&pass_indices, |run_index| any_trace_persistent(grammar, run_index, GrammarState::Violation));
+        count_runs_with_signal(&pass_indices, |run_index| {
+            any_trace_persistent(grammar, run_index, GrammarState::Violation)
+        });
     let pass_runs_with_ewma_signal = count_runs_with_signal(&pass_indices, |run_index| {
         baselines.ewma.iter().any(|trace| trace.alarm[run_index])
     });
@@ -549,7 +568,10 @@ fn count_runs_with_signal<F>(run_indices: &[usize], predicate: F) -> usize
 where
     F: Fn(usize) -> bool,
 {
-    run_indices.iter().filter(|&&run_index| predicate(run_index)).count()
+    run_indices
+        .iter()
+        .filter(|&&run_index| predicate(run_index))
+        .count()
 }
 
 fn any_trace_raw_state(grammar: &GrammarSet, run_index: usize, target: GrammarState) -> bool {
@@ -792,8 +814,12 @@ fn summarize_lead_times(records: &[PerFailureRunSignal]) -> LeadTimeSummary {
         failure_runs_with_threshold_lead: count_present(
             records.iter().map(|record| record.threshold_lead_runs),
         ),
-        failure_runs_with_ewma_lead: count_present(records.iter().map(|record| record.ewma_lead_runs)),
-        failure_runs_with_cusum_lead: count_present(records.iter().map(|record| record.cusum_lead_runs)),
+        failure_runs_with_ewma_lead: count_present(
+            records.iter().map(|record| record.ewma_lead_runs),
+        ),
+        failure_runs_with_cusum_lead: count_present(
+            records.iter().map(|record| record.cusum_lead_runs),
+        ),
         failure_runs_with_run_energy_lead: count_present(
             records.iter().map(|record| record.run_energy_lead_runs),
         ),
@@ -1086,10 +1112,9 @@ fn summarize_densities(records: &[DensityMetricRecord], density_window: usize) -
         mean_raw_violation_density_pass: mean_record_field(&pass_records, |record| {
             record.raw_violation_density
         }),
-        mean_persistent_violation_density_failure: mean_record_field(
-            &failure_records,
-            |record| record.persistent_violation_density,
-        ),
+        mean_persistent_violation_density_failure: mean_record_field(&failure_records, |record| {
+            record.persistent_violation_density
+        }),
         mean_persistent_violation_density_pass: mean_record_field(&pass_records, |record| {
             record.persistent_violation_density
         }),
