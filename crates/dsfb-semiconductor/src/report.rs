@@ -1,3 +1,7 @@
+use crate::cohort::{
+    cohort_report_section, rating_forecast_report_section, CohortDsaSummary, FeatureCohorts,
+    RatingDeltaForecast,
+};
 use crate::config::PipelineConfig;
 use crate::dataset::phm2018::Phm2018SupportStatus;
 use crate::dataset::secom::SecomArchiveLayout;
@@ -5,7 +9,7 @@ use crate::error::Result;
 use crate::heuristics::HeuristicEntry;
 use crate::metrics::{BenchmarkMetrics, MotifMetric};
 use crate::plots::FigureManifest;
-use crate::precursor::{DsaEvaluation, DsaGridSummary};
+use crate::precursor::DsaEvaluation;
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -30,7 +34,9 @@ pub fn write_reports(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
-    dsa_grid_summary: &DsaGridSummary,
+    feature_cohorts: &FeatureCohorts,
+    cohort_summary: &CohortDsaSummary,
+    rating_delta_forecast: &RatingDeltaForecast,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
@@ -44,7 +50,9 @@ pub fn write_reports(
             config,
             metrics,
             dsa,
-            dsa_grid_summary,
+            feature_cohorts,
+            cohort_summary,
+            rating_delta_forecast,
             figures,
             heuristics,
             phm_status,
@@ -57,7 +65,9 @@ pub fn write_reports(
             config,
             metrics,
             dsa,
-            dsa_grid_summary,
+            feature_cohorts,
+            cohort_summary,
+            rating_delta_forecast,
             figures,
             heuristics,
             phm_status,
@@ -79,14 +89,20 @@ fn markdown_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
-    dsa_grid_summary: &DsaGridSummary,
+    feature_cohorts: &FeatureCohorts,
+    cohort_summary: &CohortDsaSummary,
+    rating_delta_forecast: &RatingDeltaForecast,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
     secom_layout: &SecomArchiveLayout,
 ) -> String {
     let mut out = String::new();
-    let artifact_inventory = artifact_inventory(figures);
+    let artifact_inventory = artifact_inventory(
+        figures,
+        cohort_summary.failure_analysis.is_some(),
+        !rating_delta_forecast.primary_success_met,
+    );
 
     out.push_str("# DSFB Semiconductor Engineering Report\n\n");
 
@@ -150,10 +166,10 @@ fn markdown_report(
     out.push_str(&format!(
         "In this crate, `DSFB Violation` remains instantaneous hard envelope exit (`|r| > rho`). `Deterministic Structural Accumulator (DSA)` is additive and sits above the existing DSFB outputs. The feature-level DSA precursor itself remains persistence-constrained, and the run-level comparison signal is cross-feature corroboration: `{}`. The current DSA configuration uses `W = {}`, `K = {}`, `tau = {:.2}`, `m = {}`, fixed unit weights, and a consistency rule that rejects thresholded inward drift and thresholded drift-sign flips.\n\n",
         dsa.run_signals.primary_run_signal,
-        config.dsa.window,
-        config.dsa.persistence_runs,
-        config.dsa.alert_tau,
-        config.dsa.corroborating_feature_count_min,
+        dsa.summary.config.window,
+        dsa.summary.config.persistence_runs,
+        dsa.summary.config.alert_tau,
+        dsa.summary.config.corroborating_feature_count_min,
     ));
 
     out.push_str("## Quantitative Summary\n\n");
@@ -287,22 +303,27 @@ fn markdown_report(
     out.push_str("## DSA Calibration Grid\n\n");
     out.push_str(&format!(
         "- Grid points evaluated: {}\n- Optimization priority order: {}\n- Primary success condition: {}\n- Success rows in bounded grid: {}\n- Cross-feature corroboration effect: {}\n- Limiting factor: {}\n",
-        dsa_grid_summary.grid_point_count,
-        dsa_grid_summary.optimization_priority_order.join(" | "),
-        dsa_grid_summary.primary_success_condition_definition,
-        dsa_grid_summary.success_row_count,
-        dsa_grid_summary.cross_feature_corroboration_effect,
-        dsa_grid_summary.limiting_factor,
+        cohort_summary.grid_point_count,
+        cohort_summary.optimization_priority_order.join(" | "),
+        cohort_summary.primary_success_condition,
+        cohort_summary
+            .cohort_results
+            .iter()
+            .filter(|row| row.primary_success)
+            .count(),
+        cohort_summary.cross_feature_corroboration_effect,
+        cohort_summary.limiting_factor,
     ));
-    if let Some(row) = &dsa_grid_summary.closest_to_success {
+    if let Some(row) = &cohort_summary.closest_to_success {
         out.push_str(&format!(
-            "- Closest to primary success: config_id={}, W={}, K={}, tau={:.2}, m={}, recall={}/{}, mean lead={}, nuisance={:.4}, precursor quality={}, compression ratio={}\n",
-            row.config_id,
+            "- Closest to primary success: grid_row_id={}, cohort={}, W={}, K={}, tau={:.2}, m={}, recall={}/{}, mean lead={}, nuisance={:.4}, precursor quality={}, compression ratio={}\n",
+            row.grid_row_id,
+            row.cohort_name,
             row.window,
             row.persistence_runs,
             row.alert_tau,
-            row.corroborating_feature_count_min,
-            row.failure_run_recall,
+            row.corroborating_m,
+            row.failure_recall,
             row.failure_runs,
             format_option_f64(row.mean_lead_time_runs),
             row.pass_run_nuisance_proxy,
@@ -310,18 +331,21 @@ fn markdown_report(
             format_option_f64(row.compression_ratio),
         ));
     }
-    if let Some(row) = &dsa_grid_summary.best_precursor_quality_row {
+    if let Some(row) = &cohort_summary.best_precursor_quality_row {
         out.push_str(&format!(
-            "- Highest precursor-quality row: config_id={}, W={}, K={}, tau={:.2}, m={}, precursor quality={}\n",
-            row.config_id,
+            "- Highest precursor-quality row: grid_row_id={}, cohort={}, W={}, K={}, tau={:.2}, m={}, precursor quality={}\n",
+            row.grid_row_id,
+            row.cohort_name,
             row.window,
             row.persistence_runs,
             row.alert_tau,
-            row.corroborating_feature_count_min,
+            row.corroborating_m,
             format_option_f64(row.precursor_quality),
         ));
     }
     out.push_str("- Saved grid artifacts: `dsa_grid_results.csv` and `dsa_grid_summary.json`\n\n");
+    out.push_str(&cohort_report_section(feature_cohorts, cohort_summary));
+    out.push_str(&rating_forecast_report_section(rating_delta_forecast));
 
     out.push_str("## Density Summary\n\n");
     out.push_str(&format!(
@@ -344,7 +368,9 @@ fn markdown_report(
     out.push_str(&dsa_focus_markdown_section(figures));
 
     out.push_str("## Motif Calibration Summary\n\n");
-    out.push_str("| Motif | Point hits | Run hits | Pre-failure window run hits | Precision proxy |\n");
+    out.push_str(
+        "| Motif | Point hits | Run hits | Pre-failure window run hits | Precision proxy |\n",
+    );
     out.push_str("|---|---:|---:|---:|---:|\n");
     for metric in &metrics.motif_metrics {
         out.push_str(&format!(
@@ -359,7 +385,9 @@ fn markdown_report(
     out.push('\n');
 
     out.push_str("## Heuristics Bank\n\n");
-    out.push_str("| Motif | Provenance | Contributes to DSA scoring | Severity | Recommended action |\n");
+    out.push_str(
+        "| Motif | Provenance | Contributes to DSA scoring | Severity | Recommended action |\n",
+    );
     out.push_str("|---|---|---|---|---|\n");
     for entry in heuristics {
         out.push_str(&format!(
@@ -419,14 +447,20 @@ fn latex_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
-    dsa_grid_summary: &DsaGridSummary,
+    feature_cohorts: &FeatureCohorts,
+    cohort_summary: &CohortDsaSummary,
+    rating_delta_forecast: &RatingDeltaForecast,
     figures: &FigureManifest,
     heuristics: &[HeuristicEntry],
     phm_status: &Phm2018SupportStatus,
     secom_layout: &SecomArchiveLayout,
 ) -> String {
     let mut out = String::new();
-    let artifact_inventory = artifact_inventory(figures);
+    let artifact_inventory = artifact_inventory(
+        figures,
+        cohort_summary.failure_analysis.is_some(),
+        !rating_delta_forecast.primary_success_met,
+    );
 
     out.push_str("\\documentclass[11pt]{article}\n");
     out.push_str("\\usepackage[margin=1in]{geometry}\n");
@@ -486,10 +520,10 @@ fn latex_report(
         config.pca_variance_explained * 100.0,
         config.pca_t2_sigma_multiplier,
         config.pca_spe_sigma_multiplier,
-        config.dsa.window,
-        config.dsa.persistence_runs,
-        config.dsa.alert_tau,
-        config.dsa.corroborating_feature_count_min,
+        dsa.summary.config.window,
+        dsa.summary.config.persistence_runs,
+        dsa.summary.config.alert_tau,
+        dsa.summary.config.corroborating_feature_count_min,
         dsa.run_signals.primary_run_signal,
     )));
     out.push_str("\n\n");
@@ -545,18 +579,29 @@ fn latex_report(
     out.push_str("\\section*{DSA calibration grid}\n");
     out.push_str(&latex_escape(&format!(
         "Grid points evaluated: {}. Optimization priority order: {}. Primary success condition: {}. Success rows in bounded grid: {}. Cross-feature corroboration effect: {}. Limiting factor: {}.",
-        dsa_grid_summary.grid_point_count,
-        dsa_grid_summary.optimization_priority_order.join(" | "),
-        dsa_grid_summary.primary_success_condition_definition,
-        dsa_grid_summary.success_row_count,
-        dsa_grid_summary.cross_feature_corroboration_effect,
-        dsa_grid_summary.limiting_factor,
+        cohort_summary.grid_point_count,
+        cohort_summary.optimization_priority_order.join(" | "),
+        cohort_summary.primary_success_condition,
+        cohort_summary
+            .cohort_results
+            .iter()
+            .filter(|row| row.primary_success)
+            .count(),
+        cohort_summary.cross_feature_corroboration_effect,
+        cohort_summary.limiting_factor,
     )));
     out.push_str("\n\n");
+    out.push_str(&feature_cohort_latex_section(
+        feature_cohorts,
+        cohort_summary,
+    ));
+    out.push_str(&rating_forecast_latex_section(rating_delta_forecast));
 
     out.push_str("\\section*{Motif metrics}\n");
     out.push_str("\\begin{longtable}{p{0.26\\linewidth}rrrr}\n\\toprule\n");
-    out.push_str("Motif & Point hits & Run hits & Pre-failure run hits & Precision proxy \\\\\n\\midrule\n");
+    out.push_str(
+        "Motif & Point hits & Run hits & Pre-failure run hits & Precision proxy \\\\\n\\midrule\n",
+    );
     for metric in &metrics.motif_metrics {
         out.push_str(&motif_row(metric));
     }
@@ -606,9 +651,15 @@ fn latex_report(
     out.push_str("\\section*{Explicit non-claims}\n");
     out.push_str("\\begin{itemize}\n");
     out.push_str("\\item No universal superiority claim over SPC, EWMA, FDC, or ML baselines.\n");
-    out.push_str("\\item No standards-compliance, completed qualification, or SEMI compatibility claim.\n");
-    out.push_str("\\item No chamber-mechanism or physical root-cause attribution from SECOM alone.\n");
-    out.push_str("\\item No PHM 2018 completion claim unless the real archive is staged and verified.\n");
+    out.push_str(
+        "\\item No standards-compliance, completed qualification, or SEMI compatibility claim.\n",
+    );
+    out.push_str(
+        "\\item No chamber-mechanism or physical root-cause attribution from SECOM alone.\n",
+    );
+    out.push_str(
+        "\\item No PHM 2018 completion claim unless the real archive is staged and verified.\n",
+    );
     out.push_str("\\item No Kani verification, no\\_alloc, SIMD, rayon, or parallel-acceleration claim for this crate.\n");
     out.push_str("\\end{itemize}\n\n");
 
@@ -617,7 +668,11 @@ fn latex_report(
     out
 }
 
-fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
+fn artifact_inventory(
+    figures: &FigureManifest,
+    include_cohort_failure_analysis: bool,
+    include_rating_failure_analysis: bool,
+) -> Vec<ArtifactInventoryEntry> {
     let mut entries = vec![
         ArtifactInventoryEntry {
             path: "dataset_summary.json".into(),
@@ -649,11 +704,39 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
         },
         ArtifactInventoryEntry {
             path: "dsa_grid_results.csv".into(),
-            role: "Full bounded DSA calibration grid with W, K, tau, and corroboration m.".into(),
+            role: "Full bounded cohort DSA grid with cohort, W, K, tau, and corroboration m.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_grid_summary.json".into(),
-            role: "Saved DSA grid summary, closest-to-success row, corroboration effect, and limiting-factor analysis.".into(),
+            role: "Saved cohort-grid summary, closest-to-success row, corroboration effect, and limiting-factor analysis.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_feature_ranking.csv".into(),
+            role: "Deterministic analyzable-feature ranking used for cohort selection.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_seed_feature_check.json".into(),
+            role: "Standalone seed-feature inclusion report for S059, S044, S061, S222, S354, and S173.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_feature_cohorts.json".into(),
+            role: "Explicit top_4, top_8, top_16, and all-feature cohorts plus seed-feature inclusion report.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_cohort_results.csv".into(),
+            role: "Cohort-level DSA nuisance, recall, lead-time, episode, compression, and corroboration sweep results.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_cohort_summary.json".into(),
+            role: "Saved cohort-level DSA summary, closest-to-success row, and best cohort when present.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_cohort_precursor_quality.csv".into(),
+            role: "Cohort-level precursor-quality table across the corroboration sweep.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_rating_delta_forecast.json".into(),
+            role: "Bounded rating-delta forecast grounded in the saved DSA nuisance, recall, lead-time, and cohort metrics.".into(),
         },
         ArtifactInventoryEntry {
             path: "feature_metrics.csv".into(),
@@ -749,6 +832,19 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
         },
     ];
 
+    if include_cohort_failure_analysis {
+        entries.push(ArtifactInventoryEntry {
+            path: "dsa_cohort_failure_analysis.md".into(),
+            role: "Closest-cohort, corroboration, ranking-quality, and all-feature-vs-cohort failure analysis.".into(),
+        });
+    }
+    if include_rating_failure_analysis {
+        entries.push(ArtifactInventoryEntry {
+            path: "dsa_rating_delta_failure_analysis.md".into(),
+            role: "Failure analysis for the rating-delta primary success condition.".into(),
+        });
+    }
+
     if figures.drsc.is_some() {
         entries.push(ArtifactInventoryEntry {
             path: "drsc_top_feature.csv".into(),
@@ -758,13 +854,16 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
     if figures.drsc_dsa_combined.is_some() {
         entries.push(ArtifactInventoryEntry {
             path: "drsc_dsa_combined.csv".into(),
-            role: "Aligned DRSC+DSA publication figure trace export for the selected feature window.".into(),
+            role:
+                "Aligned DRSC+DSA publication figure trace export for the selected feature window."
+                    .into(),
         });
     }
     if figures.dsa_focus.is_some() {
         entries.push(ArtifactInventoryEntry {
             path: "dsa_top_feature.csv".into(),
-            role: "Aligned DSA structural-focus trace export for the selected feature window.".into(),
+            role: "Aligned DSA structural-focus trace export for the selected feature window."
+                .into(),
         });
     }
 
@@ -776,6 +875,110 @@ fn artifact_inventory(figures: &FigureManifest) -> Vec<ArtifactInventoryEntry> {
     }
 
     entries
+}
+
+fn feature_cohort_latex_section(
+    feature_cohorts: &FeatureCohorts,
+    cohort_summary: &CohortDsaSummary,
+) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Feature-Cohort DSA Selection}\n");
+    out.push_str(&latex_escape(&format!(
+        "Ranking formula: {}. Missingness penalty: {:.1} when missing_fraction > {:.2}. Primary success condition: {}.",
+        cohort_summary.ranking_formula,
+        feature_cohorts.missingness_penalty_value,
+        feature_cohorts.missingness_penalty_threshold,
+        cohort_summary.primary_success_condition,
+    )));
+    out.push_str("\n\n");
+    out.push_str(&latex_escape(&format!(
+        "Selected cohorts: top_4={}, top_8={}, top_16={}, all_features={}.",
+        feature_cohorts.top_4.len(),
+        feature_cohorts.top_8.len(),
+        feature_cohorts.top_16.len(),
+        feature_cohorts.all_features.len(),
+    )));
+    out.push_str("\n\n");
+    out.push_str("\\begin{longtable}{p{0.14\\linewidth}rccc}\n\\toprule\n");
+    out.push_str("Seed feature & Rank & Top 4 & Top 8 & Top 16 \\\\\n\\midrule\n");
+    for seed in &feature_cohorts.seed_feature_report {
+        out.push_str(&format!(
+            "{} & {} & {} & {} & {} \\\\\n",
+            latex_escape(&seed.feature_name),
+            latex_escape(
+                &seed
+                    .rank
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "n/a".into())
+            ),
+            latex_escape(&seed.in_top_4.to_string()),
+            latex_escape(&seed.in_top_8.to_string()),
+            latex_escape(&seed.in_top_16.to_string()),
+        ));
+    }
+    out.push_str("\\bottomrule\n\\end{longtable}\n\n");
+    out.push_str("\\begin{longtable}{p{0.15\\linewidth}rrrrrr}\n\\toprule\n");
+    out.push_str(
+        "Cohort & m & Recall & Mean lead & Nuisance & Compression & Success \\\\\n\\midrule\n",
+    );
+    for best in &cohort_summary.best_by_cohort {
+        let result = &best.best_row;
+        out.push_str(&format!(
+            "{} & {} & {}/{} & {} & {:.4} & {} & {} \\\\\n",
+            latex_escape(&result.cohort_name),
+            result.corroborating_m,
+            result.failure_recall,
+            result.failure_runs,
+            latex_escape(&format_option_f64(result.mean_lead_time_runs)),
+            result.pass_run_nuisance_proxy,
+            latex_escape(&format_option_f64(result.compression_ratio)),
+            latex_escape(&result.primary_success.to_string()),
+        ));
+    }
+    out.push_str("\\bottomrule\n\\end{longtable}\n\n");
+    if let Some(best_row) = &cohort_summary.selected_configuration {
+        out.push_str(&latex_escape(&format!(
+            "Best cohort/grid result: {} with recall {}/{}, nuisance {:.4}, mean lead {}, compression {}, and precursor quality {}.",
+            best_row.cohort_name,
+            best_row.failure_recall,
+            best_row.failure_runs,
+            best_row.pass_run_nuisance_proxy,
+            format_option_f64(best_row.mean_lead_time_runs),
+            format_option_f64(best_row.compression_ratio),
+            format_option_f64(best_row.precursor_quality),
+        )));
+        out.push_str("\n\n");
+    }
+    if let Some(failure_analysis) = &cohort_summary.failure_analysis {
+        out.push_str(&latex_escape(&format!(
+            "Failure analysis: closest cohort {} at {}. Limiting factor: {}. Corroboration effect: {}. Ranking quality: {}. All-feature vs cohort: {}.",
+            failure_analysis.closest_cohort,
+            failure_analysis.closest_grid_point,
+            failure_analysis.limiting_factor,
+            failure_analysis.corroboration_effect,
+            failure_analysis.ranking_quality_note,
+            failure_analysis.all_feature_dsa_vs_cohort_note,
+        )));
+        out.push_str("\n\n");
+    }
+    out
+}
+
+fn rating_forecast_latex_section(rating_delta_forecast: &RatingDeltaForecast) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Rating Delta Forecast}\n");
+    out.push_str(&latex_escape(&format!(
+        "Primary success condition: {}. Primary success met: {}. Forecast score if primary success only: {:.1}. Forecast score if primary plus secondary success: {:.1}. Achieved forecast under the measured result: {:.1}. This is a forecast, not an achieved score.",
+        rating_delta_forecast.primary_success_condition,
+        rating_delta_forecast.primary_success_met,
+        rating_delta_forecast.forecast_score_if_primary_success_only,
+        rating_delta_forecast.forecast_score_if_primary_plus_secondary_success,
+        rating_delta_forecast.achieved_forecast_score,
+    )));
+    out.push_str("\n\n");
+    out.push_str(&latex_escape(&rating_delta_forecast.forecast_justification));
+    out.push_str("\n\n");
+    out
 }
 
 fn drsc_dsa_combined_markdown_section(figures: &FigureManifest) -> String {
@@ -901,7 +1104,9 @@ fn motif_row(metric: &MotifMetric) -> String {
         metric.point_hits,
         metric.run_hits,
         metric.pre_failure_window_run_hits,
-        latex_escape(&format_option_f64(metric.pre_failure_window_precision_proxy)),
+        latex_escape(&format_option_f64(
+            metric.pre_failure_window_precision_proxy
+        )),
     )
 }
 
@@ -961,7 +1166,10 @@ fn compile_pdf(tex_path: &Path, output_dir: &Path) -> (Option<PathBuf>, Option<S
         );
     }
 
-    (None, (!combined_output.trim().is_empty()).then_some(combined_output))
+    (
+        None,
+        (!combined_output.trim().is_empty()).then_some(combined_output),
+    )
 }
 
 fn format_option_f64(value: Option<f64>) -> String {

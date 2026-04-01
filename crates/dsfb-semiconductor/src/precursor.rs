@@ -414,7 +414,7 @@ pub struct DsaGridSummary {
     pub limiting_factor: String,
 }
 
-const DSA_PRIMARY_SUCCESS_RECALL_TOLERANCE_RUNS: usize = 2;
+const DSA_PRIMARY_SUCCESS_RECALL_TOLERANCE_RUNS: usize = 1;
 
 fn dsa_optimization_priority_order() -> Vec<String> {
     vec![
@@ -460,7 +460,11 @@ pub fn evaluate_dsa(
     {
         let feature = &nominal.features[residual_trace.feature_index];
         if !feature.analyzable {
-            traces.push(empty_trace(feature.feature_index, &feature.feature_name, run_count));
+            traces.push(empty_trace(
+                feature.feature_index,
+                &feature.feature_name,
+                run_count,
+            ));
             continue;
         }
 
@@ -516,8 +520,12 @@ pub fn evaluate_dsa(
             let slew_density = window_fraction(&slew_prefix, start, run_index, window_len);
             let ewma_occupancy = window_mean(&ewma_normalized, start, run_index);
             let motif_recurrence = window_fraction(&motif_prefix, start, run_index, window_len);
-            let consistent_window =
-                window_is_consistent(&sign_trace.drift, sign_trace.drift_threshold, start, run_index);
+            let consistent_window = window_is_consistent(
+                &sign_trace.drift,
+                sign_trace.drift_threshold,
+                start,
+                run_index,
+            );
             let score = weights.boundary_density * boundary_density
                 + weights.drift_persistence * drift_persistence
                 + weights.slew_density * slew_density
@@ -554,6 +562,239 @@ pub fn evaluate_dsa(
         });
     }
 
+    Ok(assemble_dsa_evaluation(
+        dataset,
+        nominal,
+        residuals,
+        baselines,
+        grammar,
+        traces,
+        config,
+        &weights,
+        pre_failure_lookback_runs,
+        None,
+        None,
+    ))
+}
+
+pub fn project_dsa_to_cohort(
+    dataset: &PreparedDataset,
+    nominal: &NominalModel,
+    residuals: &ResidualSet,
+    baselines: &BaselineSet,
+    grammar: &GrammarSet,
+    base_evaluation: &DsaEvaluation,
+    selected_feature_indices: &[usize],
+    corroborating_feature_count_min: usize,
+    pre_failure_lookback_runs: usize,
+    cohort_name: &str,
+) -> Result<DsaEvaluation> {
+    if corroborating_feature_count_min == 0 {
+        return Err(DsfbSemiconductorError::DatasetFormat(
+            "cohort corroborating_feature_count_min must be positive".into(),
+        ));
+    }
+
+    let mut selected_mask = vec![false; base_evaluation.traces.len()];
+    for &feature_index in selected_feature_indices {
+        if feature_index < selected_mask.len() {
+            selected_mask[feature_index] = true;
+        }
+    }
+
+    let mut traces = base_evaluation.traces.clone();
+    for (feature_index, trace) in traces.iter_mut().enumerate() {
+        if !selected_mask[feature_index] {
+            trace.dsa_score.fill(0.0);
+            trace.dsa_active.fill(false);
+            trace.dsa_alert.fill(false);
+        }
+    }
+
+    let mut config = base_evaluation.parameter_manifest.config.clone();
+    config.corroborating_feature_count_min = corroborating_feature_count_min;
+    config.validate()?;
+
+    let mut evaluation = assemble_dsa_evaluation(
+        dataset,
+        nominal,
+        residuals,
+        baselines,
+        grammar,
+        traces,
+        &config,
+        &base_evaluation.parameter_manifest.weights,
+        pre_failure_lookback_runs,
+        Some(&selected_mask),
+        Some(selected_feature_indices.len()),
+    );
+
+    let primary_signal = format!(
+        "cohort {}: feature_count_dsa_alert(k) >= {}",
+        cohort_name, corroborating_feature_count_min
+    );
+    evaluation.run_signals.primary_run_signal = primary_signal.clone();
+    evaluation.episode_summary.primary_signal = primary_signal.clone();
+    evaluation.summary.primary_run_signal = primary_signal.clone();
+    evaluation.summary.config.corroborating_feature_count_min = corroborating_feature_count_min;
+    evaluation.comparison_summary.primary_run_signal = primary_signal.clone();
+    evaluation
+        .parameter_manifest
+        .config
+        .corroborating_feature_count_min = corroborating_feature_count_min;
+    evaluation.parameter_manifest.primary_run_signal = primary_signal.clone();
+    evaluation.parameter_manifest.primary_run_signal_definition = format!(
+        "Primary run-level cohort DSA decision is {} over the deterministic selected feature cohort.",
+        primary_signal
+    );
+    evaluation.parameter_manifest.corroboration_rule = format!(
+        "RUN_LEVEL_DSA(k) is true only when the count of selected cohort features with DSA_ALERT_i(k) is at least {}.",
+        corroborating_feature_count_min
+    );
+
+    Ok(evaluation)
+}
+
+pub fn run_dsa_calibration_grid(
+    dataset: &PreparedDataset,
+    nominal: &NominalModel,
+    residuals: &ResidualSet,
+    signs: &SignSet,
+    baselines: &BaselineSet,
+    grammar: &GrammarSet,
+    grid: &DsaCalibrationGrid,
+    pre_failure_lookback_runs: usize,
+) -> Result<Vec<DsaCalibrationRow>> {
+    grid.validate()?;
+
+    let mut rows = Vec::with_capacity(grid.grid_point_count());
+    for (config_id, config) in grid.expand().into_iter().enumerate() {
+        let evaluation = evaluate_dsa(
+            dataset,
+            nominal,
+            residuals,
+            signs,
+            baselines,
+            grammar,
+            &config,
+            pre_failure_lookback_runs,
+        )?;
+        rows.push(DsaCalibrationRow {
+            config_id,
+            primary_run_signal: evaluation.run_signals.primary_run_signal.clone(),
+            window: config.window,
+            persistence_runs: config.persistence_runs,
+            alert_tau: config.alert_tau,
+            corroborating_feature_count_min: config.corroborating_feature_count_min,
+            failure_run_recall: evaluation.summary.failure_run_recall,
+            failure_runs: evaluation.summary.failure_runs,
+            threshold_failure_run_recall: evaluation
+                .comparison_summary
+                .threshold
+                .failure_run_recall,
+            ewma_failure_run_recall: evaluation.comparison_summary.ewma.failure_run_recall,
+            failure_recall_delta_vs_threshold: evaluation
+                .comparison_summary
+                .failure_recall_delta_vs_threshold,
+            failure_recall_delta_vs_ewma: evaluation
+                .comparison_summary
+                .failure_recall_delta_vs_ewma,
+            mean_lead_time_runs: evaluation.summary.mean_lead_time_runs,
+            median_lead_time_runs: evaluation.summary.median_lead_time_runs,
+            pass_run_nuisance_proxy: evaluation.summary.pass_run_nuisance_proxy,
+            mean_lead_delta_vs_cusum_runs: evaluation.summary.mean_lead_delta_vs_cusum_runs,
+            mean_lead_delta_vs_run_energy_runs: evaluation
+                .summary
+                .mean_lead_delta_vs_run_energy_runs,
+            mean_lead_delta_vs_pca_fdc_runs: evaluation.summary.mean_lead_delta_vs_pca_fdc_runs,
+            mean_lead_delta_vs_threshold_runs: evaluation.summary.mean_lead_delta_vs_threshold_runs,
+            mean_lead_delta_vs_ewma_runs: evaluation.summary.mean_lead_delta_vs_ewma_runs,
+            pass_run_nuisance_delta_vs_cusum: evaluation
+                .comparison_summary
+                .pass_run_nuisance_delta_vs_cusum,
+            pass_run_nuisance_delta_vs_run_energy: evaluation
+                .comparison_summary
+                .pass_run_nuisance_delta_vs_run_energy,
+            pass_run_nuisance_delta_vs_pca_fdc: evaluation
+                .comparison_summary
+                .pass_run_nuisance_delta_vs_pca_fdc,
+            pass_run_nuisance_delta_vs_threshold: evaluation
+                .comparison_summary
+                .pass_run_nuisance_delta_vs_threshold,
+            pass_run_nuisance_delta_vs_ewma: evaluation
+                .comparison_summary
+                .pass_run_nuisance_delta_vs_ewma,
+            pass_run_nuisance_delta_vs_raw_boundary: evaluation
+                .comparison_summary
+                .pass_run_nuisance_delta_vs_raw_boundary,
+            raw_boundary_episode_count: evaluation.episode_summary.raw_boundary_episode_count,
+            dsa_episode_count: evaluation.episode_summary.dsa_episode_count,
+            dsa_episodes_preceding_failure: evaluation
+                .episode_summary
+                .dsa_episodes_preceding_failure,
+            mean_dsa_episode_length_runs: evaluation.episode_summary.mean_dsa_episode_length_runs,
+            max_dsa_episode_length_runs: evaluation.episode_summary.max_dsa_episode_length_runs,
+            compression_ratio: evaluation.episode_summary.compression_ratio,
+            precursor_quality: evaluation.episode_summary.precursor_quality,
+            non_escalating_dsa_episode_fraction: evaluation
+                .episode_summary
+                .non_escalating_dsa_episode_fraction,
+            nuisance_improved: evaluation.comparison_summary.nuisance_improved,
+            lead_time_improved: evaluation.comparison_summary.lead_time_improved,
+            recall_preserved: evaluation.comparison_summary.recall_preserved,
+            compression_improved: evaluation.comparison_summary.compression_improved,
+            any_metric_improved: evaluation.summary.any_metric_improved,
+            nothing_improved: evaluation.comparison_summary.nothing_improved,
+            threshold_recall_gate_passed: evaluation.summary.threshold_recall_gate_passed,
+            boundary_nuisance_gate_passed: evaluation.summary.boundary_nuisance_gate_passed,
+            primary_success_condition_met: evaluation.summary.primary_success_condition_met,
+            validation_passed: evaluation.summary.validation_passed,
+            success_condition_failures: evaluation.summary.success_condition_failures.join("; "),
+            validation_failures: evaluation.summary.validation_failures.join("; "),
+        });
+    }
+
+    Ok(rows)
+}
+
+fn empty_trace(feature_index: usize, feature_name: &str, run_count: usize) -> DsaFeatureTrace {
+    DsaFeatureTrace {
+        feature_index,
+        feature_name: feature_name.into(),
+        boundary_basis_hit: vec![false; run_count],
+        drift_outward_hit: vec![false; run_count],
+        slew_hit: vec![false; run_count],
+        motif_hit: vec![false; run_count],
+        boundary_density_w: vec![0.0; run_count],
+        drift_persistence_w: vec![0.0; run_count],
+        slew_density_w: vec![0.0; run_count],
+        ewma_occupancy_w: vec![0.0; run_count],
+        motif_recurrence_w: vec![0.0; run_count],
+        consistent: vec![true; run_count],
+        dsa_score: vec![0.0; run_count],
+        dsa_active: vec![false; run_count],
+        dsa_alert: vec![false; run_count],
+    }
+}
+
+fn assemble_dsa_evaluation(
+    dataset: &PreparedDataset,
+    nominal: &NominalModel,
+    residuals: &ResidualSet,
+    baselines: &BaselineSet,
+    grammar: &GrammarSet,
+    traces: Vec<DsaFeatureTrace>,
+    config: &DsaConfig,
+    weights: &DsaWeights,
+    pre_failure_lookback_runs: usize,
+    raw_boundary_episode_feature_mask: Option<&[bool]>,
+    analyzable_feature_count_override: Option<usize>,
+) -> DsaEvaluation {
+    let run_count = dataset.labels.len();
+    let motif_names = dsa_contributing_motif_names()
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect::<Vec<_>>();
     let raw_boundary_run_signal = (0..run_count)
         .map(|run_index| {
             grammar
@@ -664,11 +905,16 @@ pub fn evaluate_dsa(
         .iter()
         .map(|&failure_index| {
             let window_start = failure_index.saturating_sub(pre_failure_lookback_runs);
-            let earliest_dsa =
-                earliest_primary_signal(&traces, &run_signals.primary_run_alert, window_start, failure_index);
+            let earliest_dsa = earliest_primary_signal(
+                &traces,
+                &run_signals.primary_run_alert,
+                window_start,
+                failure_index,
+            );
             let earliest_threshold_run =
                 earliest_run_signal(&threshold_run_signal, window_start, failure_index);
-            let earliest_ewma_run = earliest_run_signal(&ewma_run_signal, window_start, failure_index);
+            let earliest_ewma_run =
+                earliest_run_signal(&ewma_run_signal, window_start, failure_index);
             let earliest_cusum_run =
                 earliest_run_signal(&cusum_run_signal, window_start, failure_index);
             let earliest_run_energy_run =
@@ -681,12 +927,15 @@ pub fn evaluate_dsa(
             let threshold_lead_runs = earliest_threshold_run.map(|index| failure_index - index);
             let ewma_lead_runs = earliest_ewma_run.map(|index| failure_index - index);
             let cusum_lead_runs = earliest_cusum_run.map(|index| failure_index - index);
-            let run_energy_lead_runs =
-                earliest_run_energy_run.map(|index| failure_index - index);
+            let run_energy_lead_runs = earliest_run_energy_run.map(|index| failure_index - index);
             let pca_fdc_lead_runs = earliest_pca_fdc_run.map(|index| failure_index - index);
             let alerting_feature_count = traces
                 .iter()
-                .filter(|trace| trace.dsa_alert[window_start..failure_index].iter().any(|flag| *flag))
+                .filter(|trace| {
+                    trace.dsa_alert[window_start..failure_index]
+                        .iter()
+                        .any(|flag| *flag)
+                })
                 .count();
             let max_score = max_dsa_score(&traces, window_start, failure_index);
 
@@ -697,7 +946,9 @@ pub fn evaluate_dsa(
                     .to_string(),
                 earliest_dsa_run: earliest_dsa.as_ref().map(|signal| signal.run_index),
                 earliest_primary_source: earliest_dsa.as_ref().map(|signal| signal.source.clone()),
-                earliest_dsa_feature_index: earliest_dsa.as_ref().map(|signal| signal.feature_index),
+                earliest_dsa_feature_index: earliest_dsa
+                    .as_ref()
+                    .map(|signal| signal.feature_index),
                 earliest_dsa_feature_name: earliest_dsa
                     .as_ref()
                     .map(|signal| signal.feature_name.clone()),
@@ -878,7 +1129,13 @@ pub fn evaluate_dsa(
     let raw_boundary_episode_count = grammar
         .traces
         .iter()
-        .map(|trace| {
+        .enumerate()
+        .filter(|(feature_index, _)| {
+            raw_boundary_episode_feature_mask
+                .map(|mask| mask.get(*feature_index).copied().unwrap_or(false))
+                .unwrap_or(true)
+        })
+        .map(|(_, trace)| {
             episode_ranges(
                 &trace
                     .raw_states
@@ -903,9 +1160,8 @@ pub fn evaluate_dsa(
         || dsa_row.pass_run_nuisance_proxy < run_energy_row.pass_run_nuisance_proxy
         || dsa_row.pass_run_nuisance_proxy < pca_fdc_row.pass_run_nuisance_proxy
         || dsa_row.pass_run_nuisance_proxy < dsfb_raw_boundary_row.pass_run_nuisance_proxy;
-    let lead_time_improved =
-        matches!(dsa_row.mean_lead_delta_vs_threshold_runs, Some(delta) if delta > 0.0)
-            || matches!(dsa_row.mean_lead_delta_vs_ewma_runs, Some(delta) if delta > 0.0);
+    let lead_time_improved = matches!(dsa_row.mean_lead_delta_vs_threshold_runs, Some(delta) if delta > 0.0)
+        || matches!(dsa_row.mean_lead_delta_vs_ewma_runs, Some(delta) if delta > 0.0);
     let recall_preserved = dsa_row.failure_run_recall >= threshold_row.failure_run_recall
         && dsa_row.failure_run_recall >= ewma_row.failure_run_recall
         && dsa_row.failure_run_recall >= dsfb_violation_row.failure_run_recall;
@@ -921,7 +1177,8 @@ pub fn evaluate_dsa(
         dsa_row.failure_run_recall >= threshold_row.failure_run_recall;
     let boundary_nuisance_gate_passed =
         dsa_row.pass_run_nuisance_proxy < dsfb_raw_boundary_row.pass_run_nuisance_proxy;
-    let success_condition_failures = success_condition_failures(&dsa_row, &threshold_row, &ewma_row);
+    let success_condition_failures =
+        success_condition_failures(&dsa_row, &threshold_row, &ewma_row);
     let primary_success_condition_met = success_condition_failures.is_empty();
     let validation_failures = validation_failures(
         &dsa_row,
@@ -1042,20 +1299,22 @@ pub fn evaluate_dsa(
         optimization_priority_order: dsa_optimization_priority_order(),
     };
 
-    Ok(DsaEvaluation {
+    DsaEvaluation {
         traces,
         run_signals: run_signals.clone(),
         episode_summary: episode_summary.clone(),
         parameter_manifest,
         summary: DsaSignalSummary {
             config: config.clone(),
-            weights,
+            weights: weights.clone(),
             primary_run_signal: run_signals.primary_run_signal.clone(),
-            analyzable_feature_count: nominal
-                .features
-                .iter()
-                .filter(|feature| feature.analyzable)
-                .count(),
+            analyzable_feature_count: analyzable_feature_count_override.unwrap_or_else(|| {
+                nominal
+                    .features
+                    .iter()
+                    .filter(|feature| feature.analyzable)
+                    .count()
+            }),
             alert_point_count,
             alert_run_count,
             failure_runs: failure_indices.len(),
@@ -1089,135 +1348,6 @@ pub fn evaluate_dsa(
         },
         comparison_summary,
         per_failure_run_signals,
-    })
-}
-
-pub fn run_dsa_calibration_grid(
-    dataset: &PreparedDataset,
-    nominal: &NominalModel,
-    residuals: &ResidualSet,
-    signs: &SignSet,
-    baselines: &BaselineSet,
-    grammar: &GrammarSet,
-    grid: &DsaCalibrationGrid,
-    pre_failure_lookback_runs: usize,
-) -> Result<Vec<DsaCalibrationRow>> {
-    grid.validate()?;
-
-    let mut rows = Vec::with_capacity(grid.grid_point_count());
-    for (config_id, config) in grid.expand().into_iter().enumerate() {
-        let evaluation = evaluate_dsa(
-            dataset,
-            nominal,
-            residuals,
-            signs,
-            baselines,
-            grammar,
-            &config,
-            pre_failure_lookback_runs,
-        )?;
-        rows.push(DsaCalibrationRow {
-            config_id,
-            primary_run_signal: evaluation.run_signals.primary_run_signal.clone(),
-            window: config.window,
-            persistence_runs: config.persistence_runs,
-            alert_tau: config.alert_tau,
-            corroborating_feature_count_min: config.corroborating_feature_count_min,
-            failure_run_recall: evaluation.summary.failure_run_recall,
-            failure_runs: evaluation.summary.failure_runs,
-            threshold_failure_run_recall: evaluation.comparison_summary.threshold.failure_run_recall,
-            ewma_failure_run_recall: evaluation.comparison_summary.ewma.failure_run_recall,
-            failure_recall_delta_vs_threshold: evaluation
-                .comparison_summary
-                .failure_recall_delta_vs_threshold,
-            failure_recall_delta_vs_ewma: evaluation
-                .comparison_summary
-                .failure_recall_delta_vs_ewma,
-            mean_lead_time_runs: evaluation.summary.mean_lead_time_runs,
-            median_lead_time_runs: evaluation.summary.median_lead_time_runs,
-            pass_run_nuisance_proxy: evaluation.summary.pass_run_nuisance_proxy,
-            mean_lead_delta_vs_cusum_runs: evaluation
-                .summary
-                .mean_lead_delta_vs_cusum_runs,
-            mean_lead_delta_vs_run_energy_runs: evaluation
-                .summary
-                .mean_lead_delta_vs_run_energy_runs,
-            mean_lead_delta_vs_pca_fdc_runs: evaluation
-                .summary
-                .mean_lead_delta_vs_pca_fdc_runs,
-            mean_lead_delta_vs_threshold_runs: evaluation
-                .summary
-                .mean_lead_delta_vs_threshold_runs,
-            mean_lead_delta_vs_ewma_runs: evaluation.summary.mean_lead_delta_vs_ewma_runs,
-            pass_run_nuisance_delta_vs_cusum: evaluation
-                .comparison_summary
-                .pass_run_nuisance_delta_vs_cusum,
-            pass_run_nuisance_delta_vs_run_energy: evaluation
-                .comparison_summary
-                .pass_run_nuisance_delta_vs_run_energy,
-            pass_run_nuisance_delta_vs_pca_fdc: evaluation
-                .comparison_summary
-                .pass_run_nuisance_delta_vs_pca_fdc,
-            pass_run_nuisance_delta_vs_threshold: evaluation
-                .comparison_summary
-                .pass_run_nuisance_delta_vs_threshold,
-            pass_run_nuisance_delta_vs_ewma: evaluation
-                .comparison_summary
-                .pass_run_nuisance_delta_vs_ewma,
-            pass_run_nuisance_delta_vs_raw_boundary: evaluation
-                .comparison_summary
-                .pass_run_nuisance_delta_vs_raw_boundary,
-            raw_boundary_episode_count: evaluation.episode_summary.raw_boundary_episode_count,
-            dsa_episode_count: evaluation.episode_summary.dsa_episode_count,
-            dsa_episodes_preceding_failure: evaluation
-                .episode_summary
-                .dsa_episodes_preceding_failure,
-            mean_dsa_episode_length_runs: evaluation
-                .episode_summary
-                .mean_dsa_episode_length_runs,
-            max_dsa_episode_length_runs: evaluation
-                .episode_summary
-                .max_dsa_episode_length_runs,
-            compression_ratio: evaluation.episode_summary.compression_ratio,
-            precursor_quality: evaluation.episode_summary.precursor_quality,
-            non_escalating_dsa_episode_fraction: evaluation
-                .episode_summary
-                .non_escalating_dsa_episode_fraction,
-            nuisance_improved: evaluation.comparison_summary.nuisance_improved,
-            lead_time_improved: evaluation.comparison_summary.lead_time_improved,
-            recall_preserved: evaluation.comparison_summary.recall_preserved,
-            compression_improved: evaluation.comparison_summary.compression_improved,
-            any_metric_improved: evaluation.summary.any_metric_improved,
-            nothing_improved: evaluation.comparison_summary.nothing_improved,
-            threshold_recall_gate_passed: evaluation.summary.threshold_recall_gate_passed,
-            boundary_nuisance_gate_passed: evaluation.summary.boundary_nuisance_gate_passed,
-            primary_success_condition_met: evaluation.summary.primary_success_condition_met,
-            validation_passed: evaluation.summary.validation_passed,
-            success_condition_failures: evaluation.summary.success_condition_failures.join("; "),
-            validation_failures: evaluation.summary.validation_failures.join("; "),
-        });
-    }
-
-    Ok(rows)
-}
-
-fn empty_trace(feature_index: usize, feature_name: &str, run_count: usize) -> DsaFeatureTrace {
-    DsaFeatureTrace {
-        feature_index,
-        feature_name: feature_name.into(),
-        boundary_basis_hit: vec![false; run_count],
-        drift_outward_hit: vec![false; run_count],
-        slew_hit: vec![false; run_count],
-        motif_hit: vec![false; run_count],
-        boundary_density_w: vec![0.0; run_count],
-        drift_persistence_w: vec![0.0; run_count],
-        slew_density_w: vec![0.0; run_count],
-        ewma_occupancy_w: vec![0.0; run_count],
-        motif_recurrence_w: vec![0.0; run_count],
-        consistent: vec![true; run_count],
-        dsa_score: vec![0.0; run_count],
-        dsa_active: vec![false; run_count],
-        dsa_alert: vec![false; run_count],
     }
 }
 
@@ -1860,10 +1990,12 @@ pub fn summarize_dsa_grid(rows: &[DsaCalibrationRow]) -> DsaGridSummary {
     }
     let corroboration_summaries = by_corroboration
         .iter()
-        .map(|(&corroborating_feature_count_min, grouped_rows)| DsaCorroborationSummary {
-            corroborating_feature_count_min,
-            representative_row: choose_closest_to_success(grouped_rows),
-        })
+        .map(
+            |(&corroborating_feature_count_min, grouped_rows)| DsaCorroborationSummary {
+                corroborating_feature_count_min,
+                representative_row: choose_closest_to_success(grouped_rows),
+            },
+        )
         .collect::<Vec<_>>();
     let success_row_count = rows
         .iter()
@@ -1936,12 +2068,8 @@ fn compare_dsa_rows_by_priority(
             ),
         )
     })
-    .then_with(|| {
-        compare_option_f64(left.precursor_quality, right.precursor_quality)
-    })
-    .then_with(|| {
-        compare_option_f64(left.compression_ratio, right.compression_ratio)
-    })
+    .then_with(|| compare_option_f64(left.precursor_quality, right.precursor_quality))
+    .then_with(|| compare_option_f64(left.compression_ratio, right.compression_ratio))
     .then_with(|| {
         right
             .corroborating_feature_count_min
@@ -2009,10 +2137,7 @@ fn compare_option_f64(left: Option<f64>, right: Option<f64>) -> std::cmp::Orderi
     }
 }
 
-fn averaged_lead_delta(
-    threshold_delta: Option<f64>,
-    ewma_delta: Option<f64>,
-) -> Option<f64> {
+fn averaged_lead_delta(threshold_delta: Option<f64>, ewma_delta: Option<f64>) -> Option<f64> {
     let mut values = Vec::new();
     if let Some(value) = threshold_delta {
         values.push(value);
@@ -2076,15 +2201,17 @@ fn cross_feature_corroboration_effect(
 
 fn limiting_factor(rows: &[DsaCalibrationRow]) -> String {
     let any_recall_gate_passed = rows.iter().any(|row| row.threshold_recall_gate_passed);
-    let any_ewma_nuisance_success = rows
-        .iter()
-        .any(|row| row.primary_success_condition_met || !row.success_condition_failures.contains("EWMA nuisance"));
+    let any_ewma_nuisance_success = rows.iter().any(|row| {
+        row.primary_success_condition_met
+            || !row.success_condition_failures.contains("EWMA nuisance")
+    });
     if !any_recall_gate_passed {
         "Recall was the limiting factor across the saved grid.".into()
     } else if !any_ewma_nuisance_success {
         "Nuisance relative to EWMA was the limiting factor across the saved grid.".into()
     } else if rows.iter().any(|row| row.primary_success_condition_met) {
-        "The saved grid contains at least one row that satisfies the primary success condition.".into()
+        "The saved grid contains at least one row that satisfies the primary success condition."
+            .into()
     } else {
         "Both nuisance and recall remained limiting factors across different parts of the saved grid.".into()
     }
