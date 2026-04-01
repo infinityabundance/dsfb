@@ -29,8 +29,12 @@ pub fn compute_signs(
 
     for residual_trace in &residuals.traces {
         let feature = &nominal.features[residual_trace.feature_index];
-        let drift = compute_drift(&residual_trace.norms, config.drift_window);
-        let slew = compute_slew(&drift);
+        let drift = compute_drift(
+            &residual_trace.norms,
+            &residual_trace.is_imputed,
+            config.drift_window,
+        );
+        let slew = compute_slew(&drift, &residual_trace.is_imputed);
 
         let healthy_drift = dataset
             .healthy_pass_indices
@@ -72,18 +76,26 @@ pub fn compute_signs(
     SignSet { traces }
 }
 
-pub fn compute_drift(values: &[f64], window: usize) -> Vec<f64> {
+pub fn compute_drift(values: &[f64], is_imputed: &[bool], window: usize) -> Vec<f64> {
     let mut drift = vec![0.0; values.len()];
     for index in window..values.len() {
-        drift[index] = (values[index] - values[index - window]) / window as f64;
+        if is_imputed[index] || is_imputed[index - window] {
+            drift[index] = 0.0;
+        } else {
+            drift[index] = (values[index] - values[index - window]) / window as f64;
+        }
     }
     drift
 }
 
-pub fn compute_slew(drift: &[f64]) -> Vec<f64> {
+pub fn compute_slew(drift: &[f64], is_imputed: &[bool]) -> Vec<f64> {
     let mut slew = vec![0.0; drift.len()];
     for index in 1..drift.len() {
-        slew[index] = drift[index] - drift[index - 1];
+        if is_imputed[index] || is_imputed[index - 1] {
+            slew[index] = 0.0;
+        } else {
+            slew[index] = drift[index] - drift[index - 1];
+        }
     }
     slew
 }
@@ -110,13 +122,26 @@ mod tests {
 
     #[test]
     fn drift_matches_window_difference() {
-        let drift = compute_drift(&[0.0, 1.0, 2.0, 3.0, 4.0], 2);
+        let drift = compute_drift(&[0.0, 1.0, 2.0, 3.0, 4.0], &[false; 5], 2);
         assert_eq!(drift, vec![0.0, 0.0, 1.0, 1.0, 1.0]);
     }
 
     #[test]
     fn slew_is_difference_of_drift() {
-        let slew = compute_slew(&[0.0, 0.5, 1.0, 1.0]);
+        let slew = compute_slew(&[0.0, 0.5, 1.0, 1.0], &[false; 4]);
         assert_eq!(slew, vec![0.0, 0.5, 0.5, 0.0]);
+    }
+
+    #[test]
+    fn imputed_endpoints_zero_drift_and_slew() {
+        let drift = compute_drift(
+            &[0.0, 1.0, 2.0, 3.0, 4.0],
+            &[false, false, true, false, false],
+            2,
+        );
+        assert_eq!(drift, vec![0.0, 0.0, 0.0, 1.0, 0.0]);
+
+        let slew = compute_slew(&drift, &[false, false, true, false, false]);
+        assert_eq!(slew, vec![0.0, 0.0, 0.0, 0.0, -1.0]);
     }
 }

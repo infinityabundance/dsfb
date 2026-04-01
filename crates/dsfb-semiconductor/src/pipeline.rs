@@ -93,6 +93,7 @@ struct BaselineComparisonSummary {
     feature_count_used_by_crate: usize,
     failure_runs: usize,
     analyzable_feature_count: usize,
+    grammar_imputation_suppression_points: usize,
     lookback_runs: usize,
     failure_run_recall: FailureRunRecallSummary,
     pass_run_nuisance_proxy: PassRunNuisanceSummary,
@@ -486,6 +487,9 @@ fn build_baseline_comparison_summary(
         feature_count_used_by_crate: metrics.summary.dataset_summary.feature_count,
         failure_runs: metrics.summary.failure_runs,
         analyzable_feature_count: metrics.summary.analyzable_feature_count,
+        grammar_imputation_suppression_points: metrics
+            .summary
+            .grammar_imputation_suppression_points,
         lookback_runs: config.pre_failure_lookback_runs,
         failure_run_recall: FailureRunRecallSummary {
             dsfb_raw_signal: metrics.summary.failure_runs_with_preceding_dsfb_raw_signal,
@@ -840,6 +844,7 @@ fn write_trace_csvs(
         "label",
         "feature",
         "imputed_value",
+        "is_imputed",
         "residual",
         "residual_norm",
         "threshold_alarm",
@@ -904,6 +909,7 @@ fn write_trace_csvs(
         "confirmed_state",
         "persistent_boundary",
         "persistent_violation",
+        "suppressed_by_imputation",
         "raw_reason",
         "confirmed_reason",
     ])?;
@@ -924,6 +930,7 @@ fn write_trace_csvs(
                 prepared.labels[run_index].to_string(),
                 residual_trace.feature_name.clone(),
                 residual_trace.imputed_values[run_index].to_string(),
+                residual_trace.is_imputed[run_index].to_string(),
                 residual_trace.residuals[run_index].to_string(),
                 residual_trace.norms[run_index].to_string(),
                 residual_trace.threshold_alarm[run_index].to_string(),
@@ -969,6 +976,7 @@ fn write_trace_csvs(
                 format!("{:?}", grammar_trace.states[run_index]),
                 grammar_trace.persistent_boundary[run_index].to_string(),
                 grammar_trace.persistent_violation[run_index].to_string(),
+                grammar_trace.suppressed_by_imputation[run_index].to_string(),
                 format!("{:?}", grammar_trace.raw_reasons[run_index]),
                 format!("{:?}", grammar_trace.reasons[run_index]),
             ])?;

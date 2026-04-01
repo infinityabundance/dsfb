@@ -137,7 +137,7 @@ fn markdown_report(
         metrics.summary.dataset_summary.healthy_pass_runs_requested,
         metrics.summary.dataset_summary.healthy_pass_runs_found,
     ));
-    out.push_str("Missing values remain explicit during dataset loading and are deterministically imputed with the healthy-window nominal mean before residual construction.\n\n");
+    out.push_str("Missing values remain explicit during dataset loading and are deterministically imputed with the healthy-window nominal mean before residual construction. Stage III treats those imputed observations as structurally invalid for DSFB drift, slew, grammar-state assignment, and the boundary/drift fractions used by DSA.\n\n");
 
     out.push_str("## DSFB Instantiation\n\n");
     out.push_str(&format!(
@@ -162,7 +162,7 @@ fn markdown_report(
         config.pca_t2_sigma_multiplier,
         config.pca_spe_sigma_multiplier,
     ));
-    out.push_str("The existing DSFB residual, drift, slew, grammar, envelope, and violation logic is unchanged in this pass.\n\n");
+    out.push_str("Stage III keeps the nominal reference, envelope, violation definition, hysteresis, motif definitions, and DSA weights fixed. The change in this pass is missingness-aware signal validity: drift and slew are zeroed across imputed gaps, grammar states are suppressed to Admissible on imputed runs, and DSA boundary/drift fractions exclude imputed runs from the window denominator.\n\n");
     out.push_str(&format!(
         "In this crate, `DSFB Violation` remains instantaneous hard envelope exit (`|r| > rho`). `Deterministic Structural Accumulator (DSA)` is additive and sits above the existing DSFB outputs. The feature-level DSA precursor itself remains persistence-constrained, and the run-level comparison signal is cross-feature corroboration: `{}`. The current DSA configuration uses `W = {}`, `K = {}`, `tau = {:.2}`, `m = {}`, fixed unit weights, and a consistency rule that rejects thresholded inward drift and thresholded drift-sign flips.\n\n",
         dsa.run_signals.primary_run_signal,
@@ -174,8 +174,9 @@ fn markdown_report(
 
     out.push_str("## Quantitative Summary\n\n");
     out.push_str(&format!(
-        "- Analyzable features: {}\n- Threshold alarm points: {}\n- EWMA alarm points: {}\n- CUSUM alarm points: {}\n- Run-energy alarm points: {}\n- PCA T2/SPE alarm points: {}\n- DSFB raw boundary points: {}\n- DSFB persistent boundary points: {}\n- DSFB raw violation points: {}\n- DSFB persistent violation points: {}\n- DSA alert points: {}\n- DSA alert runs: {}\n- Failure runs with preceding DSA signal ({}-run lookback): {}\n- Failure runs with preceding DSFB Violation signal ({}-run lookback): {}\n- Failure runs with preceding raw DSFB boundary signal ({}-run lookback): {}\n- Failure runs with preceding EWMA signal ({}-run lookback): {}\n- Failure runs with preceding CUSUM signal ({}-run lookback): {}\n- Failure runs with preceding run-energy signal ({}-run lookback): {}\n- Failure runs with preceding PCA T2/SPE signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
+        "- Analyzable features: {}\n- Grammar-state suppressions due to imputation: {}\n- Threshold alarm points: {}\n- EWMA alarm points: {}\n- CUSUM alarm points: {}\n- Run-energy alarm points: {}\n- PCA T2/SPE alarm points: {}\n- DSFB raw boundary points: {}\n- DSFB persistent boundary points: {}\n- DSFB raw violation points: {}\n- DSFB persistent violation points: {}\n- DSA alert points: {}\n- DSA alert runs: {}\n- Failure runs with preceding DSA signal ({}-run lookback): {}\n- Failure runs with preceding DSFB Violation signal ({}-run lookback): {}\n- Failure runs with preceding raw DSFB boundary signal ({}-run lookback): {}\n- Failure runs with preceding EWMA signal ({}-run lookback): {}\n- Failure runs with preceding CUSUM signal ({}-run lookback): {}\n- Failure runs with preceding run-energy signal ({}-run lookback): {}\n- Failure runs with preceding PCA T2/SPE signal ({}-run lookback): {}\n- Failure runs with preceding threshold signal ({}-run lookback): {}\n\n",
         metrics.summary.analyzable_feature_count,
+        metrics.summary.grammar_imputation_suppression_points,
         metrics.summary.threshold_alarm_points,
         metrics.summary.ewma_alarm_points,
         metrics.summary.cusum_alarm_points,
@@ -350,7 +351,7 @@ fn markdown_report(
         dsa,
         cohort_summary,
     ));
-    out.push_str(&semantics_of_silence_markdown_section(dsa));
+    out.push_str(&semantics_of_silence_markdown_section(metrics, dsa));
     out.push_str(&rating_forecast_report_section(rating_delta_forecast));
 
     out.push_str("## Density Summary\n\n");
@@ -606,7 +607,7 @@ fn latex_report(
         dsa,
         cohort_summary,
     ));
-    out.push_str(&semantics_of_silence_latex_section(dsa));
+    out.push_str(&semantics_of_silence_latex_section(metrics, dsa));
     out.push_str(&rating_forecast_latex_section(rating_delta_forecast));
 
     out.push_str("\\section*{Motif metrics}\n");
@@ -753,10 +754,14 @@ fn heuristics_policy_engine_markdown_section(
     out
 }
 
-fn semantics_of_silence_markdown_section(dsa: &DsaEvaluation) -> String {
+fn semantics_of_silence_markdown_section(
+    metrics: &BenchmarkMetrics,
+    dsa: &DsaEvaluation,
+) -> String {
     format!(
-        "## Semantics of Silence\n\n- Silence rule: {}\n- Numeric-only DSA alert points: {}\n- Policy-governed Review/Escalate alert points: {}\n- Explicitly silenced points: {}\n- Policy nuisance: {:.4} versus numeric-only DSA {:.4} and EWMA {:.4}\n- Policy recall: {}/{} versus numeric-only DSA {}/{}\n- Watch/Review/Escalate points: {}/{}/{}\n- Raw boundary episodes: {}\n- Policy-governed DSA episodes: {}\n- Compression ratio: {}\n- Precursor quality: {}\n\n",
+        "## Semantics of Silence\n\n- Silence rule: {}\n- Grammar-state suppressions due to imputation: {}\n- Numeric-only DSA alert points: {}\n- Policy-governed Review/Escalate alert points: {}\n- Explicitly silenced points: {}\n- Policy nuisance: {:.4} versus numeric-only DSA {:.4} and EWMA {:.4}\n- Policy recall: {}/{} versus numeric-only DSA {}/{}\n- Watch/Review/Escalate points: {}/{}/{}\n- Raw boundary episodes: {}\n- Policy-governed DSA episodes: {}\n- Compression ratio: {}\n- Precursor quality: {}\n\n",
         dsa.parameter_manifest.silence_rule,
+        metrics.summary.grammar_imputation_suppression_points,
         dsa.summary.numeric_alert_point_count,
         dsa.summary.alert_point_count,
         dsa.summary.silenced_point_count,
@@ -846,12 +851,13 @@ fn heuristics_policy_engine_latex_section(
     out
 }
 
-fn semantics_of_silence_latex_section(dsa: &DsaEvaluation) -> String {
+fn semantics_of_silence_latex_section(metrics: &BenchmarkMetrics, dsa: &DsaEvaluation) -> String {
     let mut out = String::new();
     out.push_str("\\section*{Semantics of Silence}\n");
     out.push_str(&latex_escape(&format!(
-        "Silence rule: {}. Numeric-only DSA alert points: {}. Policy-governed Review/Escalate alert points: {}. Explicitly silenced points: {}. Policy nuisance is {:.4} versus numeric-only DSA {:.4} and EWMA {:.4}. Policy recall is {}/{} versus numeric-only DSA {}/{}. Watch/Review/Escalate points are {}/{}/{}. Raw boundary episodes: {}. Policy-governed DSA episodes: {}. Compression ratio: {}. Precursor quality: {}.",
+        "Silence rule: {}. Grammar-state suppressions due to imputation: {}. Numeric-only DSA alert points: {}. Policy-governed Review/Escalate alert points: {}. Explicitly silenced points: {}. Policy nuisance is {:.4} versus numeric-only DSA {:.4} and EWMA {:.4}. Policy recall is {}/{} versus numeric-only DSA {}/{}. Watch/Review/Escalate points are {}/{}/{}. Raw boundary episodes: {}. Policy-governed DSA episodes: {}. Compression ratio: {}. Precursor quality: {}.",
         dsa.parameter_manifest.silence_rule,
+        metrics.summary.grammar_imputation_suppression_points,
         dsa.summary.numeric_alert_point_count,
         dsa.summary.alert_point_count,
         dsa.summary.silenced_point_count,

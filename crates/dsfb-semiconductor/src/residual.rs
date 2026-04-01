@@ -10,6 +10,7 @@ pub struct ResidualFeatureTrace {
     pub residuals: Vec<f64>,
     pub norms: Vec<f64>,
     pub threshold_alarm: Vec<bool>,
+    pub is_imputed: Vec<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -28,8 +29,10 @@ pub fn compute_residuals(dataset: &PreparedDataset, nominal: &NominalModel) -> R
         let mut residuals = Vec::with_capacity(run_count);
         let mut norms = Vec::with_capacity(run_count);
         let mut threshold_alarm = Vec::with_capacity(run_count);
+        let mut is_imputed = Vec::with_capacity(run_count);
 
         for row in &dataset.raw_values {
+            let is_missing = row[feature_index].is_none();
             let value = row[feature_index].unwrap_or(feature.healthy_mean);
             let residual = value - feature.healthy_mean;
             let norm = residual.abs();
@@ -37,6 +40,7 @@ pub fn compute_residuals(dataset: &PreparedDataset, nominal: &NominalModel) -> R
             residuals.push(residual);
             norms.push(norm);
             threshold_alarm.push(feature.analyzable && norm > feature.rho);
+            is_imputed.push(is_missing);
         }
 
         traces.push(ResidualFeatureTrace {
@@ -46,6 +50,7 @@ pub fn compute_residuals(dataset: &PreparedDataset, nominal: &NominalModel) -> R
             residuals,
             norms,
             threshold_alarm,
+            is_imputed,
         });
     }
 
