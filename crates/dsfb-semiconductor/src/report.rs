@@ -1,6 +1,6 @@
 use crate::cohort::{
     cohort_report_section, rating_forecast_report_section, CohortDsaSummary, FeatureCohorts,
-    RatingDeltaForecast,
+    OptimizationExecution, RatingDeltaForecast,
 };
 use crate::config::PipelineConfig;
 use crate::dataset::phm2018::Phm2018SupportStatus;
@@ -34,6 +34,7 @@ pub fn write_reports(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
+    optimization: &OptimizationExecution,
     feature_cohorts: &FeatureCohorts,
     cohort_summary: &CohortDsaSummary,
     rating_delta_forecast: &RatingDeltaForecast,
@@ -50,6 +51,7 @@ pub fn write_reports(
             config,
             metrics,
             dsa,
+            optimization,
             feature_cohorts,
             cohort_summary,
             rating_delta_forecast,
@@ -65,6 +67,7 @@ pub fn write_reports(
             config,
             metrics,
             dsa,
+            optimization,
             feature_cohorts,
             cohort_summary,
             rating_delta_forecast,
@@ -89,6 +92,7 @@ fn markdown_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
+    optimization: &OptimizationExecution,
     feature_cohorts: &FeatureCohorts,
     cohort_summary: &CohortDsaSummary,
     rating_delta_forecast: &RatingDeltaForecast,
@@ -352,6 +356,10 @@ fn markdown_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_markdown_section(metrics, dsa));
+    out.push_str(&recall_recovery_markdown_section(optimization));
+    out.push_str(&feature_aware_governance_markdown_section(optimization));
+    out.push_str(&missed_failure_diagnostics_markdown_section(optimization));
+    out.push_str(&optimization_frontier_markdown_section(optimization));
     out.push_str(&rating_forecast_report_section(rating_delta_forecast));
 
     out.push_str("## Density Summary\n\n");
@@ -454,6 +462,7 @@ fn latex_report(
     config: &PipelineConfig,
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
+    optimization: &OptimizationExecution,
     feature_cohorts: &FeatureCohorts,
     cohort_summary: &CohortDsaSummary,
     rating_delta_forecast: &RatingDeltaForecast,
@@ -608,6 +617,7 @@ fn latex_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_latex_section(metrics, dsa));
+    out.push_str(&optimization_sections_latex(optimization));
     out.push_str(&rating_forecast_latex_section(rating_delta_forecast));
 
     out.push_str("\\section*{Motif metrics}\n");
@@ -880,6 +890,235 @@ fn semantics_of_silence_latex_section(metrics: &BenchmarkMetrics, dsa: &DsaEvalu
     out
 }
 
+fn recall_recovery_markdown_section(optimization: &OptimizationExecution) -> String {
+    let baseline = optimization
+        .baseline_execution
+        .summary
+        .selected_configuration
+        .as_ref();
+    let optimized = optimization
+        .optimized_execution
+        .summary
+        .selected_configuration
+        .as_ref();
+    let mut out = String::new();
+    out.push_str("## Recall Recovery Optimization\n\n");
+    if let Some(baseline) = baseline {
+        out.push_str(&format!(
+            "- Previous limiting result: {} with recall {}/{}, nuisance {:.4}, mean lead {}\n",
+            baseline.cohort_name,
+            baseline.failure_recall,
+            baseline.failure_runs,
+            baseline.pass_run_nuisance_proxy,
+            format_option_f64(baseline.mean_lead_time_runs),
+        ));
+    }
+    if let Some(optimized) = optimized {
+        out.push_str(&format!(
+            "- Optimized result: {} [{}] with recall {}/{}, nuisance {:.4}, mean lead {}, rescued points {}, Watch->Review rescues {}\n",
+            optimized.cohort_name,
+            optimized.ranking_strategy,
+            optimized.failure_recall,
+            optimized.failure_runs,
+            optimized.pass_run_nuisance_proxy,
+            format_option_f64(optimized.mean_lead_time_runs),
+            optimized.rescued_point_count,
+            optimized.rescued_watch_to_review_points,
+        ));
+    }
+    out.push_str("- Rescue rules added: bounded feature-level near-miss rescue on explicit override features only; no global threshold reduction.\n");
+    if let (Some(baseline), Some(optimized)) = (baseline, optimized) {
+        out.push_str(&format!(
+            "- Recall delta: {} -> {} (change {}). Nuisance delta: {:.4} -> {:.4}.\n\n",
+            baseline.failure_recall,
+            optimized.failure_recall,
+            optimized.failure_recall as i64 - baseline.failure_recall as i64,
+            baseline.pass_run_nuisance_proxy,
+            optimized.pass_run_nuisance_proxy,
+        ));
+    } else {
+        out.push('\n');
+    }
+    out
+}
+
+fn feature_aware_governance_markdown_section(optimization: &OptimizationExecution) -> String {
+    let mut out = String::new();
+    out.push_str("## Feature-Aware Heuristic Governance\n\n");
+    out.push_str("- Motif defaults remain the global policy baseline.\n");
+    out.push_str(&format!(
+        "- Explicit feature overrides written: {}\n",
+        optimization.feature_policy_overrides.len()
+    ));
+    if optimization.feature_policy_overrides.is_empty() {
+        out.push_str("- No feature-specific overrides met the deterministic selection rule.\n\n");
+        return out;
+    }
+    out.push_str("| Feature | Rescue priority | Persistence override | Corroboration override | Window | Hits | Max fragmentation |\n");
+    out.push_str("|---|---:|---|---|---:|---:|---:|\n");
+    for row in &optimization.feature_policy_summary {
+        out.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {} | {} |\n",
+            row.feature_name,
+            row.rescue_priority,
+            row.requires_persistence_override
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "default".into()),
+            row.requires_corroboration_override
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "default".into()),
+            row.minimum_window_override
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "default".into()),
+            row.minimum_hits_override
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "default".into()),
+            row.maximum_allowed_fragmentation_override
+                .map(|value| format!("{value:.4}"))
+                .unwrap_or_else(|| "default".into()),
+        ));
+    }
+    out.push('\n');
+    for row in &optimization.feature_policy_summary {
+        out.push_str(&format!(
+            "- {}: {}\n",
+            row.feature_name, row.override_reason
+        ));
+    }
+    out.push('\n');
+    out
+}
+
+fn missed_failure_diagnostics_markdown_section(optimization: &OptimizationExecution) -> String {
+    let mut out = String::new();
+    out.push_str("## Missed-Failure Diagnostics\n\n");
+    if optimization.missed_failure_diagnostics.is_empty() {
+        out.push_str("- No baseline-missed failures remained to diagnose.\n\n");
+        return out;
+    }
+    for row in &optimization.missed_failure_diagnostics {
+        out.push_str(&format!(
+            "- Failure {}: nearest feature {:?}, score {}, policy_state {:?}, resolved_class {:?}, consistent={}, fragmentation={}, exact miss rule `{}`, recovered_after_optimization={}, bounded_rescue_would_recover={}\n",
+            row.failure_run_index,
+            row.nearest_feature_name,
+            format_option_f64(row.nearest_feature_score),
+            row.nearest_feature_policy_state,
+            row.nearest_feature_resolved_alert_class,
+            format_option_bool(row.nearest_feature_consistent),
+            format_option_f64(row.nearest_feature_fragmentation_proxy_w),
+            row.exact_miss_rule,
+            row.recovered_after_optimization,
+            row.bounded_rescue_would_recover,
+        ));
+    }
+    out.push('\n');
+    out
+}
+
+fn optimization_frontier_markdown_section(optimization: &OptimizationExecution) -> String {
+    let mut out = String::new();
+    out.push_str("## Optimization Frontier\n\n");
+    out.push_str(&format!(
+        "- Pareto frontier rows: {}\n- Stage A nuisance-first candidates: {}\n- Stage B recall-recovery candidates: {}\n",
+        optimization.pareto_frontier.len(),
+        optimization.stage_a_candidates.len(),
+        optimization.stage_b_candidates.len(),
+    ));
+    if let Some(selected) = &optimization
+        .optimized_execution
+        .summary
+        .selected_configuration
+    {
+        out.push_str(&format!(
+            "- Best achieved configuration: {} [{}], W={}, K={}, tau={:.2}, m={}, recall={}/{}, nuisance {:.4}, mean lead {}, precursor quality {}, compression {}\n",
+            selected.cohort_name,
+            selected.ranking_strategy,
+            selected.window,
+            selected.persistence_runs,
+            selected.alert_tau,
+            selected.corroborating_m,
+            selected.failure_recall,
+            selected.failure_runs,
+            selected.pass_run_nuisance_proxy,
+            format_option_f64(selected.mean_lead_time_runs),
+            format_option_f64(selected.precursor_quality),
+            format_option_f64(selected.compression_ratio),
+        ));
+    }
+    if let Some(best_near_success) = optimization.stage_b_candidates.first() {
+        out.push_str(&format!(
+            "- Best near-success configuration: {} [{}], recall={}/{}, nuisance {:.4}\n\n",
+            best_near_success.cohort_name,
+            best_near_success.ranking_strategy,
+            best_near_success.failure_recall,
+            best_near_success.failure_runs,
+            best_near_success.pass_run_nuisance_proxy,
+        ));
+    } else {
+        out.push('\n');
+    }
+    out
+}
+
+fn optimization_sections_latex(optimization: &OptimizationExecution) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Recall Recovery Optimization}\n");
+    if let Some(baseline) = &optimization
+        .baseline_execution
+        .summary
+        .selected_configuration
+    {
+        out.push_str(&latex_escape(&format!(
+            "Previous limiting result: {} with recall {}/{}, nuisance {:.4}, mean lead {}.",
+            baseline.cohort_name,
+            baseline.failure_recall,
+            baseline.failure_runs,
+            baseline.pass_run_nuisance_proxy,
+            format_option_f64(baseline.mean_lead_time_runs),
+        )));
+        out.push_str("\n\n");
+    }
+    if let Some(optimized_row) = &optimization
+        .optimized_execution
+        .summary
+        .selected_configuration
+    {
+        out.push_str(&latex_escape(&format!(
+            "Optimized result: {} [{}] with recall {}/{}, nuisance {:.4}, mean lead {}, rescued points {}, Watch-to-Review rescues {}.",
+            optimized_row.cohort_name,
+            optimized_row.ranking_strategy,
+            optimized_row.failure_recall,
+            optimized_row.failure_runs,
+            optimized_row.pass_run_nuisance_proxy,
+            format_option_f64(optimized_row.mean_lead_time_runs),
+            optimized_row.rescued_point_count,
+            optimized_row.rescued_watch_to_review_points,
+        )));
+        out.push_str("\n\n");
+    }
+    out.push_str("\\section*{Feature-Aware Heuristic Governance}\n");
+    out.push_str(&latex_escape(&format!(
+        "Explicit feature overrides written: {}.",
+        optimization.feature_policy_overrides.len(),
+    )));
+    out.push_str("\n\n");
+    out.push_str("\\section*{Missed-Failure Diagnostics}\n");
+    out.push_str(&latex_escape(&format!(
+        "Baseline missed failures diagnosed: {}.",
+        optimization.missed_failure_diagnostics.len(),
+    )));
+    out.push_str("\n\n");
+    out.push_str("\\section*{Optimization Frontier}\n");
+    out.push_str(&latex_escape(&format!(
+        "Pareto frontier rows: {}. Stage A nuisance-first candidates: {}. Stage B recall-recovery candidates: {}.",
+        optimization.pareto_frontier.len(),
+        optimization.stage_a_candidates.len(),
+        optimization.stage_b_candidates.len(),
+    )));
+    out.push_str("\n\n");
+    out
+}
+
 fn artifact_inventory(
     figures: &FigureManifest,
     include_cohort_failure_analysis: bool,
@@ -927,6 +1166,14 @@ fn artifact_inventory(
             role: "Deterministic analyzable-feature ranking used for cohort selection.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_feature_ranking_recall_aware.csv".into(),
+            role: "Recall-aware deterministic feature ranking emphasizing pre-failure coverage.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_feature_ranking_comparison.csv".into(),
+            role: "Side-by-side comparison of compression-biased and recall-aware ranking positions.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_seed_feature_check.json".into(),
             role: "Standalone seed-feature inclusion report for S059, S044, S061, S222, S354, and S173.".into(),
         },
@@ -935,12 +1182,48 @@ fn artifact_inventory(
             role: "Explicit top_4, top_8, top_16, and all-feature cohorts plus seed-feature inclusion report.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_feature_policy_overrides.json".into(),
+            role: "Explicit feature-aware heuristic override table and rescue eligibility.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_feature_policy_summary.csv".into(),
+            role: "Feature-level policy summary with override rationale and ranking positions.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_recall_rescue_results.csv".into(),
+            role: "Per-configuration rescue activation counts and recovered-alert summaries.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_pareto_frontier.csv".into(),
+            role: "Nuisance-versus-recall Pareto frontier across the optimized search.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_stage_a_candidates.csv".into(),
+            role: "Stage A nuisance-first candidate set with recall kept at or above 100/104.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_stage_b_candidates.csv".into(),
+            role: "Stage B recall-recovery candidates selected from the nuisance-first frontier.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_missed_failure_diagnostics.csv".into(),
+            role: "Per-failure diagnostic table for baseline-missed failures and rescue recoverability.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_cohort_results.csv".into(),
             role: "Cohort-level DSA nuisance, recall, lead-time, episode, compression, and corroboration sweep results.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_cohort_results_recall_aware.csv".into(),
+            role: "Recall-aware cohort results under the optimized deterministic rescue policy.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_cohort_summary.json".into(),
             role: "Saved cohort-level DSA summary, closest-to-success row, and best cohort when present.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_cohort_summary_recall_aware.json".into(),
+            role: "Recall-aware cohort summary for direct comparison with the compression-biased ranking.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_cohort_precursor_quality.csv".into(),
@@ -949,6 +1232,10 @@ fn artifact_inventory(
         ArtifactInventoryEntry {
             path: "dsa_motif_policy_contributions.csv".into(),
             role: "Per-grid motif contributions to Watch/Review/Escalate and explicit silent suppression.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_policy_contribution_analysis.csv".into(),
+            role: "Best-configuration contribution analysis for nuisance suppression, rescued recall, and rescue transitions.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_rating_delta_forecast.json".into(),
@@ -1395,6 +1682,12 @@ fn compile_pdf(tex_path: &Path, output_dir: &Path) -> (Option<PathBuf>, Option<S
 fn format_option_f64(value: Option<f64>) -> String {
     value
         .map(|value| format!("{value:.4}"))
+        .unwrap_or_else(|| "n/a".into())
+}
+
+fn format_option_bool(value: Option<bool>) -> String {
+    value
+        .map(|value| value.to_string())
         .unwrap_or_else(|| "n/a".into())
 }
 

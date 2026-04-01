@@ -2,10 +2,13 @@
 
 use crate::baselines::BaselineSet;
 use crate::error::Result;
-use crate::heuristics::HeuristicAlertClass;
+use crate::heuristics::{FeaturePolicyOverride, HeuristicAlertClass};
 use crate::metrics::BenchmarkMetrics;
 use crate::nominal::NominalModel;
-use crate::precursor::{evaluate_dsa, project_dsa_to_cohort, DsaConfig, DsaEvaluation};
+use crate::precursor::{
+    evaluate_dsa, evaluate_dsa_with_policy, project_dsa_to_cohort, DsaConfig, DsaEvaluation,
+    DsaPolicyRuntime, RecallRescueConfig,
+};
 use crate::preprocessing::PreparedDataset;
 use crate::residual::ResidualSet;
 use crate::signs::SignSet;
@@ -18,6 +21,8 @@ use std::path::Path;
 
 const RANKING_FORMULA: &str =
     "candidate_score = z(dsfb_raw_boundary_points) - z(dsfb_raw_violation_points) + z(ewma_alarm_points) - I(missing_fraction > 0.50) * 2.0";
+const RECALL_AWARE_RANKING_FORMULA: &str =
+    "candidate_score_recall = z(pre_failure_run_hits) + z(motif_precision_proxy) + z(ewma_alarm_points) + 0.5 * z(dsfb_raw_boundary_points) - 0.5 * z(dsfb_raw_violation_points) - I(missing_fraction > 0.50) * 2.0";
 const MISSINGNESS_PENALTY_THRESHOLD: f64 = 0.50;
 const MISSINGNESS_PENALTY_VALUE: f64 = 2.0;
 const RECALL_TOLERANCE: usize = 1;
@@ -30,9 +35,15 @@ const FORECAST_PRIMARY_ONLY: f64 = 8.8;
 const FORECAST_PRIMARY_PLUS_SECONDARY: f64 = 9.1;
 const FORECAST_RECALL_SHORTFALL_VALUE: f64 = 8.3;
 const SEED_FEATURES: &[&str] = &["S059", "S044", "S061", "S222", "S354", "S173"];
+const OPTIMIZATION_RESCUE_WINDOW: usize = 5;
+const OPTIMIZATION_RESCUE_MIN_HITS: usize = 4;
+const OPTIMIZATION_RESCUE_FRAGMENTATION: f64 = 0.5;
+const OPTIMIZATION_OVERRIDE_MAX_MISSINGNESS: f64 = 0.05;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FeatureRankingRow {
+    pub ranking_strategy: String,
+    pub ranking_formula: String,
     pub feature_index: usize,
     pub feature_name: String,
     pub dsfb_raw_boundary_points: usize,
@@ -41,7 +52,11 @@ pub struct FeatureRankingRow {
     pub dsfb_persistent_violation_points: usize,
     pub ewma_alarm_points: usize,
     pub threshold_alarm_points: usize,
+    pub pre_failure_run_hits: usize,
+    pub motif_precision_proxy: Option<f64>,
     pub missing_fraction: f64,
+    pub z_pre_failure_run_hits: Option<f64>,
+    pub z_motif_precision_proxy: Option<f64>,
     pub z_boundary: f64,
     pub z_violation: f64,
     pub z_ewma: f64,
@@ -49,6 +64,17 @@ pub struct FeatureRankingRow {
     pub candidate_score: f64,
     pub score_breakdown: String,
     pub rank: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FeatureRankingComparisonRow {
+    pub feature_index: usize,
+    pub feature_name: String,
+    pub compression_rank: Option<usize>,
+    pub recall_aware_rank: Option<usize>,
+    pub compression_score: Option<f64>,
+    pub recall_aware_score: Option<f64>,
+    pub rank_delta_recall_minus_compression: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -99,6 +125,8 @@ pub struct FeatureCohorts {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CohortGridResult {
+    pub ranking_strategy: String,
+    pub ranking_formula: String,
     pub grid_row_id: usize,
     pub feature_trace_config_id: usize,
     pub cohort_name: String,
@@ -145,8 +173,81 @@ pub struct CohortGridResult {
     pub review_point_count: usize,
     pub escalate_point_count: usize,
     pub silenced_point_count: usize,
+    pub rescued_point_count: usize,
+    pub rescued_watch_to_review_points: usize,
+    pub rescued_review_to_escalate_points: usize,
     pub primary_success: bool,
     pub primary_success_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FeaturePolicySummaryRow {
+    pub feature_index: usize,
+    pub feature_name: String,
+    pub compression_rank: Option<usize>,
+    pub recall_aware_rank: Option<usize>,
+    pub pre_failure_run_hits: usize,
+    pub motif_precision_proxy: Option<f64>,
+    pub missing_fraction: f64,
+    pub rescue_eligible: bool,
+    pub rescue_priority: usize,
+    pub alert_class_override: Option<HeuristicAlertClass>,
+    pub requires_persistence_override: Option<bool>,
+    pub requires_corroboration_override: Option<bool>,
+    pub minimum_window_override: Option<usize>,
+    pub minimum_hits_override: Option<usize>,
+    pub maximum_allowed_fragmentation_override: Option<f64>,
+    pub override_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RecallRescueResultRow {
+    pub ranking_strategy: String,
+    pub cohort_name: String,
+    pub window: usize,
+    pub persistence_runs: usize,
+    pub alert_tau: f64,
+    pub corroborating_m: usize,
+    pub failure_recall: usize,
+    pub pass_run_nuisance_proxy: f64,
+    pub rescued_point_count: usize,
+    pub rescued_watch_to_review_points: usize,
+    pub rescued_review_to_escalate_points: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MissedFailureDiagnosticRow {
+    pub failure_run_index: usize,
+    pub nearest_feature_name: Option<String>,
+    pub nearest_feature_score: Option<f64>,
+    pub nearest_feature_policy_state: Option<String>,
+    pub nearest_feature_resolved_alert_class: Option<String>,
+    pub nearest_feature_boundary_density_w: Option<f64>,
+    pub nearest_feature_ewma_occupancy_w: Option<f64>,
+    pub nearest_feature_motif_recurrence_w: Option<f64>,
+    pub nearest_feature_fragmentation_proxy_w: Option<f64>,
+    pub nearest_feature_consistent: Option<bool>,
+    pub ranking_exclusion: bool,
+    pub cohort_selection: bool,
+    pub policy_suppression: bool,
+    pub fragmentation_ceiling: bool,
+    pub directional_consistency_gate: bool,
+    pub persistence_gate: bool,
+    pub corroboration_threshold: bool,
+    pub rescue_gate_not_activating: bool,
+    pub exact_miss_rule: String,
+    pub bounded_rescue_would_recover: bool,
+    pub recovered_after_optimization: bool,
+    pub optimized_feature_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PolicyContributionAnalysisRow {
+    pub configuration_role: String,
+    pub contribution_type: String,
+    pub name: String,
+    pub value: f64,
+    pub note: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -235,6 +336,26 @@ pub struct CohortExecution {
     pub summary: CohortDsaSummary,
     pub motif_policy_contributions: Vec<CohortMotifPolicyContributionRow>,
     pub selected_evaluation: DsaEvaluation,
+}
+
+#[derive(Debug, Clone)]
+pub struct OptimizationExecution {
+    pub baseline_feature_ranking: Vec<FeatureRankingRow>,
+    pub baseline_feature_cohorts: FeatureCohorts,
+    pub baseline_execution: CohortExecution,
+    pub recall_aware_feature_ranking: Vec<FeatureRankingRow>,
+    pub ranking_comparison: Vec<FeatureRankingComparisonRow>,
+    pub recall_aware_feature_cohorts: FeatureCohorts,
+    pub feature_policy_overrides: Vec<FeaturePolicyOverride>,
+    pub feature_policy_summary: Vec<FeaturePolicySummaryRow>,
+    pub optimized_execution: CohortExecution,
+    pub recall_aware_execution: CohortExecution,
+    pub pareto_frontier: Vec<CohortGridResult>,
+    pub stage_a_candidates: Vec<CohortGridResult>,
+    pub stage_b_candidates: Vec<CohortGridResult>,
+    pub recall_rescue_results: Vec<RecallRescueResultRow>,
+    pub missed_failure_diagnostics: Vec<MissedFailureDiagnosticRow>,
+    pub policy_contribution_analysis: Vec<PolicyContributionAnalysisRow>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -346,6 +467,8 @@ pub fn compute_feature_ranking(metrics: &BenchmarkMetrics) -> Vec<FeatureRanking
             let candidate_score = z_boundary - z_violation + z_ewma - missingness_penalty;
 
             FeatureRankingRow {
+                ranking_strategy: "compression_biased".into(),
+                ranking_formula: RANKING_FORMULA.into(),
                 feature_index: feature.feature_index,
                 feature_name: feature.feature_name.clone(),
                 dsfb_raw_boundary_points: feature.dsfb_raw_boundary_points,
@@ -354,7 +477,11 @@ pub fn compute_feature_ranking(metrics: &BenchmarkMetrics) -> Vec<FeatureRanking
                 dsfb_persistent_violation_points: feature.dsfb_persistent_violation_points,
                 ewma_alarm_points: feature.ewma_alarm_points,
                 threshold_alarm_points: feature.threshold_alarm_points,
+                pre_failure_run_hits: feature.pre_failure_run_hits,
+                motif_precision_proxy: feature.motif_precision_proxy,
                 missing_fraction: feature.missing_fraction,
+                z_pre_failure_run_hits: None,
+                z_motif_precision_proxy: None,
                 z_boundary,
                 z_violation,
                 z_ewma,
@@ -384,9 +511,133 @@ pub fn compute_feature_ranking(metrics: &BenchmarkMetrics) -> Vec<FeatureRanking
     ranking
 }
 
+pub fn compute_feature_ranking_recall_aware(metrics: &BenchmarkMetrics) -> Vec<FeatureRankingRow> {
+    let analyzable = metrics
+        .feature_metrics
+        .iter()
+        .filter(|feature| feature.analyzable)
+        .collect::<Vec<_>>();
+    if analyzable.is_empty() {
+        return Vec::new();
+    }
+
+    let pre_failure_values = analyzable
+        .iter()
+        .map(|feature| feature.pre_failure_run_hits as f64)
+        .collect::<Vec<_>>();
+    let motif_precision_values = analyzable
+        .iter()
+        .map(|feature| feature.motif_precision_proxy.unwrap_or(0.0))
+        .collect::<Vec<_>>();
+    let ewma_values = analyzable
+        .iter()
+        .map(|feature| feature.ewma_alarm_points as f64)
+        .collect::<Vec<_>>();
+    let boundary_values = analyzable
+        .iter()
+        .map(|feature| feature.dsfb_raw_boundary_points as f64)
+        .collect::<Vec<_>>();
+    let violation_values = analyzable
+        .iter()
+        .map(|feature| feature.dsfb_raw_violation_points as f64)
+        .collect::<Vec<_>>();
+
+    let (pre_failure_mean, pre_failure_std) = mean_std(&pre_failure_values);
+    let (motif_precision_mean, motif_precision_std) = mean_std(&motif_precision_values);
+    let (ewma_mean, ewma_std) = mean_std(&ewma_values);
+    let (boundary_mean, boundary_std) = mean_std(&boundary_values);
+    let (violation_mean, violation_std) = mean_std(&violation_values);
+
+    let mut ranking = analyzable
+        .iter()
+        .map(|feature| {
+            let z_pre_failure_run_hits = z_score(
+                feature.pre_failure_run_hits as f64,
+                pre_failure_mean,
+                pre_failure_std,
+            );
+            let z_motif_precision_proxy = z_score(
+                feature.motif_precision_proxy.unwrap_or(0.0),
+                motif_precision_mean,
+                motif_precision_std,
+            );
+            let z_ewma = z_score(feature.ewma_alarm_points as f64, ewma_mean, ewma_std);
+            let z_boundary = z_score(
+                feature.dsfb_raw_boundary_points as f64,
+                boundary_mean,
+                boundary_std,
+            );
+            let z_violation = z_score(
+                feature.dsfb_raw_violation_points as f64,
+                violation_mean,
+                violation_std,
+            );
+            let missingness_penalty = if feature.missing_fraction > MISSINGNESS_PENALTY_THRESHOLD {
+                MISSINGNESS_PENALTY_VALUE
+            } else {
+                0.0
+            };
+            let candidate_score = z_pre_failure_run_hits
+                + z_motif_precision_proxy
+                + z_ewma
+                + 0.5 * z_boundary
+                - 0.5 * z_violation
+                - missingness_penalty;
+
+            FeatureRankingRow {
+                ranking_strategy: "recall_aware".into(),
+                ranking_formula: RECALL_AWARE_RANKING_FORMULA.into(),
+                feature_index: feature.feature_index,
+                feature_name: feature.feature_name.clone(),
+                dsfb_raw_boundary_points: feature.dsfb_raw_boundary_points,
+                dsfb_persistent_boundary_points: feature.dsfb_persistent_boundary_points,
+                dsfb_raw_violation_points: feature.dsfb_raw_violation_points,
+                dsfb_persistent_violation_points: feature.dsfb_persistent_violation_points,
+                ewma_alarm_points: feature.ewma_alarm_points,
+                threshold_alarm_points: feature.threshold_alarm_points,
+                pre_failure_run_hits: feature.pre_failure_run_hits,
+                motif_precision_proxy: feature.motif_precision_proxy,
+                missing_fraction: feature.missing_fraction,
+                z_pre_failure_run_hits: Some(z_pre_failure_run_hits),
+                z_motif_precision_proxy: Some(z_motif_precision_proxy),
+                z_boundary,
+                z_violation,
+                z_ewma,
+                missingness_penalty,
+                candidate_score,
+                score_breakdown: format!(
+                    "{:+.4} pre_failure + {:+.4} motif_precision + {:+.4} ewma + 0.5*{:+.4} boundary - 0.5*{:+.4} violation - {:.1} missingness",
+                    z_pre_failure_run_hits,
+                    z_motif_precision_proxy,
+                    z_ewma,
+                    z_boundary,
+                    z_violation,
+                    missingness_penalty
+                ),
+                rank: 0,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    ranking.sort_by(|left, right| {
+        right
+            .candidate_score
+            .partial_cmp(&left.candidate_score)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| left.feature_name.cmp(&right.feature_name))
+    });
+
+    for (index, row) in ranking.iter_mut().enumerate() {
+        row.rank = index + 1;
+    }
+
+    ranking
+}
+
 pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> Result<()> {
     let mut writer = Writer::from_path(path)?;
     writer.write_record([
+        "ranking_strategy",
         "rank",
         "feature_index",
         "feature_name",
@@ -397,7 +648,11 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
         "dsfb_persistent_violation_points",
         "ewma_alarm_points",
         "threshold_alarm_points",
+        "pre_failure_run_hits",
+        "motif_precision_proxy",
         "missing_fraction",
+        "z_pre_failure_run_hits",
+        "z_motif_precision_proxy",
         "z_boundary",
         "z_violation",
         "z_ewma",
@@ -407,17 +662,22 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
     ])?;
     for row in ranking {
         writer.write_record([
+            row.ranking_strategy.clone(),
             row.rank.to_string(),
             row.feature_index.to_string(),
             row.feature_name.clone(),
-            RANKING_FORMULA.to_string(),
+            row.ranking_formula.clone(),
             row.dsfb_raw_boundary_points.to_string(),
             row.dsfb_persistent_boundary_points.to_string(),
             row.dsfb_raw_violation_points.to_string(),
             row.dsfb_persistent_violation_points.to_string(),
             row.ewma_alarm_points.to_string(),
             row.threshold_alarm_points.to_string(),
+            row.pre_failure_run_hits.to_string(),
+            format_option_csv(row.motif_precision_proxy),
             format!("{:.6}", row.missing_fraction),
+            format_option_csv(row.z_pre_failure_run_hits),
+            format_option_csv(row.z_motif_precision_proxy),
             format!("{:.6}", row.z_boundary),
             format!("{:.6}", row.z_violation),
             format!("{:.6}", row.z_ewma),
@@ -430,7 +690,115 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
     Ok(())
 }
 
+pub fn compare_feature_rankings(
+    compression_ranking: &[FeatureRankingRow],
+    recall_aware_ranking: &[FeatureRankingRow],
+) -> Vec<FeatureRankingComparisonRow> {
+    let compression_by_feature = compression_ranking
+        .iter()
+        .map(|row| (&row.feature_name, row))
+        .collect::<BTreeMap<_, _>>();
+    let recall_by_feature = recall_aware_ranking
+        .iter()
+        .map(|row| (&row.feature_name, row))
+        .collect::<BTreeMap<_, _>>();
+
+    let mut feature_names = compression_by_feature
+        .keys()
+        .copied()
+        .chain(recall_by_feature.keys().copied())
+        .collect::<Vec<_>>();
+    feature_names.sort_unstable();
+    feature_names.dedup();
+
+    feature_names
+        .into_iter()
+        .map(|feature_name| {
+            let compression = compression_by_feature.get(feature_name).copied();
+            let recall = recall_by_feature.get(feature_name).copied();
+            FeatureRankingComparisonRow {
+                feature_index: compression
+                    .or(recall)
+                    .map(|row| row.feature_index)
+                    .unwrap_or_default(),
+                feature_name: feature_name.to_string(),
+                compression_rank: compression.map(|row| row.rank),
+                recall_aware_rank: recall.map(|row| row.rank),
+                compression_score: compression.map(|row| row.candidate_score),
+                recall_aware_score: recall.map(|row| row.candidate_score),
+                rank_delta_recall_minus_compression: match (compression, recall) {
+                    (Some(compression), Some(recall)) => {
+                        Some(recall.rank as i64 - compression.rank as i64)
+                    }
+                    _ => None,
+                },
+            }
+        })
+        .collect()
+}
+
+pub fn write_feature_ranking_comparison_csv(
+    path: &Path,
+    rows: &[FeatureRankingComparisonRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_feature_policy_summary_csv(
+    path: &Path,
+    rows: &[FeaturePolicySummaryRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_recall_rescue_results_csv(path: &Path, rows: &[RecallRescueResultRow]) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_missed_failure_diagnostics_csv(
+    path: &Path,
+    rows: &[MissedFailureDiagnosticRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_policy_contribution_analysis_csv(
+    path: &Path,
+    rows: &[PolicyContributionAnalysisRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
 pub fn build_feature_cohorts(ranking: &[FeatureRankingRow]) -> FeatureCohorts {
+    let ranking_formula = ranking
+        .first()
+        .map(|row| row.ranking_formula.clone())
+        .unwrap_or_else(|| RANKING_FORMULA.into());
     let top_4 = ranking
         .iter()
         .take(4)
@@ -488,7 +856,7 @@ pub fn build_feature_cohorts(ranking: &[FeatureRankingRow]) -> FeatureCohorts {
         .collect::<Vec<_>>();
 
     FeatureCohorts {
-        ranking_formula: RANKING_FORMULA.into(),
+        ranking_formula,
         missingness_penalty_threshold: MISSINGNESS_PENALTY_THRESHOLD,
         missingness_penalty_value: MISSINGNESS_PENALTY_VALUE,
         top_4,
@@ -521,6 +889,34 @@ pub fn run_cohort_dsa_grid(
     pre_failure_lookback_runs: usize,
     metrics: &BenchmarkMetrics,
 ) -> Result<CohortExecution> {
+    run_cohort_dsa_grid_with_policy(
+        dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
+        cohorts,
+        pre_failure_lookback_runs,
+        metrics,
+        &DsaPolicyRuntime::default(),
+        "compression_biased",
+    )
+}
+
+pub fn run_cohort_dsa_grid_with_policy(
+    dataset: &PreparedDataset,
+    nominal: &NominalModel,
+    residuals: &ResidualSet,
+    signs: &SignSet,
+    baselines: &BaselineSet,
+    grammar: &GrammarSet,
+    cohorts: &FeatureCohorts,
+    pre_failure_lookback_runs: usize,
+    metrics: &BenchmarkMetrics,
+    policy_runtime: &DsaPolicyRuntime,
+    ranking_strategy: &str,
+) -> Result<CohortExecution> {
     let cohort_specs = [
         ("top_4", cohorts.top_4.as_slice()),
         ("top_8", cohorts.top_8.as_slice()),
@@ -544,7 +940,7 @@ pub fn run_cohort_dsa_grid(
                     alert_tau,
                     corroborating_feature_count_min: 1,
                 };
-                let base_evaluation = evaluate_dsa(
+                let base_evaluation = evaluate_dsa_with_policy(
                     dataset,
                     nominal,
                     residuals,
@@ -553,6 +949,7 @@ pub fn run_cohort_dsa_grid(
                     grammar,
                     &base_config,
                     pre_failure_lookback_runs,
+                    policy_runtime,
                 )?;
 
                 for (cohort_name, members) in cohort_specs {
@@ -584,6 +981,8 @@ pub fn run_cohort_dsa_grid(
                         let row = build_grid_row(
                             grid_row_id,
                             feature_trace_config_id,
+                            ranking_strategy,
+                            &cohorts.ranking_formula,
                             cohort_name,
                             members.len(),
                             &base_config,
@@ -696,9 +1095,665 @@ pub fn run_cohort_dsa_grid(
     })
 }
 
+pub fn run_recall_optimization(
+    dataset: &PreparedDataset,
+    nominal: &NominalModel,
+    residuals: &ResidualSet,
+    signs: &SignSet,
+    baselines: &BaselineSet,
+    grammar: &GrammarSet,
+    metrics: &BenchmarkMetrics,
+    pre_failure_lookback_runs: usize,
+) -> Result<OptimizationExecution> {
+    let baseline_feature_ranking = compute_feature_ranking(metrics);
+    let baseline_feature_cohorts = build_feature_cohorts(&baseline_feature_ranking);
+    let baseline_execution = run_cohort_dsa_grid(
+        dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
+        &baseline_feature_cohorts,
+        pre_failure_lookback_runs,
+        metrics,
+    )?;
+
+    let recall_aware_feature_ranking = compute_feature_ranking_recall_aware(metrics);
+    let ranking_comparison =
+        compare_feature_rankings(&baseline_feature_ranking, &recall_aware_feature_ranking);
+    let recall_aware_feature_cohorts = build_feature_cohorts(&recall_aware_feature_ranking);
+    let feature_policy_overrides = build_feature_policy_overrides(
+        metrics,
+        baseline_execution
+            .summary
+            .selected_configuration
+            .as_ref()
+            .unwrap_or_else(|| {
+                panic!("baseline cohort execution must provide a selected configuration")
+            }),
+        &baseline_execution.selected_evaluation,
+        &recall_aware_feature_ranking,
+    );
+    let feature_policy_summary = build_feature_policy_summary(
+        metrics,
+        &baseline_feature_ranking,
+        &recall_aware_feature_ranking,
+        &feature_policy_overrides,
+    );
+    let policy_runtime = DsaPolicyRuntime {
+        feature_policy_overrides: feature_policy_overrides.clone(),
+        recall_rescue: RecallRescueConfig {
+            enabled: true,
+            ..RecallRescueConfig::default()
+        },
+    };
+
+    let optimized_compression_execution = run_cohort_dsa_grid_with_policy(
+        dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
+        &baseline_feature_cohorts,
+        pre_failure_lookback_runs,
+        metrics,
+        &policy_runtime,
+        "compression_biased",
+    )?;
+    let recall_aware_execution = run_cohort_dsa_grid_with_policy(
+        dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
+        &recall_aware_feature_cohorts,
+        pre_failure_lookback_runs,
+        metrics,
+        &policy_runtime,
+        "recall_aware",
+    )?;
+
+    let mut union_rows = optimized_compression_execution
+        .summary
+        .cohort_results
+        .clone();
+    union_rows.extend(recall_aware_execution.summary.cohort_results.clone());
+
+    let pareto_frontier = pareto_frontier(&union_rows);
+    let stage_a_candidates = stage_a_candidates(
+        &union_rows,
+        metrics.summary.pass_run_dsfb_raw_boundary_nuisance_rate,
+    );
+    let stage_b_candidates = stage_b_candidates(
+        &stage_a_candidates,
+        metrics.summary.pass_run_ewma_nuisance_rate,
+    );
+    let selected_row = choose_optimized_row(
+        &stage_b_candidates,
+        &union_rows,
+        metrics.summary.pass_run_ewma_nuisance_rate,
+        metrics.summary.failure_runs_with_preceding_threshold_signal,
+    )
+    .ok_or_else(|| {
+        DsfbSemiconductorError::DatasetFormat(
+            "optimized search produced no selectable configuration".into(),
+        )
+    })?;
+
+    let selected_evaluation = rebuild_selected_evaluation_with_policy(
+        dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
+        &baseline_feature_cohorts,
+        &recall_aware_feature_cohorts,
+        pre_failure_lookback_runs,
+        &selected_row,
+        &policy_runtime,
+    )?;
+
+    let mut optimized_execution = if selected_row.ranking_strategy == "recall_aware" {
+        recall_aware_execution.clone()
+    } else {
+        optimized_compression_execution.clone()
+    };
+    optimized_execution.selected_evaluation = selected_evaluation.clone();
+    optimized_execution.summary.selected_configuration = Some(selected_row.clone());
+
+    let recall_rescue_results = union_rows
+        .iter()
+        .map(|row| RecallRescueResultRow {
+            ranking_strategy: row.ranking_strategy.clone(),
+            cohort_name: row.cohort_name.clone(),
+            window: row.window,
+            persistence_runs: row.persistence_runs,
+            alert_tau: row.alert_tau,
+            corroborating_m: row.corroborating_m,
+            failure_recall: row.failure_recall,
+            pass_run_nuisance_proxy: row.pass_run_nuisance_proxy,
+            rescued_point_count: row.rescued_point_count,
+            rescued_watch_to_review_points: row.rescued_watch_to_review_points,
+            rescued_review_to_escalate_points: row.rescued_review_to_escalate_points,
+        })
+        .collect::<Vec<_>>();
+    let missed_failure_diagnostics = build_missed_failure_diagnostics(
+        &baseline_execution.selected_evaluation,
+        &selected_evaluation,
+        &feature_policy_overrides,
+    );
+    let policy_contribution_analysis = build_policy_contribution_analysis(
+        &baseline_execution.selected_evaluation,
+        &selected_evaluation,
+        &selected_row,
+    );
+
+    Ok(OptimizationExecution {
+        baseline_feature_ranking,
+        baseline_feature_cohorts,
+        baseline_execution,
+        recall_aware_feature_ranking,
+        ranking_comparison,
+        recall_aware_feature_cohorts,
+        feature_policy_overrides,
+        feature_policy_summary,
+        optimized_execution,
+        recall_aware_execution,
+        pareto_frontier,
+        stage_a_candidates,
+        stage_b_candidates,
+        recall_rescue_results,
+        missed_failure_diagnostics,
+        policy_contribution_analysis,
+    })
+}
+
+fn build_feature_policy_overrides(
+    metrics: &BenchmarkMetrics,
+    baseline_selected_row: &CohortGridResult,
+    baseline_evaluation: &DsaEvaluation,
+    recall_aware_ranking: &[FeatureRankingRow],
+) -> Vec<FeaturePolicyOverride> {
+    let feature_metrics = metrics
+        .feature_metrics
+        .iter()
+        .map(|feature| (feature.feature_index, feature))
+        .collect::<BTreeMap<_, _>>();
+    let recall_rank_by_feature = recall_aware_ranking
+        .iter()
+        .map(|row| (row.feature_index, row))
+        .collect::<BTreeMap<_, _>>();
+    let mut missed_feature_stats = BTreeMap::<usize, (String, usize, f64)>::new();
+
+    for signal in baseline_evaluation
+        .per_failure_run_signals
+        .iter()
+        .filter(|signal| signal.earliest_dsa_run.is_none())
+    {
+        let Some(feature_index) = signal.max_dsa_score_feature_index else {
+            continue;
+        };
+        let Some(feature_name) = signal.max_dsa_score_feature_name.as_ref() else {
+            continue;
+        };
+        let score = signal.max_dsa_score_in_lookback.unwrap_or(0.0);
+        let entry = missed_feature_stats
+            .entry(feature_index)
+            .or_insert_with(|| (feature_name.clone(), 0, 0.0));
+        entry.1 += 1;
+        entry.2 = entry.2.max(score);
+    }
+
+    let mut overrides = missed_feature_stats
+        .into_iter()
+        .filter_map(|(feature_index, (feature_name, miss_count, max_score))| {
+            let feature_metric = feature_metrics.get(&feature_index)?;
+            let recall_rank = recall_rank_by_feature.get(&feature_index).map(|row| row.rank);
+            let max_score_floor = baseline_selected_row.alert_tau - 0.40;
+            if max_score < max_score_floor
+                || feature_metric.missing_fraction > OPTIMIZATION_OVERRIDE_MAX_MISSINGNESS
+                || feature_metric.pre_failure_run_hits == 0
+                || feature_metric.motif_precision_proxy.unwrap_or(0.0) <= 0.0
+            {
+                return None;
+            }
+
+            let rescue_priority =
+                if miss_count >= 2 || max_score >= baseline_selected_row.alert_tau - 0.10 {
+                    2
+                } else {
+                    1
+                };
+            let fragmentation_override =
+                if feature_metric.motif_precision_proxy.unwrap_or(0.0) >= 0.70
+                    && max_score >= baseline_selected_row.alert_tau - 0.10
+                {
+                    1.0
+                } else {
+                    OPTIMIZATION_RESCUE_FRAGMENTATION
+                };
+
+            Some(FeaturePolicyOverride {
+                feature_index,
+                feature_name: feature_name.clone(),
+                alert_class_override: None,
+                requires_persistence_override: Some(false),
+                requires_corroboration_override: Some(false),
+                minimum_window_override: Some(OPTIMIZATION_RESCUE_WINDOW),
+                minimum_hits_override: Some(OPTIMIZATION_RESCUE_MIN_HITS),
+                maximum_allowed_fragmentation_override: Some(fragmentation_override),
+                rescue_eligible: true,
+                rescue_priority,
+                override_reason: format!(
+                    "Feature was the nearest current-DSA miss on {} failure run(s), max near-miss score {:.4}, recall-aware rank {}, pre_failure_run_hits={}, motif_precision_proxy={}, rescue_fragmentation_ceiling={:.2}.",
+                    miss_count,
+                    max_score,
+                    recall_rank
+                        .map(|rank| rank.to_string())
+                        .unwrap_or_else(|| "n/a".into()),
+                    feature_metric.pre_failure_run_hits,
+                    format_option_f64(feature_metric.motif_precision_proxy),
+                    fragmentation_override,
+                ),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    overrides.sort_by(|left, right| {
+        right
+            .rescue_priority
+            .cmp(&left.rescue_priority)
+            .then_with(|| left.feature_name.cmp(&right.feature_name))
+    });
+    overrides
+}
+
+fn build_feature_policy_summary(
+    metrics: &BenchmarkMetrics,
+    baseline_ranking: &[FeatureRankingRow],
+    recall_aware_ranking: &[FeatureRankingRow],
+    overrides: &[FeaturePolicyOverride],
+) -> Vec<FeaturePolicySummaryRow> {
+    let feature_metrics = metrics
+        .feature_metrics
+        .iter()
+        .map(|feature| (feature.feature_index, feature))
+        .collect::<BTreeMap<_, _>>();
+    let baseline_by_feature = baseline_ranking
+        .iter()
+        .map(|row| (row.feature_index, row))
+        .collect::<BTreeMap<_, _>>();
+    let recall_by_feature = recall_aware_ranking
+        .iter()
+        .map(|row| (row.feature_index, row))
+        .collect::<BTreeMap<_, _>>();
+
+    overrides
+        .iter()
+        .filter_map(|override_entry| {
+            let feature_metric = feature_metrics.get(&override_entry.feature_index)?;
+            Some(FeaturePolicySummaryRow {
+                feature_index: override_entry.feature_index,
+                feature_name: override_entry.feature_name.clone(),
+                compression_rank: baseline_by_feature
+                    .get(&override_entry.feature_index)
+                    .map(|row| row.rank),
+                recall_aware_rank: recall_by_feature
+                    .get(&override_entry.feature_index)
+                    .map(|row| row.rank),
+                pre_failure_run_hits: feature_metric.pre_failure_run_hits,
+                motif_precision_proxy: feature_metric.motif_precision_proxy,
+                missing_fraction: feature_metric.missing_fraction,
+                rescue_eligible: override_entry.rescue_eligible,
+                rescue_priority: override_entry.rescue_priority,
+                alert_class_override: override_entry.alert_class_override,
+                requires_persistence_override: override_entry.requires_persistence_override,
+                requires_corroboration_override: override_entry.requires_corroboration_override,
+                minimum_window_override: override_entry.minimum_window_override,
+                minimum_hits_override: override_entry.minimum_hits_override,
+                maximum_allowed_fragmentation_override: override_entry
+                    .maximum_allowed_fragmentation_override,
+                override_reason: override_entry.override_reason.clone(),
+            })
+        })
+        .collect()
+}
+
+fn pareto_frontier(rows: &[CohortGridResult]) -> Vec<CohortGridResult> {
+    let mut frontier = rows
+        .iter()
+        .filter(|row| {
+            !rows.iter().any(|other| {
+                other.grid_row_id != row.grid_row_id
+                    && other.pass_run_nuisance_proxy <= row.pass_run_nuisance_proxy
+                    && other.failure_recall >= row.failure_recall
+                    && (other.pass_run_nuisance_proxy < row.pass_run_nuisance_proxy
+                        || other.failure_recall > row.failure_recall)
+            })
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    frontier.sort_by(compare_successful_rows);
+    frontier
+}
+
+fn stage_a_candidates(
+    rows: &[CohortGridResult],
+    raw_boundary_nuisance: f64,
+) -> Vec<CohortGridResult> {
+    let mut candidates = rows
+        .iter()
+        .filter(|row| {
+            row.pass_run_nuisance_proxy < raw_boundary_nuisance && row.failure_recall >= 100
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| {
+        left.pass_run_nuisance_proxy
+            .partial_cmp(&right.pass_run_nuisance_proxy)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| right.failure_recall.cmp(&left.failure_recall))
+            .then_with(|| compare_option_f64(right.mean_lead_time_runs, left.mean_lead_time_runs))
+    });
+    candidates
+}
+
+fn stage_b_candidates(rows: &[CohortGridResult], ewma_nuisance: f64) -> Vec<CohortGridResult> {
+    let mut candidates = rows.to_vec();
+    candidates.sort_by(|left, right| {
+        (left.pass_run_nuisance_proxy < ewma_nuisance)
+            .cmp(&(right.pass_run_nuisance_proxy < ewma_nuisance))
+            .reverse()
+            .then_with(|| right.failure_recall.cmp(&left.failure_recall))
+            .then_with(|| {
+                left.pass_run_nuisance_proxy
+                    .partial_cmp(&right.pass_run_nuisance_proxy)
+                    .unwrap_or(Ordering::Equal)
+            })
+            .then_with(|| compare_option_f64(right.mean_lead_time_runs, left.mean_lead_time_runs))
+    });
+    candidates
+}
+
+fn choose_optimized_row(
+    stage_b_candidates: &[CohortGridResult],
+    all_rows: &[CohortGridResult],
+    ewma_nuisance: f64,
+    threshold_recall: usize,
+) -> Option<CohortGridResult> {
+    stage_b_candidates.first().cloned().or_else(|| {
+        all_rows.iter().cloned().min_by(|left, right| {
+            let left_primary_gap = primary_success_gap(left);
+            let right_primary_gap = primary_success_gap(right);
+            left_primary_gap
+                .partial_cmp(&right_primary_gap)
+                .unwrap_or(Ordering::Equal)
+                .then_with(|| {
+                    (left.pass_run_nuisance_proxy < ewma_nuisance)
+                        .cmp(&(right.pass_run_nuisance_proxy < ewma_nuisance))
+                        .reverse()
+                })
+                .then_with(|| {
+                    let left_recall_gap = threshold_recall.saturating_sub(left.failure_recall);
+                    let right_recall_gap = threshold_recall.saturating_sub(right.failure_recall);
+                    left_recall_gap.cmp(&right_recall_gap)
+                })
+                .then_with(|| compare_successful_rows(left, right))
+        })
+    })
+}
+
+fn rebuild_selected_evaluation_with_policy(
+    dataset: &PreparedDataset,
+    nominal: &NominalModel,
+    residuals: &ResidualSet,
+    signs: &SignSet,
+    baselines: &BaselineSet,
+    grammar: &GrammarSet,
+    baseline_cohorts: &FeatureCohorts,
+    recall_aware_cohorts: &FeatureCohorts,
+    pre_failure_lookback_runs: usize,
+    row: &CohortGridResult,
+    policy_runtime: &DsaPolicyRuntime,
+) -> Result<DsaEvaluation> {
+    let cohorts = if row.ranking_strategy == "recall_aware" {
+        recall_aware_cohorts
+    } else {
+        baseline_cohorts
+    };
+    let base_config = DsaConfig {
+        window: row.window,
+        persistence_runs: row.persistence_runs,
+        alert_tau: row.alert_tau,
+        corroborating_feature_count_min: 1,
+    };
+    let base_evaluation = evaluate_dsa_with_policy(
+        dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
+        &base_config,
+        pre_failure_lookback_runs,
+        policy_runtime,
+    )?;
+    let feature_indices = cohort_members(cohorts, &row.cohort_name)
+        .iter()
+        .map(|member| member.feature_index)
+        .collect::<Vec<_>>();
+    project_dsa_to_cohort(
+        dataset,
+        nominal,
+        residuals,
+        baselines,
+        grammar,
+        &base_evaluation,
+        &feature_indices,
+        row.corroborating_m,
+        pre_failure_lookback_runs,
+        &row.cohort_name,
+    )
+}
+
+fn build_missed_failure_diagnostics(
+    baseline: &DsaEvaluation,
+    optimized: &DsaEvaluation,
+    feature_policy_overrides: &[FeaturePolicyOverride],
+) -> Vec<MissedFailureDiagnosticRow> {
+    let optimized_by_failure = optimized
+        .per_failure_run_signals
+        .iter()
+        .map(|row| (row.failure_run_index, row))
+        .collect::<BTreeMap<_, _>>();
+    let overrides_by_feature = feature_policy_overrides
+        .iter()
+        .map(|override_entry| (override_entry.feature_name.as_str(), override_entry))
+        .collect::<BTreeMap<_, _>>();
+
+    baseline
+        .per_failure_run_signals
+        .iter()
+        .filter(|row| row.earliest_dsa_run.is_none())
+        .map(|row| {
+            let optimized_row = optimized_by_failure.get(&row.failure_run_index).copied();
+            let resolved_watch = row
+                .max_dsa_score_resolved_alert_class
+                .as_deref()
+                .is_some_and(|value| value == "Watch" || value == "Review");
+            let override_entry = row
+                .max_dsa_score_feature_name
+                .as_deref()
+                .and_then(|feature_name| overrides_by_feature.get(feature_name))
+                .copied();
+            let fragmentation_ceiling = override_entry.is_some_and(|override_entry| {
+                row.max_dsa_score_fragmentation_proxy_w.unwrap_or(0.0)
+                    > override_entry
+                        .maximum_allowed_fragmentation_override
+                        .unwrap_or(OPTIMIZATION_RESCUE_FRAGMENTATION)
+            });
+            let directional_consistency_gate =
+                row.max_dsa_score_consistent == Some(false) && resolved_watch;
+            let policy_suppression = row.max_dsa_score_policy_suppressed.unwrap_or(false)
+                || (row
+                    .max_dsa_score_policy_state
+                    .as_deref()
+                    .is_some_and(|state| state == "silent")
+                    && resolved_watch);
+            let persistence_gate = row
+                .max_dsa_score_policy_state
+                .as_deref()
+                .is_some_and(|state| state == "silent")
+                && row.max_dsa_score_numeric_dsa_alert == Some(false)
+                && row.max_dsa_score_in_lookback.is_some();
+            let rescue_eligible = override_entry.is_some();
+            let recovered_after_optimization =
+                optimized_row.is_some_and(|optimized_row| optimized_row.earliest_dsa_run.is_some());
+
+            MissedFailureDiagnosticRow {
+                failure_run_index: row.failure_run_index,
+                nearest_feature_name: row.max_dsa_score_feature_name.clone(),
+                nearest_feature_score: row.max_dsa_score_in_lookback,
+                nearest_feature_policy_state: row.max_dsa_score_policy_state.clone(),
+                nearest_feature_resolved_alert_class: row
+                    .max_dsa_score_resolved_alert_class
+                    .clone(),
+                nearest_feature_boundary_density_w: row.max_dsa_score_boundary_density_w,
+                nearest_feature_ewma_occupancy_w: row.max_dsa_score_ewma_occupancy_w,
+                nearest_feature_motif_recurrence_w: row.max_dsa_score_motif_recurrence_w,
+                nearest_feature_fragmentation_proxy_w: row.max_dsa_score_fragmentation_proxy_w,
+                nearest_feature_consistent: row.max_dsa_score_consistent,
+                ranking_exclusion: false,
+                cohort_selection: false,
+                policy_suppression,
+                fragmentation_ceiling,
+                directional_consistency_gate,
+                persistence_gate,
+                corroboration_threshold: false,
+                rescue_gate_not_activating: rescue_eligible && !recovered_after_optimization,
+                exact_miss_rule: if fragmentation_ceiling {
+                    "feature_override_fragmentation_ceiling".into()
+                } else if directional_consistency_gate {
+                    "directional_consistency_gate".into()
+                } else if persistence_gate {
+                    "watch_class_near_miss_below_numeric_gate".into()
+                } else if row.max_dsa_score_in_lookback.unwrap_or(0.0) < 2.0 {
+                    "numeric_score_below_tau".into()
+                } else {
+                    "policy_state_never_reached_review".into()
+                },
+                bounded_rescue_would_recover: recovered_after_optimization,
+                recovered_after_optimization,
+                optimized_feature_name: optimized_row
+                    .and_then(|row| row.earliest_dsa_feature_name.clone()),
+            }
+        })
+        .collect()
+}
+
+fn build_policy_contribution_analysis(
+    baseline: &DsaEvaluation,
+    optimized: &DsaEvaluation,
+    selected_row: &CohortGridResult,
+) -> Vec<PolicyContributionAnalysisRow> {
+    let baseline_missed = baseline
+        .per_failure_run_signals
+        .iter()
+        .filter(|row| row.earliest_dsa_run.is_none())
+        .map(|row| row.failure_run_index)
+        .collect::<Vec<_>>();
+    let optimized_by_failure = optimized
+        .per_failure_run_signals
+        .iter()
+        .map(|row| (row.failure_run_index, row))
+        .collect::<BTreeMap<_, _>>();
+    let mut rows = Vec::new();
+
+    for contribution in &optimized.motif_policy_contributions {
+        rows.push(PolicyContributionAnalysisRow {
+            configuration_role: if selected_row.primary_success {
+                "best_success".into()
+            } else {
+                "best_near_success".into()
+            },
+            contribution_type: "motif_nuisance_suppression".into(),
+            name: contribution.motif_name.clone(),
+            value: contribution.silent_suppression_points as f64,
+            note: "silent_suppression_points".into(),
+        });
+        rows.push(PolicyContributionAnalysisRow {
+            configuration_role: if selected_row.primary_success {
+                "best_success".into()
+            } else {
+                "best_near_success".into()
+            },
+            contribution_type: "motif_pre_failure_review_or_escalate".into(),
+            name: contribution.motif_name.clone(),
+            value: contribution.pre_failure_review_or_escalate_points as f64,
+            note: "pre_failure_review_or_escalate_points".into(),
+        });
+    }
+
+    let mut rescued_feature_counts = BTreeMap::<String, usize>::new();
+    for failure_run_index in baseline_missed {
+        if let Some(optimized_row) = optimized_by_failure.get(&failure_run_index) {
+            if let Some(feature_name) = &optimized_row.earliest_dsa_feature_name {
+                *rescued_feature_counts
+                    .entry(feature_name.clone())
+                    .or_default() += 1;
+            }
+        }
+    }
+    for (feature_name, count) in rescued_feature_counts {
+        rows.push(PolicyContributionAnalysisRow {
+            configuration_role: if selected_row.primary_success {
+                "best_success".into()
+            } else {
+                "best_near_success".into()
+            },
+            contribution_type: "rescued_failure_feature".into(),
+            name: feature_name,
+            value: count as f64,
+            note: "recovered baseline-missed failures".into(),
+        });
+    }
+
+    let mut rescue_transition_counts = BTreeMap::<String, usize>::new();
+    for trace in &optimized.traces {
+        for transition in &trace.rescue_transition {
+            if transition != "none" {
+                *rescue_transition_counts
+                    .entry(transition.clone())
+                    .or_default() += 1;
+            }
+        }
+    }
+    for (transition, count) in rescue_transition_counts {
+        rows.push(PolicyContributionAnalysisRow {
+            configuration_role: if selected_row.primary_success {
+                "best_success".into()
+            } else {
+                "best_near_success".into()
+            },
+            contribution_type: "rescue_transition".into(),
+            name: transition,
+            value: count as f64,
+            note: "rescued feature points".into(),
+        });
+    }
+
+    rows
+}
+
 pub fn write_cohort_results_csv(path: &Path, results: &[CohortGridResult]) -> Result<()> {
     let mut writer = Writer::from_path(path)?;
     writer.write_record([
+        "ranking_strategy",
+        "ranking_formula",
         "grid_row_id",
         "feature_trace_config_id",
         "cohort_name",
@@ -745,11 +1800,16 @@ pub fn write_cohort_results_csv(path: &Path, results: &[CohortGridResult]) -> Re
         "review_point_count",
         "escalate_point_count",
         "silenced_point_count",
+        "rescued_point_count",
+        "rescued_watch_to_review_points",
+        "rescued_review_to_escalate_points",
         "primary_success",
         "primary_success_reason",
     ])?;
     for row in results {
         writer.write_record([
+            row.ranking_strategy.clone(),
+            row.ranking_formula.clone(),
             row.grid_row_id.to_string(),
             row.feature_trace_config_id.to_string(),
             row.cohort_name.clone(),
@@ -796,6 +1856,9 @@ pub fn write_cohort_results_csv(path: &Path, results: &[CohortGridResult]) -> Re
             row.review_point_count.to_string(),
             row.escalate_point_count.to_string(),
             row.silenced_point_count.to_string(),
+            row.rescued_point_count.to_string(),
+            row.rescued_watch_to_review_points.to_string(),
+            row.rescued_review_to_escalate_points.to_string(),
             row.primary_success.to_string(),
             row.primary_success_reason.clone(),
         ])?;
@@ -1283,6 +2346,8 @@ pub fn rating_forecast_report_section(forecast: &RatingDeltaForecast) -> String 
 fn build_grid_row(
     grid_row_id: usize,
     feature_trace_config_id: usize,
+    ranking_strategy: &str,
+    ranking_formula: &str,
     cohort_name: &str,
     cohort_size: usize,
     config: &DsaConfig,
@@ -1308,6 +2373,8 @@ fn build_grid_row(
         && evaluation.summary.failure_run_recall + RECALL_TOLERANCE >= threshold_recall;
 
     CohortGridResult {
+        ranking_strategy: ranking_strategy.to_string(),
+        ranking_formula: ranking_formula.to_string(),
         grid_row_id,
         feature_trace_config_id,
         cohort_name: cohort_name.to_string(),
@@ -1367,6 +2434,9 @@ fn build_grid_row(
         review_point_count: evaluation.summary.review_point_count,
         escalate_point_count: evaluation.summary.escalate_point_count,
         silenced_point_count: evaluation.summary.silenced_point_count,
+        rescued_point_count: evaluation.summary.rescued_point_count,
+        rescued_watch_to_review_points: evaluation.summary.rescued_watch_to_review_points,
+        rescued_review_to_escalate_points: evaluation.summary.rescued_review_to_escalate_points,
         primary_success,
         primary_success_reason: primary_success_reason(
             evaluation.summary.failure_run_recall,
@@ -1409,7 +2479,7 @@ fn build_best_by_cohort(rows: &[CohortGridResult]) -> Vec<CohortBestRow> {
     let mut grouped = BTreeMap::<String, Vec<CohortGridResult>>::new();
     for row in rows {
         grouped
-            .entry(row.cohort_name.clone())
+            .entry(format!("{} [{}]", row.cohort_name, row.ranking_strategy))
             .or_default()
             .push(row.clone());
     }
@@ -1781,6 +2851,8 @@ fn rebuild_selected_evaluation(
 
 fn fallback_row_from_dsa(dsa: &DsaEvaluation, metrics: &BenchmarkMetrics) -> CohortGridResult {
     CohortGridResult {
+        ranking_strategy: "selected".into(),
+        ranking_formula: "selected evaluation".into(),
         grid_row_id: 0,
         feature_trace_config_id: 0,
         cohort_name: "default_all_features".into(),
@@ -1841,6 +2913,9 @@ fn fallback_row_from_dsa(dsa: &DsaEvaluation, metrics: &BenchmarkMetrics) -> Coh
         review_point_count: dsa.summary.review_point_count,
         escalate_point_count: dsa.summary.escalate_point_count,
         silenced_point_count: dsa.summary.silenced_point_count,
+        rescued_point_count: dsa.summary.rescued_point_count,
+        rescued_watch_to_review_points: dsa.summary.rescued_watch_to_review_points,
+        rescued_review_to_escalate_points: dsa.summary.rescued_review_to_escalate_points,
         primary_success: dsa.summary.pass_run_nuisance_proxy
             < metrics.summary.pass_run_ewma_nuisance_rate
             && dsa.summary.failure_run_recall + RECALL_TOLERANCE
@@ -1858,7 +2933,7 @@ fn best_all_features_row(summary: &CohortDsaSummary) -> Option<&CohortGridResult
     summary
         .best_by_cohort
         .iter()
-        .find(|best| best.cohort_name == "all_features")
+        .find(|best| best.cohort_name.starts_with("all_features"))
         .map(|best| &best.best_row)
 }
 
@@ -2173,7 +3248,12 @@ fn row_grid_point(row: &CohortGridResult) -> String {
 }
 
 fn row_label(row: &CohortGridResult) -> String {
-    format!("{} ({})", row.cohort_name, row_grid_point(row))
+    format!(
+        "{} [{}] ({})",
+        row.cohort_name,
+        row.ranking_strategy,
+        row_grid_point(row)
+    )
 }
 
 fn optimization_priority_order() -> Vec<String> {
@@ -2269,6 +3349,8 @@ mod tests {
     fn sample_ranking() -> Vec<FeatureRankingRow> {
         vec![
             FeatureRankingRow {
+                ranking_strategy: "compression_biased".into(),
+                ranking_formula: RANKING_FORMULA.into(),
                 feature_index: 58,
                 feature_name: "S059".into(),
                 dsfb_raw_boundary_points: 682,
@@ -2277,7 +3359,11 @@ mod tests {
                 dsfb_persistent_violation_points: 4,
                 ewma_alarm_points: 624,
                 threshold_alarm_points: 31,
+                pre_failure_run_hits: 20,
+                motif_precision_proxy: Some(0.6),
                 missing_fraction: 0.0025,
+                z_pre_failure_run_hits: None,
+                z_motif_precision_proxy: None,
                 z_boundary: 5.0,
                 z_violation: -0.1,
                 z_ewma: 3.0,
@@ -2287,6 +3373,8 @@ mod tests {
                 rank: 1,
             },
             FeatureRankingRow {
+                ranking_strategy: "compression_biased".into(),
+                ranking_formula: RANKING_FORMULA.into(),
                 feature_index: 43,
                 feature_name: "S044".into(),
                 dsfb_raw_boundary_points: 400,
@@ -2295,7 +3383,11 @@ mod tests {
                 dsfb_persistent_violation_points: 2,
                 ewma_alarm_points: 210,
                 threshold_alarm_points: 18,
+                pre_failure_run_hits: 14,
+                motif_precision_proxy: Some(0.5),
                 missing_fraction: 0.01,
+                z_pre_failure_run_hits: None,
+                z_motif_precision_proxy: None,
                 z_boundary: 1.2,
                 z_violation: -0.5,
                 z_ewma: 0.9,
@@ -2305,6 +3397,8 @@ mod tests {
                 rank: 2,
             },
             FeatureRankingRow {
+                ranking_strategy: "compression_biased".into(),
+                ranking_formula: RANKING_FORMULA.into(),
                 feature_index: 60,
                 feature_name: "S061".into(),
                 dsfb_raw_boundary_points: 340,
@@ -2313,7 +3407,11 @@ mod tests {
                 dsfb_persistent_violation_points: 1,
                 ewma_alarm_points: 190,
                 threshold_alarm_points: 18,
+                pre_failure_run_hits: 12,
+                motif_precision_proxy: Some(0.45),
                 missing_fraction: 0.01,
+                z_pre_failure_run_hits: None,
+                z_motif_precision_proxy: None,
                 z_boundary: 1.0,
                 z_violation: -0.5,
                 z_ewma: 0.8,
@@ -2323,6 +3421,8 @@ mod tests {
                 rank: 3,
             },
             FeatureRankingRow {
+                ranking_strategy: "compression_biased".into(),
+                ranking_formula: RANKING_FORMULA.into(),
                 feature_index: 221,
                 feature_name: "S222".into(),
                 dsfb_raw_boundary_points: 341,
@@ -2331,7 +3431,11 @@ mod tests {
                 dsfb_persistent_violation_points: 0,
                 ewma_alarm_points: 160,
                 threshold_alarm_points: 7,
+                pre_failure_run_hits: 11,
+                motif_precision_proxy: Some(0.55),
                 missing_fraction: 0.02,
+                z_pre_failure_run_hits: None,
+                z_motif_precision_proxy: None,
                 z_boundary: 1.1,
                 z_violation: -0.8,
                 z_ewma: 0.6,
@@ -2370,6 +3474,8 @@ mod tests {
     #[test]
     fn precursor_quality_csv_format_is_stable() {
         let row = CohortGridResult {
+            ranking_strategy: "compression_biased".into(),
+            ranking_formula: RANKING_FORMULA.into(),
             grid_row_id: 1,
             feature_trace_config_id: 0,
             cohort_name: "top_4".into(),
@@ -2416,6 +3522,9 @@ mod tests {
             review_point_count: 3,
             escalate_point_count: 1,
             silenced_point_count: 2,
+            rescued_point_count: 1,
+            rescued_watch_to_review_points: 1,
+            rescued_review_to_escalate_points: 0,
             primary_success: true,
             primary_success_reason: "ok".into(),
         };

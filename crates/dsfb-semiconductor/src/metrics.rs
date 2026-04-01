@@ -34,6 +34,11 @@ pub struct FeatureMetrics {
     pub dsfb_raw_violation_points: usize,
     pub dsfb_persistent_violation_points: usize,
     pub threshold_alarm_points: usize,
+    pub motif_point_hits: usize,
+    pub motif_run_hits: usize,
+    pub pre_failure_motif_run_hits: usize,
+    pub pre_failure_run_hits: usize,
+    pub motif_precision_proxy: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -339,6 +344,11 @@ pub fn compute_metrics(
             dsfb_raw_violation_points: raw_violation_points,
             dsfb_persistent_violation_points: persistent_violation_points,
             threshold_alarm_points: threshold_points,
+            motif_point_hits: 0,
+            motif_run_hits: 0,
+            pre_failure_motif_run_hits: 0,
+            pre_failure_run_hits: 0,
+            motif_precision_proxy: None,
         });
     }
 
@@ -361,6 +371,20 @@ pub fn compute_metrics(
         config.pre_failure_lookback_runs,
     );
     let motif_metrics = compute_motif_metrics(grammar, &failure_window_mask);
+    for (feature_metric, grammar_trace) in feature_metrics.iter_mut().zip(&grammar.traces) {
+        let (motif_point_hits, motif_run_hits, pre_failure_motif_run_hits) =
+            feature_motif_counts(grammar_trace, &failure_window_mask);
+        feature_metric.motif_point_hits = motif_point_hits;
+        feature_metric.motif_run_hits = motif_run_hits;
+        feature_metric.pre_failure_motif_run_hits = pre_failure_motif_run_hits;
+        feature_metric.pre_failure_run_hits = feature_pre_failure_run_hits(
+            grammar_trace,
+            &failure_indices,
+            config.pre_failure_lookback_runs,
+        );
+        feature_metric.motif_precision_proxy = (motif_run_hits > 0)
+            .then_some(pre_failure_motif_run_hits as f64 / motif_run_hits as f64);
+    }
     let boundary_episode_summary = compute_boundary_episode_summary(grammar);
     let per_failure_run_signals = compute_per_failure_run_signals(
         dataset,
@@ -1278,6 +1302,56 @@ fn compute_motif_metrics(grammar: &GrammarSet, failure_window_mask: &[bool]) -> 
             }
         })
         .collect()
+}
+
+fn feature_motif_counts(
+    grammar_trace: &crate::grammar::FeatureGrammarTrace,
+    failure_window_mask: &[bool],
+) -> (usize, usize, usize) {
+    let mut point_hits = 0usize;
+    let mut run_hits = 0usize;
+    let mut pre_failure_run_hits = 0usize;
+
+    for (run_index, reason) in grammar_trace.raw_reasons.iter().enumerate() {
+        if matches!(
+            reason,
+            GrammarReason::SustainedOutwardDrift
+                | GrammarReason::AbruptSlewViolation
+                | GrammarReason::RecurrentBoundaryGrazing
+        ) {
+            point_hits += 1;
+            run_hits += 1;
+            if failure_window_mask[run_index] {
+                pre_failure_run_hits += 1;
+            }
+        }
+    }
+
+    (point_hits, run_hits, pre_failure_run_hits)
+}
+
+fn feature_pre_failure_run_hits(
+    grammar_trace: &crate::grammar::FeatureGrammarTrace,
+    failure_indices: &[usize],
+    pre_failure_lookback_runs: usize,
+) -> usize {
+    failure_indices
+        .iter()
+        .filter(|&&failure_index| {
+            let start = failure_index.saturating_sub(pre_failure_lookback_runs);
+            (start..failure_index).any(|run_index| {
+                matches!(
+                    grammar_trace.raw_reasons[run_index],
+                    GrammarReason::SustainedOutwardDrift
+                        | GrammarReason::AbruptSlewViolation
+                        | GrammarReason::RecurrentBoundaryGrazing
+                ) || matches!(
+                    grammar_trace.raw_states[run_index],
+                    GrammarState::Boundary | GrammarState::Violation
+                )
+            })
+        })
+        .count()
 }
 
 fn count_present<I, T>(iter: I) -> usize

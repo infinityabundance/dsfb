@@ -49,6 +49,21 @@ impl HeuristicPolicyDefinition {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FeaturePolicyOverride {
+    pub feature_index: usize,
+    pub feature_name: String,
+    pub alert_class_override: Option<HeuristicAlertClass>,
+    pub requires_persistence_override: Option<bool>,
+    pub requires_corroboration_override: Option<bool>,
+    pub minimum_window_override: Option<usize>,
+    pub minimum_hits_override: Option<usize>,
+    pub maximum_allowed_fragmentation_override: Option<f64>,
+    pub rescue_eligible: bool,
+    pub rescue_priority: usize,
+    pub override_reason: String,
+}
+
 const POLICY_DEFINITIONS: &[HeuristicPolicyDefinition] = &[
     HeuristicPolicyDefinition {
         motif_name: PRE_FAILURE_SLOW_DRIFT,
