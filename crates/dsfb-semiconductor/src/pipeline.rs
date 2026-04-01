@@ -7,7 +7,7 @@ use crate::cohort::{
     write_feature_ranking_csv, write_heuristic_policy_failure_analysis_md,
     write_missed_failure_diagnostics_csv, write_motif_policy_contributions_csv,
     write_policy_contribution_analysis_csv, write_precursor_quality_csv,
-    write_recall_rescue_results_csv,
+    write_recall_critical_features_csv, write_recall_rescue_results_csv,
 };
 use crate::config::{PipelineConfig, RunConfiguration};
 use crate::dataset::phm2018::{support_status as phm_support_status, Phm2018SupportStatus};
@@ -64,10 +64,12 @@ struct ArtifactManifest {
     dsa_feature_policy_overrides_path: String,
     dsa_feature_policy_summary_path: String,
     dsa_recall_rescue_results_path: String,
+    dsa_recall_critical_features_path: String,
     dsa_pareto_frontier_path: String,
     dsa_stage_a_candidates_path: String,
     dsa_stage_b_candidates_path: String,
     dsa_missed_failure_diagnostics_path: String,
+    dsa_delta_target_assessment_path: String,
     dsa_cohort_results_path: String,
     dsa_cohort_results_recall_aware_path: String,
     dsa_cohort_summary_path: String,
@@ -294,6 +296,10 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsa_recall_rescue_results.csv"),
         &optimization.recall_rescue_results,
     )?;
+    write_recall_critical_features_csv(
+        &run_dir.join("dsa_recall_critical_features.csv"),
+        &optimization.recall_critical_features,
+    )?;
     write_cohort_results_csv(
         &run_dir.join("dsa_pareto_frontier.csv"),
         &optimization.pareto_frontier,
@@ -342,6 +348,10 @@ pub fn run_secom_benchmark(
     write_json_pretty(
         &run_dir.join("dsa_rating_delta_forecast.json"),
         &rating_delta_forecast,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsa_delta_target_assessment.json"),
+        &optimization.delta_target_assessment,
     )?;
     if let Some(analysis) = &cohort_summary.failure_analysis {
         write_cohort_failure_analysis_md(
@@ -396,6 +406,7 @@ pub fn run_secom_benchmark(
         &metrics,
         &dsa,
         &optimization,
+        &optimization.delta_target_assessment,
         &feature_cohorts,
         &cohort_summary,
         &rating_delta_forecast,
@@ -461,6 +472,10 @@ pub fn run_secom_benchmark(
                 .join("dsa_recall_rescue_results.csv")
                 .display()
                 .to_string(),
+            dsa_recall_critical_features_path: run_dir
+                .join("dsa_recall_critical_features.csv")
+                .display()
+                .to_string(),
             dsa_pareto_frontier_path: run_dir
                 .join("dsa_pareto_frontier.csv")
                 .display()
@@ -475,6 +490,10 @@ pub fn run_secom_benchmark(
                 .to_string(),
             dsa_missed_failure_diagnostics_path: run_dir
                 .join("dsa_missed_failure_diagnostics.csv")
+                .display()
+                .to_string(),
+            dsa_delta_target_assessment_path: run_dir
+                .join("dsa_delta_target_assessment.json")
                 .display()
                 .to_string(),
             dsa_cohort_results_path: run_dir.join("dsa_cohort_results.csv").display().to_string(),

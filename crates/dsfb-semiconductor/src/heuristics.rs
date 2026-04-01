@@ -61,6 +61,9 @@ pub struct FeaturePolicyOverride {
     pub maximum_allowed_fragmentation_override: Option<f64>,
     pub rescue_eligible: bool,
     pub rescue_priority: usize,
+    pub allow_watch_only: Option<bool>,
+    pub allow_review_without_escalate: Option<bool>,
+    pub suppress_if_isolated: Option<bool>,
     pub override_reason: String,
 }
 

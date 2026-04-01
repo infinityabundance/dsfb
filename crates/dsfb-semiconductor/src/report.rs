@@ -1,6 +1,6 @@
 use crate::cohort::{
-    cohort_report_section, rating_forecast_report_section, CohortDsaSummary, FeatureCohorts,
-    OptimizationExecution, RatingDeltaForecast,
+    cohort_report_section, rating_forecast_report_section, CohortDsaSummary, DeltaTargetAssessment,
+    FeatureCohorts, OptimizationExecution, RatingDeltaForecast,
 };
 use crate::config::PipelineConfig;
 use crate::dataset::phm2018::Phm2018SupportStatus;
@@ -35,6 +35,7 @@ pub fn write_reports(
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
     optimization: &OptimizationExecution,
+    delta_target_assessment: &DeltaTargetAssessment,
     feature_cohorts: &FeatureCohorts,
     cohort_summary: &CohortDsaSummary,
     rating_delta_forecast: &RatingDeltaForecast,
@@ -52,6 +53,7 @@ pub fn write_reports(
             metrics,
             dsa,
             optimization,
+            delta_target_assessment,
             feature_cohorts,
             cohort_summary,
             rating_delta_forecast,
@@ -68,6 +70,7 @@ pub fn write_reports(
             metrics,
             dsa,
             optimization,
+            delta_target_assessment,
             feature_cohorts,
             cohort_summary,
             rating_delta_forecast,
@@ -93,6 +96,7 @@ fn markdown_report(
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
     optimization: &OptimizationExecution,
+    delta_target_assessment: &DeltaTargetAssessment,
     feature_cohorts: &FeatureCohorts,
     cohort_summary: &CohortDsaSummary,
     rating_delta_forecast: &RatingDeltaForecast,
@@ -245,8 +249,9 @@ fn markdown_report(
     out.push_str("- DSFB Violation remains instantaneous envelope exit\n");
     out.push_str("- The feature-level DSA precursor is structural accumulation; the run-level primary signal is a corroborated feature-count decision\n");
     out.push_str("- DSA is intended to reduce nuisance and stabilize precursor regimes\n");
+    out.push_str("- The predeclared 40% nuisance-reduction target is evaluated separately below; the legacy one-run nuisance/recall sweep gate reported here is not sufficient for target attainment\n");
     out.push_str(&format!(
-        "- Primary run-level comparison signal: `{}`\n- Primary run-level signal definition: `{}`\n- Secondary run-level signal emitted: `{}`\n- Tertiary run-level signal emitted: `{}`\n- Failure-run recall, DSA: {}/{}\n- Failure-run recall, threshold: {}/{}\n- Failure-run recall, EWMA: {}/{}\n- Failure-run recall, CUSUM: {}/{}\n- Failure-run recall, run energy: {}/{}\n- Failure-run recall, PCA T2/SPE: {}/{}\n- Failure-run recall, DSFB Violation: {}/{}\n- Mean lead time, DSA: {}\n- Median lead time, DSA: {}\n- Pass-run nuisance proxy, DSA: {:.4}\n- Lead delta vs CUSUM (runs): {}\n- Lead delta vs run energy (runs): {}\n- Lead delta vs PCA T2/SPE (runs): {}\n- Lead delta vs threshold (runs): {}\n- Lead delta vs EWMA (runs): {}\n- Nuisance delta vs threshold: {:.4}\n- Nuisance delta vs EWMA: {:.4}\n- Nuisance delta vs DSFB Violation: {:.4}\n- Nuisance delta vs CUSUM: {:.4}\n- Nuisance delta vs run energy: {:.4}\n- Nuisance delta vs PCA T2/SPE: {:.4}\n- Nuisance delta vs raw DSFB boundary: {:.4}\n- DSA episodes: {}\n- DSA episodes preceding failure: {}\n- Precursor quality: {}\n- Mean DSA episode length (runs): {}\n- Max DSA episode length (runs): {}\n- Raw boundary episodes: {}\n- Compression ratio (raw boundary / DSA): {}\n- Non-escalating DSA episode fraction: {}\n- Primary success condition met: {}\n- Success-condition failures: {}\n- Nuisance improved: {}\n- Lead time improved: {}\n- Recall preserved: {}\n- Compression improved: {}\n- Nothing improved: {}\n- Threshold recall gate passed: {}\n- Boundary nuisance gate passed: {}\n- Validation passed: {}\n\n{}\n\n",
+        "- Primary run-level comparison signal: `{}`\n- Primary run-level signal definition: `{}`\n- Secondary run-level signal emitted: `{}`\n- Tertiary run-level signal emitted: `{}`\n- Failure-run recall, DSA: {}/{}\n- Failure-run recall, threshold: {}/{}\n- Failure-run recall, EWMA: {}/{}\n- Failure-run recall, CUSUM: {}/{}\n- Failure-run recall, run energy: {}/{}\n- Failure-run recall, PCA T2/SPE: {}/{}\n- Failure-run recall, DSFB Violation: {}/{}\n- Mean lead time, DSA: {}\n- Median lead time, DSA: {}\n- Pass-run nuisance proxy, DSA: {:.4}\n- Lead delta vs CUSUM (runs): {}\n- Lead delta vs run energy (runs): {}\n- Lead delta vs PCA T2/SPE (runs): {}\n- Lead delta vs threshold (runs): {}\n- Lead delta vs EWMA (runs): {}\n- Nuisance delta vs threshold: {:.4}\n- Nuisance delta vs EWMA: {:.4}\n- Nuisance delta vs DSFB Violation: {:.4}\n- Nuisance delta vs CUSUM: {:.4}\n- Nuisance delta vs run energy: {:.4}\n- Nuisance delta vs PCA T2/SPE: {:.4}\n- Nuisance delta vs raw DSFB boundary: {:.4}\n- DSA episodes: {}\n- DSA episodes preceding failure: {}\n- Precursor quality: {}\n- Mean DSA episode length (runs): {}\n- Max DSA episode length (runs): {}\n- Raw boundary episodes: {}\n- Compression ratio (raw boundary / DSA): {}\n- Non-escalating DSA episode fraction: {}\n- Legacy one-run nuisance/recall sweep gate met: {}\n- Legacy gate failures: {}\n- Nuisance improved: {}\n- Lead time improved: {}\n- Recall preserved: {}\n- Compression improved: {}\n- Nothing improved: {}\n- Legacy threshold-minus-one recall gate passed: {}\n- Legacy boundary nuisance gate passed: {}\n- Stricter validation passed: {}\n\n{}\n\n",
         dsa.run_signals.primary_run_signal,
         dsa.parameter_manifest.primary_run_signal_definition,
         dsa.parameter_manifest.secondary_run_signal,
@@ -307,7 +312,7 @@ fn markdown_report(
 
     out.push_str("## DSA Calibration Grid\n\n");
     out.push_str(&format!(
-        "- Grid points evaluated: {}\n- Optimization priority order: {}\n- Primary success condition: {}\n- Success rows in bounded grid: {}\n- Cross-feature corroboration effect: {}\n- Limiting factor: {}\n",
+        "- Grid points evaluated: {}\n- Optimization priority order: {}\n- Legacy one-run nuisance/recall sweep gate: {}\n- Rows meeting the legacy gate in the bounded grid: {}\n- Cross-feature corroboration effect: {}\n- Limiting factor: {}\n",
         cohort_summary.grid_point_count,
         cohort_summary.optimization_priority_order.join(" | "),
         cohort_summary.primary_success_condition,
@@ -321,7 +326,7 @@ fn markdown_report(
     ));
     if let Some(row) = &cohort_summary.closest_to_success {
         out.push_str(&format!(
-            "- Closest to primary success: grid_row_id={}, cohort={}, W={}, K={}, tau={:.2}, m={}, recall={}/{}, mean lead={}, nuisance={:.4}, precursor quality={}, compression ratio={}\n",
+            "- Closest to the legacy sweep gate: grid_row_id={}, cohort={}, W={}, K={}, tau={:.2}, m={}, recall={}/{}, mean lead={}, nuisance={:.4}, precursor quality={}, compression ratio={}\n",
             row.grid_row_id,
             row.cohort_name,
             row.window,
@@ -356,10 +361,17 @@ fn markdown_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_markdown_section(metrics, dsa));
-    out.push_str(&recall_recovery_markdown_section(optimization));
+    out.push_str(&predeclared_delta_target_markdown_section(
+        delta_target_assessment,
+    ));
+    out.push_str(&recall_recovery_diagnostics_markdown_section(optimization));
     out.push_str(&feature_aware_governance_markdown_section(optimization));
     out.push_str(&missed_failure_diagnostics_markdown_section(optimization));
-    out.push_str(&optimization_frontier_markdown_section(optimization));
+    out.push_str(&two_stage_optimization_frontier_markdown_section(
+        optimization,
+        delta_target_assessment,
+    ));
+    out.push_str(&target_attainment_markdown_section(delta_target_assessment));
     out.push_str(&rating_forecast_report_section(rating_delta_forecast));
 
     out.push_str("## Density Summary\n\n");
@@ -463,6 +475,7 @@ fn latex_report(
     metrics: &BenchmarkMetrics,
     dsa: &DsaEvaluation,
     optimization: &OptimizationExecution,
+    delta_target_assessment: &DeltaTargetAssessment,
     feature_cohorts: &FeatureCohorts,
     cohort_summary: &CohortDsaSummary,
     rating_delta_forecast: &RatingDeltaForecast,
@@ -545,9 +558,13 @@ fn latex_report(
     out.push_str("\n\n");
 
     out.push_str("\\section*{Deterministic Structural Accumulator (DSA)}\n");
+    out.push_str(&latex_escape(
+        "The predeclared 40% nuisance-reduction target is evaluated separately below; the legacy one-run nuisance/recall sweep gate reported in this section is not sufficient for target attainment.",
+    ));
+    out.push_str("\n\n");
     out.push_str("\\begin{tabular}{lr}\n\\toprule\n");
     out.push_str(&format!(
-        "Failure-run recall, DSA & {}/{} \\\\\nFailure-run recall, threshold & {}/{} \\\\\nFailure-run recall, EWMA & {}/{} \\\\\nFailure-run recall, CUSUM & {}/{} \\\\\nFailure-run recall, run energy & {}/{} \\\\\nFailure-run recall, PCA T2/SPE & {}/{} \\\\\nFailure-run recall, DSFB Violation & {}/{} \\\\\nMean lead time, DSA & {} \\\\\nMedian lead time, DSA & {} \\\\\nPass-run nuisance proxy, DSA & {:.4} \\\\\nLead delta vs CUSUM & {} \\\\\nLead delta vs run energy & {} \\\\\nLead delta vs PCA T2/SPE & {} \\\\\nLead delta vs threshold & {} \\\\\nLead delta vs EWMA & {} \\\\\nNuisance delta vs threshold & {:.4} \\\\\nNuisance delta vs EWMA & {:.4} \\\\\nNuisance delta vs DSFB Violation & {:.4} \\\\\nNuisance delta vs CUSUM & {:.4} \\\\\nNuisance delta vs run energy & {:.4} \\\\\nNuisance delta vs PCA T2/SPE & {:.4} \\\\\nNuisance delta vs raw boundary & {:.4} \\\\\nRaw boundary episodes & {} \\\\\nDSA episodes & {} \\\\\nDSA episodes preceding failure & {} \\\\\nPrecursor quality & {} \\\\\nCompression ratio & {} \\\\\nNon-escalating DSA episode fraction & {} \\\\\nPrimary success condition met & {} \\\\\nThreshold recall gate passed & {} \\\\\nBoundary nuisance gate passed & {} \\\\\nValidation passed & {} \\\\\n",
+        "Failure-run recall, DSA & {}/{} \\\\\nFailure-run recall, threshold & {}/{} \\\\\nFailure-run recall, EWMA & {}/{} \\\\\nFailure-run recall, CUSUM & {}/{} \\\\\nFailure-run recall, run energy & {}/{} \\\\\nFailure-run recall, PCA T2/SPE & {}/{} \\\\\nFailure-run recall, DSFB Violation & {}/{} \\\\\nMean lead time, DSA & {} \\\\\nMedian lead time, DSA & {} \\\\\nPass-run nuisance proxy, DSA & {:.4} \\\\\nLead delta vs CUSUM & {} \\\\\nLead delta vs run energy & {} \\\\\nLead delta vs PCA T2/SPE & {} \\\\\nLead delta vs threshold & {} \\\\\nLead delta vs EWMA & {} \\\\\nNuisance delta vs threshold & {:.4} \\\\\nNuisance delta vs EWMA & {:.4} \\\\\nNuisance delta vs DSFB Violation & {:.4} \\\\\nNuisance delta vs CUSUM & {:.4} \\\\\nNuisance delta vs run energy & {:.4} \\\\\nNuisance delta vs PCA T2/SPE & {:.4} \\\\\nNuisance delta vs raw boundary & {:.4} \\\\\nRaw boundary episodes & {} \\\\\nDSA episodes & {} \\\\\nDSA episodes preceding failure & {} \\\\\nPrecursor quality & {} \\\\\nCompression ratio & {} \\\\\nNon-escalating DSA episode fraction & {} \\\\\nLegacy one-run nuisance/recall sweep gate met & {} \\\\\nLegacy threshold-minus-one recall gate passed & {} \\\\\nLegacy boundary nuisance gate passed & {} \\\\\nStricter validation passed & {} \\\\\n",
         dsa.comparison_summary.dsa.failure_run_recall,
         dsa.comparison_summary.dsa.failure_runs,
         dsa.comparison_summary.threshold.failure_run_recall,
@@ -594,7 +611,7 @@ fn latex_report(
 
     out.push_str("\\section*{DSA calibration grid}\n");
     out.push_str(&latex_escape(&format!(
-        "Grid points evaluated: {}. Optimization priority order: {}. Primary success condition: {}. Success rows in bounded grid: {}. Cross-feature corroboration effect: {}. Limiting factor: {}.",
+        "Grid points evaluated: {}. Optimization priority order: {}. Legacy one-run nuisance/recall sweep gate: {}. Rows meeting the legacy gate in the bounded grid: {}. Cross-feature corroboration effect: {}. Limiting factor: {}.",
         cohort_summary.grid_point_count,
         cohort_summary.optimization_priority_order.join(" | "),
         cohort_summary.primary_success_condition,
@@ -617,7 +634,10 @@ fn latex_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_latex_section(metrics, dsa));
-    out.push_str(&optimization_sections_latex(optimization));
+    out.push_str(&optimization_sections_latex(
+        optimization,
+        delta_target_assessment,
+    ));
     out.push_str(&rating_forecast_latex_section(rating_delta_forecast));
 
     out.push_str("\\section*{Motif metrics}\n");
@@ -708,7 +728,7 @@ fn heuristics_policy_engine_markdown_section(
     );
     out.push_str("\n");
     out.push_str("- Policy fields used: `alert_class_default`, `requires_persistence`, `requires_corroboration`, `minimum_window`, `minimum_hits`, `maximum_allowed_fragmentation`, `suppresses_alert`, `promotes_alert`\n");
-    out.push_str("- Primary success condition: ");
+    out.push_str("- Legacy one-run-tolerance cohort gate used in the bounded sweep: ");
     out.push_str(&cohort_summary.primary_success_condition);
     out.push_str("\n\n");
     out.push_str("| Motif | Default class | Persistence | Corroboration | Min window | Min hits | Max fragmentation | Suppresses | Promotes |\n");
@@ -742,7 +762,7 @@ fn heuristics_policy_engine_markdown_section(
         ));
     }
     out.push_str(&format!(
-        "- Primary success met: {}\n",
+        "- Legacy one-run-tolerance cohort gate met: {}\n",
         cohort_summary.any_primary_success
     ));
     if let Some(analysis) = &cohort_summary.failure_analysis {
@@ -800,7 +820,7 @@ fn heuristics_policy_engine_latex_section(
     let mut out = String::new();
     out.push_str("\\section*{Heuristics-Governed DSA Policy Engine}\n");
     out.push_str(&latex_escape(&format!(
-        "Current motif set: {}. Policy fields used: alert_class_default, requires_persistence, requires_corroboration, minimum_window, minimum_hits, maximum_allowed_fragmentation, suppresses_alert, and promotes_alert. Primary success condition: {}.",
+        "Current motif set: {}. Policy fields used: alert_class_default, requires_persistence, requires_corroboration, minimum_window, minimum_hits, maximum_allowed_fragmentation, suppresses_alert, and promotes_alert. Legacy one-run-tolerance cohort gate used in the bounded sweep: {}.",
         heuristics
             .iter()
             .map(|entry| entry.motif_name.clone())
@@ -827,7 +847,7 @@ fn heuristics_policy_engine_latex_section(
     out.push_str("\\bottomrule\n\\end{longtable}\n\n");
     if let Some(selected) = &cohort_summary.selected_configuration {
         out.push_str(&latex_escape(&format!(
-            "Best cohort result: {} with recall {}/{}, nuisance {:.4}, numeric-only nuisance {:.4}, mean lead {}, precursor quality {}, and compression {}. Primary success met: {}.",
+            "Best cohort result: {} with recall {}/{}, nuisance {:.4}, numeric-only nuisance {:.4}, mean lead {}, precursor quality {}, and compression {}. Legacy one-run-tolerance cohort gate met: {}.",
             selected.cohort_name,
             selected.failure_recall,
             selected.failure_runs,
@@ -890,7 +910,23 @@ fn semantics_of_silence_latex_section(metrics: &BenchmarkMetrics, dsa: &DsaEvalu
     out
 }
 
-fn recall_recovery_markdown_section(optimization: &OptimizationExecution) -> String {
+fn predeclared_delta_target_markdown_section(assessment: &DeltaTargetAssessment) -> String {
+    let mut out = String::new();
+    out.push_str("## Predeclared Delta Target\n\n");
+    out.push_str(&format!(
+        "- Primary target: {}\n- Secondary target: {}\n- EWMA nuisance baseline: {:.6}\n- Current policy-governed DSA nuisance baseline: {:.6}\n- Primary nuisance ceiling implied by the 40% target: {:.6}\n- Secondary nuisance ceiling implied by the 40% target: {:.6}\n\n{}\n\n",
+        assessment.primary_target_definition,
+        assessment.secondary_target_definition,
+        assessment.ewma_nuisance_baseline,
+        assessment.current_policy_dsa_nuisance_baseline,
+        assessment.primary_target_nuisance_ceiling,
+        assessment.secondary_target_nuisance_ceiling,
+        assessment.assessment_note,
+    ));
+    out
+}
+
+fn recall_recovery_diagnostics_markdown_section(optimization: &OptimizationExecution) -> String {
     let baseline = optimization
         .baseline_execution
         .summary
@@ -902,7 +938,7 @@ fn recall_recovery_markdown_section(optimization: &OptimizationExecution) -> Str
         .selected_configuration
         .as_ref();
     let mut out = String::new();
-    out.push_str("## Recall Recovery Optimization\n\n");
+    out.push_str("## Recall Recovery Diagnostics\n\n");
     if let Some(baseline) = baseline {
         out.push_str(&format!(
             "- Previous limiting result: {} with recall {}/{}, nuisance {:.4}, mean lead {}\n",
@@ -954,11 +990,11 @@ fn feature_aware_governance_markdown_section(optimization: &OptimizationExecutio
         out.push_str("- No feature-specific overrides met the deterministic selection rule.\n\n");
         return out;
     }
-    out.push_str("| Feature | Rescue priority | Persistence override | Corroboration override | Window | Hits | Max fragmentation |\n");
-    out.push_str("|---|---:|---|---|---:|---:|---:|\n");
+    out.push_str("| Feature | Rescue priority | Persistence override | Corroboration override | Window | Hits | Max fragmentation | Review-without-escalate | Suppress-if-isolated |\n");
+    out.push_str("|---|---:|---|---|---:|---:|---:|---|---|\n");
     for row in &optimization.feature_policy_summary {
         out.push_str(&format!(
-            "| {} | {} | {} | {} | {} | {} | {} |\n",
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} |\n",
             row.feature_name,
             row.rescue_priority,
             row.requires_persistence_override
@@ -975,6 +1011,12 @@ fn feature_aware_governance_markdown_section(optimization: &OptimizationExecutio
                 .unwrap_or_else(|| "default".into()),
             row.maximum_allowed_fragmentation_override
                 .map(|value| format!("{value:.4}"))
+                .unwrap_or_else(|| "default".into()),
+            row.allow_review_without_escalate
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "default".into()),
+            row.suppress_if_isolated
+                .map(|value| value.to_string())
                 .unwrap_or_else(|| "default".into()),
         ));
     }
@@ -1012,12 +1054,21 @@ fn missed_failure_diagnostics_markdown_section(optimization: &OptimizationExecut
         ));
     }
     out.push('\n');
+    if !optimization.recall_critical_features.is_empty() {
+        out.push_str(&format!(
+            "- Recall-critical feature rows written: {} (`dsa_recall_critical_features.csv`).\n\n",
+            optimization.recall_critical_features.len()
+        ));
+    }
     out
 }
 
-fn optimization_frontier_markdown_section(optimization: &OptimizationExecution) -> String {
+fn two_stage_optimization_frontier_markdown_section(
+    optimization: &OptimizationExecution,
+    assessment: &DeltaTargetAssessment,
+) -> String {
     let mut out = String::new();
-    out.push_str("## Optimization Frontier\n\n");
+    out.push_str("## Two-Stage Optimization Frontier\n\n");
     out.push_str(&format!(
         "- Pareto frontier rows: {}\n- Stage A nuisance-first candidates: {}\n- Stage B recall-recovery candidates: {}\n",
         optimization.pareto_frontier.len(),
@@ -1045,14 +1096,24 @@ fn optimization_frontier_markdown_section(optimization: &OptimizationExecution) 
             format_option_f64(selected.compression_ratio),
         ));
     }
-    if let Some(best_near_success) = optimization.stage_b_candidates.first() {
+    if let Some(best_stage_a) = &assessment.best_stage_a_delta_candidate {
         out.push_str(&format!(
-            "- Best near-success configuration: {} [{}], recall={}/{}, nuisance {:.4}\n\n",
-            best_near_success.cohort_name,
-            best_near_success.ranking_strategy,
-            best_near_success.failure_recall,
-            best_near_success.failure_runs,
-            best_near_success.pass_run_nuisance_proxy,
+            "- Best Stage A nuisance-collapse candidate: {} with delta_nuisance_vs_ewma {:.4}, delta_nuisance_vs_current_dsa {:.4}, recall {}/{}\n",
+            best_stage_a.configuration,
+            best_stage_a.delta_nuisance_vs_ewma,
+            best_stage_a.delta_nuisance_vs_current_dsa,
+            best_stage_a.failure_recall,
+            best_stage_a.failure_runs,
+        ));
+    }
+    if let Some(best_recall_103) = &assessment.best_recall_103_candidate {
+        out.push_str(&format!(
+            "- Best recall-preserving candidate (>=103/104): {} with delta_nuisance_vs_ewma {:.4}, nuisance {:.4}, precursor quality {}, compression {}\n\n",
+            best_recall_103.configuration,
+            best_recall_103.delta_nuisance_vs_ewma,
+            best_recall_103.pass_run_nuisance_proxy,
+            format_option_f64(best_recall_103.precursor_quality),
+            format_option_f64(best_recall_103.compression_ratio),
         ));
     } else {
         out.push('\n');
@@ -1060,9 +1121,41 @@ fn optimization_frontier_markdown_section(optimization: &OptimizationExecution) 
     out
 }
 
-fn optimization_sections_latex(optimization: &OptimizationExecution) -> String {
+fn target_attainment_markdown_section(assessment: &DeltaTargetAssessment) -> String {
     let mut out = String::new();
-    out.push_str("\\section*{Recall Recovery Optimization}\n");
+    out.push_str("## Target Attainment Assessment\n\n");
+    out.push_str(&format!(
+        "- Primary target reached: {}\n- Ideal target reached: {}\n- Secondary target reached: {}\n- Selected delta vs EWMA: {:.4}\n- Selected delta vs current policy DSA: {:.4}\n- Mean lead >= EWMA: {}\n- Mean lead >= threshold: {}\n\n{}\n\n",
+        assessment.primary_target_met,
+        assessment.ideal_target_met,
+        assessment.secondary_target_met,
+        assessment.selected_configuration.delta_nuisance_vs_ewma,
+        assessment.selected_configuration.delta_nuisance_vs_current_dsa,
+        assessment.mean_lead_time_ge_ewma,
+        assessment.mean_lead_time_ge_threshold,
+        assessment.assessment_note,
+    ));
+    out
+}
+
+fn optimization_sections_latex(
+    optimization: &OptimizationExecution,
+    assessment: &DeltaTargetAssessment,
+) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Predeclared Delta Target}\n");
+    out.push_str(&latex_escape(&format!(
+        "Primary target: {}. Secondary target: {}. EWMA nuisance baseline {:.6}; current policy-governed DSA nuisance baseline {:.6}. Primary nuisance ceiling {:.6}; secondary nuisance ceiling {:.6}. {}",
+        assessment.primary_target_definition,
+        assessment.secondary_target_definition,
+        assessment.ewma_nuisance_baseline,
+        assessment.current_policy_dsa_nuisance_baseline,
+        assessment.primary_target_nuisance_ceiling,
+        assessment.secondary_target_nuisance_ceiling,
+        assessment.assessment_note,
+    )));
+    out.push_str("\n\n");
+    out.push_str("\\section*{Recall Recovery Diagnostics}\n");
     if let Some(baseline) = &optimization
         .baseline_execution
         .summary
@@ -1098,8 +1191,9 @@ fn optimization_sections_latex(optimization: &OptimizationExecution) -> String {
     }
     out.push_str("\\section*{Feature-Aware Heuristic Governance}\n");
     out.push_str(&latex_escape(&format!(
-        "Explicit feature overrides written: {}.",
+        "Explicit feature overrides written: {}. Recall-critical feature rows written: {}.",
         optimization.feature_policy_overrides.len(),
+        optimization.recall_critical_features.len(),
     )));
     out.push_str("\n\n");
     out.push_str("\\section*{Missed-Failure Diagnostics}\n");
@@ -1108,12 +1202,24 @@ fn optimization_sections_latex(optimization: &OptimizationExecution) -> String {
         optimization.missed_failure_diagnostics.len(),
     )));
     out.push_str("\n\n");
-    out.push_str("\\section*{Optimization Frontier}\n");
+    out.push_str("\\section*{Two-Stage Optimization Frontier}\n");
     out.push_str(&latex_escape(&format!(
         "Pareto frontier rows: {}. Stage A nuisance-first candidates: {}. Stage B recall-recovery candidates: {}.",
         optimization.pareto_frontier.len(),
         optimization.stage_a_candidates.len(),
         optimization.stage_b_candidates.len(),
+    )));
+    out.push_str("\n\n");
+    out.push_str("\\section*{Target Attainment Assessment}\n");
+    out.push_str(&latex_escape(&format!(
+        "Primary target reached: {}. Ideal target reached: {}. Secondary target reached: {}. Selected delta vs EWMA {:.4}; selected delta vs current policy DSA {:.4}. Mean lead >= EWMA: {}. Mean lead >= threshold: {}.",
+        assessment.primary_target_met,
+        assessment.ideal_target_met,
+        assessment.secondary_target_met,
+        assessment.selected_configuration.delta_nuisance_vs_ewma,
+        assessment.selected_configuration.delta_nuisance_vs_current_dsa,
+        assessment.mean_lead_time_ge_ewma,
+        assessment.mean_lead_time_ge_threshold,
     )));
     out.push_str("\n\n");
     out
@@ -1194,6 +1300,10 @@ fn artifact_inventory(
             role: "Per-configuration rescue activation counts and recovered-alert summaries.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_recall_critical_features.csv".into(),
+            role: "Per-missed-failure recall-critical feature table with closest structural candidates and bounded override recoverability.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_pareto_frontier.csv".into(),
             role: "Nuisance-versus-recall Pareto frontier across the optimized search.".into(),
         },
@@ -1240,6 +1350,10 @@ fn artifact_inventory(
         ArtifactInventoryEntry {
             path: "dsa_rating_delta_forecast.json".into(),
             role: "Bounded rating-delta forecast grounded in the saved DSA nuisance, recall, lead-time, and cohort metrics.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_delta_target_assessment.json".into(),
+            role: "Explicit predeclared 40% delta-target evaluation against EWMA and the prior policy-governed DSA baseline.".into(),
         },
         ArtifactInventoryEntry {
             path: "feature_metrics.csv".into(),
@@ -1391,7 +1505,7 @@ fn feature_cohort_latex_section(
     let mut out = String::new();
     out.push_str("\\section*{Feature-Cohort DSA Selection}\n");
     out.push_str(&latex_escape(&format!(
-        "Ranking formula: {}. Missingness penalty: {:.1} when missing_fraction > {:.2}. Primary success condition: {}.",
+        "Ranking formula: {}. Missingness penalty: {:.1} when missing_fraction > {:.2}. Legacy one-run-tolerance cohort gate used inside the bounded sweep: {}.",
         cohort_summary.ranking_formula,
         feature_cohorts.missingness_penalty_value,
         feature_cohorts.missingness_penalty_threshold,
@@ -1426,7 +1540,7 @@ fn feature_cohort_latex_section(
     out.push_str("\\bottomrule\n\\end{longtable}\n\n");
     out.push_str("\\begin{longtable}{p{0.15\\linewidth}rrrrrr}\n\\toprule\n");
     out.push_str(
-        "Cohort & m & Recall & Mean lead & Nuisance & Compression & Success \\\\\n\\midrule\n",
+        "Cohort & m & Recall & Mean lead & Nuisance & Compression & Legacy gate \\\\\n\\midrule\n",
     );
     for best in &cohort_summary.best_by_cohort {
         let result = &best.best_row;

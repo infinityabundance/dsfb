@@ -1779,10 +1779,22 @@ fn assemble_dsa_evaluation(
             .iter()
             .map(|override_entry| {
                 format!(
-                    "{}: rescue_eligible={}, rescue_priority={}, override_reason={}",
+                    "{}: rescue_eligible={}, rescue_priority={}, allow_watch_only={}, allow_review_without_escalate={}, suppress_if_isolated={}, override_reason={}",
                     override_entry.feature_name,
                     override_entry.rescue_eligible,
                     override_entry.rescue_priority,
+                    override_entry
+                        .allow_watch_only
+                        .map(|value| value.to_string())
+                        .unwrap_or_else(|| "default".into()),
+                    override_entry
+                        .allow_review_without_escalate
+                        .map(|value| value.to_string())
+                        .unwrap_or_else(|| "default".into()),
+                    override_entry
+                        .suppress_if_isolated
+                        .map(|value| value.to_string())
+                        .unwrap_or_else(|| "default".into()),
                     override_entry.override_reason
                 )
             })
@@ -1946,6 +1958,12 @@ fn motif_contribution_state(
     let requires_corroboration = feature_override
         .and_then(|override_entry| override_entry.requires_corroboration_override)
         .unwrap_or(policy.requires_corroboration);
+    let allow_watch_only = feature_override
+        .and_then(|override_entry| override_entry.allow_watch_only)
+        .unwrap_or(false);
+    let suppress_if_isolated = feature_override
+        .and_then(|override_entry| override_entry.suppress_if_isolated)
+        .unwrap_or(false);
     let start = run_index.saturating_sub(minimum_window.saturating_sub(1));
     let hits = flags[start..=run_index]
         .iter()
@@ -2020,6 +2038,12 @@ fn motif_contribution_state(
     {
         contribution_state = DsaPolicyState::Escalate;
     }
+    if allow_watch_only && contribution_state > DsaPolicyState::Watch {
+        contribution_state = DsaPolicyState::Watch;
+    }
+    if suppress_if_isolated && !local_corroboration {
+        contribution_state = DsaPolicyState::Silent;
+    }
 
     Some(MotifContributionState {
         motif_name: policy.motif_name,
@@ -2091,12 +2115,25 @@ fn apply_recall_rescue(
     }
 
     if policy_state[run_index] == DsaPolicyState::Silent {
-        policy_state[run_index] = DsaPolicyState::Review;
-        dsa_alert[run_index] = true;
-        return Some("watch_to_review");
+        if override_entry.allow_watch_only.unwrap_or(false) {
+            policy_state[run_index] = DsaPolicyState::Watch;
+            return Some("silent_to_watch");
+        }
+        if override_entry
+            .allow_review_without_escalate
+            .unwrap_or(false)
+        {
+            policy_state[run_index] = DsaPolicyState::Review;
+            dsa_alert[run_index] = true;
+            return Some("watch_to_review");
+        }
     }
 
-    if policy_state[run_index] == DsaPolicyState::Review {
+    if policy_state[run_index] == DsaPolicyState::Review
+        && !override_entry
+            .allow_review_without_escalate
+            .unwrap_or(false)
+    {
         policy_state[run_index] = DsaPolicyState::Escalate;
         dsa_alert[run_index] = true;
         return Some("review_to_escalate");
@@ -2725,7 +2762,7 @@ fn dsa_conclusion(
     if primary_success_condition_met {
         if !validation_failures.is_empty() {
             return format!(
-                "DSA meets the primary success condition: pass-run nuisance {:.4} is below EWMA nuisance {:.4}, failure recall is {}/{}, mean lead deltas are threshold={} and EWMA={}, precursor quality is {}, and compression ratio is {}. It still fails the stricter validation gates ({}), so no superiority claim is made and DSFB Violation remains the frozen instantaneous envelope-exit comparator.",
+                "DSA satisfies the crate's legacy one-run-tolerance nuisance/recall sweep gate: pass-run nuisance {:.4} is below EWMA nuisance {:.4}, failure recall is {}/{}, mean lead deltas are threshold={} and EWMA={}, precursor quality is {}, and compression ratio is {}. It still fails the stricter validation gates ({}), and this legacy sweep gate is not the stronger predeclared delta target used in the optimization report. No superiority claim is made and DSFB Violation remains the frozen instantaneous envelope-exit comparator.",
                 dsa.pass_run_nuisance_proxy,
                 ewma.pass_run_nuisance_proxy,
                 dsa.failure_run_recall,
@@ -2738,7 +2775,7 @@ fn dsa_conclusion(
             );
         }
         return format!(
-            "DSA meets the primary success condition: pass-run nuisance {:.4} is below EWMA nuisance {:.4}, failure recall is {}/{}, mean lead deltas are threshold={} and EWMA={}, precursor quality is {}, and compression ratio is {}. DSFB Violation remains the frozen instantaneous envelope-exit comparator.",
+            "DSA satisfies the crate's legacy one-run-tolerance nuisance/recall sweep gate: pass-run nuisance {:.4} is below EWMA nuisance {:.4}, failure recall is {}/{}, mean lead deltas are threshold={} and EWMA={}, precursor quality is {}, and compression ratio is {}. This legacy sweep gate is not the stronger predeclared delta target used in the optimization report. DSFB Violation remains the frozen instantaneous envelope-exit comparator.",
             dsa.pass_run_nuisance_proxy,
             ewma.pass_run_nuisance_proxy,
             dsa.failure_run_recall,
@@ -3074,7 +3111,7 @@ fn limiting_factor(rows: &[DsaCalibrationRow]) -> String {
     } else if !any_ewma_nuisance_success {
         "Nuisance relative to EWMA was the limiting factor across the saved grid.".into()
     } else if rows.iter().any(|row| row.primary_success_condition_met) {
-        "The saved grid contains at least one row that satisfies the primary success condition."
+        "The saved grid contains at least one row that satisfies the legacy one-run-tolerance nuisance/recall sweep gate."
             .into()
     } else {
         "Both nuisance and recall remained limiting factors across different parts of the saved grid.".into()
@@ -3351,6 +3388,9 @@ mod tests {
             maximum_allowed_fragmentation_override: Some(0.5),
             rescue_eligible: true,
             rescue_priority: 2,
+            allow_watch_only: Some(false),
+            allow_review_without_escalate: Some(true),
+            suppress_if_isolated: Some(false),
             override_reason: "test".into(),
         };
         let rescue = RecallRescueConfig::default();
@@ -3408,6 +3448,9 @@ mod tests {
             maximum_allowed_fragmentation_override: Some(1.0),
             rescue_eligible: true,
             rescue_priority: 2,
+            allow_watch_only: Some(false),
+            allow_review_without_escalate: Some(true),
+            suppress_if_isolated: Some(false),
             override_reason: "test".into(),
         };
         let rescue = RecallRescueConfig::default();
