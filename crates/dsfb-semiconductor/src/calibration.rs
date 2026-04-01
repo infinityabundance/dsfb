@@ -8,7 +8,8 @@ use crate::nominal::build_nominal_model;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
 use crate::preprocessing::prepare_secom;
 use crate::precursor::{
-    run_dsa_calibration_grid, DsaCalibrationGrid, DsaCalibrationRow,
+    run_dsa_calibration_grid, summarize_dsa_grid, DsaCalibrationGrid, DsaCalibrationRow,
+    DsaGridSummary,
 };
 use crate::residual::compute_residuals;
 use crate::signs::compute_signs;
@@ -27,6 +28,12 @@ pub struct CalibrationGrid {
     pub density_window: Vec<usize>,
     pub ewma_alpha: Vec<f64>,
     pub ewma_sigma_multiplier: Vec<f64>,
+    pub cusum_kappa_sigma_multiplier: Vec<f64>,
+    pub cusum_alarm_sigma_multiplier: Vec<f64>,
+    pub run_energy_sigma_multiplier: Vec<f64>,
+    pub pca_variance_explained: Vec<f64>,
+    pub pca_t2_sigma_multiplier: Vec<f64>,
+    pub pca_spe_sigma_multiplier: Vec<f64>,
     pub drift_sigma_multiplier: Vec<f64>,
     pub slew_sigma_multiplier: Vec<f64>,
     pub grazing_window: Vec<usize>,
@@ -46,6 +53,8 @@ pub struct CalibrationArtifacts {
 pub struct DsaCalibrationArtifacts {
     pub run_dir: PathBuf,
     pub grid_results_csv: PathBuf,
+    pub summary_json: PathBuf,
+    pub report_markdown: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -79,6 +88,12 @@ pub struct CalibrationResultRow {
     pub density_window: usize,
     pub ewma_alpha: f64,
     pub ewma_sigma_multiplier: f64,
+    pub cusum_kappa_sigma_multiplier: f64,
+    pub cusum_alarm_sigma_multiplier: f64,
+    pub run_energy_sigma_multiplier: f64,
+    pub pca_variance_explained: f64,
+    pub pca_t2_sigma_multiplier: f64,
+    pub pca_spe_sigma_multiplier: f64,
     pub drift_sigma_multiplier: f64,
     pub slew_sigma_multiplier: f64,
     pub grazing_window: usize,
@@ -93,18 +108,29 @@ pub struct CalibrationResultRow {
     pub dsfb_raw_violation_recall: usize,
     pub dsfb_persistent_violation_recall: usize,
     pub ewma_recall: usize,
+    pub cusum_recall: usize,
+    pub run_energy_recall: usize,
+    pub pca_fdc_recall: usize,
     pub threshold_recall: usize,
     pub mean_raw_boundary_lead_runs: Option<f64>,
     pub mean_persistent_boundary_lead_runs: Option<f64>,
     pub mean_raw_violation_lead_runs: Option<f64>,
     pub mean_persistent_violation_lead_runs: Option<f64>,
     pub mean_ewma_lead_runs: Option<f64>,
+    pub mean_cusum_lead_runs: Option<f64>,
+    pub mean_run_energy_lead_runs: Option<f64>,
+    pub mean_pca_fdc_lead_runs: Option<f64>,
     pub mean_threshold_lead_runs: Option<f64>,
+    pub mean_persistent_boundary_minus_cusum_delta_runs: Option<f64>,
+    pub mean_persistent_boundary_minus_pca_fdc_delta_runs: Option<f64>,
     pub mean_persistent_boundary_minus_ewma_delta_runs: Option<f64>,
     pub mean_persistent_boundary_minus_threshold_delta_runs: Option<f64>,
     pub pass_run_dsfb_persistent_boundary_nuisance_rate: f64,
     pub pass_run_dsfb_persistent_violation_nuisance_rate: f64,
     pub pass_run_ewma_nuisance_rate: f64,
+    pub pass_run_cusum_nuisance_rate: f64,
+    pub pass_run_run_energy_nuisance_rate: f64,
+    pub pass_run_pca_fdc_nuisance_rate: f64,
     pub pass_run_threshold_nuisance_rate: f64,
     pub persistent_boundary_episode_count: usize,
     pub mean_persistent_boundary_episode_length: Option<f64>,
@@ -149,6 +175,12 @@ impl CalibrationGrid {
             self.density_window.len(),
             self.ewma_alpha.len(),
             self.ewma_sigma_multiplier.len(),
+            self.cusum_kappa_sigma_multiplier.len(),
+            self.cusum_alarm_sigma_multiplier.len(),
+            self.run_energy_sigma_multiplier.len(),
+            self.pca_variance_explained.len(),
+            self.pca_t2_sigma_multiplier.len(),
+            self.pca_spe_sigma_multiplier.len(),
             self.drift_sigma_multiplier.len(),
             self.slew_sigma_multiplier.len(),
             self.grazing_window.len(),
@@ -170,36 +202,46 @@ impl CalibrationGrid {
                                 for &density_window in &self.density_window {
                                     for &ewma_alpha in &self.ewma_alpha {
                                         for &ewma_sigma_multiplier in &self.ewma_sigma_multiplier {
-                                            for &drift_sigma_multiplier in
-                                                &self.drift_sigma_multiplier
-                                            {
-                                                for &slew_sigma_multiplier in
-                                                    &self.slew_sigma_multiplier
-                                                {
-                                                    for &grazing_window in &self.grazing_window {
-                                                        for &grazing_min_hits in
-                                                            &self.grazing_min_hits
-                                                        {
-                                                            for &pre_failure_lookback_runs in
-                                                                &self.pre_failure_lookback_runs
-                                                            {
-                                                                configs.push(PipelineConfig {
-                                                                    healthy_pass_runs,
-                                                                    drift_window,
-                                                                    envelope_sigma,
-                                                                    boundary_fraction_of_rho,
-                                                                    state_confirmation_steps,
-                                                                    persistent_state_steps,
-                                                                    density_window,
-                                                                    ewma_alpha,
-                                                                    ewma_sigma_multiplier,
-                                                                    drift_sigma_multiplier,
-                                                                    slew_sigma_multiplier,
-                                                                    grazing_window,
-                                                                    grazing_min_hits,
-                                                                    pre_failure_lookback_runs,
-                                                                    ..PipelineConfig::default()
-                                                                });
+                                            for &cusum_kappa_sigma_multiplier in &self.cusum_kappa_sigma_multiplier {
+                                                for &cusum_alarm_sigma_multiplier in &self.cusum_alarm_sigma_multiplier {
+                                                    for &run_energy_sigma_multiplier in &self.run_energy_sigma_multiplier {
+                                                        for &pca_variance_explained in &self.pca_variance_explained {
+                                                            for &pca_t2_sigma_multiplier in &self.pca_t2_sigma_multiplier {
+                                                                for &pca_spe_sigma_multiplier in &self.pca_spe_sigma_multiplier {
+                                                                    for &drift_sigma_multiplier in &self.drift_sigma_multiplier {
+                                                                        for &slew_sigma_multiplier in &self.slew_sigma_multiplier {
+                                                                            for &grazing_window in &self.grazing_window {
+                                                                                for &grazing_min_hits in &self.grazing_min_hits {
+                                                                                    for &pre_failure_lookback_runs in &self.pre_failure_lookback_runs {
+                                                                                        configs.push(PipelineConfig {
+                                                                                            healthy_pass_runs,
+                                                                                            drift_window,
+                                                                                            envelope_sigma,
+                                                                                            boundary_fraction_of_rho,
+                                                                                            state_confirmation_steps,
+                                                                                            persistent_state_steps,
+                                                                                            density_window,
+                                                                                            ewma_alpha,
+                                                                                            ewma_sigma_multiplier,
+                                                                                            cusum_kappa_sigma_multiplier,
+                                                                                            cusum_alarm_sigma_multiplier,
+                                                                                            run_energy_sigma_multiplier,
+                                                                                            pca_variance_explained,
+                                                                                            pca_t2_sigma_multiplier,
+                                                                                            pca_spe_sigma_multiplier,
+                                                                                            drift_sigma_multiplier,
+                                                                                            slew_sigma_multiplier,
+                                                                                            grazing_window,
+                                                                                            grazing_min_hits,
+                                                                                            pre_failure_lookback_runs,
+                                                                                            ..PipelineConfig::default()
+                                                                                        });
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -272,6 +314,12 @@ pub fn run_secom_calibration(
             density_window: config.density_window,
             ewma_alpha: config.ewma_alpha,
             ewma_sigma_multiplier: config.ewma_sigma_multiplier,
+            cusum_kappa_sigma_multiplier: config.cusum_kappa_sigma_multiplier,
+            cusum_alarm_sigma_multiplier: config.cusum_alarm_sigma_multiplier,
+            run_energy_sigma_multiplier: config.run_energy_sigma_multiplier,
+            pca_variance_explained: config.pca_variance_explained,
+            pca_t2_sigma_multiplier: config.pca_t2_sigma_multiplier,
+            pca_spe_sigma_multiplier: config.pca_spe_sigma_multiplier,
             drift_sigma_multiplier: config.drift_sigma_multiplier,
             slew_sigma_multiplier: config.slew_sigma_multiplier,
             grazing_window: config.grazing_window,
@@ -296,6 +344,9 @@ pub fn run_secom_calibration(
                 .summary
                 .failure_runs_with_preceding_dsfb_persistent_violation_signal,
             ewma_recall: metrics.summary.failure_runs_with_preceding_ewma_signal,
+            cusum_recall: metrics.summary.failure_runs_with_preceding_cusum_signal,
+            run_energy_recall: metrics.summary.failure_runs_with_preceding_run_energy_signal,
+            pca_fdc_recall: metrics.summary.failure_runs_with_preceding_pca_fdc_signal,
             threshold_recall: metrics.summary.failure_runs_with_preceding_threshold_signal,
             mean_raw_boundary_lead_runs: metrics.lead_time_summary.mean_raw_boundary_lead_runs,
             mean_persistent_boundary_lead_runs: metrics
@@ -306,7 +357,16 @@ pub fn run_secom_calibration(
                 .lead_time_summary
                 .mean_persistent_violation_lead_runs,
             mean_ewma_lead_runs: metrics.lead_time_summary.mean_ewma_lead_runs,
+            mean_cusum_lead_runs: metrics.lead_time_summary.mean_cusum_lead_runs,
+            mean_run_energy_lead_runs: metrics.lead_time_summary.mean_run_energy_lead_runs,
+            mean_pca_fdc_lead_runs: metrics.lead_time_summary.mean_pca_fdc_lead_runs,
             mean_threshold_lead_runs: metrics.lead_time_summary.mean_threshold_lead_runs,
+            mean_persistent_boundary_minus_cusum_delta_runs: metrics
+                .lead_time_summary
+                .mean_persistent_boundary_minus_cusum_delta_runs,
+            mean_persistent_boundary_minus_pca_fdc_delta_runs: metrics
+                .lead_time_summary
+                .mean_persistent_boundary_minus_pca_fdc_delta_runs,
             mean_persistent_boundary_minus_ewma_delta_runs: metrics
                 .lead_time_summary
                 .mean_persistent_boundary_minus_ewma_delta_runs,
@@ -320,6 +380,9 @@ pub fn run_secom_calibration(
                 .summary
                 .pass_run_dsfb_persistent_violation_nuisance_rate,
             pass_run_ewma_nuisance_rate: metrics.summary.pass_run_ewma_nuisance_rate,
+            pass_run_cusum_nuisance_rate: metrics.summary.pass_run_cusum_nuisance_rate,
+            pass_run_run_energy_nuisance_rate: metrics.summary.pass_run_run_energy_nuisance_rate,
+            pass_run_pca_fdc_nuisance_rate: metrics.summary.pass_run_pca_fdc_nuisance_rate,
             pass_run_threshold_nuisance_rate: metrics.summary.pass_run_threshold_nuisance_rate,
             persistent_boundary_episode_count: metrics
                 .boundary_episode_summary
@@ -415,6 +478,7 @@ pub fn run_secom_dsa_calibration(
     data_root: &Path,
     output_root: Option<&Path>,
     config: PipelineConfig,
+    grid: DsaCalibrationGrid,
     fetch_if_missing: bool,
 ) -> Result<DsaCalibrationArtifacts> {
     config
@@ -439,7 +503,6 @@ pub fn run_secom_dsa_calibration(
         .unwrap_or_else(default_output_root);
     fs::create_dir_all(&output_root)?;
     let run_dir = create_timestamped_run_dir(&output_root, "secom_dsa_calibration")?;
-    let grid = DsaCalibrationGrid::bounded_default();
     let rows = run_dsa_calibration_grid(
         &prepared,
         &nominal,
@@ -450,9 +513,14 @@ pub fn run_secom_dsa_calibration(
         &grid,
         config.pre_failure_lookback_runs,
     )?;
+    let summary = summarize_dsa_grid(&rows);
 
     let grid_results_csv = run_dir.join("dsa_grid_results.csv");
+    let summary_json = run_dir.join("dsa_grid_summary.json");
+    let report_markdown = run_dir.join("dsa_calibration_report.md");
     write_dsa_grid_results(&grid_results_csv, &rows)?;
+    fs::write(&summary_json, serde_json::to_string_pretty(&summary)?)?;
+    fs::write(&report_markdown, dsa_calibration_report(&summary))?;
     fs::write(
         run_dir.join("dsa_calibration_run_configuration.json"),
         serde_json::to_string_pretty(&CalibrationRunConfiguration {
@@ -470,6 +538,12 @@ pub fn run_secom_dsa_calibration(
                 density_window: vec![config.density_window],
                 ewma_alpha: vec![config.ewma_alpha],
                 ewma_sigma_multiplier: vec![config.ewma_sigma_multiplier],
+                cusum_kappa_sigma_multiplier: vec![config.cusum_kappa_sigma_multiplier],
+                cusum_alarm_sigma_multiplier: vec![config.cusum_alarm_sigma_multiplier],
+                run_energy_sigma_multiplier: vec![config.run_energy_sigma_multiplier],
+                pca_variance_explained: vec![config.pca_variance_explained],
+                pca_t2_sigma_multiplier: vec![config.pca_t2_sigma_multiplier],
+                pca_spe_sigma_multiplier: vec![config.pca_spe_sigma_multiplier],
                 drift_sigma_multiplier: vec![config.drift_sigma_multiplier],
                 slew_sigma_multiplier: vec![config.slew_sigma_multiplier],
                 grazing_window: vec![config.grazing_window],
@@ -486,6 +560,8 @@ pub fn run_secom_dsa_calibration(
     Ok(DsaCalibrationArtifacts {
         run_dir,
         grid_results_csv,
+        summary_json,
+        report_markdown,
     })
 }
 
@@ -505,6 +581,37 @@ fn write_dsa_grid_results(path: &Path, rows: &[DsaCalibrationRow]) -> Result<()>
     }
     writer.flush()?;
     Ok(())
+}
+
+fn dsa_calibration_report(summary: &DsaGridSummary) -> String {
+    let mut out = String::new();
+    out.push_str("# SECOM DSA calibration report\n\n");
+    out.push_str(&format!(
+        "- Grid points evaluated: {}\n- Primary success condition: {}\n- Success rows: {}\n- Cross-feature corroboration effect: {}\n- Limiting factor: {}\n\n",
+        summary.grid_point_count,
+        summary.primary_success_condition_definition,
+        summary.success_row_count,
+        summary.cross_feature_corroboration_effect,
+        summary.limiting_factor,
+    ));
+    if let Some(row) = &summary.closest_to_success {
+        out.push_str("## Closest to primary success\n\n");
+        out.push_str(&format!(
+            "- config_id: {}\n- W: {}\n- K: {}\n- tau: {:.2}\n- m: {}\n- recall: {}/{}\n- mean lead time: {}\n- nuisance: {:.4}\n- precursor quality: {}\n- compression ratio: {}\n\n",
+            row.config_id,
+            row.window,
+            row.persistence_runs,
+            row.alert_tau,
+            row.corroborating_feature_count_min,
+            row.failure_run_recall,
+            row.failure_runs,
+            format_option_f64(row.mean_lead_time_runs),
+            row.pass_run_nuisance_proxy,
+            format_option_f64(row.precursor_quality),
+            format_option_f64(row.compression_ratio),
+        ));
+    }
+    out
 }
 
 fn write_summary(path: &Path, summary: &CalibrationSummary) -> Result<()> {

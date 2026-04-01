@@ -19,10 +19,15 @@ pub struct FeatureMetrics {
     pub ewma_healthy_mean: f64,
     pub ewma_healthy_std: f64,
     pub ewma_threshold: f64,
+    pub cusum_healthy_mean: f64,
+    pub cusum_healthy_std: f64,
+    pub cusum_kappa: f64,
+    pub cusum_alarm_threshold: f64,
     pub drift_threshold: f64,
     pub slew_threshold: f64,
     pub missing_fraction: f64,
     pub ewma_alarm_points: usize,
+    pub cusum_alarm_points: usize,
     pub dsfb_raw_boundary_points: usize,
     pub dsfb_persistent_boundary_points: usize,
     pub dsfb_raw_violation_points: usize,
@@ -36,6 +41,9 @@ pub struct BenchmarkSummary {
     pub analyzable_feature_count: usize,
     pub threshold_alarm_points: usize,
     pub ewma_alarm_points: usize,
+    pub cusum_alarm_points: usize,
+    pub run_energy_alarm_points: usize,
+    pub pca_fdc_alarm_points: usize,
     pub dsfb_raw_boundary_points: usize,
     pub dsfb_persistent_boundary_points: usize,
     pub dsfb_raw_violation_points: usize,
@@ -48,6 +56,9 @@ pub struct BenchmarkSummary {
     pub failure_runs_with_preceding_dsfb_raw_violation_signal: usize,
     pub failure_runs_with_preceding_dsfb_persistent_violation_signal: usize,
     pub failure_runs_with_preceding_ewma_signal: usize,
+    pub failure_runs_with_preceding_cusum_signal: usize,
+    pub failure_runs_with_preceding_run_energy_signal: usize,
+    pub failure_runs_with_preceding_pca_fdc_signal: usize,
     pub failure_runs_with_preceding_threshold_signal: usize,
     pub pass_runs: usize,
     pub pass_runs_with_dsfb_raw_boundary_signal: usize,
@@ -55,12 +66,18 @@ pub struct BenchmarkSummary {
     pub pass_runs_with_dsfb_raw_violation_signal: usize,
     pub pass_runs_with_dsfb_persistent_violation_signal: usize,
     pub pass_runs_with_ewma_signal: usize,
+    pub pass_runs_with_cusum_signal: usize,
+    pub pass_runs_with_run_energy_signal: usize,
+    pub pass_runs_with_pca_fdc_signal: usize,
     pub pass_runs_with_threshold_signal: usize,
     pub pass_run_dsfb_raw_boundary_nuisance_rate: f64,
     pub pass_run_dsfb_persistent_boundary_nuisance_rate: f64,
     pub pass_run_dsfb_raw_violation_nuisance_rate: f64,
     pub pass_run_dsfb_persistent_violation_nuisance_rate: f64,
     pub pass_run_ewma_nuisance_rate: f64,
+    pub pass_run_cusum_nuisance_rate: f64,
+    pub pass_run_run_energy_nuisance_rate: f64,
+    pub pass_run_pca_fdc_nuisance_rate: f64,
     pub pass_run_threshold_nuisance_rate: f64,
 }
 
@@ -72,18 +89,36 @@ pub struct LeadTimeSummary {
     pub failure_runs_with_persistent_violation_lead: usize,
     pub failure_runs_with_threshold_lead: usize,
     pub failure_runs_with_ewma_lead: usize,
+    pub failure_runs_with_cusum_lead: usize,
+    pub failure_runs_with_run_energy_lead: usize,
+    pub failure_runs_with_pca_fdc_lead: usize,
     pub mean_raw_boundary_lead_runs: Option<f64>,
     pub mean_persistent_boundary_lead_runs: Option<f64>,
     pub mean_raw_violation_lead_runs: Option<f64>,
     pub mean_persistent_violation_lead_runs: Option<f64>,
     pub mean_threshold_lead_runs: Option<f64>,
     pub mean_ewma_lead_runs: Option<f64>,
+    pub mean_cusum_lead_runs: Option<f64>,
+    pub mean_run_energy_lead_runs: Option<f64>,
+    pub mean_pca_fdc_lead_runs: Option<f64>,
+    pub mean_raw_boundary_minus_cusum_delta_runs: Option<f64>,
+    pub mean_raw_boundary_minus_run_energy_delta_runs: Option<f64>,
+    pub mean_raw_boundary_minus_pca_fdc_delta_runs: Option<f64>,
     pub mean_raw_boundary_minus_threshold_delta_runs: Option<f64>,
     pub mean_raw_boundary_minus_ewma_delta_runs: Option<f64>,
+    pub mean_persistent_boundary_minus_cusum_delta_runs: Option<f64>,
+    pub mean_persistent_boundary_minus_run_energy_delta_runs: Option<f64>,
+    pub mean_persistent_boundary_minus_pca_fdc_delta_runs: Option<f64>,
     pub mean_persistent_boundary_minus_threshold_delta_runs: Option<f64>,
     pub mean_persistent_boundary_minus_ewma_delta_runs: Option<f64>,
+    pub mean_raw_violation_minus_cusum_delta_runs: Option<f64>,
+    pub mean_raw_violation_minus_run_energy_delta_runs: Option<f64>,
+    pub mean_raw_violation_minus_pca_fdc_delta_runs: Option<f64>,
     pub mean_raw_violation_minus_threshold_delta_runs: Option<f64>,
     pub mean_raw_violation_minus_ewma_delta_runs: Option<f64>,
+    pub mean_persistent_violation_minus_cusum_delta_runs: Option<f64>,
+    pub mean_persistent_violation_minus_run_energy_delta_runs: Option<f64>,
+    pub mean_persistent_violation_minus_pca_fdc_delta_runs: Option<f64>,
     pub mean_persistent_violation_minus_threshold_delta_runs: Option<f64>,
     pub mean_persistent_violation_minus_ewma_delta_runs: Option<f64>,
 }
@@ -119,18 +154,36 @@ pub struct PerFailureRunSignal {
     pub earliest_dsfb_persistent_violation_run: Option<usize>,
     pub earliest_threshold_run: Option<usize>,
     pub earliest_ewma_run: Option<usize>,
+    pub earliest_cusum_run: Option<usize>,
+    pub earliest_run_energy_run: Option<usize>,
+    pub earliest_pca_fdc_run: Option<usize>,
     pub dsfb_raw_boundary_lead_runs: Option<usize>,
     pub dsfb_persistent_boundary_lead_runs: Option<usize>,
     pub dsfb_raw_violation_lead_runs: Option<usize>,
     pub dsfb_persistent_violation_lead_runs: Option<usize>,
     pub threshold_lead_runs: Option<usize>,
     pub ewma_lead_runs: Option<usize>,
+    pub cusum_lead_runs: Option<usize>,
+    pub run_energy_lead_runs: Option<usize>,
+    pub pca_fdc_lead_runs: Option<usize>,
+    pub dsfb_raw_boundary_minus_cusum_delta_runs: Option<i64>,
+    pub dsfb_raw_boundary_minus_run_energy_delta_runs: Option<i64>,
+    pub dsfb_raw_boundary_minus_pca_fdc_delta_runs: Option<i64>,
     pub dsfb_raw_boundary_minus_threshold_delta_runs: Option<i64>,
     pub dsfb_raw_boundary_minus_ewma_delta_runs: Option<i64>,
+    pub dsfb_persistent_boundary_minus_cusum_delta_runs: Option<i64>,
+    pub dsfb_persistent_boundary_minus_run_energy_delta_runs: Option<i64>,
+    pub dsfb_persistent_boundary_minus_pca_fdc_delta_runs: Option<i64>,
     pub dsfb_persistent_boundary_minus_threshold_delta_runs: Option<i64>,
     pub dsfb_persistent_boundary_minus_ewma_delta_runs: Option<i64>,
+    pub dsfb_raw_violation_minus_cusum_delta_runs: Option<i64>,
+    pub dsfb_raw_violation_minus_run_energy_delta_runs: Option<i64>,
+    pub dsfb_raw_violation_minus_pca_fdc_delta_runs: Option<i64>,
     pub dsfb_raw_violation_minus_threshold_delta_runs: Option<i64>,
     pub dsfb_raw_violation_minus_ewma_delta_runs: Option<i64>,
+    pub dsfb_persistent_violation_minus_cusum_delta_runs: Option<i64>,
+    pub dsfb_persistent_violation_minus_run_energy_delta_runs: Option<i64>,
+    pub dsfb_persistent_violation_minus_pca_fdc_delta_runs: Option<i64>,
     pub dsfb_persistent_violation_minus_threshold_delta_runs: Option<i64>,
     pub dsfb_persistent_violation_minus_ewma_delta_runs: Option<i64>,
 }
@@ -147,6 +200,7 @@ pub struct DensityMetricRecord {
     pub persistent_violation_density: f64,
     pub threshold_density: f64,
     pub ewma_density: f64,
+    pub cusum_density: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -164,6 +218,8 @@ pub struct DensitySummary {
     pub mean_threshold_density_pass: f64,
     pub mean_ewma_density_failure: f64,
     pub mean_ewma_density_pass: f64,
+    pub mean_cusum_density_failure: f64,
+    pub mean_cusum_density_pass: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -192,17 +248,21 @@ pub fn compute_metrics(
     let mut feature_metrics = Vec::new();
     let mut threshold_alarm_points = 0usize;
     let mut ewma_alarm_points = 0usize;
+    let mut cusum_alarm_points = 0usize;
+    let run_energy_alarm_points = baselines.run_energy.alarm.iter().filter(|flag| **flag).count();
+    let pca_fdc_alarm_points = baselines.pca_fdc.alarm.iter().filter(|flag| **flag).count();
     let mut dsfb_raw_boundary_points = 0usize;
     let mut dsfb_persistent_boundary_points = 0usize;
     let mut dsfb_raw_violation_points = 0usize;
     let mut dsfb_persistent_violation_points = 0usize;
 
-    for ((((feature, residual_trace), sign_trace), ewma_trace), grammar_trace) in nominal
+    for (((((feature, residual_trace), sign_trace), ewma_trace), cusum_trace), grammar_trace) in nominal
         .features
         .iter()
         .zip(&residuals.traces)
         .zip(&signs.traces)
         .zip(&baselines.ewma)
+        .zip(&baselines.cusum)
         .zip(&grammar.traces)
     {
         let threshold_points = residual_trace
@@ -211,6 +271,7 @@ pub fn compute_metrics(
             .filter(|flag| **flag)
             .count();
         let ewma_points = ewma_trace.alarm.iter().filter(|flag| **flag).count();
+        let cusum_points = cusum_trace.alarm.iter().filter(|flag| **flag).count();
         let raw_boundary_points = grammar_trace
             .raw_states
             .iter()
@@ -234,6 +295,7 @@ pub fn compute_metrics(
 
         threshold_alarm_points += threshold_points;
         ewma_alarm_points += ewma_points;
+        cusum_alarm_points += cusum_points;
         dsfb_raw_boundary_points += raw_boundary_points;
         dsfb_persistent_boundary_points += persistent_boundary_points;
         dsfb_raw_violation_points += raw_violation_points;
@@ -248,10 +310,15 @@ pub fn compute_metrics(
             ewma_healthy_mean: ewma_trace.healthy_mean,
             ewma_healthy_std: ewma_trace.healthy_std,
             ewma_threshold: ewma_trace.threshold,
+            cusum_healthy_mean: cusum_trace.healthy_mean,
+            cusum_healthy_std: cusum_trace.healthy_std,
+            cusum_kappa: cusum_trace.kappa,
+            cusum_alarm_threshold: cusum_trace.alarm_threshold,
             drift_threshold: sign_trace.drift_threshold,
             slew_threshold: sign_trace.slew_threshold,
             missing_fraction: dataset.per_feature_missing_fraction[feature.feature_index],
             ewma_alarm_points: ewma_points,
+            cusum_alarm_points: cusum_points,
             dsfb_raw_boundary_points: raw_boundary_points,
             dsfb_persistent_boundary_points: persistent_boundary_points,
             dsfb_raw_violation_points: raw_violation_points,
@@ -304,6 +371,9 @@ pub fn compute_metrics(
     let mut failure_runs_with_preceding_dsfb_raw_violation_signal = 0usize;
     let mut failure_runs_with_preceding_dsfb_persistent_violation_signal = 0usize;
     let mut failure_runs_with_preceding_ewma_signal = 0usize;
+    let mut failure_runs_with_preceding_cusum_signal = 0usize;
+    let mut failure_runs_with_preceding_run_energy_signal = 0usize;
+    let mut failure_runs_with_preceding_pca_fdc_signal = 0usize;
     let mut failure_runs_with_preceding_threshold_signal = 0usize;
     for record in &per_failure_run_signals {
         if record.earliest_dsfb_raw_boundary_run.is_some()
@@ -331,6 +401,15 @@ pub fn compute_metrics(
         if record.earliest_ewma_run.is_some() {
             failure_runs_with_preceding_ewma_signal += 1;
         }
+        if record.earliest_cusum_run.is_some() {
+            failure_runs_with_preceding_cusum_signal += 1;
+        }
+        if record.earliest_run_energy_run.is_some() {
+            failure_runs_with_preceding_run_energy_signal += 1;
+        }
+        if record.earliest_pca_fdc_run.is_some() {
+            failure_runs_with_preceding_pca_fdc_signal += 1;
+        }
         if record.earliest_threshold_run.is_some() {
             failure_runs_with_preceding_threshold_signal += 1;
         }
@@ -346,6 +425,15 @@ pub fn compute_metrics(
         count_runs_with_signal(&pass_indices, |run_index| any_trace_persistent(grammar, run_index, GrammarState::Violation));
     let pass_runs_with_ewma_signal = count_runs_with_signal(&pass_indices, |run_index| {
         baselines.ewma.iter().any(|trace| trace.alarm[run_index])
+    });
+    let pass_runs_with_cusum_signal = count_runs_with_signal(&pass_indices, |run_index| {
+        baselines.cusum.iter().any(|trace| trace.alarm[run_index])
+    });
+    let pass_runs_with_run_energy_signal = count_runs_with_signal(&pass_indices, |run_index| {
+        baselines.run_energy.alarm[run_index]
+    });
+    let pass_runs_with_pca_fdc_signal = count_runs_with_signal(&pass_indices, |run_index| {
+        baselines.pca_fdc.alarm[run_index]
     });
     let pass_runs_with_threshold_signal = count_runs_with_signal(&pass_indices, |run_index| {
         residuals
@@ -368,6 +456,7 @@ pub fn compute_metrics(
                     .cmp(&left.dsfb_raw_boundary_points)
             })
             .then_with(|| right.ewma_alarm_points.cmp(&left.ewma_alarm_points))
+            .then_with(|| right.cusum_alarm_points.cmp(&left.cusum_alarm_points))
             .then_with(|| {
                 right
                     .threshold_alarm_points
@@ -393,6 +482,9 @@ pub fn compute_metrics(
                 .count(),
             threshold_alarm_points,
             ewma_alarm_points,
+            cusum_alarm_points,
+            run_energy_alarm_points,
+            pca_fdc_alarm_points,
             dsfb_raw_boundary_points,
             dsfb_persistent_boundary_points,
             dsfb_raw_violation_points,
@@ -405,6 +497,9 @@ pub fn compute_metrics(
             failure_runs_with_preceding_dsfb_raw_violation_signal,
             failure_runs_with_preceding_dsfb_persistent_violation_signal,
             failure_runs_with_preceding_ewma_signal,
+            failure_runs_with_preceding_cusum_signal,
+            failure_runs_with_preceding_run_energy_signal,
+            failure_runs_with_preceding_pca_fdc_signal,
             failure_runs_with_preceding_threshold_signal,
             pass_runs,
             pass_runs_with_dsfb_raw_boundary_signal,
@@ -412,6 +507,9 @@ pub fn compute_metrics(
             pass_runs_with_dsfb_raw_violation_signal,
             pass_runs_with_dsfb_persistent_violation_signal,
             pass_runs_with_ewma_signal,
+            pass_runs_with_cusum_signal,
+            pass_runs_with_run_energy_signal,
+            pass_runs_with_pca_fdc_signal,
             pass_runs_with_threshold_signal,
             pass_run_dsfb_raw_boundary_nuisance_rate: rate(
                 pass_runs_with_dsfb_raw_boundary_signal,
@@ -430,6 +528,9 @@ pub fn compute_metrics(
                 pass_runs,
             ),
             pass_run_ewma_nuisance_rate: rate(pass_runs_with_ewma_signal, pass_runs),
+            pass_run_cusum_nuisance_rate: rate(pass_runs_with_cusum_signal, pass_runs),
+            pass_run_run_energy_nuisance_rate: rate(pass_runs_with_run_energy_signal, pass_runs),
+            pass_run_pca_fdc_nuisance_rate: rate(pass_runs_with_pca_fdc_signal, pass_runs),
             pass_run_threshold_nuisance_rate: rate(pass_runs_with_threshold_signal, pass_runs),
         },
         lead_time_summary,
@@ -520,6 +621,18 @@ fn compute_per_failure_run_signals(
                 earliest_signal_in_window(window_start, failure_index, |run_index| {
                     baselines.ewma.iter().any(|trace| trace.alarm[run_index])
                 });
+            let earliest_cusum_run =
+                earliest_signal_in_window(window_start, failure_index, |run_index| {
+                    baselines.cusum.iter().any(|trace| trace.alarm[run_index])
+                });
+            let earliest_run_energy_run =
+                earliest_signal_in_window(window_start, failure_index, |run_index| {
+                    baselines.run_energy.alarm[run_index]
+                });
+            let earliest_pca_fdc_run =
+                earliest_signal_in_window(window_start, failure_index, |run_index| {
+                    baselines.pca_fdc.alarm[run_index]
+                });
 
             let dsfb_raw_boundary_lead_runs =
                 earliest_dsfb_raw_boundary_run.map(|index| failure_index - index);
@@ -531,6 +644,9 @@ fn compute_per_failure_run_signals(
                 earliest_dsfb_persistent_violation_run.map(|index| failure_index - index);
             let threshold_lead_runs = earliest_threshold_run.map(|index| failure_index - index);
             let ewma_lead_runs = earliest_ewma_run.map(|index| failure_index - index);
+            let cusum_lead_runs = earliest_cusum_run.map(|index| failure_index - index);
+            let run_energy_lead_runs = earliest_run_energy_run.map(|index| failure_index - index);
+            let pca_fdc_lead_runs = earliest_pca_fdc_run.map(|index| failure_index - index);
 
             PerFailureRunSignal {
                 failure_run_index: failure_index,
@@ -543,12 +659,30 @@ fn compute_per_failure_run_signals(
                 earliest_dsfb_persistent_violation_run,
                 earliest_threshold_run,
                 earliest_ewma_run,
+                earliest_cusum_run,
+                earliest_run_energy_run,
+                earliest_pca_fdc_run,
                 dsfb_raw_boundary_lead_runs,
                 dsfb_persistent_boundary_lead_runs,
                 dsfb_raw_violation_lead_runs,
                 dsfb_persistent_violation_lead_runs,
                 threshold_lead_runs,
                 ewma_lead_runs,
+                cusum_lead_runs,
+                run_energy_lead_runs,
+                pca_fdc_lead_runs,
+                dsfb_raw_boundary_minus_cusum_delta_runs: paired_delta(
+                    dsfb_raw_boundary_lead_runs,
+                    cusum_lead_runs,
+                ),
+                dsfb_raw_boundary_minus_run_energy_delta_runs: paired_delta(
+                    dsfb_raw_boundary_lead_runs,
+                    run_energy_lead_runs,
+                ),
+                dsfb_raw_boundary_minus_pca_fdc_delta_runs: paired_delta(
+                    dsfb_raw_boundary_lead_runs,
+                    pca_fdc_lead_runs,
+                ),
                 dsfb_raw_boundary_minus_threshold_delta_runs: paired_delta(
                     dsfb_raw_boundary_lead_runs,
                     threshold_lead_runs,
@@ -565,6 +699,30 @@ fn compute_per_failure_run_signals(
                     dsfb_persistent_boundary_lead_runs,
                     ewma_lead_runs,
                 ),
+                dsfb_persistent_boundary_minus_cusum_delta_runs: paired_delta(
+                    dsfb_persistent_boundary_lead_runs,
+                    cusum_lead_runs,
+                ),
+                dsfb_persistent_boundary_minus_run_energy_delta_runs: paired_delta(
+                    dsfb_persistent_boundary_lead_runs,
+                    run_energy_lead_runs,
+                ),
+                dsfb_persistent_boundary_minus_pca_fdc_delta_runs: paired_delta(
+                    dsfb_persistent_boundary_lead_runs,
+                    pca_fdc_lead_runs,
+                ),
+                dsfb_raw_violation_minus_cusum_delta_runs: paired_delta(
+                    dsfb_raw_violation_lead_runs,
+                    cusum_lead_runs,
+                ),
+                dsfb_raw_violation_minus_run_energy_delta_runs: paired_delta(
+                    dsfb_raw_violation_lead_runs,
+                    run_energy_lead_runs,
+                ),
+                dsfb_raw_violation_minus_pca_fdc_delta_runs: paired_delta(
+                    dsfb_raw_violation_lead_runs,
+                    pca_fdc_lead_runs,
+                ),
                 dsfb_raw_violation_minus_threshold_delta_runs: paired_delta(
                     dsfb_raw_violation_lead_runs,
                     threshold_lead_runs,
@@ -580,6 +738,18 @@ fn compute_per_failure_run_signals(
                 dsfb_persistent_violation_minus_ewma_delta_runs: paired_delta(
                     dsfb_persistent_violation_lead_runs,
                     ewma_lead_runs,
+                ),
+                dsfb_persistent_violation_minus_cusum_delta_runs: paired_delta(
+                    dsfb_persistent_violation_lead_runs,
+                    cusum_lead_runs,
+                ),
+                dsfb_persistent_violation_minus_run_energy_delta_runs: paired_delta(
+                    dsfb_persistent_violation_lead_runs,
+                    run_energy_lead_runs,
+                ),
+                dsfb_persistent_violation_minus_pca_fdc_delta_runs: paired_delta(
+                    dsfb_persistent_violation_lead_runs,
+                    pca_fdc_lead_runs,
                 ),
             }
         })
@@ -623,6 +793,13 @@ fn summarize_lead_times(records: &[PerFailureRunSignal]) -> LeadTimeSummary {
             records.iter().map(|record| record.threshold_lead_runs),
         ),
         failure_runs_with_ewma_lead: count_present(records.iter().map(|record| record.ewma_lead_runs)),
+        failure_runs_with_cusum_lead: count_present(records.iter().map(|record| record.cusum_lead_runs)),
+        failure_runs_with_run_energy_lead: count_present(
+            records.iter().map(|record| record.run_energy_lead_runs),
+        ),
+        failure_runs_with_pca_fdc_lead: count_present(
+            records.iter().map(|record| record.pca_fdc_lead_runs),
+        ),
         mean_raw_boundary_lead_runs: mean_option_usize(
             &records
                 .iter()
@@ -659,6 +836,42 @@ fn summarize_lead_times(records: &[PerFailureRunSignal]) -> LeadTimeSummary {
                 .map(|record| record.ewma_lead_runs)
                 .collect::<Vec<_>>(),
         ),
+        mean_cusum_lead_runs: mean_option_usize(
+            &records
+                .iter()
+                .map(|record| record.cusum_lead_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_run_energy_lead_runs: mean_option_usize(
+            &records
+                .iter()
+                .map(|record| record.run_energy_lead_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_pca_fdc_lead_runs: mean_option_usize(
+            &records
+                .iter()
+                .map(|record| record.pca_fdc_lead_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_raw_boundary_minus_cusum_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_raw_boundary_minus_cusum_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_raw_boundary_minus_run_energy_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_raw_boundary_minus_run_energy_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_raw_boundary_minus_pca_fdc_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_raw_boundary_minus_pca_fdc_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
         mean_raw_boundary_minus_threshold_delta_runs: mean_option_i64(
             &records
                 .iter()
@@ -683,6 +896,42 @@ fn summarize_lead_times(records: &[PerFailureRunSignal]) -> LeadTimeSummary {
                 .map(|record| record.dsfb_persistent_boundary_minus_ewma_delta_runs)
                 .collect::<Vec<_>>(),
         ),
+        mean_persistent_boundary_minus_cusum_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_persistent_boundary_minus_cusum_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_persistent_boundary_minus_run_energy_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_persistent_boundary_minus_run_energy_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_persistent_boundary_minus_pca_fdc_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_persistent_boundary_minus_pca_fdc_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_raw_violation_minus_cusum_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_raw_violation_minus_cusum_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_raw_violation_minus_run_energy_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_raw_violation_minus_run_energy_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_raw_violation_minus_pca_fdc_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_raw_violation_minus_pca_fdc_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
         mean_raw_violation_minus_threshold_delta_runs: mean_option_i64(
             &records
                 .iter()
@@ -705,6 +954,24 @@ fn summarize_lead_times(records: &[PerFailureRunSignal]) -> LeadTimeSummary {
             &records
                 .iter()
                 .map(|record| record.dsfb_persistent_violation_minus_ewma_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_persistent_violation_minus_cusum_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_persistent_violation_minus_cusum_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_persistent_violation_minus_run_energy_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_persistent_violation_minus_run_energy_delta_runs)
+                .collect::<Vec<_>>(),
+        ),
+        mean_persistent_violation_minus_pca_fdc_delta_runs: mean_option_i64(
+            &records
+                .iter()
+                .map(|record| record.dsfb_persistent_violation_minus_pca_fdc_delta_runs)
                 .collect::<Vec<_>>(),
         ),
     }
@@ -738,11 +1005,13 @@ fn compute_density_metrics(
             let mut persistent_violation_hits = 0usize;
             let mut threshold_hits = 0usize;
             let mut ewma_hits = 0usize;
+            let mut cusum_hits = 0usize;
 
             for &feature_index in &analyzable_feature_indices {
                 let grammar_trace = &grammar.traces[feature_index];
                 let residual_trace = &residuals.traces[feature_index];
                 let ewma_trace = &baselines.ewma[feature_index];
+                let cusum_trace = &baselines.cusum[feature_index];
                 for offset in start..=run_index {
                     if grammar_trace.raw_states[offset] == GrammarState::Boundary {
                         raw_boundary_hits += 1;
@@ -762,6 +1031,9 @@ fn compute_density_metrics(
                     if ewma_trace.alarm[offset] {
                         ewma_hits += 1;
                     }
+                    if cusum_trace.alarm[offset] {
+                        cusum_hits += 1;
+                    }
                 }
             }
 
@@ -778,6 +1050,7 @@ fn compute_density_metrics(
                 persistent_violation_density: persistent_violation_hits as f64 / denominator,
                 threshold_density: threshold_hits as f64 / denominator,
                 ewma_density: ewma_hits as f64 / denominator,
+                cusum_density: cusum_hits as f64 / denominator,
             }
         })
         .collect()
@@ -830,6 +1103,10 @@ fn summarize_densities(records: &[DensityMetricRecord], density_window: usize) -
             record.ewma_density
         }),
         mean_ewma_density_pass: mean_record_field(&pass_records, |record| record.ewma_density),
+        mean_cusum_density_failure: mean_record_field(&failure_records, |record| {
+            record.cusum_density
+        }),
+        mean_cusum_density_pass: mean_record_field(&pass_records, |record| record.cusum_density),
     }
 }
 

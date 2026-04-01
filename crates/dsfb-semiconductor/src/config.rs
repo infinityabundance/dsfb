@@ -12,6 +12,12 @@ pub struct PipelineConfig {
     pub density_window: usize,
     pub ewma_alpha: f64,
     pub ewma_sigma_multiplier: f64,
+    pub cusum_kappa_sigma_multiplier: f64,
+    pub cusum_alarm_sigma_multiplier: f64,
+    pub run_energy_sigma_multiplier: f64,
+    pub pca_variance_explained: f64,
+    pub pca_t2_sigma_multiplier: f64,
+    pub pca_spe_sigma_multiplier: f64,
     pub drift_sigma_multiplier: f64,
     pub slew_sigma_multiplier: f64,
     pub grazing_window: usize,
@@ -34,6 +40,12 @@ impl Default for PipelineConfig {
             density_window: 10,
             ewma_alpha: 0.2,
             ewma_sigma_multiplier: 3.0,
+            cusum_kappa_sigma_multiplier: 0.5,
+            cusum_alarm_sigma_multiplier: 5.0,
+            run_energy_sigma_multiplier: 3.0,
+            pca_variance_explained: 0.95,
+            pca_t2_sigma_multiplier: 3.0,
+            pca_spe_sigma_multiplier: 3.0,
             drift_sigma_multiplier: 3.0,
             slew_sigma_multiplier: 3.0,
             grazing_window: 10,
@@ -74,6 +86,26 @@ impl PipelineConfig {
         }
         if self.ewma_sigma_multiplier <= 0.0 {
             return Err("ewma_sigma_multiplier must be positive".into());
+        }
+        if self.cusum_kappa_sigma_multiplier <= 0.0 {
+            return Err("cusum_kappa_sigma_multiplier must be positive".into());
+        }
+        if self.cusum_alarm_sigma_multiplier <= 0.0 {
+            return Err("cusum_alarm_sigma_multiplier must be positive".into());
+        }
+        if self.run_energy_sigma_multiplier <= 0.0 {
+            return Err("run_energy_sigma_multiplier must be positive".into());
+        }
+        if !(0.0..=1.0).contains(&self.pca_variance_explained)
+            || self.pca_variance_explained == 0.0
+        {
+            return Err("pca_variance_explained must be in (0, 1]".into());
+        }
+        if self.pca_t2_sigma_multiplier <= 0.0 {
+            return Err("pca_t2_sigma_multiplier must be positive".into());
+        }
+        if self.pca_spe_sigma_multiplier <= 0.0 {
+            return Err("pca_spe_sigma_multiplier must be positive".into());
         }
         if self.minimum_healthy_observations < 2 {
             return Err("minimum_healthy_observations must be at least 2".into());
