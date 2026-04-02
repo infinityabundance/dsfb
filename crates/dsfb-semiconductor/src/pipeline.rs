@@ -127,6 +127,9 @@ struct ArtifactManifest {
     lead_time_comparison_path: String,
     lead_time_explanation_path: String,
     episode_precision_metrics_path: String,
+    dsfb_episode_summary_path: String,
+    dsfb_episode_precision_path: String,
+    dsfb_recall_metrics_path: String,
     paper_abstract_artifact_path: String,
     dsa_operator_baselines_path: String,
     dsa_operator_delta_targets_path: String,
@@ -166,7 +169,9 @@ struct ArtifactManifest {
     report_markdown_path: String,
     report_tex_path: String,
     report_pdf_path: Option<String>,
+    report_pdf_alias_path: Option<String>,
     zip_path: String,
+    results_zip_path: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -224,6 +229,30 @@ struct PassRunNuisanceSummary {
     run_energy_signal_rate: f64,
     pca_fdc_signal_rate: f64,
     threshold_signal_rate: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DsfbEpisodeSummaryRow {
+    raw_boundary_episodes: usize,
+    dsfb_episodes: usize,
+    episode_collapse_fraction: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DsfbEpisodePrecisionRow {
+    raw_boundary_precision: f64,
+    dsfb_precision: f64,
+    precision_gain_factor: f64,
+    raw_boundary_episodes: usize,
+    dsfb_episodes: usize,
+    dsfb_pre_failure_episodes: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DsfbRecallMetricsRow {
+    detected_failures: usize,
+    total_failures: usize,
+    recall: f64,
 }
 
 pub fn run_secom_benchmark(
@@ -746,6 +775,51 @@ pub fn run_secom_benchmark(
         &run_dir.join("episode_precision_metrics.json"),
         &secom_addendum.episode_precision_metrics,
     )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_episode_summary.csv"),
+        &[DsfbEpisodeSummaryRow {
+            raw_boundary_episodes: optimization.operator_delta_targets.baseline_episode_count,
+            dsfb_episodes: optimization.operator_delta_targets.optimized_episode_count,
+            episode_collapse_fraction: optimization.operator_delta_targets.delta_episode_count,
+        }],
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_episode_precision.csv"),
+        &[DsfbEpisodePrecisionRow {
+            raw_boundary_precision: secom_addendum.episode_precision_metrics.raw_alarm_precision,
+            dsfb_precision: secom_addendum.episode_precision_metrics.dsfb_precision,
+            precision_gain_factor: secom_addendum
+                .episode_precision_metrics
+                .precision_gain_factor,
+            raw_boundary_episodes: secom_addendum.episode_precision_metrics.raw_alarm_count,
+            dsfb_episodes: secom_addendum.episode_precision_metrics.dsfb_episode_count,
+            dsfb_pre_failure_episodes: secom_addendum
+                .episode_precision_metrics
+                .dsfb_pre_failure_episode_count,
+        }],
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_recall_metrics.csv"),
+        &[DsfbRecallMetricsRow {
+            detected_failures: optimization
+                .operator_delta_targets
+                .selected_configuration
+                .failure_recall,
+            total_failures: optimization
+                .operator_delta_targets
+                .selected_configuration
+                .failure_runs,
+            recall: optimization
+                .operator_delta_targets
+                .selected_configuration
+                .failure_recall as f64
+                / optimization
+                    .operator_delta_targets
+                    .selected_configuration
+                    .failure_runs
+                    .max(1) as f64,
+        }],
+    )?;
     fs::write(
         run_dir.join("paper_abstract_artifact.txt"),
         &secom_addendum.paper_abstract_artifact,
@@ -779,6 +853,8 @@ pub fn run_secom_benchmark(
     let metrics_path = run_dir.join("benchmark_metrics.json");
     let phm2018_status = phm_support_status(data_root);
     let zip_path = run_dir.join("run_bundle.zip");
+    let report_pdf_alias_path = run_dir.join("report.pdf");
+    let results_zip_path = run_dir.join("results.zip");
     write_json_pretty(
         &manifest_path,
         &ArtifactManifest {
@@ -1129,6 +1205,18 @@ pub fn run_secom_benchmark(
                 .join("episode_precision_metrics.json")
                 .display()
                 .to_string(),
+            dsfb_episode_summary_path: run_dir
+                .join("dsfb_episode_summary.csv")
+                .display()
+                .to_string(),
+            dsfb_episode_precision_path: run_dir
+                .join("dsfb_episode_precision.csv")
+                .display()
+                .to_string(),
+            dsfb_recall_metrics_path: run_dir
+                .join("dsfb_recall_metrics.csv")
+                .display()
+                .to_string(),
             paper_abstract_artifact_path: run_dir
                 .join("paper_abstract_artifact.txt")
                 .display()
@@ -1188,10 +1276,19 @@ pub fn run_secom_benchmark(
                 .pdf_path
                 .as_ref()
                 .map(|path| path.display().to_string()),
+            report_pdf_alias_path: report
+                .pdf_path
+                .as_ref()
+                .map(|_| report_pdf_alias_path.display().to_string()),
             zip_path: zip_path.display().to_string(),
+            results_zip_path: results_zip_path.display().to_string(),
         },
     )?;
+    if let Some(pdf_path) = &report.pdf_path {
+        fs::copy(pdf_path, &report_pdf_alias_path)?;
+    }
     zip_directory(&run_dir, &zip_path)?;
+    fs::copy(&zip_path, &results_zip_path)?;
 
     Ok(SecomRunArtifacts {
         run_dir,

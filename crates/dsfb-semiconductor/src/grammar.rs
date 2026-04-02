@@ -1,3 +1,5 @@
+pub mod layer;
+
 use crate::config::PipelineConfig;
 use crate::nominal::NominalModel;
 use crate::residual::ResidualSet;

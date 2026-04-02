@@ -299,6 +299,9 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "engineering_report.md",
         "engineering_report.tex",
         "episode_precision_metrics.json",
+        "dsfb_episode_summary.csv",
+        "dsfb_episode_precision.csv",
+        "dsfb_recall_metrics.csv",
         "feature_metrics.csv",
         "grammar_states.csv",
         "heuristics_bank.json",
@@ -319,6 +322,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "paper_abstract_artifact.txt",
         "residuals.csv",
         "run_bundle.zip",
+        "results.zip",
         "run_configuration.json",
         "secom_archive_layout.json",
         "slews.csv",
@@ -392,6 +396,9 @@ fn benchmark_run_writes_expected_core_artifacts() {
         .join("figures")
         .join("dsfb_non_intrusive_architecture.svg")
         .exists());
+    if pdflatex_available() {
+        assert!(artifacts.run_dir.join("report.pdf").exists());
+    }
 
     let archive = fs::File::open(artifacts.run_dir.join("run_bundle.zip")).unwrap();
     let mut zip = ZipArchive::new(archive).unwrap();
@@ -418,6 +425,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
         .is_ok());
     assert!(zip.by_name("dsa_metrics.csv").is_ok());
     assert!(zip.by_name("dsa_grid_results.csv").is_ok());
+    assert!(zip.by_name("dsfb_episode_summary.csv").is_ok());
+    assert!(zip.by_name("dsfb_episode_precision.csv").is_ok());
+    assert!(zip.by_name("dsfb_recall_metrics.csv").is_ok());
+    if pdflatex_available() {
+        assert!(zip.by_name("report.pdf").is_ok());
+    }
     assert!(zip.by_name("dsa_grid_summary.json").is_ok());
     assert!(zip.by_name("dsa_feature_ranking.csv").is_ok());
     assert!(zip.by_name("dsa_feature_ranking_recall_aware.csv").is_ok());

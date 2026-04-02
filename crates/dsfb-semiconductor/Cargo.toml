@@ -16,6 +16,7 @@ include = [
     "tests/**",
     "paper/**",
     "notebooks/**",
+    "dsfb_semiconductor.ipynb",
     "data/**",
     "Cargo.toml",
     "README.md",
