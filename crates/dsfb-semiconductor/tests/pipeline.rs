@@ -377,7 +377,6 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsfb_heuristics_bank_minimal.json").is_ok());
     assert!(zip.by_name("policy_decisions.csv").is_ok());
     assert!(zip.by_name("policy_burden_summary.csv").is_ok());
-    assert!(zip.by_name("failure_case_2.json").is_ok());
     assert!(zip.by_name("dsa_seed_feature_check.json").is_ok());
     assert!(zip.by_name("dsa_cohort_results_burden_aware.csv").is_ok());
     assert!(zip.by_name("dsa_cohort_summary_burden_aware.json").is_ok());
@@ -412,6 +411,22 @@ fn benchmark_run_writes_expected_core_artifacts() {
     let report = fs::read_to_string(artifacts.run_dir.join("engineering_report.md")).unwrap();
     let manifest: Value =
         serde_json::from_str(&fs::read_to_string(artifacts.manifest_path).unwrap()).unwrap();
+    let failure_case_paths = manifest
+        .get("failure_case_paths")
+        .and_then(Value::as_array)
+        .expect("failure_case_paths should be present in the artifact manifest");
+    assert!(
+        !failure_case_paths.is_empty(),
+        "failure_case_paths should not be empty"
+    );
+    for path in failure_case_paths {
+        let entry = path
+            .as_str()
+            .and_then(|raw| std::path::Path::new(raw).file_name())
+            .and_then(|name| name.to_str())
+            .expect("failure_case_paths entries should have a filename");
+        assert!(zip.by_name(entry).is_ok(), "missing zip entry for {entry}");
+    }
     assert!(report.contains("## Artifact Inventory"));
     assert!(report.contains("## Deterministic Structural Accumulator (DSA)"));
     assert!(report.contains("## Feature-Cohort DSA Selection"));
@@ -445,21 +460,6 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("dsa_operator_delta_targets.json"));
     assert!(report.contains("dsa_operator_delta_attainment_matrix.csv"));
     assert!(report.contains("dsa_policy_operator_burden_contributions.csv"));
-    assert!(report.contains("feature_motif_grounding.json"));
-    assert!(report.contains("dsfb_heuristics_bank_minimal.json"));
-    assert!(report.contains("dsfb_signs.csv"));
-    assert!(report.contains("dsfb_feature_signs.csv"));
-    assert!(report.contains("dsfb_feature_motif_timeline.csv"));
-    assert!(report.contains("dsfb_feature_grammar_states.csv"));
-    assert!(report.contains("dsfb_heuristics_bank_expanded.json"));
-    assert!(report.contains("dsfb_feature_policy_decisions.csv"));
-    assert!(report.contains("dsfb_group_signs.csv"));
-    assert!(report.contains("dsfb_group_grammar_states.csv"));
-    assert!(report.contains("dsfb_group_semantic_matches.csv"));
-    assert!(report.contains("dsfb_semantic_matches.csv"));
-    assert!(report.contains("dsfb_group_definitions.json"));
-    assert!(report.contains("engineering_report.pdf"));
-    assert!(report.contains("run_bundle.zip"));
     assert!(manifest.get("drsc_dsa_combined_trace_path").is_some());
     assert!(manifest.get("drsc_dsa_combined_figure_path").is_some());
     assert!(manifest

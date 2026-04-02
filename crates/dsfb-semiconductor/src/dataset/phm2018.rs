@@ -15,9 +15,13 @@ pub struct Phm2018SupportStatus {
     pub official_download_link: &'static str,
     pub expected_archive_name: &'static str,
     pub manual_placement_path: PathBuf,
+    pub extracted_dataset_path: PathBuf,
+    pub extracted_dataset_detected: bool,
+    pub extracted_train_sensor_files: usize,
+    pub extracted_test_sensor_files: usize,
     pub archive_summary_supported: bool,
     pub fully_implemented: bool,
-    pub blocker: &'static str,
+    pub blocker: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -50,15 +54,66 @@ pub struct Phm2018CsvGroupSummary {
 }
 
 pub fn support_status(data_root: &Path) -> Phm2018SupportStatus {
+    let extracted_dataset_candidates = [
+        data_root.join("phm_data_challenge_2018"),
+        data_root
+            .parent()
+            .map(|parent| parent.join("phm_data_challenge_2018"))
+            .unwrap_or_else(|| data_root.join("phm_data_challenge_2018")),
+    ];
+    let mut extracted_dataset_path = extracted_dataset_candidates[0].clone();
+    let mut extracted_train_sensor_files = 0usize;
+    let mut extracted_test_sensor_files = 0usize;
+    for candidate in extracted_dataset_candidates {
+        let train_sensor_files = count_csvs(&candidate.join("train"));
+        let test_sensor_files = count_csvs(&candidate.join("test"));
+        if train_sensor_files + test_sensor_files
+            > extracted_train_sensor_files + extracted_test_sensor_files
+        {
+            extracted_dataset_path = candidate;
+            extracted_train_sensor_files = train_sensor_files;
+            extracted_test_sensor_files = test_sensor_files;
+        }
+    }
+    let extracted_dataset_detected =
+        extracted_train_sensor_files > 0 && extracted_test_sensor_files > 0;
     Phm2018SupportStatus {
         official_page: PHM2018_OFFICIAL_PAGE,
         official_download_link: PHM2018_DRIVE_LINK,
         expected_archive_name: PHM2018_ARCHIVE_NAME,
         manual_placement_path: data_root.join("phm2018").join(PHM2018_ARCHIVE_NAME),
+        extracted_dataset_path: extracted_dataset_path.clone(),
+        extracted_dataset_detected,
+        extracted_train_sensor_files,
+        extracted_test_sensor_files,
         archive_summary_supported: true,
         fully_implemented: false,
-        blocker: "The official PHM 2018 archive is a 5.0 GB Google Drive download behind a virus-scan confirmation page. This crate now provides a deterministic archive probe, grouped CSV-schema summary, and CSV-shape ingestion summary, but a full DSFB benchmark path is still not claimed unless the real archive is present and schema-verified end to end.",
+        blocker: if extracted_dataset_detected {
+            format!(
+                "The extracted PHM 2018 sensor tree is present at {} with {} train CSVs and {} test CSVs. Archive-only blocking is cleared, but a full DSFB benchmark path is still not claimed until the extracted schema is ingested end to end and failure targets are benchmarked reproducibly.",
+                extracted_dataset_path.display(),
+                extracted_train_sensor_files,
+                extracted_test_sensor_files,
+            )
+        } else {
+            "The official PHM 2018 archive is a 5.0 GB Google Drive download behind a virus-scan confirmation page. This crate now provides a deterministic archive probe, grouped CSV-schema summary, and CSV-shape ingestion summary, but a full DSFB benchmark path is still not claimed unless the real archive or extracted sensor tree is present and schema-verified end to end.".into()
+        },
     }
+}
+
+fn count_csvs(path: &Path) -> usize {
+    std::fs::read_dir(path)
+        .ok()
+        .into_iter()
+        .flat_map(|entries| entries.flatten())
+        .filter(|entry| {
+            entry
+                .path()
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("csv"))
+        })
+        .count()
 }
 
 pub fn inspect_archive(archive_path: &Path) -> Result<Phm2018ArchiveManifest> {
@@ -258,6 +313,56 @@ mod tests {
             .manual_placement_path
             .ends_with("phm2018/phm_data_challenge_2018.tar.gz"));
         assert!(!status.fully_implemented);
+        assert!(!status.extracted_dataset_detected);
+    }
+
+    #[test]
+    fn support_status_detects_extracted_dataset_tree() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("phm_data_challenge_2018/train")).unwrap();
+        std::fs::create_dir_all(root.join("phm_data_challenge_2018/test")).unwrap();
+        std::fs::write(
+            root.join("phm_data_challenge_2018/train/01_M01_DC_train.csv"),
+            "a,b\n1,2\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("phm_data_challenge_2018/test/01_M01_DC_test.csv"),
+            "a,b\n1,2\n",
+        )
+        .unwrap();
+
+        let status = support_status(root);
+        assert!(status.extracted_dataset_detected);
+        assert_eq!(status.extracted_train_sensor_files, 1);
+        assert_eq!(status.extracted_test_sensor_files, 1);
+        assert!(status.blocker.contains("extracted PHM 2018 sensor tree is present"));
+    }
+
+    #[test]
+    fn support_status_detects_extracted_dataset_tree_next_to_raw_root() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("raw")).unwrap();
+        std::fs::create_dir_all(root.join("phm_data_challenge_2018/train")).unwrap();
+        std::fs::create_dir_all(root.join("phm_data_challenge_2018/test")).unwrap();
+        std::fs::write(
+            root.join("phm_data_challenge_2018/train/01_M01_DC_train.csv"),
+            "a,b\n1,2\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("phm_data_challenge_2018/test/01_M01_DC_test.csv"),
+            "a,b\n1,2\n",
+        )
+        .unwrap();
+
+        let status = support_status(&root.join("raw"));
+        assert!(status.extracted_dataset_detected);
+        assert_eq!(status.extracted_train_sensor_files, 1);
+        assert_eq!(status.extracted_test_sensor_files, 1);
+        assert_eq!(status.extracted_dataset_path, root.join("phm_data_challenge_2018"));
     }
 
     #[test]
