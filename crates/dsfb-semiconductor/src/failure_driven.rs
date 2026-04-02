@@ -15,9 +15,84 @@ use std::collections::{BTreeMap, BTreeSet};
 
 const MAX_FAILURE_CASE_FEATURES: usize = 5;
 const MAX_FAILURE_INDEX_ACTIVITY: usize = 3;
-const GROUP_FAILURE_COACTIVATION_MIN: usize = 2;
-const GROUP_MEMBER_COACTIVATION_MIN: usize = 2;
 const MAX_MINIMAL_HEURISTICS: usize = 20;
+
+#[derive(Debug, Clone, Copy)]
+struct FeatureRoleLockSpec {
+    feature_name: &'static str,
+    initial_role: &'static str,
+    preferred_semantic_labels: &'static [&'static str],
+    preferred_grounded_motif_types: &'static [&'static str],
+    preferred_grammar_states: &'static [&'static str],
+    revised_role: Option<&'static str>,
+}
+
+const FEATURE_ROLE_LOCK: &[FeatureRoleLockSpec] = &[
+    FeatureRoleLockSpec {
+        feature_name: "S059",
+        initial_role: "primary recurrent-boundary precursor",
+        preferred_semantic_labels: &["recurrent_boundary_approach", "pre_failure_slow_drift"],
+        preferred_grounded_motif_types: &["boundary_grazing_precursor", "slow_drift_precursor"],
+        preferred_grammar_states: &["BoundaryGrazing", "SustainedDrift"],
+        revised_role: Some("persistence-gated recurrent-boundary review feature"),
+    },
+    FeatureRoleLockSpec {
+        feature_name: "S123",
+        initial_role: "transition / instability feature",
+        preferred_semantic_labels: &["transition_excursion", "persistent_instability_cluster"],
+        preferred_grounded_motif_types: &["persistent_instability", "burst_instability"],
+        preferred_grammar_states: &["TransientViolation", "PersistentViolation"],
+        revised_role: Some("transition / instability support feature"),
+    },
+    FeatureRoleLockSpec {
+        feature_name: "S133",
+        initial_role: "candidate slow-drift precursor",
+        preferred_semantic_labels: &["pre_failure_slow_drift"],
+        preferred_grounded_motif_types: &["slow_drift_precursor"],
+        preferred_grammar_states: &["SustainedDrift"],
+        revised_role: Some("semantically ambiguous review-only candidate"),
+    },
+    FeatureRoleLockSpec {
+        feature_name: "S540",
+        initial_role: "burst-support corroborator",
+        preferred_semantic_labels: &["transition_cluster_support"],
+        preferred_grounded_motif_types: &["burst_instability"],
+        preferred_grammar_states: &["TransientViolation", "PersistentViolation"],
+        revised_role: Some("review-only burst-support corroborator"),
+    },
+    FeatureRoleLockSpec {
+        feature_name: "S128",
+        initial_role: "co-burst corroborator",
+        preferred_semantic_labels: &["transition_cluster_support"],
+        preferred_grounded_motif_types: &["burst_instability"],
+        preferred_grammar_states: &["TransientViolation", "PersistentViolation"],
+        revised_role: Some("review-only co-burst corroborator"),
+    },
+    FeatureRoleLockSpec {
+        feature_name: "S104",
+        initial_role: "watch-only sentinel",
+        preferred_semantic_labels: &["watch_only_boundary_grazing"],
+        preferred_grounded_motif_types: &["boundary_grazing_precursor", "noise_like"],
+        preferred_grammar_states: &["BoundaryGrazing"],
+        revised_role: Some("watch-only nuisance sentinel"),
+    },
+    FeatureRoleLockSpec {
+        feature_name: "S134",
+        initial_role: "recall-rescue feature",
+        preferred_semantic_labels: &[],
+        preferred_grounded_motif_types: &["recovery_pattern", "persistent_instability"],
+        preferred_grammar_states: &["BoundaryGrazing", "Recovery"],
+        revised_role: Some("bounded recall-rescue feature"),
+    },
+    FeatureRoleLockSpec {
+        feature_name: "S275",
+        initial_role: "recall-rescue feature",
+        preferred_semantic_labels: &[],
+        preferred_grounded_motif_types: &["recovery_pattern", "persistent_instability"],
+        preferred_grammar_states: &["BoundaryGrazing", "Recovery"],
+        revised_role: Some("bounded recall-rescue feature"),
+    },
+];
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FailuresIndex {
@@ -129,10 +204,15 @@ pub struct NegativeControlReport {
 pub struct FeatureRoleValidationRow {
     pub feature_id: String,
     pub initial_role: String,
+    #[serde(rename = "supported / revised / rejected")]
     pub validation_result: String,
+    #[serde(rename = "motif evidence summary")]
     pub motif_evidence_summary: String,
+    #[serde(rename = "grammar evidence summary")]
     pub grammar_evidence_summary: String,
+    #[serde(rename = "pass-run burden summary")]
     pub pass_run_burden_summary: String,
+    #[serde(rename = "failure contribution summary")]
     pub failure_contribution_summary: String,
     pub final_role: String,
 }
@@ -141,8 +221,11 @@ pub struct FeatureRoleValidationRow {
 pub struct GroupValidationRow {
     pub group_id: String,
     pub group_members: String,
+    #[serde(rename = "failure co-activation count")]
     pub failure_coactivation_count: usize,
+    #[serde(rename = "pass co-activation count")]
     pub pass_coactivation_count: usize,
+    #[serde(rename = "retained_or_rejected")]
     pub retained_or_rejected: String,
     pub reason: String,
 }
@@ -346,10 +429,8 @@ pub fn build_failure_driven_artifacts(
         &failure_cases,
         pre_failure_lookback_runs,
     );
-    let missed_failure_priority = build_missed_failure_priority(
-        &failure_cases,
-        &feature_motif_grounding,
-    );
+    let missed_failure_priority =
+        build_missed_failure_priority(&failure_cases, &feature_motif_grounding);
     let feature_to_motif = build_feature_to_motif(&failure_cases, &feature_motif_grounding);
     let negative_control_report =
         build_negative_control_report(dataset, optimized_dsa, pre_failure_lookback_runs);
@@ -361,10 +442,14 @@ pub fn build_failure_driven_artifacts(
     let heuristic_provenance = build_heuristic_provenance(&minimal_heuristics_bank);
     let policy_burden_summary = build_policy_burden_summary(dataset, optimized_dsa);
     let feature_role_validation = build_feature_role_validation(
+        dataset,
+        &feature_bundles,
+        semantic_layer,
         &feature_motif_grounding,
         &policy_burden_summary,
         optimized_dsa,
         missed_failure_diagnostics,
+        pre_failure_lookback_runs,
     );
     let group_validation = build_group_validation(&scaffold_semiotics.group_definitions);
     let dsfb_vs_ewma_cases = build_dsfb_vs_ewma_cases(
@@ -595,10 +680,17 @@ fn build_failure_cases(
                 .map(|candidate| {
                     let bundle = feature_bundles
                         .get(&candidate.feature_index)
-                        .unwrap_or_else(|| panic!("missing feature bundle {}", candidate.feature_index));
-                    let semantic_labels =
-                        semantic_labels_in_window(semantic_layer, &candidate.feature_name, start, failure_index);
-                    let dominant_dsfb_motif = dominant_motif_in_window(bundle.motif, start, failure_index);
+                        .unwrap_or_else(|| {
+                            panic!("missing feature bundle {}", candidate.feature_index)
+                        });
+                    let semantic_labels = semantic_labels_in_window(
+                        semantic_layer,
+                        &candidate.feature_name,
+                        start,
+                        failure_index,
+                    );
+                    let dominant_dsfb_motif =
+                        dominant_motif_in_window(bundle.motif, start, failure_index);
                     let dominant_grammar_state =
                         dominant_grammar_state_in_window(bundle.grammar, start, failure_index);
                     let initial_motif_hypothesis =
@@ -628,7 +720,8 @@ fn build_failure_cases(
                         semantic_labels,
                         failure_stage,
                         failure_explanation,
-                        residual_trajectory: bundle.residual.residuals[start..failure_index].to_vec(),
+                        residual_trajectory: bundle.residual.residuals[start..failure_index]
+                            .to_vec(),
                         drift_trajectory: bundle.sign.drift[start..failure_index].to_vec(),
                         slew_trajectory: bundle.sign.slew[start..failure_index].to_vec(),
                         motif_timeline: bundle.motif.labels[start..failure_index]
@@ -636,7 +729,9 @@ fn build_failure_cases(
                             .map(|label| label.as_lowercase().to_string())
                             .collect(),
                         grammar_state_timeline: (start..failure_index)
-                            .map(|run_index| failure_grammar_state_label(bundle.grammar, run_index).to_string())
+                            .map(|run_index| {
+                                failure_grammar_state_label(bundle.grammar, run_index).to_string()
+                            })
                             .collect(),
                     }
                 })
@@ -705,7 +800,11 @@ fn build_feature_motif_grounding(
         .iter()
         .map(|row| row.failure_run_index)
         .collect::<Vec<_>>();
-    let failure_window_mask = build_failure_window_mask(dataset.labels.len(), &failure_indices, pre_failure_lookback_runs);
+    let failure_window_mask = build_failure_window_mask(
+        dataset.labels.len(),
+        &failure_indices,
+        pre_failure_lookback_runs,
+    );
     let candidate_features = grounding_candidate_features(
         baseline_dsa,
         optimized_dsa,
@@ -826,8 +925,11 @@ fn build_missed_failure_priority(
                 .as_deref()
                 .and_then(|feature_name| grounding_by_name.get(feature_name))
                 .map(|row| {
-                    (row.failure_window_semantic_hits as f64 + row.failure_window_pressure_hits as f64)
-                        / (1.0 + row.pass_run_semantic_hits as f64 + row.pass_run_pressure_hits as f64)
+                    (row.failure_window_semantic_hits as f64
+                        + row.failure_window_pressure_hits as f64)
+                        / (1.0
+                            + row.pass_run_semantic_hits as f64
+                            + row.pass_run_pressure_hits as f64)
                 })
                 .unwrap_or(0.0);
             let recoverability_estimate = if case.optimized_detected_by_dsa {
@@ -904,8 +1006,11 @@ fn build_negative_control_report(
         .enumerate()
         .filter_map(|(run_index, label)| (*label == 1).then_some(run_index))
         .collect::<Vec<_>>();
-    let failure_window_mask =
-        build_failure_window_mask(dataset.labels.len(), &failure_indices, pre_failure_lookback_runs);
+    let failure_window_mask = build_failure_window_mask(
+        dataset.labels.len(),
+        &failure_indices,
+        pre_failure_lookback_runs,
+    );
     let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
     let pass_run_false_activation_count = optimized_dsa
         .run_signals
@@ -946,7 +1051,8 @@ fn build_negative_control_report(
     NegativeControlReport {
         pass_run_count,
         pass_run_false_activation_count,
-        false_activation_rate: pass_run_false_activation_count as f64 / pass_run_count.max(1) as f64,
+        false_activation_rate: pass_run_false_activation_count as f64
+            / pass_run_count.max(1) as f64,
         pass_run_false_episode_count: episode_ranges(&pass_only_signal).len(),
         false_episode_rate: episode_ranges(&pass_only_signal).len() as f64
             / pass_run_count.max(1) as f64,
@@ -967,11 +1073,15 @@ fn build_heuristic_provenance(
         .iter()
         .map(|entry| {
             let derived_from_failures = if entry.target_problem_type == "missed_failure" {
-                entry.target_identifier.clone()
+                bracketed_csv_list(&[entry.target_identifier.clone()])
             } else {
-                String::new()
+                "[]".into()
             };
-            let uses_features = entry.target_feature_name.clone().unwrap_or_default();
+            let uses_features = entry
+                .target_feature_name
+                .as_ref()
+                .map(|feature_name| bracketed_csv_list(std::slice::from_ref(feature_name)))
+                .unwrap_or_else(|| "[]".into());
             let targets_nuisance_class = if entry.target_problem_type == "nuisance_class" {
                 entry.target_identifier.clone()
             } else {
@@ -1001,21 +1111,25 @@ fn build_heuristic_provenance(
 }
 
 fn build_feature_role_validation(
+    dataset: &PreparedDataset,
+    feature_bundles: &BTreeMap<usize, FeatureBundle<'_>>,
+    semantic_layer: &SemanticLayer,
     feature_motif_grounding: &[FeatureMotifGroundingRecord],
     policy_burden_summary: &[PolicyBurdenSummaryRow],
     optimized_dsa: &DsaEvaluation,
     missed_failure_diagnostics: &[MissedFailureDiagnosticRow],
+    pre_failure_lookback_runs: usize,
 ) -> Vec<FeatureRoleValidationRow> {
-    let initial_roles = [
-        ("S059", "primary recurrent-boundary precursor"),
-        ("S123", "transition / instability feature"),
-        ("S133", "candidate slow-drift precursor"),
-        ("S540", "burst-support corroborator"),
-        ("S128", "co-burst corroborator"),
-        ("S104", "watch-only sentinel"),
-        ("S134", "recall-rescue feature"),
-        ("S275", "recall-rescue feature"),
-    ];
+    let failure_indices = optimized_dsa
+        .per_failure_run_signals
+        .iter()
+        .map(|row| row.failure_run_index)
+        .collect::<Vec<_>>();
+    let failure_window_mask = build_failure_window_mask(
+        dataset.labels.len(),
+        &failure_indices,
+        pre_failure_lookback_runs,
+    );
     let grounding_by_name = feature_motif_grounding
         .iter()
         .map(|row| (row.feature_name.as_str(), row))
@@ -1033,6 +1147,28 @@ fn build_feature_role_validation(
             *acc.entry(feature_name).or_default() += 1;
             acc
         });
+    let max_score_counts = optimized_dsa
+        .per_failure_run_signals
+        .iter()
+        .filter_map(|row| row.max_dsa_score_feature_name.as_deref())
+        .fold(BTreeMap::<&str, usize>::new(), |mut acc, feature_name| {
+            *acc.entry(feature_name).or_default() += 1;
+            acc
+        });
+    let direct_miss_counts = missed_failure_diagnostics
+        .iter()
+        .filter_map(|row| row.nearest_feature_name.as_deref())
+        .fold(BTreeMap::<&str, usize>::new(), |mut acc, feature_name| {
+            *acc.entry(feature_name).or_default() += 1;
+            acc
+        });
+    let optimized_target_counts = missed_failure_diagnostics
+        .iter()
+        .filter_map(|row| row.optimized_feature_name.as_deref())
+        .fold(BTreeMap::<&str, usize>::new(), |mut acc, feature_name| {
+            *acc.entry(feature_name).or_default() += 1;
+            acc
+        });
     let recovered_by_name = missed_failure_diagnostics
         .iter()
         .filter(|row| row.recovered_after_optimization)
@@ -1042,67 +1178,221 @@ fn build_feature_role_validation(
             acc
         });
 
-    initial_roles
-        .into_iter()
-        .map(|(feature_name, initial_role)| {
+    FEATURE_ROLE_LOCK
+        .iter()
+        .map(|spec| {
+            let feature_name = spec.feature_name;
             let grounding = grounding_by_name.get(feature_name).copied();
             let burden = burden_by_name.get(feature_name).copied();
+            let bundle = feature_index_from_name(feature_name)
+                .and_then(|feature_index| feature_bundles.get(&feature_index));
             let earliest_count = earliest_counts.get(feature_name).copied().unwrap_or(0);
+            let max_score_count = max_score_counts.get(feature_name).copied().unwrap_or(0);
+            let direct_miss_count = direct_miss_counts.get(feature_name).copied().unwrap_or(0);
+            let optimized_target_count = optimized_target_counts.get(feature_name).copied().unwrap_or(0);
             let recovered_count = recovered_by_name.get(feature_name).copied().unwrap_or(0);
-            let motif_type = grounding
-                .map(|row| row.motif_type.as_str())
-                .unwrap_or("null");
             let pass_burden = burden
                 .map(|row| row.pass_review_escalate_points)
                 .unwrap_or(0);
-            let (validation_result, final_role) = if feature_name == "S133"
-                && motif_type != "slow_drift_precursor"
-            {
-                ("revised", "semantically ambiguous review-only candidate")
-            } else if matches!(feature_name, "S134" | "S275") && recovered_count > 0 {
-                ("supported", "bounded recall-rescue feature")
-            } else if earliest_count == 0 && pass_burden > 0 && motif_type == "noise_like" {
-                ("rejected", "noise-like burden source")
-            } else {
-                ("supported", initial_role)
+            let linked_failure_ids = linked_failure_ids_for_feature(
+                feature_name,
+                optimized_dsa,
+                missed_failure_diagnostics,
+            );
+            let preferred_failure_semantic_hits = preferred_semantic_hit_count(
+                semantic_layer,
+                feature_name,
+                &failure_window_mask,
+                true,
+                spec.preferred_semantic_labels,
+            );
+            let preferred_pass_semantic_hits = preferred_semantic_hit_count(
+                semantic_layer,
+                feature_name,
+                &failure_window_mask,
+                false,
+                spec.preferred_semantic_labels,
+            );
+            let preferred_failure_grammar_hits = bundle
+                .map(|bundle| {
+                    preferred_grammar_hit_count(
+                        bundle.grammar,
+                        &failure_window_mask,
+                        true,
+                        spec.preferred_grammar_states,
+                    )
+                })
+                .unwrap_or(0);
+            let preferred_pass_grammar_hits = bundle
+                .map(|bundle| {
+                    preferred_grammar_hit_count(
+                        bundle.grammar,
+                        &failure_window_mask,
+                        false,
+                        spec.preferred_grammar_states,
+                    )
+                })
+                .unwrap_or(0);
+            let (linked_groundings, preferred_grounded_windows) = bundle
+                .map(|bundle| {
+                    linked_window_grounding_counts(
+                        bundle,
+                        &linked_failure_ids,
+                        pre_failure_lookback_runs,
+                        spec.preferred_grounded_motif_types,
+                    )
+                })
+                .unwrap_or_default();
+            let (linked_grammar, preferred_grammar_windows) = bundle
+                .map(|bundle| {
+                    linked_window_grammar_counts(
+                        bundle.grammar,
+                        &linked_failure_ids,
+                        pre_failure_lookback_runs,
+                        spec.preferred_grammar_states,
+                    )
+                })
+                .unwrap_or_default();
+
+            let structural_support = preferred_grounded_windows > 0
+                || preferred_grammar_windows > 0
+                || (preferred_failure_semantic_hits > 0
+                    && preferred_failure_semantic_hits >= preferred_pass_semantic_hits);
+            let operational_failure_link = earliest_count + max_score_count + direct_miss_count + optimized_target_count;
+            let (validation_result, final_role) = match feature_name {
+                "S059" => {
+                    if structural_support && operational_failure_link > 0 {
+                        ("supported", spec.initial_role)
+                    } else if operational_failure_link > 0 {
+                        (
+                            "revised",
+                            spec.revised_role.unwrap_or(spec.initial_role),
+                        )
+                    } else if pass_burden > 0 {
+                        (
+                            "rejected",
+                            "high-burden recurrent-boundary candidate without failure-local support",
+                        )
+                    } else {
+                        ("revised", spec.revised_role.unwrap_or(spec.initial_role))
+                    }
+                }
+                "S123" => {
+                    if structural_support && (earliest_count > 0 || max_score_count > 0) {
+                        ("supported", spec.initial_role)
+                    } else if operational_failure_link > 0 {
+                        (
+                            "revised",
+                            spec.revised_role.unwrap_or(spec.initial_role),
+                        )
+                    } else {
+                        ("rejected", "transition / instability feature without failure-local support")
+                    }
+                }
+                "S133" => {
+                    if structural_support
+                        && preferred_failure_semantic_hits > preferred_pass_semantic_hits
+                        && preferred_grammar_windows > 0
+                    {
+                        ("supported", spec.initial_role)
+                    } else {
+                        (
+                            "revised",
+                            spec.revised_role.unwrap_or(spec.initial_role),
+                        )
+                    }
+                }
+                "S540" | "S128" => {
+                    if structural_support && max_score_count > 0 {
+                        ("supported", spec.initial_role)
+                    } else if operational_failure_link > 0 {
+                        (
+                            "revised",
+                            spec.revised_role.unwrap_or(spec.initial_role),
+                        )
+                    } else {
+                        ("rejected", "corroborator remained failure-unlinked")
+                    }
+                }
+                "S104" => {
+                    let sentinel_supported = grounding.is_some_and(|row| {
+                        matches!(
+                            row.motif_type.as_str(),
+                            "boundary_grazing_precursor" | "noise_like"
+                        )
+                    }) && pass_burden == 0
+                        && earliest_count == 0
+                        && recovered_count == 0;
+                    if sentinel_supported {
+                        ("supported", spec.initial_role)
+                    } else {
+                        (
+                            "revised",
+                            spec.revised_role.unwrap_or(spec.initial_role),
+                        )
+                    }
+                }
+                "S134" | "S275" => {
+                    if direct_miss_count > 0 || optimized_target_count > 0 || recovered_count > 0 {
+                        (
+                            "supported",
+                            spec.revised_role.unwrap_or(spec.initial_role),
+                        )
+                    } else {
+                        ("rejected", "unlinked recall-rescue feature")
+                    }
+                }
+                _ => ("supported", spec.initial_role),
             };
 
             FeatureRoleValidationRow {
                 feature_id: feature_name.into(),
-                initial_role: initial_role.into(),
+                initial_role: spec.initial_role.into(),
                 validation_result: validation_result.into(),
-                motif_evidence_summary: grounding
-                    .map(|row| {
-                        format!(
-                            "grounded as {}, dominant motif {}, semantic hits {} / pass {}",
-                            row.motif_type,
-                            row.dominant_dsfb_motif,
-                            row.failure_window_semantic_hits,
-                            row.pass_run_semantic_hits
-                        )
-                    })
-                    .unwrap_or_else(|| "no grounding record".into()),
-                grammar_evidence_summary: grounding
-                    .map(|row| {
-                        format!(
-                            "dominant grammar {}, failure pressure {} / pass {}",
-                            row.dominant_grammar_state,
-                            row.failure_window_pressure_hits,
-                            row.pass_run_pressure_hits
-                        )
-                    })
-                    .unwrap_or_else(|| "no grammar evidence".into()),
+                motif_evidence_summary: format!(
+                    "preferred semantic hits failure/pass={}/{}, linked failure windows={}, linked grounded motifs={}, global grounding={}",
+                    preferred_failure_semantic_hits,
+                    preferred_pass_semantic_hits,
+                    linked_failure_ids.len(),
+                    summarize_count_map(&linked_groundings),
+                    grounding
+                        .map(|row| format!("{} via {}", row.motif_type, row.dominant_dsfb_motif))
+                        .unwrap_or_else(|| "none".into()),
+                ),
+                grammar_evidence_summary: format!(
+                    "preferred grammar hits failure/pass={}/{}, preferred linked windows={}, linked dominant grammar={}, global grammar={}",
+                    preferred_failure_grammar_hits,
+                    preferred_pass_grammar_hits,
+                    preferred_grammar_windows,
+                    summarize_count_map(&linked_grammar),
+                    grounding
+                        .map(|row| row.dominant_grammar_state.clone())
+                        .unwrap_or_else(|| "none".into()),
+                ),
                 pass_run_burden_summary: burden
                     .map(|row| {
                         format!(
-                            "pass review/escalate points={}, silent suppressions={}",
-                            row.pass_review_escalate_points, row.silent_suppression_points
+                            "pass review/escalate points={}, silent suppressions={}, preferred semantic pass hits={}, preferred grammar pass hits={}",
+                            row.pass_review_escalate_points,
+                            row.silent_suppression_points,
+                            preferred_pass_semantic_hits,
+                            preferred_pass_grammar_hits,
                         )
                     })
-                    .unwrap_or_else(|| "no pass-run burden".into()),
+                    .unwrap_or_else(|| {
+                        format!(
+                            "no pass-run burden, preferred semantic pass hits={}, preferred grammar pass hits={}",
+                            preferred_pass_semantic_hits, preferred_pass_grammar_hits
+                        )
+                    }),
                 failure_contribution_summary: format!(
-                    "earliest detection count={}, recovered missed failures={}",
-                    earliest_count, recovered_count
+                    "earliest detection count={}, max-score failure count={}, direct miss linkages={}, optimized rescue targets={}, recovered missed failures={}, linked failures={}",
+                    earliest_count,
+                    max_score_count,
+                    direct_miss_count,
+                    optimized_target_count,
+                    recovered_count,
+                    bracketed_usize_list(&linked_failure_ids),
                 ),
                 final_role: final_role.into(),
             }
@@ -1114,7 +1404,7 @@ fn build_group_validation(definitions: &[GroupDefinitionRecord]) -> Vec<GroupVal
     definitions
         .iter()
         .map(|row| GroupValidationRow {
-            group_id: row.group_name.clone(),
+            group_id: group_display_name(&row.group_name).into(),
             group_members: row.member_features.clone(),
             failure_coactivation_count: row.failure_coactivation_run_count,
             pass_coactivation_count: row.pass_coactivation_run_count,
@@ -1126,9 +1416,146 @@ fn build_group_validation(definitions: &[GroupDefinitionRecord]) -> Vec<GroupVal
             reason: row
                 .rejection_reason
                 .clone()
-                .unwrap_or_else(|| "validated by strict failure-vs-pass gate".into()),
+                .unwrap_or_else(|| "validated by empirical failure-vs-pass gate".into()),
         })
         .collect()
+}
+
+fn linked_failure_ids_for_feature(
+    feature_name: &str,
+    optimized_dsa: &DsaEvaluation,
+    missed_failure_diagnostics: &[MissedFailureDiagnosticRow],
+) -> Vec<usize> {
+    let mut linked = BTreeSet::new();
+    for row in &optimized_dsa.per_failure_run_signals {
+        if row.earliest_dsa_feature_name.as_deref() == Some(feature_name)
+            || row.max_dsa_score_feature_name.as_deref() == Some(feature_name)
+        {
+            linked.insert(row.failure_run_index);
+        }
+    }
+    for row in missed_failure_diagnostics {
+        if row.nearest_feature_name.as_deref() == Some(feature_name)
+            || row.optimized_feature_name.as_deref() == Some(feature_name)
+        {
+            linked.insert(row.failure_run_index);
+        }
+    }
+    linked.into_iter().collect()
+}
+
+fn preferred_semantic_hit_count(
+    semantic_layer: &SemanticLayer,
+    feature_name: &str,
+    failure_window_mask: &[bool],
+    in_failure_window: bool,
+    preferred_labels: &[&str],
+) -> usize {
+    if preferred_labels.is_empty() {
+        return 0;
+    }
+    semantic_layer
+        .semantic_matches
+        .iter()
+        .filter(|row| row.feature_name == feature_name)
+        .filter(|row| failure_window_mask[row.run_index] == in_failure_window)
+        .filter(|row| preferred_labels.contains(&row.heuristic_name.as_str()))
+        .count()
+}
+
+fn preferred_grammar_hit_count(
+    grammar_trace: &FeatureGrammarTrace,
+    failure_window_mask: &[bool],
+    in_failure_window: bool,
+    preferred_states: &[&str],
+) -> usize {
+    if preferred_states.is_empty() {
+        return 0;
+    }
+    grammar_trace
+        .raw_states
+        .iter()
+        .enumerate()
+        .filter(|(run_index, _)| failure_window_mask[*run_index] == in_failure_window)
+        .filter(|(run_index, _)| {
+            preferred_states.contains(&failure_grammar_state_label(grammar_trace, *run_index))
+        })
+        .count()
+}
+
+fn linked_window_grounding_counts(
+    bundle: &FeatureBundle<'_>,
+    linked_failure_ids: &[usize],
+    pre_failure_lookback_runs: usize,
+    preferred_grounded_motif_types: &[&str],
+) -> (BTreeMap<String, usize>, usize) {
+    let mut counts = BTreeMap::<String, usize>::new();
+    let mut preferred_window_count = 0usize;
+    for &failure_index in linked_failure_ids {
+        let start = failure_index.saturating_sub(pre_failure_lookback_runs);
+        let grounded = grounded_motif_type_for_window(bundle, start, failure_index).to_string();
+        if preferred_grounded_motif_types.contains(&grounded.as_str()) {
+            preferred_window_count += 1;
+        }
+        *counts.entry(grounded).or_default() += 1;
+    }
+    (counts, preferred_window_count)
+}
+
+fn linked_window_grammar_counts(
+    grammar_trace: &FeatureGrammarTrace,
+    linked_failure_ids: &[usize],
+    pre_failure_lookback_runs: usize,
+    preferred_grammar_states: &[&str],
+) -> (BTreeMap<String, usize>, usize) {
+    let mut counts = BTreeMap::<String, usize>::new();
+    let mut preferred_window_count = 0usize;
+    for &failure_index in linked_failure_ids {
+        let start = failure_index.saturating_sub(pre_failure_lookback_runs);
+        let dominant = dominant_grammar_state_in_window(grammar_trace, start, failure_index);
+        if preferred_grammar_states.contains(&dominant.as_str()) {
+            preferred_window_count += 1;
+        }
+        *counts.entry(dominant).or_default() += 1;
+    }
+    (counts, preferred_window_count)
+}
+
+fn summarize_count_map(counts: &BTreeMap<String, usize>) -> String {
+    if counts.is_empty() {
+        "none".into()
+    } else {
+        counts
+            .iter()
+            .map(|(label, count)| format!("{label}:{count}"))
+            .collect::<Vec<_>>()
+            .join(";")
+    }
+}
+
+fn bracketed_csv_list(values: &[String]) -> String {
+    if values.is_empty() {
+        "[]".into()
+    } else {
+        format!("[{}]", values.join(","))
+    }
+}
+
+fn bracketed_usize_list(values: &[usize]) -> String {
+    let items = values
+        .iter()
+        .map(|value| value.to_string())
+        .collect::<Vec<_>>();
+    bracketed_csv_list(&items)
+}
+
+fn group_display_name(group_name: &str) -> &'static str {
+    match group_name {
+        "group_a" => "Group A",
+        "group_b" => "Group B",
+        "group_c" => "Group C",
+        _ => "Unknown Group",
+    }
 }
 
 fn classify_feature_behavior(drift: &[f64], slew: &[f64]) -> &'static str {
@@ -1157,10 +1584,13 @@ fn build_minimal_heuristics_bank(
     let mut entries = Vec::new();
 
     for diagnostic in missed_failure_diagnostics {
-        let feature_name = diagnostic
-            .optimized_feature_name
-            .clone()
-            .or_else(|| diagnostic.nearest_feature_name.clone());
+        let feature_name = match diagnostic.nearest_feature_name.as_deref() {
+            Some("S134" | "S275") => diagnostic.nearest_feature_name.clone(),
+            _ => diagnostic
+                .optimized_feature_name
+                .clone()
+                .or_else(|| diagnostic.nearest_feature_name.clone()),
+        };
         let motif_type = feature_name
             .as_deref()
             .and_then(|name| grounding_by_name.get(name).copied())
@@ -1215,9 +1645,10 @@ fn build_minimal_heuristics_bank(
             policy_action,
             burden_effect_class,
             justification: format!(
-                "Built from missed failure {} with nearest feature {:?}, exact miss rule {}, bounded rescue recoverable={}.",
+                "Built from missed failure {} with nearest feature {:?}, operationalized feature {:?}, exact miss rule {}, bounded rescue recoverable={}.",
                 diagnostic.failure_run_index,
                 diagnostic.nearest_feature_name,
+                diagnostic.optimized_feature_name,
                 diagnostic.exact_miss_rule,
                 diagnostic.bounded_rescue_would_recover,
             ),
@@ -1477,7 +1908,9 @@ fn top_feature_activity_for_failure(
             FeatureActivityCandidate {
                 feature_index,
                 feature_name: bundle.residual.feature_name.clone(),
-                ranking_score_proxy: max_dsa_score + 0.25 * motif_hits as f64 + 0.25 * pressure_hits as f64,
+                ranking_score_proxy: max_dsa_score
+                    + 0.25 * motif_hits as f64
+                    + 0.25 * pressure_hits as f64,
                 max_dsa_score,
                 max_policy_state,
                 motif_hits,
@@ -1507,7 +1940,9 @@ fn semantic_labels_in_window(
         .semantic_matches
         .iter()
         .filter(|row| {
-            row.feature_name == feature_name && row.run_index >= start && row.run_index < failure_index
+            row.feature_name == feature_name
+                && row.run_index >= start
+                && row.run_index < failure_index
         })
         .map(|row| row.heuristic_name.clone())
         .collect::<BTreeSet<_>>()
@@ -1647,7 +2082,8 @@ fn scalar_supporting_features(
         .values()
         .map(|bundle| {
             let score = match mode {
-                ScalarSupportMode::Threshold => bundle.residual.threshold_alarm[start..failure_index]
+                ScalarSupportMode::Threshold => bundle.residual.threshold_alarm
+                    [start..failure_index]
                     .iter()
                     .filter(|flag| **flag)
                     .count(),
@@ -1728,7 +2164,10 @@ fn semantic_hit_count(
     semantic_layer
         .semantic_matches
         .iter()
-        .filter(|row| row.feature_name == feature_name && failure_window_mask[row.run_index] == in_failure_window)
+        .filter(|row| {
+            row.feature_name == feature_name
+                && failure_window_mask[row.run_index] == in_failure_window
+        })
         .count()
 }
 
@@ -1837,7 +2276,9 @@ fn grounded_motif_type(
         }
         "persistent_instability_cluster" => "persistent_instability",
         "transition_cluster_support" => "burst_instability",
-        _ if failure_pressure_hits > pass_pressure_hits && mean_abs_drift_failure > mean_abs_slew_failure => {
+        _ if failure_pressure_hits > pass_pressure_hits
+            && mean_abs_drift_failure > mean_abs_slew_failure =>
+        {
             "slow_drift_precursor"
         }
         _ if dominant_grammar_state == "BoundaryGrazing" => "boundary_grazing_precursor",
@@ -1915,18 +2356,30 @@ fn dominant_grammar_state_in_window(
 }
 
 fn dominant_policy_state_in_window(states: &[DsaPolicyState]) -> &'static str {
-    if states.iter().any(|state| matches!(state, DsaPolicyState::Escalate)) {
+    if states
+        .iter()
+        .any(|state| matches!(state, DsaPolicyState::Escalate))
+    {
         "escalate"
-    } else if states.iter().any(|state| matches!(state, DsaPolicyState::Review)) {
+    } else if states
+        .iter()
+        .any(|state| matches!(state, DsaPolicyState::Review))
+    {
         "review"
-    } else if states.iter().any(|state| matches!(state, DsaPolicyState::Watch)) {
+    } else if states
+        .iter()
+        .any(|state| matches!(state, DsaPolicyState::Watch))
+    {
         "watch"
     } else {
         "silent"
     }
 }
 
-fn failure_grammar_state_label(grammar_trace: &FeatureGrammarTrace, run_index: usize) -> &'static str {
+fn failure_grammar_state_label(
+    grammar_trace: &FeatureGrammarTrace,
+    run_index: usize,
+) -> &'static str {
     if grammar_trace.raw_states[run_index] == GrammarState::Violation {
         if grammar_trace.persistent_violation[run_index] {
             "PersistentViolation"
@@ -2088,17 +2541,7 @@ mod tests {
             "recovery_pattern"
         );
         assert_eq!(
-            grounded_motif_type(
-                "stable_admissible",
-                "Admissible",
-                1,
-                4,
-                1,
-                6,
-                0,
-                0.1,
-                0.2
-            ),
+            grounded_motif_type("stable_admissible", "Admissible", 1, 4, 1, 6, 0, 0.1, 0.2),
             "recovery_pattern"
         );
     }

@@ -339,7 +339,7 @@ struct GroupScaffoldSpec {
 const FEATURE_SCAFFOLD: &[FeatureScaffoldSpec] = &[
     FeatureScaffoldSpec {
         feature_name: "S059",
-        role: "persistent_boundary_approach_precursor",
+        role: "primary recurrent-boundary precursor",
         preferred_motifs: &[RECURRENT_BOUNDARY_APPROACH, PRE_FAILURE_SLOW_DRIFT],
         default_policy_ceiling: HeuristicAlertClass::Review,
         rescue_eligible: true,
@@ -348,8 +348,8 @@ const FEATURE_SCAFFOLD: &[FeatureScaffoldSpec] = &[
     },
     FeatureScaffoldSpec {
         feature_name: "S133",
-        role: "slow_structural_drift_precursor",
-        preferred_motifs: &[PRE_FAILURE_SLOW_DRIFT],
+        role: "candidate slow-drift precursor",
+        preferred_motifs: &["slow_drift_precursor"],
         default_policy_ceiling: HeuristicAlertClass::Review,
         rescue_eligible: true,
         rescue_priority: "high",
@@ -357,8 +357,12 @@ const FEATURE_SCAFFOLD: &[FeatureScaffoldSpec] = &[
     },
     FeatureScaffoldSpec {
         feature_name: "S123",
-        role: "transition_instability_feature",
-        preferred_motifs: &[TRANSITION_EXCURSION, PERSISTENT_INSTABILITY_CLUSTER],
+        role: "transition / instability feature",
+        preferred_motifs: &[
+            TRANSITION_EXCURSION,
+            "persistent_instability",
+            "burst_instability",
+        ],
         default_policy_ceiling: HeuristicAlertClass::Escalate,
         rescue_eligible: true,
         rescue_priority: "medium",
@@ -366,8 +370,8 @@ const FEATURE_SCAFFOLD: &[FeatureScaffoldSpec] = &[
     },
     FeatureScaffoldSpec {
         feature_name: "S540",
-        role: "burst_support_corroborator",
-        preferred_motifs: &[RECURRENT_BOUNDARY_APPROACH, TRANSITION_CLUSTER_SUPPORT],
+        role: "burst-support corroborator",
+        preferred_motifs: &[TRANSITION_CLUSTER_SUPPORT, "burst_instability"],
         default_policy_ceiling: HeuristicAlertClass::Review,
         rescue_eligible: false,
         rescue_priority: "low",
@@ -375,7 +379,7 @@ const FEATURE_SCAFFOLD: &[FeatureScaffoldSpec] = &[
     },
     FeatureScaffoldSpec {
         feature_name: "S128",
-        role: "co_burst_corroborator",
+        role: "co-burst corroborator",
         preferred_motifs: &[TRANSITION_CLUSTER_SUPPORT],
         default_policy_ceiling: HeuristicAlertClass::Review,
         rescue_eligible: false,
@@ -384,12 +388,30 @@ const FEATURE_SCAFFOLD: &[FeatureScaffoldSpec] = &[
     },
     FeatureScaffoldSpec {
         feature_name: "S104",
-        role: "low_amplitude_sentinel",
-        preferred_motifs: &[WATCH_ONLY_BOUNDARY_GRAZING],
+        role: "watch-only sentinel",
+        preferred_motifs: &[WATCH_ONLY_BOUNDARY_GRAZING, "noise_like"],
         default_policy_ceiling: HeuristicAlertClass::Watch,
         rescue_eligible: false,
         rescue_priority: "none",
         group_name: "group_c",
+    },
+    FeatureScaffoldSpec {
+        feature_name: "S134",
+        role: "recall-rescue feature",
+        preferred_motifs: &["recovery_pattern"],
+        default_policy_ceiling: HeuristicAlertClass::Review,
+        rescue_eligible: true,
+        rescue_priority: "high",
+        group_name: "ungrouped",
+    },
+    FeatureScaffoldSpec {
+        feature_name: "S275",
+        role: "recall-rescue feature",
+        preferred_motifs: &["recovery_pattern"],
+        default_policy_ceiling: HeuristicAlertClass::Review,
+        rescue_eligible: true,
+        rescue_priority: "high",
+        group_name: "ungrouped",
     },
 ];
 
@@ -419,8 +441,11 @@ pub fn classify_motifs(
     grammar: &GrammarSet,
     pre_failure_lookback_runs: usize,
 ) -> MotifSet {
-    let failure_window_mask =
-        failure_window_mask(dataset.labels.len(), &dataset.labels, pre_failure_lookback_runs);
+    let failure_window_mask = failure_window_mask(
+        dataset.labels.len(),
+        &dataset.labels,
+        pre_failure_lookback_runs,
+    );
     let mut traces = Vec::with_capacity(residuals.traces.len());
     let mut counts = BTreeMap::<DsfbMotifClass, (usize, usize)>::new();
 
@@ -483,8 +508,11 @@ pub fn build_semantic_layer(
     nominal: &NominalModel,
     pre_failure_lookback_runs: usize,
 ) -> SemanticLayer {
-    let failure_window_mask =
-        failure_window_mask(dataset.labels.len(), &dataset.labels, pre_failure_lookback_runs);
+    let failure_window_mask = failure_window_mask(
+        dataset.labels.len(),
+        &dataset.labels,
+        pre_failure_lookback_runs,
+    );
     let mut semantic_matches = Vec::new();
     let mut ranked_candidates = Vec::new();
 
@@ -546,8 +574,7 @@ pub fn feature_semantic_flags(
         if state == GrammarState::Boundary && reason == GrammarReason::SustainedOutwardDrift {
             semantic_flags
                 .get_mut(PRE_FAILURE_SLOW_DRIFT)
-                .expect("pre_failure_slow_drift bucket")
-                [run_index] = true;
+                .expect("pre_failure_slow_drift bucket")[run_index] = true;
             any_semantic_match[run_index] = true;
         }
         if matches!(state, GrammarState::Boundary | GrammarState::Violation)
@@ -555,15 +582,13 @@ pub fn feature_semantic_flags(
         {
             semantic_flags
                 .get_mut(TRANSIENT_EXCURSION)
-                .expect("transient_excursion bucket")
-                [run_index] = true;
+                .expect("transient_excursion bucket")[run_index] = true;
             any_semantic_match[run_index] = true;
         }
         if state == GrammarState::Boundary && reason == GrammarReason::RecurrentBoundaryGrazing {
             semantic_flags
                 .get_mut(RECURRENT_BOUNDARY_APPROACH)
-                .expect("recurrent_boundary_approach bucket")
-                [run_index] = true;
+                .expect("recurrent_boundary_approach bucket")[run_index] = true;
             any_semantic_match[run_index] = true;
         }
     }
@@ -601,7 +626,13 @@ pub fn build_scaffold_semiotics(
                 .traces
                 .iter()
                 .find(|trace| trace.feature_index == feature.feature_index)?;
-            Some((spec, feature.rho, residual_trace, grammar_trace, motif_trace))
+            Some((
+                spec,
+                feature.rho,
+                residual_trace,
+                grammar_trace,
+                motif_trace,
+            ))
         })
         .collect::<Vec<_>>();
 
@@ -637,12 +668,8 @@ pub fn build_scaffold_semiotics(
         .into_iter()
         .filter(|row| valid_group_names.contains(row.group_name.as_str()))
         .collect::<Vec<_>>();
-    let feature_policy_decisions = build_feature_policy_decisions(
-        dataset,
-        &selected,
-        semantic_layer,
-        &group_semantic_matches,
-    );
+    let feature_policy_decisions =
+        build_feature_policy_decisions(dataset, &selected, semantic_layer, &group_semantic_matches);
 
     ScaffoldSemioticsArtifacts {
         feature_signs,
@@ -664,7 +691,6 @@ fn classify_feature_motif_labels(
     grammar_trace: &FeatureGrammarTrace,
     feature_rho: f64,
 ) -> Vec<DsfbMotifClass> {
-    let feature_spec = feature_scaffold_spec(&residual_trace.feature_name);
     let mut labels = Vec::with_capacity(residual_trace.norms.len());
     for run_index in 0..residual_trace.norms.len() {
         let grammar_label = classify_grammar_label(grammar_trace, run_index);
@@ -675,7 +701,9 @@ fn classify_feature_motif_labels(
         let slew_ratio = sign_trace.slew[run_index].abs() / slew_threshold;
         let recent_start = run_index.saturating_sub(4);
         let recent_non_admissible = (recent_start..=run_index)
-            .filter(|&index| classify_grammar_label(grammar_trace, index) != ScaffoldGrammarState::Admissible)
+            .filter(|&index| {
+                classify_grammar_label(grammar_trace, index) != ScaffoldGrammarState::Admissible
+            })
             .count();
         let recent_pressure = (recent_start..=run_index)
             .filter(|&index| {
@@ -688,17 +716,8 @@ fn classify_feature_motif_labels(
                 )
             })
             .count();
-        let is_corroborator = feature_spec
-            .map(|spec| {
-                matches!(
-                    spec.role,
-                    "burst_support_corroborator" | "co_burst_corroborator"
-                )
-            })
-            .unwrap_or(false);
-        let is_sentinel = feature_spec
-            .map(|spec| spec.role == "low_amplitude_sentinel")
-            .unwrap_or(false);
+        let is_corroborator = matches!(residual_trace.feature_name.as_str(), "S540" | "S128");
+        let is_sentinel = residual_trace.feature_name == "S104";
 
         let label = if grammar_label == ScaffoldGrammarState::PersistentViolation
             || (recent_pressure >= 3
@@ -813,15 +832,7 @@ fn semantic_candidates_for_run(
     motif_label: DsfbMotifClass,
 ) -> Vec<&'static str> {
     let mut candidates = Vec::new();
-    let feature_spec = feature_scaffold_spec(feature_name);
-    let is_corroborator = feature_spec
-        .map(|spec| {
-            matches!(
-                spec.role,
-                "burst_support_corroborator" | "co_burst_corroborator"
-            )
-        })
-        .unwrap_or(false);
+    let is_corroborator = matches!(feature_name, "S540" | "S128");
 
     if grammar_state == ScaffoldGrammarState::SustainedOutwardDrift
         && motif_label == DsfbMotifClass::PreFailureSlowDrift
@@ -905,7 +916,8 @@ fn build_feature_sign_records(
             if residual_trace.is_imputed[run_index] || residual_trace.is_imputed[run_index - 1] {
                 drift[run_index] = 0.0;
             } else {
-                drift[run_index] = normalized_residual[run_index] - normalized_residual[run_index - 1];
+                drift[run_index] =
+                    normalized_residual[run_index] - normalized_residual[run_index - 1];
             }
         }
         for run_index in 1..drift.len() {
@@ -930,12 +942,10 @@ fn build_feature_sign_records(
                 drift: drift[run_index],
                 slew: slew[run_index],
                 normalized_residual_norm: residual_trace.norms[run_index] / rho.max(1.0e-12),
-                sigma_norm: (
-                    normalized_residual[run_index] * normalized_residual[run_index]
-                        + drift[run_index] * drift[run_index]
-                        + slew[run_index] * slew[run_index]
-                )
-                .sqrt(),
+                sigma_norm: (normalized_residual[run_index] * normalized_residual[run_index]
+                    + drift[run_index] * drift[run_index]
+                    + slew[run_index] * slew[run_index])
+                    .sqrt(),
                 is_imputed: residual_trace.is_imputed[run_index],
             });
         }
@@ -1180,15 +1190,12 @@ fn build_group_grammar_states(
                 )
             })
             .count();
-        let previous_state = sign_row
-            .run_index
-            .checked_sub(1)
-            .and_then(|previous| {
-                rows.iter()
-                    .rev()
-                    .find(|row| row.group_name == sign_row.group_name && row.run_index == previous)
-                    .map(|row| row.grammar_state.as_str())
-            });
+        let previous_state = sign_row.run_index.checked_sub(1).and_then(|previous| {
+            rows.iter()
+                .rev()
+                .find(|row| row.group_name == sign_row.group_name && row.run_index == previous)
+                .map(|row| row.grammar_state.as_str())
+        });
         let grammar_state = if sign_row.active_feature_count == 0 {
             ScaffoldGrammarState::Admissible
         } else if sign_row.envelope_separation_mean >= 1.0 && violation_member_count >= 2 {
@@ -1240,7 +1247,9 @@ fn build_group_semantic_matches(
         BTreeMap::<(&str, usize), Vec<&SemanticMatchRecord>>::new(),
         |mut acc, row| {
             if let Some(spec) = feature_scaffold_spec(&row.feature_name) {
-                acc.entry((spec.group_name, row.run_index)).or_default().push(row);
+                acc.entry((spec.group_name, row.run_index))
+                    .or_default()
+                    .push(row);
             }
             acc
         },
@@ -1265,13 +1274,19 @@ fn build_group_semantic_matches(
             .map(|row| row.structural_score_proxy)
             .fold(0.0, f64::max);
         if group_row.group_name == "group_a" {
-            if matches.iter().any(|row| row.heuristic_name == PRE_FAILURE_SLOW_DRIFT)
+            if matches
+                .iter()
+                .any(|row| row.heuristic_name == PRE_FAILURE_SLOW_DRIFT)
                 && matches!(
                     group_row.grammar_state.as_str(),
                     "sustained_outward_drift" | "persistent_violation"
                 )
             {
-                candidates.push((PRE_FAILURE_SLOW_DRIFT, participating_features.clone(), score));
+                candidates.push((
+                    PRE_FAILURE_SLOW_DRIFT,
+                    participating_features.clone(),
+                    score,
+                ));
             }
             if matches
                 .iter()
@@ -1288,7 +1303,9 @@ fn build_group_semantic_matches(
                 ));
             }
         } else if group_row.group_name == "group_b" {
-            if matches.iter().any(|row| row.heuristic_name == TRANSITION_EXCURSION)
+            if matches
+                .iter()
+                .any(|row| row.heuristic_name == TRANSITION_EXCURSION)
                 && matches!(
                     group_row.grammar_state.as_str(),
                     "transient_violation" | "persistent_violation"
@@ -1412,28 +1429,25 @@ fn build_group_definitions(
                 .map(|spec| spec.rescue_priority)
                 .max_by_key(|priority| rescue_priority_rank(priority))
                 .unwrap_or("none");
+            let coactivation_member_threshold = group.members.len().min(GROUP_MEMBER_COACTIVATION_MIN).max(1);
             let failure_coactivation_run_count = grammar_rows
                 .iter()
                 .filter(|row| {
                     row.label == 1
-                        && row.pressure_member_count >= GROUP_MEMBER_COACTIVATION_MIN
+                        && row.pressure_member_count >= coactivation_member_threshold
                 })
                 .count();
             let pass_coactivation_run_count = grammar_rows
                 .iter()
                 .filter(|row| {
                     row.label == -1
-                        && row.pressure_member_count >= GROUP_MEMBER_COACTIVATION_MIN
+                        && row.pressure_member_count >= coactivation_member_threshold
                 })
                 .count();
-            let validated = group.group_name != "group_c"
-                && group.members.len() >= GROUP_MEMBER_COACTIVATION_MIN
-                && failure_coactivation_run_count >= GROUP_FAILURE_COACTIVATION_MIN
+            let validated = failure_coactivation_run_count >= GROUP_FAILURE_COACTIVATION_MIN
                 && pass_coactivation_run_count == 0;
             let rejection_reason = if validated {
                 None
-            } else if group.members.len() < GROUP_MEMBER_COACTIVATION_MIN {
-                Some("group size is below the co-activation threshold".into())
             } else if failure_coactivation_run_count < GROUP_FAILURE_COACTIVATION_MIN {
                 Some("failure co-activation is below the required minimum".into())
             } else if pass_coactivation_run_count > 0 {
@@ -1507,7 +1521,7 @@ fn build_group_definitions(
                     .count(),
                 mean_active_feature_count: mean_of_records(&signs, |row| row.active_feature_count as f64),
                 mean_envelope_separation: mean_of_records(&signs, |row| row.envelope_separation_mean),
-                coactivation_member_threshold: GROUP_MEMBER_COACTIVATION_MIN,
+                coactivation_member_threshold,
                 minimum_failure_coactivation_runs: GROUP_FAILURE_COACTIVATION_MIN,
                 failure_coactivation_run_count,
                 pass_coactivation_run_count,
@@ -1627,18 +1641,14 @@ fn build_feature_policy_decisions(
         );
         if row.feature_name == "S059"
             && row.policy_state == "review"
-            && (related_support || row.grammar_state == ScaffoldGrammarState::PersistentViolation.as_lowercase())
+            && (related_support
+                || row.grammar_state == ScaffoldGrammarState::PersistentViolation.as_lowercase())
         {
             row.policy_state = "escalate".into();
             row.investigation_worthy = true;
-            row.rationale = "primary precursor escalated only after corroboration or persistent violation".into();
-        } else if row.feature_name == "S133"
-            && row.policy_state == "review"
-            && related_support
-        {
-            row.policy_state = "escalate".into();
-            row.investigation_worthy = true;
-            row.rationale = "slow structural drift escalated only with corroboration from S059 or S123".into();
+            row.rationale =
+                "primary precursor escalated only after corroboration or persistent violation"
+                    .into();
         } else if row.feature_name == "S123"
             && row.policy_state == "review"
             && (related_support
@@ -1701,7 +1711,7 @@ fn base_policy_state(
                 .is_some_and(|row| row.heuristic_name == PRE_FAILURE_SLOW_DRIFT)
                 && grammar_state == ScaffoldGrammarState::SustainedOutwardDrift
             {
-                ("review", "S133 slow structural drift promoted to Review under sustained outward drift".into())
+                ("review", "S133 remains Review-only when failure-localized slow drift is present".into())
             } else {
                 ("silent", "S133 remained below scaffold promotion conditions".into())
             }
@@ -1752,6 +1762,10 @@ fn base_policy_state(
                 ("silent", "sentinel remained admissible or unsupported".into())
             }
         }
+        "S134" | "S275" => (
+            "silent",
+            "recall-rescue feature remains outside primary scaffold promotion and is reserved for bounded rescue logic".into(),
+        ),
         _ => ("silent", format!("{} is outside the scaffolded policy set", spec.feature_name)),
     }
 }
@@ -1814,13 +1828,14 @@ fn rescue_priority_rank(priority: &str) -> usize {
     }
 }
 
-fn classify_grammar_label(grammar_trace: &FeatureGrammarTrace, run_index: usize) -> ScaffoldGrammarState {
+fn classify_grammar_label(
+    grammar_trace: &FeatureGrammarTrace,
+    run_index: usize,
+) -> ScaffoldGrammarState {
     let confirmed_state = grammar_trace.states[run_index];
     let confirmed_reason = grammar_trace.reasons[run_index];
     if confirmed_state == GrammarState::Admissible {
-        if run_index > 0
-            && grammar_trace.states[run_index - 1] != GrammarState::Admissible
-        {
+        if run_index > 0 && grammar_trace.states[run_index - 1] != GrammarState::Admissible {
             ScaffoldGrammarState::Recovery
         } else {
             ScaffoldGrammarState::Admissible
@@ -1857,7 +1872,7 @@ fn expanded_heuristic_entry_metadata(heuristic_name: &str) -> ExpandedHeuristicM
         PRE_FAILURE_SLOW_DRIFT => ExpandedHeuristicMetadata {
             allowed_grammar_states: "sustained_outward_drift,persistent_violation",
             role_class: "primary_precursor",
-            feature_scope: "S059,S133 and compatible slow structural precursor features",
+            feature_scope: "S059 plus S133 only when failure-localized slow drift support is present",
             ambiguity_note: "Slow drift remains interpretive and does not identify a unique mechanism.",
             rescue_eligibility_guidance: "Rescue-eligible on primary precursor features only.",
             burden_contribution_class: "review_burden_candidate",
@@ -1865,7 +1880,7 @@ fn expanded_heuristic_entry_metadata(heuristic_name: &str) -> ExpandedHeuristicM
         RECURRENT_BOUNDARY_APPROACH => ExpandedHeuristicMetadata {
             allowed_grammar_states: "boundary_grazing,sustained_outward_drift",
             role_class: "precursor_or_support",
-            feature_scope: "S059,S540 and compatible boundary-pressure features",
+            feature_scope: "S059 and compatible recurrent-boundary precursor features",
             ambiguity_note: "Repeated boundary approach is structurally meaningful but not uniquely causal.",
             rescue_eligibility_guidance: "Use for bounded Review promotion only when persistence is visible.",
             burden_contribution_class: "watch_to_review_pressure",
@@ -1945,9 +1960,7 @@ fn semantic_applicability_rules(heuristic_name: &str) -> &'static str {
         RECURRENT_BOUNDARY_APPROACH => {
             "filter by grammar first, then apply on recurrent boundary-pressure features"
         }
-        TRANSITION_EXCURSION => {
-            "filter by grammar first, then apply on abrupt transition features"
-        }
+        TRANSITION_EXCURSION => "filter by grammar first, then apply on abrupt transition features",
         PERSISTENT_INSTABILITY_CLUSTER => {
             "filter by grammar first, then require sustained grouped pressure"
         }
@@ -2114,12 +2127,16 @@ mod tests {
     #[test]
     fn scaffold_feature_specs_are_deterministic() {
         let s059 = feature_scaffold_spec("S059").unwrap();
-        assert_eq!(s059.role, "persistent_boundary_approach_precursor");
+        assert_eq!(s059.role, "primary recurrent-boundary precursor");
         assert_eq!(s059.default_policy_ceiling, HeuristicAlertClass::Review);
         assert_eq!(s059.preferred_motifs[0], RECURRENT_BOUNDARY_APPROACH);
 
         let s104 = feature_scaffold_spec("S104").unwrap();
         assert_eq!(s104.default_policy_ceiling, HeuristicAlertClass::Watch);
         assert_eq!(s104.rescue_priority, "none");
+
+        let s134 = feature_scaffold_spec("S134").unwrap();
+        assert_eq!(s134.role, "recall-rescue feature");
+        assert_eq!(s134.group_name, "ungrouped");
     }
 }
