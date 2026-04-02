@@ -208,6 +208,11 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_operator_delta_targets.json",
         "dsa_operator_delta_attainment_matrix.csv",
         "dsa_policy_operator_burden_contributions.csv",
+        "failures_index.json",
+        "feature_motif_grounding.json",
+        "dsfb_heuristics_bank_minimal.json",
+        "policy_decisions.csv",
+        "policy_burden_summary.csv",
         "dsa_cohort_results_burden_aware.csv",
         "dsa_cohort_summary_burden_aware.json",
         "dsa_heuristic_policy_failure_analysis.md",
@@ -218,6 +223,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsfb_motifs.csv",
         "dsfb_motif_labels_per_time.csv",
         "dsfb_feature_motif_timeline.csv",
+        "feature_motif_timeline.csv",
         "dsfb_grammar_states.csv",
         "dsfb_feature_grammar_states.csv",
         "dsfb_envelope_interaction_summary.csv",
@@ -366,6 +372,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_operator_delta_targets.json").is_ok());
     assert!(zip.by_name("dsa_operator_delta_attainment_matrix.csv").is_ok());
     assert!(zip.by_name("dsa_policy_operator_burden_contributions.csv").is_ok());
+    assert!(zip.by_name("failures_index.json").is_ok());
+    assert!(zip.by_name("feature_motif_grounding.json").is_ok());
+    assert!(zip.by_name("dsfb_heuristics_bank_minimal.json").is_ok());
+    assert!(zip.by_name("policy_decisions.csv").is_ok());
+    assert!(zip.by_name("policy_burden_summary.csv").is_ok());
+    assert!(zip.by_name("failure_case_2.json").is_ok());
     assert!(zip.by_name("dsa_seed_feature_check.json").is_ok());
     assert!(zip.by_name("dsa_cohort_results_burden_aware.csv").is_ok());
     assert!(zip.by_name("dsa_cohort_summary_burden_aware.json").is_ok());
@@ -374,6 +386,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsfb_motifs.csv").is_ok());
     assert!(zip.by_name("dsfb_motif_labels_per_time.csv").is_ok());
     assert!(zip.by_name("dsfb_feature_motif_timeline.csv").is_ok());
+    assert!(zip.by_name("feature_motif_timeline.csv").is_ok());
     assert!(zip.by_name("dsfb_grammar_states.csv").is_ok());
     assert!(zip.by_name("dsfb_feature_grammar_states.csv").is_ok());
     assert!(zip.by_name("dsfb_envelope_interaction_summary.csv").is_ok());
@@ -412,6 +425,10 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("## Which Delta Matters on SECOM"));
     assert!(report.contains("## True DSFB Structural Semiotics Instantiation"));
     assert!(report.contains("## Grouped / Coordinated Semiotics"));
+    assert!(report.contains("## Missed Failure Analysis"));
+    assert!(report.contains("## Feature -> Motif Grounding"));
+    assert!(report.contains("## Heuristics With Justification"));
+    assert!(report.contains("## DSFB vs EWMA Separation"));
     assert!(report.contains("## Predeclared Operator Delta Targets"));
     assert!(report.contains("## Optimization Frontier"));
     assert!(report.contains("## Recall Recovery Efficiency"));
@@ -428,6 +445,8 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("dsa_operator_delta_targets.json"));
     assert!(report.contains("dsa_operator_delta_attainment_matrix.csv"));
     assert!(report.contains("dsa_policy_operator_burden_contributions.csv"));
+    assert!(report.contains("feature_motif_grounding.json"));
+    assert!(report.contains("dsfb_heuristics_bank_minimal.json"));
     assert!(report.contains("dsfb_signs.csv"));
     assert!(report.contains("dsfb_feature_signs.csv"));
     assert!(report.contains("dsfb_feature_motif_timeline.csv"));
@@ -457,6 +476,13 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(manifest.get("dsa_operator_delta_attainment_matrix_path").is_some());
     assert!(manifest.get("dsa_policy_operator_burden_contributions_path").is_some());
     assert!(manifest.get("dsa_recall_recovery_efficiency_path").is_some());
+    assert!(manifest.get("failures_index_path").is_some());
+    assert!(manifest.get("failure_case_paths").is_some());
+    assert!(manifest.get("feature_motif_grounding_path").is_some());
+    assert!(manifest.get("dsfb_heuristics_bank_minimal_path").is_some());
+    assert!(manifest.get("policy_decisions_path").is_some());
+    assert!(manifest.get("policy_burden_summary_path").is_some());
+    assert!(manifest.get("dsfb_vs_ewma_case_paths").is_some());
     assert!(manifest.get("dsa_feature_ranking_burden_aware_path").is_some());
     assert!(manifest.get("dsa_feature_ranking_dsfb_aware_path").is_some());
     assert!(manifest.get("dsa_cohort_results_burden_aware_path").is_some());

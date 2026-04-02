@@ -5,6 +5,7 @@ pub mod cohort;
 pub mod config;
 pub mod dataset;
 pub mod error;
+pub mod failure_driven;
 pub mod grammar;
 pub mod heuristics;
 pub mod metrics;

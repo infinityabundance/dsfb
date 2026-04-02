@@ -10,7 +10,7 @@ use crate::preprocessing::PreparedDataset;
 use crate::residual::{ResidualFeatureTrace, ResidualSet};
 use crate::signs::{FeatureSigns, SignSet};
 use serde::Serialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DsfbMotifClass {
@@ -297,6 +297,12 @@ pub struct GroupDefinitionRecord {
     pub violation_run_count: usize,
     pub mean_active_feature_count: f64,
     pub mean_envelope_separation: f64,
+    pub coactivation_member_threshold: usize,
+    pub minimum_failure_coactivation_runs: usize,
+    pub failure_coactivation_run_count: usize,
+    pub pass_coactivation_run_count: usize,
+    pub validated: bool,
+    pub rejection_reason: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -401,6 +407,9 @@ const GROUP_SCAFFOLD: &[GroupScaffoldSpec] = &[
         members: &["S104"],
     },
 ];
+
+const GROUP_FAILURE_COACTIVATION_MIN: usize = 2;
+const GROUP_MEMBER_COACTIVATION_MIN: usize = 2;
 
 pub fn classify_motifs(
     dataset: &PreparedDataset,
@@ -601,13 +610,33 @@ pub fn build_scaffold_semiotics(
     let feature_grammar_states = build_feature_grammar_states(dataset, &selected);
     let envelope_interaction_summary = build_envelope_interaction_summary(&selected);
     let heuristics_bank_expanded = build_expanded_heuristics_bank();
-    let group_signs = build_group_signs(dataset, &feature_signs);
-    let group_grammar_states =
-        build_group_grammar_states(dataset, &group_signs, &feature_grammar_states);
-    let group_semantic_matches =
-        build_group_semantic_matches(dataset, &group_grammar_states, semantic_layer);
-    let group_definitions =
-        build_group_definitions(&group_signs, &group_grammar_states, &group_semantic_matches);
+    let candidate_group_signs = build_group_signs(dataset, &feature_signs);
+    let candidate_group_grammar_states =
+        build_group_grammar_states(dataset, &candidate_group_signs, &feature_grammar_states);
+    let candidate_group_semantic_matches =
+        build_group_semantic_matches(dataset, &candidate_group_grammar_states, semantic_layer);
+    let group_definitions = build_group_definitions(
+        &candidate_group_signs,
+        &candidate_group_grammar_states,
+        &candidate_group_semantic_matches,
+    );
+    let valid_group_names = group_definitions
+        .iter()
+        .filter(|row| row.validated)
+        .map(|row| row.group_name.as_str())
+        .collect::<BTreeSet<_>>();
+    let group_signs = candidate_group_signs
+        .into_iter()
+        .filter(|row| valid_group_names.contains(row.group_name.as_str()))
+        .collect::<Vec<_>>();
+    let group_grammar_states = candidate_group_grammar_states
+        .into_iter()
+        .filter(|row| valid_group_names.contains(row.group_name.as_str()))
+        .collect::<Vec<_>>();
+    let group_semantic_matches = candidate_group_semantic_matches
+        .into_iter()
+        .filter(|row| valid_group_names.contains(row.group_name.as_str()))
+        .collect::<Vec<_>>();
     let feature_policy_decisions = build_feature_policy_decisions(
         dataset,
         &selected,
@@ -1383,6 +1412,35 @@ fn build_group_definitions(
                 .map(|spec| spec.rescue_priority)
                 .max_by_key(|priority| rescue_priority_rank(priority))
                 .unwrap_or("none");
+            let failure_coactivation_run_count = grammar_rows
+                .iter()
+                .filter(|row| {
+                    row.label == 1
+                        && row.pressure_member_count >= GROUP_MEMBER_COACTIVATION_MIN
+                })
+                .count();
+            let pass_coactivation_run_count = grammar_rows
+                .iter()
+                .filter(|row| {
+                    row.label == -1
+                        && row.pressure_member_count >= GROUP_MEMBER_COACTIVATION_MIN
+                })
+                .count();
+            let validated = group.group_name != "group_c"
+                && group.members.len() >= GROUP_MEMBER_COACTIVATION_MIN
+                && failure_coactivation_run_count >= GROUP_FAILURE_COACTIVATION_MIN
+                && pass_coactivation_run_count == 0;
+            let rejection_reason = if validated {
+                None
+            } else if group.members.len() < GROUP_MEMBER_COACTIVATION_MIN {
+                Some("group size is below the co-activation threshold".into())
+            } else if failure_coactivation_run_count < GROUP_FAILURE_COACTIVATION_MIN {
+                Some("failure co-activation is below the required minimum".into())
+            } else if pass_coactivation_run_count > 0 {
+                Some("group co-activates in pass runs and is rejected".into())
+            } else {
+                Some("group failed strict grouped-semiotics validation".into())
+            };
 
             GroupDefinitionRecord {
                 group_name: group.group_name.into(),
@@ -1449,6 +1507,12 @@ fn build_group_definitions(
                     .count(),
                 mean_active_feature_count: mean_of_records(&signs, |row| row.active_feature_count as f64),
                 mean_envelope_separation: mean_of_records(&signs, |row| row.envelope_separation_mean),
+                coactivation_member_threshold: GROUP_MEMBER_COACTIVATION_MIN,
+                minimum_failure_coactivation_runs: GROUP_FAILURE_COACTIVATION_MIN,
+                failure_coactivation_run_count,
+                pass_coactivation_run_count,
+                validated,
+                rejection_reason,
             }
         })
         .collect()
