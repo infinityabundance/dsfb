@@ -179,6 +179,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_grid_summary.json",
         "dsa_feature_ranking.csv",
         "dsa_feature_ranking_recall_aware.csv",
+        "dsa_feature_ranking_burden_aware.csv",
         "dsa_feature_ranking_comparison.csv",
         "dsa_feature_cohorts.json",
         "dsa_feature_policy_overrides.json",
@@ -192,14 +193,30 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_policy_contribution_analysis.csv",
         "dsa_recall_rescue_results.csv",
         "dsa_recall_critical_features.csv",
+        "dsa_recall_recovery_efficiency.csv",
         "dsa_pareto_frontier.csv",
         "dsa_stage_a_candidates.csv",
         "dsa_stage_b_candidates.csv",
+        "dsa_stage1_candidates.csv",
+        "dsa_stage2_candidates.csv",
         "dsa_missed_failure_diagnostics.csv",
         "dsa_delta_target_assessment.json",
+        "dsa_operator_baselines.json",
+        "dsa_operator_delta_targets.json",
+        "dsa_operator_delta_attainment_matrix.csv",
+        "dsa_policy_operator_burden_contributions.csv",
+        "dsa_cohort_results_burden_aware.csv",
+        "dsa_cohort_summary_burden_aware.json",
         "dsa_heuristic_policy_failure_analysis.md",
         "dsa_parameter_manifest.json",
         "dsa_seed_feature_check.json",
+        "dsfb_signs.csv",
+        "dsfb_motifs.csv",
+        "dsfb_motif_labels_per_time.csv",
+        "dsfb_grammar_states.csv",
+        "dsfb_semantic_matches.csv",
+        "dsfb_semantic_ranked_candidates.csv",
+        "dsfb_structural_delta_metrics.json",
         "drsc_dsa_combined.csv",
         "drsc_top_feature.csv",
         "dsa_top_feature.csv",
@@ -307,6 +324,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_grid_summary.json").is_ok());
     assert!(zip.by_name("dsa_feature_ranking.csv").is_ok());
     assert!(zip.by_name("dsa_feature_ranking_recall_aware.csv").is_ok());
+    assert!(zip.by_name("dsa_feature_ranking_burden_aware.csv").is_ok());
     assert!(zip.by_name("dsa_feature_ranking_comparison.csv").is_ok());
     assert!(zip.by_name("dsa_feature_cohorts.json").is_ok());
     assert!(zip.by_name("dsa_feature_policy_overrides.json").is_ok());
@@ -320,12 +338,28 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_policy_contribution_analysis.csv").is_ok());
     assert!(zip.by_name("dsa_recall_rescue_results.csv").is_ok());
     assert!(zip.by_name("dsa_recall_critical_features.csv").is_ok());
+    assert!(zip.by_name("dsa_recall_recovery_efficiency.csv").is_ok());
     assert!(zip.by_name("dsa_pareto_frontier.csv").is_ok());
     assert!(zip.by_name("dsa_stage_a_candidates.csv").is_ok());
     assert!(zip.by_name("dsa_stage_b_candidates.csv").is_ok());
+    assert!(zip.by_name("dsa_stage1_candidates.csv").is_ok());
+    assert!(zip.by_name("dsa_stage2_candidates.csv").is_ok());
     assert!(zip.by_name("dsa_missed_failure_diagnostics.csv").is_ok());
     assert!(zip.by_name("dsa_delta_target_assessment.json").is_ok());
+    assert!(zip.by_name("dsa_operator_baselines.json").is_ok());
+    assert!(zip.by_name("dsa_operator_delta_targets.json").is_ok());
+    assert!(zip.by_name("dsa_operator_delta_attainment_matrix.csv").is_ok());
+    assert!(zip.by_name("dsa_policy_operator_burden_contributions.csv").is_ok());
     assert!(zip.by_name("dsa_seed_feature_check.json").is_ok());
+    assert!(zip.by_name("dsa_cohort_results_burden_aware.csv").is_ok());
+    assert!(zip.by_name("dsa_cohort_summary_burden_aware.json").is_ok());
+    assert!(zip.by_name("dsfb_signs.csv").is_ok());
+    assert!(zip.by_name("dsfb_motifs.csv").is_ok());
+    assert!(zip.by_name("dsfb_motif_labels_per_time.csv").is_ok());
+    assert!(zip.by_name("dsfb_grammar_states.csv").is_ok());
+    assert!(zip.by_name("dsfb_semantic_matches.csv").is_ok());
+    assert!(zip.by_name("dsfb_semantic_ranked_candidates.csv").is_ok());
+    assert!(zip.by_name("dsfb_structural_delta_metrics.json").is_ok());
     assert!(zip.by_name("dsa_run_signals.csv").is_ok());
     assert!(zip.by_name("dsa_top_feature.csv").is_ok());
     assert!(zip.by_name("cusum_baseline.csv").is_ok());
@@ -349,7 +383,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("## Feature-Aware Heuristic Governance"));
     assert!(report.contains("## Missed-Failure Diagnostics"));
     assert!(report.contains("## Two-Stage Optimization Frontier"));
+    assert!(report.contains("## Which Delta Matters on SECOM"));
+    assert!(report.contains("## Predeclared Operator Delta Targets"));
+    assert!(report.contains("## Optimization Frontier"));
+    assert!(report.contains("## Recall Recovery Efficiency"));
     assert!(report.contains("## Target Attainment Assessment"));
+    assert!(report.contains("## Legacy Nuisance Target Assessment"));
     assert!(report.contains("## Rating Delta Forecast"));
     assert!(report.contains(
         "## Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA)"
@@ -358,6 +397,11 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("drsc_dsa_combined.csv"));
     assert!(report.contains("figures/drsc_dsa_combined.png"));
     assert!(report.contains("dsa_vs_baselines.json"));
+    assert!(report.contains("dsa_operator_delta_targets.json"));
+    assert!(report.contains("dsa_operator_delta_attainment_matrix.csv"));
+    assert!(report.contains("dsa_policy_operator_burden_contributions.csv"));
+    assert!(report.contains("dsfb_signs.csv"));
+    assert!(report.contains("dsfb_semantic_matches.csv"));
     assert!(report.contains("engineering_report.pdf"));
     assert!(report.contains("run_bundle.zip"));
     assert!(manifest.get("drsc_dsa_combined_trace_path").is_some());
@@ -371,6 +415,21 @@ fn benchmark_run_writes_expected_core_artifacts() {
         .is_some());
     assert!(manifest.get("dsa_recall_critical_features_path").is_some());
     assert!(manifest.get("dsa_delta_target_assessment_path").is_some());
+    assert!(manifest.get("dsa_operator_baselines_path").is_some());
+    assert!(manifest.get("dsa_operator_delta_targets_path").is_some());
+    assert!(manifest.get("dsa_operator_delta_attainment_matrix_path").is_some());
+    assert!(manifest.get("dsa_policy_operator_burden_contributions_path").is_some());
+    assert!(manifest.get("dsa_recall_recovery_efficiency_path").is_some());
+    assert!(manifest.get("dsa_feature_ranking_burden_aware_path").is_some());
+    assert!(manifest.get("dsa_cohort_results_burden_aware_path").is_some());
+    assert!(manifest.get("dsa_cohort_summary_burden_aware_path").is_some());
+    assert!(manifest.get("dsfb_signs_path").is_some());
+    assert!(manifest.get("dsfb_motifs_path").is_some());
+    assert!(manifest.get("dsfb_motif_labels_per_time_path").is_some());
+    assert!(manifest.get("dsfb_grammar_states_path").is_some());
+    assert!(manifest.get("dsfb_semantic_matches_path").is_some());
+    assert!(manifest.get("dsfb_semantic_ranked_candidates_path").is_some());
+    assert!(manifest.get("dsfb_structural_delta_metrics_path").is_some());
 }
 
 #[test]

@@ -8,6 +8,7 @@ use crate::heuristics::{
 use crate::nominal::NominalModel;
 use crate::preprocessing::PreparedDataset;
 use crate::residual::ResidualSet;
+use crate::semiotics::feature_semantic_flags;
 use crate::signs::SignSet;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -669,20 +670,20 @@ pub fn evaluate_dsa_with_policy(
             .iter()
             .map(|slew| slew.abs() >= sign_trace.slew_threshold)
             .collect::<Vec<_>>();
+        let semantic_flags =
+            feature_semantic_flags(residual_trace, sign_trace, grammar_trace, feature.rho);
         let motif_flags = dsa_contributing_motif_names()
             .iter()
             .map(|&motif_name| {
-                let flags = grammar_trace
-                    .raw_reasons
-                    .iter()
-                    .map(|reason| dsa_motif_name(reason) == Some(motif_name))
-                    .collect::<Vec<_>>();
+                let flags = semantic_flags
+                    .semantic_flags
+                    .get(motif_name)
+                    .cloned()
+                    .unwrap_or_else(|| vec![false; run_count]);
                 (motif_name, flags)
             })
             .collect::<Vec<_>>();
-        let motif_hit = (0..run_count)
-            .map(|run_index| motif_flags.iter().any(|(_, flags)| flags[run_index]))
-            .collect::<Vec<_>>();
+        let motif_hit = semantic_flags.any_semantic_match;
         let ewma_normalized = ewma_trace
             .ewma
             .iter()

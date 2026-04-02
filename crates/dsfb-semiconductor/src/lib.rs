@@ -16,4 +16,5 @@ pub mod precursor;
 pub mod preprocessing;
 pub mod report;
 pub mod residual;
+pub mod semiotics;
 pub mod signs;
