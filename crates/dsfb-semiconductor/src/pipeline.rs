@@ -3,10 +3,10 @@ use crate::cohort::{
     build_seed_feature_check, compute_rating_delta_forecast, compute_rating_failure_analysis,
     run_recall_optimization, write_cohort_results_csv,
     write_failure_analysis_md as write_cohort_failure_analysis_md,
-    write_operator_burden_contributions_csv, write_operator_delta_attainment_matrix_csv,
     write_feature_policy_summary_csv, write_feature_ranking_comparison_csv,
     write_feature_ranking_csv, write_heuristic_policy_failure_analysis_md,
     write_missed_failure_diagnostics_csv, write_motif_policy_contributions_csv,
+    write_operator_burden_contributions_csv, write_operator_delta_attainment_matrix_csv,
     write_policy_contribution_analysis_csv, write_precursor_quality_csv,
     write_recall_critical_features_csv, write_recall_recovery_efficiency_csv,
     write_recall_rescue_results_csv, write_single_change_iteration_log_csv,
@@ -516,7 +516,10 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsfb_single_change_iteration_log.csv"),
         &optimization.single_change_iteration_log,
     )?;
-    write_json_pretty(&run_dir.join("failures_index.json"), &failure_driven.failures_index)?;
+    write_json_pretty(
+        &run_dir.join("failures_index.json"),
+        &failure_driven.failures_index,
+    )?;
     write_serialized_csv(
         &run_dir.join("missed_failure_priority.csv"),
         &failure_driven.missed_failure_priority,
@@ -616,7 +619,12 @@ pub fn run_secom_benchmark(
     write_trace_csvs(
         &run_dir, &prepared, &residuals, &signs, &baselines, &grammar,
     )?;
-    write_dsfb_signs_csv(&run_dir.join("dsfb_signs.csv"), &prepared, &residuals, &signs)?;
+    write_dsfb_signs_csv(
+        &run_dir.join("dsfb_signs.csv"),
+        &prepared,
+        &residuals,
+        &signs,
+    )?;
     write_serialized_csv(
         &run_dir.join("dsfb_feature_signs.csv"),
         &scaffold_semiotics.feature_signs,
@@ -889,10 +897,7 @@ pub fn run_secom_benchmark(
                 .join("feature_motif_grounding.json")
                 .display()
                 .to_string(),
-            feature_to_motif_path: run_dir
-                .join("feature_to_motif.json")
-                .display()
-                .to_string(),
+            feature_to_motif_path: run_dir.join("feature_to_motif.json").display().to_string(),
             negative_control_report_path: run_dir
                 .join("negative_control_report.json")
                 .display()
@@ -1015,10 +1020,7 @@ pub fn run_secom_benchmark(
                 .display()
                 .to_string(),
             dsfb_signs_path: run_dir.join("dsfb_signs.csv").display().to_string(),
-            dsfb_feature_signs_path: run_dir
-                .join("dsfb_feature_signs.csv")
-                .display()
-                .to_string(),
+            dsfb_feature_signs_path: run_dir.join("dsfb_feature_signs.csv").display().to_string(),
             dsfb_motifs_path: run_dir.join("dsfb_motifs.csv").display().to_string(),
             dsfb_motif_labels_per_time_path: run_dir
                 .join("dsfb_motif_labels_per_time.csv")
@@ -1060,10 +1062,7 @@ pub fn run_secom_benchmark(
                 .join("dsfb_group_definitions.json")
                 .display()
                 .to_string(),
-            dsfb_group_signs_path: run_dir
-                .join("dsfb_group_signs.csv")
-                .display()
-                .to_string(),
+            dsfb_group_signs_path: run_dir.join("dsfb_group_signs.csv").display().to_string(),
             dsfb_group_grammar_states_path: run_dir
                 .join("dsfb_group_grammar_states.csv")
                 .display()

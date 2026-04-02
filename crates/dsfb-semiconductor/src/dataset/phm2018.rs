@@ -55,6 +55,8 @@ pub struct Phm2018CsvGroupSummary {
 
 pub fn support_status(data_root: &Path) -> Phm2018SupportStatus {
     let extracted_dataset_candidates = [
+        data_root.join("phm2018"),
+        data_root.join("phm2018").join("phm_data_challenge_2018"),
         data_root.join("phm_data_challenge_2018"),
         data_root
             .parent()
@@ -337,7 +339,9 @@ mod tests {
         assert!(status.extracted_dataset_detected);
         assert_eq!(status.extracted_train_sensor_files, 1);
         assert_eq!(status.extracted_test_sensor_files, 1);
-        assert!(status.blocker.contains("extracted PHM 2018 sensor tree is present"));
+        assert!(status
+            .blocker
+            .contains("extracted PHM 2018 sensor tree is present"));
     }
 
     #[test]
@@ -362,7 +366,10 @@ mod tests {
         assert!(status.extracted_dataset_detected);
         assert_eq!(status.extracted_train_sensor_files, 1);
         assert_eq!(status.extracted_test_sensor_files, 1);
-        assert_eq!(status.extracted_dataset_path, root.join("phm_data_challenge_2018"));
+        assert_eq!(
+            status.extracted_dataset_path,
+            root.join("phm_data_challenge_2018")
+        );
     }
 
     #[test]

@@ -115,8 +115,8 @@ pub struct SemanticMatchRecord {
 pub struct StructuralDeltaMetrics {
     pub grammar_violation_precision: Option<f64>,
     pub motif_precision_pre_failure: Option<f64>,
-    pub structural_separation_score: Option<f64>,
-    pub precursor_stability_score: Option<f64>,
+    pub structural_separation: Option<f64>,
+    pub precursor_stability: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2022,11 +2022,11 @@ fn compute_structural_delta_metrics(
             }
         }
     }
-    let structural_separation_score = mean(&failure_separation)
+    let structural_separation = mean(&failure_separation)
         .zip(mean(&pass_separation))
         .map(|(failure, pass)| failure - pass);
 
-    let precursor_stability_score = if semantic_matches.is_empty() {
+    let precursor_stability = if semantic_matches.is_empty() {
         None
     } else {
         let mut grouped = BTreeMap::<(&str, usize), Vec<usize>>::new();
@@ -2064,8 +2064,8 @@ fn compute_structural_delta_metrics(
     StructuralDeltaMetrics {
         grammar_violation_precision,
         motif_precision_pre_failure,
-        structural_separation_score,
-        precursor_stability_score,
+        structural_separation,
+        precursor_stability,
     }
 }
 

@@ -14,15 +14,17 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use zip::write::SimpleFileOptions;
 
 const PHM_SENSOR_COLUMN_START: usize = 7;
-const PHM_SELECTED_DSA_WINDOW: usize = 10;
-const PHM_SELECTED_DSA_PERSISTENCE: usize = 4;
-const PHM_SELECTED_DSA_TAU: f64 = 2.0;
+const PHM_MAX_AGGREGATED_POINTS: usize = 4096;
+const PHM_SELECTED_DSA_WINDOW: usize = 8;
+const PHM_SELECTED_DSA_PERSISTENCE: usize = 2;
+const PHM_SELECTED_DSA_TAU: f64 = 1.5;
 const PHM_SELECTED_DSA_M: usize = 1;
+const PHM_THRESHOLD_BASELINE: &str = "run_energy_scalar_threshold";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Phm2018RunArtifacts {
@@ -44,6 +46,7 @@ pub struct Phm2018LeadTimeRow {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Phm2018EarlyWarningStats {
+    pub threshold_baseline: String,
     pub total_runs: usize,
     pub comparable_runs: usize,
     pub mean_lead_delta: Option<f64>,
@@ -78,6 +81,7 @@ pub struct Phm2018RunDetail {
     pub fault_time: i64,
     pub fault_index: usize,
     pub healthy_prefix_count: usize,
+    pub evaluation_start_run_index: usize,
     pub dsfb_detection_run_index: Option<usize>,
     pub threshold_detection_run_index: Option<usize>,
     pub dsfb_detection_time: Option<i64>,
@@ -165,15 +169,11 @@ pub fn run_phm2018_benchmark(
             config.pre_failure_lookback_runs,
         )?;
 
-        let dsfb_detection_run_index = dsa.run_signals.primary_run_alert[..run.fault_index]
-            .iter()
-            .position(|flag| *flag);
-        let threshold_detection_run_index = (0..run.fault_index).find(|&run_index| {
-            residuals
-                .traces
-                .iter()
-                .any(|trace| trace.threshold_alarm[run_index])
-        });
+        let evaluation_start_run_index = run.healthy_prefix_count.min(run.fault_index);
+        let dsfb_detection_run_index = (evaluation_start_run_index..run.fault_index)
+            .find(|&run_index| dsa.run_signals.primary_run_alert[run_index]);
+        let threshold_detection_run_index = (evaluation_start_run_index..run.fault_index)
+            .find(|&run_index| baselines.run_energy.alarm[run_index]);
         let dsfb_detection_time =
             dsfb_detection_run_index.map(|run_index| run.timestamps_raw[run_index]);
         let threshold_detection_time =
@@ -194,6 +194,7 @@ pub fn run_phm2018_benchmark(
             fault_time: run.fault_time,
             fault_index: run.fault_index,
             healthy_prefix_count: run.healthy_prefix_count,
+            evaluation_start_run_index,
             dsfb_detection_run_index,
             threshold_detection_run_index,
             dsfb_detection_time,
@@ -204,7 +205,8 @@ pub fn run_phm2018_benchmark(
 
     let early_warning_stats = summarize_phm_lead_times(&lead_time_rows);
     let secom_run_dir = resolve_secom_run_dir(secom_run_dir, output_root)?;
-    let claim_alignment_report = build_claim_alignment_report(&secom_run_dir, &early_warning_stats)?;
+    let claim_alignment_report =
+        build_claim_alignment_report(&secom_run_dir, &early_warning_stats)?;
 
     let lead_time_metrics_path = run_dir.join("phm2018_lead_time_metrics.csv");
     let early_warning_stats_path = run_dir.join("phm2018_early_warning_stats.json");
@@ -282,7 +284,8 @@ fn load_phm2018_train_run_specs(extracted_root: &Path) -> Result<Vec<Phm2018RunS
 }
 
 fn load_phm2018_train_run_series(run_spec: &Phm2018RunSpec) -> Result<Phm2018RunSeries> {
-    let (timestamps_raw, feature_names, raw_values) = load_sensor_csv(&run_spec.sensor_path)?;
+    let (timestamps_raw, feature_names, raw_values) =
+        load_sensor_csv_aggregated(&run_spec.sensor_path)?;
     if timestamps_raw.is_empty() || feature_names.is_empty() || raw_values.is_empty() {
         return Err(DsfbSemiconductorError::DatasetFormat(format!(
             "empty PHM train run {} at {}",
@@ -392,14 +395,19 @@ fn phm_pipeline_config(healthy_prefix_count: usize, fault_index: usize) -> Pipel
 
 fn healthy_prefix_count(fault_index: usize, run_len: usize) -> usize {
     let proportional = (fault_index as f64 * 0.10).round() as usize;
-    proportional.clamp(25, 200).min(fault_index.max(2)).min(run_len)
+    proportional
+        .clamp(25, 200)
+        .min(fault_index.max(2))
+        .min(run_len)
 }
 
 fn run_id_from_sensor_path(path: &Path) -> Result<String> {
     let stem = path
         .file_stem()
         .and_then(|stem| stem.to_str())
-        .ok_or_else(|| DsfbSemiconductorError::DatasetFormat("invalid PHM sensor filename".into()))?;
+        .ok_or_else(|| {
+            DsfbSemiconductorError::DatasetFormat("invalid PHM sensor filename".into())
+        })?;
     let mut parts = stem.split('_');
     let lot = parts
         .next()
@@ -410,7 +418,12 @@ fn run_id_from_sensor_path(path: &Path) -> Result<String> {
     Ok(format!("{lot}_{tool}"))
 }
 
-fn load_sensor_csv(path: &Path) -> Result<(Vec<i64>, Vec<String>, Vec<Vec<Option<f64>>>)> {
+fn load_sensor_csv_aggregated(
+    path: &Path,
+) -> Result<(Vec<i64>, Vec<String>, Vec<Vec<Option<f64>>>)> {
+    let total_rows = estimate_csv_data_rows(path)?;
+    let bucket_size = (total_rows / PHM_MAX_AGGREGATED_POINTS).max(1);
+
     let mut reader = csv::ReaderBuilder::new().from_path(path)?;
     let header = reader
         .headers()?
@@ -418,8 +431,15 @@ fn load_sensor_csv(path: &Path) -> Result<(Vec<i64>, Vec<String>, Vec<Vec<Option
         .skip(PHM_SENSOR_COLUMN_START)
         .map(|name| name.to_string())
         .collect::<Vec<_>>();
+    let feature_count = header.len();
+
     let mut timestamps = Vec::new();
     let mut raw_values = Vec::new();
+    let mut bucket_time_sum = 0f64;
+    let mut bucket_time_count = 0usize;
+    let mut bucket_row_count = 0usize;
+    let mut bucket_sums = vec![0.0; feature_count];
+    let mut bucket_counts = vec![0usize; feature_count];
 
     for record in reader.records() {
         let record = record?;
@@ -433,22 +453,97 @@ fn load_sensor_csv(path: &Path) -> Result<(Vec<i64>, Vec<String>, Vec<Vec<Option
                     path.display()
                 ))
             })?;
-        let row = record
-            .iter()
-            .skip(PHM_SENSOR_COLUMN_START)
-            .map(|value| {
-                if value.trim().is_empty() {
-                    None
-                } else {
-                    value.parse::<f64>().ok()
-                }
-            })
-            .collect::<Vec<_>>();
-        timestamps.push(timestamp);
-        raw_values.push(row);
+        bucket_time_sum += timestamp as f64;
+        bucket_time_count += 1;
+        bucket_row_count += 1;
+
+        for (feature_index, value) in record.iter().skip(PHM_SENSOR_COLUMN_START).enumerate() {
+            if let Ok(parsed) = value.parse::<f64>() {
+                bucket_sums[feature_index] += parsed;
+                bucket_counts[feature_index] += 1;
+            }
+        }
+
+        if bucket_row_count >= bucket_size {
+            finalize_aggregate_bucket(
+                &mut timestamps,
+                &mut raw_values,
+                &mut bucket_time_sum,
+                &mut bucket_time_count,
+                &mut bucket_row_count,
+                &mut bucket_sums,
+                &mut bucket_counts,
+            );
+        }
     }
 
+    finalize_aggregate_bucket(
+        &mut timestamps,
+        &mut raw_values,
+        &mut bucket_time_sum,
+        &mut bucket_time_count,
+        &mut bucket_row_count,
+        &mut bucket_sums,
+        &mut bucket_counts,
+    );
+
     Ok((timestamps, header, raw_values))
+}
+
+fn estimate_csv_data_rows(path: &Path) -> Result<usize> {
+    let file = File::open(path)?;
+    let total_bytes = file.metadata()?.len() as f64;
+    let mut reader = BufReader::new(file);
+    let mut sampled_lines = 0usize;
+    let mut sampled_bytes = 0usize;
+    let mut buffer = String::new();
+
+    while sampled_lines < 4096 {
+        buffer.clear();
+        let bytes = reader.read_line(&mut buffer)?;
+        if bytes == 0 {
+            break;
+        }
+        sampled_lines += 1;
+        sampled_bytes += bytes;
+    }
+
+    if sampled_lines == 0 || sampled_bytes == 0 {
+        return Ok(0);
+    }
+
+    let average_bytes_per_line = sampled_bytes as f64 / sampled_lines as f64;
+    let estimated_total_lines = (total_bytes / average_bytes_per_line).round() as usize;
+    Ok(estimated_total_lines.saturating_sub(1))
+}
+
+fn finalize_aggregate_bucket(
+    timestamps: &mut Vec<i64>,
+    raw_values: &mut Vec<Vec<Option<f64>>>,
+    bucket_time_sum: &mut f64,
+    bucket_time_count: &mut usize,
+    bucket_row_count: &mut usize,
+    bucket_sums: &mut [f64],
+    bucket_counts: &mut [usize],
+) {
+    if *bucket_row_count == 0 {
+        return;
+    }
+
+    timestamps.push((*bucket_time_sum / *bucket_time_count as f64).round() as i64);
+    raw_values.push(
+        bucket_sums
+            .iter()
+            .zip(bucket_counts.iter())
+            .map(|(sum, count)| (*count > 0).then_some(*sum / *count as f64))
+            .collect(),
+    );
+
+    *bucket_time_sum = 0.0;
+    *bucket_time_count = 0;
+    *bucket_row_count = 0;
+    bucket_sums.fill(0.0);
+    bucket_counts.fill(0);
 }
 
 fn load_fault_times(fault_dir: &Path) -> Result<BTreeMap<String, i64>> {
@@ -549,18 +644,22 @@ fn summarize_phm_lead_times(rows: &[Phm2018LeadTimeRow]) -> Phm2018EarlyWarningS
         .collect::<Vec<_>>();
     let earlier = rows
         .iter()
-        .filter(|row| match (row.dsfb_detection_time, row.threshold_detection_time) {
-            (Some(dsfb), Some(threshold)) => dsfb < threshold,
-            (Some(_), None) => true,
-            _ => false,
-        })
+        .filter(
+            |row| match (row.dsfb_detection_time, row.threshold_detection_time) {
+                (Some(dsfb), Some(threshold)) => dsfb < threshold,
+                (Some(_), None) => true,
+                _ => false,
+            },
+        )
         .count();
     let equal = rows
         .iter()
-        .filter(|row| match (row.dsfb_detection_time, row.threshold_detection_time) {
-            (Some(dsfb), Some(threshold)) => dsfb == threshold,
-            _ => false,
-        })
+        .filter(
+            |row| match (row.dsfb_detection_time, row.threshold_detection_time) {
+                (Some(dsfb), Some(threshold)) => dsfb == threshold,
+                _ => false,
+            },
+        )
         .count();
     let later = rows.len().saturating_sub(earlier + equal);
     let mut sorted = comparable.clone();
@@ -574,6 +673,7 @@ fn summarize_phm_lead_times(rows: &[Phm2018LeadTimeRow]) -> Phm2018EarlyWarningS
     };
 
     Phm2018EarlyWarningStats {
+        threshold_baseline: PHM_THRESHOLD_BASELINE.into(),
         total_runs: rows.len(),
         comparable_runs: comparable.len(),
         mean_lead_delta: (!comparable.is_empty())
@@ -589,13 +689,27 @@ fn build_claim_alignment_report(
     secom_run_dir: &Path,
     phm_stats: &Phm2018EarlyWarningStats,
 ) -> Result<ClaimAlignmentReport> {
-    let secom_targets = load_json::<serde_json::Value>(&secom_run_dir.join("dsa_operator_delta_targets.json"))?;
-    let episode_precision = load_json::<serde_json::Value>(&secom_run_dir.join("episode_precision_metrics.json")).ok();
+    let secom_targets =
+        load_json::<serde_json::Value>(&secom_run_dir.join("dsa_operator_delta_targets.json"))?;
+    let episode_precision =
+        load_json::<serde_json::Value>(&secom_run_dir.join("episode_precision_metrics.json")).ok();
     let episode_precision_text = episode_precision
         .as_ref()
-        .and_then(|json| json.get("precision_gain_factor"))
-        .and_then(|value| value.as_f64())
-        .map(|value| format!("episode precision gain factor {:.1}x", value))
+        .and_then(|json| {
+            Some((
+                json.get("dsfb_precision")?.as_f64()?,
+                json.get("raw_alarm_precision")?.as_f64()?,
+                json.get("precision_gain_factor")?.as_f64()?,
+            ))
+        })
+        .map(|(dsfb_precision, raw_precision, gain)| {
+            format!(
+                "episode precision, with DSFB at {:.1}% versus a raw-boundary proxy of {:.2}% ({:.1}x)",
+                dsfb_precision * 100.0,
+                raw_precision * 100.0,
+                gain,
+            )
+        })
         .unwrap_or_else(|| "episode precision surfaced as the primary operator metric".into());
     let delta_investigation = secom_targets
         .get("delta_investigation_load")
@@ -616,31 +730,46 @@ fn build_claim_alignment_report(
     let mut phm_supports = Vec::new();
     if phm_stats.percent_runs_dsfb_earlier > phm_stats.percent_runs_later {
         phm_supports.push(format!(
-            "early warning, with DSFB earlier than threshold on {:.1}% of PHM 2018 runs",
+            "early warning: DSFB fires earlier than the {} baseline on {:.1}% of PHM2018 runs",
+            PHM_THRESHOLD_BASELINE,
             phm_stats.percent_runs_dsfb_earlier * 100.0
         ));
     } else {
         phm_supports.push(format!(
-            "a bounded PHM 2018 comparison only; DSFB earlier on {:.1}% of runs, so broad early-warning superiority is not claimed",
-            phm_stats.percent_runs_dsfb_earlier * 100.0
-        ));
+                "bounded PHM2018 comparison only: DSFB is earlier than the {} baseline on {:.1}% of runs, so a broad early-warning claim is not made",
+                PHM_THRESHOLD_BASELINE,
+                phm_stats.percent_runs_dsfb_earlier * 100.0
+            ));
     }
     if let Some(mean_delta) = phm_stats.mean_lead_delta {
-        phm_supports.push(format!(
-            "quantified lead-time delta, mean threshold-minus-DSFB detection gap {:.2}",
-            mean_delta
-        ));
+        if mean_delta > 0.0 {
+            phm_supports.push(format!(
+                "lead-time advantage: mean {}-minus-DSFB detection gap {:.2}",
+                PHM_THRESHOLD_BASELINE, mean_delta
+            ));
+        } else {
+            phm_supports.push(format!(
+                "lead-time comparison only: mean {}-minus-DSFB detection gap {:.2}",
+                PHM_THRESHOLD_BASELINE, mean_delta
+            ));
+        }
     }
 
     Ok(ClaimAlignmentReport {
         secom_supports: vec![
-            format!("investigation load reduction versus numeric-only DSA of {:.1}%", delta_investigation),
-            format!("episode compression versus raw boundary of {:.1}%", delta_episode),
+            format!(
+                "episode compression: {:.1}% reduction versus the raw-boundary episode baseline",
+                delta_episode
+            ),
             episode_precision_text,
+            format!(
+                "investigation load reduction: {:.1}% versus Numeric-only DSA",
+                delta_investigation
+            ),
         ],
         secom_does_not_support: vec![
             format!(
-                ">=40% nuisance reduction versus EWMA; the saved SECOM row achieves {:.1}%",
+                "≥40% nuisance reduction versus EWMA; the saved SECOM row achieves {:.1}%",
                 delta_nuisance_vs_ewma
             ),
             "strong early-warning claims; SECOM threshold and EWMA still lead DSFB on mean lead time".into(),
@@ -719,8 +848,7 @@ fn write_serialized_csv<T: Serialize>(path: &Path, rows: &[T]) -> Result<()> {
 fn zip_directory(run_dir: &Path, zip_path: &Path) -> Result<()> {
     let file = File::create(zip_path)?;
     let mut zip = zip::ZipWriter::new(file);
-    let options =
-        SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     let mut stack = vec![run_dir.to_path_buf()];
     while let Some(dir) = stack.pop() {

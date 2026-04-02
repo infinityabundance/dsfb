@@ -21,3 +21,4 @@ pub mod residual;
 pub mod secom_addendum;
 pub mod semiotics;
 pub mod signs;
+pub mod unified_value_figure;
