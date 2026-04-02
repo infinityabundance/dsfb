@@ -3,6 +3,7 @@ use crate::config::PipelineConfig;
 use crate::dataset::phm2018;
 use crate::dataset::secom;
 use crate::error::Result;
+use crate::non_intrusive::materialize_non_intrusive_artifacts;
 use crate::output_paths::{default_data_root, default_output_root};
 use crate::phm2018_loader::run_phm2018_benchmark;
 use crate::pipeline::run_secom_benchmark;
@@ -26,6 +27,7 @@ enum Command {
     CalibrateSecomDsa(CalibrateSecomDsaArgs),
     ProbePhm2018(ProbePhm2018Args),
     RunPhm2018(RunPhm2018Args),
+    RenderNonIntrusiveArtifacts(RenderNonIntrusiveArtifactsArgs),
     RenderUnifiedValueFigure(RenderUnifiedValueFigureArgs),
 }
 
@@ -217,6 +219,12 @@ struct RunPhm2018Args {
     output_root: Option<PathBuf>,
     #[arg(long)]
     secom_run_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct RenderNonIntrusiveArtifactsArgs {
+    #[arg(long)]
+    run_dir: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -434,6 +442,22 @@ pub fn run() -> Result<()> {
                 artifacts.claim_alignment_report_path.display()
             );
             println!("ZIP bundle: {}", artifacts.zip_path.display());
+            Ok(())
+        }
+        Command::RenderNonIntrusiveArtifacts(args) => {
+            let artifacts = materialize_non_intrusive_artifacts(&args.run_dir)?;
+            println!(
+                "Non-intrusive interface spec: {}",
+                artifacts.interface_spec_path.display()
+            );
+            println!(
+                "Non-intrusive architecture PNG: {}",
+                artifacts.architecture_png_path.display()
+            );
+            println!(
+                "Non-intrusive architecture SVG: {}",
+                artifacts.architecture_svg_path.display()
+            );
             Ok(())
         }
         Command::RenderUnifiedValueFigure(args) => {

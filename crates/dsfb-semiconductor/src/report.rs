@@ -375,6 +375,7 @@ fn markdown_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_markdown_section(metrics, dsa));
+    out.push_str(&non_intrusive_integration_markdown_section());
     out.push_str(&true_dsfb_structural_semiotics_markdown_section());
     out.push_str(&grouped_coordinated_semiotics_markdown_section());
     out.push_str(&missed_failure_analysis_markdown_section(failure_driven));
@@ -411,6 +412,7 @@ fn markdown_report(
     ));
     out.push_str(&target_attainment_markdown_section(delta_target_assessment));
     out.push_str(&rating_forecast_report_section(rating_delta_forecast));
+    out.push_str(&claims_intentionally_not_made_markdown_section());
 
     out.push_str("## Density Summary\n\n");
     out.push_str(&format!(
@@ -678,6 +680,7 @@ fn latex_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_latex_section(metrics, dsa));
+    out.push_str(&non_intrusive_integration_latex_section());
     out.push_str(&true_dsfb_structural_semiotics_latex_section());
     out.push_str(&grouped_coordinated_semiotics_latex_section());
     out.push_str(&missed_failure_analysis_latex_section(failure_driven));
@@ -699,6 +702,7 @@ fn latex_report(
         delta_target_assessment,
     ));
     out.push_str(&rating_forecast_latex_section(rating_delta_forecast));
+    out.push_str(&claims_intentionally_not_made_latex_section());
 
     out.push_str("\\section*{Motif metrics}\n");
     out.push_str("\\begin{longtable}{p{0.26\\linewidth}rrrr}\n\\toprule\n");
@@ -850,8 +854,9 @@ fn executive_summary_markdown_section(
 ) -> String {
     let mut out = String::new();
     out.push_str("## Executive Summary\n\n");
+    out.push_str("- DSFB remains a non-intrusive, read-only, deterministic companion layer over existing SPC/EWMA/controller residuals; it does not modify thresholds, actuation, timing, or certification boundaries.\n");
     out.push_str(&format!(
-        "- {}\n- Required SECOM limitation statement supported by data: {}\n- Paper abstract artifact: `paper_abstract_artifact.txt`\n\n",
+        "- {}\n- Required SECOM limitation statement supported by data: {}\n- Paper abstract artifact: `paper_abstract_artifact.txt`\n",
         secom_addendum.executive_summary_text,
         secom_addendum.required_tradeoff_statement_supported,
     ));
@@ -996,6 +1001,39 @@ fn semantics_of_silence_markdown_section(
     )
 }
 
+fn non_intrusive_integration_markdown_section() -> String {
+    let mut out = String::new();
+    out.push_str("## Non-Intrusive Integration Model\n\n");
+    out.push_str("- Integration mode: `read_only_side_channel`\n");
+    out.push_str(
+        "- Fixed layer order: `Residual -> Sign -> Syntax -> Grammar -> Semantics -> Policy`\n",
+    );
+    out.push_str("- Inputs consumed by DSFB: immutable residual streams, upstream alarm streams, and metadata only.\n");
+    out.push_str("- Outputs emitted by DSFB: advisory interpretations only; no controller, threshold, recipe, or actuation API exists.\n");
+    out.push_str(
+        "- No feedback path exists from DSFB outputs back into SPC/EWMA/controller logic.\n",
+    );
+    out.push_str("- No upstream latency claim is made; the contract is that DSFB runs observer-style and must not change primary control timing.\n");
+    out.push_str("- Replay is deterministic and fail-safe isolated: identical ordered inputs yield identical outputs, and DSFB failure leaves upstream behavior unchanged.\n");
+    out.push_str("- Contract artifacts: `non_intrusive_interface_spec.md`, `figures/dsfb_non_intrusive_architecture.png`, and `figures/dsfb_non_intrusive_architecture.svg`\n\n");
+    out
+}
+
+fn claims_intentionally_not_made_markdown_section() -> String {
+    let mut out = String::new();
+    out.push_str("## Claims intentionally not made\n\n");
+    out.push_str(
+        "- DSFB does not replace SPC, EWMA, threshold logic, APC, or controller actuation.\n",
+    );
+    out.push_str("- SECOM does not prove universal early-warning superiority.\n");
+    out.push_str("- PHM 2018 does not prove burden reduction because PHM burden metrics are not computed here.\n");
+    out.push_str("- No universal superiority claim is made against scalar baselines.\n");
+    out.push_str(
+        "- No SEMI compliance, completed qualification, or deployment readiness claim is made.\n\n",
+    );
+    out
+}
+
 fn heuristics_policy_engine_latex_section(
     heuristics: &[HeuristicEntry],
     dsa: &DsaEvaluation,
@@ -1072,7 +1110,7 @@ fn executive_summary_latex_section(
     let mut out = String::new();
     out.push_str("\\section*{Executive summary}\n");
     out.push_str(&latex_escape(&format!(
-        "{} Required SECOM limitation statement supported by data: {}. Exact operator deltas in the selected row are investigation load {:.1}%, episode count {:.1}%, review points/pass-run {:.1}%, review episodes/pass-run {:.1}%, recall {}/{}, precursor quality {}, and nuisance vs EWMA {:.1}%.",
+        "DSFB remains a non-intrusive, read-only, deterministic companion layer over existing SPC/EWMA/controller residuals. {} Required SECOM limitation statement supported by data: {}. Exact operator deltas in the selected row are investigation load {:.1}%, episode count {:.1}%, review points/pass-run {:.1}%, review episodes/pass-run {:.1}%, recall {}/{}, precursor quality {}, and nuisance vs EWMA {:.1}%.",
         secom_addendum.executive_summary_text,
         secom_addendum.required_tradeoff_statement_supported,
         optimization.operator_delta_targets.delta_investigation_load * 100.0,
@@ -1090,6 +1128,28 @@ fn executive_summary_latex_section(
         optimization.operator_delta_targets.delta_nuisance_vs_ewma * 100.0,
     )));
     out.push_str("\n\n");
+    out
+}
+
+fn non_intrusive_integration_latex_section() -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Non-Intrusive Integration Model}\n");
+    out.push_str("Integration mode: \\texttt{read\\_only\\_side\\_channel}. Fixed layer order: \\texttt{Residual -> Sign -> Syntax -> Grammar -> Semantics -> Policy}. Inputs consumed by DSFB are immutable residual streams, upstream alarm streams, and metadata only. Outputs are advisory interpretations only; no controller, threshold, recipe, or actuation API exists. No feedback path exists from DSFB outputs back into SPC/EWMA/controller logic. No upstream latency claim is made; the contract is that DSFB runs observer-style and must not change primary control timing. Replay is deterministic and fail-safe isolated: identical ordered inputs yield identical outputs, and DSFB failure leaves upstream behavior unchanged. Contract artifacts: \\texttt{non\\_intrusive\\_interface\\_spec.md}, \\texttt{figures/dsfb\\_non\\_intrusive\\_architecture.png}, and \\texttt{figures/dsfb\\_non\\_intrusive\\_architecture.svg}.\n\n");
+    out
+}
+
+fn claims_intentionally_not_made_latex_section() -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Claims intentionally not made}\n");
+    out.push_str("\\begin{itemize}\n");
+    out.push_str(
+        "\\item DSFB does not replace SPC, EWMA, threshold logic, APC, or controller actuation.\n",
+    );
+    out.push_str("\\item SECOM does not prove universal early-warning superiority.\n");
+    out.push_str("\\item PHM 2018 does not prove burden reduction because PHM burden metrics are not computed here.\n");
+    out.push_str("\\item No universal superiority claim is made against scalar baselines.\n");
+    out.push_str("\\item No SEMI compliance, completed qualification, or deployment readiness claim is made.\n");
+    out.push_str("\\end{itemize}\n\n");
     out
 }
 
@@ -1334,8 +1394,13 @@ fn feature_role_validation_markdown_section(failure_driven: &FailureDrivenArtifa
     out.push_str("## Feature Role Validation\n\n");
     for row in &failure_driven.feature_role_validation {
         out.push_str(&format!(
-            "- {}: initial_role=`{}`, validation=`{}`, final_role=`{}`\n",
-            row.feature_id, row.initial_role, row.validation_result, row.final_role,
+            "- {}: initial_role=`{}`, initial_motif=`{}`, validation=`{}`, final_role=`{}`, final_motif=`{}`\n",
+            row.feature_id,
+            row.initial_role,
+            row.initial_motif,
+            row.supported_or_revised_or_rejected,
+            row.final_role,
+            row.final_motif,
         ));
     }
     out.push('\n');
@@ -1372,12 +1437,14 @@ fn heuristic_provenance_markdown_section(failure_driven: &FailureDrivenArtifacts
     }
     for row in &failure_driven.heuristic_provenance {
         out.push_str(&format!(
-            "- {}: failures=`{}`, features=`{}`, intended_effect=`{}`, nuisance_class=`{}`\n",
+            "- {}: failures=`{}`, features=`{}`, intended_effect=`{}`, nuisance_class=`{}`, motif_signature=`{}`, grammar_states=`{}`\n",
             row.heuristic_id,
             row.derived_from_failures,
             row.uses_features,
             row.intended_effect,
             row.targets_nuisance_class,
+            row.motif_signature,
+            row.allowed_grammar_states,
         ));
     }
     out.push('\n');
@@ -1411,15 +1478,19 @@ fn negative_control_markdown_section(failure_driven: &FailureDrivenArtifacts) ->
     let mut out = String::new();
     out.push_str("## Negative Control\n\n");
     out.push_str(&format!(
-        "- Pass runs: false_activation_rate={:.4}, false_episode_rate={:.4} ({}/{}, {}/{})\n- Clean windows: false_activation_rate={:.4}, false_episode_rate={:.4} ({}/{}, {}/{})\n\n",
+        "- Pass runs: false_activation_rate={:.4}, false_episode_rate={:.4}, review_escalate_points={}, review_escalate_episodes={} ({}/{}, {}/{})\n- Clean windows: false_activation_rate={:.4}, false_episode_rate={:.4}, review_escalate_points={}, review_escalate_episodes={} ({}/{}, {}/{})\n\n",
         report.false_activation_rate,
         report.false_episode_rate,
+        report.review_escalate_points_on_pass_runs,
+        report.review_escalate_episodes_on_pass_runs,
         report.pass_run_false_activation_count,
         report.pass_run_count,
         report.pass_run_false_episode_count,
         report.pass_run_count,
         report.clean_window_false_activation_rate,
         report.clean_window_false_episode_rate,
+        report.review_escalate_points_on_clean_runs,
+        report.review_escalate_episodes_on_clean_runs,
         report.clean_window_false_activation_count,
         report.clean_window_count,
         report.clean_window_false_episode_count,
@@ -1942,10 +2013,20 @@ fn feature_motif_grounding_latex_section(failure_driven: &FailureDrivenArtifacts
 fn feature_role_validation_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
     let mut out = String::new();
     out.push_str("\\section*{Feature Role Validation}\n");
-    out.push_str(&latex_escape(&format!(
-        "Feature-role validation rows produced: {}. Locked SECOM scaffold roles were explicitly supported, revised, or rejected in dsfb_feature_role_validation.csv.",
-        failure_driven.feature_role_validation.len()
-    )));
+    if let Some(row) = failure_driven.feature_role_validation.first() {
+        out.push_str(&latex_escape(&format!(
+            "Feature-role validation rows produced: {}. Example: {} starts as role {} with initial motif {}, is marked {}, and ends at role {} with motif {}.",
+            failure_driven.feature_role_validation.len(),
+            row.feature_id,
+            row.initial_role,
+            row.initial_motif,
+            row.supported_or_revised_or_rejected,
+            row.final_role,
+            row.final_motif,
+        )));
+    } else {
+        out.push_str("No feature-role validation rows were produced.");
+    }
     out.push_str("\n\n");
     out
 }
@@ -1988,11 +2069,15 @@ fn negative_control_latex_section(failure_driven: &FailureDrivenArtifacts) -> St
     let mut out = String::new();
     out.push_str("\\section*{Negative Control}\n");
     out.push_str(&latex_escape(&format!(
-        "Pass-run false activation rate {:.4}, pass-run false episode rate {:.4}, clean-window false activation rate {:.4}, clean-window false episode rate {:.4}.",
+        "Pass-run false activation rate {:.4}, pass-run false episode rate {:.4}, pass-run Review/Escalate points {}, pass-run Review/Escalate episodes {}, clean-window false activation rate {:.4}, clean-window false episode rate {:.4}, clean-window Review/Escalate points {}, and clean-window Review/Escalate episodes {}.",
         report.false_activation_rate,
         report.false_episode_rate,
+        report.review_escalate_points_on_pass_runs,
+        report.review_escalate_episodes_on_pass_runs,
         report.clean_window_false_activation_rate,
         report.clean_window_false_episode_rate,
+        report.review_escalate_points_on_clean_runs,
+        report.review_escalate_episodes_on_clean_runs,
     )));
     out.push_str("\n\n");
     out
@@ -2209,6 +2294,10 @@ fn artifact_inventory(
             role: "Failure- or nuisance-justified single-change optimization log with per-iteration metric deltas and acceptance decisions.".into(),
         },
         ArtifactInventoryEntry {
+            path: "optimization_log.json".into(),
+            role: "JSON mirror of the single-change optimization log for deterministic audit and replay.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "missed_failure_priority.csv".into(),
             role: "Priority-ranked missed failures using signal strength, feature concentration, separation from noise, and recoverability estimate.".into(),
         },
@@ -2219,6 +2308,10 @@ fn artifact_inventory(
         ArtifactInventoryEntry {
             path: "negative_control_report.json".into(),
             role: "Pass-run and clean-window false-activation and false-episode rates used as anti-overfit controls.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "non_intrusive_interface_spec.md".into(),
+            role: "Run-local advisory-only interface contract documenting the read-only side-channel integration model.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsfb_heuristic_provenance.csv".into(),
@@ -2350,7 +2443,15 @@ fn artifact_inventory(
         },
         ArtifactInventoryEntry {
             path: "dsfb_structural_delta_metrics.json".into(),
-            role: "Grammar violation precision, motif precision pre-failure, structural separation, and precursor stability metrics.".into(),
+            role: "Grammar violation precision, motif precision pre-failure, structural separation, precursor stability, episode precision, and compression ratio metrics.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "figures/dsfb_non_intrusive_architecture.png".into(),
+            role: "Operator-facing grayscale side-channel architecture figure proving read-only DSFB integration.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "figures/dsfb_non_intrusive_architecture.svg".into(),
+            role: "Vector version of the non-intrusive DSFB side-channel architecture figure.".into(),
         },
         ArtifactInventoryEntry {
             path: "recurrent_boundary_stats.json".into(),
@@ -2743,6 +2844,9 @@ fn figure_blocks(figures: &FigureManifest) -> String {
                 .unwrap_or(false)
             {
                 "DSA structural focus figure for the selected feature window.".to_string()
+            } else if file == "dsfb_non_intrusive_architecture.png" {
+                "Non-intrusive DSFB side-channel architecture. The primary SPC/EWMA/controller path remains authoritative; DSFB reads residual and alarm taps only, emits advisory interpretations, and has no feedback arrow into control."
+                    .to_string()
             } else {
                 format!("Generated artifact: {}", file)
             };

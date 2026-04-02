@@ -241,6 +241,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_recall_critical_features.csv",
         "dsa_recall_recovery_efficiency.csv",
         "dsfb_single_change_iteration_log.csv",
+        "optimization_log.json",
         "dsa_pareto_frontier.csv",
         "dsa_stage_a_candidates.csv",
         "dsa_stage_b_candidates.csv",
@@ -322,6 +323,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "secom_archive_layout.json",
         "slews.csv",
         "target_d_regression_analysis.json",
+        "non_intrusive_interface_spec.md",
     ];
 
     for file in expected_files {
@@ -380,6 +382,16 @@ fn benchmark_run_writes_expected_core_artifacts() {
         .join("figures")
         .join("top_feature_slew.png")
         .exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures")
+        .join("dsfb_non_intrusive_architecture.png")
+        .exists());
+    assert!(artifacts
+        .run_dir
+        .join("figures")
+        .join("dsfb_non_intrusive_architecture.svg")
+        .exists());
 
     let archive = fs::File::open(artifacts.run_dir.join("run_bundle.zip")).unwrap();
     let mut zip = ZipArchive::new(archive).unwrap();
@@ -398,6 +410,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("figures/top_feature_drift.png").is_ok());
     assert!(zip.by_name("figures/top_feature_ewma.png").is_ok());
     assert!(zip.by_name("figures/top_feature_slew.png").is_ok());
+    assert!(zip
+        .by_name("figures/dsfb_non_intrusive_architecture.png")
+        .is_ok());
+    assert!(zip
+        .by_name("figures/dsfb_non_intrusive_architecture.svg")
+        .is_ok());
     assert!(zip.by_name("dsa_metrics.csv").is_ok());
     assert!(zip.by_name("dsa_grid_results.csv").is_ok());
     assert!(zip.by_name("dsa_grid_summary.json").is_ok());
@@ -446,6 +464,8 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("lead_time_explanation.json").is_ok());
     assert!(zip.by_name("episode_precision_metrics.json").is_ok());
     assert!(zip.by_name("paper_abstract_artifact.txt").is_ok());
+    assert!(zip.by_name("optimization_log.json").is_ok());
+    assert!(zip.by_name("non_intrusive_interface_spec.md").is_ok());
     assert!(zip.by_name("failures_index.json").is_ok());
     assert!(zip.by_name("feature_motif_grounding.json").is_ok());
     assert!(zip.by_name("dsfb_heuristics_bank_minimal.json").is_ok());
@@ -513,6 +533,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("## Two-Stage Optimization Frontier"));
     assert!(report.contains("## Which Delta Matters on SECOM"));
     assert!(report.contains("## True DSFB Structural Semiotics Instantiation"));
+    assert!(report.contains("## Non-Intrusive Integration Model"));
     assert!(report.contains("## Grouped / Coordinated Semiotics"));
     assert!(report.contains("## Missed Failure Analysis"));
     assert!(report.contains("## Feature -> Motif Grounding"));
@@ -527,6 +548,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("## Optimization Frontier"));
     assert!(report.contains("## Recall Recovery Efficiency"));
     assert!(report.contains("## Target Attainment Assessment"));
+    assert!(report.contains("## Claims intentionally not made"));
     assert!(report.contains("## Legacy Nuisance Target Assessment"));
     assert!(report.contains("## Rating Delta Forecast"));
     assert!(report.contains(
@@ -572,6 +594,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(manifest.get("lead_time_explanation_path").is_some());
     assert!(manifest.get("episode_precision_metrics_path").is_some());
     assert!(manifest.get("paper_abstract_artifact_path").is_some());
+    assert!(manifest.get("optimization_log_path").is_some());
     assert!(manifest
         .get("dsa_recall_recovery_efficiency_path")
         .is_some());
@@ -617,6 +640,25 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(manifest.get("dsfb_group_grammar_states_path").is_some());
     assert!(manifest.get("dsfb_group_semantic_matches_path").is_some());
     assert!(manifest.get("dsfb_structural_delta_metrics_path").is_some());
+    assert!(manifest.get("non_intrusive_interface_spec_path").is_some());
+    assert!(manifest
+        .get("non_intrusive_architecture_png_path")
+        .is_some());
+    assert!(manifest
+        .get("non_intrusive_architecture_svg_path")
+        .is_some());
+
+    let feature_to_motif: Value = serde_json::from_str(
+        &fs::read_to_string(artifacts.run_dir.join("feature_to_motif.json")).unwrap(),
+    )
+    .unwrap();
+    let first_mapping = feature_to_motif
+        .as_array()
+        .and_then(|rows| rows.first())
+        .expect("feature_to_motif.json should contain at least one row");
+    assert!(first_mapping.get("feature_name").is_some());
+    assert!(first_mapping.get("initial_role").is_some());
+    assert!(first_mapping.get("motif_type").is_some());
 }
 
 #[test]
@@ -687,6 +729,7 @@ fn phm2018_benchmark_writes_expected_artifacts() {
         "phm2018_early_warning_stats.json",
         "phm2018_lead_time_metrics.csv",
         "phm2018_run_details.json",
+        "phm2018_structural_metrics.json",
         "phm2018_support_status.json",
         "run_bundle.zip",
     ] {
@@ -712,6 +755,16 @@ fn phm2018_benchmark_writes_expected_artifacts() {
     assert!(claim_alignment.get("phm2018_supports").is_some());
     assert!(claim_alignment.get("claims_not_made").is_some());
 
+    let structural_metrics: Value =
+        serde_json::from_str(&fs::read_to_string(&phm_artifacts.structural_metrics_path).unwrap())
+            .unwrap();
+    assert!(structural_metrics
+        .get("runs_with_structure_before_threshold")
+        .is_some());
+    assert!(structural_metrics
+        .get("percent_structure_before_threshold")
+        .is_some());
+
     let archive = fs::File::open(&phm_artifacts.zip_path).unwrap();
     let mut zip = ZipArchive::new(archive).unwrap();
     assert!(zip.by_name("artifact_manifest.json").is_ok());
@@ -719,6 +772,7 @@ fn phm2018_benchmark_writes_expected_artifacts() {
     assert!(zip.by_name("phm2018_early_warning_stats.json").is_ok());
     assert!(zip.by_name("phm2018_lead_time_metrics.csv").is_ok());
     assert!(zip.by_name("phm2018_run_details.json").is_ok());
+    assert!(zip.by_name("phm2018_structural_metrics.json").is_ok());
     assert!(zip.by_name("phm2018_support_status.json").is_ok());
 }
 

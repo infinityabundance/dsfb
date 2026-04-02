@@ -117,6 +117,8 @@ pub struct StructuralDeltaMetrics {
     pub motif_precision_pre_failure: Option<f64>,
     pub structural_separation: Option<f64>,
     pub precursor_stability: Option<f64>,
+    pub episode_precision: Option<f64>,
+    pub compression_ratio: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -540,7 +542,6 @@ pub fn build_semantic_layer(
         residuals,
         grammar,
         &semantic_matches,
-        nominal,
         &failure_window_mask,
     );
 
@@ -1978,7 +1979,6 @@ fn compute_structural_delta_metrics(
     residuals: &ResidualSet,
     grammar: &GrammarSet,
     semantic_matches: &[SemanticMatchRecord],
-    nominal: &NominalModel,
     failure_window_mask: &[bool],
 ) -> StructuralDeltaMetrics {
     let total_violation_points = grammar
@@ -2010,20 +2010,27 @@ fn compute_structural_delta_metrics(
         )
     };
 
-    let mut failure_separation = Vec::new();
-    let mut pass_separation = Vec::new();
-    for (trace, feature) in residuals.traces.iter().zip(&nominal.features) {
-        for (run_index, norm) in trace.norms.iter().copied().enumerate() {
-            let separation = norm / feature.rho.max(1.0e-12);
-            if failure_window_mask[run_index] {
-                failure_separation.push(separation);
-            } else {
-                pass_separation.push(separation);
-            }
-        }
-    }
-    let structural_separation = mean(&failure_separation)
-        .zip(mean(&pass_separation))
+    let failure_window_points = failure_window_mask.iter().filter(|flag| **flag).count();
+    let pass_window_points = failure_window_mask
+        .len()
+        .saturating_sub(failure_window_points);
+    let failure_semantic_hits = semantic_matches
+        .iter()
+        .filter(|row| failure_window_mask[row.run_index])
+        .count();
+    let pass_semantic_hits = semantic_matches
+        .iter()
+        .filter(|row| !failure_window_mask[row.run_index])
+        .count();
+    let failure_semantic_density = (failure_window_points > 0).then_some(
+        failure_semantic_hits as f64
+            / (failure_window_points * residuals.traces.len().max(1)) as f64,
+    );
+    let pass_semantic_density = (pass_window_points > 0).then_some(
+        pass_semantic_hits as f64 / (pass_window_points * residuals.traces.len().max(1)) as f64,
+    );
+    let structural_separation = failure_semantic_density
+        .zip(pass_semantic_density)
         .map(|(failure, pass)| failure - pass);
 
     let precursor_stability = if semantic_matches.is_empty() {
@@ -2066,6 +2073,8 @@ fn compute_structural_delta_metrics(
         motif_precision_pre_failure,
         structural_separation,
         precursor_stability,
+        episode_precision: None,
+        compression_ratio: None,
     }
 }
 

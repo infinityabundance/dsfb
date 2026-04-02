@@ -3,6 +3,9 @@ use crate::config::PipelineConfig;
 use crate::dataset::phm2018::support_status;
 use crate::error::{DsfbSemiconductorError, Result};
 use crate::grammar::evaluate_grammar;
+use crate::heuristics::{
+    expanded_semantic_policy_definitions, heuristic_policy_definition, HeuristicAlertClass,
+};
 use crate::nominal::build_nominal_model;
 use crate::output_paths::create_timestamped_run_dir;
 use crate::precursor::evaluate_dsa;
@@ -31,6 +34,7 @@ pub struct Phm2018RunArtifacts {
     pub run_dir: PathBuf,
     pub lead_time_metrics_path: PathBuf,
     pub early_warning_stats_path: PathBuf,
+    pub structural_metrics_path: PathBuf,
     pub claim_alignment_report_path: PathBuf,
     pub manifest_path: PathBuf,
     pub zip_path: PathBuf,
@@ -57,6 +61,18 @@ pub struct Phm2018EarlyWarningStats {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct Phm2018StructuralMetrics {
+    pub threshold_baseline: String,
+    pub total_runs: usize,
+    pub runs_with_structured_emergence: usize,
+    pub comparable_structure_runs: usize,
+    pub runs_with_structure_before_threshold: usize,
+    pub percent_structure_before_threshold: f64,
+    pub mean_structure_minus_threshold_delta: Option<f64>,
+    pub median_structure_minus_threshold_delta: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ClaimAlignmentReport {
     pub secom_supports: Vec<String>,
     pub secom_does_not_support: Vec<String>,
@@ -70,6 +86,7 @@ struct Phm2018ArtifactManifest {
     run_dir: String,
     lead_time_metrics_path: String,
     early_warning_stats_path: String,
+    structural_metrics_path: String,
     support_status_path: String,
     claim_alignment_report_path: String,
     zip_path: String,
@@ -84,9 +101,14 @@ pub struct Phm2018RunDetail {
     pub evaluation_start_run_index: usize,
     pub dsfb_detection_run_index: Option<usize>,
     pub threshold_detection_run_index: Option<usize>,
+    pub earliest_semantic_run_index: Option<usize>,
+    pub earliest_structured_run_index: Option<usize>,
     pub dsfb_detection_time: Option<i64>,
     pub threshold_detection_time: Option<i64>,
+    pub earliest_semantic_time: Option<i64>,
+    pub earliest_structured_time: Option<i64>,
     pub lead_time_delta: Option<i64>,
+    pub structure_minus_threshold_delta: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -149,7 +171,7 @@ pub fn run_phm2018_benchmark(
             &grammar,
             config.pre_failure_lookback_runs,
         );
-        let _semantic_layer = build_semantic_layer(
+        let semantic_layer = build_semantic_layer(
             &prepared,
             &residuals,
             &signs,
@@ -178,10 +200,46 @@ pub fn run_phm2018_benchmark(
             dsfb_detection_run_index.map(|run_index| run.timestamps_raw[run_index]);
         let threshold_detection_time =
             threshold_detection_run_index.map(|run_index| run.timestamps_raw[run_index]);
+        let earliest_semantic_run_index = semantic_layer
+            .ranked_candidates
+            .iter()
+            .filter(|row| {
+                row.run_index >= evaluation_start_run_index && row.run_index < run.fault_index
+            })
+            .filter(|row| {
+                !matches!(
+                    heuristic_alert_default(row.heuristic_name.as_str()),
+                    HeuristicAlertClass::Silent
+                )
+            })
+            .map(|row| row.run_index)
+            .min();
+        let earliest_structured_run_index = earliest_semantic_run_index.or_else(|| {
+            motifs
+                .traces
+                .iter()
+                .flat_map(|trace| trace.labels.iter().enumerate())
+                .filter(|(run_index, label)| {
+                    *run_index >= evaluation_start_run_index
+                        && *run_index < run.fault_index
+                        && !matches!(label, crate::semiotics::DsfbMotifClass::StableAdmissible)
+                })
+                .map(|(run_index, _)| run_index)
+                .min()
+        });
+        let earliest_semantic_time =
+            earliest_semantic_run_index.map(|run_index| run.timestamps_raw[run_index]);
+        let earliest_structured_time =
+            earliest_structured_run_index.map(|run_index| run.timestamps_raw[run_index]);
         let lead_time_delta = match (dsfb_detection_time, threshold_detection_time) {
             (Some(dsfb), Some(threshold)) => Some(threshold - dsfb),
             _ => None,
         };
+        let structure_minus_threshold_delta =
+            match (earliest_structured_time, threshold_detection_time) {
+                (Some(structure), Some(threshold)) => Some(threshold - structure),
+                _ => None,
+            };
 
         lead_time_rows.push(Phm2018LeadTimeRow {
             run_id: run.run_id.clone(),
@@ -197,25 +255,33 @@ pub fn run_phm2018_benchmark(
             evaluation_start_run_index,
             dsfb_detection_run_index,
             threshold_detection_run_index,
+            earliest_semantic_run_index,
+            earliest_structured_run_index,
             dsfb_detection_time,
             threshold_detection_time,
+            earliest_semantic_time,
+            earliest_structured_time,
             lead_time_delta,
+            structure_minus_threshold_delta,
         });
     }
 
     let early_warning_stats = summarize_phm_lead_times(&lead_time_rows);
+    let structural_metrics = summarize_phm_structural_metrics(&run_details);
     let secom_run_dir = resolve_secom_run_dir(secom_run_dir, output_root)?;
     let claim_alignment_report =
-        build_claim_alignment_report(&secom_run_dir, &early_warning_stats)?;
+        build_claim_alignment_report(&secom_run_dir, &early_warning_stats, &structural_metrics)?;
 
     let lead_time_metrics_path = run_dir.join("phm2018_lead_time_metrics.csv");
     let early_warning_stats_path = run_dir.join("phm2018_early_warning_stats.json");
+    let structural_metrics_path = run_dir.join("phm2018_structural_metrics.json");
     let claim_alignment_report_path = run_dir.join("claim_alignment_report.json");
     let manifest_path = run_dir.join("artifact_manifest.json");
     let zip_path = run_dir.join("run_bundle.zip");
 
     write_serialized_csv(&lead_time_metrics_path, &lead_time_rows)?;
     write_json_pretty(&early_warning_stats_path, &early_warning_stats)?;
+    write_json_pretty(&structural_metrics_path, &structural_metrics)?;
     write_json_pretty(&run_dir.join("phm2018_support_status.json"), &status)?;
     write_json_pretty(&run_dir.join("phm2018_run_details.json"), &run_details)?;
     write_json_pretty(&claim_alignment_report_path, &claim_alignment_report)?;
@@ -226,6 +292,7 @@ pub fn run_phm2018_benchmark(
             run_dir: run_dir.display().to_string(),
             lead_time_metrics_path: lead_time_metrics_path.display().to_string(),
             early_warning_stats_path: early_warning_stats_path.display().to_string(),
+            structural_metrics_path: structural_metrics_path.display().to_string(),
             support_status_path: run_dir
                 .join("phm2018_support_status.json")
                 .display()
@@ -240,6 +307,7 @@ pub fn run_phm2018_benchmark(
         run_dir,
         lead_time_metrics_path,
         early_warning_stats_path,
+        structural_metrics_path,
         claim_alignment_report_path,
         manifest_path,
         zip_path,
@@ -685,9 +753,57 @@ fn summarize_phm_lead_times(rows: &[Phm2018LeadTimeRow]) -> Phm2018EarlyWarningS
     }
 }
 
+fn summarize_phm_structural_metrics(run_details: &[Phm2018RunDetail]) -> Phm2018StructuralMetrics {
+    let comparable = run_details
+        .iter()
+        .filter_map(|detail| {
+            detail
+                .structure_minus_threshold_delta
+                .map(|value| value as f64)
+        })
+        .collect::<Vec<_>>();
+    let runs_with_structured_emergence = run_details
+        .iter()
+        .filter(|detail| detail.earliest_structured_run_index.is_some())
+        .count();
+    let runs_with_structure_before_threshold = run_details
+        .iter()
+        .filter(|detail| {
+            detail
+                .structure_minus_threshold_delta
+                .is_some_and(|value| value > 0)
+        })
+        .count();
+    let mut sorted = comparable.clone();
+    sorted.sort_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
+    let median = if sorted.is_empty() {
+        None
+    } else if sorted.len() % 2 == 1 {
+        Some(sorted[sorted.len() / 2])
+    } else {
+        Some((sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0)
+    };
+
+    Phm2018StructuralMetrics {
+        threshold_baseline: PHM_THRESHOLD_BASELINE.into(),
+        total_runs: run_details.len(),
+        runs_with_structured_emergence,
+        comparable_structure_runs: comparable.len(),
+        runs_with_structure_before_threshold,
+        percent_structure_before_threshold: percent(
+            runs_with_structure_before_threshold,
+            run_details.len(),
+        ),
+        mean_structure_minus_threshold_delta: (!comparable.is_empty())
+            .then_some(comparable.iter().sum::<f64>() / comparable.len() as f64),
+        median_structure_minus_threshold_delta: median,
+    }
+}
+
 fn build_claim_alignment_report(
     secom_run_dir: &Path,
     phm_stats: &Phm2018EarlyWarningStats,
+    phm_structural: &Phm2018StructuralMetrics,
 ) -> Result<ClaimAlignmentReport> {
     let secom_targets =
         load_json::<serde_json::Value>(&secom_run_dir.join("dsa_operator_delta_targets.json"))?;
@@ -754,6 +870,14 @@ fn build_claim_alignment_report(
             ));
         }
     }
+    if let Some(mean_structure_delta) = phm_structural.mean_structure_minus_threshold_delta {
+        phm_supports.push(format!(
+            "structure-emergence comparison: mean {}-minus-structure-emergence gap {:.2}, with structure preceding threshold on {:.1}% of runs",
+            PHM_THRESHOLD_BASELINE,
+            mean_structure_delta,
+            phm_structural.percent_structure_before_threshold * 100.0,
+        ));
+    }
 
     Ok(ClaimAlignmentReport {
         secom_supports: vec![
@@ -782,6 +906,18 @@ fn build_claim_alignment_report(
             "PHM burden reduction without direct PHM burden metrics".into(),
         ],
     })
+}
+
+fn heuristic_alert_default(heuristic_name: &str) -> HeuristicAlertClass {
+    heuristic_policy_definition(heuristic_name)
+        .map(|definition| definition.alert_class_default)
+        .or_else(|| {
+            expanded_semantic_policy_definitions()
+                .into_iter()
+                .find(|definition| definition.motif_name == heuristic_name)
+                .map(|definition| definition.alert_class_default)
+        })
+        .unwrap_or(HeuristicAlertClass::Silent)
 }
 
 fn resolve_secom_run_dir(secom_run_dir: Option<&Path>, output_root: &Path) -> Result<PathBuf> {

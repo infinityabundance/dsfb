@@ -10,6 +10,7 @@ pub mod grammar;
 pub mod heuristics;
 pub mod metrics;
 pub mod nominal;
+pub mod non_intrusive;
 pub mod output_paths;
 pub mod phm2018_loader;
 pub mod pipeline;
