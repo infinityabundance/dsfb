@@ -15,6 +15,7 @@ use crate::config::{PipelineConfig, RunConfiguration};
 use crate::dataset::phm2018::{support_status as phm_support_status, Phm2018SupportStatus};
 use crate::dataset::secom::{self, SecomArchiveLayout};
 use crate::error::{DsfbSemiconductorError, Result};
+use crate::failure_driven::build_failure_driven_artifacts;
 use crate::grammar::evaluate_grammar;
 use crate::heuristics::build_heuristics_bank;
 use crate::metrics::{
@@ -118,6 +119,13 @@ struct ArtifactManifest {
     dsa_operator_delta_attainment_matrix_path: String,
     dsa_policy_operator_burden_contributions_path: String,
     dsa_recall_recovery_efficiency_path: String,
+    failures_index_path: String,
+    failure_case_paths: Vec<String>,
+    feature_motif_grounding_path: String,
+    dsfb_heuristics_bank_minimal_path: String,
+    policy_decisions_path: String,
+    policy_burden_summary_path: String,
+    dsfb_vs_ewma_case_paths: Vec<String>,
     dsa_stage1_candidates_path: String,
     dsa_stage2_candidates_path: String,
     dsa_feature_ranking_burden_aware_path: String,
@@ -285,6 +293,22 @@ pub fn run_secom_benchmark(
         compute_rating_delta_forecast(&dsa, &metrics, Some(&cohort_summary));
     let rating_delta_failure_analysis =
         compute_rating_failure_analysis(&dsa, &metrics, Some(&cohort_summary));
+    let failure_driven = build_failure_driven_artifacts(
+        &prepared,
+        &residuals,
+        &signs,
+        &baselines,
+        &grammar,
+        &motifs,
+        &semantic_layer,
+        &scaffold_semiotics,
+        &metrics,
+        &optimization.baseline_execution.selected_evaluation,
+        &dsa,
+        &optimization.missed_failure_diagnostics,
+        &optimization.policy_operator_burden_contributions,
+        config.pre_failure_lookback_runs,
+    );
 
     let output_root = output_root
         .map(Path::to_path_buf)
@@ -454,6 +478,31 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsa_recall_recovery_efficiency.csv"),
         &optimization.recall_recovery_efficiency,
     )?;
+    write_json_pretty(&run_dir.join("failures_index.json"), &failure_driven.failures_index)?;
+    for failure_case in &failure_driven.failure_cases {
+        write_json_pretty(
+            &run_dir.join(format!("failure_case_{}.json", failure_case.failure_id)),
+            failure_case,
+        )?;
+    }
+    write_json_pretty(
+        &run_dir.join("feature_motif_grounding.json"),
+        &failure_driven.feature_motif_grounding,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsfb_heuristics_bank_minimal.json"),
+        &failure_driven.minimal_heuristics_bank,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("policy_burden_summary.csv"),
+        &failure_driven.policy_burden_summary,
+    )?;
+    for case in &failure_driven.dsfb_vs_ewma_cases {
+        write_json_pretty(
+            &run_dir.join(format!("dsfb_vs_ewma_case_{}.json", case.failure_id)),
+            case,
+        )?;
+    }
     write_cohort_results_csv(
         &run_dir.join("dsa_stage1_candidates.csv"),
         &optimization.stage1_candidates,
@@ -520,6 +569,10 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsfb_feature_motif_timeline.csv"),
         &scaffold_semiotics.feature_motif_timeline,
     )?;
+    write_serialized_csv(
+        &run_dir.join("feature_motif_timeline.csv"),
+        &scaffold_semiotics.feature_motif_timeline,
+    )?;
     write_dsfb_grammar_states_csv(
         &run_dir.join("dsfb_grammar_states.csv"),
         &prepared,
@@ -547,6 +600,10 @@ pub fn run_secom_benchmark(
     )?;
     write_serialized_csv(
         &run_dir.join("dsfb_feature_policy_decisions.csv"),
+        &scaffold_semiotics.feature_policy_decisions,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("policy_decisions.csv"),
         &scaffold_semiotics.feature_policy_decisions,
     )?;
     write_json_pretty(
@@ -580,6 +637,7 @@ pub fn run_secom_benchmark(
         &dsa,
         &optimization,
         &optimization.delta_target_assessment,
+        &failure_driven,
         &feature_cohorts,
         &cohort_summary,
         &rating_delta_forecast,
@@ -705,6 +763,40 @@ pub fn run_secom_benchmark(
                 .join("dsa_recall_recovery_efficiency.csv")
                 .display()
                 .to_string(),
+            failures_index_path: run_dir.join("failures_index.json").display().to_string(),
+            failure_case_paths: failure_driven
+                .failure_cases
+                .iter()
+                .map(|case| {
+                    run_dir
+                        .join(format!("failure_case_{}.json", case.failure_id))
+                        .display()
+                        .to_string()
+                })
+                .collect(),
+            feature_motif_grounding_path: run_dir
+                .join("feature_motif_grounding.json")
+                .display()
+                .to_string(),
+            dsfb_heuristics_bank_minimal_path: run_dir
+                .join("dsfb_heuristics_bank_minimal.json")
+                .display()
+                .to_string(),
+            policy_decisions_path: run_dir.join("policy_decisions.csv").display().to_string(),
+            policy_burden_summary_path: run_dir
+                .join("policy_burden_summary.csv")
+                .display()
+                .to_string(),
+            dsfb_vs_ewma_case_paths: failure_driven
+                .dsfb_vs_ewma_cases
+                .iter()
+                .map(|case| {
+                    run_dir
+                        .join(format!("dsfb_vs_ewma_case_{}.json", case.failure_id))
+                        .display()
+                        .to_string()
+                })
+                .collect(),
             dsa_cohort_results_path: run_dir.join("dsa_cohort_results.csv").display().to_string(),
             dsa_cohort_results_recall_aware_path: run_dir
                 .join("dsa_cohort_results_recall_aware.csv")

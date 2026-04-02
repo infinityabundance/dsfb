@@ -6,6 +6,7 @@ use crate::config::PipelineConfig;
 use crate::dataset::phm2018::Phm2018SupportStatus;
 use crate::dataset::secom::SecomArchiveLayout;
 use crate::error::Result;
+use crate::failure_driven::FailureDrivenArtifacts;
 use crate::heuristics::HeuristicEntry;
 use crate::metrics::{BenchmarkMetrics, MotifMetric};
 use crate::plots::FigureManifest;
@@ -36,6 +37,7 @@ pub fn write_reports(
     dsa: &DsaEvaluation,
     optimization: &OptimizationExecution,
     delta_target_assessment: &DeltaTargetAssessment,
+    failure_driven: &FailureDrivenArtifacts,
     feature_cohorts: &FeatureCohorts,
     cohort_summary: &CohortDsaSummary,
     rating_delta_forecast: &RatingDeltaForecast,
@@ -54,6 +56,7 @@ pub fn write_reports(
             dsa,
             optimization,
             delta_target_assessment,
+            failure_driven,
             feature_cohorts,
             cohort_summary,
             rating_delta_forecast,
@@ -71,6 +74,7 @@ pub fn write_reports(
             dsa,
             optimization,
             delta_target_assessment,
+            failure_driven,
             feature_cohorts,
             cohort_summary,
             rating_delta_forecast,
@@ -97,6 +101,7 @@ fn markdown_report(
     dsa: &DsaEvaluation,
     optimization: &OptimizationExecution,
     delta_target_assessment: &DeltaTargetAssessment,
+    failure_driven: &FailureDrivenArtifacts,
     feature_cohorts: &FeatureCohorts,
     cohort_summary: &CohortDsaSummary,
     rating_delta_forecast: &RatingDeltaForecast,
@@ -363,6 +368,10 @@ fn markdown_report(
     out.push_str(&semantics_of_silence_markdown_section(metrics, dsa));
     out.push_str(&true_dsfb_structural_semiotics_markdown_section());
     out.push_str(&grouped_coordinated_semiotics_markdown_section());
+    out.push_str(&missed_failure_analysis_markdown_section(failure_driven));
+    out.push_str(&feature_motif_grounding_markdown_section(failure_driven));
+    out.push_str(&minimal_heuristics_markdown_section(failure_driven));
+    out.push_str(&dsfb_vs_ewma_markdown_section(failure_driven));
     out.push_str(&which_delta_matters_markdown_section(optimization));
     out.push_str(&predeclared_operator_delta_targets_markdown_section(optimization));
     out.push_str(&operator_optimization_frontier_markdown_section(optimization));
@@ -483,6 +492,7 @@ fn latex_report(
     dsa: &DsaEvaluation,
     optimization: &OptimizationExecution,
     delta_target_assessment: &DeltaTargetAssessment,
+    failure_driven: &FailureDrivenArtifacts,
     feature_cohorts: &FeatureCohorts,
     cohort_summary: &CohortDsaSummary,
     rating_delta_forecast: &RatingDeltaForecast,
@@ -643,6 +653,10 @@ fn latex_report(
     out.push_str(&semantics_of_silence_latex_section(metrics, dsa));
     out.push_str(&true_dsfb_structural_semiotics_latex_section());
     out.push_str(&grouped_coordinated_semiotics_latex_section());
+    out.push_str(&missed_failure_analysis_latex_section(failure_driven));
+    out.push_str(&feature_motif_grounding_latex_section(failure_driven));
+    out.push_str(&minimal_heuristics_latex_section(failure_driven));
+    out.push_str(&dsfb_vs_ewma_latex_section(failure_driven));
     out.push_str(&operator_sections_latex(optimization));
     out.push_str(&optimization_sections_latex(
         optimization,
@@ -972,11 +986,92 @@ fn true_dsfb_structural_semiotics_markdown_section() -> String {
 fn grouped_coordinated_semiotics_markdown_section() -> String {
     let mut out = String::new();
     out.push_str("## Grouped / Coordinated Semiotics\n\n");
-    out.push_str("The SECOM scaffold also includes an explicit grouped-semiotics pass, logged in `dsfb_group_definitions.json`, `dsfb_group_signs.csv`, `dsfb_group_grammar_states.csv`, and `dsfb_group_semantic_matches.csv`.\n\n");
-    out.push_str("- Group A: `S059`, `S133`\n");
-    out.push_str("- Group B: `S123`, `S540`, `S128`\n");
-    out.push_str("- Group C: `S104`\n\n");
-    out.push_str("These groups are used only as coordinated structural support. They do not assert unique physical causality or replace the feature-level grammar and semantic layers.\n\n");
+    out.push_str("Candidate grouped-semiotics structures are logged in `dsfb_group_definitions.json`, with grouped signs, grammar states, and semantic matches emitted only for groups that survive strict validation.\n\n");
+    out.push_str("- Candidate Group A: `S059`, `S133`\n");
+    out.push_str("- Candidate Group B: `S123`, `S540`, `S128`\n");
+    out.push_str("- Candidate Group C: `S104`\n\n");
+    out.push_str("A group is accepted only when feature co-activation is visible in failure windows and absent in pass runs; otherwise grouped semiotics is explicitly rejected rather than assumed.\n\n");
+    out
+}
+
+fn missed_failure_analysis_markdown_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("## Missed Failure Analysis\n\n");
+    out.push_str(&format!(
+        "- Baseline missed failures indexed: {}\n",
+        failure_driven.failures_index.missed_failure_ids.len()
+    ));
+    for case in &failure_driven.failure_cases {
+        out.push_str(&format!(
+            "- Failure {}: stage=`{}`, exact_miss_rule=`{}`, optimized_detected=`{}`, artifact=`failure_case_{}.json`\n",
+            case.failure_id,
+            case.failure_stage,
+            case.exact_miss_rule,
+            case.optimized_detected_by_dsa,
+            case.failure_id,
+        ));
+    }
+    out.push('\n');
+    out
+}
+
+fn feature_motif_grounding_markdown_section(
+    failure_driven: &FailureDrivenArtifacts,
+) -> String {
+    let mut out = String::new();
+    out.push_str("## Feature -> Motif Grounding\n\n");
+    for row in failure_driven.feature_motif_grounding.iter().take(10) {
+        out.push_str(&format!(
+            "- {}: motif=`{}`, dominant_dsfb_motif=`{}`, failure_semantic_hits={}, pass_semantic_hits={}\n",
+            row.feature_name,
+            row.motif_type,
+            row.dominant_dsfb_motif,
+            row.failure_window_semantic_hits,
+            row.pass_run_semantic_hits,
+        ));
+    }
+    out.push('\n');
+    out
+}
+
+fn minimal_heuristics_markdown_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("## Heuristics With Justification\n\n");
+    out.push_str(&format!(
+        "- Minimal heuristic count: {}\n",
+        failure_driven.minimal_heuristics_bank.len()
+    ));
+    for row in &failure_driven.minimal_heuristics_bank {
+        out.push_str(&format!(
+            "- {}: target=`{}` / `{}`, status=`{}`, action={}\n",
+            row.heuristic_id,
+            row.target_problem_type,
+            row.target_identifier,
+            row.status,
+            row.policy_action,
+        ));
+    }
+    out.push('\n');
+    out
+}
+
+fn dsfb_vs_ewma_markdown_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("## DSFB vs EWMA Separation\n\n");
+    if failure_driven.dsfb_vs_ewma_cases.is_empty() {
+        out.push_str("- No recovered failure produced a DSFB-vs-EWMA case artifact in this run.\n\n");
+        return out;
+    }
+    for case in &failure_driven.dsfb_vs_ewma_cases {
+        out.push_str(&format!(
+            "- Failure {} recovered on feature `{}`; artifact=`dsfb_vs_ewma_case_{}.json`; EWMA_detected=`{}`.\n",
+            case.failure_id,
+            case.recovered_feature_name,
+            case.failure_id,
+            case.ewma_detected,
+        ));
+    }
+    out.push('\n');
     out
 }
 
@@ -1418,8 +1513,58 @@ fn grouped_coordinated_semiotics_latex_section() -> String {
     let mut out = String::new();
     out.push_str("\\section*{Grouped / Coordinated Semiotics}\n");
     out.push_str(&latex_escape(
-        "This pass also includes grouped semiotics for Group A {S059, S133}, Group B {S123, S540, S128}, and Group C {S104}. Group definitions, grouped signs, grouped grammar states, and grouped semantic matches are exported in dsfb_group_definitions.json, dsfb_group_signs.csv, dsfb_group_grammar_states.csv, and dsfb_group_semantic_matches.csv. These grouped structures provide corroborative structural support only and do not assert unique causal meaning.",
+        "Candidate grouped semiotics is logged in dsfb_group_definitions.json, and grouped signs, grouped grammar states, and grouped semantic matches are exported only for groups that survive strict failure-vs-pass validation. Grouped structure is therefore tested rather than assumed and does not assert unique causal meaning.",
     ));
+    out.push_str("\n\n");
+    out
+}
+
+fn missed_failure_analysis_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Missed Failure Analysis}\n");
+    out.push_str(&latex_escape(&format!(
+        "Baseline missed failures indexed: {}. Failure-case artifacts were written as failure_case_<id>.json for each baseline miss.",
+        failure_driven.failures_index.missed_failure_ids.len()
+    )));
+    out.push_str("\n\n");
+    out
+}
+
+fn feature_motif_grounding_latex_section(
+    failure_driven: &FailureDrivenArtifacts,
+) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Feature to Motif Grounding}\n");
+    if let Some(row) = failure_driven.feature_motif_grounding.first() {
+        out.push_str(&latex_escape(&format!(
+            "Grounding artifacts were written to feature_motif_grounding.json. Example: {} grounded as {} with dominant DSFB motif {}.",
+            row.feature_name, row.motif_type, row.dominant_dsfb_motif
+        )));
+    } else {
+        out.push_str("No feature-to-motif grounding rows were produced.");
+    }
+    out.push_str("\n\n");
+    out
+}
+
+fn minimal_heuristics_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Heuristics With Justification}\n");
+    out.push_str(&latex_escape(&format!(
+        "Failure-driven minimal heuristics bank size: {}. The bank is written to dsfb_heuristics_bank_minimal.json and each entry targets one missed failure or one nuisance class.",
+        failure_driven.minimal_heuristics_bank.len()
+    )));
+    out.push_str("\n\n");
+    out
+}
+
+fn dsfb_vs_ewma_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{DSFB vs EWMA Separation}\n");
+    out.push_str(&latex_escape(&format!(
+        "Recovered DSFB-vs-EWMA case files produced: {}.",
+        failure_driven.dsfb_vs_ewma_cases.len()
+    )));
     out.push_str("\n\n");
     out
 }
