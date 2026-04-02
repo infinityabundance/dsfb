@@ -23,6 +23,8 @@ const RANKING_FORMULA: &str =
     "candidate_score = z(dsfb_raw_boundary_points) - z(dsfb_raw_violation_points) + z(ewma_alarm_points) - I(missing_fraction > 0.50) * 2.0";
 const RECALL_AWARE_RANKING_FORMULA: &str =
     "candidate_score_recall = z(pre_failure_run_hits) + z(motif_precision_proxy) + z(ewma_alarm_points) + 0.5 * z(dsfb_raw_boundary_points) + 0.5 * z(recall_rescue_contribution) - 0.5 * z(dsfb_raw_violation_points) - I(missing_fraction > 0.50) * 2.0";
+const BURDEN_AWARE_RANKING_FORMULA: &str =
+    "candidate_score_burden = z(pre_failure_run_hits) + z(motif_precision_proxy) + 0.5 * z(dsfb_raw_boundary_points) + 0.5 * z(recall_rescue_contribution) - z(operator_burden_contribution) - 0.5 * z(dsfb_raw_violation_points) - I(missing_fraction > 0.50) * 2.0";
 const MISSINGNESS_PENALTY_THRESHOLD: f64 = 0.50;
 const MISSINGNESS_PENALTY_VALUE: f64 = 2.0;
 const RECALL_TOLERANCE: usize = 1;
@@ -41,6 +43,7 @@ const OPTIMIZATION_RESCUE_WINDOW: usize = 5;
 const OPTIMIZATION_RESCUE_MIN_HITS: usize = 4;
 const OPTIMIZATION_RESCUE_FRAGMENTATION: f64 = 0.5;
 const OPTIMIZATION_OVERRIDE_MAX_MISSINGNESS: f64 = 0.05;
+const OPERATOR_DELTA_THRESHOLD: f64 = 0.40;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FeatureRankingRow {
@@ -57,10 +60,12 @@ pub struct FeatureRankingRow {
     pub pre_failure_run_hits: usize,
     pub motif_precision_proxy: Option<f64>,
     pub recall_rescue_contribution: Option<f64>,
+    pub operator_burden_contribution: Option<f64>,
     pub missing_fraction: f64,
     pub z_pre_failure_run_hits: Option<f64>,
     pub z_motif_precision_proxy: Option<f64>,
     pub z_recall_rescue_contribution: Option<f64>,
+    pub z_operator_burden_contribution: Option<f64>,
     pub z_boundary: f64,
     pub z_violation: f64,
     pub z_ewma: f64,
@@ -76,9 +81,12 @@ pub struct FeatureRankingComparisonRow {
     pub feature_name: String,
     pub compression_rank: Option<usize>,
     pub recall_aware_rank: Option<usize>,
+    pub burden_aware_rank: Option<usize>,
     pub compression_score: Option<f64>,
     pub recall_aware_score: Option<f64>,
+    pub burden_aware_score: Option<f64>,
     pub rank_delta_recall_minus_compression: Option<i64>,
+    pub rank_delta_burden_minus_compression: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -176,10 +184,16 @@ pub struct CohortGridResult {
     pub watch_point_count: usize,
     pub review_point_count: usize,
     pub escalate_point_count: usize,
+    pub investigation_point_count: usize,
+    pub numeric_investigation_point_count: usize,
     pub silenced_point_count: usize,
     pub rescued_point_count: usize,
     pub rescued_watch_to_review_points: usize,
     pub rescued_review_to_escalate_points: usize,
+    pub review_escalate_points_per_pass_run: f64,
+    pub numeric_alert_points_per_pass_run: f64,
+    pub review_escalate_episodes_per_pass_run: f64,
+    pub numeric_alert_episodes_per_pass_run: f64,
     pub primary_success: bool,
     pub primary_success_reason: String,
 }
@@ -376,19 +390,29 @@ pub struct OptimizationExecution {
     pub baseline_feature_cohorts: FeatureCohorts,
     pub baseline_execution: CohortExecution,
     pub recall_aware_feature_ranking: Vec<FeatureRankingRow>,
+    pub burden_aware_feature_ranking: Vec<FeatureRankingRow>,
     pub ranking_comparison: Vec<FeatureRankingComparisonRow>,
     pub recall_aware_feature_cohorts: FeatureCohorts,
+    pub burden_aware_feature_cohorts: FeatureCohorts,
     pub feature_policy_overrides: Vec<FeaturePolicyOverride>,
     pub feature_policy_summary: Vec<FeaturePolicySummaryRow>,
     pub optimized_execution: CohortExecution,
     pub recall_aware_execution: CohortExecution,
+    pub burden_aware_execution: CohortExecution,
     pub pareto_frontier: Vec<CohortGridResult>,
     pub stage_a_candidates: Vec<CohortGridResult>,
     pub stage_b_candidates: Vec<CohortGridResult>,
+    pub stage1_candidates: Vec<CohortGridResult>,
+    pub stage2_candidates: Vec<CohortGridResult>,
     pub recall_rescue_results: Vec<RecallRescueResultRow>,
     pub missed_failure_diagnostics: Vec<MissedFailureDiagnosticRow>,
     pub recall_critical_features: Vec<RecallCriticalFeatureRow>,
     pub policy_contribution_analysis: Vec<PolicyContributionAnalysisRow>,
+    pub operator_baselines: OperatorBaselines,
+    pub operator_delta_targets: OperatorDeltaTargets,
+    pub operator_delta_attainment_matrix: Vec<OperatorDeltaAttainmentRow>,
+    pub policy_operator_burden_contributions: Vec<OperatorBurdenContributionRow>,
+    pub recall_recovery_efficiency: Vec<RecallRecoveryEfficiencyRow>,
     pub delta_target_assessment: DeltaTargetAssessment,
 }
 
@@ -433,6 +457,116 @@ pub struct DeltaTargetAssessment {
     pub best_stage_a_delta_candidate: Option<DeltaCandidateSummary>,
     pub best_reachable_pareto_point: DeltaCandidateSummary,
     pub assessment_note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OperatorBaselineLayer {
+    pub name: String,
+    pub investigation_points: usize,
+    pub episode_count: usize,
+    pub review_escalate_points_per_pass_run: f64,
+    pub review_escalate_episodes_per_pass_run: f64,
+    pub precursor_quality: Option<f64>,
+    pub recall: usize,
+    pub pass_run_nuisance_proxy: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OperatorBaselines {
+    pub investigation_baseline_layer: String,
+    pub episode_baseline_layer: String,
+    pub review_burden_baseline_layer: String,
+    pub baseline_investigation_points: usize,
+    pub baseline_episode_count: usize,
+    pub baseline_review_escalate_points_per_pass_run: f64,
+    pub baseline_review_escalate_episodes_per_pass_run: f64,
+    pub baseline_precursor_quality: Option<f64>,
+    pub baseline_recall: usize,
+    pub numeric_only_dsa: OperatorBaselineLayer,
+    pub current_policy_dsa: OperatorBaselineLayer,
+    pub raw_boundary: OperatorBaselineLayer,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OperatorDeltaTargets {
+    pub primary_success_definition: String,
+    pub recall_tolerance_runs: usize,
+    pub selected_configuration: DeltaCandidateSummary,
+    pub baseline_investigation_points: usize,
+    pub baseline_episode_count: usize,
+    pub baseline_review_points_per_pass_run: f64,
+    pub baseline_review_episodes_per_pass_run: f64,
+    pub optimized_review_escalate_points: usize,
+    pub optimized_episode_count: usize,
+    pub optimized_review_points_per_pass_run: f64,
+    pub optimized_review_episodes_per_pass_run: f64,
+    pub delta_investigation_load: f64,
+    pub delta_episode_count: f64,
+    pub delta_review_points_per_pass_run: f64,
+    pub delta_review_episodes_per_pass_run: f64,
+    pub precursor_quality_status: String,
+    pub recall_equals_threshold: bool,
+    pub recall_within_tolerance: bool,
+    pub recall_ge_103: bool,
+    pub recall_eq_104: bool,
+    pub delta_nuisance_vs_ewma: f64,
+    pub delta_nuisance_vs_threshold: f64,
+    pub mean_lead_delta_vs_ewma: Option<f64>,
+    pub mean_lead_delta_vs_threshold: Option<f64>,
+    pub median_lead_delta_vs_ewma: Option<f64>,
+    pub median_lead_delta_vs_threshold: Option<f64>,
+    pub stable_precursor_lead_time_delta: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OperatorDeltaAttainmentRow {
+    pub configuration_role: String,
+    pub configuration: String,
+    pub delta_investigation_load: f64,
+    pub delta_episode_count: f64,
+    pub delta_review_points_per_pass_run: f64,
+    pub delta_review_episodes_per_pass_run: f64,
+    pub precursor_quality_status: String,
+    pub recall: usize,
+    pub mean_lead_time_runs: Option<f64>,
+    pub delta_nuisance_vs_ewma: f64,
+    pub target_a_investigation_load_ge_040: bool,
+    pub target_b_episode_count_ge_040: bool,
+    pub target_c_review_points_per_pass_run_ge_040: bool,
+    pub target_d_review_episodes_per_pass_run_ge_040: bool,
+    pub target_e_precursor_quality_preserved_or_improved: bool,
+    pub target_f_recall_ge_103: bool,
+    pub target_g_recall_eq_104: bool,
+    pub target_h_nuisance_ge_015: bool,
+    pub target_h_nuisance_ge_025: bool,
+    pub target_h_nuisance_ge_040: bool,
+    pub target_i_stable_precursor_lead_improved: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OperatorBurdenContributionRow {
+    pub configuration_role: String,
+    pub contribution_scope: String,
+    pub name: String,
+    pub contribution_type: String,
+    pub value: f64,
+    pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RecallRecoveryEfficiencyRow {
+    pub baseline_configuration: String,
+    pub optimized_configuration: String,
+    pub recovered_failures: i64,
+    pub added_review_escalate_points: i64,
+    pub added_episode_count: i64,
+    pub added_review_points_per_pass_run: f64,
+    pub added_review_episodes_per_pass_run: f64,
+    pub added_nuisance_runs: i64,
+    pub recovered_failures_per_added_review_escalate_point: Option<f64>,
+    pub recovered_failures_per_added_episode: Option<f64>,
+    pub recovered_failures_per_added_pass_run_burden: Option<f64>,
+    pub recovered_failures_per_added_nuisance_run: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -557,10 +691,12 @@ pub fn compute_feature_ranking(metrics: &BenchmarkMetrics) -> Vec<FeatureRanking
                 pre_failure_run_hits: feature.pre_failure_run_hits,
                 motif_precision_proxy: feature.motif_precision_proxy,
                 recall_rescue_contribution: None,
+                operator_burden_contribution: None,
                 missing_fraction: feature.missing_fraction,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
+                z_operator_burden_contribution: None,
                 z_boundary,
                 z_violation,
                 z_ewma,
@@ -700,10 +836,12 @@ pub fn compute_feature_ranking_recall_aware(
                 pre_failure_run_hits: feature.pre_failure_run_hits,
                 motif_precision_proxy: feature.motif_precision_proxy,
                 recall_rescue_contribution: Some(recall_rescue_contribution),
+                operator_burden_contribution: None,
                 missing_fraction: feature.missing_fraction,
                 z_pre_failure_run_hits: Some(z_pre_failure_run_hits),
                 z_motif_precision_proxy: Some(z_motif_precision_proxy),
                 z_recall_rescue_contribution: Some(z_recall_rescue_contribution),
+                z_operator_burden_contribution: None,
                 z_boundary,
                 z_violation,
                 z_ewma,
@@ -716,6 +854,171 @@ pub fn compute_feature_ranking_recall_aware(
                     z_ewma,
                     z_boundary,
                     z_recall_rescue_contribution,
+                    z_violation,
+                    missingness_penalty
+                ),
+                rank: 0,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    ranking.sort_by(|left, right| {
+        right
+            .candidate_score
+            .partial_cmp(&left.candidate_score)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| left.feature_name.cmp(&right.feature_name))
+    });
+
+    for (index, row) in ranking.iter_mut().enumerate() {
+        row.rank = index + 1;
+    }
+
+    ranking
+}
+
+pub fn compute_feature_ranking_burden_aware(
+    metrics: &BenchmarkMetrics,
+    recall_rescue_contributions: &BTreeMap<usize, f64>,
+    operator_burden_contributions: &BTreeMap<usize, f64>,
+) -> Vec<FeatureRankingRow> {
+    let analyzable = metrics
+        .feature_metrics
+        .iter()
+        .filter(|feature| feature.analyzable)
+        .collect::<Vec<_>>();
+    if analyzable.is_empty() {
+        return Vec::new();
+    }
+
+    let pre_failure_values = analyzable
+        .iter()
+        .map(|feature| feature.pre_failure_run_hits as f64)
+        .collect::<Vec<_>>();
+    let motif_precision_values = analyzable
+        .iter()
+        .map(|feature| feature.motif_precision_proxy.unwrap_or(0.0))
+        .collect::<Vec<_>>();
+    let boundary_values = analyzable
+        .iter()
+        .map(|feature| feature.dsfb_raw_boundary_points as f64)
+        .collect::<Vec<_>>();
+    let violation_values = analyzable
+        .iter()
+        .map(|feature| feature.dsfb_raw_violation_points as f64)
+        .collect::<Vec<_>>();
+    let recall_rescue_values = analyzable
+        .iter()
+        .map(|feature| {
+            recall_rescue_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0)
+        })
+        .collect::<Vec<_>>();
+    let operator_burden_values = analyzable
+        .iter()
+        .map(|feature| {
+            operator_burden_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0)
+        })
+        .collect::<Vec<_>>();
+
+    let (pre_failure_mean, pre_failure_std) = mean_std(&pre_failure_values);
+    let (motif_precision_mean, motif_precision_std) = mean_std(&motif_precision_values);
+    let (boundary_mean, boundary_std) = mean_std(&boundary_values);
+    let (violation_mean, violation_std) = mean_std(&violation_values);
+    let (recall_rescue_mean, recall_rescue_std) = mean_std(&recall_rescue_values);
+    let (operator_burden_mean, operator_burden_std) = mean_std(&operator_burden_values);
+
+    let mut ranking = analyzable
+        .iter()
+        .map(|feature| {
+            let recall_rescue_contribution = recall_rescue_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0);
+            let operator_burden_contribution = operator_burden_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0);
+            let z_pre_failure_run_hits = z_score(
+                feature.pre_failure_run_hits as f64,
+                pre_failure_mean,
+                pre_failure_std,
+            );
+            let z_motif_precision_proxy = z_score(
+                feature.motif_precision_proxy.unwrap_or(0.0),
+                motif_precision_mean,
+                motif_precision_std,
+            );
+            let z_boundary = z_score(
+                feature.dsfb_raw_boundary_points as f64,
+                boundary_mean,
+                boundary_std,
+            );
+            let z_violation = z_score(
+                feature.dsfb_raw_violation_points as f64,
+                violation_mean,
+                violation_std,
+            );
+            let z_recall_rescue_contribution = z_score(
+                recall_rescue_contribution,
+                recall_rescue_mean,
+                recall_rescue_std,
+            );
+            let z_operator_burden_contribution = z_score(
+                operator_burden_contribution,
+                operator_burden_mean,
+                operator_burden_std,
+            );
+            let missingness_penalty = if feature.missing_fraction > MISSINGNESS_PENALTY_THRESHOLD {
+                MISSINGNESS_PENALTY_VALUE
+            } else {
+                0.0
+            };
+            let candidate_score = z_pre_failure_run_hits
+                + z_motif_precision_proxy
+                + 0.5 * z_boundary
+                + 0.5 * z_recall_rescue_contribution
+                - z_operator_burden_contribution
+                - 0.5 * z_violation
+                - missingness_penalty;
+
+            FeatureRankingRow {
+                ranking_strategy: "burden_aware".into(),
+                ranking_formula: BURDEN_AWARE_RANKING_FORMULA.into(),
+                feature_index: feature.feature_index,
+                feature_name: feature.feature_name.clone(),
+                dsfb_raw_boundary_points: feature.dsfb_raw_boundary_points,
+                dsfb_persistent_boundary_points: feature.dsfb_persistent_boundary_points,
+                dsfb_raw_violation_points: feature.dsfb_raw_violation_points,
+                dsfb_persistent_violation_points: feature.dsfb_persistent_violation_points,
+                ewma_alarm_points: feature.ewma_alarm_points,
+                threshold_alarm_points: feature.threshold_alarm_points,
+                pre_failure_run_hits: feature.pre_failure_run_hits,
+                motif_precision_proxy: feature.motif_precision_proxy,
+                recall_rescue_contribution: Some(recall_rescue_contribution),
+                operator_burden_contribution: Some(operator_burden_contribution),
+                missing_fraction: feature.missing_fraction,
+                z_pre_failure_run_hits: Some(z_pre_failure_run_hits),
+                z_motif_precision_proxy: Some(z_motif_precision_proxy),
+                z_recall_rescue_contribution: Some(z_recall_rescue_contribution),
+                z_operator_burden_contribution: Some(z_operator_burden_contribution),
+                z_boundary,
+                z_violation,
+                z_ewma: 0.0,
+                missingness_penalty,
+                candidate_score,
+                score_breakdown: format!(
+                    "{:+.4} pre_failure + {:+.4} motif_precision + 0.5*{:+.4} boundary + 0.5*{:+.4} recall_rescue - {:+.4} burden - 0.5*{:+.4} violation - {:.1} missingness",
+                    z_pre_failure_run_hits,
+                    z_motif_precision_proxy,
+                    z_boundary,
+                    z_recall_rescue_contribution,
+                    z_operator_burden_contribution,
                     z_violation,
                     missingness_penalty
                 ),
@@ -756,10 +1059,12 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
         "pre_failure_run_hits",
         "motif_precision_proxy",
         "recall_rescue_contribution",
+        "operator_burden_contribution",
         "missing_fraction",
         "z_pre_failure_run_hits",
         "z_motif_precision_proxy",
         "z_recall_rescue_contribution",
+        "z_operator_burden_contribution",
         "z_boundary",
         "z_violation",
         "z_ewma",
@@ -783,10 +1088,12 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
             row.pre_failure_run_hits.to_string(),
             format_option_csv(row.motif_precision_proxy),
             format_option_csv(row.recall_rescue_contribution),
+            format_option_csv(row.operator_burden_contribution),
             format!("{:.6}", row.missing_fraction),
             format_option_csv(row.z_pre_failure_run_hits),
             format_option_csv(row.z_motif_precision_proxy),
             format_option_csv(row.z_recall_rescue_contribution),
+            format_option_csv(row.z_operator_burden_contribution),
             format!("{:.6}", row.z_boundary),
             format!("{:.6}", row.z_violation),
             format!("{:.6}", row.z_ewma),
@@ -802,6 +1109,7 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
 pub fn compare_feature_rankings(
     compression_ranking: &[FeatureRankingRow],
     recall_aware_ranking: &[FeatureRankingRow],
+    burden_aware_ranking: &[FeatureRankingRow],
 ) -> Vec<FeatureRankingComparisonRow> {
     let compression_by_feature = compression_ranking
         .iter()
@@ -811,11 +1119,16 @@ pub fn compare_feature_rankings(
         .iter()
         .map(|row| (&row.feature_name, row))
         .collect::<BTreeMap<_, _>>();
+    let burden_by_feature = burden_aware_ranking
+        .iter()
+        .map(|row| (&row.feature_name, row))
+        .collect::<BTreeMap<_, _>>();
 
     let mut feature_names = compression_by_feature
         .keys()
         .copied()
         .chain(recall_by_feature.keys().copied())
+        .chain(burden_by_feature.keys().copied())
         .collect::<Vec<_>>();
     feature_names.sort_unstable();
     feature_names.dedup();
@@ -825,25 +1138,71 @@ pub fn compare_feature_rankings(
         .map(|feature_name| {
             let compression = compression_by_feature.get(feature_name).copied();
             let recall = recall_by_feature.get(feature_name).copied();
+            let burden = burden_by_feature.get(feature_name).copied();
             FeatureRankingComparisonRow {
                 feature_index: compression
                     .or(recall)
+                    .or(burden)
                     .map(|row| row.feature_index)
                     .unwrap_or_default(),
                 feature_name: feature_name.to_string(),
                 compression_rank: compression.map(|row| row.rank),
                 recall_aware_rank: recall.map(|row| row.rank),
+                burden_aware_rank: burden.map(|row| row.rank),
                 compression_score: compression.map(|row| row.candidate_score),
                 recall_aware_score: recall.map(|row| row.candidate_score),
+                burden_aware_score: burden.map(|row| row.candidate_score),
                 rank_delta_recall_minus_compression: match (compression, recall) {
                     (Some(compression), Some(recall)) => {
                         Some(recall.rank as i64 - compression.rank as i64)
                     }
                     _ => None,
                 },
+                rank_delta_burden_minus_compression: match (compression, burden) {
+                    (Some(compression), Some(burden)) => {
+                        Some(burden.rank as i64 - compression.rank as i64)
+                    }
+                    _ => None,
+                },
             }
         })
         .collect()
+}
+
+pub fn write_operator_delta_attainment_matrix_csv(
+    path: &Path,
+    rows: &[OperatorDeltaAttainmentRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_operator_burden_contributions_csv(
+    path: &Path,
+    rows: &[OperatorBurdenContributionRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_recall_recovery_efficiency_csv(
+    path: &Path,
+    rows: &[RecallRecoveryEfficiencyRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
 }
 
 pub fn write_feature_ranking_comparison_csv(
@@ -1108,6 +1467,7 @@ pub fn run_cohort_dsa_grid_with_policy(
                             members.len(),
                             &base_config,
                             corroborating_m,
+                            dataset,
                             &evaluation,
                             metrics,
                         );
@@ -1242,11 +1602,22 @@ pub fn run_recall_optimization(
 
     let recall_rescue_contributions =
         recall_rescue_contribution_by_feature(&baseline_execution.selected_evaluation);
+    let operator_burden_contributions =
+        operator_burden_contribution_by_feature(dataset, &baseline_execution.selected_evaluation);
     let recall_aware_feature_ranking =
         compute_feature_ranking_recall_aware(metrics, &recall_rescue_contributions);
-    let ranking_comparison =
-        compare_feature_rankings(&baseline_feature_ranking, &recall_aware_feature_ranking);
+    let burden_aware_feature_ranking = compute_feature_ranking_burden_aware(
+        metrics,
+        &recall_rescue_contributions,
+        &operator_burden_contributions,
+    );
+    let ranking_comparison = compare_feature_rankings(
+        &baseline_feature_ranking,
+        &recall_aware_feature_ranking,
+        &burden_aware_feature_ranking,
+    );
     let recall_aware_feature_cohorts = build_feature_cohorts(&recall_aware_feature_ranking);
+    let burden_aware_feature_cohorts = build_feature_cohorts(&burden_aware_feature_ranking);
     let feature_policy_overrides = build_feature_policy_overrides(
         metrics,
         baseline_execution
@@ -1299,12 +1670,28 @@ pub fn run_recall_optimization(
         &policy_runtime,
         "recall_aware",
     )?;
+    let burden_aware_execution = run_cohort_dsa_grid_with_policy(
+        dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
+        &burden_aware_feature_cohorts,
+        pre_failure_lookback_runs,
+        metrics,
+        &policy_runtime,
+        "burden_aware",
+    )?;
 
     let mut union_rows = optimized_compression_execution
         .summary
         .cohort_results
         .clone();
     union_rows.extend(recall_aware_execution.summary.cohort_results.clone());
+    union_rows.extend(burden_aware_execution.summary.cohort_results.clone());
+    let operator_baselines =
+        build_operator_baselines(dataset, grammar, &baseline_execution.selected_evaluation);
 
     let current_policy_dsa_nuisance = baseline_execution
         .summary
@@ -1327,18 +1714,26 @@ pub fn run_recall_optimization(
         metrics.summary.pass_run_ewma_nuisance_rate,
         current_policy_dsa_nuisance,
     );
-    let selected_row = choose_optimized_row(
-        &stage_b_candidates,
-        &union_rows,
-        metrics.summary.pass_run_ewma_nuisance_rate,
-        metrics.summary.failure_runs_with_preceding_threshold_signal,
-        current_policy_dsa_nuisance,
-    )
-    .ok_or_else(|| {
-        DsfbSemiconductorError::DatasetFormat(
-            "optimized search produced no selectable configuration".into(),
-        )
-    })?;
+    let stage1_candidates = stage1_candidates(&union_rows, &operator_baselines);
+    let stage2_candidates = stage2_candidates(&stage1_candidates, &operator_baselines);
+    let selected_row = stage2_candidates
+        .first()
+        .cloned()
+        .or_else(|| stage1_candidates.first().cloned())
+        .or_else(|| {
+            choose_optimized_row(
+                &stage_b_candidates,
+                &union_rows,
+                metrics.summary.pass_run_ewma_nuisance_rate,
+                metrics.summary.failure_runs_with_preceding_threshold_signal,
+                current_policy_dsa_nuisance,
+            )
+        })
+        .ok_or_else(|| {
+            DsfbSemiconductorError::DatasetFormat(
+                "optimized search produced no selectable configuration".into(),
+            )
+        })?;
 
     let selected_evaluation = rebuild_selected_evaluation_with_policy(
         dataset,
@@ -1349,15 +1744,16 @@ pub fn run_recall_optimization(
         grammar,
         &baseline_feature_cohorts,
         &recall_aware_feature_cohorts,
+        &burden_aware_feature_cohorts,
         pre_failure_lookback_runs,
         &selected_row,
         &policy_runtime,
     )?;
 
-    let mut optimized_execution = if selected_row.ranking_strategy == "recall_aware" {
-        recall_aware_execution.clone()
-    } else {
-        optimized_compression_execution.clone()
+    let mut optimized_execution = match selected_row.ranking_strategy.as_str() {
+        "recall_aware" => recall_aware_execution.clone(),
+        "burden_aware" => burden_aware_execution.clone(),
+        _ => optimized_compression_execution.clone(),
     };
     optimized_execution.selected_evaluation = selected_evaluation.clone();
     optimized_execution.summary.selected_configuration = Some(selected_row.clone());
@@ -1396,6 +1792,30 @@ pub fn run_recall_optimization(
         &selected_evaluation,
         &selected_row,
     );
+    let operator_delta_targets = compute_operator_delta_targets(
+        &selected_row,
+        &selected_evaluation,
+        &operator_baselines,
+        metrics,
+    );
+    let operator_delta_attainment_matrix = build_operator_delta_attainment_matrix(
+        &selected_row,
+        &stage1_candidates,
+        &stage2_candidates,
+        &operator_baselines,
+        metrics,
+    );
+    let policy_operator_burden_contributions = build_policy_operator_burden_contributions(
+        dataset,
+        &baseline_execution.selected_evaluation,
+        &selected_evaluation,
+        &selected_row,
+    );
+    let recall_recovery_efficiency = build_recall_recovery_efficiency(
+        dataset,
+        &baseline_execution.selected_evaluation,
+        &selected_evaluation,
+    );
     let delta_target_assessment = compute_delta_target_assessment(
         &selected_row,
         &stage_a_candidates,
@@ -1415,19 +1835,29 @@ pub fn run_recall_optimization(
         baseline_feature_cohorts,
         baseline_execution,
         recall_aware_feature_ranking,
+        burden_aware_feature_ranking,
         ranking_comparison,
         recall_aware_feature_cohorts,
+        burden_aware_feature_cohorts,
         feature_policy_overrides,
         feature_policy_summary,
         optimized_execution,
         recall_aware_execution,
+        burden_aware_execution,
         pareto_frontier,
         stage_a_candidates,
         stage_b_candidates,
+        stage1_candidates,
+        stage2_candidates,
         recall_rescue_results,
         missed_failure_diagnostics,
         recall_critical_features,
         policy_contribution_analysis,
+        operator_baselines,
+        operator_delta_targets,
+        operator_delta_attainment_matrix,
+        policy_operator_burden_contributions,
+        recall_recovery_efficiency,
         delta_target_assessment,
     })
 }
@@ -1761,6 +2191,99 @@ fn stage_b_candidates(
     candidates
 }
 
+fn stage1_candidates(
+    rows: &[CohortGridResult],
+    operator_baselines: &OperatorBaselines,
+) -> Vec<CohortGridResult> {
+    let mut candidates = rows
+        .iter()
+        .filter(|row| row.failure_recall >= 100)
+        .cloned()
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| {
+        compare_operator_rows(left, right, operator_baselines)
+            .then_with(|| compare_stage_a_rows(left, right, operator_baselines.current_policy_dsa.pass_run_nuisance_proxy))
+    });
+    candidates
+}
+
+fn stage2_candidates(
+    rows: &[CohortGridResult],
+    operator_baselines: &OperatorBaselines,
+) -> Vec<CohortGridResult> {
+    let mut candidates = rows.to_vec();
+    candidates.sort_by(|left, right| compare_operator_rows(left, right, operator_baselines));
+    candidates
+}
+
+fn compare_operator_rows(
+    left: &CohortGridResult,
+    right: &CohortGridResult,
+    baselines: &OperatorBaselines,
+) -> Ordering {
+    let left_delta_investigation =
+        delta_relative_count(baselines.baseline_investigation_points, left.investigation_point_count);
+    let right_delta_investigation = delta_relative_count(
+        baselines.baseline_investigation_points,
+        right.investigation_point_count,
+    );
+    let left_delta_episode =
+        delta_relative_count(baselines.baseline_episode_count, left.dsa_episode_count);
+    let right_delta_episode =
+        delta_relative_count(baselines.baseline_episode_count, right.dsa_episode_count);
+    let left_delta_review_points = delta_relative_f64(
+        baselines.baseline_review_escalate_points_per_pass_run,
+        left.review_escalate_points_per_pass_run,
+    );
+    let right_delta_review_points = delta_relative_f64(
+        baselines.baseline_review_escalate_points_per_pass_run,
+        right.review_escalate_points_per_pass_run,
+    );
+    let left_delta_review_episodes = delta_relative_f64(
+        baselines.baseline_review_escalate_episodes_per_pass_run,
+        left.review_escalate_episodes_per_pass_run,
+    );
+    let right_delta_review_episodes = delta_relative_f64(
+        baselines.baseline_review_escalate_episodes_per_pass_run,
+        right.review_escalate_episodes_per_pass_run,
+    );
+
+    right
+        .failure_recall
+        .cmp(&left.failure_recall)
+        .then_with(|| {
+            right_delta_investigation
+                .partial_cmp(&left_delta_investigation)
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| {
+            right_delta_episode
+                .partial_cmp(&left_delta_episode)
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| compare_option_f64(right.precursor_quality, left.precursor_quality))
+        .then_with(|| {
+            right_delta_review_points
+                .partial_cmp(&left_delta_review_points)
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| {
+            right_delta_review_episodes
+                .partial_cmp(&left_delta_review_episodes)
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| {
+            delta_nuisance_relative(right.ewma_nuisance, right.pass_run_nuisance_proxy)
+                .partial_cmp(&delta_nuisance_relative(
+                    left.ewma_nuisance,
+                    left.pass_run_nuisance_proxy,
+                ))
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| compare_option_f64(right.mean_lead_time_runs, left.mean_lead_time_runs))
+        .then_with(|| left.cohort_name.cmp(&right.cohort_name))
+}
+
 fn choose_optimized_row(
     stage_b_candidates: &[CohortGridResult],
     all_rows: &[CohortGridResult],
@@ -1853,14 +2376,15 @@ fn rebuild_selected_evaluation_with_policy(
     grammar: &GrammarSet,
     baseline_cohorts: &FeatureCohorts,
     recall_aware_cohorts: &FeatureCohorts,
+    burden_aware_cohorts: &FeatureCohorts,
     pre_failure_lookback_runs: usize,
     row: &CohortGridResult,
     policy_runtime: &DsaPolicyRuntime,
 ) -> Result<DsaEvaluation> {
-    let cohorts = if row.ranking_strategy == "recall_aware" {
-        recall_aware_cohorts
-    } else {
-        baseline_cohorts
+    let cohorts = match row.ranking_strategy.as_str() {
+        "recall_aware" => recall_aware_cohorts,
+        "burden_aware" => burden_aware_cohorts,
+        _ => baseline_cohorts,
     };
     let base_config = DsaConfig {
         window: row.window,
@@ -2207,6 +2731,547 @@ fn compute_delta_target_assessment(
         best_reachable_pareto_point,
         assessment_note,
     }
+}
+
+fn build_operator_baselines(
+    dataset: &PreparedDataset,
+    grammar: &GrammarSet,
+    baseline_evaluation: &DsaEvaluation,
+) -> OperatorBaselines {
+    let numeric_only_dsa = OperatorBaselineLayer {
+        name: "numeric_only_dsa".into(),
+        investigation_points: baseline_evaluation.summary.numeric_alert_point_count,
+        episode_count: episode_ranges(
+            &baseline_evaluation
+                .run_signals
+                .numeric_primary_run_alert,
+        )
+        .len(),
+        review_escalate_points_per_pass_run: numeric_alert_points_per_pass_run(
+            dataset,
+            baseline_evaluation,
+        ),
+        review_escalate_episodes_per_pass_run: numeric_alert_episodes_per_pass_run(
+            dataset,
+            baseline_evaluation,
+        ),
+        precursor_quality: baseline_evaluation.episode_summary.precursor_quality,
+        recall: baseline_evaluation.summary.numeric_primary_failure_run_recall,
+        pass_run_nuisance_proxy: baseline_evaluation.summary.numeric_primary_pass_run_nuisance_proxy,
+    };
+    let current_policy_dsa = OperatorBaselineLayer {
+        name: "current_policy_dsa".into(),
+        investigation_points: baseline_evaluation.summary.alert_point_count,
+        episode_count: baseline_evaluation.episode_summary.dsa_episode_count,
+        review_escalate_points_per_pass_run: review_escalate_points_per_pass_run(
+            dataset,
+            baseline_evaluation,
+        ),
+        review_escalate_episodes_per_pass_run: review_escalate_episodes_per_pass_run(
+            dataset,
+            baseline_evaluation,
+        ),
+        precursor_quality: baseline_evaluation.episode_summary.precursor_quality,
+        recall: baseline_evaluation.summary.failure_run_recall,
+        pass_run_nuisance_proxy: baseline_evaluation.summary.pass_run_nuisance_proxy,
+    };
+    let raw_boundary = OperatorBaselineLayer {
+        name: "raw_boundary".into(),
+        investigation_points: baseline_evaluation.summary.raw_boundary_episode_count,
+        episode_count: baseline_evaluation.summary.raw_boundary_episode_count,
+        review_escalate_points_per_pass_run: raw_boundary_points_per_pass_run(dataset, grammar),
+        review_escalate_episodes_per_pass_run: raw_boundary_episodes_per_pass_run(dataset, grammar),
+        precursor_quality: None,
+        recall: 0,
+        pass_run_nuisance_proxy: baseline_evaluation.summary.raw_boundary_nuisance_proxy,
+    };
+
+    OperatorBaselines {
+        investigation_baseline_layer: numeric_only_dsa.name.clone(),
+        episode_baseline_layer: raw_boundary.name.clone(),
+        review_burden_baseline_layer: current_policy_dsa.name.clone(),
+        baseline_investigation_points: numeric_only_dsa.investigation_points,
+        baseline_episode_count: raw_boundary.episode_count,
+        baseline_review_escalate_points_per_pass_run: current_policy_dsa
+            .review_escalate_points_per_pass_run,
+        baseline_review_escalate_episodes_per_pass_run: current_policy_dsa
+            .review_escalate_episodes_per_pass_run,
+        baseline_precursor_quality: current_policy_dsa.precursor_quality,
+        baseline_recall: current_policy_dsa.recall,
+        numeric_only_dsa,
+        current_policy_dsa,
+        raw_boundary,
+    }
+}
+
+fn compute_operator_delta_targets(
+    selected_row: &CohortGridResult,
+    selected_evaluation: &DsaEvaluation,
+    baselines: &OperatorBaselines,
+    metrics: &BenchmarkMetrics,
+) -> OperatorDeltaTargets {
+    let baseline_precursor_quality = baselines.baseline_precursor_quality;
+    let optimized_precursor_quality = selected_row.precursor_quality;
+    let precursor_quality_status = match (baseline_precursor_quality, optimized_precursor_quality) {
+        (Some(baseline), Some(optimized)) if optimized > baseline + 1.0e-9 => "improved",
+        (Some(baseline), Some(optimized)) if (optimized - baseline).abs() <= 1.0e-9 => "preserved",
+        (Some(_), Some(_)) => "degraded",
+        _ => "unavailable",
+    }
+    .to_string();
+
+    OperatorDeltaTargets {
+        primary_success_definition:
+            "Failure coverage must match threshold or remain within one missed run while investigation-worthy burden is reduced materially relative to a structural baseline."
+                .into(),
+        recall_tolerance_runs: RECALL_TOLERANCE,
+        selected_configuration: delta_candidate_summary(
+            selected_row,
+            metrics.summary.pass_run_ewma_nuisance_rate,
+            baselines.current_policy_dsa.pass_run_nuisance_proxy,
+        ),
+        baseline_investigation_points: baselines.baseline_investigation_points,
+        baseline_episode_count: baselines.baseline_episode_count,
+        baseline_review_points_per_pass_run: baselines
+            .baseline_review_escalate_points_per_pass_run,
+        baseline_review_episodes_per_pass_run: baselines
+            .baseline_review_escalate_episodes_per_pass_run,
+        optimized_review_escalate_points: selected_row.investigation_point_count,
+        optimized_episode_count: selected_row.dsa_episode_count,
+        optimized_review_points_per_pass_run: selected_row.review_escalate_points_per_pass_run,
+        optimized_review_episodes_per_pass_run: selected_row.review_escalate_episodes_per_pass_run,
+        delta_investigation_load: delta_relative_count(
+            baselines.baseline_investigation_points,
+            selected_row.investigation_point_count,
+        ),
+        delta_episode_count: delta_relative_count(
+            baselines.baseline_episode_count,
+            selected_row.dsa_episode_count,
+        ),
+        delta_review_points_per_pass_run: delta_relative_f64(
+            baselines.baseline_review_escalate_points_per_pass_run,
+            selected_row.review_escalate_points_per_pass_run,
+        ),
+        delta_review_episodes_per_pass_run: delta_relative_f64(
+            baselines.baseline_review_escalate_episodes_per_pass_run,
+            selected_row.review_escalate_episodes_per_pass_run,
+        ),
+        precursor_quality_status,
+        recall_equals_threshold: selected_row.failure_recall
+            == metrics.summary.failure_runs_with_preceding_threshold_signal,
+        recall_within_tolerance: selected_row.failure_recall + RECALL_TOLERANCE
+            >= metrics.summary.failure_runs_with_preceding_threshold_signal,
+        recall_ge_103: selected_row.failure_recall >= 103,
+        recall_eq_104: selected_row.failure_recall >= 104,
+        delta_nuisance_vs_ewma: delta_nuisance_relative(
+            metrics.summary.pass_run_ewma_nuisance_rate,
+            selected_row.pass_run_nuisance_proxy,
+        ),
+        delta_nuisance_vs_threshold: delta_nuisance_relative(
+            metrics.summary.pass_run_threshold_nuisance_rate,
+            selected_row.pass_run_nuisance_proxy,
+        ),
+        mean_lead_delta_vs_ewma: selected_row.mean_lead_delta_vs_ewma_runs,
+        mean_lead_delta_vs_threshold: selected_row.mean_lead_delta_vs_threshold_runs,
+        median_lead_delta_vs_ewma: selected_row
+            .median_lead_time_runs
+            .zip(metrics.lead_time_summary.mean_ewma_lead_runs)
+            .map(|(selected, ewma)| selected - ewma),
+        median_lead_delta_vs_threshold: selected_row
+            .median_lead_time_runs
+            .zip(metrics.lead_time_summary.mean_threshold_lead_runs)
+            .map(|(selected, threshold)| selected - threshold),
+        stable_precursor_lead_time_delta: stable_precursor_lead_time_delta(selected_evaluation),
+    }
+}
+
+fn build_operator_delta_attainment_matrix(
+    selected_row: &CohortGridResult,
+    stage1_candidates: &[CohortGridResult],
+    stage2_candidates: &[CohortGridResult],
+    baselines: &OperatorBaselines,
+    metrics: &BenchmarkMetrics,
+) -> Vec<OperatorDeltaAttainmentRow> {
+    let mut rows = Vec::new();
+    let mut push_row = |configuration_role: &str, row: &CohortGridResult| {
+        let delta_investigation_load = delta_relative_count(
+            baselines.baseline_investigation_points,
+            row.investigation_point_count,
+        );
+        let delta_episode_count =
+            delta_relative_count(baselines.baseline_episode_count, row.dsa_episode_count);
+        let delta_review_points_per_pass_run = delta_relative_f64(
+            baselines.baseline_review_escalate_points_per_pass_run,
+            row.review_escalate_points_per_pass_run,
+        );
+        let delta_review_episodes_per_pass_run = delta_relative_f64(
+            baselines.baseline_review_escalate_episodes_per_pass_run,
+            row.review_escalate_episodes_per_pass_run,
+        );
+        let precursor_quality_status = match (baselines.baseline_precursor_quality, row.precursor_quality)
+        {
+            (Some(baseline), Some(optimized)) if optimized > baseline + 1.0e-9 => "improved",
+            (Some(baseline), Some(optimized)) if (optimized - baseline).abs() <= 1.0e-9 => {
+                "preserved"
+            }
+            (Some(_), Some(_)) => "degraded",
+            _ => "unavailable",
+        }
+        .to_string();
+        let delta_nuisance_vs_ewma = delta_nuisance_relative(
+            metrics.summary.pass_run_ewma_nuisance_rate,
+            row.pass_run_nuisance_proxy,
+        );
+        rows.push(OperatorDeltaAttainmentRow {
+            configuration_role: configuration_role.into(),
+            configuration: row_label(row),
+            delta_investigation_load,
+            delta_episode_count,
+            delta_review_points_per_pass_run,
+            delta_review_episodes_per_pass_run,
+            precursor_quality_status: precursor_quality_status.clone(),
+            recall: row.failure_recall,
+            mean_lead_time_runs: row.mean_lead_time_runs,
+            delta_nuisance_vs_ewma,
+            target_a_investigation_load_ge_040: delta_investigation_load >= OPERATOR_DELTA_THRESHOLD,
+            target_b_episode_count_ge_040: delta_episode_count >= OPERATOR_DELTA_THRESHOLD,
+            target_c_review_points_per_pass_run_ge_040: delta_review_points_per_pass_run
+                >= OPERATOR_DELTA_THRESHOLD,
+            target_d_review_episodes_per_pass_run_ge_040: delta_review_episodes_per_pass_run
+                >= OPERATOR_DELTA_THRESHOLD,
+            target_e_precursor_quality_preserved_or_improved: precursor_quality_status != "degraded",
+            target_f_recall_ge_103: row.failure_recall >= 103,
+            target_g_recall_eq_104: row.failure_recall >= 104,
+            target_h_nuisance_ge_015: delta_nuisance_vs_ewma >= 0.15,
+            target_h_nuisance_ge_025: delta_nuisance_vs_ewma >= 0.25,
+            target_h_nuisance_ge_040: delta_nuisance_vs_ewma >= 0.40,
+            target_i_stable_precursor_lead_improved: None,
+        });
+    };
+    push_row("selected", selected_row);
+    if let Some(row) = stage1_candidates.first() {
+        push_row("stage1_best", row);
+    }
+    if let Some(row) = stage2_candidates.first() {
+        push_row("stage2_best", row);
+    }
+    rows
+}
+
+fn build_policy_operator_burden_contributions(
+    dataset: &PreparedDataset,
+    baseline: &DsaEvaluation,
+    optimized: &DsaEvaluation,
+    selected_row: &CohortGridResult,
+) -> Vec<OperatorBurdenContributionRow> {
+    let mut rows = Vec::new();
+    for (role, evaluation) in [("baseline", baseline), ("optimized", optimized)] {
+        for contribution in &evaluation.motif_policy_contributions {
+            rows.push(OperatorBurdenContributionRow {
+                configuration_role: role.into(),
+                contribution_scope: "motif".into(),
+                name: contribution.motif_name.clone(),
+                contribution_type: "review_escalate_burden".into(),
+                value: contribution.pass_review_or_escalate_points as f64,
+                note: "pass-run Review/Escalate feature points".into(),
+            });
+            rows.push(OperatorBurdenContributionRow {
+                configuration_role: role.into(),
+                contribution_scope: "motif".into(),
+                name: contribution.motif_name.clone(),
+                contribution_type: "pre_failure_review_escalate".into(),
+                value: contribution.pre_failure_review_or_escalate_points as f64,
+                note: "pre-failure Review/Escalate feature points".into(),
+            });
+            rows.push(OperatorBurdenContributionRow {
+                configuration_role: role.into(),
+                contribution_scope: "motif".into(),
+                name: contribution.motif_name.clone(),
+                contribution_type: "silent_suppression".into(),
+                value: contribution.silent_suppression_points as f64,
+                note: "explicit silent suppression points".into(),
+            });
+        }
+        for trace in &evaluation.traces {
+            let burden = trace
+                .dsa_alert
+                .iter()
+                .enumerate()
+                .filter(|(run_index, flag)| dataset.labels[*run_index] == -1 && **flag)
+                .count() as f64;
+            if burden > 0.0 {
+                rows.push(OperatorBurdenContributionRow {
+                    configuration_role: role.into(),
+                    contribution_scope: "feature".into(),
+                    name: trace.feature_name.clone(),
+                    contribution_type: "pass_run_review_escalate_burden".into(),
+                    value: burden,
+                    note: format!("selected row {}", row_label(selected_row)),
+                });
+            }
+        }
+    }
+    rows
+}
+
+fn build_recall_recovery_efficiency(
+    dataset: &PreparedDataset,
+    baseline: &DsaEvaluation,
+    optimized: &DsaEvaluation,
+) -> Vec<RecallRecoveryEfficiencyRow> {
+    let recovered_failures =
+        optimized.summary.failure_run_recall as i64 - baseline.summary.failure_run_recall as i64;
+    let added_review_escalate_points =
+        optimized.summary.alert_point_count as i64 - baseline.summary.alert_point_count as i64;
+    let added_episode_count =
+        optimized.episode_summary.dsa_episode_count as i64 - baseline.episode_summary.dsa_episode_count as i64;
+    let added_review_points_per_pass_run =
+        review_escalate_points_per_pass_run(dataset, optimized)
+            - review_escalate_points_per_pass_run(dataset, baseline);
+    let added_review_episodes_per_pass_run =
+        review_escalate_episodes_per_pass_run(dataset, optimized)
+            - review_escalate_episodes_per_pass_run(dataset, baseline);
+    let baseline_pass_nuisance_runs = (baseline.summary.pass_run_nuisance_proxy
+        * dataset.labels.iter().filter(|label| **label == -1).count() as f64)
+        .round() as i64;
+    let optimized_pass_nuisance_runs = (optimized.summary.pass_run_nuisance_proxy
+        * dataset.labels.iter().filter(|label| **label == -1).count() as f64)
+        .round() as i64;
+    let added_nuisance_runs = optimized_pass_nuisance_runs - baseline_pass_nuisance_runs;
+
+    vec![RecallRecoveryEfficiencyRow {
+        baseline_configuration: "current_policy_dsa".into(),
+        optimized_configuration: "optimized_policy_dsa".into(),
+        recovered_failures,
+        added_review_escalate_points,
+        added_episode_count,
+        added_review_points_per_pass_run,
+        added_review_episodes_per_pass_run,
+        added_nuisance_runs,
+        recovered_failures_per_added_review_escalate_point: ratio_if_positive(
+            recovered_failures,
+            added_review_escalate_points,
+        ),
+        recovered_failures_per_added_episode: ratio_if_positive(
+            recovered_failures,
+            added_episode_count,
+        ),
+        recovered_failures_per_added_pass_run_burden: if added_review_points_per_pass_run > 0.0 {
+            Some(recovered_failures as f64 / added_review_points_per_pass_run)
+        } else {
+            None
+        },
+        recovered_failures_per_added_nuisance_run: ratio_if_positive(
+            recovered_failures,
+            added_nuisance_runs,
+        ),
+    }]
+}
+
+fn ratio_if_positive(numerator: i64, denominator: i64) -> Option<f64> {
+    (denominator > 0).then_some(numerator as f64 / denominator as f64)
+}
+
+fn stable_precursor_lead_time_delta(selected_evaluation: &DsaEvaluation) -> Option<f64> {
+    let stable_leads = selected_evaluation
+        .per_failure_run_signals
+        .iter()
+        .filter(|signal| signal.max_dsa_score_motif_recurrence_w.unwrap_or(0.0) >= 0.5)
+        .filter_map(|signal| signal.dsa_lead_runs.map(|lead| lead as f64))
+        .collect::<Vec<_>>();
+    if stable_leads.is_empty() {
+        None
+    } else {
+        Some(stable_leads.iter().sum::<f64>() / stable_leads.len() as f64)
+    }
+}
+
+fn episode_ranges(signal: &[bool]) -> Vec<(usize, usize)> {
+    let mut episodes = Vec::new();
+    let mut start = None;
+    for (index, active) in signal.iter().copied().enumerate() {
+        match (start, active) {
+            (None, true) => start = Some(index),
+            (Some(begin), false) => {
+                episodes.push((begin, index - 1));
+                start = None;
+            }
+            _ => {}
+        }
+    }
+    if let Some(begin) = start {
+        episodes.push((begin, signal.len().saturating_sub(1)));
+    }
+    episodes
+}
+
+fn delta_relative_count(baseline: usize, optimized: usize) -> f64 {
+    if baseline == 0 {
+        0.0
+    } else {
+        (baseline as f64 - optimized as f64) / baseline as f64
+    }
+}
+
+fn delta_relative_f64(baseline: f64, optimized: f64) -> f64 {
+    if baseline.abs() <= f64::EPSILON {
+        0.0
+    } else {
+        (baseline - optimized) / baseline
+    }
+}
+
+fn review_escalate_points_per_pass_run(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+) -> f64 {
+    let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
+    if pass_run_count == 0 {
+        return 0.0;
+    }
+    let points = evaluation
+        .traces
+        .iter()
+        .map(|trace| {
+            trace
+                .dsa_alert
+                .iter()
+                .enumerate()
+                .filter(|(run_index, flag)| dataset.labels[*run_index] == -1 && **flag)
+                .count()
+        })
+        .sum::<usize>();
+    points as f64 / pass_run_count as f64
+}
+
+fn numeric_alert_points_per_pass_run(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+) -> f64 {
+    let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
+    if pass_run_count == 0 {
+        return 0.0;
+    }
+    let points = evaluation
+        .traces
+        .iter()
+        .map(|trace| {
+            trace
+                .numeric_dsa_alert
+                .iter()
+                .enumerate()
+                .filter(|(run_index, flag)| dataset.labels[*run_index] == -1 && **flag)
+                .count()
+        })
+        .sum::<usize>();
+    points as f64 / pass_run_count as f64
+}
+
+fn review_escalate_episodes_per_pass_run(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+) -> f64 {
+    let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
+    if pass_run_count == 0 {
+        return 0.0;
+    }
+    let mask = evaluation
+        .run_signals
+        .primary_run_alert
+        .iter()
+        .enumerate()
+        .map(|(run_index, flag)| dataset.labels[run_index] == -1 && *flag)
+        .collect::<Vec<_>>();
+    episode_ranges(&mask).len() as f64 / pass_run_count as f64
+}
+
+fn numeric_alert_episodes_per_pass_run(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+) -> f64 {
+    let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
+    if pass_run_count == 0 {
+        return 0.0;
+    }
+    let mask = evaluation
+        .run_signals
+        .numeric_primary_run_alert
+        .iter()
+        .enumerate()
+        .map(|(run_index, flag)| dataset.labels[run_index] == -1 && *flag)
+        .collect::<Vec<_>>();
+    episode_ranges(&mask).len() as f64 / pass_run_count as f64
+}
+
+fn raw_boundary_points_per_pass_run(
+    dataset: &PreparedDataset,
+    grammar: &GrammarSet,
+) -> f64 {
+    let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
+    if pass_run_count == 0 {
+        return 0.0;
+    }
+    let points = grammar
+        .traces
+        .iter()
+        .map(|trace| {
+            trace
+                .raw_states
+                .iter()
+                .enumerate()
+                .filter(|(run_index, state)| {
+                    dataset.labels[*run_index] == -1 && **state == crate::grammar::GrammarState::Boundary
+                })
+                .count()
+        })
+        .sum::<usize>();
+    points as f64 / pass_run_count as f64
+}
+
+fn raw_boundary_episodes_per_pass_run(
+    dataset: &PreparedDataset,
+    grammar: &GrammarSet,
+) -> f64 {
+    let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
+    if pass_run_count == 0 {
+        return 0.0;
+    }
+    let episode_count = grammar
+        .traces
+        .iter()
+        .map(|trace| {
+            let mask = trace
+                .raw_states
+                .iter()
+                .enumerate()
+                .map(|(run_index, state)| {
+                    dataset.labels[run_index] == -1
+                        && *state == crate::grammar::GrammarState::Boundary
+                })
+                .collect::<Vec<_>>();
+            episode_ranges(&mask).len()
+        })
+        .sum::<usize>();
+    episode_count as f64 / pass_run_count as f64
+}
+
+fn operator_burden_contribution_by_feature(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+) -> BTreeMap<usize, f64> {
+    evaluation
+        .traces
+        .iter()
+        .map(|trace| {
+            let burden = trace
+                .dsa_alert
+                .iter()
+                .enumerate()
+                .filter(|(run_index, flag)| dataset.labels[*run_index] == -1 && **flag)
+                .count() as f64;
+            (trace.feature_index, burden)
+        })
+        .collect()
 }
 
 fn delta_candidate_summary(
@@ -2847,6 +3912,7 @@ fn build_grid_row(
     cohort_size: usize,
     config: &DsaConfig,
     corroborating_m: usize,
+    dataset: &PreparedDataset,
     evaluation: &DsaEvaluation,
     metrics: &BenchmarkMetrics,
 ) -> CohortGridResult {
@@ -2864,6 +3930,14 @@ fn build_grid_row(
     let ewma_recall = metrics.summary.failure_runs_with_preceding_ewma_signal;
     let ewma_nuisance = metrics.summary.pass_run_ewma_nuisance_rate;
     let threshold_nuisance = metrics.summary.pass_run_threshold_nuisance_rate;
+    let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
+    let review_escalate_points_per_pass_run =
+        review_escalate_points_per_pass_run(dataset, evaluation);
+    let numeric_alert_points_per_pass_run = numeric_alert_points_per_pass_run(dataset, evaluation);
+    let review_escalate_episodes_per_pass_run =
+        review_escalate_episodes_per_pass_run(dataset, evaluation);
+    let numeric_alert_episodes_per_pass_run =
+        numeric_alert_episodes_per_pass_run(dataset, evaluation);
     let primary_success = evaluation.summary.pass_run_nuisance_proxy < ewma_nuisance
         && evaluation.summary.failure_run_recall + RECALL_TOLERANCE >= threshold_recall;
 
@@ -2928,10 +4002,32 @@ fn build_grid_row(
         watch_point_count: evaluation.summary.watch_point_count,
         review_point_count: evaluation.summary.review_point_count,
         escalate_point_count: evaluation.summary.escalate_point_count,
+        investigation_point_count: evaluation.summary.alert_point_count,
+        numeric_investigation_point_count: evaluation.summary.numeric_alert_point_count,
         silenced_point_count: evaluation.summary.silenced_point_count,
         rescued_point_count: evaluation.summary.rescued_point_count,
         rescued_watch_to_review_points: evaluation.summary.rescued_watch_to_review_points,
         rescued_review_to_escalate_points: evaluation.summary.rescued_review_to_escalate_points,
+        review_escalate_points_per_pass_run: if pass_run_count == 0 {
+            0.0
+        } else {
+            review_escalate_points_per_pass_run
+        },
+        numeric_alert_points_per_pass_run: if pass_run_count == 0 {
+            0.0
+        } else {
+            numeric_alert_points_per_pass_run
+        },
+        review_escalate_episodes_per_pass_run: if pass_run_count == 0 {
+            0.0
+        } else {
+            review_escalate_episodes_per_pass_run
+        },
+        numeric_alert_episodes_per_pass_run: if pass_run_count == 0 {
+            0.0
+        } else {
+            numeric_alert_episodes_per_pass_run
+        },
         primary_success,
         primary_success_reason: primary_success_reason(
             evaluation.summary.failure_run_recall,
@@ -3407,10 +4503,16 @@ fn fallback_row_from_dsa(dsa: &DsaEvaluation, metrics: &BenchmarkMetrics) -> Coh
         watch_point_count: dsa.summary.watch_point_count,
         review_point_count: dsa.summary.review_point_count,
         escalate_point_count: dsa.summary.escalate_point_count,
+        investigation_point_count: dsa.summary.alert_point_count,
+        numeric_investigation_point_count: dsa.summary.numeric_alert_point_count,
         silenced_point_count: dsa.summary.silenced_point_count,
         rescued_point_count: dsa.summary.rescued_point_count,
         rescued_watch_to_review_points: dsa.summary.rescued_watch_to_review_points,
         rescued_review_to_escalate_points: dsa.summary.rescued_review_to_escalate_points,
+        review_escalate_points_per_pass_run: 0.0,
+        numeric_alert_points_per_pass_run: 0.0,
+        review_escalate_episodes_per_pass_run: 0.0,
+        numeric_alert_episodes_per_pass_run: 0.0,
         primary_success: dsa.summary.pass_run_nuisance_proxy
             < metrics.summary.pass_run_ewma_nuisance_rate
             && dsa.summary.failure_run_recall + RECALL_TOLERANCE
@@ -3876,10 +4978,12 @@ mod tests {
                 pre_failure_run_hits: 20,
                 motif_precision_proxy: Some(0.6),
                 recall_rescue_contribution: None,
+                operator_burden_contribution: None,
                 missing_fraction: 0.0025,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
+                z_operator_burden_contribution: None,
                 z_boundary: 5.0,
                 z_violation: -0.1,
                 z_ewma: 3.0,
@@ -3902,10 +5006,12 @@ mod tests {
                 pre_failure_run_hits: 14,
                 motif_precision_proxy: Some(0.5),
                 recall_rescue_contribution: None,
+                operator_burden_contribution: None,
                 missing_fraction: 0.01,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
+                z_operator_burden_contribution: None,
                 z_boundary: 1.2,
                 z_violation: -0.5,
                 z_ewma: 0.9,
@@ -3928,10 +5034,12 @@ mod tests {
                 pre_failure_run_hits: 12,
                 motif_precision_proxy: Some(0.45),
                 recall_rescue_contribution: None,
+                operator_burden_contribution: None,
                 missing_fraction: 0.01,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
+                z_operator_burden_contribution: None,
                 z_boundary: 1.0,
                 z_violation: -0.5,
                 z_ewma: 0.8,
@@ -3954,10 +5062,12 @@ mod tests {
                 pre_failure_run_hits: 11,
                 motif_precision_proxy: Some(0.55),
                 recall_rescue_contribution: None,
+                operator_burden_contribution: None,
                 missing_fraction: 0.02,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
+                z_operator_burden_contribution: None,
                 z_boundary: 1.1,
                 z_violation: -0.8,
                 z_ewma: 0.6,
@@ -4174,10 +5284,16 @@ mod tests {
             watch_point_count: 3,
             review_point_count: 3,
             escalate_point_count: 1,
+            investigation_point_count: 4,
+            numeric_investigation_point_count: 6,
             silenced_point_count: 2,
             rescued_point_count: 1,
             rescued_watch_to_review_points: 1,
             rescued_review_to_escalate_points: 0,
+            review_escalate_points_per_pass_run: 0.2,
+            numeric_alert_points_per_pass_run: 0.3,
+            review_escalate_episodes_per_pass_run: 0.1,
+            numeric_alert_episodes_per_pass_run: 0.15,
             primary_success: true,
             primary_success_reason: "ok".into(),
         };
@@ -4239,10 +5355,16 @@ mod tests {
             watch_point_count: 0,
             review_point_count: 0,
             escalate_point_count: 0,
+            investigation_point_count: 3892,
+            numeric_investigation_point_count: 8014,
             silenced_point_count: 0,
             rescued_point_count: 0,
             rescued_watch_to_review_points: 0,
             rescued_review_to_escalate_points: 0,
+            review_escalate_points_per_pass_run: 2.515379357484621,
+            numeric_alert_points_per_pass_run: 5.187286397812714,
+            review_escalate_episodes_per_pass_run: 0.08133971291866028,
+            numeric_alert_episodes_per_pass_run: 0.05468215994531784,
             primary_success: false,
             primary_success_reason: "baseline".into(),
         };
@@ -4294,10 +5416,16 @@ mod tests {
             watch_point_count: 0,
             review_point_count: 0,
             escalate_point_count: 0,
+            investigation_point_count: 3892,
+            numeric_investigation_point_count: 8014,
             silenced_point_count: 0,
             rescued_point_count: 57,
             rescued_watch_to_review_points: 57,
             rescued_review_to_escalate_points: 0,
+            review_escalate_points_per_pass_run: 2.515379357484621,
+            numeric_alert_points_per_pass_run: 5.187286397812714,
+            review_escalate_episodes_per_pass_run: 0.08133971291866028,
+            numeric_alert_episodes_per_pass_run: 0.05468215994531784,
             primary_success: true,
             primary_success_reason: "selected".into(),
         };
@@ -4377,10 +5505,16 @@ mod tests {
             watch_point_count: 0,
             review_point_count: 0,
             escalate_point_count: 0,
+            investigation_point_count: 3892,
+            numeric_investigation_point_count: 8014,
             silenced_point_count: 0,
             rescued_point_count: 57,
             rescued_watch_to_review_points: 57,
             rescued_review_to_escalate_points: 0,
+            review_escalate_points_per_pass_run: 2.515379357484621,
+            numeric_alert_points_per_pass_run: 5.187286397812714,
+            review_escalate_episodes_per_pass_run: 0.08133971291866028,
+            numeric_alert_episodes_per_pass_run: 0.05468215994531784,
             primary_success: true,
             primary_success_reason: "selected".into(),
         };

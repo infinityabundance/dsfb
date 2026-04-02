@@ -3,11 +3,13 @@ use crate::cohort::{
     build_seed_feature_check, compute_rating_delta_forecast, compute_rating_failure_analysis,
     run_recall_optimization, write_cohort_results_csv,
     write_failure_analysis_md as write_cohort_failure_analysis_md,
+    write_operator_burden_contributions_csv, write_operator_delta_attainment_matrix_csv,
     write_feature_policy_summary_csv, write_feature_ranking_comparison_csv,
     write_feature_ranking_csv, write_heuristic_policy_failure_analysis_md,
     write_missed_failure_diagnostics_csv, write_motif_policy_contributions_csv,
     write_policy_contribution_analysis_csv, write_precursor_quality_csv,
-    write_recall_critical_features_csv, write_recall_rescue_results_csv,
+    write_recall_critical_features_csv, write_recall_recovery_efficiency_csv,
+    write_recall_rescue_results_csv,
 };
 use crate::config::{PipelineConfig, RunConfiguration};
 use crate::dataset::phm2018::{support_status as phm_support_status, Phm2018SupportStatus};
@@ -28,6 +30,7 @@ use crate::precursor::{
 use crate::preprocessing::prepare_secom;
 use crate::report::{write_reports, ReportArtifacts};
 use crate::residual::compute_residuals;
+use crate::semiotics::{build_semantic_layer, classify_motifs, MotifSet, SemanticLayer};
 use crate::signs::compute_signs;
 use serde::Serialize;
 use std::fs::{self, File};
@@ -90,6 +93,23 @@ struct ArtifactManifest {
     dsa_metrics_path: String,
     dsa_run_signals_path: String,
     per_failure_run_dsa_signals_path: String,
+    dsfb_signs_path: String,
+    dsfb_motifs_path: String,
+    dsfb_motif_labels_per_time_path: String,
+    dsfb_grammar_states_path: String,
+    dsfb_semantic_matches_path: String,
+    dsfb_semantic_ranked_candidates_path: String,
+    dsfb_structural_delta_metrics_path: String,
+    dsa_operator_baselines_path: String,
+    dsa_operator_delta_targets_path: String,
+    dsa_operator_delta_attainment_matrix_path: String,
+    dsa_policy_operator_burden_contributions_path: String,
+    dsa_recall_recovery_efficiency_path: String,
+    dsa_stage1_candidates_path: String,
+    dsa_stage2_candidates_path: String,
+    dsa_feature_ranking_burden_aware_path: String,
+    dsa_cohort_results_burden_aware_path: String,
+    dsa_cohort_summary_burden_aware_path: String,
     secom_archive_layout_path: String,
     drsc_trace_path: Option<String>,
     drsc_figure_path: Option<String>,
@@ -196,27 +216,22 @@ pub fn run_secom_benchmark(
         &metrics,
         config.pre_failure_lookback_runs,
     )?;
-    let feature_ranking = if optimization
+    let selected_strategy = optimization
         .optimized_execution
         .summary
         .selected_configuration
         .as_ref()
-        .is_some_and(|row| row.ranking_strategy == "recall_aware")
-    {
-        optimization.recall_aware_feature_ranking.clone()
-    } else {
-        optimization.baseline_feature_ranking.clone()
+        .map(|row| row.ranking_strategy.as_str())
+        .unwrap_or("compression_biased");
+    let feature_ranking = match selected_strategy {
+        "recall_aware" => optimization.recall_aware_feature_ranking.clone(),
+        "burden_aware" => optimization.burden_aware_feature_ranking.clone(),
+        _ => optimization.baseline_feature_ranking.clone(),
     };
-    let feature_cohorts = if optimization
-        .optimized_execution
-        .summary
-        .selected_configuration
-        .as_ref()
-        .is_some_and(|row| row.ranking_strategy == "recall_aware")
-    {
-        optimization.recall_aware_feature_cohorts.clone()
-    } else {
-        optimization.baseline_feature_cohorts.clone()
+    let feature_cohorts = match selected_strategy {
+        "recall_aware" => optimization.recall_aware_feature_cohorts.clone(),
+        "burden_aware" => optimization.burden_aware_feature_cohorts.clone(),
+        _ => optimization.baseline_feature_cohorts.clone(),
     };
     let seed_feature_check = build_seed_feature_check(&feature_cohorts);
     let dsa = optimization.optimized_execution.selected_evaluation.clone();
@@ -228,6 +243,23 @@ pub fn run_secom_benchmark(
     let rating_delta_failure_analysis =
         compute_rating_failure_analysis(&dsa, &metrics, Some(&cohort_summary));
     let heuristics = build_heuristics_bank(&metrics, "SECOM");
+    let motifs = classify_motifs(
+        &prepared,
+        &nominal,
+        &residuals,
+        &signs,
+        &grammar,
+        config.pre_failure_lookback_runs,
+    );
+    let semantic_layer = build_semantic_layer(
+        &prepared,
+        &residuals,
+        &signs,
+        &grammar,
+        &motifs,
+        &nominal,
+        config.pre_failure_lookback_runs,
+    );
 
     let output_root = output_root
         .map(Path::to_path_buf)
@@ -274,6 +306,10 @@ pub fn run_secom_benchmark(
     write_feature_ranking_csv(
         &run_dir.join("dsa_feature_ranking_recall_aware.csv"),
         &optimization.recall_aware_feature_ranking,
+    )?;
+    write_feature_ranking_csv(
+        &run_dir.join("dsa_feature_ranking_burden_aware.csv"),
+        &optimization.burden_aware_feature_ranking,
     )?;
     write_feature_ranking_comparison_csv(
         &run_dir.join("dsa_feature_ranking_comparison.csv"),
@@ -328,10 +364,18 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsa_cohort_results_recall_aware.csv"),
         &optimization.recall_aware_execution.summary.cohort_results,
     )?;
+    write_cohort_results_csv(
+        &run_dir.join("dsa_cohort_results_burden_aware.csv"),
+        &optimization.burden_aware_execution.summary.cohort_results,
+    )?;
     write_json_pretty(&run_dir.join("dsa_cohort_summary.json"), &cohort_summary)?;
     write_json_pretty(
         &run_dir.join("dsa_cohort_summary_recall_aware.json"),
         &optimization.recall_aware_execution.summary,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsa_cohort_summary_burden_aware.json"),
+        &optimization.burden_aware_execution.summary,
     )?;
     write_precursor_quality_csv(
         &run_dir.join("dsa_cohort_precursor_quality.csv"),
@@ -352,6 +396,34 @@ pub fn run_secom_benchmark(
     write_json_pretty(
         &run_dir.join("dsa_delta_target_assessment.json"),
         &optimization.delta_target_assessment,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsa_operator_baselines.json"),
+        &optimization.operator_baselines,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsa_operator_delta_targets.json"),
+        &optimization.operator_delta_targets,
+    )?;
+    write_operator_delta_attainment_matrix_csv(
+        &run_dir.join("dsa_operator_delta_attainment_matrix.csv"),
+        &optimization.operator_delta_attainment_matrix,
+    )?;
+    write_operator_burden_contributions_csv(
+        &run_dir.join("dsa_policy_operator_burden_contributions.csv"),
+        &optimization.policy_operator_burden_contributions,
+    )?;
+    write_recall_recovery_efficiency_csv(
+        &run_dir.join("dsa_recall_recovery_efficiency.csv"),
+        &optimization.recall_recovery_efficiency,
+    )?;
+    write_cohort_results_csv(
+        &run_dir.join("dsa_stage1_candidates.csv"),
+        &optimization.stage1_candidates,
+    )?;
+    write_cohort_results_csv(
+        &run_dir.join("dsa_stage2_candidates.csv"),
+        &optimization.stage2_candidates,
     )?;
     if let Some(analysis) = &cohort_summary.failure_analysis {
         write_cohort_failure_analysis_md(
@@ -395,6 +467,30 @@ pub fn run_secom_benchmark(
     )?;
     write_trace_csvs(
         &run_dir, &prepared, &residuals, &signs, &baselines, &grammar,
+    )?;
+    write_dsfb_signs_csv(&run_dir.join("dsfb_signs.csv"), &prepared, &residuals, &signs)?;
+    write_dsfb_motifs_csv(&run_dir.join("dsfb_motifs.csv"), &motifs)?;
+    write_dsfb_motif_labels_per_time_csv(
+        &run_dir.join("dsfb_motif_labels_per_time.csv"),
+        &prepared,
+        &motifs,
+    )?;
+    write_dsfb_grammar_states_csv(
+        &run_dir.join("dsfb_grammar_states.csv"),
+        &prepared,
+        &grammar,
+    )?;
+    write_dsfb_semantic_matches_csv(
+        &run_dir.join("dsfb_semantic_matches.csv"),
+        &semantic_layer.semantic_matches,
+    )?;
+    write_dsfb_semantic_matches_csv(
+        &run_dir.join("dsfb_semantic_ranked_candidates.csv"),
+        &semantic_layer.ranked_candidates,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsfb_structural_delta_metrics.json"),
+        &semantic_layer.structural_delta_metrics,
     )?;
     let figures = generate_figures(
         &run_dir, &prepared, &nominal, &residuals, &signs, &baselines, &grammar, &metrics, &dsa,
@@ -448,6 +544,10 @@ pub fn run_secom_benchmark(
                 .join("dsa_feature_ranking_recall_aware.csv")
                 .display()
                 .to_string(),
+            dsa_feature_ranking_burden_aware_path: run_dir
+                .join("dsa_feature_ranking_burden_aware.csv")
+                .display()
+                .to_string(),
             dsa_feature_ranking_comparison_path: run_dir
                 .join("dsa_feature_ranking_comparison.csv")
                 .display()
@@ -488,6 +588,14 @@ pub fn run_secom_benchmark(
                 .join("dsa_stage_b_candidates.csv")
                 .display()
                 .to_string(),
+            dsa_stage1_candidates_path: run_dir
+                .join("dsa_stage1_candidates.csv")
+                .display()
+                .to_string(),
+            dsa_stage2_candidates_path: run_dir
+                .join("dsa_stage2_candidates.csv")
+                .display()
+                .to_string(),
             dsa_missed_failure_diagnostics_path: run_dir
                 .join("dsa_missed_failure_diagnostics.csv")
                 .display()
@@ -496,9 +604,33 @@ pub fn run_secom_benchmark(
                 .join("dsa_delta_target_assessment.json")
                 .display()
                 .to_string(),
+            dsa_operator_baselines_path: run_dir
+                .join("dsa_operator_baselines.json")
+                .display()
+                .to_string(),
+            dsa_operator_delta_targets_path: run_dir
+                .join("dsa_operator_delta_targets.json")
+                .display()
+                .to_string(),
+            dsa_operator_delta_attainment_matrix_path: run_dir
+                .join("dsa_operator_delta_attainment_matrix.csv")
+                .display()
+                .to_string(),
+            dsa_policy_operator_burden_contributions_path: run_dir
+                .join("dsa_policy_operator_burden_contributions.csv")
+                .display()
+                .to_string(),
+            dsa_recall_recovery_efficiency_path: run_dir
+                .join("dsa_recall_recovery_efficiency.csv")
+                .display()
+                .to_string(),
             dsa_cohort_results_path: run_dir.join("dsa_cohort_results.csv").display().to_string(),
             dsa_cohort_results_recall_aware_path: run_dir
                 .join("dsa_cohort_results_recall_aware.csv")
+                .display()
+                .to_string(),
+            dsa_cohort_results_burden_aware_path: run_dir
+                .join("dsa_cohort_results_burden_aware.csv")
                 .display()
                 .to_string(),
             dsa_cohort_summary_path: run_dir
@@ -507,6 +639,10 @@ pub fn run_secom_benchmark(
                 .to_string(),
             dsa_cohort_summary_recall_aware_path: run_dir
                 .join("dsa_cohort_summary_recall_aware.json")
+                .display()
+                .to_string(),
+            dsa_cohort_summary_burden_aware_path: run_dir
+                .join("dsa_cohort_summary_burden_aware.json")
                 .display()
                 .to_string(),
             dsa_cohort_precursor_quality_path: run_dir
@@ -564,6 +700,28 @@ pub fn run_secom_benchmark(
             dsa_run_signals_path: run_dir.join("dsa_run_signals.csv").display().to_string(),
             per_failure_run_dsa_signals_path: run_dir
                 .join("per_failure_run_dsa_signals.csv")
+                .display()
+                .to_string(),
+            dsfb_signs_path: run_dir.join("dsfb_signs.csv").display().to_string(),
+            dsfb_motifs_path: run_dir.join("dsfb_motifs.csv").display().to_string(),
+            dsfb_motif_labels_per_time_path: run_dir
+                .join("dsfb_motif_labels_per_time.csv")
+                .display()
+                .to_string(),
+            dsfb_grammar_states_path: run_dir
+                .join("dsfb_grammar_states.csv")
+                .display()
+                .to_string(),
+            dsfb_semantic_matches_path: run_dir
+                .join("dsfb_semantic_matches.csv")
+                .display()
+                .to_string(),
+            dsfb_semantic_ranked_candidates_path: run_dir
+                .join("dsfb_semantic_ranked_candidates.csv")
+                .display()
+                .to_string(),
+            dsfb_structural_delta_metrics_path: run_dir
+                .join("dsfb_structural_delta_metrics.json")
                 .display()
                 .to_string(),
             secom_archive_layout_path: run_dir
@@ -1055,6 +1213,148 @@ fn write_density_metrics_csv(path: &Path, records: &[DensityMetricRecord]) -> Re
     let mut writer = csv::Writer::from_path(path)?;
     for record in records {
         writer.serialize(record)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_dsfb_signs_csv(
+    path: &Path,
+    prepared: &crate::preprocessing::PreparedDataset,
+    residuals: &crate::residual::ResidualSet,
+    signs: &crate::signs::SignSet,
+) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    writer.write_record([
+        "feature_index",
+        "feature_name",
+        "run_index",
+        "timestamp",
+        "label",
+        "residual",
+        "drift",
+        "slew",
+        "residual_norm",
+        "is_imputed",
+        "drift_threshold",
+        "slew_threshold",
+    ])?;
+    for (residual_trace, sign_trace) in residuals.traces.iter().zip(&signs.traces) {
+        for run_index in 0..residual_trace.residuals.len() {
+            writer.write_record([
+                residual_trace.feature_index.to_string(),
+                residual_trace.feature_name.clone(),
+                run_index.to_string(),
+                prepared.timestamps[run_index]
+                    .format("%Y-%m-%d %H:%M:%S")
+                    .to_string(),
+                prepared.labels[run_index].to_string(),
+                residual_trace.residuals[run_index].to_string(),
+                sign_trace.drift[run_index].to_string(),
+                sign_trace.slew[run_index].to_string(),
+                residual_trace.norms[run_index].to_string(),
+                residual_trace.is_imputed[run_index].to_string(),
+                sign_trace.drift_threshold.to_string(),
+                sign_trace.slew_threshold.to_string(),
+            ])?;
+        }
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_dsfb_motifs_csv(path: &Path, motifs: &crate::semiotics::MotifSet) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    for row in &motifs.summary_rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_dsfb_motif_labels_per_time_csv(
+    path: &Path,
+    prepared: &crate::preprocessing::PreparedDataset,
+    motifs: &crate::semiotics::MotifSet,
+) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    writer.write_record([
+        "feature_index",
+        "feature_name",
+        "run_index",
+        "timestamp",
+        "label",
+        "motif_label",
+    ])?;
+    for trace in &motifs.traces {
+        for (run_index, motif_label) in trace.labels.iter().enumerate() {
+            writer.write_record([
+                trace.feature_index.to_string(),
+                trace.feature_name.clone(),
+                run_index.to_string(),
+                prepared.timestamps[run_index]
+                    .format("%Y-%m-%d %H:%M:%S")
+                    .to_string(),
+                prepared.labels[run_index].to_string(),
+                motif_label.as_lowercase().to_string(),
+            ])?;
+        }
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_dsfb_grammar_states_csv(
+    path: &Path,
+    prepared: &crate::preprocessing::PreparedDataset,
+    grammar: &crate::grammar::GrammarSet,
+) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    writer.write_record([
+        "feature_index",
+        "feature_name",
+        "run_index",
+        "timestamp",
+        "label",
+        "raw_state",
+        "confirmed_state",
+        "persistent_boundary",
+        "persistent_violation",
+        "suppressed_by_imputation",
+        "raw_reason",
+        "confirmed_reason",
+    ])?;
+    for trace in &grammar.traces {
+        for run_index in 0..trace.raw_states.len() {
+            writer.write_record([
+                trace.feature_index.to_string(),
+                trace.feature_name.clone(),
+                run_index.to_string(),
+                prepared.timestamps[run_index]
+                    .format("%Y-%m-%d %H:%M:%S")
+                    .to_string(),
+                prepared.labels[run_index].to_string(),
+                format!("{:?}", trace.raw_states[run_index]),
+                format!("{:?}", trace.states[run_index]),
+                trace.persistent_boundary[run_index].to_string(),
+                trace.persistent_violation[run_index].to_string(),
+                trace.suppressed_by_imputation[run_index].to_string(),
+                format!("{:?}", trace.raw_reasons[run_index]),
+                format!("{:?}", trace.reasons[run_index]),
+            ])?;
+        }
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_dsfb_semantic_matches_csv(
+    path: &Path,
+    rows: &[crate::semiotics::SemanticMatchRecord],
+) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
     }
     writer.flush()?;
     Ok(())

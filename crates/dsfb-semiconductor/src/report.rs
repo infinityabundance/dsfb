@@ -361,6 +361,11 @@ fn markdown_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_markdown_section(metrics, dsa));
+    out.push_str(&which_delta_matters_markdown_section(optimization));
+    out.push_str(&predeclared_operator_delta_targets_markdown_section(optimization));
+    out.push_str(&operator_optimization_frontier_markdown_section(optimization));
+    out.push_str(&recall_recovery_efficiency_markdown_section(optimization));
+    out.push_str(&operator_target_attainment_markdown_section(optimization));
     out.push_str(&predeclared_delta_target_markdown_section(
         delta_target_assessment,
     ));
@@ -634,6 +639,7 @@ fn latex_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_latex_section(metrics, dsa));
+    out.push_str(&operator_sections_latex(optimization));
     out.push_str(&optimization_sections_latex(
         optimization,
         delta_target_assessment,
@@ -926,6 +932,150 @@ fn predeclared_delta_target_markdown_section(assessment: &DeltaTargetAssessment)
     out
 }
 
+fn which_delta_matters_markdown_section(optimization: &OptimizationExecution) -> String {
+    let targets = &optimization.operator_delta_targets;
+    let mut out = String::new();
+    out.push_str("## Which Delta Matters on SECOM\n\n");
+    out.push_str("On the current SECOM evidence, the operator-facing delta is investigation burden on structurally active pass windows, not binary run-level nuisance alone. This crate therefore evaluates Review/Escalate burden, episode fragmentation, precursor quality, and recall-recovery efficiency before lead-time claims.\n\n");
+    out.push_str(&format!(
+        "- Baseline structural investigation points: {}\n- Optimized Review/Escalate points: {}\n- Baseline episode count: {}\n- Optimized episode count: {}\n- Baseline review burden per pass run: {:.4}\n- Optimized review burden per pass run: {:.4}\n\n",
+        optimization.operator_baselines.baseline_investigation_points,
+        targets.optimized_review_escalate_points,
+        optimization.operator_baselines.baseline_episode_count,
+        targets.optimized_episode_count,
+        optimization
+            .operator_baselines
+            .baseline_review_escalate_points_per_pass_run,
+        targets.optimized_review_points_per_pass_run,
+    ));
+    out
+}
+
+fn predeclared_operator_delta_targets_markdown_section(
+    optimization: &OptimizationExecution,
+) -> String {
+    let targets = &optimization.operator_delta_targets;
+    let mut out = String::new();
+    out.push_str("## Predeclared Operator Delta Targets\n\n");
+    out.push_str("- Target A: `delta_investigation_load >= 0.40`\n");
+    out.push_str("- Target B: `delta_episode_count >= 0.40`\n");
+    out.push_str("- Target C: `delta_review_points_per_pass_run >= 0.40`\n");
+    out.push_str("- Target D: `delta_review_episodes_per_pass_run >= 0.40`\n");
+    out.push_str("- Target E: precursor quality preserved or improved\n");
+    out.push_str("- Target F: recall `>= 103/104`\n");
+    out.push_str("- Target G: recall `= 104/104`\n");
+    out.push_str("- Target H: nuisance delta thresholds `>= 0.15`, `>= 0.25`, `>= 0.40`\n");
+    out.push_str(&format!(
+        "\nBaseline layers used:\n- Investigation load baseline: `{}` ({})\n- Episode baseline: `{}` ({})\n- Review-burden baseline: `{}` ({:.4} points/pass-run)\n\n",
+        optimization.operator_baselines.investigation_baseline_layer,
+        optimization.operator_baselines.baseline_investigation_points,
+        optimization.operator_baselines.episode_baseline_layer,
+        optimization.operator_baselines.baseline_episode_count,
+        optimization.operator_baselines.review_burden_baseline_layer,
+        optimization
+            .operator_baselines
+            .baseline_review_escalate_points_per_pass_run,
+    ));
+    out.push_str(&format!(
+        "Selected-row operator deltas:\n- delta_investigation_load = {:.4}\n- delta_episode_count = {:.4}\n- delta_review_points_per_pass_run = {:.4}\n- delta_review_episodes_per_pass_run = {:.4}\n- precursor quality status = {}\n- recall equals threshold = {}\n- recall within tolerance = {}\n\n",
+        targets.delta_investigation_load,
+        targets.delta_episode_count,
+        targets.delta_review_points_per_pass_run,
+        targets.delta_review_episodes_per_pass_run,
+        targets.precursor_quality_status,
+        targets.recall_equals_threshold,
+        targets.recall_within_tolerance,
+    ));
+    out
+}
+
+fn operator_optimization_frontier_markdown_section(
+    optimization: &OptimizationExecution,
+) -> String {
+    let mut out = String::new();
+    out.push_str("## Optimization Frontier\n\n");
+    out.push_str(&format!(
+        "- Pareto frontier rows: {}\n- Stage 1 burden-reduction candidates: {}\n- Stage 2 recall-recovery candidates: {}\n",
+        optimization.pareto_frontier.len(),
+        optimization.stage1_candidates.len(),
+        optimization.stage2_candidates.len(),
+    ));
+    if let Some(selected) = &optimization.optimized_execution.summary.selected_configuration {
+        out.push_str(&format!(
+            "- Best optimized configuration: {} [{}], W={}, K={}, tau={:.2}, m={}, recall={}/{}, Review/Escalate points={}, episodes={}, precursor quality={}, nuisance={:.4}\n\n",
+            selected.cohort_name,
+            selected.ranking_strategy,
+            selected.window,
+            selected.persistence_runs,
+            selected.alert_tau,
+            selected.corroborating_m,
+            selected.failure_recall,
+            selected.failure_runs,
+            selected.investigation_point_count,
+            selected.dsa_episode_count,
+            format_option_f64(selected.precursor_quality),
+            selected.pass_run_nuisance_proxy,
+        ));
+    } else {
+        out.push('\n');
+    }
+    out
+}
+
+fn recall_recovery_efficiency_markdown_section(
+    optimization: &OptimizationExecution,
+) -> String {
+    let mut out = String::new();
+    out.push_str("## Recall Recovery Efficiency\n\n");
+    if optimization.recall_recovery_efficiency.is_empty() {
+        out.push_str("- No recall-recovery efficiency rows were emitted.\n\n");
+        return out;
+    }
+    for row in &optimization.recall_recovery_efficiency {
+        out.push_str(&format!(
+            "- {} -> {}: recovered_failures={}, added_review_escalate_points={}, added_episode_count={}, added_review_points_per_pass_run={:.4}, added_review_episodes_per_pass_run={:.4}, added_nuisance_runs={}, recovered_failures_per_added_review_escalate_point={}, recovered_failures_per_added_episode={}, recovered_failures_per_added_pass_run_burden={}, recovered_failures_per_added_nuisance_run={}\n",
+            row.baseline_configuration,
+            row.optimized_configuration,
+            row.recovered_failures,
+            row.added_review_escalate_points,
+            row.added_episode_count,
+            row.added_review_points_per_pass_run,
+            row.added_review_episodes_per_pass_run,
+            row.added_nuisance_runs,
+            format_option_f64(row.recovered_failures_per_added_review_escalate_point),
+            format_option_f64(row.recovered_failures_per_added_episode),
+            format_option_f64(row.recovered_failures_per_added_pass_run_burden),
+            format_option_f64(row.recovered_failures_per_added_nuisance_run),
+        ));
+    }
+    out.push('\n');
+    out
+}
+
+fn operator_target_attainment_markdown_section(
+    optimization: &OptimizationExecution,
+) -> String {
+    let targets = &optimization.operator_delta_targets;
+    let mut out = String::new();
+    out.push_str("## Target Attainment Assessment\n\n");
+    out.push_str(&format!(
+        "- Target A (`delta_investigation_load >= 0.40`): {}\n- Target B (`delta_episode_count >= 0.40`): {}\n- Target C (`delta_review_points_per_pass_run >= 0.40`): {}\n- Target D (`delta_review_episodes_per_pass_run >= 0.40`): {}\n- Target E (precursor quality preserved or improved): {}\n- Target F (`recall >= 103/104`): {}\n- Target G (`recall = 104/104`): {}\n- Target H nuisance thresholds: >=0.15={}, >=0.25={}, >=0.40={}\n- Mean lead >= EWMA: {}\n- Mean lead >= threshold: {}\n\n",
+        targets.delta_investigation_load >= 0.40,
+        targets.delta_episode_count >= 0.40,
+        targets.delta_review_points_per_pass_run >= 0.40,
+        targets.delta_review_episodes_per_pass_run >= 0.40,
+        targets.precursor_quality_status != "degraded",
+        targets.recall_ge_103,
+        targets.recall_eq_104,
+        targets.delta_nuisance_vs_ewma >= 0.15,
+        targets.delta_nuisance_vs_ewma >= 0.25,
+        targets.delta_nuisance_vs_ewma >= 0.40,
+        targets.mean_lead_delta_vs_ewma.unwrap_or(f64::NEG_INFINITY) >= 0.0,
+        targets.mean_lead_delta_vs_threshold.unwrap_or(f64::NEG_INFINITY) >= 0.0,
+    ));
+    out
+}
+
 fn recall_recovery_diagnostics_markdown_section(optimization: &OptimizationExecution) -> String {
     let baseline = optimization
         .baseline_execution
@@ -1123,7 +1273,7 @@ fn two_stage_optimization_frontier_markdown_section(
 
 fn target_attainment_markdown_section(assessment: &DeltaTargetAssessment) -> String {
     let mut out = String::new();
-    out.push_str("## Target Attainment Assessment\n\n");
+    out.push_str("## Legacy Nuisance Target Assessment\n\n");
     out.push_str(&format!(
         "- Primary target reached: {}\n- Ideal target reached: {}\n- Secondary target reached: {}\n- Selected delta vs EWMA: {:.4}\n- Selected delta vs current policy DSA: {:.4}\n- Mean lead >= EWMA: {}\n- Mean lead >= threshold: {}\n\n{}\n\n",
         assessment.primary_target_met,
@@ -1210,7 +1360,7 @@ fn optimization_sections_latex(
         optimization.stage_b_candidates.len(),
     )));
     out.push_str("\n\n");
-    out.push_str("\\section*{Target Attainment Assessment}\n");
+    out.push_str("\\section*{Legacy Nuisance Target Assessment}\n");
     out.push_str(&latex_escape(&format!(
         "Primary target reached: {}. Ideal target reached: {}. Secondary target reached: {}. Selected delta vs EWMA {:.4}; selected delta vs current policy DSA {:.4}. Mean lead >= EWMA: {}. Mean lead >= threshold: {}.",
         assessment.primary_target_met,
@@ -1220,6 +1370,65 @@ fn optimization_sections_latex(
         assessment.selected_configuration.delta_nuisance_vs_current_dsa,
         assessment.mean_lead_time_ge_ewma,
         assessment.mean_lead_time_ge_threshold,
+    )));
+    out.push_str("\n\n");
+    out
+}
+
+fn operator_sections_latex(optimization: &OptimizationExecution) -> String {
+    let targets = &optimization.operator_delta_targets;
+    let mut out = String::new();
+    out.push_str("\\section*{Which Delta Matters on SECOM}\n");
+    out.push_str(&latex_escape(
+        "On the current SECOM evidence, the operator-facing delta is investigation burden on structurally active pass windows, not binary run-level nuisance alone. This report therefore prioritizes Review/Escalate burden, episode fragmentation, precursor quality, and recall-recovery efficiency before lead-time claims.",
+    ));
+    out.push_str("\n\n");
+    out.push_str("\\section*{Predeclared Operator Delta Targets}\n");
+    out.push_str(&latex_escape(&format!(
+        "Target A: delta_investigation_load >= 0.40. Target B: delta_episode_count >= 0.40. Target C: delta_review_points_per_pass_run >= 0.40. Target D: delta_review_episodes_per_pass_run >= 0.40. Target E: precursor quality preserved or improved. Target F: recall >= 103/104. Target G: recall = 104/104. Investigation baseline {} = {}. Episode baseline {} = {}. Review-burden baseline {} = {:.4} points/pass-run.",
+        optimization.operator_baselines.investigation_baseline_layer,
+        optimization.operator_baselines.baseline_investigation_points,
+        optimization.operator_baselines.episode_baseline_layer,
+        optimization.operator_baselines.baseline_episode_count,
+        optimization.operator_baselines.review_burden_baseline_layer,
+        optimization
+            .operator_baselines
+            .baseline_review_escalate_points_per_pass_run,
+    )));
+    out.push_str("\n\n");
+    out.push_str("\\section*{Optimization Frontier}\n");
+    out.push_str(&latex_escape(&format!(
+        "Pareto frontier rows: {}. Stage 1 burden-reduction candidates: {}. Stage 2 recall-recovery candidates: {}.",
+        optimization.pareto_frontier.len(),
+        optimization.stage1_candidates.len(),
+        optimization.stage2_candidates.len(),
+    )));
+    out.push_str("\n\n");
+    out.push_str("\\section*{Recall Recovery Efficiency}\n");
+    if let Some(row) = optimization.recall_recovery_efficiency.first() {
+        out.push_str(&latex_escape(&format!(
+            "{} to {} recovered {} failures with added Review/Escalate points {}, added episodes {}, added pass-run review burden {:.4}, and added nuisance runs {}.",
+            row.baseline_configuration,
+            row.optimized_configuration,
+            row.recovered_failures,
+            row.added_review_escalate_points,
+            row.added_episode_count,
+            row.added_review_points_per_pass_run,
+            row.added_nuisance_runs,
+        )));
+        out.push_str("\n\n");
+    }
+    out.push_str("\\section*{Target Attainment Assessment}\n");
+    out.push_str(&latex_escape(&format!(
+        "delta_investigation_load {:.4}. delta_episode_count {:.4}. delta_review_points_per_pass_run {:.4}. delta_review_episodes_per_pass_run {:.4}. precursor quality status {}. recall >= 103/104 {}. recall = 104/104 {}. delta_nuisance_vs_ewma {:.4}.",
+        targets.delta_investigation_load,
+        targets.delta_episode_count,
+        targets.delta_review_points_per_pass_run,
+        targets.delta_review_episodes_per_pass_run,
+        targets.precursor_quality_status,
+        targets.recall_ge_103,
+        targets.recall_eq_104,
+        targets.delta_nuisance_vs_ewma,
     )));
     out.push_str("\n\n");
     out
@@ -1276,8 +1485,12 @@ fn artifact_inventory(
             role: "Recall-aware deterministic feature ranking emphasizing pre-failure coverage.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_feature_ranking_burden_aware.csv".into(),
+            role: "Operator-burden-aware feature ranking that penalizes pass-run Review/Escalate burden.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_feature_ranking_comparison.csv".into(),
-            role: "Side-by-side comparison of compression-biased and recall-aware ranking positions.".into(),
+            role: "Side-by-side comparison of compression-biased, recall-aware, and burden-aware ranking positions.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_seed_feature_check.json".into(),
@@ -1316,8 +1529,36 @@ fn artifact_inventory(
             role: "Stage B recall-recovery candidates selected from the nuisance-first frontier.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_stage1_candidates.csv".into(),
+            role: "Stage 1 burden-reduction candidates under the operator-priority objective.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_stage2_candidates.csv".into(),
+            role: "Stage 2 recall-recovery candidates under the operator-priority objective.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_missed_failure_diagnostics.csv".into(),
             role: "Per-failure diagnostic table for baseline-missed failures and rescue recoverability.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_operator_baselines.json".into(),
+            role: "Explicit operator-burden baseline layers: numeric-only DSA, current policy DSA, and raw boundary.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_operator_delta_targets.json".into(),
+            role: "Predeclared operator delta targets and selected-row attainment numbers.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_operator_delta_attainment_matrix.csv".into(),
+            role: "Explicit pass/fail matrix for the operator-facing burden, recall, nuisance, and lead thresholds.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_policy_operator_burden_contributions.csv".into(),
+            role: "Motif- and feature-level contributions to operator burden and recovered recall.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_recall_recovery_efficiency.csv".into(),
+            role: "Recovered failures per added Review/Escalate point, per added episode, per added burden, and per added nuisance run.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_cohort_results.csv".into(),
@@ -1328,12 +1569,20 @@ fn artifact_inventory(
             role: "Recall-aware cohort results under the optimized deterministic rescue policy.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_cohort_results_burden_aware.csv".into(),
+            role: "Burden-aware cohort results under the optimized deterministic rescue policy.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_cohort_summary.json".into(),
             role: "Saved cohort-level DSA summary, closest-to-success row, and best cohort when present.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_cohort_summary_recall_aware.json".into(),
             role: "Recall-aware cohort summary for direct comparison with the compression-biased ranking.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_cohort_summary_burden_aware.json".into(),
+            role: "Burden-aware cohort summary for direct comparison with the other ranking strategies.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_cohort_precursor_quality.csv".into(),
@@ -1354,6 +1603,34 @@ fn artifact_inventory(
         ArtifactInventoryEntry {
             path: "dsa_delta_target_assessment.json".into(),
             role: "Explicit predeclared 40% delta-target evaluation against EWMA and the prior policy-governed DSA baseline.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_signs.csv".into(),
+            role: "Residual, drift, and slew sign tuples exported per feature and run.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_motifs.csv".into(),
+            role: "Deterministic temporal motif summary built from residual, drift, and slew trajectories.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_motif_labels_per_time.csv".into(),
+            role: "Per-feature, per-run temporal motif labels from the syntax layer.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_grammar_states.csv".into(),
+            role: "DSFB admissibility grammar states per feature and run.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_semantic_matches.csv".into(),
+            role: "Grammar-filtered heuristic semantic matches.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_semantic_ranked_candidates.csv".into(),
+            role: "Ranked semantic candidates after grammar and motif filtering.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_structural_delta_metrics.json".into(),
+            role: "Grammar violation precision, motif precision pre-failure, structural separation, and precursor stability metrics.".into(),
         },
         ArtifactInventoryEntry {
             path: "feature_metrics.csv".into(),

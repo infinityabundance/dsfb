@@ -28,6 +28,9 @@ impl HeuristicAlertClass {
 pub struct HeuristicPolicyDefinition {
     pub motif_name: &'static str,
     pub signature_definition: &'static str,
+    pub grammar_constraints: &'static str,
+    pub regime_conditions: &'static str,
+    pub applicability_rules: &'static str,
     pub interpretation: &'static str,
     pub alert_class_default: HeuristicAlertClass,
     pub requires_persistence: bool,
@@ -72,6 +75,12 @@ const POLICY_DEFINITIONS: &[HeuristicPolicyDefinition] = &[
         motif_name: PRE_FAILURE_SLOW_DRIFT,
         signature_definition:
             "Residual norm exceeds 0.5*rho with drift above the healthy-window drift threshold.",
+        grammar_constraints:
+            "grammar_state=Boundary and grammar_reason=SustainedOutwardDrift",
+        regime_conditions:
+            "Outward drift remains thresholded and curvature stays below the abrupt-slew regime.",
+        applicability_rules:
+            "Apply only after grammar filtering confirms boundary proximity without direct envelope exit.",
         interpretation:
             "Candidate DSA-compatible drift motif that supports closer monitoring or maintenance review.",
         alert_class_default: HeuristicAlertClass::Review,
@@ -95,6 +104,12 @@ const POLICY_DEFINITIONS: &[HeuristicPolicyDefinition] = &[
         motif_name: TRANSIENT_EXCURSION,
         signature_definition:
             "Residual norm enters the boundary zone with slew above the healthy-window slew threshold.",
+        grammar_constraints:
+            "grammar_state in {Boundary, Violation} and grammar_reason=AbruptSlewViolation",
+        regime_conditions:
+            "Curvature dominates the local sign tuple during a non-admissible excursion.",
+        applicability_rules:
+            "Apply only after grammar filtering confirms abrupt boundary interaction.",
         interpretation:
             "Compatible with transient upset or abrupt regime change, but not uniquely diagnostic.",
         alert_class_default: HeuristicAlertClass::Silent,
@@ -118,6 +133,12 @@ const POLICY_DEFINITIONS: &[HeuristicPolicyDefinition] = &[
         motif_name: RECURRENT_BOUNDARY_APPROACH,
         signature_definition:
             "Residual norm revisits the boundary zone repeatedly without a confirmed envelope exit.",
+        grammar_constraints:
+            "grammar_state=Boundary and grammar_reason=RecurrentBoundaryGrazing",
+        regime_conditions:
+            "Boundary revisitation persists without direct envelope exit and without stable violation.",
+        applicability_rules:
+            "Apply only after grammar filtering confirms repeated boundary approach under the local envelope.",
         interpretation:
             "Ambiguous DSA motif that warrants continued observation rather than decisive attribution.",
         alert_class_default: HeuristicAlertClass::Watch,
@@ -143,6 +164,9 @@ const POLICY_DEFINITIONS: &[HeuristicPolicyDefinition] = &[
 pub struct HeuristicEntry {
     pub motif_name: String,
     pub signature_definition: String,
+    pub grammar_constraints: String,
+    pub regime_conditions: String,
+    pub applicability_rules: String,
     pub applicable_dataset: String,
     pub provenance_status: String,
     pub interpretation: String,
@@ -199,6 +223,9 @@ pub fn build_heuristics_bank(
             HeuristicEntry {
                 motif_name: definition.motif_name.into(),
                 signature_definition: definition.signature_definition.into(),
+                grammar_constraints: definition.grammar_constraints.into(),
+                regime_conditions: definition.regime_conditions.into(),
+                applicability_rules: definition.applicability_rules.into(),
                 applicable_dataset: dataset_name.into(),
                 provenance_status: observed_status(metric),
                 interpretation: definition.interpretation.into(),
