@@ -72,6 +72,7 @@ pub struct RecallRescueConfig {
     pub enabled: bool,
     pub priority_one_score_margin: f64,
     pub priority_two_score_margin: f64,
+    pub priority_three_score_margin: f64,
     pub minimum_ewma_occupancy: f64,
     pub minimum_boundary_density: f64,
     pub minimum_motif_recurrence: f64,
@@ -83,6 +84,7 @@ impl Default for RecallRescueConfig {
             enabled: false,
             priority_one_score_margin: 0.10,
             priority_two_score_margin: 0.40,
+            priority_three_score_margin: 1.00,
             minimum_ewma_occupancy: 0.65,
             minimum_boundary_density: 0.40,
             minimum_motif_recurrence: 0.40,
@@ -94,6 +96,7 @@ impl Default for RecallRescueConfig {
 pub struct DsaPolicyRuntime {
     pub feature_policy_overrides: Vec<FeaturePolicyOverride>,
     pub recall_rescue: RecallRescueConfig,
+    pub semantic_rescue_support: BTreeMap<usize, Vec<bool>>,
 }
 
 impl Default for DsaWeights {
@@ -641,6 +644,11 @@ pub fn evaluate_dsa_with_policy(
         let feature_override = feature_policy_overrides
             .get(&feature.feature_index)
             .copied();
+        let semantic_rescue_support = policy_runtime
+            .semantic_rescue_support
+            .get(&feature.feature_index)
+            .cloned()
+            .unwrap_or_else(|| vec![false; run_count]);
         if !feature.analyzable {
             traces.push(empty_trace(
                 feature.feature_index,
@@ -846,6 +854,7 @@ pub fn evaluate_dsa_with_policy(
                     &resolved_alert_class,
                     &mut policy_state,
                     &mut dsa_alert,
+                    &semantic_rescue_support,
                     &fragmentation_proxy_w,
                     &dsa_score,
                     &boundary_density_w,
@@ -1844,7 +1853,7 @@ fn assemble_dsa_evaluation(
         ),
         recall_rescue_definition: if policy_runtime.recall_rescue.enabled {
             format!(
-                "Bounded recall rescue is enabled for explicit feature overrides only. Rescue promotes Watch-class near-miss structure when dsa_score >= tau - margin, boundary_density >= {:.2}, motif_recurrence >= {:.2}, ewma_occupancy >= {:.2}, and the override-specific watch-hit / fragmentation guards pass. Priority-2 overrides may rescue repeated Watch-class structure even when the directional-consistency rule fails.",
+                "Bounded recall rescue is enabled for explicit feature overrides only. Rescue promotes grammar-qualified near-miss structure when dsa_score >= tau - margin, boundary_density >= {:.2}, motif_recurrence >= {:.2}, ewma_occupancy >= {:.2}, and the override-specific watch-hit / fragmentation guards pass. Priority-2 overrides may rescue repeated Watch-class structure even when the directional-consistency rule fails, and priority-3 overrides may recover explicit grammar-qualified semantic support features from Silent when a failure-local override is present.",
                 policy_runtime.recall_rescue.minimum_boundary_density,
                 policy_runtime.recall_rescue.minimum_motif_recurrence,
                 policy_runtime.recall_rescue.minimum_ewma_occupancy,
@@ -2062,6 +2071,7 @@ fn apply_recall_rescue(
     resolved_alert_class: &[HeuristicAlertClass],
     policy_state: &mut [DsaPolicyState],
     dsa_alert: &mut [bool],
+    semantic_rescue_support: &[bool],
     fragmentation_proxy_w: &[f64],
     dsa_score: &[f64],
     boundary_density_w: &[f64],
@@ -2077,10 +2087,20 @@ fn apply_recall_rescue(
     if policy_state[run_index].is_review_or_escalate() {
         return None;
     }
-    if !matches!(
+    let semantic_support_active = semantic_rescue_support
+        .get(run_index)
+        .copied()
+        .unwrap_or(false);
+    let silent_semantic_support_rescue =
+        override_entry.rescue_priority >= 3
+            && matches!(resolved_alert_class[run_index], HeuristicAlertClass::Silent)
+            && semantic_support_active;
+    let resolved_alert_is_rescuable = matches!(
         resolved_alert_class[run_index],
         HeuristicAlertClass::Watch | HeuristicAlertClass::Review
-    ) {
+    );
+    if !resolved_alert_is_rescuable && !silent_semantic_support_rescue
+    {
         return None;
     }
     let minimum_window = override_entry
@@ -2090,7 +2110,9 @@ fn apply_recall_rescue(
     let fragmentation_ceiling = override_entry
         .maximum_allowed_fragmentation_override
         .unwrap_or(0.5);
-    let score_margin = if override_entry.rescue_priority >= 2 {
+    let score_margin = if override_entry.rescue_priority >= 3 {
+        rescue_config.priority_three_score_margin
+    } else if override_entry.rescue_priority >= 2 {
         rescue_config.priority_two_score_margin
     } else {
         rescue_config.priority_one_score_margin
@@ -2099,16 +2121,32 @@ fn apply_recall_rescue(
     let recent_watch_hits = (recent_start..=run_index)
         .filter(|&index| matches!(resolved_alert_class[index], HeuristicAlertClass::Watch))
         .count();
+    let recent_semantic_support_hits = semantic_rescue_support[recent_start..=run_index]
+        .iter()
+        .filter(|flag| **flag)
+        .count();
     let score_floor = (config.alert_tau - score_margin).max(0.0);
     let consistency_satisfied = consistent[run_index]
         || (override_entry.rescue_priority >= 2
             && matches!(resolved_alert_class[run_index], HeuristicAlertClass::Watch));
+    let support_hits_satisfied = if override_entry.rescue_priority >= 3 && !resolved_alert_is_rescuable {
+        recent_semantic_support_hits >= minimum_hits
+    } else {
+        recent_watch_hits >= minimum_hits
+    };
+    let structural_density_satisfied = if silent_semantic_support_rescue {
+        semantic_support_active
+            || (boundary_density_w[run_index] >= rescue_config.minimum_boundary_density
+                && motif_recurrence_w[run_index] >= rescue_config.minimum_motif_recurrence)
+    } else {
+        boundary_density_w[run_index] >= rescue_config.minimum_boundary_density
+            && motif_recurrence_w[run_index] >= rescue_config.minimum_motif_recurrence
+    };
 
     if !consistency_satisfied
-        || recent_watch_hits < minimum_hits
+        || !support_hits_satisfied
         || fragmentation_proxy_w[run_index] > fragmentation_ceiling
-        || boundary_density_w[run_index] < rescue_config.minimum_boundary_density
-        || motif_recurrence_w[run_index] < rescue_config.minimum_motif_recurrence
+        || !structural_density_satisfied
         || ewma_occupancy_w[run_index] < rescue_config.minimum_ewma_occupancy
         || dsa_score[run_index] < score_floor
     {
@@ -2126,7 +2164,11 @@ fn apply_recall_rescue(
         {
             policy_state[run_index] = DsaPolicyState::Review;
             dsa_alert[run_index] = true;
-            return Some("watch_to_review");
+            return Some(if resolved_alert_is_rescuable {
+                "watch_to_review"
+            } else {
+                "silent_to_review"
+            });
         }
     }
 
@@ -3413,6 +3455,7 @@ mod tests {
         let boundary = vec![0.0, 0.2, 0.3, 0.4, 0.4];
         let ewma = vec![0.2, 0.5, 0.6, 0.66, 0.70];
         let motif = vec![0.0, 0.2, 0.3, 0.4, 0.4];
+        let semantic_support = vec![false; 5];
         let consistent = vec![true, true, true, false, false];
 
         let transition = apply_recall_rescue(
@@ -3422,6 +3465,7 @@ mod tests {
             &resolved,
             &mut policy_state,
             &mut dsa_alert,
+            &semantic_support,
             &fragmentation,
             &dsa_score,
             &boundary,
@@ -3473,6 +3517,7 @@ mod tests {
         let boundary = vec![0.4, 0.4, 0.4, 0.5, 0.5];
         let ewma = vec![0.68, 0.69, 0.70, 0.71, 0.72];
         let motif = vec![0.4, 0.4, 0.4, 0.5, 0.5];
+        let semantic_support = vec![false; 5];
         let consistent = vec![true; 5];
 
         let transition = apply_recall_rescue(
@@ -3482,6 +3527,7 @@ mod tests {
             &resolved,
             &mut policy_state,
             &mut dsa_alert,
+            &semantic_support,
             &fragmentation,
             &dsa_score,
             &boundary,
@@ -3494,5 +3540,117 @@ mod tests {
         assert_eq!(transition, Some("watch_to_review"));
         assert_eq!(policy_state[4], DsaPolicyState::Review);
         assert!(dsa_alert[4]);
+    }
+
+    #[test]
+    fn priority_three_semantic_support_can_recover_silent_failure_local_near_miss() {
+        let override_entry = FeaturePolicyOverride {
+            feature_index: 91,
+            feature_name: "S092".into(),
+            alert_class_override: Some(HeuristicAlertClass::Watch),
+            requires_persistence_override: Some(false),
+            requires_corroboration_override: Some(false),
+            minimum_window_override: Some(2),
+            minimum_hits_override: Some(1),
+            maximum_allowed_fragmentation_override: Some(1.0),
+            rescue_eligible: true,
+            rescue_priority: 3,
+            allow_watch_only: Some(false),
+            allow_review_without_escalate: Some(true),
+            suppress_if_isolated: Some(false),
+            override_reason: "failure-local support".into(),
+        };
+        let rescue = RecallRescueConfig::default();
+        let config = DsaConfig {
+            alert_tau: 2.0,
+            ..DsaConfig::default()
+        };
+        let resolved = vec![HeuristicAlertClass::Silent, HeuristicAlertClass::Silent];
+        let mut policy_state = vec![DsaPolicyState::Silent; 2];
+        let mut dsa_alert = vec![false; 2];
+        let semantic_support = vec![true, true];
+        let fragmentation = vec![0.5, 0.5];
+        let dsa_score = vec![1.0, 1.0];
+        let boundary = vec![0.5, 0.5];
+        let ewma = vec![1.0, 1.0];
+        let motif = vec![0.5, 0.5];
+        let consistent = vec![true, true];
+
+        let transition = apply_recall_rescue(
+            Some(&override_entry),
+            &rescue,
+            &config,
+            &resolved,
+            &mut policy_state,
+            &mut dsa_alert,
+            &semantic_support,
+            &fragmentation,
+            &dsa_score,
+            &boundary,
+            &ewma,
+            &motif,
+            &consistent,
+            1,
+        );
+
+        assert_eq!(transition, Some("silent_to_review"));
+        assert_eq!(policy_state[1], DsaPolicyState::Review);
+        assert!(dsa_alert[1]);
+    }
+
+    #[test]
+    fn priority_three_semantic_support_can_substitute_for_boundary_density_on_recovery_pattern() {
+        let override_entry = FeaturePolicyOverride {
+            feature_index: 227,
+            feature_name: "S228".into(),
+            alert_class_override: Some(HeuristicAlertClass::Watch),
+            requires_persistence_override: Some(false),
+            requires_corroboration_override: Some(false),
+            minimum_window_override: Some(2),
+            minimum_hits_override: Some(1),
+            maximum_allowed_fragmentation_override: Some(1.0),
+            rescue_eligible: true,
+            rescue_priority: 3,
+            allow_watch_only: Some(false),
+            allow_review_without_escalate: Some(true),
+            suppress_if_isolated: Some(false),
+            override_reason: "failure-local recovery support".into(),
+        };
+        let rescue = RecallRescueConfig::default();
+        let config = DsaConfig {
+            alert_tau: 2.0,
+            ..DsaConfig::default()
+        };
+        let resolved = vec![HeuristicAlertClass::Silent, HeuristicAlertClass::Silent];
+        let mut policy_state = vec![DsaPolicyState::Silent; 2];
+        let mut dsa_alert = vec![false; 2];
+        let semantic_support = vec![false, true];
+        let fragmentation = vec![0.0, 0.0];
+        let dsa_score = vec![0.8, 1.0];
+        let boundary = vec![0.0, 0.0];
+        let ewma = vec![1.0, 1.0];
+        let motif = vec![0.0, 0.0];
+        let consistent = vec![true, true];
+
+        let transition = apply_recall_rescue(
+            Some(&override_entry),
+            &rescue,
+            &config,
+            &resolved,
+            &mut policy_state,
+            &mut dsa_alert,
+            &semantic_support,
+            &fragmentation,
+            &dsa_score,
+            &boundary,
+            &ewma,
+            &motif,
+            &consistent,
+            1,
+        );
+
+        assert_eq!(transition, Some("silent_to_review"));
+        assert_eq!(policy_state[1], DsaPolicyState::Review);
+        assert!(dsa_alert[1]);
     }
 }

@@ -95,6 +95,8 @@ pub struct FeatureMotifGroundingRecord {
     pub feature_name: String,
     pub motif_type: String,
     pub dominant_dsfb_motif: String,
+    pub dominant_grammar_state: String,
+    pub failure_local_recovery_case_count: usize,
     pub failure_window_semantic_hits: usize,
     pub pass_run_semantic_hits: usize,
     pub failure_window_pressure_hits: usize,
@@ -266,6 +268,7 @@ pub fn build_failure_driven_artifacts(
         optimized_dsa,
         missed_failure_diagnostics,
         policy_operator_burden_contributions,
+        &failure_cases,
         pre_failure_lookback_runs,
     );
     let minimal_heuristics_bank = build_minimal_heuristics_bank(
@@ -593,6 +596,7 @@ fn build_feature_motif_grounding(
     optimized_dsa: &DsaEvaluation,
     missed_failure_diagnostics: &[MissedFailureDiagnosticRow],
     policy_operator_burden_contributions: &[OperatorBurdenContributionRow],
+    failure_cases: &[FailureCaseReport],
     pre_failure_lookback_runs: usize,
 ) -> Vec<FeatureMotifGroundingRecord> {
     let failure_indices = baseline_dsa
@@ -606,6 +610,7 @@ fn build_feature_motif_grounding(
         optimized_dsa,
         missed_failure_diagnostics,
         policy_operator_burden_contributions,
+        failure_cases,
     );
 
     candidate_features
@@ -633,8 +638,21 @@ fn build_feature_motif_grounding(
                 masked_mean_abs(&bundle.sign.slew, &failure_window_mask, true);
             let mean_abs_slew_pass = masked_mean_abs(&bundle.sign.slew, &failure_window_mask, false);
             let dominant_dsfb_motif = dominant_motif_for_mask(bundle.motif, &failure_window_mask, true);
+            let dominant_grammar_state =
+                dominant_grammar_state_for_mask(bundle.grammar, &failure_window_mask, true);
+            let failure_local_recovery_case_count = failure_cases
+                .iter()
+                .flat_map(|case| case.top_contributing_features.iter())
+                .filter(|feature| {
+                    feature.feature_index == feature_index
+                        && feature.initial_motif_hypothesis == "recovery_pattern"
+                        && feature.dominant_grammar_state == "Recovery"
+                })
+                .count();
             let motif_type = grounded_motif_type(
                 dominant_dsfb_motif.as_str(),
+                dominant_grammar_state.as_str(),
+                failure_local_recovery_case_count,
                 failure_semantic_hits,
                 pass_semantic_hits,
                 failure_pressure_hits,
@@ -648,6 +666,8 @@ fn build_feature_motif_grounding(
                 feature_name: bundle.residual.feature_name.clone(),
                 motif_type: motif_type.to_string(),
                 dominant_dsfb_motif,
+                dominant_grammar_state,
+                failure_local_recovery_case_count,
                 failure_window_semantic_hits: failure_semantic_hits,
                 pass_run_semantic_hits: pass_semantic_hits,
                 failure_window_pressure_hits: failure_pressure_hits,
@@ -657,11 +677,12 @@ fn build_feature_motif_grounding(
                 mean_abs_slew_failure,
                 mean_abs_slew_pass,
                 justification: format!(
-                    "Failure-window semantic hits={}, pass-run semantic hits={}, failure pressure hits={}, pass pressure hits={}, |drift|_failure={:.4}, |slew|_failure={:.4}.",
+                    "Failure-window semantic hits={}, pass-run semantic hits={}, failure pressure hits={}, pass pressure hits={}, failure-local recovery cases={}, |drift|_failure={:.4}, |slew|_failure={:.4}.",
                     failure_semantic_hits,
                     pass_semantic_hits,
                     failure_pressure_hits,
                     pass_pressure_hits,
+                    failure_local_recovery_case_count,
                     mean_abs_drift_failure,
                     mean_abs_slew_failure,
                 ),
@@ -1194,6 +1215,7 @@ fn grounding_candidate_features(
     optimized_dsa: &DsaEvaluation,
     missed_failure_diagnostics: &[MissedFailureDiagnosticRow],
     policy_operator_burden_contributions: &[OperatorBurdenContributionRow],
+    failure_cases: &[FailureCaseReport],
 ) -> Vec<usize> {
     let mut features = BTreeSet::new();
     for row in &baseline_dsa.per_failure_run_signals {
@@ -1219,6 +1241,11 @@ fn grounding_candidate_features(
             if let Some(index) = feature_index_from_name(feature_name) {
                 features.insert(index);
             }
+        }
+    }
+    for case in failure_cases {
+        for feature in &case.top_contributing_features {
+            features.insert(feature.feature_index);
         }
     }
     let mut burden_features = policy_operator_burden_contributions
@@ -1299,8 +1326,31 @@ fn dominant_motif_for_mask(
         .unwrap_or_else(|| "stable_admissible".into())
 }
 
+fn dominant_grammar_state_for_mask(
+    grammar_trace: &FeatureGrammarTrace,
+    mask: &[bool],
+    select_value: bool,
+) -> String {
+    let mut counts = BTreeMap::<&'static str, usize>::new();
+    for run_index in 0..grammar_trace.raw_states.len() {
+        if mask[run_index] != select_value {
+            continue;
+        }
+        *counts
+            .entry(failure_grammar_state_label(grammar_trace, run_index))
+            .or_default() += 1;
+    }
+    counts
+        .into_iter()
+        .max_by(|left, right| left.1.cmp(&right.1).then_with(|| right.0.cmp(left.0)))
+        .map(|(label, _)| label.to_string())
+        .unwrap_or_else(|| "Admissible".into())
+}
+
 fn grounded_motif_type(
     dominant_dsfb_motif: &str,
+    dominant_grammar_state: &str,
+    failure_local_recovery_case_count: usize,
     failure_semantic_hits: usize,
     pass_semantic_hits: usize,
     failure_pressure_hits: usize,
@@ -1310,6 +1360,11 @@ fn grounded_motif_type(
 ) -> &'static str {
     if failure_semantic_hits == 0 && failure_pressure_hits == 0 {
         return "null";
+    }
+    if (dominant_grammar_state == "Recovery" && failure_semantic_hits > 0)
+        || (failure_local_recovery_case_count > 0 && failure_semantic_hits >= pass_semantic_hits)
+    {
+        return "recovery_pattern";
     }
     if pass_semantic_hits > failure_semantic_hits.saturating_mul(3) && failure_pressure_hits <= 1 {
         return "noise_like";
@@ -1331,6 +1386,7 @@ fn grounded_motif_type(
         _ if failure_pressure_hits > pass_pressure_hits && mean_abs_drift_failure > mean_abs_slew_failure => {
             "slow_drift_precursor"
         }
+        _ if dominant_grammar_state == "BoundaryGrazing" => "boundary_grazing_precursor",
         _ if failure_pressure_hits > pass_pressure_hits => "persistent_instability",
         _ => "noise_like",
     }
@@ -1346,6 +1402,8 @@ fn grounded_motif_type_for_window(
         .collect::<Vec<_>>();
     grounded_motif_type(
         dominant_motif_for_mask(bundle.motif, &window_mask, true).as_str(),
+        dominant_grammar_state_in_window(bundle.grammar, start, failure_index).as_str(),
+        0,
         bundle.motif.labels[start..failure_index]
             .iter()
             .filter(|label| **label != DsfbMotifClass::StableAdmissible)
@@ -1524,10 +1582,51 @@ mod tests {
 
     #[test]
     fn grounded_motif_type_prefers_null_without_failure_structure() {
-        assert_eq!(grounded_motif_type("stable_admissible", 0, 0, 0, 0, 0.0, 0.0), "null");
         assert_eq!(
-            grounded_motif_type("recurrent_boundary_approach", 2, 10, 1, 5, 0.1, 0.1),
+            grounded_motif_type("stable_admissible", "Admissible", 0, 0, 0, 0, 0, 0.0, 0.0),
+            "null"
+        );
+        assert_eq!(
+            grounded_motif_type(
+                "recurrent_boundary_approach",
+                "BoundaryGrazing",
+                0,
+                2,
+                10,
+                1,
+                5,
+                0.1,
+                0.1
+            ),
             "noise_like"
+        );
+        assert_eq!(
+            grounded_motif_type(
+                "persistent_instability_cluster",
+                "Recovery",
+                0,
+                3,
+                1,
+                2,
+                0,
+                0.1,
+                0.2
+            ),
+            "recovery_pattern"
+        );
+        assert_eq!(
+            grounded_motif_type(
+                "stable_admissible",
+                "Admissible",
+                1,
+                4,
+                1,
+                6,
+                0,
+                0.1,
+                0.2
+            ),
+            "recovery_pattern"
         );
     }
 }

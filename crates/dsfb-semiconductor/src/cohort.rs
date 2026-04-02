@@ -2,7 +2,10 @@
 
 use crate::baselines::BaselineSet;
 use crate::error::Result;
-use crate::heuristics::{FeaturePolicyOverride, HeuristicAlertClass};
+use crate::heuristics::{
+    FeaturePolicyOverride, HeuristicAlertClass, PERSISTENT_INSTABILITY_CLUSTER,
+    PRE_FAILURE_SLOW_DRIFT, RECURRENT_BOUNDARY_APPROACH, TRANSITION_EXCURSION,
+};
 use crate::metrics::BenchmarkMetrics;
 use crate::nominal::NominalModel;
 use crate::precursor::{
@@ -17,7 +20,7 @@ use crate::{error::DsfbSemiconductorError, grammar::GrammarSet};
 use csv::Writer;
 use serde::Serialize;
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 const RANKING_FORMULA: &str =
@@ -2020,6 +2023,7 @@ pub fn run_recall_optimization(
     let burden_aware_feature_cohorts = build_feature_cohorts(&burden_aware_feature_ranking);
     let dsfb_aware_feature_cohorts = build_feature_cohorts(&dsfb_aware_feature_ranking);
     let feature_policy_overrides = build_feature_policy_overrides(
+        dataset,
         metrics,
         baseline_execution
             .summary
@@ -2030,6 +2034,8 @@ pub fn run_recall_optimization(
             }),
         &baseline_execution.selected_evaluation,
         &recall_aware_feature_ranking,
+        semantic_layer,
+        pre_failure_lookback_runs,
     );
     let feature_policy_summary = build_feature_policy_summary(
         metrics,
@@ -2045,6 +2051,7 @@ pub fn run_recall_optimization(
             enabled: true,
             ..RecallRescueConfig::default()
         },
+        semantic_rescue_support: build_semantic_rescue_support(semantic_layer, dataset.labels.len()),
     };
 
     let optimized_compression_execution = run_cohort_dsa_grid_with_policy(
@@ -2284,11 +2291,215 @@ pub fn run_recall_optimization(
     })
 }
 
+#[derive(Debug, Clone, Default)]
+struct FailureSupportCandidate {
+    feature_name: String,
+    support_failure_count: usize,
+    max_score: f64,
+    max_boundary_density: f64,
+    max_ewma_occupancy: f64,
+    max_motif_recurrence: f64,
+    pass_review_burden: usize,
+}
+
+fn build_semantic_rescue_support(
+    semantic_layer: &SemanticLayer,
+    run_count: usize,
+) -> BTreeMap<usize, Vec<bool>> {
+    let mut support = BTreeMap::<usize, Vec<bool>>::new();
+    for row in &semantic_layer.semantic_matches {
+        if !is_strong_semantic_rescue_heuristic(&row.heuristic_name) {
+            continue;
+        }
+        support
+            .entry(row.feature_index)
+            .or_insert_with(|| vec![false; run_count])[row.run_index] = true;
+    }
+    support
+}
+
+fn is_strong_semantic_rescue_heuristic(heuristic_name: &str) -> bool {
+    matches!(
+        heuristic_name,
+        PERSISTENT_INSTABILITY_CLUSTER
+            | PRE_FAILURE_SLOW_DRIFT
+            | RECURRENT_BOUNDARY_APPROACH
+            | TRANSITION_EXCURSION
+    )
+}
+
+fn feature_review_burden_maps(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+    pre_failure_lookback_runs: usize,
+) -> (BTreeMap<usize, usize>, BTreeMap<usize, usize>) {
+    let failure_indices = dataset
+        .labels
+        .iter()
+        .enumerate()
+        .filter_map(|(index, label)| (*label == 1).then_some(index))
+        .collect::<Vec<_>>();
+    let failure_window_mask =
+        build_failure_window_mask(dataset.labels.len(), &failure_indices, pre_failure_lookback_runs);
+    let mut pass_review_burden = BTreeMap::new();
+    let mut pre_failure_review_burden = BTreeMap::new();
+    for trace in &evaluation.traces {
+        let pass_count = trace
+            .dsa_alert
+            .iter()
+            .enumerate()
+            .filter(|(run_index, flag)| dataset.labels[*run_index] == -1 && **flag)
+            .count();
+        let pre_failure_count = trace
+            .dsa_alert
+            .iter()
+            .enumerate()
+            .filter(|(run_index, flag)| failure_window_mask[*run_index] && **flag)
+            .count();
+        pass_review_burden.insert(trace.feature_index, pass_count);
+        pre_failure_review_burden.insert(trace.feature_index, pre_failure_count);
+    }
+    (pass_review_burden, pre_failure_review_burden)
+}
+
+fn build_failure_window_mask(
+    len: usize,
+    failure_indices: &[usize],
+    pre_failure_lookback_runs: usize,
+) -> Vec<bool> {
+    let mut mask = vec![false; len];
+    for &failure_index in failure_indices {
+        let start = failure_index.saturating_sub(pre_failure_lookback_runs);
+        for flag in &mut mask[start..failure_index] {
+            *flag = true;
+        }
+    }
+    mask
+}
+
+fn failure_local_support_candidates(
+    baseline_selected_row: &CohortGridResult,
+    baseline_evaluation: &DsaEvaluation,
+    semantic_layer: &SemanticLayer,
+    pre_failure_lookback_runs: usize,
+    pass_review_burden_by_feature: &BTreeMap<usize, usize>,
+) -> BTreeMap<usize, FailureSupportCandidate> {
+    let semantic_support = build_semantic_rescue_support(
+        semantic_layer,
+        baseline_evaluation
+            .traces
+            .first()
+            .map(|trace| trace.dsa_score.len())
+            .unwrap_or_default(),
+    );
+    let traces_by_feature = baseline_evaluation
+        .traces
+        .iter()
+        .map(|trace| (trace.feature_index, trace))
+        .collect::<BTreeMap<_, _>>();
+    let mut candidates = BTreeMap::<usize, FailureSupportCandidate>::new();
+
+    for signal in baseline_evaluation
+        .per_failure_run_signals
+        .iter()
+        .filter(|signal| signal.earliest_dsa_run.is_none())
+    {
+        let failure_index = signal.failure_run_index;
+        let start = failure_index.saturating_sub(pre_failure_lookback_runs);
+        let mut per_failure = traces_by_feature
+            .values()
+            .filter_map(|trace| {
+                let semantic_hits = semantic_support
+                    .get(&trace.feature_index)
+                    .map(|flags| flags[start..failure_index].iter().filter(|flag| **flag).count())
+                    .unwrap_or(0);
+                if semantic_hits == 0 {
+                    return None;
+                }
+                let max_score = trace.dsa_score[start..failure_index]
+                    .iter()
+                    .copied()
+                    .fold(0.0, f64::max);
+                if max_score < (baseline_selected_row.alert_tau - 1.0).max(0.0) {
+                    return None;
+                }
+                let pass_review_burden = pass_review_burden_by_feature
+                    .get(&trace.feature_index)
+                    .copied()
+                    .unwrap_or(0);
+                if pass_review_burden > 12 {
+                    return None;
+                }
+                let max_boundary_density = trace.boundary_density_w[start..failure_index]
+                    .iter()
+                    .copied()
+                    .fold(0.0, f64::max);
+                let max_ewma_occupancy = trace.ewma_occupancy_w[start..failure_index]
+                    .iter()
+                    .copied()
+                    .fold(0.0, f64::max);
+                let max_motif_recurrence = trace.motif_recurrence_w[start..failure_index]
+                    .iter()
+                    .copied()
+                    .fold(0.0, f64::max);
+                let support_score = max_score
+                    + 0.5 * max_motif_recurrence
+                    + 0.25 * max_boundary_density
+                    + 0.25 * max_ewma_occupancy;
+                Some((
+                    trace.feature_index,
+                    trace.feature_name.clone(),
+                    semantic_hits,
+                    max_score,
+                    max_boundary_density,
+                    max_ewma_occupancy,
+                    max_motif_recurrence,
+                    pass_review_burden,
+                    support_score,
+                ))
+            })
+            .collect::<Vec<_>>();
+        per_failure.sort_by(|left, right| {
+            right
+                .8
+                .partial_cmp(&left.8)
+                .unwrap_or(Ordering::Equal)
+                .then_with(|| left.1.cmp(&right.1))
+        });
+        for (
+            feature_index,
+            feature_name,
+            _semantic_hits,
+            max_score,
+            max_boundary_density,
+            max_ewma_occupancy,
+            max_motif_recurrence,
+            pass_review_burden,
+            _support_score,
+        ) in per_failure.into_iter().take(3)
+        {
+            let entry = candidates.entry(feature_index).or_default();
+            entry.feature_name = feature_name;
+            entry.support_failure_count += 1;
+            entry.max_score = entry.max_score.max(max_score);
+            entry.max_boundary_density = entry.max_boundary_density.max(max_boundary_density);
+            entry.max_ewma_occupancy = entry.max_ewma_occupancy.max(max_ewma_occupancy);
+            entry.max_motif_recurrence = entry.max_motif_recurrence.max(max_motif_recurrence);
+            entry.pass_review_burden = pass_review_burden;
+        }
+    }
+
+    candidates
+}
+
 fn build_feature_policy_overrides(
+    dataset: &PreparedDataset,
     metrics: &BenchmarkMetrics,
     baseline_selected_row: &CohortGridResult,
     baseline_evaluation: &DsaEvaluation,
     recall_aware_ranking: &[FeatureRankingRow],
+    semantic_layer: &SemanticLayer,
+    pre_failure_lookback_runs: usize,
 ) -> Vec<FeaturePolicyOverride> {
     let feature_metrics = metrics
         .feature_metrics
@@ -2299,6 +2510,15 @@ fn build_feature_policy_overrides(
         .iter()
         .map(|row| (row.feature_index, row))
         .collect::<BTreeMap<_, _>>();
+    let (pass_review_burden_by_feature, pre_failure_review_burden_by_feature) =
+        feature_review_burden_maps(dataset, baseline_evaluation, pre_failure_lookback_runs);
+    let support_candidates = failure_local_support_candidates(
+        baseline_selected_row,
+        baseline_evaluation,
+        semantic_layer,
+        pre_failure_lookback_runs,
+        &pass_review_burden_by_feature,
+    );
     let mut missed_feature_stats = BTreeMap::<usize, (String, usize, f64)>::new();
 
     for signal in baseline_evaluation
@@ -2377,6 +2597,101 @@ fn build_feature_policy_overrides(
             })
         })
         .collect::<Vec<_>>();
+
+    let existing_override_features = overrides
+        .iter()
+        .map(|override_entry| override_entry.feature_index)
+        .collect::<BTreeSet<_>>();
+
+    let mut support_overrides = support_candidates
+        .into_iter()
+        .filter(|(feature_index, _)| !existing_override_features.contains(feature_index))
+        .filter_map(|(feature_index, candidate)| {
+            let feature_metric = feature_metrics.get(&feature_index)?;
+            let recall_rank = recall_rank_by_feature.get(&feature_index).map(|row| row.rank);
+            if feature_metric.missing_fraction > OPTIMIZATION_OVERRIDE_MAX_MISSINGNESS
+                || feature_metric.pre_failure_run_hits == 0
+                || feature_metric.motif_precision_proxy.unwrap_or(0.0) < 0.45
+            {
+                return None;
+            }
+
+            Some(FeaturePolicyOverride {
+                feature_index,
+                feature_name: candidate.feature_name.clone(),
+                alert_class_override: Some(HeuristicAlertClass::Watch),
+                requires_persistence_override: Some(false),
+                requires_corroboration_override: Some(false),
+                minimum_window_override: Some(2),
+                minimum_hits_override: Some(1),
+                maximum_allowed_fragmentation_override: Some(1.0),
+                rescue_eligible: true,
+                rescue_priority: 3,
+                allow_watch_only: Some(false),
+                allow_review_without_escalate: Some(true),
+                suppress_if_isolated: Some(false),
+                override_reason: format!(
+                    "Feature is a low-burden grammar-qualified support candidate for {} missed failure run(s), max near-miss score {:.4}, max_boundary_density={:.2}, max_ewma_occupancy={:.2}, max_motif_recurrence={:.2}, recall-aware rank {}, pass_review_burden={}.",
+                    candidate.support_failure_count,
+                    candidate.max_score,
+                    candidate.max_boundary_density,
+                    candidate.max_ewma_occupancy,
+                    candidate.max_motif_recurrence,
+                    recall_rank
+                        .map(|rank| rank.to_string())
+                        .unwrap_or_else(|| "n/a".into()),
+                    candidate.pass_review_burden,
+                ),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let protected_features = overrides
+        .iter()
+        .chain(&support_overrides)
+        .map(|override_entry| override_entry.feature_index)
+        .collect::<BTreeSet<_>>();
+
+    let mut nuisance_overrides = pass_review_burden_by_feature
+        .iter()
+        .filter(|(feature_index, _)| !protected_features.contains(feature_index))
+        .filter_map(|(&feature_index, &pass_review_burden)| {
+            let feature_metric = feature_metrics.get(&feature_index)?;
+            let pre_failure_review_burden = pre_failure_review_burden_by_feature
+                .get(&feature_index)
+                .copied()
+                .unwrap_or(0);
+            if pass_review_burden < 300
+                || pre_failure_review_burden.saturating_mul(20) > pass_review_burden
+                || feature_metric.missing_fraction > OPTIMIZATION_OVERRIDE_MAX_MISSINGNESS
+            {
+                return None;
+            }
+
+            Some(FeaturePolicyOverride {
+                feature_index,
+                feature_name: feature_metric.feature_name.clone(),
+                alert_class_override: Some(HeuristicAlertClass::Watch),
+                requires_persistence_override: Some(true),
+                requires_corroboration_override: Some(true),
+                minimum_window_override: Some(OPTIMIZATION_RESCUE_WINDOW),
+                minimum_hits_override: Some(OPTIMIZATION_RESCUE_MIN_HITS),
+                maximum_allowed_fragmentation_override: Some(OPTIMIZATION_RESCUE_FRAGMENTATION),
+                rescue_eligible: false,
+                rescue_priority: 0,
+                allow_watch_only: Some(true),
+                allow_review_without_escalate: Some(false),
+                suppress_if_isolated: Some(true),
+                override_reason: format!(
+                    "Feature dominates pass-run burden ({}) but contributes only {} pre-failure Review/Escalate points inside the fixed lookback windows; clamp to Watch and suppress if isolated.",
+                    pass_review_burden, pre_failure_review_burden,
+                ),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    overrides.append(&mut support_overrides);
+    overrides.append(&mut nuisance_overrides);
 
     overrides.sort_by(|left, right| {
         right
