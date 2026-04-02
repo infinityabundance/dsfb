@@ -50,6 +50,8 @@ const OPTIMIZATION_RESCUE_MIN_HITS: usize = 4;
 const OPTIMIZATION_RESCUE_FRAGMENTATION: f64 = 0.5;
 const OPTIMIZATION_OVERRIDE_MAX_MISSINGNESS: f64 = 0.05;
 const OPERATOR_DELTA_THRESHOLD: f64 = 0.40;
+const MAX_FAILURE_DRIVEN_NUISANCE_OVERRIDES: usize = 5;
+const MAX_FAILURE_DRIVEN_ISOLATED_NUISANCE_OVERRIDES: usize = 3;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FeatureRankingRow {
@@ -433,6 +435,7 @@ pub struct OptimizationExecution {
     pub operator_delta_attainment_matrix: Vec<OperatorDeltaAttainmentRow>,
     pub policy_operator_burden_contributions: Vec<OperatorBurdenContributionRow>,
     pub recall_recovery_efficiency: Vec<RecallRecoveryEfficiencyRow>,
+    pub single_change_iteration_log: Vec<SingleChangeIterationRow>,
     pub delta_target_assessment: DeltaTargetAssessment,
 }
 
@@ -575,6 +578,7 @@ pub struct OperatorBurdenContributionRow {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RecallRecoveryEfficiencyRow {
+    pub failure_run_index: Option<usize>,
     pub baseline_configuration: String,
     pub optimized_configuration: String,
     pub recovered_failures: i64,
@@ -587,6 +591,28 @@ pub struct RecallRecoveryEfficiencyRow {
     pub recovered_failures_per_added_episode: Option<f64>,
     pub recovered_failures_per_added_pass_run_burden: Option<f64>,
     pub recovered_failures_per_added_nuisance_run: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SingleChangeIterationRow {
+    pub iteration: usize,
+    pub change_kind: String,
+    pub change_target: String,
+    pub reason: String,
+    pub derived_from_failures: String,
+    pub targets_nuisance_class: String,
+    pub affected_failures: String,
+    pub accepted: bool,
+    pub recall: usize,
+    pub investigation_points: usize,
+    pub episode_count: usize,
+    pub precursor_quality: Option<f64>,
+    pub pass_run_nuisance_proxy: f64,
+    pub delta_recall: i64,
+    pub delta_investigation_points: i64,
+    pub delta_episode_count: i64,
+    pub delta_precursor_quality: Option<f64>,
+    pub delta_pass_run_nuisance_proxy: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1598,6 +1624,18 @@ pub fn write_recall_recovery_efficiency_csv(
     Ok(())
 }
 
+pub fn write_single_change_iteration_log_csv(
+    path: &Path,
+    rows: &[SingleChangeIterationRow],
+) -> Result<()> {
+    let mut writer = Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
 pub fn write_feature_ranking_comparison_csv(
     path: &Path,
     rows: &[FeatureRankingComparisonRow],
@@ -2022,8 +2060,13 @@ pub fn run_recall_optimization(
     let recall_aware_feature_cohorts = build_feature_cohorts(&recall_aware_feature_ranking);
     let burden_aware_feature_cohorts = build_feature_cohorts(&burden_aware_feature_ranking);
     let dsfb_aware_feature_cohorts = build_feature_cohorts(&dsfb_aware_feature_ranking);
-    let feature_policy_overrides = build_feature_policy_overrides(
+    let (feature_policy_overrides, single_change_iteration_log) = build_feature_policy_overrides(
         dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
         metrics,
         baseline_execution
             .summary
@@ -2036,7 +2079,7 @@ pub fn run_recall_optimization(
         &recall_aware_feature_ranking,
         semantic_layer,
         pre_failure_lookback_runs,
-    );
+    )?;
     let feature_policy_summary = build_feature_policy_summary(
         metrics,
         &baseline_feature_ranking,
@@ -2241,6 +2284,7 @@ pub fn run_recall_optimization(
         dataset,
         &baseline_execution.selected_evaluation,
         &selected_evaluation,
+        pre_failure_lookback_runs,
     );
     let delta_target_assessment = compute_delta_target_assessment(
         &selected_row,
@@ -2287,6 +2331,7 @@ pub fn run_recall_optimization(
         operator_delta_attainment_matrix,
         policy_operator_burden_contributions,
         recall_recovery_efficiency,
+        single_change_iteration_log,
         delta_target_assessment,
     })
 }
@@ -2494,13 +2539,18 @@ fn failure_local_support_candidates(
 
 fn build_feature_policy_overrides(
     dataset: &PreparedDataset,
+    nominal: &NominalModel,
+    residuals: &ResidualSet,
+    signs: &SignSet,
+    baselines: &BaselineSet,
+    grammar: &GrammarSet,
     metrics: &BenchmarkMetrics,
     baseline_selected_row: &CohortGridResult,
     baseline_evaluation: &DsaEvaluation,
     recall_aware_ranking: &[FeatureRankingRow],
     semantic_layer: &SemanticLayer,
     pre_failure_lookback_runs: usize,
-) -> Vec<FeaturePolicyOverride> {
+) -> Result<(Vec<FeaturePolicyOverride>, Vec<SingleChangeIterationRow>)> {
     let feature_metrics = metrics
         .feature_metrics
         .iter()
@@ -2668,38 +2718,414 @@ fn build_feature_policy_overrides(
                 return None;
             }
 
-            Some(FeaturePolicyOverride {
-                feature_index,
-                feature_name: feature_metric.feature_name.clone(),
-                alert_class_override: Some(HeuristicAlertClass::Watch),
-                requires_persistence_override: Some(true),
-                requires_corroboration_override: Some(true),
-                minimum_window_override: Some(OPTIMIZATION_RESCUE_WINDOW),
-                minimum_hits_override: Some(OPTIMIZATION_RESCUE_MIN_HITS),
-                maximum_allowed_fragmentation_override: Some(OPTIMIZATION_RESCUE_FRAGMENTATION),
-                rescue_eligible: false,
-                rescue_priority: 0,
-                allow_watch_only: Some(true),
-                allow_review_without_escalate: Some(false),
-                suppress_if_isolated: Some(true),
-                override_reason: format!(
-                    "Feature dominates pass-run burden ({}) but contributes only {} pre-failure Review/Escalate points inside the fixed lookback windows; clamp to Watch and suppress if isolated.",
-                    pass_review_burden, pre_failure_review_burden,
-                ),
-            })
+            Some((
+                pass_review_burden,
+                pre_failure_review_burden,
+                FeaturePolicyOverride {
+                    feature_index,
+                    feature_name: feature_metric.feature_name.clone(),
+                    alert_class_override: Some(HeuristicAlertClass::Watch),
+                    requires_persistence_override: Some(true),
+                    requires_corroboration_override: Some(true),
+                    minimum_window_override: Some(OPTIMIZATION_RESCUE_WINDOW),
+                    minimum_hits_override: Some(OPTIMIZATION_RESCUE_MIN_HITS),
+                    maximum_allowed_fragmentation_override: Some(
+                        OPTIMIZATION_RESCUE_FRAGMENTATION,
+                    ),
+                    rescue_eligible: false,
+                    rescue_priority: 0,
+                    allow_watch_only: Some(true),
+                    allow_review_without_escalate: Some(false),
+                    suppress_if_isolated: Some(true),
+                    override_reason: format!(
+                        "Feature dominates pass-run burden ({}) but contributes only {} pre-failure Review/Escalate points inside the fixed lookback windows; clamp to Watch and suppress if isolated.",
+                        pass_review_burden, pre_failure_review_burden,
+                    ),
+                },
+            ))
         })
         .collect::<Vec<_>>();
+    nuisance_overrides.sort_by(|left, right| {
+        right
+            .0
+            .cmp(&left.0)
+            .then_with(|| left.1.cmp(&right.1))
+            .then_with(|| left.2.feature_name.cmp(&right.2.feature_name))
+    });
+    let mut nuisance_overrides = nuisance_overrides
+        .into_iter()
+        .take(MAX_FAILURE_DRIVEN_NUISANCE_OVERRIDES)
+        .map(|(_, _, override_entry)| override_entry)
+        .collect::<Vec<_>>();
 
-    overrides.append(&mut support_overrides);
-    overrides.append(&mut nuisance_overrides);
+    let mut iteration = 1usize;
+    let mut current_overrides = Vec::new();
+    let mut current_evaluation = baseline_evaluation.clone();
+    let mut iteration_log = Vec::new();
 
-    overrides.sort_by(|left, right| {
+    overrides.sort_by(|left, right| left.feature_name.cmp(&right.feature_name));
+    support_overrides.sort_by(|left, right| {
         right
             .rescue_priority
             .cmp(&left.rescue_priority)
             .then_with(|| left.feature_name.cmp(&right.feature_name))
     });
+
+    for candidate in overrides.into_iter().chain(support_overrides.into_iter()) {
+        let mut candidate_overrides = current_overrides.clone();
+        candidate_overrides.push(candidate.clone());
+        let candidate_evaluation = evaluate_selected_row_with_overrides(
+            dataset,
+            nominal,
+            residuals,
+            signs,
+            baselines,
+            grammar,
+            baseline_selected_row,
+            baseline_evaluation,
+            semantic_layer,
+            pre_failure_lookback_runs,
+            &candidate_overrides,
+        )?;
+        let affected_failures = newly_recovered_failures(&current_evaluation, &candidate_evaluation);
+        let accepted = !affected_failures.is_empty();
+        iteration_log.push(single_change_iteration_row(
+            iteration,
+            "failure_recovery_override",
+            &candidate.feature_name,
+            candidate.override_reason.clone(),
+            &affected_failures,
+            "",
+            accepted,
+            &current_evaluation,
+            &candidate_evaluation,
+        ));
+        iteration += 1;
+        if accepted {
+            current_overrides = candidate_overrides;
+            current_evaluation = candidate_evaluation;
+        }
+    }
+
+    let mut protected_features = current_overrides
+        .iter()
+        .map(|override_entry| override_entry.feature_index)
+        .collect::<BTreeSet<_>>();
+    let isolated_nuisance_overrides = build_isolated_nuisance_overrides(
+        dataset,
+        &current_evaluation,
+        &protected_features,
+    );
+
+    nuisance_overrides.extend(isolated_nuisance_overrides);
+    nuisance_overrides.sort_by(|left, right| left.feature_name.cmp(&right.feature_name));
+
+    for candidate in nuisance_overrides {
+        if protected_features.contains(&candidate.feature_index) {
+            continue;
+        }
+        let mut candidate_overrides = current_overrides.clone();
+        candidate_overrides.push(candidate.clone());
+        let candidate_evaluation = evaluate_selected_row_with_overrides(
+            dataset,
+            nominal,
+            residuals,
+            signs,
+            baselines,
+            grammar,
+            baseline_selected_row,
+            baseline_evaluation,
+            semantic_layer,
+            pre_failure_lookback_runs,
+            &candidate_overrides,
+        )?;
+        let accepted = candidate_evaluation.summary.failure_run_recall
+            >= current_evaluation.summary.failure_run_recall
+            && (candidate_evaluation.summary.alert_point_count < current_evaluation.summary.alert_point_count
+                || candidate_evaluation.episode_summary.dsa_episode_count
+                    < current_evaluation.episode_summary.dsa_episode_count
+                || compare_option_gt(
+                    candidate_evaluation.episode_summary.precursor_quality,
+                    current_evaluation.episode_summary.precursor_quality,
+                ) == Some(true));
+        iteration_log.push(single_change_iteration_row(
+            iteration,
+            "nuisance_suppression_override",
+            &candidate.feature_name,
+            candidate.override_reason.clone(),
+            &[],
+            "isolated_pass_only_episode",
+            accepted,
+            &current_evaluation,
+            &candidate_evaluation,
+        ));
+        iteration += 1;
+        if accepted {
+            protected_features.insert(candidate.feature_index);
+            current_overrides = candidate_overrides;
+            current_evaluation = candidate_evaluation;
+        }
+    }
+
+    current_overrides.sort_by(|left, right| {
+        right
+            .rescue_priority
+            .cmp(&left.rescue_priority)
+            .then_with(|| left.feature_name.cmp(&right.feature_name))
+    });
+    Ok((current_overrides, iteration_log))
+}
+
+fn evaluate_selected_row_with_overrides(
+    dataset: &PreparedDataset,
+    nominal: &NominalModel,
+    residuals: &ResidualSet,
+    signs: &SignSet,
+    baselines: &BaselineSet,
+    grammar: &GrammarSet,
+    baseline_selected_row: &CohortGridResult,
+    baseline_evaluation: &DsaEvaluation,
+    semantic_layer: &SemanticLayer,
+    pre_failure_lookback_runs: usize,
+    feature_policy_overrides: &[FeaturePolicyOverride],
+) -> Result<DsaEvaluation> {
+    let policy_runtime = DsaPolicyRuntime {
+        feature_policy_overrides: feature_policy_overrides.to_vec(),
+        recall_rescue: RecallRescueConfig {
+            enabled: true,
+            ..RecallRescueConfig::default()
+        },
+        semantic_rescue_support: build_semantic_rescue_support(semantic_layer, dataset.labels.len()),
+    };
+    let config = DsaConfig {
+        window: baseline_selected_row.window,
+        persistence_runs: baseline_selected_row.persistence_runs,
+        alert_tau: baseline_selected_row.alert_tau,
+        corroborating_feature_count_min: 1,
+    };
+    let base_evaluation = evaluate_dsa_with_policy(
+        dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
+        &config,
+        pre_failure_lookback_runs,
+        &policy_runtime,
+    )?;
+    let feature_indices = baseline_evaluation
+        .traces
+        .iter()
+        .map(|trace| trace.feature_index)
+        .collect::<Vec<_>>();
+    project_dsa_to_cohort(
+        dataset,
+        nominal,
+        residuals,
+        baselines,
+        grammar,
+        &base_evaluation,
+        &feature_indices,
+        baseline_selected_row.corroborating_m,
+        pre_failure_lookback_runs,
+        &baseline_selected_row.cohort_name,
+    )
+}
+
+fn newly_recovered_failures(
+    previous: &DsaEvaluation,
+    candidate: &DsaEvaluation,
+) -> Vec<usize> {
+    let previous_detected = previous
+        .per_failure_run_signals
+        .iter()
+        .filter(|row| row.earliest_dsa_run.is_some())
+        .map(|row| row.failure_run_index)
+        .collect::<BTreeSet<_>>();
+    candidate
+        .per_failure_run_signals
+        .iter()
+        .filter(|row| row.earliest_dsa_run.is_some())
+        .map(|row| row.failure_run_index)
+        .filter(|failure_id| !previous_detected.contains(failure_id))
+        .collect()
+}
+
+fn single_change_iteration_row(
+    iteration: usize,
+    change_kind: &str,
+    change_target: &str,
+    reason: String,
+    affected_failures: &[usize],
+    targets_nuisance_class: &str,
+    accepted: bool,
+    previous: &DsaEvaluation,
+    candidate: &DsaEvaluation,
+) -> SingleChangeIterationRow {
+    SingleChangeIterationRow {
+        iteration,
+        change_kind: change_kind.into(),
+        change_target: change_target.into(),
+        reason,
+        derived_from_failures: affected_failures
+            .iter()
+            .map(|failure_id| failure_id.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+        targets_nuisance_class: targets_nuisance_class.into(),
+        affected_failures: affected_failures
+            .iter()
+            .map(|failure_id| failure_id.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+        accepted,
+        recall: candidate.summary.failure_run_recall,
+        investigation_points: candidate.summary.alert_point_count,
+        episode_count: candidate.episode_summary.dsa_episode_count,
+        precursor_quality: candidate.episode_summary.precursor_quality,
+        pass_run_nuisance_proxy: candidate.summary.pass_run_nuisance_proxy,
+        delta_recall: candidate.summary.failure_run_recall as i64
+            - previous.summary.failure_run_recall as i64,
+        delta_investigation_points: candidate.summary.alert_point_count as i64
+            - previous.summary.alert_point_count as i64,
+        delta_episode_count: candidate.episode_summary.dsa_episode_count as i64
+            - previous.episode_summary.dsa_episode_count as i64,
+        delta_precursor_quality: match (
+            previous.episode_summary.precursor_quality,
+            candidate.episode_summary.precursor_quality,
+        ) {
+            (Some(previous_value), Some(candidate_value)) => Some(candidate_value - previous_value),
+            _ => None,
+        },
+        delta_pass_run_nuisance_proxy: candidate.summary.pass_run_nuisance_proxy
+            - previous.summary.pass_run_nuisance_proxy,
+    }
+}
+
+fn build_isolated_nuisance_overrides(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+    protected_features: &BTreeSet<usize>,
+) -> Vec<FeaturePolicyOverride> {
+    let isolated_episode_counts = isolated_pass_episode_counts_by_feature(dataset, evaluation);
+    let failure_alert_counts = evaluation
+        .traces
+        .iter()
+        .map(|trace| {
+            (
+                trace.feature_index,
+                trace.dsa_alert
+                    .iter()
+                    .enumerate()
+                    .filter(|(run_index, flag)| dataset.labels[*run_index] == 1 && **flag)
+                    .count(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let pass_review_burden = evaluation
+        .traces
+        .iter()
+        .map(|trace| {
+            (
+                trace.feature_index,
+                trace.dsa_alert
+                    .iter()
+                    .enumerate()
+                    .filter(|(run_index, flag)| dataset.labels[*run_index] == -1 && **flag)
+                    .count(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+
+    let mut overrides = evaluation
+        .traces
+        .iter()
+        .filter(|trace| !protected_features.contains(&trace.feature_index))
+        .filter_map(|trace| {
+            let isolated_episode_count = isolated_episode_counts
+                .get(&trace.feature_index)
+                .copied()
+                .unwrap_or(0);
+            let failure_alert_count = failure_alert_counts
+                .get(&trace.feature_index)
+                .copied()
+                .unwrap_or(0);
+            let pass_review_count = pass_review_burden
+                .get(&trace.feature_index)
+                .copied()
+                .unwrap_or(0);
+            if isolated_episode_count == 0 || failure_alert_count > 0 || pass_review_count == 0 {
+                return None;
+            }
+            Some((
+                isolated_episode_count,
+                pass_review_count,
+                FeaturePolicyOverride {
+                    feature_index: trace.feature_index,
+                    feature_name: trace.feature_name.clone(),
+                    alert_class_override: Some(HeuristicAlertClass::Watch),
+                    requires_persistence_override: Some(true),
+                    requires_corroboration_override: Some(true),
+                    minimum_window_override: Some(3),
+                    minimum_hits_override: Some(2),
+                    maximum_allowed_fragmentation_override: Some(0.5),
+                    rescue_eligible: false,
+                    rescue_priority: 0,
+                    allow_watch_only: Some(true),
+                    allow_review_without_escalate: Some(false),
+                    suppress_if_isolated: Some(true),
+                    override_reason: format!(
+                        "Feature drives {} isolated pass-only episode(s) with {} pass-run alert points and no failure-local alert points; clamp to Watch and suppress if isolated.",
+                        isolated_episode_count, pass_review_count
+                    ),
+                },
+            ))
+        })
+        .collect::<Vec<_>>();
+    overrides.sort_by(|left, right| {
+        right
+            .0
+            .cmp(&left.0)
+            .then_with(|| right.1.cmp(&left.1))
+            .then_with(|| left.2.feature_name.cmp(&right.2.feature_name))
+    });
     overrides
+        .into_iter()
+        .take(MAX_FAILURE_DRIVEN_ISOLATED_NUISANCE_OVERRIDES)
+        .map(|(_, _, override_entry)| override_entry)
+        .collect()
+}
+
+fn isolated_pass_episode_counts_by_feature(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+) -> BTreeMap<usize, usize> {
+    let alerted_features_by_run = (0..dataset.labels.len())
+        .map(|run_index| {
+            evaluation
+                .traces
+                .iter()
+                .filter(|trace| trace.dsa_alert[run_index])
+                .map(|trace| trace.feature_index)
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let episode_ranges = episode_ranges(&evaluation.run_signals.primary_run_alert);
+    let mut counts = BTreeMap::<usize, usize>::new();
+    for (start, end) in episode_ranges {
+        if (start..=end).any(|run_index| dataset.labels[run_index] == 1) {
+            continue;
+        }
+        let unique_features = (start..=end)
+            .flat_map(|run_index| alerted_features_by_run[run_index].iter().copied())
+            .collect::<BTreeSet<_>>();
+        if unique_features.len() == 1 {
+            let feature_index = *unique_features.iter().next().expect("one feature");
+            *counts.entry(feature_index).or_default() += 1;
+        }
+    }
+    counts
 }
 
 fn build_feature_policy_summary(
@@ -3773,6 +4199,7 @@ fn build_recall_recovery_efficiency(
     dataset: &PreparedDataset,
     baseline: &DsaEvaluation,
     optimized: &DsaEvaluation,
+    pre_failure_lookback_runs: usize,
 ) -> Vec<RecallRecoveryEfficiencyRow> {
     let recovered_failures =
         optimized.summary.failure_run_recall as i64 - baseline.summary.failure_run_recall as i64;
@@ -3794,7 +4221,8 @@ fn build_recall_recovery_efficiency(
         .round() as i64;
     let added_nuisance_runs = optimized_pass_nuisance_runs - baseline_pass_nuisance_runs;
 
-    vec![RecallRecoveryEfficiencyRow {
+    let mut rows = vec![RecallRecoveryEfficiencyRow {
+        failure_run_index: None,
         baseline_configuration: "current_policy_dsa".into(),
         optimized_configuration: "optimized_policy_dsa".into(),
         recovered_failures,
@@ -3820,7 +4248,92 @@ fn build_recall_recovery_efficiency(
             recovered_failures,
             added_nuisance_runs,
         ),
-    }]
+    }];
+
+    let optimized_by_failure = optimized
+        .per_failure_run_signals
+        .iter()
+        .map(|row| (row.failure_run_index, row))
+        .collect::<BTreeMap<_, _>>();
+    for failure_signal in baseline
+        .per_failure_run_signals
+        .iter()
+        .filter(|row| row.earliest_dsa_run.is_none())
+    {
+        let failure_run_index = failure_signal.failure_run_index;
+        let start = failure_run_index.saturating_sub(pre_failure_lookback_runs);
+        let end = failure_run_index;
+        let baseline_review_points = review_escalate_points_in_window(baseline, start, end) as i64;
+        let optimized_review_points = review_escalate_points_in_window(optimized, start, end) as i64;
+        let baseline_pass_review_points =
+            review_escalate_points_in_pass_window(dataset, baseline, start, end);
+        let optimized_pass_review_points =
+            review_escalate_points_in_pass_window(dataset, optimized, start, end);
+        let baseline_episode_count = primary_episode_count_in_window(
+            &baseline.run_signals.primary_run_alert,
+            start,
+            end,
+        ) as i64;
+        let optimized_episode_count = primary_episode_count_in_window(
+            &optimized.run_signals.primary_run_alert,
+            start,
+            end,
+        ) as i64;
+        let pass_runs_in_window = dataset.labels[start..end]
+            .iter()
+            .filter(|label| **label == -1)
+            .count();
+        let added_review_points_per_pass_run = if pass_runs_in_window > 0 {
+            (optimized_pass_review_points as f64 - baseline_pass_review_points as f64)
+                / pass_runs_in_window as f64
+        } else {
+            0.0
+        };
+        let baseline_review_episodes_per_pass_run =
+            review_escalate_episodes_per_pass_run_in_window(dataset, baseline, start, end);
+        let optimized_review_episodes_per_pass_run =
+            review_escalate_episodes_per_pass_run_in_window(dataset, optimized, start, end);
+        let added_review_episodes_per_pass_run =
+            optimized_review_episodes_per_pass_run - baseline_review_episodes_per_pass_run;
+        let baseline_nuisance_runs =
+            primary_nuisance_runs_in_window(dataset, baseline, start, end) as i64;
+        let optimized_nuisance_runs =
+            primary_nuisance_runs_in_window(dataset, optimized, start, end) as i64;
+        let recovered = optimized_by_failure
+            .get(&failure_run_index)
+            .is_some_and(|row| row.earliest_dsa_run.is_some());
+        rows.push(RecallRecoveryEfficiencyRow {
+            failure_run_index: Some(failure_run_index),
+            baseline_configuration: "current_policy_dsa".into(),
+            optimized_configuration: "optimized_policy_dsa".into(),
+            recovered_failures: i64::from(recovered),
+            added_review_escalate_points: optimized_review_points - baseline_review_points,
+            added_episode_count: optimized_episode_count - baseline_episode_count,
+            added_review_points_per_pass_run,
+            added_review_episodes_per_pass_run,
+            added_nuisance_runs: optimized_nuisance_runs - baseline_nuisance_runs,
+            recovered_failures_per_added_review_escalate_point: ratio_if_positive(
+                i64::from(recovered),
+                optimized_review_points - baseline_review_points,
+            ),
+            recovered_failures_per_added_episode: ratio_if_positive(
+                i64::from(recovered),
+                optimized_episode_count - baseline_episode_count,
+            ),
+            recovered_failures_per_added_pass_run_burden: if added_review_points_per_pass_run > 0.0
+            {
+                Some(1.0 / added_review_points_per_pass_run)
+            } else {
+                None
+            },
+            recovered_failures_per_added_nuisance_run: ratio_if_positive(
+                i64::from(recovered),
+                optimized_nuisance_runs - baseline_nuisance_runs,
+            ),
+        });
+    }
+
+    rows
 }
 
 fn ratio_if_positive(numerator: i64, denominator: i64) -> Option<f64> {
@@ -3839,6 +4352,74 @@ fn stable_precursor_lead_time_delta(selected_evaluation: &DsaEvaluation) -> Opti
     } else {
         Some(stable_leads.iter().sum::<f64>() / stable_leads.len() as f64)
     }
+}
+
+fn review_escalate_points_in_window(
+    evaluation: &DsaEvaluation,
+    start: usize,
+    end: usize,
+) -> usize {
+    evaluation
+        .traces
+        .iter()
+        .map(|trace| trace.dsa_alert[start..end].iter().filter(|flag| **flag).count())
+        .sum()
+}
+
+fn review_escalate_points_in_pass_window(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+    start: usize,
+    end: usize,
+) -> usize {
+    evaluation
+        .traces
+        .iter()
+        .map(|trace| {
+            trace.dsa_alert[start..end]
+                .iter()
+                .enumerate()
+                .filter(|(offset, flag)| dataset.labels[start + *offset] == -1 && **flag)
+                .count()
+        })
+        .sum()
+}
+
+fn review_escalate_episodes_per_pass_run_in_window(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+    start: usize,
+    end: usize,
+) -> f64 {
+    let pass_runs = dataset.labels[start..end]
+        .iter()
+        .filter(|label| **label == -1)
+        .count();
+    if pass_runs == 0 {
+        return 0.0;
+    }
+    primary_episode_count_in_window(&evaluation.run_signals.primary_run_alert, start, end) as f64
+        / pass_runs as f64
+}
+
+fn primary_episode_count_in_window(signal: &[bool], start: usize, end: usize) -> usize {
+    episode_ranges(signal)
+        .into_iter()
+        .filter(|(episode_start, episode_end)| *episode_start < end && *episode_end >= start)
+        .count()
+}
+
+fn primary_nuisance_runs_in_window(
+    dataset: &PreparedDataset,
+    evaluation: &DsaEvaluation,
+    start: usize,
+    end: usize,
+) -> usize {
+    evaluation.run_signals.primary_run_alert[start..end]
+        .iter()
+        .enumerate()
+        .filter(|(offset, flag)| dataset.labels[start + *offset] == -1 && **flag)
+        .count()
 }
 
 fn episode_ranges(signal: &[bool]) -> Vec<(usize, usize)> {

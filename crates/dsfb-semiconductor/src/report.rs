@@ -369,8 +369,13 @@ fn markdown_report(
     out.push_str(&true_dsfb_structural_semiotics_markdown_section());
     out.push_str(&grouped_coordinated_semiotics_markdown_section());
     out.push_str(&missed_failure_analysis_markdown_section(failure_driven));
+    out.push_str(&failure_priority_markdown_section(failure_driven));
     out.push_str(&feature_motif_grounding_markdown_section(failure_driven));
+    out.push_str(&feature_role_validation_markdown_section(failure_driven));
     out.push_str(&minimal_heuristics_markdown_section(failure_driven));
+    out.push_str(&heuristic_provenance_markdown_section(failure_driven));
+    out.push_str(&group_validation_markdown_section(failure_driven));
+    out.push_str(&negative_control_markdown_section(failure_driven));
     out.push_str(&dsfb_vs_ewma_markdown_section(failure_driven));
     out.push_str(&which_delta_matters_markdown_section(optimization));
     out.push_str(&predeclared_operator_delta_targets_markdown_section(optimization));
@@ -654,8 +659,13 @@ fn latex_report(
     out.push_str(&true_dsfb_structural_semiotics_latex_section());
     out.push_str(&grouped_coordinated_semiotics_latex_section());
     out.push_str(&missed_failure_analysis_latex_section(failure_driven));
+    out.push_str(&failure_priority_latex_section(failure_driven));
     out.push_str(&feature_motif_grounding_latex_section(failure_driven));
+    out.push_str(&feature_role_validation_latex_section(failure_driven));
     out.push_str(&minimal_heuristics_latex_section(failure_driven));
+    out.push_str(&heuristic_provenance_latex_section(failure_driven));
+    out.push_str(&group_validation_latex_section(failure_driven));
+    out.push_str(&negative_control_latex_section(failure_driven));
     out.push_str(&dsfb_vs_ewma_latex_section(failure_driven));
     out.push_str(&operator_sections_latex(optimization));
     out.push_str(&optimization_sections_latex(
@@ -1015,6 +1025,30 @@ fn missed_failure_analysis_markdown_section(failure_driven: &FailureDrivenArtifa
     out
 }
 
+fn failure_priority_markdown_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("## Failure Priority Ranking\n\n");
+    if failure_driven.missed_failure_priority.is_empty() {
+        out.push_str("- No missed-failure priority rows were emitted.\n\n");
+        return out;
+    }
+    for row in failure_driven.missed_failure_priority.iter().take(8) {
+        out.push_str(&format!(
+            "- Failure {}: priority_score={:.4}, top_feature={:?}, signal_strength={:.4}, feature_concentration={:.4}, separation_from_noise={:.4}, recoverability_estimate={:.4}, exact_miss_rule=`{}`\n",
+            row.failure_id,
+            row.priority_score,
+            row.top_feature_name,
+            row.signal_strength,
+            row.feature_concentration,
+            row.separation_from_noise,
+            row.recoverability_estimate,
+            row.exact_miss_rule,
+        ));
+    }
+    out.push('\n');
+    out
+}
+
 fn feature_motif_grounding_markdown_section(
     failure_driven: &FailureDrivenArtifacts,
 ) -> String {
@@ -1028,6 +1062,21 @@ fn feature_motif_grounding_markdown_section(
             row.dominant_dsfb_motif,
             row.failure_window_semantic_hits,
             row.pass_run_semantic_hits,
+        ));
+    }
+    out.push('\n');
+    out
+}
+
+fn feature_role_validation_markdown_section(
+    failure_driven: &FailureDrivenArtifacts,
+) -> String {
+    let mut out = String::new();
+    out.push_str("## Feature Role Validation\n\n");
+    for row in &failure_driven.feature_role_validation {
+        out.push_str(&format!(
+            "- {}: initial_role=`{}`, validation=`{}`, final_role=`{}`\n",
+            row.feature_id, row.initial_role, row.validation_result, row.final_role,
         ));
     }
     out.push('\n');
@@ -1052,6 +1101,71 @@ fn minimal_heuristics_markdown_section(failure_driven: &FailureDrivenArtifacts) 
         ));
     }
     out.push('\n');
+    out
+}
+
+fn heuristic_provenance_markdown_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("## Heuristic Provenance\n\n");
+    if failure_driven.heuristic_provenance.is_empty() {
+        out.push_str("- No heuristic provenance rows were emitted.\n\n");
+        return out;
+    }
+    for row in &failure_driven.heuristic_provenance {
+        out.push_str(&format!(
+            "- {}: failures=`{}`, features=`{}`, intended_effect=`{}`, nuisance_class=`{}`\n",
+            row.heuristic_id,
+            row.derived_from_failures,
+            row.uses_features,
+            row.intended_effect,
+            row.targets_nuisance_class,
+        ));
+    }
+    out.push('\n');
+    out
+}
+
+fn group_validation_markdown_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("## Grouped Semiotics Validation\n\n");
+    if failure_driven.group_validation.is_empty() {
+        out.push_str("- No group-validation rows were emitted.\n\n");
+        return out;
+    }
+    for row in &failure_driven.group_validation {
+        out.push_str(&format!(
+            "- {} [{}]: failure_coactivation={}, pass_coactivation={}, decision=`{}`, reason={}\n",
+            row.group_id,
+            row.group_members,
+            row.failure_coactivation_count,
+            row.pass_coactivation_count,
+            row.retained_or_rejected,
+            row.reason,
+        ));
+    }
+    out.push('\n');
+    out
+}
+
+fn negative_control_markdown_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let report = &failure_driven.negative_control_report;
+    let mut out = String::new();
+    out.push_str("## Negative Control\n\n");
+    out.push_str(&format!(
+        "- Pass runs: false_activation_rate={:.4}, false_episode_rate={:.4} ({}/{}, {}/{})\n- Clean windows: false_activation_rate={:.4}, false_episode_rate={:.4} ({}/{}, {}/{})\n\n",
+        report.false_activation_rate,
+        report.false_episode_rate,
+        report.pass_run_false_activation_count,
+        report.pass_run_count,
+        report.pass_run_false_episode_count,
+        report.pass_run_count,
+        report.clean_window_false_activation_rate,
+        report.clean_window_false_episode_rate,
+        report.clean_window_false_activation_count,
+        report.clean_window_count,
+        report.clean_window_false_episode_count,
+        report.clean_window_count,
+    ));
     out
 }
 
@@ -1119,10 +1233,16 @@ fn operator_optimization_frontier_markdown_section(
     let mut out = String::new();
     out.push_str("## Optimization Frontier\n\n");
     out.push_str(&format!(
-        "- Pareto frontier rows: {}\n- Stage 1 burden-reduction candidates: {}\n- Stage 2 recall-recovery candidates: {}\n",
+        "- Pareto frontier rows: {}\n- Stage 1 burden-reduction candidates: {}\n- Stage 2 recall-recovery candidates: {}\n- Single-change iterations logged: {} (accepted: {})\n",
         optimization.pareto_frontier.len(),
         optimization.stage1_candidates.len(),
         optimization.stage2_candidates.len(),
+        optimization.single_change_iteration_log.len(),
+        optimization
+            .single_change_iteration_log
+            .iter()
+            .filter(|row| row.accepted)
+            .count(),
     ));
     if let Some(selected) = &optimization.optimized_execution.summary.selected_configuration {
         out.push_str(&format!(
@@ -1530,6 +1650,21 @@ fn missed_failure_analysis_latex_section(failure_driven: &FailureDrivenArtifacts
     out
 }
 
+fn failure_priority_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Failure Priority Ranking}\n");
+    if let Some(row) = failure_driven.missed_failure_priority.first() {
+        out.push_str(&latex_escape(&format!(
+            "Highest-priority missed failure: {} with priority score {:.4}, top feature {:?}, and miss rule {}.",
+            row.failure_id, row.priority_score, row.top_feature_name, row.exact_miss_rule
+        )));
+    } else {
+        out.push_str("No missed-failure priority rows were produced.");
+    }
+    out.push_str("\n\n");
+    out
+}
+
 fn feature_motif_grounding_latex_section(
     failure_driven: &FailureDrivenArtifacts,
 ) -> String {
@@ -1547,12 +1682,60 @@ fn feature_motif_grounding_latex_section(
     out
 }
 
+fn feature_role_validation_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Feature Role Validation}\n");
+    out.push_str(&latex_escape(&format!(
+        "Feature-role validation rows produced: {}. Locked SECOM scaffold roles were explicitly supported, revised, or rejected in dsfb_feature_role_validation.csv.",
+        failure_driven.feature_role_validation.len()
+    )));
+    out.push_str("\n\n");
+    out
+}
+
 fn minimal_heuristics_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
     let mut out = String::new();
     out.push_str("\\section*{Heuristics With Justification}\n");
     out.push_str(&latex_escape(&format!(
         "Failure-driven minimal heuristics bank size: {}. The bank is written to dsfb_heuristics_bank_minimal.json and each entry targets one missed failure or one nuisance class.",
         failure_driven.minimal_heuristics_bank.len()
+    )));
+    out.push_str("\n\n");
+    out
+}
+
+fn heuristic_provenance_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Heuristic Provenance}\n");
+    out.push_str(&latex_escape(&format!(
+        "Heuristic provenance rows produced: {}. Every minimal heuristic is linked to explicit failure IDs, feature IDs, nuisance class, intended effect, and constraints in dsfb_heuristic_provenance.csv.",
+        failure_driven.heuristic_provenance.len()
+    )));
+    out.push_str("\n\n");
+    out
+}
+
+fn group_validation_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Grouped Semiotics Validation}\n");
+    out.push_str(&latex_escape(&format!(
+        "Grouped semiotics validation rows produced: {}. Each candidate group records failure co-activation, pass co-activation, retain/reject status, and reason in dsfb_group_validation.csv.",
+        failure_driven.group_validation.len()
+    )));
+    out.push_str("\n\n");
+    out
+}
+
+fn negative_control_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
+    let report = &failure_driven.negative_control_report;
+    let mut out = String::new();
+    out.push_str("\\section*{Negative Control}\n");
+    out.push_str(&latex_escape(&format!(
+        "Pass-run false activation rate {:.4}, pass-run false episode rate {:.4}, clean-window false activation rate {:.4}, clean-window false episode rate {:.4}.",
+        report.false_activation_rate,
+        report.false_episode_rate,
+        report.clean_window_false_activation_rate,
+        report.clean_window_false_episode_rate,
     )));
     out.push_str("\n\n");
     out
@@ -1592,10 +1775,16 @@ fn operator_sections_latex(optimization: &OptimizationExecution) -> String {
     out.push_str("\n\n");
     out.push_str("\\section*{Optimization Frontier}\n");
     out.push_str(&latex_escape(&format!(
-        "Pareto frontier rows: {}. Stage 1 burden-reduction candidates: {}. Stage 2 recall-recovery candidates: {}.",
+        "Pareto frontier rows: {}. Stage 1 burden-reduction candidates: {}. Stage 2 recall-recovery candidates: {}. Single-change iterations logged: {} with {} accepted.",
         optimization.pareto_frontier.len(),
         optimization.stage1_candidates.len(),
         optimization.stage2_candidates.len(),
+        optimization.single_change_iteration_log.len(),
+        optimization
+            .single_change_iteration_log
+            .iter()
+            .filter(|row| row.accepted)
+            .count(),
     )));
     out.push_str("\n\n");
     out.push_str("\\section*{Recall Recovery Efficiency}\n");
@@ -1757,6 +1946,34 @@ fn artifact_inventory(
         ArtifactInventoryEntry {
             path: "dsa_recall_recovery_efficiency.csv".into(),
             role: "Recovered failures per added Review/Escalate point, per added episode, per added burden, and per added nuisance run.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_single_change_iteration_log.csv".into(),
+            role: "Failure- or nuisance-justified single-change optimization log with per-iteration metric deltas and acceptance decisions.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "missed_failure_priority.csv".into(),
+            role: "Priority-ranked missed failures using signal strength, feature concentration, separation from noise, and recoverability estimate.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "feature_to_motif.json".into(),
+            role: "Hard-locked feature-to-motif assignment for the top failure-relevant SECOM features.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "negative_control_report.json".into(),
+            role: "Pass-run and clean-window false-activation and false-episode rates used as anti-overfit controls.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_heuristic_provenance.csv".into(),
+            role: "Explicit failure IDs, feature IDs, nuisance class, intended effect, and constraints for each minimal heuristic.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_feature_role_validation.csv".into(),
+            role: "Empirical support, revision, or rejection of the locked SECOM feature-role scaffold.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_group_validation.csv".into(),
+            role: "Failure/pass co-activation validation table for the locked grouped-semiotics candidates.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_cohort_results.csv".into(),

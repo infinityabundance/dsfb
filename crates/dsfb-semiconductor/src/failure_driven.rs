@@ -73,6 +73,7 @@ pub struct FailureCaseReport {
 pub struct FailureCaseFeatureDetail {
     pub feature_index: usize,
     pub feature_name: String,
+    pub behavior_classification: String,
     pub ranking_score_proxy: f64,
     pub max_dsa_score: f64,
     pub max_policy_state: String,
@@ -87,6 +88,74 @@ pub struct FailureCaseFeatureDetail {
     pub slew_trajectory: Vec<f64>,
     pub motif_timeline: Vec<String>,
     pub grammar_state_timeline: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MissedFailurePriorityRow {
+    pub failure_id: usize,
+    pub timestamp: String,
+    pub exact_miss_rule: String,
+    pub top_feature_name: Option<String>,
+    pub signal_strength: f64,
+    pub feature_concentration: f64,
+    pub separation_from_noise: f64,
+    pub recoverability_estimate: f64,
+    pub priority_score: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FeatureToMotifRecord {
+    pub feature_index: usize,
+    pub feature_name: String,
+    pub motif_type: String,
+    pub justification: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct NegativeControlReport {
+    pub pass_run_count: usize,
+    pub pass_run_false_activation_count: usize,
+    pub false_activation_rate: f64,
+    pub pass_run_false_episode_count: usize,
+    pub false_episode_rate: f64,
+    pub clean_window_count: usize,
+    pub clean_window_false_activation_count: usize,
+    pub clean_window_false_activation_rate: f64,
+    pub clean_window_false_episode_count: usize,
+    pub clean_window_false_episode_rate: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FeatureRoleValidationRow {
+    pub feature_id: String,
+    pub initial_role: String,
+    pub validation_result: String,
+    pub motif_evidence_summary: String,
+    pub grammar_evidence_summary: String,
+    pub pass_run_burden_summary: String,
+    pub failure_contribution_summary: String,
+    pub final_role: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GroupValidationRow {
+    pub group_id: String,
+    pub group_members: String,
+    pub failure_coactivation_count: usize,
+    pub pass_coactivation_count: usize,
+    pub retained_or_rejected: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct HeuristicProvenanceRow {
+    pub heuristic_id: String,
+    pub derived_from_failures: String,
+    pub uses_features: String,
+    pub targets_nuisance_class: String,
+    pub intended_effect: String,
+    pub action: String,
+    pub constraints: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -169,10 +238,16 @@ pub struct DsfbVsEwmaWindowPoint {
 #[derive(Debug, Clone, Serialize)]
 pub struct FailureDrivenArtifacts {
     pub failures_index: FailuresIndex,
+    pub missed_failure_priority: Vec<MissedFailurePriorityRow>,
     pub failure_cases: Vec<FailureCaseReport>,
     pub feature_motif_grounding: Vec<FeatureMotifGroundingRecord>,
+    pub feature_to_motif: Vec<FeatureToMotifRecord>,
+    pub negative_control_report: NegativeControlReport,
     pub minimal_heuristics_bank: Vec<MinimalHeuristicEntry>,
+    pub heuristic_provenance: Vec<HeuristicProvenanceRow>,
     pub policy_burden_summary: Vec<PolicyBurdenSummaryRow>,
+    pub feature_role_validation: Vec<FeatureRoleValidationRow>,
+    pub group_validation: Vec<GroupValidationRow>,
     pub dsfb_vs_ewma_cases: Vec<DsfbVsEwmaCase>,
 }
 
@@ -271,12 +346,27 @@ pub fn build_failure_driven_artifacts(
         &failure_cases,
         pre_failure_lookback_runs,
     );
+    let missed_failure_priority = build_missed_failure_priority(
+        &failure_cases,
+        &feature_motif_grounding,
+    );
+    let feature_to_motif = build_feature_to_motif(&failure_cases, &feature_motif_grounding);
+    let negative_control_report =
+        build_negative_control_report(dataset, optimized_dsa, pre_failure_lookback_runs);
     let minimal_heuristics_bank = build_minimal_heuristics_bank(
         missed_failure_diagnostics,
         policy_operator_burden_contributions,
         &feature_motif_grounding,
     );
+    let heuristic_provenance = build_heuristic_provenance(&minimal_heuristics_bank);
     let policy_burden_summary = build_policy_burden_summary(dataset, optimized_dsa);
+    let feature_role_validation = build_feature_role_validation(
+        &feature_motif_grounding,
+        &policy_burden_summary,
+        optimized_dsa,
+        missed_failure_diagnostics,
+    );
+    let group_validation = build_group_validation(&scaffold_semiotics.group_definitions);
     let dsfb_vs_ewma_cases = build_dsfb_vs_ewma_cases(
         dataset,
         &feature_bundles,
@@ -291,10 +381,16 @@ pub fn build_failure_driven_artifacts(
 
     FailureDrivenArtifacts {
         failures_index,
+        missed_failure_priority,
         failure_cases,
         feature_motif_grounding,
+        feature_to_motif,
+        negative_control_report,
         minimal_heuristics_bank,
+        heuristic_provenance,
         policy_burden_summary,
+        feature_role_validation,
+        group_validation,
         dsfb_vs_ewma_cases,
     }
 }
@@ -518,6 +614,11 @@ fn build_failure_cases(
                     FailureCaseFeatureDetail {
                         feature_index: candidate.feature_index,
                         feature_name: candidate.feature_name.clone(),
+                        behavior_classification: classify_feature_behavior(
+                            &bundle.sign.drift[start..failure_index],
+                            &bundle.sign.slew[start..failure_index],
+                        )
+                        .into(),
                         ranking_score_proxy: candidate.ranking_score_proxy,
                         max_dsa_score: candidate.max_dsa_score,
                         max_policy_state: candidate.max_policy_state,
@@ -689,6 +790,359 @@ fn build_feature_motif_grounding(
             })
         })
         .collect()
+}
+
+fn build_missed_failure_priority(
+    failure_cases: &[FailureCaseReport],
+    feature_motif_grounding: &[FeatureMotifGroundingRecord],
+) -> Vec<MissedFailurePriorityRow> {
+    let grounding_by_name = feature_motif_grounding
+        .iter()
+        .map(|row| (row.feature_name.as_str(), row))
+        .collect::<BTreeMap<_, _>>();
+    let mut rows = failure_cases
+        .iter()
+        .map(|case| {
+            let signal_strength = case
+                .top_contributing_features
+                .iter()
+                .map(|feature| feature.max_dsa_score)
+                .fold(0.0, f64::max);
+            let total_proxy = case
+                .top_contributing_features
+                .iter()
+                .map(|feature| feature.ranking_score_proxy)
+                .sum::<f64>();
+            let feature_concentration = case
+                .top_contributing_features
+                .first()
+                .map(|feature| feature.ranking_score_proxy / total_proxy.max(1.0e-9))
+                .unwrap_or(0.0);
+            let top_feature_name = case
+                .top_contributing_features
+                .first()
+                .map(|feature| feature.feature_name.clone());
+            let separation_from_noise = top_feature_name
+                .as_deref()
+                .and_then(|feature_name| grounding_by_name.get(feature_name))
+                .map(|row| {
+                    (row.failure_window_semantic_hits as f64 + row.failure_window_pressure_hits as f64)
+                        / (1.0 + row.pass_run_semantic_hits as f64 + row.pass_run_pressure_hits as f64)
+                })
+                .unwrap_or(0.0);
+            let recoverability_estimate = if case.optimized_detected_by_dsa {
+                1.0
+            } else {
+                0.0
+            };
+            let priority_score = signal_strength
+                + feature_concentration
+                + separation_from_noise
+                + recoverability_estimate;
+            MissedFailurePriorityRow {
+                failure_id: case.failure_id,
+                timestamp: case.failure_timestamp.clone(),
+                exact_miss_rule: case.exact_miss_rule.clone(),
+                top_feature_name,
+                signal_strength,
+                feature_concentration,
+                separation_from_noise,
+                recoverability_estimate,
+                priority_score,
+            }
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by(|left, right| {
+        right
+            .priority_score
+            .partial_cmp(&left.priority_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left.failure_id.cmp(&right.failure_id))
+    });
+    rows
+}
+
+fn build_feature_to_motif(
+    failure_cases: &[FailureCaseReport],
+    feature_motif_grounding: &[FeatureMotifGroundingRecord],
+) -> Vec<FeatureToMotifRecord> {
+    let mut counts = BTreeMap::<usize, usize>::new();
+    for case in failure_cases {
+        for feature in &case.top_contributing_features {
+            *counts.entry(feature.feature_index).or_default() += 1;
+        }
+    }
+    let grounding_by_index = feature_motif_grounding
+        .iter()
+        .map(|row| (row.feature_index, row))
+        .collect::<BTreeMap<_, _>>();
+    let mut selected = counts.into_iter().collect::<Vec<_>>();
+    selected.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+    selected
+        .into_iter()
+        .take(15)
+        .filter_map(|(feature_index, _)| {
+            let grounding = grounding_by_index.get(&feature_index)?;
+            Some(FeatureToMotifRecord {
+                feature_index,
+                feature_name: grounding.feature_name.clone(),
+                motif_type: grounding.motif_type.clone(),
+                justification: grounding.justification.clone(),
+            })
+        })
+        .collect()
+}
+
+fn build_negative_control_report(
+    dataset: &PreparedDataset,
+    optimized_dsa: &DsaEvaluation,
+    pre_failure_lookback_runs: usize,
+) -> NegativeControlReport {
+    let failure_indices = dataset
+        .labels
+        .iter()
+        .enumerate()
+        .filter_map(|(run_index, label)| (*label == 1).then_some(run_index))
+        .collect::<Vec<_>>();
+    let failure_window_mask =
+        build_failure_window_mask(dataset.labels.len(), &failure_indices, pre_failure_lookback_runs);
+    let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
+    let pass_run_false_activation_count = optimized_dsa
+        .run_signals
+        .primary_run_alert
+        .iter()
+        .enumerate()
+        .filter(|(run_index, flag)| dataset.labels[*run_index] == -1 && **flag)
+        .count();
+    let pass_only_signal = optimized_dsa
+        .run_signals
+        .primary_run_alert
+        .iter()
+        .enumerate()
+        .map(|(run_index, flag)| dataset.labels[run_index] == -1 && *flag)
+        .collect::<Vec<_>>();
+    let clean_window_mask = dataset
+        .labels
+        .iter()
+        .enumerate()
+        .map(|(run_index, label)| *label == -1 && !failure_window_mask[run_index])
+        .collect::<Vec<_>>();
+    let clean_window_count = clean_window_mask.iter().filter(|flag| **flag).count();
+    let clean_window_false_activation_count = optimized_dsa
+        .run_signals
+        .primary_run_alert
+        .iter()
+        .enumerate()
+        .filter(|(run_index, flag)| clean_window_mask[*run_index] && **flag)
+        .count();
+    let clean_window_signal = optimized_dsa
+        .run_signals
+        .primary_run_alert
+        .iter()
+        .enumerate()
+        .map(|(run_index, flag)| clean_window_mask[run_index] && *flag)
+        .collect::<Vec<_>>();
+
+    NegativeControlReport {
+        pass_run_count,
+        pass_run_false_activation_count,
+        false_activation_rate: pass_run_false_activation_count as f64 / pass_run_count.max(1) as f64,
+        pass_run_false_episode_count: episode_ranges(&pass_only_signal).len(),
+        false_episode_rate: episode_ranges(&pass_only_signal).len() as f64
+            / pass_run_count.max(1) as f64,
+        clean_window_count,
+        clean_window_false_activation_count,
+        clean_window_false_activation_rate: clean_window_false_activation_count as f64
+            / clean_window_count.max(1) as f64,
+        clean_window_false_episode_count: episode_ranges(&clean_window_signal).len(),
+        clean_window_false_episode_rate: episode_ranges(&clean_window_signal).len() as f64
+            / clean_window_count.max(1) as f64,
+    }
+}
+
+fn build_heuristic_provenance(
+    minimal_heuristics_bank: &[MinimalHeuristicEntry],
+) -> Vec<HeuristicProvenanceRow> {
+    minimal_heuristics_bank
+        .iter()
+        .map(|entry| {
+            let derived_from_failures = if entry.target_problem_type == "missed_failure" {
+                entry.target_identifier.clone()
+            } else {
+                String::new()
+            };
+            let uses_features = entry.target_feature_name.clone().unwrap_or_default();
+            let targets_nuisance_class = if entry.target_problem_type == "nuisance_class" {
+                entry.target_identifier.clone()
+            } else {
+                String::new()
+            };
+            let intended_effect = if entry.target_problem_type == "missed_failure" {
+                "recover_failure"
+            } else {
+                "suppress_burden"
+            };
+            HeuristicProvenanceRow {
+                heuristic_id: entry.heuristic_id.clone(),
+                derived_from_failures,
+                uses_features,
+                targets_nuisance_class,
+                intended_effect: intended_effect.into(),
+                action: entry.policy_action.clone(),
+                constraints: format!(
+                    "motif={}, grammar_states={}, semantic_requirement={}",
+                    entry.target_motif_type,
+                    entry.target_grammar_states.join("|"),
+                    entry.semantic_requirement
+                ),
+            }
+        })
+        .collect()
+}
+
+fn build_feature_role_validation(
+    feature_motif_grounding: &[FeatureMotifGroundingRecord],
+    policy_burden_summary: &[PolicyBurdenSummaryRow],
+    optimized_dsa: &DsaEvaluation,
+    missed_failure_diagnostics: &[MissedFailureDiagnosticRow],
+) -> Vec<FeatureRoleValidationRow> {
+    let initial_roles = [
+        ("S059", "primary recurrent-boundary precursor"),
+        ("S123", "transition / instability feature"),
+        ("S133", "candidate slow-drift precursor"),
+        ("S540", "burst-support corroborator"),
+        ("S128", "co-burst corroborator"),
+        ("S104", "watch-only sentinel"),
+        ("S134", "recall-rescue feature"),
+        ("S275", "recall-rescue feature"),
+    ];
+    let grounding_by_name = feature_motif_grounding
+        .iter()
+        .map(|row| (row.feature_name.as_str(), row))
+        .collect::<BTreeMap<_, _>>();
+    let burden_by_name = policy_burden_summary
+        .iter()
+        .filter(|row| row.scope == "feature")
+        .map(|row| (row.name.as_str(), row))
+        .collect::<BTreeMap<_, _>>();
+    let earliest_counts = optimized_dsa
+        .per_failure_run_signals
+        .iter()
+        .filter_map(|row| row.earliest_dsa_feature_name.as_deref())
+        .fold(BTreeMap::<&str, usize>::new(), |mut acc, feature_name| {
+            *acc.entry(feature_name).or_default() += 1;
+            acc
+        });
+    let recovered_by_name = missed_failure_diagnostics
+        .iter()
+        .filter(|row| row.recovered_after_optimization)
+        .filter_map(|row| row.optimized_feature_name.as_deref())
+        .fold(BTreeMap::<&str, usize>::new(), |mut acc, feature_name| {
+            *acc.entry(feature_name).or_default() += 1;
+            acc
+        });
+
+    initial_roles
+        .into_iter()
+        .map(|(feature_name, initial_role)| {
+            let grounding = grounding_by_name.get(feature_name).copied();
+            let burden = burden_by_name.get(feature_name).copied();
+            let earliest_count = earliest_counts.get(feature_name).copied().unwrap_or(0);
+            let recovered_count = recovered_by_name.get(feature_name).copied().unwrap_or(0);
+            let motif_type = grounding
+                .map(|row| row.motif_type.as_str())
+                .unwrap_or("null");
+            let pass_burden = burden
+                .map(|row| row.pass_review_escalate_points)
+                .unwrap_or(0);
+            let (validation_result, final_role) = if feature_name == "S133"
+                && motif_type != "slow_drift_precursor"
+            {
+                ("revised", "semantically ambiguous review-only candidate")
+            } else if matches!(feature_name, "S134" | "S275") && recovered_count > 0 {
+                ("supported", "bounded recall-rescue feature")
+            } else if earliest_count == 0 && pass_burden > 0 && motif_type == "noise_like" {
+                ("rejected", "noise-like burden source")
+            } else {
+                ("supported", initial_role)
+            };
+
+            FeatureRoleValidationRow {
+                feature_id: feature_name.into(),
+                initial_role: initial_role.into(),
+                validation_result: validation_result.into(),
+                motif_evidence_summary: grounding
+                    .map(|row| {
+                        format!(
+                            "grounded as {}, dominant motif {}, semantic hits {} / pass {}",
+                            row.motif_type,
+                            row.dominant_dsfb_motif,
+                            row.failure_window_semantic_hits,
+                            row.pass_run_semantic_hits
+                        )
+                    })
+                    .unwrap_or_else(|| "no grounding record".into()),
+                grammar_evidence_summary: grounding
+                    .map(|row| {
+                        format!(
+                            "dominant grammar {}, failure pressure {} / pass {}",
+                            row.dominant_grammar_state,
+                            row.failure_window_pressure_hits,
+                            row.pass_run_pressure_hits
+                        )
+                    })
+                    .unwrap_or_else(|| "no grammar evidence".into()),
+                pass_run_burden_summary: burden
+                    .map(|row| {
+                        format!(
+                            "pass review/escalate points={}, silent suppressions={}",
+                            row.pass_review_escalate_points, row.silent_suppression_points
+                        )
+                    })
+                    .unwrap_or_else(|| "no pass-run burden".into()),
+                failure_contribution_summary: format!(
+                    "earliest detection count={}, recovered missed failures={}",
+                    earliest_count, recovered_count
+                ),
+                final_role: final_role.into(),
+            }
+        })
+        .collect()
+}
+
+fn build_group_validation(definitions: &[GroupDefinitionRecord]) -> Vec<GroupValidationRow> {
+    definitions
+        .iter()
+        .map(|row| GroupValidationRow {
+            group_id: row.group_name.clone(),
+            group_members: row.member_features.clone(),
+            failure_coactivation_count: row.failure_coactivation_run_count,
+            pass_coactivation_count: row.pass_coactivation_run_count,
+            retained_or_rejected: if row.validated {
+                "retained".into()
+            } else {
+                "rejected".into()
+            },
+            reason: row
+                .rejection_reason
+                .clone()
+                .unwrap_or_else(|| "validated by strict failure-vs-pass gate".into()),
+        })
+        .collect()
+}
+
+fn classify_feature_behavior(drift: &[f64], slew: &[f64]) -> &'static str {
+    let mean_abs_drift = mean_abs(drift);
+    let mean_abs_slew = mean_abs(slew);
+    if mean_abs_drift < 0.05 && mean_abs_slew < 0.05 {
+        "stable"
+    } else if mean_abs_slew > mean_abs_drift * 1.5 {
+        "spiking"
+    } else if drift.iter().any(|value| *value > 0.0) && drift.iter().any(|value| *value < 0.0) {
+        "oscillatory"
+    } else {
+        "drifting"
+    }
 }
 
 fn build_minimal_heuristics_bank(
@@ -1514,6 +1968,25 @@ fn mean_abs(values: &[f64]) -> f64 {
     } else {
         values.iter().map(|value| value.abs()).sum::<f64>() / values.len() as f64
     }
+}
+
+fn episode_ranges(signal: &[bool]) -> Vec<(usize, usize)> {
+    let mut episodes = Vec::new();
+    let mut start = None::<usize>;
+    for (run_index, flag) in signal.iter().copied().enumerate() {
+        match (start, flag) {
+            (None, true) => start = Some(run_index),
+            (Some(episode_start), false) => {
+                episodes.push((episode_start, run_index - 1));
+                start = None;
+            }
+            _ => {}
+        }
+    }
+    if let Some(episode_start) = start {
+        episodes.push((episode_start, signal.len().saturating_sub(1)));
+    }
+    episodes
 }
 
 enum ScalarSupportMode {
