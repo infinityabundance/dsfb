@@ -4,6 +4,7 @@ use crate::dataset::phm2018;
 use crate::dataset::secom;
 use crate::error::Result;
 use crate::output_paths::{default_data_root, default_output_root};
+use crate::phm2018_loader::run_phm2018_benchmark;
 use crate::pipeline::run_secom_benchmark;
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
@@ -23,6 +24,7 @@ enum Command {
     CalibrateSecom(CalibrateSecomArgs),
     CalibrateSecomDsa(CalibrateSecomDsaArgs),
     ProbePhm2018(ProbePhm2018Args),
+    RunPhm2018(RunPhm2018Args),
 }
 
 #[derive(Debug, Args)]
@@ -203,6 +205,16 @@ struct ProbePhm2018Args {
     archive: Option<PathBuf>,
     #[arg(long)]
     data_root: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct RunPhm2018Args {
+    #[arg(long)]
+    data_root: Option<PathBuf>,
+    #[arg(long)]
+    output_root: Option<PathBuf>,
+    #[arg(long)]
+    secom_run_dir: Option<PathBuf>,
 }
 
 pub fn run() -> Result<()> {
@@ -387,6 +399,30 @@ pub fn run() -> Result<()> {
                 let manifest = phm2018::inspect_archive(&archive)?;
                 println!("{}", serde_json::to_string_pretty(&manifest)?);
             }
+            Ok(())
+        }
+        Command::RunPhm2018(args) => {
+            let data_root = args.data_root.unwrap_or_else(default_data_root);
+            let output_root = args.output_root.unwrap_or_else(default_output_root);
+            let artifacts = run_phm2018_benchmark(
+                &data_root,
+                &output_root,
+                args.secom_run_dir.as_deref(),
+            )?;
+            println!("Run directory: {}", artifacts.run_dir.display());
+            println!(
+                "PHM lead-time metrics: {}",
+                artifacts.lead_time_metrics_path.display()
+            );
+            println!(
+                "PHM early-warning stats: {}",
+                artifacts.early_warning_stats_path.display()
+            );
+            println!(
+                "Claim alignment report: {}",
+                artifacts.claim_alignment_report_path.display()
+            );
+            println!("ZIP bundle: {}", artifacts.zip_path.display());
             Ok(())
         }
     }

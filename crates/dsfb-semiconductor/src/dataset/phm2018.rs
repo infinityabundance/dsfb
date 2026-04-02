@@ -87,10 +87,10 @@ pub fn support_status(data_root: &Path) -> Phm2018SupportStatus {
         extracted_train_sensor_files,
         extracted_test_sensor_files,
         archive_summary_supported: true,
-        fully_implemented: false,
+        fully_implemented: extracted_dataset_detected,
         blocker: if extracted_dataset_detected {
             format!(
-                "The extracted PHM 2018 sensor tree is present at {} with {} train CSVs and {} test CSVs. Archive-only blocking is cleared, but a full DSFB benchmark path is still not claimed until the extracted schema is ingested end to end and failure targets are benchmarked reproducibly.",
+                "The extracted PHM 2018 sensor tree is present at {} with {} train CSVs and {} test CSVs. The crate now exposes a parallel DSFB benchmark path over the extracted train trajectories; remaining limitations are dataset-specific claim boundaries rather than archive ingestion.",
                 extracted_dataset_path.display(),
                 extracted_train_sensor_files,
                 extracted_test_sensor_files,

@@ -6,6 +6,7 @@ use dsfb_semiconductor::config::PipelineConfig;
 use dsfb_semiconductor::dataset::secom;
 use dsfb_semiconductor::grammar::evaluate_grammar;
 use dsfb_semiconductor::nominal::build_nominal_model;
+use dsfb_semiconductor::phm2018_loader::run_phm2018_benchmark;
 use dsfb_semiconductor::pipeline::run_secom_benchmark;
 use dsfb_semiconductor::precursor::evaluate_dsa;
 use dsfb_semiconductor::preprocessing::prepare_secom;
@@ -77,6 +78,48 @@ fn test_config() -> PipelineConfig {
             corroborating_feature_count_min: 2,
         },
     }
+}
+
+fn write_phm2018_fixture_dataset(root: &Path) -> PathBuf {
+    let phm_root = root.join("phm_data_challenge_2018");
+    let train_dir = phm_root.join("train");
+    let test_dir = phm_root.join("test");
+    let fault_dir = train_dir.join("train_faults");
+    let ttf_dir = train_dir.join("train_ttf");
+    fs::create_dir_all(&fault_dir).unwrap();
+    fs::create_dir_all(&ttf_dir).unwrap();
+    fs::create_dir_all(&test_dir).unwrap();
+
+    let mut train_csv =
+        String::from("time,Tool,stage,Lot,runnum,recipe,recipe_step,sensor_a,sensor_b\n");
+    for time in 0..60 {
+        let sensor_a = if time < 40 {
+            1.0
+        } else {
+            1.0 + (time - 39) as f64 * 0.35
+        };
+        let sensor_b = if time < 35 {
+            0.5
+        } else {
+            0.5 + (time - 34) as f64 * 0.20
+        };
+        train_csv.push_str(&format!(
+            "{time},T01,S01,L01,1,R01,1,{sensor_a:.3},{sensor_b:.3}\n"
+        ));
+    }
+    fs::write(train_dir.join("L01_T01.csv"), train_csv).unwrap();
+    fs::write(
+        fault_dir.join("L01_T01_train_fault_data.csv"),
+        "time,fault_name,Tool\n40,fault,T01\n",
+    )
+    .unwrap();
+    fs::write(
+        test_dir.join("L99_T99.csv"),
+        "time,Tool,stage,Lot,runnum,recipe,recipe_step,sensor_a,sensor_b\n0,T99,S01,L99,1,R01,1,0.0,0.0\n",
+    )
+    .unwrap();
+
+    root.to_path_buf()
 }
 
 fn pdflatex_available() -> bool {
@@ -254,21 +297,31 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "ewma_baseline.csv",
         "engineering_report.md",
         "engineering_report.tex",
+        "episode_precision_metrics.json",
         "feature_metrics.csv",
         "grammar_states.csv",
         "heuristics_bank.json",
+        "lead_time_comparison.csv",
+        "lead_time_explanation.json",
         "lead_time_metrics.csv",
         "parameter_manifest.json",
         "per_failure_run_signals.csv",
         "per_failure_run_dsa_signals.csv",
         "phm2018_support_status.json",
+        "recurrent_boundary_stats.json",
+        "recurrent_boundary_tradeoff_curve.csv",
+        "recurrent_boundary_tradeoff_plot.png",
         "dsa_metrics.csv",
+        "dsfb_metric_regrounding.csv",
         "dsa_vs_baselines.json",
+        "missed_failure_root_cause.json",
+        "paper_abstract_artifact.txt",
         "residuals.csv",
         "run_bundle.zip",
         "run_configuration.json",
         "secom_archive_layout.json",
         "slews.csv",
+        "target_d_regression_analysis.json",
     ];
 
     for file in expected_files {
@@ -379,6 +432,16 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_operator_delta_targets.json").is_ok());
     assert!(zip.by_name("dsa_operator_delta_attainment_matrix.csv").is_ok());
     assert!(zip.by_name("dsa_policy_operator_burden_contributions.csv").is_ok());
+    assert!(zip.by_name("recurrent_boundary_stats.json").is_ok());
+    assert!(zip.by_name("recurrent_boundary_tradeoff_curve.csv").is_ok());
+    assert!(zip.by_name("recurrent_boundary_tradeoff_plot.png").is_ok());
+    assert!(zip.by_name("dsfb_metric_regrounding.csv").is_ok());
+    assert!(zip.by_name("target_d_regression_analysis.json").is_ok());
+    assert!(zip.by_name("missed_failure_root_cause.json").is_ok());
+    assert!(zip.by_name("lead_time_comparison.csv").is_ok());
+    assert!(zip.by_name("lead_time_explanation.json").is_ok());
+    assert!(zip.by_name("episode_precision_metrics.json").is_ok());
+    assert!(zip.by_name("paper_abstract_artifact.txt").is_ok());
     assert!(zip.by_name("failures_index.json").is_ok());
     assert!(zip.by_name("feature_motif_grounding.json").is_ok());
     assert!(zip.by_name("dsfb_heuristics_bank_minimal.json").is_ok());
@@ -451,6 +514,11 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("## Feature -> Motif Grounding"));
     assert!(report.contains("## Heuristics With Justification"));
     assert!(report.contains("## DSFB vs EWMA Separation"));
+    assert!(report.contains("## Executive Summary"));
+    assert!(report.contains("## SECOM Structural Limitation"));
+    assert!(report.contains("## Metric Re-Grounding"));
+    assert!(report.contains("## Target D Regression Analysis"));
+    assert!(report.contains("## Lead-Time Deficit Explanation"));
     assert!(report.contains("## Predeclared Operator Delta Targets"));
     assert!(report.contains("## Optimization Frontier"));
     assert!(report.contains("## Recall Recovery Efficiency"));
@@ -482,6 +550,22 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(manifest.get("dsa_operator_delta_targets_path").is_some());
     assert!(manifest.get("dsa_operator_delta_attainment_matrix_path").is_some());
     assert!(manifest.get("dsa_policy_operator_burden_contributions_path").is_some());
+    assert!(manifest.get("recurrent_boundary_stats_path").is_some());
+    assert!(manifest
+        .get("recurrent_boundary_tradeoff_curve_path")
+        .is_some());
+    assert!(manifest
+        .get("recurrent_boundary_tradeoff_plot_path")
+        .is_some());
+    assert!(manifest.get("dsfb_metric_regrounding_path").is_some());
+    assert!(manifest
+        .get("target_d_regression_analysis_path")
+        .is_some());
+    assert!(manifest.get("missed_failure_root_cause_path").is_some());
+    assert!(manifest.get("lead_time_comparison_path").is_some());
+    assert!(manifest.get("lead_time_explanation_path").is_some());
+    assert!(manifest.get("episode_precision_metrics_path").is_some());
+    assert!(manifest.get("paper_abstract_artifact_path").is_some());
     assert!(manifest.get("dsa_recall_recovery_efficiency_path").is_some());
     assert!(manifest.get("failures_index_path").is_some());
     assert!(manifest.get("failure_case_paths").is_some());
@@ -554,6 +638,66 @@ fn heuristics_bank_entries_include_operational_fields() {
     ] {
         assert!(first.get(key).is_some(), "missing heuristics field {key}");
     }
+}
+
+#[test]
+fn phm2018_benchmark_writes_expected_artifacts() {
+    let secom_data_temp = tempfile::tempdir().unwrap();
+    let secom_output_temp = tempfile::tempdir().unwrap();
+    let phm_data_temp = tempfile::tempdir().unwrap();
+    let phm_output_temp = tempfile::tempdir().unwrap();
+
+    let secom_data_root = write_fixture_dataset(secom_data_temp.path());
+    let secom_artifacts =
+        run_secom_benchmark(&secom_data_root, Some(secom_output_temp.path()), test_config(), false)
+            .unwrap();
+    let phm_data_root = write_phm2018_fixture_dataset(phm_data_temp.path());
+    let phm_artifacts = run_phm2018_benchmark(
+        &phm_data_root,
+        phm_output_temp.path(),
+        Some(&secom_artifacts.run_dir),
+    )
+    .unwrap();
+
+    for file in [
+        "artifact_manifest.json",
+        "claim_alignment_report.json",
+        "phm2018_early_warning_stats.json",
+        "phm2018_lead_time_metrics.csv",
+        "phm2018_run_details.json",
+        "phm2018_support_status.json",
+        "run_bundle.zip",
+    ] {
+        assert!(
+            phm_artifacts.run_dir.join(file).exists(),
+            "missing PHM artifact {file}"
+        );
+    }
+
+    let metrics: Value =
+        serde_json::from_str(&fs::read_to_string(&phm_artifacts.early_warning_stats_path).unwrap())
+            .unwrap();
+    assert!(metrics.get("percent_runs_dsfb_earlier").is_some());
+    assert!(metrics.get("percent_runs_equal").is_some());
+    assert!(metrics.get("percent_runs_later").is_some());
+
+    let claim_alignment: Value = serde_json::from_str(
+        &fs::read_to_string(&phm_artifacts.claim_alignment_report_path).unwrap(),
+    )
+    .unwrap();
+    assert!(claim_alignment.get("secom_supports").is_some());
+    assert!(claim_alignment.get("secom_does_not_support").is_some());
+    assert!(claim_alignment.get("phm2018_supports").is_some());
+    assert!(claim_alignment.get("claims_not_made").is_some());
+
+    let archive = fs::File::open(&phm_artifacts.zip_path).unwrap();
+    let mut zip = ZipArchive::new(archive).unwrap();
+    assert!(zip.by_name("artifact_manifest.json").is_ok());
+    assert!(zip.by_name("claim_alignment_report.json").is_ok());
+    assert!(zip.by_name("phm2018_early_warning_stats.json").is_ok());
+    assert!(zip.by_name("phm2018_lead_time_metrics.csv").is_ok());
+    assert!(zip.by_name("phm2018_run_details.json").is_ok());
+    assert!(zip.by_name("phm2018_support_status.json").is_ok());
 }
 
 #[test]
