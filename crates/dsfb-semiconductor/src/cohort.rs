@@ -11,6 +11,7 @@ use crate::precursor::{
 };
 use crate::preprocessing::PreparedDataset;
 use crate::residual::ResidualSet;
+use crate::semiotics::{ScaffoldSemioticsArtifacts, SemanticLayer};
 use crate::signs::SignSet;
 use crate::{error::DsfbSemiconductorError, grammar::GrammarSet};
 use csv::Writer;
@@ -25,6 +26,8 @@ const RECALL_AWARE_RANKING_FORMULA: &str =
     "candidate_score_recall = z(pre_failure_run_hits) + z(motif_precision_proxy) + z(ewma_alarm_points) + 0.5 * z(dsfb_raw_boundary_points) + 0.5 * z(recall_rescue_contribution) - 0.5 * z(dsfb_raw_violation_points) - I(missing_fraction > 0.50) * 2.0";
 const BURDEN_AWARE_RANKING_FORMULA: &str =
     "candidate_score_burden = z(pre_failure_run_hits) + z(motif_precision_proxy) + 0.5 * z(dsfb_raw_boundary_points) + 0.5 * z(recall_rescue_contribution) - z(operator_burden_contribution) - 0.5 * z(dsfb_raw_violation_points) - I(missing_fraction > 0.50) * 2.0";
+const DSFB_AWARE_RANKING_FORMULA: &str =
+    "candidate_score_dsfb = z(pre_failure_run_hits) + z(motif_precision_proxy) + 0.5 * z(recall_rescue_contribution) + 0.5 * z(semantic_persistence_contribution) + 0.5 * z(grouped_semantic_support) + 0.25 * z(dsfb_raw_boundary_points) - z(operator_burden_contribution) - 0.5 * z(violation_overdominance_penalty) - I(missing_fraction > 0.50) * 2.0";
 const MISSINGNESS_PENALTY_THRESHOLD: f64 = 0.50;
 const MISSINGNESS_PENALTY_VALUE: f64 = 2.0;
 const RECALL_TOLERANCE: usize = 1;
@@ -61,11 +64,17 @@ pub struct FeatureRankingRow {
     pub motif_precision_proxy: Option<f64>,
     pub recall_rescue_contribution: Option<f64>,
     pub operator_burden_contribution: Option<f64>,
+    pub semantic_persistence_contribution: Option<f64>,
+    pub grouped_semantic_support: Option<f64>,
+    pub violation_overdominance_penalty: Option<f64>,
     pub missing_fraction: f64,
     pub z_pre_failure_run_hits: Option<f64>,
     pub z_motif_precision_proxy: Option<f64>,
     pub z_recall_rescue_contribution: Option<f64>,
     pub z_operator_burden_contribution: Option<f64>,
+    pub z_semantic_persistence_contribution: Option<f64>,
+    pub z_grouped_semantic_support: Option<f64>,
+    pub z_violation_overdominance_penalty: Option<f64>,
     pub z_boundary: f64,
     pub z_violation: f64,
     pub z_ewma: f64,
@@ -82,11 +91,14 @@ pub struct FeatureRankingComparisonRow {
     pub compression_rank: Option<usize>,
     pub recall_aware_rank: Option<usize>,
     pub burden_aware_rank: Option<usize>,
+    pub dsfb_aware_rank: Option<usize>,
     pub compression_score: Option<f64>,
     pub recall_aware_score: Option<f64>,
     pub burden_aware_score: Option<f64>,
+    pub dsfb_aware_score: Option<f64>,
     pub rank_delta_recall_minus_compression: Option<i64>,
     pub rank_delta_burden_minus_compression: Option<i64>,
+    pub rank_delta_dsfb_aware_minus_compression: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -204,6 +216,8 @@ pub struct FeaturePolicySummaryRow {
     pub feature_name: String,
     pub compression_rank: Option<usize>,
     pub recall_aware_rank: Option<usize>,
+    pub burden_aware_rank: Option<usize>,
+    pub dsfb_aware_rank: Option<usize>,
     pub pre_failure_run_hits: usize,
     pub motif_precision_proxy: Option<f64>,
     pub missing_fraction: f64,
@@ -391,14 +405,17 @@ pub struct OptimizationExecution {
     pub baseline_execution: CohortExecution,
     pub recall_aware_feature_ranking: Vec<FeatureRankingRow>,
     pub burden_aware_feature_ranking: Vec<FeatureRankingRow>,
+    pub dsfb_aware_feature_ranking: Vec<FeatureRankingRow>,
     pub ranking_comparison: Vec<FeatureRankingComparisonRow>,
     pub recall_aware_feature_cohorts: FeatureCohorts,
     pub burden_aware_feature_cohorts: FeatureCohorts,
+    pub dsfb_aware_feature_cohorts: FeatureCohorts,
     pub feature_policy_overrides: Vec<FeaturePolicyOverride>,
     pub feature_policy_summary: Vec<FeaturePolicySummaryRow>,
     pub optimized_execution: CohortExecution,
     pub recall_aware_execution: CohortExecution,
     pub burden_aware_execution: CohortExecution,
+    pub dsfb_aware_execution: CohortExecution,
     pub pareto_frontier: Vec<CohortGridResult>,
     pub stage_a_candidates: Vec<CohortGridResult>,
     pub stage_b_candidates: Vec<CohortGridResult>,
@@ -692,11 +709,17 @@ pub fn compute_feature_ranking(metrics: &BenchmarkMetrics) -> Vec<FeatureRanking
                 motif_precision_proxy: feature.motif_precision_proxy,
                 recall_rescue_contribution: None,
                 operator_burden_contribution: None,
+                semantic_persistence_contribution: None,
+                grouped_semantic_support: None,
+                violation_overdominance_penalty: None,
                 missing_fraction: feature.missing_fraction,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
                 z_operator_burden_contribution: None,
+                z_semantic_persistence_contribution: None,
+                z_grouped_semantic_support: None,
+                z_violation_overdominance_penalty: None,
                 z_boundary,
                 z_violation,
                 z_ewma,
@@ -837,11 +860,17 @@ pub fn compute_feature_ranking_recall_aware(
                 motif_precision_proxy: feature.motif_precision_proxy,
                 recall_rescue_contribution: Some(recall_rescue_contribution),
                 operator_burden_contribution: None,
+                semantic_persistence_contribution: None,
+                grouped_semantic_support: None,
+                violation_overdominance_penalty: None,
                 missing_fraction: feature.missing_fraction,
                 z_pre_failure_run_hits: Some(z_pre_failure_run_hits),
                 z_motif_precision_proxy: Some(z_motif_precision_proxy),
                 z_recall_rescue_contribution: Some(z_recall_rescue_contribution),
                 z_operator_burden_contribution: None,
+                z_semantic_persistence_contribution: None,
+                z_grouped_semantic_support: None,
+                z_violation_overdominance_penalty: None,
                 z_boundary,
                 z_violation,
                 z_ewma,
@@ -1002,11 +1031,17 @@ pub fn compute_feature_ranking_burden_aware(
                 motif_precision_proxy: feature.motif_precision_proxy,
                 recall_rescue_contribution: Some(recall_rescue_contribution),
                 operator_burden_contribution: Some(operator_burden_contribution),
+                semantic_persistence_contribution: None,
+                grouped_semantic_support: None,
+                violation_overdominance_penalty: None,
                 missing_fraction: feature.missing_fraction,
                 z_pre_failure_run_hits: Some(z_pre_failure_run_hits),
                 z_motif_precision_proxy: Some(z_motif_precision_proxy),
                 z_recall_rescue_contribution: Some(z_recall_rescue_contribution),
                 z_operator_burden_contribution: Some(z_operator_burden_contribution),
+                z_semantic_persistence_contribution: None,
+                z_grouped_semantic_support: None,
+                z_violation_overdominance_penalty: None,
                 z_boundary,
                 z_violation,
                 z_ewma: 0.0,
@@ -1020,6 +1055,232 @@ pub fn compute_feature_ranking_burden_aware(
                     z_recall_rescue_contribution,
                     z_operator_burden_contribution,
                     z_violation,
+                    missingness_penalty
+                ),
+                rank: 0,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    ranking.sort_by(|left, right| {
+        right
+            .candidate_score
+            .partial_cmp(&left.candidate_score)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| left.feature_name.cmp(&right.feature_name))
+    });
+
+    for (index, row) in ranking.iter_mut().enumerate() {
+        row.rank = index + 1;
+    }
+
+    ranking
+}
+
+pub fn compute_feature_ranking_dsfb_aware(
+    metrics: &BenchmarkMetrics,
+    recall_rescue_contributions: &BTreeMap<usize, f64>,
+    operator_burden_contributions: &BTreeMap<usize, f64>,
+    semantic_layer: &SemanticLayer,
+    scaffold_semiotics: &ScaffoldSemioticsArtifacts,
+) -> Vec<FeatureRankingRow> {
+    let analyzable = metrics
+        .feature_metrics
+        .iter()
+        .filter(|feature| feature.analyzable)
+        .collect::<Vec<_>>();
+    if analyzable.is_empty() {
+        return Vec::new();
+    }
+
+    let semantic_persistence_contributions =
+        semantic_persistence_contribution_by_feature(semantic_layer);
+    let grouped_semantic_support = grouped_semantic_support_by_feature(scaffold_semiotics);
+    let pre_failure_values = analyzable
+        .iter()
+        .map(|feature| feature.pre_failure_run_hits as f64)
+        .collect::<Vec<_>>();
+    let motif_precision_values = analyzable
+        .iter()
+        .map(|feature| feature.motif_precision_proxy.unwrap_or(0.0))
+        .collect::<Vec<_>>();
+    let boundary_values = analyzable
+        .iter()
+        .map(|feature| feature.dsfb_raw_boundary_points as f64)
+        .collect::<Vec<_>>();
+    let recall_rescue_values = analyzable
+        .iter()
+        .map(|feature| {
+            recall_rescue_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0)
+        })
+        .collect::<Vec<_>>();
+    let operator_burden_values = analyzable
+        .iter()
+        .map(|feature| {
+            operator_burden_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0)
+        })
+        .collect::<Vec<_>>();
+    let semantic_persistence_values = analyzable
+        .iter()
+        .map(|feature| {
+            semantic_persistence_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0)
+        })
+        .collect::<Vec<_>>();
+    let grouped_support_values = analyzable
+        .iter()
+        .map(|feature| {
+            grouped_semantic_support
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0)
+        })
+        .collect::<Vec<_>>();
+    let violation_overdominance_values = analyzable
+        .iter()
+        .map(|feature| {
+            feature.dsfb_raw_violation_points as f64
+                / feature.dsfb_raw_boundary_points.max(1) as f64
+        })
+        .collect::<Vec<_>>();
+
+    let (pre_failure_mean, pre_failure_std) = mean_std(&pre_failure_values);
+    let (motif_precision_mean, motif_precision_std) = mean_std(&motif_precision_values);
+    let (boundary_mean, boundary_std) = mean_std(&boundary_values);
+    let (recall_rescue_mean, recall_rescue_std) = mean_std(&recall_rescue_values);
+    let (operator_burden_mean, operator_burden_std) = mean_std(&operator_burden_values);
+    let (semantic_persistence_mean, semantic_persistence_std) =
+        mean_std(&semantic_persistence_values);
+    let (grouped_support_mean, grouped_support_std) = mean_std(&grouped_support_values);
+    let (violation_overdominance_mean, violation_overdominance_std) =
+        mean_std(&violation_overdominance_values);
+
+    let mut ranking = analyzable
+        .iter()
+        .map(|feature| {
+            let recall_rescue_contribution = recall_rescue_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0);
+            let operator_burden_contribution = operator_burden_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0);
+            let semantic_persistence_contribution = semantic_persistence_contributions
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0);
+            let grouped_semantic_support = grouped_semantic_support
+                .get(&feature.feature_index)
+                .copied()
+                .unwrap_or(0.0);
+            let violation_overdominance_penalty = feature.dsfb_raw_violation_points as f64
+                / feature.dsfb_raw_boundary_points.max(1) as f64;
+
+            let z_pre_failure_run_hits = z_score(
+                feature.pre_failure_run_hits as f64,
+                pre_failure_mean,
+                pre_failure_std,
+            );
+            let z_motif_precision_proxy = z_score(
+                feature.motif_precision_proxy.unwrap_or(0.0),
+                motif_precision_mean,
+                motif_precision_std,
+            );
+            let z_boundary = z_score(
+                feature.dsfb_raw_boundary_points as f64,
+                boundary_mean,
+                boundary_std,
+            );
+            let z_recall_rescue_contribution = z_score(
+                recall_rescue_contribution,
+                recall_rescue_mean,
+                recall_rescue_std,
+            );
+            let z_operator_burden_contribution = z_score(
+                operator_burden_contribution,
+                operator_burden_mean,
+                operator_burden_std,
+            );
+            let z_semantic_persistence_contribution = z_score(
+                semantic_persistence_contribution,
+                semantic_persistence_mean,
+                semantic_persistence_std,
+            );
+            let z_grouped_semantic_support = z_score(
+                grouped_semantic_support,
+                grouped_support_mean,
+                grouped_support_std,
+            );
+            let z_violation_overdominance_penalty = z_score(
+                violation_overdominance_penalty,
+                violation_overdominance_mean,
+                violation_overdominance_std,
+            );
+            let missingness_penalty = if feature.missing_fraction > MISSINGNESS_PENALTY_THRESHOLD {
+                MISSINGNESS_PENALTY_VALUE
+            } else {
+                0.0
+            };
+            let candidate_score = z_pre_failure_run_hits
+                + z_motif_precision_proxy
+                + 0.5 * z_recall_rescue_contribution
+                + 0.5 * z_semantic_persistence_contribution
+                + 0.5 * z_grouped_semantic_support
+                + 0.25 * z_boundary
+                - z_operator_burden_contribution
+                - 0.5 * z_violation_overdominance_penalty
+                - missingness_penalty;
+
+            FeatureRankingRow {
+                ranking_strategy: "dsfb_aware".into(),
+                ranking_formula: DSFB_AWARE_RANKING_FORMULA.into(),
+                feature_index: feature.feature_index,
+                feature_name: feature.feature_name.clone(),
+                dsfb_raw_boundary_points: feature.dsfb_raw_boundary_points,
+                dsfb_persistent_boundary_points: feature.dsfb_persistent_boundary_points,
+                dsfb_raw_violation_points: feature.dsfb_raw_violation_points,
+                dsfb_persistent_violation_points: feature.dsfb_persistent_violation_points,
+                ewma_alarm_points: feature.ewma_alarm_points,
+                threshold_alarm_points: feature.threshold_alarm_points,
+                pre_failure_run_hits: feature.pre_failure_run_hits,
+                motif_precision_proxy: feature.motif_precision_proxy,
+                recall_rescue_contribution: Some(recall_rescue_contribution),
+                operator_burden_contribution: Some(operator_burden_contribution),
+                semantic_persistence_contribution: Some(semantic_persistence_contribution),
+                grouped_semantic_support: Some(grouped_semantic_support),
+                violation_overdominance_penalty: Some(violation_overdominance_penalty),
+                missing_fraction: feature.missing_fraction,
+                z_pre_failure_run_hits: Some(z_pre_failure_run_hits),
+                z_motif_precision_proxy: Some(z_motif_precision_proxy),
+                z_recall_rescue_contribution: Some(z_recall_rescue_contribution),
+                z_operator_burden_contribution: Some(z_operator_burden_contribution),
+                z_semantic_persistence_contribution: Some(z_semantic_persistence_contribution),
+                z_grouped_semantic_support: Some(z_grouped_semantic_support),
+                z_violation_overdominance_penalty: Some(z_violation_overdominance_penalty),
+                z_boundary,
+                z_violation: 0.0,
+                z_ewma: 0.0,
+                missingness_penalty,
+                candidate_score,
+                score_breakdown: format!(
+                    "{:+.4} pre_failure + {:+.4} motif_precision + 0.5*{:+.4} recall_rescue + 0.5*{:+.4} semantic_persistence + 0.5*{:+.4} grouped_support + 0.25*{:+.4} boundary - {:+.4} burden - 0.5*{:+.4} violation_overdominance - {:.1} missingness",
+                    z_pre_failure_run_hits,
+                    z_motif_precision_proxy,
+                    z_recall_rescue_contribution,
+                    z_semantic_persistence_contribution,
+                    z_grouped_semantic_support,
+                    z_boundary,
+                    z_operator_burden_contribution,
+                    z_violation_overdominance_penalty,
                     missingness_penalty
                 ),
                 rank: 0,
@@ -1060,11 +1321,17 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
         "motif_precision_proxy",
         "recall_rescue_contribution",
         "operator_burden_contribution",
+        "semantic_persistence_contribution",
+        "grouped_semantic_support",
+        "violation_overdominance_penalty",
         "missing_fraction",
         "z_pre_failure_run_hits",
         "z_motif_precision_proxy",
         "z_recall_rescue_contribution",
         "z_operator_burden_contribution",
+        "z_semantic_persistence_contribution",
+        "z_grouped_semantic_support",
+        "z_violation_overdominance_penalty",
         "z_boundary",
         "z_violation",
         "z_ewma",
@@ -1089,11 +1356,17 @@ pub fn write_feature_ranking_csv(path: &Path, ranking: &[FeatureRankingRow]) -> 
             format_option_csv(row.motif_precision_proxy),
             format_option_csv(row.recall_rescue_contribution),
             format_option_csv(row.operator_burden_contribution),
+            format_option_csv(row.semantic_persistence_contribution),
+            format_option_csv(row.grouped_semantic_support),
+            format_option_csv(row.violation_overdominance_penalty),
             format!("{:.6}", row.missing_fraction),
             format_option_csv(row.z_pre_failure_run_hits),
             format_option_csv(row.z_motif_precision_proxy),
             format_option_csv(row.z_recall_rescue_contribution),
             format_option_csv(row.z_operator_burden_contribution),
+            format_option_csv(row.z_semantic_persistence_contribution),
+            format_option_csv(row.z_grouped_semantic_support),
+            format_option_csv(row.z_violation_overdominance_penalty),
             format!("{:.6}", row.z_boundary),
             format!("{:.6}", row.z_violation),
             format!("{:.6}", row.z_ewma),
@@ -1110,6 +1383,7 @@ pub fn compare_feature_rankings(
     compression_ranking: &[FeatureRankingRow],
     recall_aware_ranking: &[FeatureRankingRow],
     burden_aware_ranking: &[FeatureRankingRow],
+    dsfb_aware_ranking: &[FeatureRankingRow],
 ) -> Vec<FeatureRankingComparisonRow> {
     let compression_by_feature = compression_ranking
         .iter()
@@ -1123,12 +1397,17 @@ pub fn compare_feature_rankings(
         .iter()
         .map(|row| (&row.feature_name, row))
         .collect::<BTreeMap<_, _>>();
+    let dsfb_by_feature = dsfb_aware_ranking
+        .iter()
+        .map(|row| (&row.feature_name, row))
+        .collect::<BTreeMap<_, _>>();
 
     let mut feature_names = compression_by_feature
         .keys()
         .copied()
         .chain(recall_by_feature.keys().copied())
         .chain(burden_by_feature.keys().copied())
+        .chain(dsfb_by_feature.keys().copied())
         .collect::<Vec<_>>();
     feature_names.sort_unstable();
     feature_names.dedup();
@@ -1139,19 +1418,23 @@ pub fn compare_feature_rankings(
             let compression = compression_by_feature.get(feature_name).copied();
             let recall = recall_by_feature.get(feature_name).copied();
             let burden = burden_by_feature.get(feature_name).copied();
+            let dsfb = dsfb_by_feature.get(feature_name).copied();
             FeatureRankingComparisonRow {
                 feature_index: compression
                     .or(recall)
                     .or(burden)
+                    .or(dsfb)
                     .map(|row| row.feature_index)
                     .unwrap_or_default(),
                 feature_name: feature_name.to_string(),
                 compression_rank: compression.map(|row| row.rank),
                 recall_aware_rank: recall.map(|row| row.rank),
                 burden_aware_rank: burden.map(|row| row.rank),
+                dsfb_aware_rank: dsfb.map(|row| row.rank),
                 compression_score: compression.map(|row| row.candidate_score),
                 recall_aware_score: recall.map(|row| row.candidate_score),
                 burden_aware_score: burden.map(|row| row.candidate_score),
+                dsfb_aware_score: dsfb.map(|row| row.candidate_score),
                 rank_delta_recall_minus_compression: match (compression, recall) {
                     (Some(compression), Some(recall)) => {
                         Some(recall.rank as i64 - compression.rank as i64)
@@ -1164,9 +1447,116 @@ pub fn compare_feature_rankings(
                     }
                     _ => None,
                 },
+                rank_delta_dsfb_aware_minus_compression: match (compression, dsfb) {
+                    (Some(compression), Some(dsfb)) => {
+                        Some(dsfb.rank as i64 - compression.rank as i64)
+                    }
+                    _ => None,
+                },
             }
         })
         .collect()
+}
+
+fn semantic_persistence_contribution_by_feature(
+    semantic_layer: &SemanticLayer,
+) -> BTreeMap<usize, f64> {
+    let top_candidate_by_feature_run = semantic_layer.ranked_candidates.iter().fold(
+        BTreeMap::<(usize, usize), (String, f64, usize)>::new(),
+        |mut acc, row| {
+            acc.entry((row.feature_index, row.run_index))
+                .and_modify(|existing| {
+                    if row.rank < existing.2
+                        || (row.rank == existing.2 && row.structural_score_proxy > existing.1)
+                    {
+                        *existing = (
+                            row.heuristic_name.clone(),
+                            row.structural_score_proxy,
+                            row.rank,
+                        );
+                    }
+                })
+                .or_insert((
+                    row.heuristic_name.clone(),
+                    row.structural_score_proxy,
+                    row.rank,
+                ));
+            acc
+        },
+    );
+
+    let by_feature = top_candidate_by_feature_run.into_iter().fold(
+        BTreeMap::<usize, Vec<(usize, String, f64)>>::new(),
+        |mut acc, ((feature_index, run_index), (heuristic_name, structural_score, _rank))| {
+            acc.entry(feature_index)
+                .or_default()
+                .push((run_index, heuristic_name.to_string(), structural_score));
+            acc
+        },
+    );
+
+    let mut contributions = BTreeMap::<usize, f64>::new();
+    for (feature_index, mut rows) in by_feature {
+        rows.sort_by_key(|(run_index, _, _)| *run_index);
+        let mut contribution = 0.0;
+        let mut streak_len = 0usize;
+        let mut streak_score = 0.0;
+        let mut previous_run = None::<usize>;
+        let mut previous_heuristic = None::<String>;
+        for (run_index, heuristic_name, structural_score) in rows {
+            let continues = previous_run.is_some_and(|prev| prev + 1 == run_index)
+                && previous_heuristic
+                    .as_deref()
+                    .is_some_and(|prev| prev == heuristic_name.as_str());
+            if continues {
+                streak_len += 1;
+                streak_score += structural_score;
+            } else {
+                if streak_len >= 2 {
+                    contribution += streak_score;
+                }
+                streak_len = 1;
+                streak_score = structural_score;
+            }
+            previous_run = Some(run_index);
+            previous_heuristic = Some(heuristic_name);
+        }
+        if streak_len >= 2 {
+            contribution += streak_score;
+        }
+        contributions.insert(feature_index, contribution);
+    }
+    contributions
+}
+
+fn grouped_semantic_support_by_feature(
+    scaffold_semiotics: &ScaffoldSemioticsArtifacts,
+) -> BTreeMap<usize, f64> {
+    let feature_index_by_name = scaffold_semiotics
+        .feature_signs
+        .iter()
+        .map(|row| (row.feature_name.as_str(), row.feature_index))
+        .collect::<BTreeMap<_, _>>();
+    let mut contributions = BTreeMap::<usize, f64>::new();
+    for row in &scaffold_semiotics.group_semantic_matches {
+        let participating = row
+            .participating_features
+            .split(',')
+            .filter(|feature_name| !feature_name.is_empty())
+            .collect::<Vec<_>>();
+        if participating.is_empty() {
+            continue;
+        }
+        let shared_support =
+            row.structural_score_proxy / row.rank.max(1) as f64 / participating.len() as f64;
+        for feature_name in participating {
+            let Some(&feature_index) = feature_index_by_name.get(feature_name) else {
+                continue;
+            };
+            *contributions.entry(feature_index).or_default() += shared_support;
+        }
+    }
+    contributions
 }
 
 pub fn write_operator_delta_attainment_matrix_csv(
@@ -1520,7 +1910,7 @@ pub fn run_cohort_dsa_grid_with_policy(
     };
 
     let summary = CohortDsaSummary {
-        ranking_formula: RANKING_FORMULA.into(),
+        ranking_formula: cohorts.ranking_formula.clone(),
         primary_success_condition: primary_success_condition(),
         recall_tolerance_runs: RECALL_TOLERANCE,
         cohort_results: grid_rows.clone(),
@@ -1539,7 +1929,7 @@ pub fn run_cohort_dsa_grid_with_policy(
     };
 
     let grid_summary = CohortGridSummary {
-        ranking_formula: RANKING_FORMULA.into(),
+        ranking_formula: cohorts.ranking_formula.clone(),
         primary_success_condition_definition: primary_success_condition(),
         recall_tolerance_runs: RECALL_TOLERANCE,
         grid_point_count: grid_rows.len(),
@@ -1584,6 +1974,8 @@ pub fn run_recall_optimization(
     baselines: &BaselineSet,
     grammar: &GrammarSet,
     metrics: &BenchmarkMetrics,
+    semantic_layer: &SemanticLayer,
+    scaffold_semiotics: &ScaffoldSemioticsArtifacts,
     pre_failure_lookback_runs: usize,
 ) -> Result<OptimizationExecution> {
     let baseline_feature_ranking = compute_feature_ranking(metrics);
@@ -1611,13 +2003,22 @@ pub fn run_recall_optimization(
         &recall_rescue_contributions,
         &operator_burden_contributions,
     );
+    let dsfb_aware_feature_ranking = compute_feature_ranking_dsfb_aware(
+        metrics,
+        &recall_rescue_contributions,
+        &operator_burden_contributions,
+        semantic_layer,
+        scaffold_semiotics,
+    );
     let ranking_comparison = compare_feature_rankings(
         &baseline_feature_ranking,
         &recall_aware_feature_ranking,
         &burden_aware_feature_ranking,
+        &dsfb_aware_feature_ranking,
     );
     let recall_aware_feature_cohorts = build_feature_cohorts(&recall_aware_feature_ranking);
     let burden_aware_feature_cohorts = build_feature_cohorts(&burden_aware_feature_ranking);
+    let dsfb_aware_feature_cohorts = build_feature_cohorts(&dsfb_aware_feature_ranking);
     let feature_policy_overrides = build_feature_policy_overrides(
         metrics,
         baseline_execution
@@ -1634,6 +2035,8 @@ pub fn run_recall_optimization(
         metrics,
         &baseline_feature_ranking,
         &recall_aware_feature_ranking,
+        &burden_aware_feature_ranking,
+        &dsfb_aware_feature_ranking,
         &feature_policy_overrides,
     );
     let policy_runtime = DsaPolicyRuntime {
@@ -1683,6 +2086,19 @@ pub fn run_recall_optimization(
         &policy_runtime,
         "burden_aware",
     )?;
+    let dsfb_aware_execution = run_cohort_dsa_grid_with_policy(
+        dataset,
+        nominal,
+        residuals,
+        signs,
+        baselines,
+        grammar,
+        &dsfb_aware_feature_cohorts,
+        pre_failure_lookback_runs,
+        metrics,
+        &policy_runtime,
+        "dsfb_aware",
+    )?;
 
     let mut union_rows = optimized_compression_execution
         .summary
@@ -1690,6 +2106,7 @@ pub fn run_recall_optimization(
         .clone();
     union_rows.extend(recall_aware_execution.summary.cohort_results.clone());
     union_rows.extend(burden_aware_execution.summary.cohort_results.clone());
+    union_rows.extend(dsfb_aware_execution.summary.cohort_results.clone());
     let operator_baselines =
         build_operator_baselines(dataset, grammar, &baseline_execution.selected_evaluation);
 
@@ -1745,6 +2162,7 @@ pub fn run_recall_optimization(
         &baseline_feature_cohorts,
         &recall_aware_feature_cohorts,
         &burden_aware_feature_cohorts,
+        &dsfb_aware_feature_cohorts,
         pre_failure_lookback_runs,
         &selected_row,
         &policy_runtime,
@@ -1753,6 +2171,7 @@ pub fn run_recall_optimization(
     let mut optimized_execution = match selected_row.ranking_strategy.as_str() {
         "recall_aware" => recall_aware_execution.clone(),
         "burden_aware" => burden_aware_execution.clone(),
+        "dsfb_aware" => dsfb_aware_execution.clone(),
         _ => optimized_compression_execution.clone(),
     };
     optimized_execution.selected_evaluation = selected_evaluation.clone();
@@ -1836,14 +2255,17 @@ pub fn run_recall_optimization(
         baseline_execution,
         recall_aware_feature_ranking,
         burden_aware_feature_ranking,
+        dsfb_aware_feature_ranking,
         ranking_comparison,
         recall_aware_feature_cohorts,
         burden_aware_feature_cohorts,
+        dsfb_aware_feature_cohorts,
         feature_policy_overrides,
         feature_policy_summary,
         optimized_execution,
         recall_aware_execution,
         burden_aware_execution,
+        dsfb_aware_execution,
         pareto_frontier,
         stage_a_candidates,
         stage_b_candidates,
@@ -1969,6 +2391,8 @@ fn build_feature_policy_summary(
     metrics: &BenchmarkMetrics,
     baseline_ranking: &[FeatureRankingRow],
     recall_aware_ranking: &[FeatureRankingRow],
+    burden_aware_ranking: &[FeatureRankingRow],
+    dsfb_aware_ranking: &[FeatureRankingRow],
     overrides: &[FeaturePolicyOverride],
 ) -> Vec<FeaturePolicySummaryRow> {
     let feature_metrics = metrics
@@ -1984,6 +2408,14 @@ fn build_feature_policy_summary(
         .iter()
         .map(|row| (row.feature_index, row))
         .collect::<BTreeMap<_, _>>();
+    let burden_by_feature = burden_aware_ranking
+        .iter()
+        .map(|row| (row.feature_index, row))
+        .collect::<BTreeMap<_, _>>();
+    let dsfb_by_feature = dsfb_aware_ranking
+        .iter()
+        .map(|row| (row.feature_index, row))
+        .collect::<BTreeMap<_, _>>();
 
     overrides
         .iter()
@@ -1996,6 +2428,12 @@ fn build_feature_policy_summary(
                     .get(&override_entry.feature_index)
                     .map(|row| row.rank),
                 recall_aware_rank: recall_by_feature
+                    .get(&override_entry.feature_index)
+                    .map(|row| row.rank),
+                burden_aware_rank: burden_by_feature
+                    .get(&override_entry.feature_index)
+                    .map(|row| row.rank),
+                dsfb_aware_rank: dsfb_by_feature
                     .get(&override_entry.feature_index)
                     .map(|row| row.rank),
                 pre_failure_run_hits: feature_metric.pre_failure_run_hits,
@@ -2377,6 +2815,7 @@ fn rebuild_selected_evaluation_with_policy(
     baseline_cohorts: &FeatureCohorts,
     recall_aware_cohorts: &FeatureCohorts,
     burden_aware_cohorts: &FeatureCohorts,
+    dsfb_aware_cohorts: &FeatureCohorts,
     pre_failure_lookback_runs: usize,
     row: &CohortGridResult,
     policy_runtime: &DsaPolicyRuntime,
@@ -2384,6 +2823,7 @@ fn rebuild_selected_evaluation_with_policy(
     let cohorts = match row.ranking_strategy.as_str() {
         "recall_aware" => recall_aware_cohorts,
         "burden_aware" => burden_aware_cohorts,
+        "dsfb_aware" => dsfb_aware_cohorts,
         _ => baseline_cohorts,
     };
     let base_config = DsaConfig {
@@ -4979,11 +5419,17 @@ mod tests {
                 motif_precision_proxy: Some(0.6),
                 recall_rescue_contribution: None,
                 operator_burden_contribution: None,
+                semantic_persistence_contribution: None,
+                grouped_semantic_support: None,
+                violation_overdominance_penalty: None,
                 missing_fraction: 0.0025,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
                 z_operator_burden_contribution: None,
+                z_semantic_persistence_contribution: None,
+                z_grouped_semantic_support: None,
+                z_violation_overdominance_penalty: None,
                 z_boundary: 5.0,
                 z_violation: -0.1,
                 z_ewma: 3.0,
@@ -5007,11 +5453,17 @@ mod tests {
                 motif_precision_proxy: Some(0.5),
                 recall_rescue_contribution: None,
                 operator_burden_contribution: None,
+                semantic_persistence_contribution: None,
+                grouped_semantic_support: None,
+                violation_overdominance_penalty: None,
                 missing_fraction: 0.01,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
                 z_operator_burden_contribution: None,
+                z_semantic_persistence_contribution: None,
+                z_grouped_semantic_support: None,
+                z_violation_overdominance_penalty: None,
                 z_boundary: 1.2,
                 z_violation: -0.5,
                 z_ewma: 0.9,
@@ -5035,11 +5487,17 @@ mod tests {
                 motif_precision_proxy: Some(0.45),
                 recall_rescue_contribution: None,
                 operator_burden_contribution: None,
+                semantic_persistence_contribution: None,
+                grouped_semantic_support: None,
+                violation_overdominance_penalty: None,
                 missing_fraction: 0.01,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
                 z_operator_burden_contribution: None,
+                z_semantic_persistence_contribution: None,
+                z_grouped_semantic_support: None,
+                z_violation_overdominance_penalty: None,
                 z_boundary: 1.0,
                 z_violation: -0.5,
                 z_ewma: 0.8,
@@ -5063,11 +5521,17 @@ mod tests {
                 motif_precision_proxy: Some(0.55),
                 recall_rescue_contribution: None,
                 operator_burden_contribution: None,
+                semantic_persistence_contribution: None,
+                grouped_semantic_support: None,
+                violation_overdominance_penalty: None,
                 missing_fraction: 0.02,
                 z_pre_failure_run_hits: None,
                 z_motif_precision_proxy: None,
                 z_recall_rescue_contribution: None,
                 z_operator_burden_contribution: None,
+                z_semantic_persistence_contribution: None,
+                z_grouped_semantic_support: None,
+                z_violation_overdominance_penalty: None,
                 z_boundary: 1.1,
                 z_violation: -0.8,
                 z_ewma: 0.6,

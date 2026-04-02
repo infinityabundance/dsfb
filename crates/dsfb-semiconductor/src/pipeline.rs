@@ -30,7 +30,7 @@ use crate::precursor::{
 use crate::preprocessing::prepare_secom;
 use crate::report::{write_reports, ReportArtifacts};
 use crate::residual::compute_residuals;
-use crate::semiotics::{build_semantic_layer, classify_motifs, MotifSet, SemanticLayer};
+use crate::semiotics::{build_scaffold_semiotics, build_semantic_layer, classify_motifs};
 use crate::signs::compute_signs;
 use serde::Serialize;
 use std::fs::{self, File};
@@ -61,6 +61,7 @@ struct ArtifactManifest {
     dsa_grid_summary_path: String,
     dsa_feature_ranking_path: String,
     dsa_feature_ranking_recall_aware_path: String,
+    dsa_feature_ranking_dsfb_aware_path: String,
     dsa_feature_ranking_comparison_path: String,
     dsa_seed_feature_check_path: String,
     dsa_feature_cohorts_path: String,
@@ -75,8 +76,10 @@ struct ArtifactManifest {
     dsa_delta_target_assessment_path: String,
     dsa_cohort_results_path: String,
     dsa_cohort_results_recall_aware_path: String,
+    dsa_cohort_results_dsfb_aware_path: String,
     dsa_cohort_summary_path: String,
     dsa_cohort_summary_recall_aware_path: String,
+    dsa_cohort_summary_dsfb_aware_path: String,
     dsa_cohort_precursor_quality_path: String,
     dsa_cohort_failure_analysis_path: Option<String>,
     dsa_heuristic_policy_failure_analysis_path: Option<String>,
@@ -94,11 +97,21 @@ struct ArtifactManifest {
     dsa_run_signals_path: String,
     per_failure_run_dsa_signals_path: String,
     dsfb_signs_path: String,
+    dsfb_feature_signs_path: String,
     dsfb_motifs_path: String,
     dsfb_motif_labels_per_time_path: String,
+    dsfb_feature_motif_timeline_path: String,
     dsfb_grammar_states_path: String,
+    dsfb_feature_grammar_states_path: String,
+    dsfb_envelope_interaction_summary_path: String,
+    dsfb_heuristics_bank_expanded_path: String,
     dsfb_semantic_matches_path: String,
     dsfb_semantic_ranked_candidates_path: String,
+    dsfb_feature_policy_decisions_path: String,
+    dsfb_group_definitions_path: String,
+    dsfb_group_signs_path: String,
+    dsfb_group_grammar_states_path: String,
+    dsfb_group_semantic_matches_path: String,
     dsfb_structural_delta_metrics_path: String,
     dsa_operator_baselines_path: String,
     dsa_operator_delta_targets_path: String,
@@ -206,42 +219,6 @@ pub fn run_secom_benchmark(
     let mut metrics = compute_metrics(
         &prepared, &nominal, &residuals, &signs, &baselines, &grammar, &config,
     );
-    let optimization = run_recall_optimization(
-        &prepared,
-        &nominal,
-        &residuals,
-        &signs,
-        &baselines,
-        &grammar,
-        &metrics,
-        config.pre_failure_lookback_runs,
-    )?;
-    let selected_strategy = optimization
-        .optimized_execution
-        .summary
-        .selected_configuration
-        .as_ref()
-        .map(|row| row.ranking_strategy.as_str())
-        .unwrap_or("compression_biased");
-    let feature_ranking = match selected_strategy {
-        "recall_aware" => optimization.recall_aware_feature_ranking.clone(),
-        "burden_aware" => optimization.burden_aware_feature_ranking.clone(),
-        _ => optimization.baseline_feature_ranking.clone(),
-    };
-    let feature_cohorts = match selected_strategy {
-        "recall_aware" => optimization.recall_aware_feature_cohorts.clone(),
-        "burden_aware" => optimization.burden_aware_feature_cohorts.clone(),
-        _ => optimization.baseline_feature_cohorts.clone(),
-    };
-    let seed_feature_check = build_seed_feature_check(&feature_cohorts);
-    let dsa = optimization.optimized_execution.selected_evaluation.clone();
-    let dsa_grid_summary = optimization.optimized_execution.grid_summary.clone();
-    let cohort_summary = optimization.optimized_execution.summary.clone();
-    metrics.dsa_summary = Some(dsa.summary.clone());
-    let rating_delta_forecast =
-        compute_rating_delta_forecast(&dsa, &metrics, Some(&cohort_summary));
-    let rating_delta_failure_analysis =
-        compute_rating_failure_analysis(&dsa, &metrics, Some(&cohort_summary));
     let heuristics = build_heuristics_bank(&metrics, "SECOM");
     let motifs = classify_motifs(
         &prepared,
@@ -260,6 +237,54 @@ pub fn run_secom_benchmark(
         &nominal,
         config.pre_failure_lookback_runs,
     );
+    let scaffold_semiotics = build_scaffold_semiotics(
+        &prepared,
+        &nominal,
+        &residuals,
+        &grammar,
+        &motifs,
+        &semantic_layer,
+    );
+    let optimization = run_recall_optimization(
+        &prepared,
+        &nominal,
+        &residuals,
+        &signs,
+        &baselines,
+        &grammar,
+        &metrics,
+        &semantic_layer,
+        &scaffold_semiotics,
+        config.pre_failure_lookback_runs,
+    )?;
+    let selected_strategy = optimization
+        .optimized_execution
+        .summary
+        .selected_configuration
+        .as_ref()
+        .map(|row| row.ranking_strategy.as_str())
+        .unwrap_or("compression_biased");
+    let feature_ranking = match selected_strategy {
+        "recall_aware" => optimization.recall_aware_feature_ranking.clone(),
+        "burden_aware" => optimization.burden_aware_feature_ranking.clone(),
+        "dsfb_aware" => optimization.dsfb_aware_feature_ranking.clone(),
+        _ => optimization.baseline_feature_ranking.clone(),
+    };
+    let feature_cohorts = match selected_strategy {
+        "recall_aware" => optimization.recall_aware_feature_cohorts.clone(),
+        "burden_aware" => optimization.burden_aware_feature_cohorts.clone(),
+        "dsfb_aware" => optimization.dsfb_aware_feature_cohorts.clone(),
+        _ => optimization.baseline_feature_cohorts.clone(),
+    };
+    let seed_feature_check = build_seed_feature_check(&feature_cohorts);
+    let dsa = optimization.optimized_execution.selected_evaluation.clone();
+    let dsa_grid_summary = optimization.optimized_execution.grid_summary.clone();
+    let cohort_summary = optimization.optimized_execution.summary.clone();
+    metrics.dsa_summary = Some(dsa.summary.clone());
+    let rating_delta_forecast =
+        compute_rating_delta_forecast(&dsa, &metrics, Some(&cohort_summary));
+    let rating_delta_failure_analysis =
+        compute_rating_failure_analysis(&dsa, &metrics, Some(&cohort_summary));
 
     let output_root = output_root
         .map(Path::to_path_buf)
@@ -306,6 +331,10 @@ pub fn run_secom_benchmark(
     write_feature_ranking_csv(
         &run_dir.join("dsa_feature_ranking_recall_aware.csv"),
         &optimization.recall_aware_feature_ranking,
+    )?;
+    write_feature_ranking_csv(
+        &run_dir.join("dsa_feature_ranking_dsfb_aware.csv"),
+        &optimization.dsfb_aware_feature_ranking,
     )?;
     write_feature_ranking_csv(
         &run_dir.join("dsa_feature_ranking_burden_aware.csv"),
@@ -365,6 +394,10 @@ pub fn run_secom_benchmark(
         &optimization.recall_aware_execution.summary.cohort_results,
     )?;
     write_cohort_results_csv(
+        &run_dir.join("dsa_cohort_results_dsfb_aware.csv"),
+        &optimization.dsfb_aware_execution.summary.cohort_results,
+    )?;
+    write_cohort_results_csv(
         &run_dir.join("dsa_cohort_results_burden_aware.csv"),
         &optimization.burden_aware_execution.summary.cohort_results,
     )?;
@@ -372,6 +405,10 @@ pub fn run_secom_benchmark(
     write_json_pretty(
         &run_dir.join("dsa_cohort_summary_recall_aware.json"),
         &optimization.recall_aware_execution.summary,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsa_cohort_summary_dsfb_aware.json"),
+        &optimization.dsfb_aware_execution.summary,
     )?;
     write_json_pretty(
         &run_dir.join("dsa_cohort_summary_burden_aware.json"),
@@ -469,16 +506,36 @@ pub fn run_secom_benchmark(
         &run_dir, &prepared, &residuals, &signs, &baselines, &grammar,
     )?;
     write_dsfb_signs_csv(&run_dir.join("dsfb_signs.csv"), &prepared, &residuals, &signs)?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_feature_signs.csv"),
+        &scaffold_semiotics.feature_signs,
+    )?;
     write_dsfb_motifs_csv(&run_dir.join("dsfb_motifs.csv"), &motifs)?;
     write_dsfb_motif_labels_per_time_csv(
         &run_dir.join("dsfb_motif_labels_per_time.csv"),
         &prepared,
         &motifs,
     )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_feature_motif_timeline.csv"),
+        &scaffold_semiotics.feature_motif_timeline,
+    )?;
     write_dsfb_grammar_states_csv(
         &run_dir.join("dsfb_grammar_states.csv"),
         &prepared,
         &grammar,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_feature_grammar_states.csv"),
+        &scaffold_semiotics.feature_grammar_states,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_envelope_interaction_summary.csv"),
+        &scaffold_semiotics.envelope_interaction_summary,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsfb_heuristics_bank_expanded.json"),
+        &scaffold_semiotics.heuristics_bank_expanded,
     )?;
     write_dsfb_semantic_matches_csv(
         &run_dir.join("dsfb_semantic_matches.csv"),
@@ -487,6 +544,26 @@ pub fn run_secom_benchmark(
     write_dsfb_semantic_matches_csv(
         &run_dir.join("dsfb_semantic_ranked_candidates.csv"),
         &semantic_layer.ranked_candidates,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_feature_policy_decisions.csv"),
+        &scaffold_semiotics.feature_policy_decisions,
+    )?;
+    write_json_pretty(
+        &run_dir.join("dsfb_group_definitions.json"),
+        &scaffold_semiotics.group_definitions,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_group_signs.csv"),
+        &scaffold_semiotics.group_signs,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_group_grammar_states.csv"),
+        &scaffold_semiotics.group_grammar_states,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_group_semantic_matches.csv"),
+        &scaffold_semiotics.group_semantic_matches,
     )?;
     write_json_pretty(
         &run_dir.join("dsfb_structural_delta_metrics.json"),
@@ -542,6 +619,10 @@ pub fn run_secom_benchmark(
                 .to_string(),
             dsa_feature_ranking_recall_aware_path: run_dir
                 .join("dsa_feature_ranking_recall_aware.csv")
+                .display()
+                .to_string(),
+            dsa_feature_ranking_dsfb_aware_path: run_dir
+                .join("dsa_feature_ranking_dsfb_aware.csv")
                 .display()
                 .to_string(),
             dsa_feature_ranking_burden_aware_path: run_dir
@@ -629,6 +710,10 @@ pub fn run_secom_benchmark(
                 .join("dsa_cohort_results_recall_aware.csv")
                 .display()
                 .to_string(),
+            dsa_cohort_results_dsfb_aware_path: run_dir
+                .join("dsa_cohort_results_dsfb_aware.csv")
+                .display()
+                .to_string(),
             dsa_cohort_results_burden_aware_path: run_dir
                 .join("dsa_cohort_results_burden_aware.csv")
                 .display()
@@ -639,6 +724,10 @@ pub fn run_secom_benchmark(
                 .to_string(),
             dsa_cohort_summary_recall_aware_path: run_dir
                 .join("dsa_cohort_summary_recall_aware.json")
+                .display()
+                .to_string(),
+            dsa_cohort_summary_dsfb_aware_path: run_dir
+                .join("dsa_cohort_summary_dsfb_aware.json")
                 .display()
                 .to_string(),
             dsa_cohort_summary_burden_aware_path: run_dir
@@ -703,13 +792,33 @@ pub fn run_secom_benchmark(
                 .display()
                 .to_string(),
             dsfb_signs_path: run_dir.join("dsfb_signs.csv").display().to_string(),
+            dsfb_feature_signs_path: run_dir
+                .join("dsfb_feature_signs.csv")
+                .display()
+                .to_string(),
             dsfb_motifs_path: run_dir.join("dsfb_motifs.csv").display().to_string(),
             dsfb_motif_labels_per_time_path: run_dir
                 .join("dsfb_motif_labels_per_time.csv")
                 .display()
                 .to_string(),
+            dsfb_feature_motif_timeline_path: run_dir
+                .join("dsfb_feature_motif_timeline.csv")
+                .display()
+                .to_string(),
             dsfb_grammar_states_path: run_dir
                 .join("dsfb_grammar_states.csv")
+                .display()
+                .to_string(),
+            dsfb_feature_grammar_states_path: run_dir
+                .join("dsfb_feature_grammar_states.csv")
+                .display()
+                .to_string(),
+            dsfb_envelope_interaction_summary_path: run_dir
+                .join("dsfb_envelope_interaction_summary.csv")
+                .display()
+                .to_string(),
+            dsfb_heuristics_bank_expanded_path: run_dir
+                .join("dsfb_heuristics_bank_expanded.json")
                 .display()
                 .to_string(),
             dsfb_semantic_matches_path: run_dir
@@ -718,6 +827,26 @@ pub fn run_secom_benchmark(
                 .to_string(),
             dsfb_semantic_ranked_candidates_path: run_dir
                 .join("dsfb_semantic_ranked_candidates.csv")
+                .display()
+                .to_string(),
+            dsfb_feature_policy_decisions_path: run_dir
+                .join("dsfb_feature_policy_decisions.csv")
+                .display()
+                .to_string(),
+            dsfb_group_definitions_path: run_dir
+                .join("dsfb_group_definitions.json")
+                .display()
+                .to_string(),
+            dsfb_group_signs_path: run_dir
+                .join("dsfb_group_signs.csv")
+                .display()
+                .to_string(),
+            dsfb_group_grammar_states_path: run_dir
+                .join("dsfb_group_grammar_states.csv")
+                .display()
+                .to_string(),
+            dsfb_group_semantic_matches_path: run_dir
+                .join("dsfb_group_semantic_matches.csv")
                 .display()
                 .to_string(),
             dsfb_structural_delta_metrics_path: run_dir
@@ -1352,6 +1481,15 @@ fn write_dsfb_semantic_matches_csv(
     path: &Path,
     rows: &[crate::semiotics::SemanticMatchRecord],
 ) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+fn write_serialized_csv<T: Serialize>(path: &Path, rows: &[T]) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     for row in rows {
         writer.serialize(row)?;
