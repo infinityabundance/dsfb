@@ -3,11 +3,12 @@ use plotters::coord::Shift;
 use plotters::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::cmp::Ordering;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const UNIFIED_FIGURE_WIDTH: u32 = 1800;
-const UNIFIED_FIGURE_HEIGHT: u32 = 1012;
+const UNIFIED_FIGURE_WIDTH: u32 = 1920;
+const UNIFIED_FIGURE_HEIGHT: u32 = 1080;
 const EXEC_SUMMARY_MARKDOWN_START: &str = "<!-- UNIFIED_VALUE_EXEC_SUMMARY_START -->";
 const EXEC_SUMMARY_MARKDOWN_END: &str = "<!-- UNIFIED_VALUE_EXEC_SUMMARY_END -->";
 const SECTION_MARKDOWN_START: &str = "<!-- UNIFIED_VALUE_SECTION_START -->";
@@ -40,8 +41,11 @@ struct SecomFigureMetrics {
     delta_episode_count: f64,
     recall: usize,
     failure_runs: usize,
+    dsfb_episode_count: usize,
+    dsfb_pre_failure_episode_count: usize,
     episode_precision: f64,
     raw_boundary_precision: f64,
+    raw_alarm_count: usize,
     precision_gain_factor: f64,
 }
 
@@ -55,6 +59,7 @@ struct PhmLeadTimeRow {
 
 #[derive(Debug, Clone, Deserialize)]
 struct PhmEarlyWarningStats {
+    threshold_baseline: String,
     total_runs: usize,
     comparable_runs: usize,
     mean_lead_delta: Option<f64>,
@@ -65,7 +70,16 @@ struct PhmEarlyWarningStats {
 }
 
 #[derive(Debug, Clone)]
+struct PhmComparableLeadRow {
+    run_id: String,
+    dsfb_detection_time: i64,
+    threshold_detection_time: i64,
+    lead_time_delta: i64,
+}
+
+#[derive(Debug, Clone)]
 struct PhmFigureMetrics {
+    threshold_baseline: String,
     mean_dsfb_detection_time: f64,
     mean_threshold_detection_time: f64,
     mean_lead_delta: f64,
@@ -73,19 +87,25 @@ struct PhmFigureMetrics {
     percent_runs_dsfb_earlier: f64,
     percent_runs_equal: f64,
     percent_runs_later: f64,
+    comparable_earlier_runs: usize,
+    comparable_equal_runs: usize,
+    comparable_later_runs: usize,
     comparable_runs: usize,
     total_runs: usize,
+    comparable_rows: Vec<PhmComparableLeadRow>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct UnifiedValueFigureCsvRow {
     panel: String,
     metric: String,
+    item_label: String,
     baseline_label: String,
     dsfb_value: Option<f64>,
     baseline_value: Option<f64>,
     delta_value: Option<f64>,
     units: String,
+    source_artifact: String,
     note: String,
 }
 
@@ -104,7 +124,7 @@ pub fn render_unified_value_figure(
     fs::create_dir_all(&figure_dir)?;
     let figure_path = figure_dir.join("dsfb_unified_value_figure.png");
     let csv_path = secom_run_dir.join("dsfb_unified_value_figure.csv");
-    let caption = unified_caption(phm_metrics.is_some());
+    let caption = unified_caption(&secom_metrics, phm_metrics.as_ref());
 
     draw_unified_value_figure(&figure_path, &secom_metrics, phm_metrics.as_ref())?;
     write_unified_value_csv(&csv_path, &secom_metrics, phm_metrics.as_ref())?;
@@ -116,15 +136,13 @@ pub fn render_unified_value_figure(
         phm_metrics.as_ref(),
     )?;
 
-    let paper_updated = if phm_metrics.is_some() {
-        if let Some(paper_tex_path) = paper_tex_path {
+    let paper_updated = match (phm_metrics.as_ref(), paper_tex_path) {
+        (Some(_), Some(paper_tex_path)) => {
+            sync_paper_figure_asset(&figure_path, paper_tex_path)?;
             update_paper_tex(paper_tex_path, &caption)?;
             true
-        } else {
-            false
         }
-    } else {
-        false
+        _ => false,
     };
 
     Ok(UnifiedValueFigureArtifacts {
@@ -188,8 +206,14 @@ fn load_secom_metrics(run_dir: &Path) -> Result<SecomFigureMetrics> {
             &operator_targets,
             &["selected_configuration", "failure_runs"],
         )?,
+        dsfb_episode_count: required_usize(&episode_precision, &["dsfb_episode_count"])?,
+        dsfb_pre_failure_episode_count: required_usize(
+            &episode_precision,
+            &["dsfb_pre_failure_episode_count"],
+        )?,
         episode_precision: required_f64(&episode_precision, &["dsfb_precision"])?,
         raw_boundary_precision: required_f64(&episode_precision, &["raw_alarm_precision"])?,
+        raw_alarm_count: required_usize(&episode_precision, &["raw_alarm_count"])?,
         precision_gain_factor: required_f64(&episode_precision, &["precision_gain_factor"])?,
     })
 }
@@ -203,26 +227,49 @@ fn load_phm_metrics(run_dir: &Path) -> Result<Option<PhmFigureMetrics>> {
 
     let stats: PhmEarlyWarningStats = read_json(&stats_path)?;
     let rows = read_csv::<PhmLeadTimeRow>(&lead_path)?;
-    let comparable_rows = rows
+    let mut comparable_rows = rows
         .iter()
-        .filter(|row| row.dsfb_detection_time.is_some() && row.threshold_detection_time.is_some())
+        .filter_map(|row| {
+            Some(PhmComparableLeadRow {
+                run_id: row.run_id.clone(),
+                dsfb_detection_time: row.dsfb_detection_time?,
+                threshold_detection_time: row.threshold_detection_time?,
+                lead_time_delta: row.lead_time_delta?,
+            })
+        })
         .collect::<Vec<_>>();
     if comparable_rows.is_empty() {
         return Ok(None);
     }
+    comparable_rows.sort_by(|left, right| {
+        left.lead_time_delta
+            .cmp(&right.lead_time_delta)
+            .then_with(|| left.run_id.cmp(&right.run_id))
+    });
 
     let mean_dsfb_detection_time = comparable_rows
         .iter()
-        .filter_map(|row| row.dsfb_detection_time.map(|value| value as f64))
+        .map(|row| row.dsfb_detection_time as f64)
         .sum::<f64>()
         / comparable_rows.len() as f64;
     let mean_threshold_detection_time = comparable_rows
         .iter()
-        .filter_map(|row| row.threshold_detection_time.map(|value| value as f64))
+        .map(|row| row.threshold_detection_time as f64)
         .sum::<f64>()
         / comparable_rows.len() as f64;
+    let comparable_earlier_runs = comparable_rows
+        .iter()
+        .filter(|row| row.lead_time_delta > 0)
+        .count();
+    let comparable_equal_runs = comparable_rows
+        .iter()
+        .filter(|row| row.lead_time_delta == 0)
+        .count();
+    let comparable_later_runs =
+        comparable_rows.len() - comparable_earlier_runs - comparable_equal_runs;
 
     Ok(Some(PhmFigureMetrics {
+        threshold_baseline: stats.threshold_baseline,
         mean_dsfb_detection_time,
         mean_threshold_detection_time,
         mean_lead_delta: stats.mean_lead_delta.unwrap_or_default(),
@@ -230,8 +277,12 @@ fn load_phm_metrics(run_dir: &Path) -> Result<Option<PhmFigureMetrics>> {
         percent_runs_dsfb_earlier: stats.percent_runs_dsfb_earlier,
         percent_runs_equal: stats.percent_runs_equal,
         percent_runs_later: stats.percent_runs_later,
+        comparable_earlier_runs,
+        comparable_equal_runs,
+        comparable_later_runs,
         comparable_runs: stats.comparable_runs,
         total_runs: stats.total_runs,
+        comparable_rows,
     }))
 }
 
@@ -257,107 +308,55 @@ fn draw_secom_burden_panel(
     secom: &SecomFigureMetrics,
 ) -> Result<()> {
     area.fill(&WHITE).map_err(plot_error)?;
-    let y_max = (secom.baseline_episode_count as f64 * 1.10)
-        .max(secom.baseline_investigation_points as f64 * 2.0);
-    let mut chart = ChartBuilder::on(area)
-        .margin(24)
-        .caption("A. SECOM burden compression", ("sans-serif", 28))
-        .x_label_area_size(50)
-        .y_label_area_size(70)
-        .build_cartesian_2d(0f64..5f64, 0f64..y_max)
-        .map_err(plot_error)?;
+    let (header, rest) = area.split_vertically(150);
+    let (body, footer) = rest.split_vertically(610);
+    let body_panels = body.split_evenly((2, 1));
 
-    chart
-        .configure_mesh()
-        .disable_mesh()
-        .y_desc("count")
-        .x_labels(0)
-        .draw()
-        .map_err(plot_error)?;
-
-    let baseline_style = RGBColor(200, 200, 200).filled();
-    let dsfb_style = RGBColor(60, 60, 60).filled();
-
-    let bars = [
-        (
-            0.7,
-            1.5,
-            secom.baseline_investigation_points as f64,
-            baseline_style,
-            "Numeric-only DSA\ninvestigation points",
-        ),
-        (
-            1.7,
-            2.5,
-            secom.optimized_review_escalate_points as f64,
-            dsfb_style,
-            "Policy DSA\nReview/Escalate",
-        ),
-        (
-            3.0,
-            3.8,
-            secom.baseline_episode_count as f64,
-            baseline_style,
-            "Raw boundary\nepisodes",
-        ),
-        (
-            4.0,
-            4.8,
-            secom.optimized_episode_count as f64,
-            dsfb_style,
-            "Optimized DSA\nepisodes",
-        ),
-    ];
-    for (left, right, height, style, label) in bars {
-        chart
-            .draw_series(std::iter::once(Rectangle::new(
-                [(left, 0.0), (right, height)],
-                style,
-            )))
-            .map_err(plot_error)?;
-        chart
-            .draw_series(std::iter::once(Text::new(
-                format!("{height:.0}"),
-                ((left + right) / 2.0, height + y_max * 0.02),
-                ("sans-serif", 18).into_font().color(&BLACK),
-            )))
-            .map_err(plot_error)?;
-        chart
-            .draw_series(std::iter::once(Text::new(
-                label.to_string(),
-                ((left + right) / 2.0, -y_max * 0.05),
-                ("sans-serif", 18).into_font().color(&BLACK),
-            )))
-            .map_err(plot_error)?;
-    }
-
-    area.draw(&Text::new(
-        format!(
-            "{:.1}% investigation-load reduction vs numeric-only DSA baseline",
-            secom.delta_investigation_load * 100.0
-        ),
-        (32, 64),
-        ("sans-serif", 20).into_font().color(&BLACK),
-    ))
-    .map_err(plot_error)?;
-    area.draw(&Text::new(
-        format!(
-            "{:.1}% episode reduction vs raw boundary baseline",
-            secom.delta_episode_count * 100.0
-        ),
-        (32, 92),
-        ("sans-serif", 20).into_font().color(&BLACK),
-    ))
-    .map_err(plot_error)?;
-    area.draw(&Text::new(
-        format!(
-            "Bounded failure coverage preserved at {}/{}",
-            secom.recall, secom.failure_runs
-        ),
-        (32, 120),
-        ("sans-serif", 18).into_font().color(&BLACK),
-    ))
-    .map_err(plot_error)?;
+    draw_panel_heading(
+        &header,
+        "A. SECOM burden compression",
+        &[
+            "SECOM is used only for structural compression and operator burden.",
+            "Baselines are named explicitly: numeric-only DSA points and raw boundary episodes.",
+        ],
+    )?;
+    draw_horizontal_pair_subchart(
+        &body_panels[0],
+        "Investigation-worthy points",
+        "Numeric-only DSA baseline",
+        secom.baseline_investigation_points as f64,
+        "Policy-governed Review/Escalate",
+        secom.optimized_review_escalate_points as f64,
+    )?;
+    draw_horizontal_pair_subchart(
+        &body_panels[1],
+        "Episode count",
+        "Raw boundary episode basis",
+        secom.baseline_episode_count as f64,
+        "Optimized DSA episodes",
+        secom.optimized_episode_count as f64,
+    )?;
+    draw_footer_lines(
+        &footer,
+        &[
+            format!(
+                "{:.1}% investigation-load reduction vs numeric-only DSA ({} -> {})",
+                secom.delta_investigation_load * 100.0,
+                format_count(secom.baseline_investigation_points),
+                format_count(secom.optimized_review_escalate_points),
+            ),
+            format!(
+                "{:.1}% episode reduction vs raw boundary episodes ({} -> {})",
+                secom.delta_episode_count * 100.0,
+                format_count(secom.baseline_episode_count),
+                format_count(secom.optimized_episode_count),
+            ),
+            format!(
+                "Bounded failure coverage preserved at {}/{} labeled failures",
+                secom.recall, secom.failure_runs
+            ),
+        ],
+    )?;
     Ok(())
 }
 
@@ -366,90 +365,37 @@ fn draw_secom_precision_panel(
     secom: &SecomFigureMetrics,
 ) -> Result<()> {
     area.fill(&WHITE).map_err(plot_error)?;
-    let max_percent = (secom.episode_precision * 100.0 * 1.15).max(85.0);
-    let mut chart = ChartBuilder::on(area)
-        .margin(24)
-        .caption("B. SECOM episode precision", ("sans-serif", 28))
-        .x_label_area_size(50)
-        .y_label_area_size(70)
-        .build_cartesian_2d(0f64..3f64, 0f64..max_percent)
-        .map_err(plot_error)?;
-
-    chart
-        .configure_mesh()
-        .disable_mesh()
-        .y_desc("precision (%)")
-        .x_labels(0)
-        .draw()
-        .map_err(plot_error)?;
-
-    let raw_percent = secom.raw_boundary_precision * 100.0;
-    let dsfb_percent = secom.episode_precision * 100.0;
-    chart
-        .draw_series(std::iter::once(Rectangle::new(
-            [(0.6, 0.0), (1.3, raw_percent)],
-            RGBColor(200, 200, 200).filled(),
-        )))
-        .map_err(plot_error)?;
-    chart
-        .draw_series(std::iter::once(Rectangle::new(
-            [(1.7, 0.0), (2.4, dsfb_percent)],
-            RGBColor(60, 60, 60).filled(),
-        )))
-        .map_err(plot_error)?;
-    chart
-        .draw_series(std::iter::once(Text::new(
-            format!("{raw_percent:.2}%"),
-            (0.95, raw_percent + max_percent * 0.03),
-            ("sans-serif", 18).into_font().color(&BLACK),
-        )))
-        .map_err(plot_error)?;
-    chart
-        .draw_series(std::iter::once(Text::new(
-            format!("{dsfb_percent:.1}%"),
-            (2.05, dsfb_percent + max_percent * 0.03),
-            ("sans-serif", 18).into_font().color(&BLACK),
-        )))
-        .map_err(plot_error)?;
-    chart
-        .draw_series(std::iter::once(Text::new(
-            "Raw boundary\nprecision proxy".to_string(),
-            (0.95, -max_percent * 0.08),
-            ("sans-serif", 18).into_font().color(&BLACK),
-        )))
-        .map_err(plot_error)?;
-    chart
-        .draw_series(std::iter::once(Text::new(
-            "Optimized DSA\nepisode precision".to_string(),
-            (2.05, -max_percent * 0.08),
-            ("sans-serif", 18).into_font().color(&BLACK),
-        )))
-        .map_err(plot_error)?;
-
-    area.draw(&Text::new(
-        format!(
-            "{:.1}% of DSA episodes precede labeled failures",
-            dsfb_percent
-        ),
-        (32, 64),
-        ("sans-serif", 20).into_font().color(&BLACK),
-    ))
-    .map_err(plot_error)?;
-    area.draw(&Text::new(
-        format!(
-            "Precision gain vs raw boundary basis: {:.1}x",
-            secom.precision_gain_factor
-        ),
-        (32, 92),
-        ("sans-serif", 20).into_font().color(&BLACK),
-    ))
-    .map_err(plot_error)?;
-    area.draw(&Text::new(
-        "Few episodes, higher relevance".to_string(),
-        (32, 120),
-        ("sans-serif", 18).into_font().color(&BLACK),
-    ))
-    .map_err(plot_error)?;
+    let (header, rest) = area.split_vertically(150);
+    let (body, footer) = rest.split_vertically(610);
+    draw_panel_heading(
+        &header,
+        "B. SECOM episode precision",
+        &[
+            "The SECOM precision panel is operator-facing: fewer episodes, higher relevance.",
+            "Raw boundary precision is shown only as the low-precision structural basis.",
+        ],
+    )?;
+    draw_precision_subchart(&body, secom)?;
+    draw_footer_lines(
+        &footer,
+        &[
+            format!(
+                "{:.1}% of DSA episodes precede labeled failures ({} of {})",
+                secom.episode_precision * 100.0,
+                secom.dsfb_pre_failure_episode_count,
+                secom.dsfb_episode_count,
+            ),
+            format!(
+                "Raw boundary precision proxy: {:.2}% across {} raw structural episodes",
+                secom.raw_boundary_precision * 100.0,
+                format_count(secom.raw_alarm_count),
+            ),
+            format!(
+                "Precision gain vs raw boundary precision proxy: {:.1}x",
+                secom.precision_gain_factor,
+            ),
+        ],
+    )?;
     Ok(())
 }
 
@@ -460,125 +406,334 @@ fn draw_phm_panel(
     area.fill(&WHITE).map_err(plot_error)?;
     match phm {
         Some(phm) => {
-            let max_y = (phm
-                .mean_threshold_detection_time
-                .max(phm.mean_dsfb_detection_time)
-                * 1.15)
-                .max(1.0);
-            let mut chart = ChartBuilder::on(area)
-                .margin(24)
-                .caption("C. PHM 2018 lead-time advantage", ("sans-serif", 28))
-                .x_label_area_size(50)
-                .y_label_area_size(70)
-                .build_cartesian_2d(0f64..3f64, 0f64..max_y)
-                .map_err(plot_error)?;
-
-            chart
-                .configure_mesh()
-                .disable_mesh()
-                .y_desc("mean detection time")
-                .x_labels(0)
-                .draw()
-                .map_err(plot_error)?;
-
-            chart
-                .draw_series(std::iter::once(Rectangle::new(
-                    [(0.6, 0.0), (1.3, phm.mean_threshold_detection_time)],
-                    RGBColor(200, 200, 200).filled(),
-                )))
-                .map_err(plot_error)?;
-            chart
-                .draw_series(std::iter::once(Rectangle::new(
-                    [(1.7, 0.0), (2.4, phm.mean_dsfb_detection_time)],
-                    RGBColor(60, 60, 60).filled(),
-                )))
-                .map_err(plot_error)?;
-            chart
-                .draw_series(std::iter::once(Text::new(
-                    format!("{:.1}", phm.mean_threshold_detection_time),
-                    (0.95, phm.mean_threshold_detection_time + max_y * 0.03),
-                    ("sans-serif", 18).into_font().color(&BLACK),
-                )))
-                .map_err(plot_error)?;
-            chart
-                .draw_series(std::iter::once(Text::new(
-                    format!("{:.1}", phm.mean_dsfb_detection_time),
-                    (2.05, phm.mean_dsfb_detection_time + max_y * 0.03),
-                    ("sans-serif", 18).into_font().color(&BLACK),
-                )))
-                .map_err(plot_error)?;
-            chart
-                .draw_series(std::iter::once(Text::new(
-                    "Threshold".to_string(),
-                    (0.95, -max_y * 0.08),
-                    ("sans-serif", 18).into_font().color(&BLACK),
-                )))
-                .map_err(plot_error)?;
-            chart
-                .draw_series(std::iter::once(Text::new(
-                    "DSFB".to_string(),
-                    (2.05, -max_y * 0.08),
-                    ("sans-serif", 18).into_font().color(&BLACK),
-                )))
-                .map_err(plot_error)?;
-
-            area.draw(&Text::new(
-                "PHM 2018 is the early-warning benchmark".to_string(),
-                (32, 64),
-                ("sans-serif", 20).into_font().color(&BLACK),
-            ))
-            .map_err(plot_error)?;
-            area.draw(&Text::new(
-                "SECOM does not support this claim by itself".to_string(),
-                (32, 92),
-                ("sans-serif", 18).into_font().color(&BLACK),
-            ))
-            .map_err(plot_error)?;
-            area.draw(&Text::new(
-                format!(
-                    "Mean threshold-minus-DSFB delta {:.2}; DSFB earlier on {:.1}% of {} comparable runs",
-                    phm.mean_lead_delta,
-                    phm.percent_runs_dsfb_earlier * 100.0,
-                    phm.comparable_runs
-                ),
-                (32, 120),
-                ("sans-serif", 18).into_font().color(&BLACK),
-            ))
-            .map_err(plot_error)?;
+            let (header, rest) = area.split_vertically(170);
+            let (body, footer) = rest.split_vertically(610);
+            draw_panel_heading(
+                &header,
+                "C. PHM 2018 lead-time comparison",
+                &[
+                    "PHM 2018 is the early-warning benchmark.",
+                    "SECOM does not support this claim by itself.",
+                ],
+            )?;
+            draw_phm_delta_subchart(&body, phm)?;
+            draw_footer_lines(
+                &footer,
+                &[
+                    format!(
+                        "Baseline: {} after the healthy calibration prefix",
+                        phm.threshold_baseline
+                    ),
+                    format!(
+                        "Mean detection time: baseline {}, DSFB {}",
+                        format_compact_value(phm.mean_threshold_detection_time),
+                        format_compact_value(phm.mean_dsfb_detection_time),
+                    ),
+                    format!(
+                        "Mean delta {}, median {}",
+                        format_signed_compact_value(phm.mean_lead_delta),
+                        format_signed_compact_value(phm.median_lead_delta),
+                    ),
+                    format!(
+                        "Comparable runs: {} of {} total, with {} earlier, {} equal, {} later",
+                        phm.comparable_runs,
+                        phm.total_runs,
+                        phm.comparable_earlier_runs,
+                        phm.comparable_equal_runs,
+                        phm.comparable_later_runs,
+                    ),
+                    format!(
+                        "Saved {}-run split: {:.1}% earlier, {:.1}% equal, {:.1}% later or unavailable",
+                        phm.total_runs,
+                        phm.percent_runs_dsfb_earlier * 100.0,
+                        phm.percent_runs_equal * 100.0,
+                        phm.percent_runs_later * 100.0,
+                    ),
+                ],
+            )?;
         }
         None => {
-            area.draw(&Text::new(
-                "C. PHM 2018 lead-time advantage".to_string(),
-                (32, 42),
-                ("sans-serif", 28).into_font().color(&BLACK),
-            ))
-            .map_err(plot_error)?;
-            area.draw(&Rectangle::new(
-                [(28, 72), (540, 820)],
+            let (header, rest) = area.split_vertically(170);
+            let (body, footer) = rest.split_vertically(610);
+            draw_panel_heading(
+                &header,
+                "C. PHM 2018 lead-time comparison",
+                &[
+                    "PHM 2018 is the early-warning benchmark.",
+                    "Panel C is intentionally incomplete when no PHM artifacts are available.",
+                ],
+            )?;
+            body.draw(&Rectangle::new(
+                [(36, 36), (560, 540)],
                 ShapeStyle::from(&RGBColor(120, 120, 120)).stroke_width(2),
             ))
             .map_err(plot_error)?;
-            for (line_index, line) in [
-                "PHM panel unavailable in current saved artifacts.",
-                "No completed PHM 2018 lead-time summary was found,",
-                "so this figure does not claim early-warning value",
-                "from SECOM alone.",
-                "",
-                "Expected artifacts:",
-                "- phm2018_lead_time_metrics.csv",
-                "- phm2018_early_warning_stats.json",
-            ]
-            .iter()
-            .enumerate()
-            {
-                area.draw(&Text::new(
-                    (*line).to_string(),
-                    (48, 130 + (line_index as i32 * 36)),
-                    ("sans-serif", 22).into_font().color(&BLACK),
-                ))
-                .map_err(plot_error)?;
-            }
+            draw_footer_lines(
+                &footer,
+                &[
+                    "No completed PHM 2018 lead-time summary was found in the supplied run."
+                        .into(),
+                    "Expected artifacts: phm2018_lead_time_metrics.csv and phm2018_early_warning_stats.json."
+                        .into(),
+                    "The figure therefore does not claim early-warning value from SECOM alone."
+                        .into(),
+                ],
+            )?;
         }
+    }
+    Ok(())
+}
+
+fn draw_panel_heading(
+    area: &DrawingArea<BitMapBackend<'_>, Shift>,
+    title: &str,
+    subtitle_lines: &[&str],
+) -> Result<()> {
+    area.fill(&WHITE).map_err(plot_error)?;
+    area.draw(&Text::new(
+        title.to_string(),
+        (24, 28),
+        ("sans-serif", 30).into_font().style(FontStyle::Bold),
+    ))
+    .map_err(plot_error)?;
+    for (line_index, line) in subtitle_lines.iter().enumerate() {
+        area.draw(&Text::new(
+            (*line).to_string(),
+            (24, 72 + (line_index as i32 * 28)),
+            ("sans-serif", 18).into_font().color(&BLACK),
+        ))
+        .map_err(plot_error)?;
+    }
+    Ok(())
+}
+
+fn draw_footer_lines(area: &DrawingArea<BitMapBackend<'_>, Shift>, lines: &[String]) -> Result<()> {
+    area.fill(&WHITE).map_err(plot_error)?;
+    for (line_index, line) in lines.iter().enumerate() {
+        area.draw(&Text::new(
+            line.clone(),
+            (24, 28 + (line_index as i32 * 28)),
+            ("sans-serif", 18).into_font().color(&BLACK),
+        ))
+        .map_err(plot_error)?;
+    }
+    Ok(())
+}
+
+fn draw_horizontal_pair_subchart(
+    area: &DrawingArea<BitMapBackend<'_>, Shift>,
+    x_desc: &str,
+    baseline_label: &str,
+    baseline_value: f64,
+    dsfb_label: &str,
+    dsfb_value: f64,
+) -> Result<()> {
+    area.fill(&WHITE).map_err(plot_error)?;
+    let max_value = baseline_value.max(dsfb_value).max(1.0);
+    let label_margin = max_value * 0.45;
+    let mut chart = ChartBuilder::on(area)
+        .margin(10)
+        .x_label_area_size(34)
+        .y_label_area_size(0)
+        .build_cartesian_2d(-label_margin..(max_value * 1.12), 0f64..2f64)
+        .map_err(plot_error)?;
+
+    chart
+        .configure_mesh()
+        .disable_y_mesh()
+        .disable_x_mesh()
+        .y_labels(0)
+        .x_labels(4)
+        .x_desc(x_desc)
+        .x_label_formatter(&|value| {
+            if *value < 0.0 {
+                String::new()
+            } else {
+                format_compact_value(*value)
+            }
+        })
+        .label_style(("sans-serif", 16))
+        .draw()
+        .map_err(plot_error)?;
+
+    let baseline_style = RGBColor(195, 195, 195).filled();
+    let dsfb_style = RGBColor(45, 45, 45).filled();
+    chart
+        .draw_series(std::iter::once(Rectangle::new(
+            [(0.0, 1.12), (baseline_value, 1.72)],
+            baseline_style,
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Rectangle::new(
+            [(0.0, 0.28), (dsfb_value, 0.88)],
+            dsfb_style,
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Text::new(
+            baseline_label.to_string(),
+            (-label_margin * 0.98, 1.42),
+            ("sans-serif", 17).into_font().color(&BLACK),
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Text::new(
+            dsfb_label.to_string(),
+            (-label_margin * 0.98, 0.58),
+            ("sans-serif", 17).into_font().color(&BLACK),
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Text::new(
+            format_count_f64(baseline_value),
+            (baseline_value + max_value * 0.02, 1.42),
+            ("sans-serif", 17).into_font().color(&BLACK),
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Text::new(
+            format_count_f64(dsfb_value),
+            (dsfb_value + max_value * 0.02, 0.58),
+            ("sans-serif", 17).into_font().color(&BLACK),
+        )))
+        .map_err(plot_error)?;
+    Ok(())
+}
+
+fn draw_precision_subchart(
+    area: &DrawingArea<BitMapBackend<'_>, Shift>,
+    secom: &SecomFigureMetrics,
+) -> Result<()> {
+    area.fill(&WHITE).map_err(plot_error)?;
+    let label_margin = 40.0;
+    let raw_percent = secom.raw_boundary_precision * 100.0;
+    let dsfb_percent = secom.episode_precision * 100.0;
+    let mut chart = ChartBuilder::on(area)
+        .margin(10)
+        .x_label_area_size(34)
+        .y_label_area_size(0)
+        .build_cartesian_2d(-label_margin..100f64, 0f64..2f64)
+        .map_err(plot_error)?;
+
+    chart
+        .configure_mesh()
+        .disable_y_mesh()
+        .disable_x_mesh()
+        .y_labels(0)
+        .x_labels(5)
+        .x_desc("episode precision (%)")
+        .label_style(("sans-serif", 16))
+        .draw()
+        .map_err(plot_error)?;
+
+    chart
+        .draw_series(std::iter::once(Rectangle::new(
+            [(0.0, 1.12), (raw_percent, 1.72)],
+            RGBColor(195, 195, 195).filled(),
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Rectangle::new(
+            [(0.0, 0.28), (dsfb_percent, 0.88)],
+            RGBColor(45, 45, 45).filled(),
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Text::new(
+            "Raw boundary precision proxy".to_string(),
+            (-label_margin * 0.98, 1.42),
+            ("sans-serif", 17).into_font().color(&BLACK),
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Text::new(
+            "Optimized DSA episode precision".to_string(),
+            (-label_margin * 0.98, 0.58),
+            ("sans-serif", 17).into_font().color(&BLACK),
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Text::new(
+            format!("{raw_percent:.2}%"),
+            (raw_percent.max(1.8) + 1.5, 1.42),
+            ("sans-serif", 17).into_font().color(&BLACK),
+        )))
+        .map_err(plot_error)?;
+    chart
+        .draw_series(std::iter::once(Text::new(
+            format!("{dsfb_percent:.1}%"),
+            ((dsfb_percent + 2.0).min(95.0), 0.58),
+            ("sans-serif", 17).into_font().color(&BLACK),
+        )))
+        .map_err(plot_error)?;
+    Ok(())
+}
+
+fn draw_phm_delta_subchart(
+    area: &DrawingArea<BitMapBackend<'_>, Shift>,
+    phm: &PhmFigureMetrics,
+) -> Result<()> {
+    area.fill(&WHITE).map_err(plot_error)?;
+    let span = phm
+        .comparable_rows
+        .iter()
+        .map(|row| row.lead_time_delta.unsigned_abs() as f64)
+        .fold(phm.mean_lead_delta.abs(), f64::max)
+        .max(1.0);
+    let axis_limit = span * 1.18;
+    let row_count = phm.comparable_rows.len() as i32;
+    let mut chart = ChartBuilder::on(area)
+        .margin(10)
+        .x_label_area_size(42)
+        .y_label_area_size(90)
+        .build_cartesian_2d(-axis_limit..axis_limit, 0i32..row_count)
+        .map_err(plot_error)?;
+
+    chart
+        .configure_mesh()
+        .disable_mesh()
+        .y_labels(phm.comparable_rows.len())
+        .y_label_formatter(&|index| {
+            phm.comparable_rows
+                .get(*index as usize)
+                .map(|row| row.run_id.clone())
+                .unwrap_or_default()
+        })
+        .x_desc("threshold baseline minus DSFB detection time")
+        .x_label_formatter(&|value| format_signed_compact_value(*value))
+        .label_style(("sans-serif", 15))
+        .draw()
+        .map_err(plot_error)?;
+
+    chart
+        .draw_series(std::iter::once(PathElement::new(
+            vec![(0.0, 0), (0.0, row_count)],
+            ShapeStyle::from(&BLACK.mix(0.6)).stroke_width(1),
+        )))
+        .map_err(plot_error)?;
+
+    for (row_index, row) in phm.comparable_rows.iter().enumerate() {
+        let y = row_index as i32;
+        chart
+            .draw_series(std::iter::once(PathElement::new(
+                vec![(0.0, y), (row.lead_time_delta as f64, y)],
+                ShapeStyle::from(&RGBColor(150, 150, 150)).stroke_width(3),
+            )))
+            .map_err(plot_error)?;
+
+        let point_style = match row.lead_time_delta.cmp(&0) {
+            Ordering::Greater => ShapeStyle::from(&BLACK).filled(),
+            Ordering::Equal => ShapeStyle::from(&BLACK.mix(0.7)).stroke_width(2),
+            Ordering::Less => ShapeStyle::from(&RGBColor(110, 110, 110)).filled(),
+        };
+        chart
+            .draw_series(std::iter::once(Circle::new(
+                (row.lead_time_delta as f64, y),
+                6,
+                point_style,
+            )))
+            .map_err(plot_error)?;
     }
     Ok(())
 }
@@ -592,42 +747,62 @@ fn write_unified_value_csv(
         UnifiedValueFigureCsvRow {
             panel: "A".into(),
             metric: "investigation_points".into(),
+            item_label: "summary".into(),
             baseline_label: "numeric_only_dsa".into(),
             dsfb_value: Some(secom.optimized_review_escalate_points as f64),
             baseline_value: Some(secom.baseline_investigation_points as f64),
             delta_value: Some(secom.delta_investigation_load),
             units: "count".into(),
+            source_artifact: "dsa_operator_delta_targets.json".into(),
             note: "SECOM burden compression against numeric-only DSA investigation-worthy points"
                 .into(),
         },
         UnifiedValueFigureCsvRow {
             panel: "A".into(),
             metric: "episode_count".into(),
+            item_label: "summary".into(),
             baseline_label: "raw_boundary".into(),
             dsfb_value: Some(secom.optimized_episode_count as f64),
             baseline_value: Some(secom.baseline_episode_count as f64),
             delta_value: Some(secom.delta_episode_count),
             units: "count".into(),
+            source_artifact: "dsa_operator_delta_targets.json".into(),
             note: "SECOM episode compression against raw boundary episode count".into(),
         },
         UnifiedValueFigureCsvRow {
             panel: "B".into(),
             metric: "episode_precision".into(),
+            item_label: "summary".into(),
             baseline_label: "raw_boundary_precision_proxy".into(),
             dsfb_value: Some(secom.episode_precision),
             baseline_value: Some(secom.raw_boundary_precision),
             delta_value: Some(secom.precision_gain_factor),
             units: "fraction".into(),
+            source_artifact: "episode_precision_metrics.json".into(),
             note: "delta_value is the precision gain factor versus the raw boundary basis".into(),
         },
         UnifiedValueFigureCsvRow {
             panel: "B".into(),
+            metric: "failure_linked_episode_count".into(),
+            item_label: "summary".into(),
+            baseline_label: "all_dsa_episodes".into(),
+            dsfb_value: Some(secom.dsfb_pre_failure_episode_count as f64),
+            baseline_value: Some(secom.dsfb_episode_count as f64),
+            delta_value: None,
+            units: "count".into(),
+            source_artifact: "episode_precision_metrics.json".into(),
+            note: "Failure-linked DSA episode count versus all DSA episodes".into(),
+        },
+        UnifiedValueFigureCsvRow {
+            panel: "B".into(),
             metric: "recall".into(),
+            item_label: "summary".into(),
             baseline_label: "labeled_failure_runs".into(),
             dsfb_value: Some(secom.recall as f64),
             baseline_value: Some(secom.failure_runs as f64),
             delta_value: None,
             units: "count".into(),
+            source_artifact: "dsa_operator_delta_targets.json".into(),
             note: "Bounded SECOM failure coverage shown alongside burden compression".into(),
         },
     ];
@@ -637,35 +812,69 @@ fn write_unified_value_csv(
             rows.push(UnifiedValueFigureCsvRow {
                 panel: "C".into(),
                 metric: "mean_detection_time".into(),
-                baseline_label: "threshold".into(),
+                item_label: "summary".into(),
+                baseline_label: phm.threshold_baseline.clone(),
                 dsfb_value: Some(phm.mean_dsfb_detection_time),
                 baseline_value: Some(phm.mean_threshold_detection_time),
                 delta_value: Some(phm.mean_lead_delta),
                 units: "time_index".into(),
-                note: "delta_value is threshold detection time minus DSFB detection time".into(),
+                source_artifact: "phm2018_lead_time_metrics.csv; phm2018_early_warning_stats.json"
+                    .into(),
+                note: "delta_value is threshold-baseline detection time minus DSFB detection time"
+                    .into(),
             });
             rows.push(UnifiedValueFigureCsvRow {
                 panel: "C".into(),
-                metric: "percent_runs_dsfb_earlier".into(),
-                baseline_label: "comparable_runs".into(),
+                metric: "all_run_split".into(),
+                item_label: "summary".into(),
+                baseline_label: phm.threshold_baseline.clone(),
                 dsfb_value: Some(phm.percent_runs_dsfb_earlier),
-                baseline_value: Some(phm.comparable_runs as f64),
+                baseline_value: Some(phm.percent_runs_later),
                 delta_value: Some(phm.percent_runs_equal),
                 units: "fraction".into(),
+                source_artifact: "phm2018_early_warning_stats.json".into(),
                 note: format!(
-                    "delta_value stores the equal-detection fraction; later fraction is {:.4}",
-                    phm.percent_runs_later
+                    "dsfb_value stores the earlier fraction across all {} PHM runs, baseline_value stores the later-or-unavailable fraction, and delta_value stores the equal fraction",
+                    phm.total_runs
                 ),
             });
+            rows.push(UnifiedValueFigureCsvRow {
+                panel: "C".into(),
+                metric: "comparable_run_split".into(),
+                item_label: "summary".into(),
+                baseline_label: phm.threshold_baseline.clone(),
+                dsfb_value: Some(phm.comparable_earlier_runs as f64),
+                baseline_value: Some(phm.comparable_later_runs as f64),
+                delta_value: Some(phm.comparable_equal_runs as f64),
+                units: "count".into(),
+                source_artifact: "phm2018_lead_time_metrics.csv".into(),
+                note: "Comparable-run counts: dsfb_value is earlier, baseline_value is later, delta_value is equal".into(),
+            });
+            for row in &phm.comparable_rows {
+                rows.push(UnifiedValueFigureCsvRow {
+                    panel: "C".into(),
+                    metric: "lead_time_delta_by_run".into(),
+                    item_label: row.run_id.clone(),
+                    baseline_label: phm.threshold_baseline.clone(),
+                    dsfb_value: Some(row.dsfb_detection_time as f64),
+                    baseline_value: Some(row.threshold_detection_time as f64),
+                    delta_value: Some(row.lead_time_delta as f64),
+                    units: "time_index".into(),
+                    source_artifact: "phm2018_lead_time_metrics.csv".into(),
+                    note: "delta_value is threshold-baseline detection time minus DSFB detection time for this comparable PHM run".into(),
+                });
+            }
         }
         None => rows.push(UnifiedValueFigureCsvRow {
             panel: "C".into(),
             metric: "phm_panel_status".into(),
+            item_label: "summary".into(),
             baseline_label: "no_completed_phm_artifact".into(),
             dsfb_value: None,
             baseline_value: None,
             delta_value: None,
             units: "n/a".into(),
+            source_artifact: "not_available".into(),
             note:
                 "No completed PHM 2018 lead-time artifact was available; Panel C is a placeholder."
                     .into(),
@@ -721,6 +930,19 @@ fn update_report_files(
     Ok(())
 }
 
+fn sync_paper_figure_asset(figure_path: &Path, paper_tex_path: &Path) -> Result<()> {
+    let paper_root = paper_tex_path.parent().ok_or_else(|| {
+        DsfbSemiconductorError::DatasetFormat("paper tex path has no parent directory".into())
+    })?;
+    let figure_dir = paper_root.join("figures");
+    fs::create_dir_all(&figure_dir)?;
+    fs::copy(
+        figure_path,
+        figure_dir.join("dsfb_unified_value_figure.png"),
+    )?;
+    Ok(())
+}
+
 fn update_paper_tex(paper_tex_path: &Path, caption: &str) -> Result<()> {
     let original = fs::read_to_string(paper_tex_path)?;
     let figure_block = format!(
@@ -734,6 +956,12 @@ fn update_paper_tex(paper_tex_path: &Path, caption: &str) -> Result<()> {
             "% UNIFIED_VALUE_FIGURE_END",
             &figure_block,
         )
+    } else if let Some(index) = original.find("\\subsection{Closing Statement}") {
+        let mut updated = String::new();
+        updated.push_str(&original[..index]);
+        updated.push_str(&figure_block);
+        updated.push_str(&original[index..]);
+        updated
     } else if let Some(index) = original.rfind("\\end{document}") {
         let mut updated = String::new();
         updated.push_str(&original[..index]);
@@ -747,11 +975,34 @@ fn update_paper_tex(paper_tex_path: &Path, caption: &str) -> Result<()> {
     Ok(())
 }
 
-fn unified_caption(phm_available: bool) -> String {
-    if phm_available {
-        "Unified DSFB value figure. Left: on SECOM, the policy-governed DSFB layer reduces investigation-worthy alert burden and collapses raw structural episode count while preserving bounded failure coverage. Middle: the same SECOM run shows that DSA episodes are substantially more failure-relevant than the raw boundary basis, making the operator workflow more selective. Right: on PHM 2018, DSFB is evaluated on a degradation-oriented benchmark where early-warning lead time can be measured directly against scalar threshold detection. The figure therefore separates structural compression value (SECOM) from early-warning value (PHM 2018) rather than forcing one dataset to support both claims.".into()
-    } else {
-        "Unified DSFB value figure. Left: on SECOM, the policy-governed DSFB layer reduces investigation-worthy alert burden and collapses raw structural episode count while preserving bounded failure coverage. Middle: the same SECOM run shows that DSA episodes are substantially more failure-relevant than the raw boundary basis, making the operator workflow more selective. Right: the PHM 2018 early-warning panel is intentionally marked unavailable because no completed PHM lead-time artifact exists in the current saved outputs, so the figure does not claim early-warning value from SECOM alone.".into()
+fn unified_caption(secom: &SecomFigureMetrics, phm: Option<&PhmFigureMetrics>) -> String {
+    match phm {
+        Some(phm) => format!(
+            "Unified DSFB value figure. Left: on SECOM, the policy-governed DSFB layer reduces investigation-worthy alert burden from {} numeric-only DSA points to {} Review/Escalate points and compresses raw boundary episodes from {} to {} while preserving bounded failure coverage at {}/{}. Middle: the same SECOM run raises episode precision to {:.1}% versus a raw boundary precision proxy of {:.2}% ({:.1}x), improving operator selectivity without claiming SECOM early-warning superiority. Right: on PHM 2018, DSFB is compared only against the {} baseline after the healthy calibration prefix; the per-run lead-time picture remains mixed, but the mean baseline-minus-DSFB detection gap is {}. The figure therefore separates SECOM structural-compression value from bounded PHM early-warning evidence rather than forcing one dataset to support both claims.",
+            format_count(secom.baseline_investigation_points),
+            format_count(secom.optimized_review_escalate_points),
+            format_count(secom.baseline_episode_count),
+            format_count(secom.optimized_episode_count),
+            secom.recall,
+            secom.failure_runs,
+            secom.episode_precision * 100.0,
+            secom.raw_boundary_precision * 100.0,
+            secom.precision_gain_factor,
+            phm.threshold_baseline,
+            format_signed_compact_value(phm.mean_lead_delta),
+        ),
+        None => format!(
+            "Unified DSFB value figure. Left: on SECOM, the policy-governed DSFB layer reduces investigation-worthy alert burden from {} numeric-only DSA points to {} Review/Escalate points and compresses raw boundary episodes from {} to {} while preserving bounded failure coverage at {}/{}. Middle: the same SECOM run raises episode precision to {:.1}% versus a raw boundary precision proxy of {:.2}% ({:.1}x), improving operator selectivity without claiming SECOM early-warning superiority. Right: the PHM 2018 panel is intentionally marked unavailable because no completed PHM lead-time artifact exists in the supplied outputs, so the figure does not claim early-warning value from SECOM alone.",
+            format_count(secom.baseline_investigation_points),
+            format_count(secom.optimized_review_escalate_points),
+            format_count(secom.baseline_episode_count),
+            format_count(secom.optimized_episode_count),
+            secom.recall,
+            secom.failure_runs,
+            secom.episode_precision * 100.0,
+            secom.raw_boundary_precision * 100.0,
+            secom.precision_gain_factor,
+        ),
     }
 }
 
@@ -761,9 +1012,15 @@ fn build_markdown_exec_summary(
 ) -> String {
     let phm_line = match phm {
         Some(phm) => format!(
-            "- PHM 2018 lead-time result: mean threshold-minus-DSFB delta {:.2}, DSFB earlier on {:.1}% of comparable runs\n",
-            phm.mean_lead_delta,
-            phm.percent_runs_dsfb_earlier * 100.0
+            "- PHM 2018 lead-time result vs `{}`: mean baseline-minus-DSFB detection gap `{}`, comparable-run split `{}/{}/{}` (earlier/equal/later), saved all-run split `{:.1}%/{:.1}%/{:.1}%`\n",
+            phm.threshold_baseline,
+            format_signed_compact_value(phm.mean_lead_delta),
+            phm.comparable_earlier_runs,
+            phm.comparable_equal_runs,
+            phm.comparable_later_runs,
+            phm.percent_runs_dsfb_earlier * 100.0,
+            phm.percent_runs_equal * 100.0,
+            phm.percent_runs_later * 100.0,
         ),
         None => "- PHM 2018 lead-time result: unavailable in current saved artifacts; the unified figure marks Panel C as intentionally incomplete\n".into(),
     };
@@ -785,9 +1042,15 @@ fn build_markdown_exec_summary(
 fn build_tex_exec_summary(secom: &SecomFigureMetrics, phm: Option<&PhmFigureMetrics>) -> String {
     let phm_line = match phm {
         Some(phm) => format!(
-            "\\item PHM 2018 lead-time result: mean threshold-minus-DSFB delta {:.2}, with DSFB earlier on {:.1}\\% of comparable runs.",
-            phm.mean_lead_delta,
-            phm.percent_runs_dsfb_earlier * 100.0
+            "\\item PHM 2018 lead-time result vs \\texttt{{{}}}: mean baseline-minus-DSFB detection gap {}, comparable-run split {}/{}/{} (earlier/equal/later), saved all-run split {:.1}\\%/{:.1}\\%/{:.1}\\%.",
+            latex_escape(&phm.threshold_baseline),
+            latex_escape(&format_signed_compact_value(phm.mean_lead_delta)),
+            phm.comparable_earlier_runs,
+            phm.comparable_equal_runs,
+            phm.comparable_later_runs,
+            phm.percent_runs_dsfb_earlier * 100.0,
+            phm.percent_runs_equal * 100.0,
+            phm.percent_runs_later * 100.0
         ),
         None => "\\item PHM 2018 lead-time result: unavailable in the current saved artifacts, so Panel C is intentionally incomplete.".into(),
     };
@@ -814,9 +1077,13 @@ fn build_markdown_section(
 ) -> String {
     let phm_text = match phm {
         Some(phm) => format!(
-            "- PHM 2018 is used only for lead time. Panel C compares DSFB with threshold on the completed PHM benchmark: mean threshold-minus-DSFB delta `{:.2}`, median `{:.2}`, DSFB earlier on `{:.1}%`, equal on `{:.1}%`, later on `{:.1}%`.\n",
-            phm.mean_lead_delta,
-            phm.median_lead_delta,
+            "- PHM 2018 is used only for lead time. Panel C compares DSFB against the `{}` baseline after the healthy calibration prefix: mean baseline-minus-DSFB delta `{}`, median `{}`, comparable-run split `{}/{}/{}` (earlier/equal/later), saved all-run split `{:.1}%/{:.1}%/{:.1}%`.\n",
+            phm.threshold_baseline,
+            format_signed_compact_value(phm.mean_lead_delta),
+            format_signed_compact_value(phm.median_lead_delta),
+            phm.comparable_earlier_runs,
+            phm.comparable_equal_runs,
+            phm.comparable_later_runs,
             phm.percent_runs_dsfb_earlier * 100.0,
             phm.percent_runs_equal * 100.0,
             phm.percent_runs_later * 100.0,
@@ -824,11 +1091,13 @@ fn build_markdown_section(
         None => "- PHM 2018 lead-time artifacts are not yet completed in the current crate-local outputs, so Panel C is a placeholder and the figure does not claim early-warning value from SECOM alone.\n".into(),
     };
     format!(
-        "{SECTION_MARKDOWN_START}\n## Unified Structural Compression and Early-Warning Value\n\n![Unified DSFB value figure]({figure_rel_path})\n\n{caption}\n\n- SECOM burden compression uses the numeric-only DSA investigation baseline `{}` and the raw boundary episode baseline `{}`.\n- The SECOM operator result shown here is bounded: policy-governed Review/Escalate points fall to `{}`, DSA episodes fall to `{}`, and bounded failure coverage remains at `{}/{} `.\n- Episode precision is promoted as the primary SECOM operator metric: `{:.1}%` versus raw boundary precision proxy `{:.2}%`, a `{:.1}x` gain.\n{}- This section keeps the claims separated: SECOM supports burden compression and precision, while PHM 2018 is the lead-time benchmark when completed.\n\n{SECTION_MARKDOWN_END}\n\n",
-        secom.baseline_investigation_points,
-        secom.baseline_episode_count,
-        secom.optimized_review_escalate_points,
-        secom.optimized_episode_count,
+        "{SECTION_MARKDOWN_START}\n## Unified Structural Compression and Early-Warning Value\n\n![Unified DSFB value figure]({figure_rel_path})\n\n{caption}\n\n- SECOM burden compression uses the numeric-only DSA investigation baseline `{}` and the raw boundary episode baseline `{}`.\n- The SECOM operator result shown here is bounded: policy-governed Review/Escalate points fall from `{}` to `{}`, DSA episodes fall from `{}` to `{}`, and bounded failure coverage remains at `{}/{} `.\n- Episode precision is promoted as the primary SECOM operator metric: `{:.1}%` versus raw boundary precision proxy `{:.2}%`, a `{:.1}x` gain.\n{}- This section keeps the claims separated: SECOM supports burden compression and precision, while PHM 2018 provides bounded early-warning evidence only.\n\n{SECTION_MARKDOWN_END}\n\n",
+        "numeric_only_dsa",
+        "raw_boundary",
+        format_count(secom.baseline_investigation_points),
+        format_count(secom.optimized_review_escalate_points),
+        format_count(secom.baseline_episode_count),
+        format_count(secom.optimized_episode_count),
         secom.recall,
         secom.failure_runs,
         secom.episode_precision * 100.0,
@@ -845,9 +1114,13 @@ fn build_tex_section(
 ) -> String {
     let phm_text = match phm {
         Some(phm) => format!(
-            "PHM 2018 is used only for lead time. Panel C compares DSFB with threshold on the completed PHM benchmark: mean threshold-minus-DSFB delta {:.2}, median {:.2}, DSFB earlier on {:.1}\\%, equal on {:.1}\\%, and later on {:.1}\\%.",
-            phm.mean_lead_delta,
-            phm.median_lead_delta,
+            "PHM 2018 is used only for lead time. Panel C compares DSFB against the \\texttt{{{}}} baseline after the healthy calibration prefix: mean baseline-minus-DSFB delta {}, median {}, comparable-run split {}/{}/{} (earlier/equal/later), saved all-run split {:.1}\\%/{:.1}\\%/{:.1}\\%.",
+            latex_escape(&phm.threshold_baseline),
+            latex_escape(&format_signed_compact_value(phm.mean_lead_delta)),
+            latex_escape(&format_signed_compact_value(phm.median_lead_delta)),
+            phm.comparable_earlier_runs,
+            phm.comparable_equal_runs,
+            phm.comparable_later_runs,
             phm.percent_runs_dsfb_earlier * 100.0,
             phm.percent_runs_equal * 100.0,
             phm.percent_runs_later * 100.0,
@@ -855,13 +1128,13 @@ fn build_tex_section(
         None => "PHM 2018 lead-time artifacts are not yet completed in the current crate-local outputs, so Panel C is a placeholder and this figure does not claim early-warning value from SECOM alone.".into(),
     };
     format!(
-        "{SECTION_TEX_START}\n\\section*{{Unified Structural Compression and Early-Warning Value}}\n\\begin{{figure}}[htbp]\n\\centering\n\\includegraphics[width=0.98\\linewidth]{{figures/dsfb_unified_value_figure.png}}\n\\caption{{{}}}\n\\end{{figure}}\n{}\n\nThe SECOM burden-compression panel uses the numeric-only DSA investigation baseline {} and the raw boundary episode baseline {}. The bounded SECOM result shown here reduces policy-governed Review/Escalate points to {}, reduces DSA episodes to {}, and preserves bounded failure coverage at {}/{}. Episode precision is promoted as the primary SECOM operator metric: {:.1}\\% versus raw boundary precision proxy {:.2}\\%, a {:.1}x gain.\n\n{SECTION_TEX_END}\n\n",
+        "{SECTION_TEX_START}\n\\section*{{Unified Structural Compression and Early-Warning Value}}\n\\begin{{figure}}[htbp]\n\\centering\n\\includegraphics[width=0.98\\linewidth]{{figures/dsfb_unified_value_figure.png}}\n\\caption{{{}}}\n\\end{{figure}}\n{}\n\nThe SECOM burden-compression panel uses the numeric-only DSA investigation baseline \\texttt{{numeric\\_only\\_dsa}} and the raw boundary episode baseline \\texttt{{raw\\_boundary}}. The bounded SECOM result shown here reduces policy-governed Review/Escalate points from {} to {}, reduces DSA episodes from {} to {}, and preserves bounded failure coverage at {}/{}. Episode precision is promoted as the primary SECOM operator metric: {:.1}\\% versus raw boundary precision proxy {:.2}\\%, a {:.1}x gain.\n\n{SECTION_TEX_END}\n\n",
         latex_escape(caption),
-        latex_escape(&phm_text),
-        secom.baseline_investigation_points,
-        secom.baseline_episode_count,
-        secom.optimized_review_escalate_points,
-        secom.optimized_episode_count,
+        phm_text,
+        format_count(secom.baseline_investigation_points),
+        format_count(secom.optimized_review_escalate_points),
+        format_count(secom.baseline_episode_count),
+        format_count(secom.optimized_episode_count),
         secom.recall,
         secom.failure_runs,
         secom.episode_precision * 100.0,
@@ -1002,6 +1275,45 @@ fn plot_error<E: std::fmt::Display>(err: E) -> DsfbSemiconductorError {
     DsfbSemiconductorError::ExternalCommand(err.to_string())
 }
 
+fn format_count(value: usize) -> String {
+    let digits = value.to_string();
+    let mut out = String::new();
+    for (index, ch) in digits.chars().rev().enumerate() {
+        if index != 0 && index % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out.chars().rev().collect()
+}
+
+fn format_count_f64(value: f64) -> String {
+    format_count(value.round() as usize)
+}
+
+fn format_compact_value(value: f64) -> String {
+    let abs = value.abs();
+    if abs >= 1_000_000.0 {
+        format!("{:.2}M", value / 1_000_000.0)
+    } else if abs >= 10_000.0 {
+        format!("{:.1}k", value / 1_000.0)
+    } else if abs >= 1_000.0 {
+        format!("{:.2}k", value / 1_000.0)
+    } else {
+        format!("{value:.0}")
+    }
+}
+
+fn format_signed_compact_value(value: f64) -> String {
+    if value > 0.0 {
+        format!("+{}", format_compact_value(value))
+    } else if value < 0.0 {
+        format!("-{}", format_compact_value(value.abs()))
+    } else {
+        "0".into()
+    }
+}
+
 fn latex_escape(input: &str) -> String {
     input
         .replace('\\', "\\textbackslash{}")
@@ -1062,6 +1374,7 @@ mod tests {
         fs::write(
             run_dir.join("phm2018_early_warning_stats.json"),
             serde_json::json!({
+                "threshold_baseline": "run_energy_scalar_threshold",
                 "total_runs": 4,
                 "comparable_runs": 4,
                 "mean_lead_delta": 5.5,
@@ -1078,6 +1391,43 @@ mod tests {
             "run_id,dsfb_detection_time,threshold_detection_time,lead_time_delta\nr1,10,16,6\nr2,11,16,5\nr3,12,16,4\nr4,16,16,0\n",
         )
         .unwrap();
+    }
+
+    #[test]
+    fn secom_figure_metrics_load_from_saved_artifacts() {
+        let temp = tempfile::tempdir().unwrap();
+        let secom = temp.path().join("secom");
+        write_secom_fixture(&secom);
+
+        let metrics = load_secom_metrics(&secom).unwrap();
+        assert_eq!(metrics.baseline_investigation_points, 10554);
+        assert_eq!(metrics.optimized_review_escalate_points, 3854);
+        assert_eq!(metrics.baseline_episode_count, 28607);
+        assert_eq!(metrics.optimized_episode_count, 71);
+        assert_eq!(metrics.dsfb_episode_count, 71);
+        assert_eq!(metrics.dsfb_pre_failure_episode_count, 57);
+        assert!((metrics.episode_precision - 0.8028169014084507).abs() < 1.0e-12);
+        assert!((metrics.raw_boundary_precision - 0.003635473835075331).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn phm_figure_metrics_load_from_saved_artifacts() {
+        let temp = tempfile::tempdir().unwrap();
+        let phm = temp.path().join("phm");
+        write_phm_fixture(&phm);
+
+        let metrics = load_phm_metrics(&phm).unwrap().unwrap();
+        assert_eq!(metrics.threshold_baseline, "run_energy_scalar_threshold");
+        assert_eq!(metrics.comparable_runs, 4);
+        assert_eq!(metrics.total_runs, 4);
+        assert_eq!(metrics.comparable_earlier_runs, 3);
+        assert_eq!(metrics.comparable_equal_runs, 1);
+        assert_eq!(metrics.comparable_later_runs, 0);
+        assert_eq!(metrics.comparable_rows.len(), 4);
+        assert_eq!(metrics.comparable_rows[0].run_id, "r4");
+        assert_eq!(metrics.comparable_rows[0].lead_time_delta, 0);
+        assert_eq!(metrics.comparable_rows[3].run_id, "r1");
+        assert_eq!(metrics.comparable_rows[3].lead_time_delta, 6);
     }
 
     #[test]
@@ -1104,6 +1454,22 @@ mod tests {
     }
 
     #[test]
+    fn unified_figure_companion_csv_contains_secom_and_phm_rows() {
+        let temp = tempfile::tempdir().unwrap();
+        let secom = temp.path().join("secom");
+        let phm = temp.path().join("phm");
+        write_secom_fixture(&secom);
+        write_phm_fixture(&phm);
+
+        let artifacts = render_unified_value_figure(&secom, Some(&phm), None).unwrap();
+        let csv = fs::read_to_string(&artifacts.csv_path).unwrap();
+        assert!(csv.contains("A,investigation_points,summary,numeric_only_dsa"));
+        assert!(csv.contains("B,episode_precision,summary,raw_boundary_precision_proxy"));
+        assert!(csv.contains("C,lead_time_delta_by_run,r1,run_energy_scalar_threshold"));
+        assert!(csv.contains("C,comparable_run_split,summary,run_energy_scalar_threshold"));
+    }
+
+    #[test]
     fn unified_figure_gracefully_degrades_without_phm_artifacts() {
         let temp = tempfile::tempdir().unwrap();
         let secom = temp.path().join("secom");
@@ -1118,5 +1484,36 @@ mod tests {
         let report = fs::read_to_string(secom.join("engineering_report.md")).unwrap();
         assert!(report.contains("## Unified Structural Compression and Early-Warning Value"));
         assert!(report.contains("Panel C is a placeholder"));
+    }
+
+    #[test]
+    fn unified_figure_updates_paper_and_copies_asset() {
+        let temp = tempfile::tempdir().unwrap();
+        let secom = temp.path().join("secom");
+        let phm = temp.path().join("phm");
+        let paper_dir = temp.path().join("paper");
+        write_secom_fixture(&secom);
+        write_phm_fixture(&phm);
+        fs::create_dir_all(paper_dir.join("figures")).unwrap();
+        fs::write(
+            paper_dir.join("semiconductor.tex"),
+            "\\documentclass{article}\n\\begin{document}\n\\subsection{Closing Statement}\nBody.\n\\end{document}\n",
+        )
+        .unwrap();
+
+        let artifacts = render_unified_value_figure(
+            &secom,
+            Some(&phm),
+            Some(&paper_dir.join("semiconductor.tex")),
+        )
+        .unwrap();
+
+        assert!(artifacts.paper_updated);
+        assert!(paper_dir
+            .join("figures/dsfb_unified_value_figure.png")
+            .exists());
+        let tex = fs::read_to_string(paper_dir.join("semiconductor.tex")).unwrap();
+        assert!(tex.contains("\\label{fig:dsfb-unified-value}"));
+        assert!(tex.contains("figures/dsfb_unified_value_figure.png"));
     }
 }
