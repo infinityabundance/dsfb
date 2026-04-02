@@ -430,8 +430,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_delta_target_assessment.json").is_ok());
     assert!(zip.by_name("dsa_operator_baselines.json").is_ok());
     assert!(zip.by_name("dsa_operator_delta_targets.json").is_ok());
-    assert!(zip.by_name("dsa_operator_delta_attainment_matrix.csv").is_ok());
-    assert!(zip.by_name("dsa_policy_operator_burden_contributions.csv").is_ok());
+    assert!(zip
+        .by_name("dsa_operator_delta_attainment_matrix.csv")
+        .is_ok());
+    assert!(zip
+        .by_name("dsa_policy_operator_burden_contributions.csv")
+        .is_ok());
     assert!(zip.by_name("recurrent_boundary_stats.json").is_ok());
     assert!(zip.by_name("recurrent_boundary_tradeoff_curve.csv").is_ok());
     assert!(zip.by_name("recurrent_boundary_tradeoff_plot.png").is_ok());
@@ -548,8 +552,12 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(manifest.get("dsa_delta_target_assessment_path").is_some());
     assert!(manifest.get("dsa_operator_baselines_path").is_some());
     assert!(manifest.get("dsa_operator_delta_targets_path").is_some());
-    assert!(manifest.get("dsa_operator_delta_attainment_matrix_path").is_some());
-    assert!(manifest.get("dsa_policy_operator_burden_contributions_path").is_some());
+    assert!(manifest
+        .get("dsa_operator_delta_attainment_matrix_path")
+        .is_some());
+    assert!(manifest
+        .get("dsa_policy_operator_burden_contributions_path")
+        .is_some());
     assert!(manifest.get("recurrent_boundary_stats_path").is_some());
     assert!(manifest
         .get("recurrent_boundary_tradeoff_curve_path")
@@ -558,15 +566,15 @@ fn benchmark_run_writes_expected_core_artifacts() {
         .get("recurrent_boundary_tradeoff_plot_path")
         .is_some());
     assert!(manifest.get("dsfb_metric_regrounding_path").is_some());
-    assert!(manifest
-        .get("target_d_regression_analysis_path")
-        .is_some());
+    assert!(manifest.get("target_d_regression_analysis_path").is_some());
     assert!(manifest.get("missed_failure_root_cause_path").is_some());
     assert!(manifest.get("lead_time_comparison_path").is_some());
     assert!(manifest.get("lead_time_explanation_path").is_some());
     assert!(manifest.get("episode_precision_metrics_path").is_some());
     assert!(manifest.get("paper_abstract_artifact_path").is_some());
-    assert!(manifest.get("dsa_recall_recovery_efficiency_path").is_some());
+    assert!(manifest
+        .get("dsa_recall_recovery_efficiency_path")
+        .is_some());
     assert!(manifest.get("failures_index_path").is_some());
     assert!(manifest.get("failure_case_paths").is_some());
     assert!(manifest.get("feature_motif_grounding_path").is_some());
@@ -574,11 +582,19 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(manifest.get("policy_decisions_path").is_some());
     assert!(manifest.get("policy_burden_summary_path").is_some());
     assert!(manifest.get("dsfb_vs_ewma_case_paths").is_some());
-    assert!(manifest.get("dsa_feature_ranking_burden_aware_path").is_some());
-    assert!(manifest.get("dsa_feature_ranking_dsfb_aware_path").is_some());
-    assert!(manifest.get("dsa_cohort_results_burden_aware_path").is_some());
+    assert!(manifest
+        .get("dsa_feature_ranking_burden_aware_path")
+        .is_some());
+    assert!(manifest
+        .get("dsa_feature_ranking_dsfb_aware_path")
+        .is_some());
+    assert!(manifest
+        .get("dsa_cohort_results_burden_aware_path")
+        .is_some());
     assert!(manifest.get("dsa_cohort_results_dsfb_aware_path").is_some());
-    assert!(manifest.get("dsa_cohort_summary_burden_aware_path").is_some());
+    assert!(manifest
+        .get("dsa_cohort_summary_burden_aware_path")
+        .is_some());
     assert!(manifest.get("dsa_cohort_summary_dsfb_aware_path").is_some());
     assert!(manifest.get("dsfb_signs_path").is_some());
     assert!(manifest.get("dsfb_feature_signs_path").is_some());
@@ -592,7 +608,9 @@ fn benchmark_run_writes_expected_core_artifacts() {
         .is_some());
     assert!(manifest.get("dsfb_heuristics_bank_expanded_path").is_some());
     assert!(manifest.get("dsfb_semantic_matches_path").is_some());
-    assert!(manifest.get("dsfb_semantic_ranked_candidates_path").is_some());
+    assert!(manifest
+        .get("dsfb_semantic_ranked_candidates_path")
+        .is_some());
     assert!(manifest.get("dsfb_feature_policy_decisions_path").is_some());
     assert!(manifest.get("dsfb_group_definitions_path").is_some());
     assert!(manifest.get("dsfb_group_signs_path").is_some());
@@ -648,9 +666,13 @@ fn phm2018_benchmark_writes_expected_artifacts() {
     let phm_output_temp = tempfile::tempdir().unwrap();
 
     let secom_data_root = write_fixture_dataset(secom_data_temp.path());
-    let secom_artifacts =
-        run_secom_benchmark(&secom_data_root, Some(secom_output_temp.path()), test_config(), false)
-            .unwrap();
+    let secom_artifacts = run_secom_benchmark(
+        &secom_data_root,
+        Some(secom_output_temp.path()),
+        test_config(),
+        false,
+    )
+    .unwrap();
     let phm_data_root = write_phm2018_fixture_dataset(phm_data_temp.path());
     let phm_artifacts = run_phm2018_benchmark(
         &phm_data_root,

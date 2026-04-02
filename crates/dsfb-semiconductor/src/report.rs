@@ -11,8 +11,8 @@ use crate::heuristics::HeuristicEntry;
 use crate::metrics::{BenchmarkMetrics, MotifMetric};
 use crate::plots::FigureManifest;
 use crate::precursor::DsaEvaluation;
-use serde::Serialize;
 use crate::secom_addendum::SecomAddendumArtifacts;
+use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -391,8 +391,12 @@ fn markdown_report(
     out.push_str(&target_d_regression_markdown_section(secom_addendum));
     out.push_str(&lead_time_explanation_markdown_section(secom_addendum));
     out.push_str(&which_delta_matters_markdown_section(optimization));
-    out.push_str(&predeclared_operator_delta_targets_markdown_section(optimization));
-    out.push_str(&operator_optimization_frontier_markdown_section(optimization));
+    out.push_str(&predeclared_operator_delta_targets_markdown_section(
+        optimization,
+    ));
+    out.push_str(&operator_optimization_frontier_markdown_section(
+        optimization,
+    ));
     out.push_str(&recall_recovery_efficiency_markdown_section(optimization));
     out.push_str(&operator_target_attainment_markdown_section(optimization));
     out.push_str(&predeclared_delta_target_markdown_section(
@@ -923,10 +927,11 @@ fn target_d_regression_markdown_section(secom_addendum: &SecomAddendumArtifacts)
     let mut out = String::new();
     out.push_str("## Target D Regression Analysis\n\n");
     out.push_str(&format!(
-        "- Contributing features: {}\n- Contributing motifs: {}\n- Contributing heuristics: {}\n- Action taken: {}\n\n",
+        "- Contributing features: {}\n- Contributing motifs: {}\n- Contributing heuristics: {}\n- Contributing policy rules: {}\n- Action taken: {}\n\n",
         join_or_none(&analysis.contributing_features),
         join_or_none(&analysis.contributing_motifs),
         join_or_none(&analysis.contributing_heuristics),
+        join_or_none(&analysis.contributing_policy_rules),
         analysis.action_taken,
     ));
     out.push_str(&format!(
@@ -946,17 +951,20 @@ fn lead_time_explanation_markdown_section(secom_addendum: &SecomAddendumArtifact
     let mut out = String::new();
     out.push_str("## Lead-Time Deficit Explanation\n\n");
     out.push_str(&format!(
-        "- Mean DSA lead: {}\n- Mean threshold lead: {}\n- Mean earliest semantic-match lead: {}\n- Failures where threshold leads DSA: {}\n- Failures where DSA leads threshold: {}\n- Failures where semantic matches precede threshold: {}\n\n{}\n\n{}\n\n",
+        "- Mean DSA lead: {}\n- Mean threshold lead: {}\n- Mean earliest semantic-match lead: {}\n- Failures where threshold leads DSA: {}\n- Failures where DSA leads threshold: {}\n- Failures where semantic matches precede threshold: {}\n- Failures where motif emergence precedes threshold: {}\n\n{}\n\n{}\n\n",
         format_option_f64(explanation.mean_dsfb_lead_runs),
         format_option_f64(explanation.mean_threshold_lead_runs),
         format_option_f64(explanation.mean_semantic_match_lead_runs),
         explanation.threshold_earlier_failure_count,
         explanation.dsfb_earlier_failure_count,
         explanation.semantic_match_precedes_threshold_count,
+        explanation.motif_emergence_precedes_threshold_count,
         explanation.explanation,
         explanation.validation_note,
     ));
-    out.push_str("- Saved artifacts: `lead_time_comparison.csv` and `lead_time_explanation.json`\n\n");
+    out.push_str(
+        "- Saved artifacts: `lead_time_comparison.csv` and `lead_time_explanation.json`\n\n",
+    );
     out
 }
 
@@ -1135,10 +1143,11 @@ fn target_d_regression_latex_section(secom_addendum: &SecomAddendumArtifacts) ->
     let mut out = String::new();
     out.push_str("\\section*{Target D regression analysis}\n");
     out.push_str(&latex_escape(&format!(
-        "Contributing features: {}. Contributing motifs: {}. Contributing heuristics: {}. Action taken: {}. {} {}",
+        "Contributing features: {}. Contributing motifs: {}. Contributing heuristics: {}. Contributing policy rules: {}. Action taken: {}. {} {}",
         join_or_none(&analysis.contributing_features),
         join_or_none(&analysis.contributing_motifs),
         join_or_none(&analysis.contributing_heuristics),
+        join_or_none(&analysis.contributing_policy_rules),
         analysis.action_taken,
         analysis.why_regression_occurred,
         analysis.tradeoff_justification,
@@ -1152,13 +1161,14 @@ fn lead_time_explanation_latex_section(secom_addendum: &SecomAddendumArtifacts) 
     let mut out = String::new();
     out.push_str("\\section*{Lead-time deficit explanation}\n");
     out.push_str(&latex_escape(&format!(
-        "Mean DSA lead: {}. Mean threshold lead: {}. Mean earliest semantic-match lead: {}. Failures where threshold leads DSA: {}. Failures where DSA leads threshold: {}. Failures where semantic matches precede threshold: {}. {} {}",
+        "Mean DSA lead: {}. Mean threshold lead: {}. Mean earliest semantic-match lead: {}. Failures where threshold leads DSA: {}. Failures where DSA leads threshold: {}. Failures where semantic matches precede threshold: {}. Failures where motif emergence precedes threshold: {}. {} {}",
         format_option_f64(explanation.mean_dsfb_lead_runs),
         format_option_f64(explanation.mean_threshold_lead_runs),
         format_option_f64(explanation.mean_semantic_match_lead_runs),
         explanation.threshold_earlier_failure_count,
         explanation.dsfb_earlier_failure_count,
         explanation.semantic_match_precedes_threshold_count,
+        explanation.motif_emergence_precedes_threshold_count,
         explanation.explanation,
         explanation.validation_note,
     )));
@@ -1234,7 +1244,9 @@ fn true_dsfb_structural_semiotics_markdown_section() -> String {
     let mut out = String::new();
     out.push_str("## True DSFB Structural Semiotics Instantiation\n\n");
     out.push_str("This pass preserves the DSFB Structural Semiotics Engine as an explicit layered architecture: `Residual -> Sign -> Syntax -> Grammar -> Semantics -> Policy`.\n\n");
-    out.push_str("- Residual: deterministic discrepancy from the healthy-window nominal reference.\n");
+    out.push_str(
+        "- Residual: deterministic discrepancy from the healthy-window nominal reference.\n",
+    );
     out.push_str("- Sign: per-run tuples `sigma_i(t) = (r_i(t), d_i(t), s_i(t))`, saved in `dsfb_signs.csv` and `dsfb_feature_signs.csv`.\n");
     out.push_str("- Syntax: deterministic temporal motifs over sign trajectories, saved in `dsfb_motifs.csv`, `dsfb_motif_labels_per_time.csv`, and `dsfb_feature_motif_timeline.csv`.\n");
     out.push_str("- Grammar: admissibility-envelope states, saved in `dsfb_grammar_states.csv`, `dsfb_feature_grammar_states.csv`, and `dsfb_envelope_interaction_summary.csv`.\n");
@@ -1300,9 +1312,7 @@ fn failure_priority_markdown_section(failure_driven: &FailureDrivenArtifacts) ->
     out
 }
 
-fn feature_motif_grounding_markdown_section(
-    failure_driven: &FailureDrivenArtifacts,
-) -> String {
+fn feature_motif_grounding_markdown_section(failure_driven: &FailureDrivenArtifacts) -> String {
     let mut out = String::new();
     out.push_str("## Feature -> Motif Grounding\n\n");
     for row in failure_driven.feature_motif_grounding.iter().take(10) {
@@ -1319,9 +1329,7 @@ fn feature_motif_grounding_markdown_section(
     out
 }
 
-fn feature_role_validation_markdown_section(
-    failure_driven: &FailureDrivenArtifacts,
-) -> String {
+fn feature_role_validation_markdown_section(failure_driven: &FailureDrivenArtifacts) -> String {
     let mut out = String::new();
     out.push_str("## Feature Role Validation\n\n");
     for row in &failure_driven.feature_role_validation {
@@ -1424,7 +1432,9 @@ fn dsfb_vs_ewma_markdown_section(failure_driven: &FailureDrivenArtifacts) -> Str
     let mut out = String::new();
     out.push_str("## DSFB vs EWMA Separation\n\n");
     if failure_driven.dsfb_vs_ewma_cases.is_empty() {
-        out.push_str("- No recovered failure produced a DSFB-vs-EWMA case artifact in this run.\n\n");
+        out.push_str(
+            "- No recovered failure produced a DSFB-vs-EWMA case artifact in this run.\n\n",
+        );
         return out;
     }
     for case in &failure_driven.dsfb_vs_ewma_cases {
@@ -1478,9 +1488,7 @@ fn predeclared_operator_delta_targets_markdown_section(
     out
 }
 
-fn operator_optimization_frontier_markdown_section(
-    optimization: &OptimizationExecution,
-) -> String {
+fn operator_optimization_frontier_markdown_section(optimization: &OptimizationExecution) -> String {
     let mut out = String::new();
     out.push_str("## Optimization Frontier\n\n");
     out.push_str(&format!(
@@ -1495,7 +1503,11 @@ fn operator_optimization_frontier_markdown_section(
             .filter(|row| row.accepted)
             .count(),
     ));
-    if let Some(selected) = &optimization.optimized_execution.summary.selected_configuration {
+    if let Some(selected) = &optimization
+        .optimized_execution
+        .summary
+        .selected_configuration
+    {
         out.push_str(&format!(
             "- Best optimized configuration: {} [{}], W={}, K={}, tau={:.2}, m={}, recall={}/{}, Review/Escalate points={}, episodes={}, precursor quality={}, nuisance={:.4}\n\n",
             selected.cohort_name,
@@ -1517,9 +1529,7 @@ fn operator_optimization_frontier_markdown_section(
     out
 }
 
-fn recall_recovery_efficiency_markdown_section(
-    optimization: &OptimizationExecution,
-) -> String {
+fn recall_recovery_efficiency_markdown_section(optimization: &OptimizationExecution) -> String {
     let mut out = String::new();
     out.push_str("## Recall Recovery Efficiency\n\n");
     if optimization.recall_recovery_efficiency.is_empty() {
@@ -1547,9 +1557,7 @@ fn recall_recovery_efficiency_markdown_section(
     out
 }
 
-fn operator_target_attainment_markdown_section(
-    optimization: &OptimizationExecution,
-) -> String {
+fn operator_target_attainment_markdown_section(optimization: &OptimizationExecution) -> String {
     let targets = &optimization.operator_delta_targets;
     let mut out = String::new();
     out.push_str("## Target Attainment Assessment\n\n");
@@ -1916,9 +1924,7 @@ fn failure_priority_latex_section(failure_driven: &FailureDrivenArtifacts) -> St
     out
 }
 
-fn feature_motif_grounding_latex_section(
-    failure_driven: &FailureDrivenArtifacts,
-) -> String {
+fn feature_motif_grounding_latex_section(failure_driven: &FailureDrivenArtifacts) -> String {
     let mut out = String::new();
     out.push_str("\\section*{Feature to Motif Grounding}\n");
     if let Some(row) = failure_driven.feature_motif_grounding.first() {
@@ -2846,6 +2852,8 @@ fn format_option_bool(value: Option<bool>) -> String {
 
 fn latex_escape(input: &str) -> String {
     input
+        .replace('≥', "$\\geq$")
+        .replace('≤', "$\\leq$")
         .replace('\\', "\\textbackslash{}")
         .replace('&', "\\&")
         .replace('%', "\\%")

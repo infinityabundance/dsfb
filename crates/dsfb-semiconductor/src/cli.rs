@@ -6,6 +6,7 @@ use crate::error::Result;
 use crate::output_paths::{default_data_root, default_output_root};
 use crate::phm2018_loader::run_phm2018_benchmark;
 use crate::pipeline::run_secom_benchmark;
+use crate::unified_value_figure::{render_unified_value_figure, resolve_latest_completed_run};
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -25,6 +26,7 @@ enum Command {
     CalibrateSecomDsa(CalibrateSecomDsaArgs),
     ProbePhm2018(ProbePhm2018Args),
     RunPhm2018(RunPhm2018Args),
+    RenderUnifiedValueFigure(RenderUnifiedValueFigureArgs),
 }
 
 #[derive(Debug, Args)]
@@ -217,6 +219,18 @@ struct RunPhm2018Args {
     secom_run_dir: Option<PathBuf>,
 }
 
+#[derive(Debug, Args)]
+struct RenderUnifiedValueFigureArgs {
+    #[arg(long)]
+    secom_run_dir: Option<PathBuf>,
+    #[arg(long)]
+    phm_run_dir: Option<PathBuf>,
+    #[arg(long)]
+    output_root: Option<PathBuf>,
+    #[arg(long)]
+    paper_tex: Option<PathBuf>,
+}
+
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
@@ -404,11 +418,8 @@ pub fn run() -> Result<()> {
         Command::RunPhm2018(args) => {
             let data_root = args.data_root.unwrap_or_else(default_data_root);
             let output_root = args.output_root.unwrap_or_else(default_output_root);
-            let artifacts = run_phm2018_benchmark(
-                &data_root,
-                &output_root,
-                args.secom_run_dir.as_deref(),
-            )?;
+            let artifacts =
+                run_phm2018_benchmark(&data_root, &output_root, args.secom_run_dir.as_deref())?;
             println!("Run directory: {}", artifacts.run_dir.display());
             println!(
                 "PHM lead-time metrics: {}",
@@ -423,6 +434,65 @@ pub fn run() -> Result<()> {
                 artifacts.claim_alignment_report_path.display()
             );
             println!("ZIP bundle: {}", artifacts.zip_path.display());
+            Ok(())
+        }
+        Command::RenderUnifiedValueFigure(args) => {
+            let output_root = args.output_root.unwrap_or_else(default_output_root);
+            let secom_root_candidates = [
+                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("output-dsfb-semiconductor"),
+                output_root.clone(),
+            ];
+            let secom_run_dir = match args.secom_run_dir {
+                Some(path) => path,
+                None => secom_root_candidates
+                    .iter()
+                    .find_map(|root| {
+                        resolve_latest_completed_run(
+                            root,
+                            "_secom",
+                            "dsa_operator_delta_targets.json",
+                        )
+                    })
+                    .ok_or_else(|| {
+                        crate::error::DsfbSemiconductorError::DatasetFormat(
+                            "could not resolve a completed SECOM run directory".into(),
+                        )
+                    })?,
+            };
+            let phm_run_dir = match args.phm_run_dir {
+                Some(path) => Some(path),
+                None => {
+                    let phm_root_candidates = [
+                        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("output-dsfb-semiconductor"),
+                        output_root.clone(),
+                    ];
+                    phm_root_candidates.iter().find_map(|root| {
+                        resolve_latest_completed_run(
+                            root,
+                            "_phm2018",
+                            "phm2018_early_warning_stats.json",
+                        )
+                    })
+                }
+            };
+            let paper_tex = args.paper_tex.or_else(|| {
+                Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("paper/semiconductor.tex"))
+            });
+            let artifacts = render_unified_value_figure(
+                &secom_run_dir,
+                phm_run_dir.as_deref(),
+                paper_tex.as_deref(),
+            )?;
+            println!("SECOM run: {}", artifacts.secom_run_dir.display());
+            if let Some(phm) = &artifacts.phm_run_dir {
+                println!("PHM run: {}", phm.display());
+            } else {
+                println!("PHM run: unavailable; Panel C rendered as placeholder");
+            }
+            println!("Unified figure: {}", artifacts.figure_path.display());
+            println!("Companion CSV: {}", artifacts.csv_path.display());
+            println!("PHM panel available: {}", artifacts.phm_panel_available);
+            println!("Paper updated: {}", artifacts.paper_updated);
             Ok(())
         }
     }

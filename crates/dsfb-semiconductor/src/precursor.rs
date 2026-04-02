@@ -2091,16 +2091,14 @@ fn apply_recall_rescue(
         .get(run_index)
         .copied()
         .unwrap_or(false);
-    let silent_semantic_support_rescue =
-        override_entry.rescue_priority >= 3
-            && matches!(resolved_alert_class[run_index], HeuristicAlertClass::Silent)
-            && semantic_support_active;
+    let silent_semantic_support_rescue = override_entry.rescue_priority >= 3
+        && matches!(resolved_alert_class[run_index], HeuristicAlertClass::Silent)
+        && semantic_support_active;
     let resolved_alert_is_rescuable = matches!(
         resolved_alert_class[run_index],
         HeuristicAlertClass::Watch | HeuristicAlertClass::Review
     );
-    if !resolved_alert_is_rescuable && !silent_semantic_support_rescue
-    {
+    if !resolved_alert_is_rescuable && !silent_semantic_support_rescue {
         return None;
     }
     let minimum_window = override_entry
@@ -2129,11 +2127,12 @@ fn apply_recall_rescue(
     let consistency_satisfied = consistent[run_index]
         || (override_entry.rescue_priority >= 2
             && matches!(resolved_alert_class[run_index], HeuristicAlertClass::Watch));
-    let support_hits_satisfied = if override_entry.rescue_priority >= 3 && !resolved_alert_is_rescuable {
-        recent_semantic_support_hits >= minimum_hits
-    } else {
-        recent_watch_hits >= minimum_hits
-    };
+    let support_hits_satisfied =
+        if override_entry.rescue_priority >= 3 && !resolved_alert_is_rescuable {
+            recent_semantic_support_hits >= minimum_hits
+        } else {
+            recent_watch_hits >= minimum_hits
+        };
     let structural_density_satisfied = if silent_semantic_support_rescue {
         semantic_support_active
             || (boundary_density_w[run_index] >= rescue_config.minimum_boundary_density
