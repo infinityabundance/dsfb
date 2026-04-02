@@ -361,6 +361,8 @@ fn markdown_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_markdown_section(metrics, dsa));
+    out.push_str(&true_dsfb_structural_semiotics_markdown_section());
+    out.push_str(&grouped_coordinated_semiotics_markdown_section());
     out.push_str(&which_delta_matters_markdown_section(optimization));
     out.push_str(&predeclared_operator_delta_targets_markdown_section(optimization));
     out.push_str(&operator_optimization_frontier_markdown_section(optimization));
@@ -639,6 +641,8 @@ fn latex_report(
         cohort_summary,
     ));
     out.push_str(&semantics_of_silence_latex_section(metrics, dsa));
+    out.push_str(&true_dsfb_structural_semiotics_latex_section());
+    out.push_str(&grouped_coordinated_semiotics_latex_section());
     out.push_str(&operator_sections_latex(optimization));
     out.push_str(&optimization_sections_latex(
         optimization,
@@ -948,6 +952,31 @@ fn which_delta_matters_markdown_section(optimization: &OptimizationExecution) ->
             .baseline_review_escalate_points_per_pass_run,
         targets.optimized_review_points_per_pass_run,
     ));
+    out
+}
+
+fn true_dsfb_structural_semiotics_markdown_section() -> String {
+    let mut out = String::new();
+    out.push_str("## True DSFB Structural Semiotics Instantiation\n\n");
+    out.push_str("This pass preserves the DSFB Structural Semiotics Engine as an explicit layered architecture: `Residual -> Sign -> Syntax -> Grammar -> Semantics -> Policy`.\n\n");
+    out.push_str("- Residual: deterministic discrepancy from the healthy-window nominal reference.\n");
+    out.push_str("- Sign: per-run tuples `sigma_i(t) = (r_i(t), d_i(t), s_i(t))`, saved in `dsfb_signs.csv` and `dsfb_feature_signs.csv`.\n");
+    out.push_str("- Syntax: deterministic temporal motifs over sign trajectories, saved in `dsfb_motifs.csv`, `dsfb_motif_labels_per_time.csv`, and `dsfb_feature_motif_timeline.csv`.\n");
+    out.push_str("- Grammar: admissibility-envelope states, saved in `dsfb_grammar_states.csv`, `dsfb_feature_grammar_states.csv`, and `dsfb_envelope_interaction_summary.csv`.\n");
+    out.push_str("- Semantics: grammar-qualified heuristic retrieval only after syntax and grammar, saved in `dsfb_semantic_matches.csv` and `dsfb_semantic_ranked_candidates.csv`.\n");
+    out.push_str("- Policy: operator burden control and bounded recall rescue using semantic outputs plus grammar-qualified persistence, with decisions logged in `dsfb_feature_policy_decisions.csv`.\n\n");
+    out.push_str("No semantic label in this crate is assigned directly from raw feature magnitude, EWMA, or threshold behavior alone.\n\n");
+    out
+}
+
+fn grouped_coordinated_semiotics_markdown_section() -> String {
+    let mut out = String::new();
+    out.push_str("## Grouped / Coordinated Semiotics\n\n");
+    out.push_str("The SECOM scaffold also includes an explicit grouped-semiotics pass, logged in `dsfb_group_definitions.json`, `dsfb_group_signs.csv`, `dsfb_group_grammar_states.csv`, and `dsfb_group_semantic_matches.csv`.\n\n");
+    out.push_str("- Group A: `S059`, `S133`\n");
+    out.push_str("- Group B: `S123`, `S540`, `S128`\n");
+    out.push_str("- Group C: `S104`\n\n");
+    out.push_str("These groups are used only as coordinated structural support. They do not assert unique physical causality or replace the feature-level grammar and semantic layers.\n\n");
     out
 }
 
@@ -1375,6 +1404,26 @@ fn optimization_sections_latex(
     out
 }
 
+fn true_dsfb_structural_semiotics_latex_section() -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{True DSFB Structural Semiotics Instantiation}\n");
+    out.push_str(&latex_escape(
+        "This pass preserves the DSFB Structural Semiotics Engine as an explicit layered architecture: Residual -> Sign -> Syntax -> Grammar -> Semantics -> Policy. Residuals are saved first, sign tuples sigma_i(t) = (r_i(t), d_i(t), s_i(t)) are exported in dsfb_signs.csv and dsfb_feature_signs.csv, syntax motifs are exported in dsfb_motifs.csv and dsfb_feature_motif_timeline.csv, grammar states are exported in dsfb_grammar_states.csv and dsfb_feature_grammar_states.csv, semantics are exported in dsfb_semantic_matches.csv and dsfb_semantic_ranked_candidates.csv, and policy decisions are saved in dsfb_feature_policy_decisions.csv. No semantic label is assigned directly from raw feature magnitude or scalar baselines alone.",
+    ));
+    out.push_str("\n\n");
+    out
+}
+
+fn grouped_coordinated_semiotics_latex_section() -> String {
+    let mut out = String::new();
+    out.push_str("\\section*{Grouped / Coordinated Semiotics}\n");
+    out.push_str(&latex_escape(
+        "This pass also includes grouped semiotics for Group A {S059, S133}, Group B {S123, S540, S128}, and Group C {S104}. Group definitions, grouped signs, grouped grammar states, and grouped semantic matches are exported in dsfb_group_definitions.json, dsfb_group_signs.csv, dsfb_group_grammar_states.csv, and dsfb_group_semantic_matches.csv. These grouped structures provide corroborative structural support only and do not assert unique causal meaning.",
+    ));
+    out.push_str("\n\n");
+    out
+}
+
 fn operator_sections_latex(optimization: &OptimizationExecution) -> String {
     let targets = &optimization.operator_delta_targets;
     let mut out = String::new();
@@ -1485,12 +1534,16 @@ fn artifact_inventory(
             role: "Recall-aware deterministic feature ranking emphasizing pre-failure coverage.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_feature_ranking_dsfb_aware.csv".into(),
+            role: "DSFB-semantics-aware ranking emphasizing grammar-qualified semantic persistence, grouped support, and bounded burden penalties.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_feature_ranking_burden_aware.csv".into(),
             role: "Operator-burden-aware feature ranking that penalizes pass-run Review/Escalate burden.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_feature_ranking_comparison.csv".into(),
-            role: "Side-by-side comparison of compression-biased, recall-aware, and burden-aware ranking positions.".into(),
+            role: "Side-by-side comparison of compression-biased, recall-aware, burden-aware, and DSFB-semantics-aware ranking positions.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_seed_feature_check.json".into(),
@@ -1569,6 +1622,10 @@ fn artifact_inventory(
             role: "Recall-aware cohort results under the optimized deterministic rescue policy.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsa_cohort_results_dsfb_aware.csv".into(),
+            role: "DSFB-semantics-aware cohort results under the optimized deterministic rescue policy.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsa_cohort_results_burden_aware.csv".into(),
             role: "Burden-aware cohort results under the optimized deterministic rescue policy.".into(),
         },
@@ -1579,6 +1636,10 @@ fn artifact_inventory(
         ArtifactInventoryEntry {
             path: "dsa_cohort_summary_recall_aware.json".into(),
             role: "Recall-aware cohort summary for direct comparison with the compression-biased ranking.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsa_cohort_summary_dsfb_aware.json".into(),
+            role: "DSFB-semantics-aware cohort summary for direct comparison with the other ranking strategies.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsa_cohort_summary_burden_aware.json".into(),
@@ -1609,6 +1670,10 @@ fn artifact_inventory(
             role: "Residual, drift, and slew sign tuples exported per feature and run.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsfb_feature_signs.csv".into(),
+            role: "Scaffolded top-feature sign tuples r(t), d(t), s(t) for the mapped SECOM features.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsfb_motifs.csv".into(),
             role: "Deterministic temporal motif summary built from residual, drift, and slew trajectories.".into(),
         },
@@ -1617,8 +1682,24 @@ fn artifact_inventory(
             role: "Per-feature, per-run temporal motif labels from the syntax layer.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsfb_feature_motif_timeline.csv".into(),
+            role: "Scaffolded per-feature motif timeline for the mapped SECOM features.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsfb_grammar_states.csv".into(),
             role: "DSFB admissibility grammar states per feature and run.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_feature_grammar_states.csv".into(),
+            role: "Feature-scaffold grammar labels for the mapped SECOM features.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_envelope_interaction_summary.csv".into(),
+            role: "Per-feature envelope interaction summary over boundary grazing, drift pressure, violations, and recovery.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_heuristics_bank_expanded.json".into(),
+            role: "Expanded DSFB heuristics bank with grammar constraints, feature scope, ambiguity notes, and burden classes.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsfb_semantic_matches.csv".into(),
@@ -1627,6 +1708,26 @@ fn artifact_inventory(
         ArtifactInventoryEntry {
             path: "dsfb_semantic_ranked_candidates.csv".into(),
             role: "Ranked semantic candidates after grammar and motif filtering.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_feature_policy_decisions.csv".into(),
+            role: "Feature-scaffold policy decisions produced only after grammar-qualified semantic retrieval.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_group_definitions.json".into(),
+            role: "Data-grounded grouped-semiotics scaffold definitions with member roles, preferred motifs, and empirical support counts.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_group_signs.csv".into(),
+            role: "Grouped residual sign tuples for the scaffolded coordinated-semiotics pass.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_group_grammar_states.csv".into(),
+            role: "Grouped admissibility states for scaffolded coordinated semiotics.".into(),
+        },
+        ArtifactInventoryEntry {
+            path: "dsfb_group_semantic_matches.csv".into(),
+            role: "Grouped semantic matches for coordinated DSFB scaffold motifs.".into(),
         },
         ArtifactInventoryEntry {
             path: "dsfb_structural_delta_metrics.json".into(),

@@ -3,7 +3,11 @@ use serde::{Deserialize, Serialize};
 
 pub const PRE_FAILURE_SLOW_DRIFT: &str = "pre_failure_slow_drift";
 pub const TRANSIENT_EXCURSION: &str = "transient_excursion";
+pub const TRANSITION_EXCURSION: &str = "transition_excursion";
 pub const RECURRENT_BOUNDARY_APPROACH: &str = "recurrent_boundary_approach";
+pub const PERSISTENT_INSTABILITY_CLUSTER: &str = "persistent_instability_cluster";
+pub const TRANSITION_CLUSTER_SUPPORT: &str = "transition_cluster_support";
+pub const WATCH_ONLY_BOUNDARY_GRAZING: &str = "watch_only_boundary_grazing";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum HeuristicAlertClass {
@@ -160,6 +164,124 @@ const POLICY_DEFINITIONS: &[HeuristicPolicyDefinition] = &[
     },
 ];
 
+const EXPANDED_POLICY_DEFINITIONS: &[HeuristicPolicyDefinition] = &[
+    HeuristicPolicyDefinition {
+        motif_name: TRANSITION_EXCURSION,
+        signature_definition:
+            "Grammar-qualified transition motif with elevated slew, non-admissible envelope interaction, and abrupt state change.",
+        grammar_constraints:
+            "grammar_state in {TransientViolation, PersistentViolation} and grammar_reason=AbruptSlewViolation",
+        regime_conditions:
+            "Curvature dominates the sign tuple while the trajectory departs admissibility.",
+        applicability_rules:
+            "Apply only after grammar filtering confirms abrupt transition pressure at the envelope.",
+        interpretation:
+            "Candidate transition-instability event with elevated structural salience but ambiguous physical cause.",
+        alert_class_default: HeuristicAlertClass::Review,
+        requires_persistence: false,
+        requires_corroboration: false,
+        minimum_window: 3,
+        minimum_hits: 1,
+        recommended_action:
+            "Inspect adjacent channels and grouped corroborators before promoting beyond Review.",
+        escalation_policy:
+            "Escalate only when the transition persists, repeats, or aligns with grouped corroboration.",
+        non_unique_warning:
+            "A transition excursion is not a unique fault signature and may reflect multiple process changes.",
+        known_limitations:
+            "SECOM does not expose mechanism labels, so this motif remains interpretive rather than causal.",
+        contributes_to_dsa: false,
+        suppresses_alert: false,
+        promotes_alert: true,
+    },
+    HeuristicPolicyDefinition {
+        motif_name: PERSISTENT_INSTABILITY_CLUSTER,
+        signature_definition:
+            "Repeated or sustained outward grammar pressure that is not reducible to isolated spikes.",
+        grammar_constraints:
+            "grammar_state in {SustainedOutwardDrift, PersistentViolation}",
+        regime_conditions:
+            "Non-admissible pressure recurs across neighboring runs with bounded fragmentation.",
+        applicability_rules:
+            "Apply only after grammar filtering confirms sustained pressure rather than single-point excursions.",
+        interpretation:
+            "Candidate persistent instability regime with potential operator significance if corroborated.",
+        alert_class_default: HeuristicAlertClass::Review,
+        requires_persistence: true,
+        requires_corroboration: true,
+        minimum_window: 5,
+        minimum_hits: 2,
+        recommended_action:
+            "Review grouped corroborators, inspect adjacent precursor channels, and preserve ambiguity explicitly.",
+        escalation_policy:
+            "Escalate only when grouped corroboration or persistent violation confirms sustained structure.",
+        non_unique_warning:
+            "Persistent instability remains semantically ambiguous and does not identify a unique root cause.",
+        known_limitations:
+            "This motif is sensitive to persistence choices and grouped corroboration windows.",
+        contributes_to_dsa: false,
+        suppresses_alert: false,
+        promotes_alert: true,
+    },
+    HeuristicPolicyDefinition {
+        motif_name: TRANSITION_CLUSTER_SUPPORT,
+        signature_definition:
+            "Corroborating burst or boundary-pressure feature that aligns temporally with a primary precursor feature.",
+        grammar_constraints:
+            "grammar_state in {BoundaryGrazing, SustainedOutwardDrift, TransientViolation}",
+        regime_conditions:
+            "Supportive structure is temporally aligned with a grouped primary feature rather than isolated.",
+        applicability_rules:
+            "Apply only after grammar filtering and grouped temporal alignment confirm corroboration.",
+        interpretation:
+            "Supportive corroborator motif that increases confidence in another feature but is not decisive alone.",
+        alert_class_default: HeuristicAlertClass::Watch,
+        requires_persistence: false,
+        requires_corroboration: true,
+        minimum_window: 3,
+        minimum_hits: 1,
+        recommended_action:
+            "Use as corroboration support; do not escalate on this motif alone.",
+        escalation_policy:
+            "Never escalate solely from support motifs without a primary precursor feature.",
+        non_unique_warning:
+            "Corroboration support indicates temporal alignment, not causal identity.",
+        known_limitations:
+            "Grouped alignment is deterministic but remains a limited surrogate for true mechanism coupling.",
+        contributes_to_dsa: false,
+        suppresses_alert: true,
+        promotes_alert: true,
+    },
+    HeuristicPolicyDefinition {
+        motif_name: WATCH_ONLY_BOUNDARY_GRAZING,
+        signature_definition:
+            "Boundary proximity without sufficient persistence or corroboration for Review promotion.",
+        grammar_constraints: "grammar_state=BoundaryGrazing",
+        regime_conditions:
+            "Admissibility pressure is visible but remains weak, isolated, or sentinel-like.",
+        applicability_rules:
+            "Apply only after grammar filtering confirms envelope grazing without sustained outward drift.",
+        interpretation:
+            "Low-amplitude sentinel signal appropriate for Watch-only handling.",
+        alert_class_default: HeuristicAlertClass::Watch,
+        requires_persistence: false,
+        requires_corroboration: true,
+        minimum_window: 3,
+        minimum_hits: 1,
+        recommended_action:
+            "Retain as Watch-only and wait for corroboration before manual investigation.",
+        escalation_policy:
+            "Do not escalate directly from boundary grazing without stronger semantic support.",
+        non_unique_warning:
+            "Boundary grazing alone is structurally ambiguous and often nuisance-dominated.",
+        known_limitations:
+            "This motif deliberately favors burden suppression over coverage recovery when isolated.",
+        contributes_to_dsa: false,
+        suppresses_alert: true,
+        promotes_alert: false,
+    },
+];
+
 #[derive(Debug, Clone, Serialize)]
 pub struct HeuristicEntry {
     pub motif_name: String,
@@ -209,7 +331,16 @@ pub fn heuristic_policy_definition(motif_name: &str) -> Option<HeuristicPolicyDe
     POLICY_DEFINITIONS
         .iter()
         .copied()
+        .chain(EXPANDED_POLICY_DEFINITIONS.iter().copied())
         .find(|definition| definition.motif_name == motif_name)
+}
+
+pub fn expanded_semantic_policy_definitions() -> Vec<HeuristicPolicyDefinition> {
+    POLICY_DEFINITIONS
+        .iter()
+        .copied()
+        .chain(EXPANDED_POLICY_DEFINITIONS.iter().copied())
+        .collect()
 }
 
 pub fn build_heuristics_bank(

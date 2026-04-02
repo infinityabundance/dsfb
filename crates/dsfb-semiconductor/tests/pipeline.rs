@@ -179,6 +179,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_grid_summary.json",
         "dsa_feature_ranking.csv",
         "dsa_feature_ranking_recall_aware.csv",
+        "dsa_feature_ranking_dsfb_aware.csv",
         "dsa_feature_ranking_burden_aware.csv",
         "dsa_feature_ranking_comparison.csv",
         "dsa_feature_cohorts.json",
@@ -186,8 +187,10 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_feature_policy_summary.csv",
         "dsa_cohort_results.csv",
         "dsa_cohort_results_recall_aware.csv",
+        "dsa_cohort_results_dsfb_aware.csv",
         "dsa_cohort_summary.json",
         "dsa_cohort_summary_recall_aware.json",
+        "dsa_cohort_summary_dsfb_aware.json",
         "dsa_cohort_precursor_quality.csv",
         "dsa_motif_policy_contributions.csv",
         "dsa_policy_contribution_analysis.csv",
@@ -211,11 +214,21 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsa_parameter_manifest.json",
         "dsa_seed_feature_check.json",
         "dsfb_signs.csv",
+        "dsfb_feature_signs.csv",
         "dsfb_motifs.csv",
         "dsfb_motif_labels_per_time.csv",
+        "dsfb_feature_motif_timeline.csv",
         "dsfb_grammar_states.csv",
+        "dsfb_feature_grammar_states.csv",
+        "dsfb_envelope_interaction_summary.csv",
+        "dsfb_heuristics_bank_expanded.json",
         "dsfb_semantic_matches.csv",
         "dsfb_semantic_ranked_candidates.csv",
+        "dsfb_feature_policy_decisions.csv",
+        "dsfb_group_definitions.json",
+        "dsfb_group_signs.csv",
+        "dsfb_group_grammar_states.csv",
+        "dsfb_group_semantic_matches.csv",
         "dsfb_structural_delta_metrics.json",
         "drsc_dsa_combined.csv",
         "drsc_top_feature.csv",
@@ -324,6 +337,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_grid_summary.json").is_ok());
     assert!(zip.by_name("dsa_feature_ranking.csv").is_ok());
     assert!(zip.by_name("dsa_feature_ranking_recall_aware.csv").is_ok());
+    assert!(zip.by_name("dsa_feature_ranking_dsfb_aware.csv").is_ok());
     assert!(zip.by_name("dsa_feature_ranking_burden_aware.csv").is_ok());
     assert!(zip.by_name("dsa_feature_ranking_comparison.csv").is_ok());
     assert!(zip.by_name("dsa_feature_cohorts.json").is_ok());
@@ -331,8 +345,10 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_feature_policy_summary.csv").is_ok());
     assert!(zip.by_name("dsa_cohort_results.csv").is_ok());
     assert!(zip.by_name("dsa_cohort_results_recall_aware.csv").is_ok());
+    assert!(zip.by_name("dsa_cohort_results_dsfb_aware.csv").is_ok());
     assert!(zip.by_name("dsa_cohort_summary.json").is_ok());
     assert!(zip.by_name("dsa_cohort_summary_recall_aware.json").is_ok());
+    assert!(zip.by_name("dsa_cohort_summary_dsfb_aware.json").is_ok());
     assert!(zip.by_name("dsa_cohort_precursor_quality.csv").is_ok());
     assert!(zip.by_name("dsa_motif_policy_contributions.csv").is_ok());
     assert!(zip.by_name("dsa_policy_contribution_analysis.csv").is_ok());
@@ -354,11 +370,21 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(zip.by_name("dsa_cohort_results_burden_aware.csv").is_ok());
     assert!(zip.by_name("dsa_cohort_summary_burden_aware.json").is_ok());
     assert!(zip.by_name("dsfb_signs.csv").is_ok());
+    assert!(zip.by_name("dsfb_feature_signs.csv").is_ok());
     assert!(zip.by_name("dsfb_motifs.csv").is_ok());
     assert!(zip.by_name("dsfb_motif_labels_per_time.csv").is_ok());
+    assert!(zip.by_name("dsfb_feature_motif_timeline.csv").is_ok());
     assert!(zip.by_name("dsfb_grammar_states.csv").is_ok());
+    assert!(zip.by_name("dsfb_feature_grammar_states.csv").is_ok());
+    assert!(zip.by_name("dsfb_envelope_interaction_summary.csv").is_ok());
+    assert!(zip.by_name("dsfb_heuristics_bank_expanded.json").is_ok());
     assert!(zip.by_name("dsfb_semantic_matches.csv").is_ok());
     assert!(zip.by_name("dsfb_semantic_ranked_candidates.csv").is_ok());
+    assert!(zip.by_name("dsfb_feature_policy_decisions.csv").is_ok());
+    assert!(zip.by_name("dsfb_group_definitions.json").is_ok());
+    assert!(zip.by_name("dsfb_group_signs.csv").is_ok());
+    assert!(zip.by_name("dsfb_group_grammar_states.csv").is_ok());
+    assert!(zip.by_name("dsfb_group_semantic_matches.csv").is_ok());
     assert!(zip.by_name("dsfb_structural_delta_metrics.json").is_ok());
     assert!(zip.by_name("dsa_run_signals.csv").is_ok());
     assert!(zip.by_name("dsa_top_feature.csv").is_ok());
@@ -384,6 +410,8 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("## Missed-Failure Diagnostics"));
     assert!(report.contains("## Two-Stage Optimization Frontier"));
     assert!(report.contains("## Which Delta Matters on SECOM"));
+    assert!(report.contains("## True DSFB Structural Semiotics Instantiation"));
+    assert!(report.contains("## Grouped / Coordinated Semiotics"));
     assert!(report.contains("## Predeclared Operator Delta Targets"));
     assert!(report.contains("## Optimization Frontier"));
     assert!(report.contains("## Recall Recovery Efficiency"));
@@ -401,7 +429,16 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(report.contains("dsa_operator_delta_attainment_matrix.csv"));
     assert!(report.contains("dsa_policy_operator_burden_contributions.csv"));
     assert!(report.contains("dsfb_signs.csv"));
+    assert!(report.contains("dsfb_feature_signs.csv"));
+    assert!(report.contains("dsfb_feature_motif_timeline.csv"));
+    assert!(report.contains("dsfb_feature_grammar_states.csv"));
+    assert!(report.contains("dsfb_heuristics_bank_expanded.json"));
+    assert!(report.contains("dsfb_feature_policy_decisions.csv"));
+    assert!(report.contains("dsfb_group_signs.csv"));
+    assert!(report.contains("dsfb_group_grammar_states.csv"));
+    assert!(report.contains("dsfb_group_semantic_matches.csv"));
     assert!(report.contains("dsfb_semantic_matches.csv"));
+    assert!(report.contains("dsfb_group_definitions.json"));
     assert!(report.contains("engineering_report.pdf"));
     assert!(report.contains("run_bundle.zip"));
     assert!(manifest.get("drsc_dsa_combined_trace_path").is_some());
@@ -421,14 +458,29 @@ fn benchmark_run_writes_expected_core_artifacts() {
     assert!(manifest.get("dsa_policy_operator_burden_contributions_path").is_some());
     assert!(manifest.get("dsa_recall_recovery_efficiency_path").is_some());
     assert!(manifest.get("dsa_feature_ranking_burden_aware_path").is_some());
+    assert!(manifest.get("dsa_feature_ranking_dsfb_aware_path").is_some());
     assert!(manifest.get("dsa_cohort_results_burden_aware_path").is_some());
+    assert!(manifest.get("dsa_cohort_results_dsfb_aware_path").is_some());
     assert!(manifest.get("dsa_cohort_summary_burden_aware_path").is_some());
+    assert!(manifest.get("dsa_cohort_summary_dsfb_aware_path").is_some());
     assert!(manifest.get("dsfb_signs_path").is_some());
+    assert!(manifest.get("dsfb_feature_signs_path").is_some());
     assert!(manifest.get("dsfb_motifs_path").is_some());
     assert!(manifest.get("dsfb_motif_labels_per_time_path").is_some());
+    assert!(manifest.get("dsfb_feature_motif_timeline_path").is_some());
     assert!(manifest.get("dsfb_grammar_states_path").is_some());
+    assert!(manifest.get("dsfb_feature_grammar_states_path").is_some());
+    assert!(manifest
+        .get("dsfb_envelope_interaction_summary_path")
+        .is_some());
+    assert!(manifest.get("dsfb_heuristics_bank_expanded_path").is_some());
     assert!(manifest.get("dsfb_semantic_matches_path").is_some());
     assert!(manifest.get("dsfb_semantic_ranked_candidates_path").is_some());
+    assert!(manifest.get("dsfb_feature_policy_decisions_path").is_some());
+    assert!(manifest.get("dsfb_group_definitions_path").is_some());
+    assert!(manifest.get("dsfb_group_signs_path").is_some());
+    assert!(manifest.get("dsfb_group_grammar_states_path").is_some());
+    assert!(manifest.get("dsfb_group_semantic_matches_path").is_some());
     assert!(manifest.get("dsfb_structural_delta_metrics_path").is_some());
 }
 
