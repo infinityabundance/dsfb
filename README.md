@@ -135,6 +135,31 @@ Don’t believe a sensor all at once.
 
 ---
 
+## IP Notice
+
+This repository is licensed under the Apache License 2.0.
+
+All source code, reference implementations, and associated artifacts in this
+repository are provided under that license.
+
+The DSFB framework presented in this repository and in associated papers
+represents an ongoing research and engineering effort by Invariant Forge LLC.
+
+While this repository provides open reference implementations, production
+deployment, system-level integration, and domain-specific adaptation of these
+methods may require additional engineering, validation, and licensing
+arrangements.
+
+The publication of this work establishes prior art for the DSFB framework.
+
+For commercial licensing or collaboration inquiries:
+licensing@invariantforge.net
+
+---
+
+
+
+
 ## Algebraic Deterministic Dynamics (ADD) Sweep
 
 The `dsfb-add` crate runs deterministic parameter sweeps for the Algebraic Deterministic Dynamics (ADD) stack:
