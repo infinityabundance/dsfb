@@ -31,6 +31,9 @@ use crate::precursor::{
 use crate::preprocessing::prepare_secom;
 use crate::report::{write_reports, ReportArtifacts};
 use crate::residual::compute_residuals;
+use crate::secom_addendum::{
+    build_secom_addendum_artifacts, draw_recurrent_boundary_tradeoff_plot,
+};
 use crate::semiotics::{build_scaffold_semiotics, build_semantic_layer, classify_motifs};
 use crate::signs::compute_signs;
 use serde::Serialize;
@@ -114,6 +117,16 @@ struct ArtifactManifest {
     dsfb_group_grammar_states_path: String,
     dsfb_group_semantic_matches_path: String,
     dsfb_structural_delta_metrics_path: String,
+    recurrent_boundary_stats_path: String,
+    recurrent_boundary_tradeoff_curve_path: String,
+    recurrent_boundary_tradeoff_plot_path: String,
+    dsfb_metric_regrounding_path: String,
+    target_d_regression_analysis_path: String,
+    missed_failure_root_cause_path: String,
+    lead_time_comparison_path: String,
+    lead_time_explanation_path: String,
+    episode_precision_metrics_path: String,
+    paper_abstract_artifact_path: String,
     dsa_operator_baselines_path: String,
     dsa_operator_delta_targets_path: String,
     dsa_operator_delta_attainment_matrix_path: String,
@@ -314,6 +327,20 @@ pub fn run_secom_benchmark(
         &dsa,
         &optimization.missed_failure_diagnostics,
         &optimization.policy_operator_burden_contributions,
+        config.pre_failure_lookback_runs,
+    );
+    let secom_addendum = build_secom_addendum_artifacts(
+        &prepared,
+        &residuals,
+        &baselines,
+        &grammar,
+        &motifs,
+        &semantic_layer,
+        &metrics,
+        &optimization,
+        &failure_driven,
+        &optimization.baseline_execution.selected_evaluation,
+        &dsa,
         config.pre_failure_lookback_runs,
     );
 
@@ -661,6 +688,46 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsfb_structural_delta_metrics.json"),
         &semantic_layer.structural_delta_metrics,
     )?;
+    write_json_pretty(
+        &run_dir.join("recurrent_boundary_stats.json"),
+        &secom_addendum.recurrent_boundary_stats,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("recurrent_boundary_tradeoff_curve.csv"),
+        &secom_addendum.recurrent_boundary_tradeoff_curve,
+    )?;
+    draw_recurrent_boundary_tradeoff_plot(
+        &run_dir.join("recurrent_boundary_tradeoff_plot.png"),
+        &secom_addendum.recurrent_boundary_tradeoff_curve,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_metric_regrounding.csv"),
+        &secom_addendum.metric_regrounding,
+    )?;
+    write_json_pretty(
+        &run_dir.join("target_d_regression_analysis.json"),
+        &secom_addendum.target_d_regression_analysis,
+    )?;
+    write_json_pretty(
+        &run_dir.join("missed_failure_root_cause.json"),
+        &secom_addendum.missed_failure_root_cause,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("lead_time_comparison.csv"),
+        &secom_addendum.lead_time_comparison,
+    )?;
+    write_json_pretty(
+        &run_dir.join("lead_time_explanation.json"),
+        &secom_addendum.lead_time_explanation,
+    )?;
+    write_json_pretty(
+        &run_dir.join("episode_precision_metrics.json"),
+        &secom_addendum.episode_precision_metrics,
+    )?;
+    fs::write(
+        run_dir.join("paper_abstract_artifact.txt"),
+        &secom_addendum.paper_abstract_artifact,
+    )?;
     let figures = generate_figures(
         &run_dir, &prepared, &nominal, &residuals, &signs, &baselines, &grammar, &metrics, &dsa,
         &config,
@@ -676,6 +743,7 @@ pub fn run_secom_benchmark(
         &feature_cohorts,
         &cohort_summary,
         &rating_delta_forecast,
+        &secom_addendum,
         &figures,
         &heuristics,
         &phm_support_status(data_root),
@@ -1006,6 +1074,46 @@ pub fn run_secom_benchmark(
                 .to_string(),
             dsfb_structural_delta_metrics_path: run_dir
                 .join("dsfb_structural_delta_metrics.json")
+                .display()
+                .to_string(),
+            recurrent_boundary_stats_path: run_dir
+                .join("recurrent_boundary_stats.json")
+                .display()
+                .to_string(),
+            recurrent_boundary_tradeoff_curve_path: run_dir
+                .join("recurrent_boundary_tradeoff_curve.csv")
+                .display()
+                .to_string(),
+            recurrent_boundary_tradeoff_plot_path: run_dir
+                .join("recurrent_boundary_tradeoff_plot.png")
+                .display()
+                .to_string(),
+            dsfb_metric_regrounding_path: run_dir
+                .join("dsfb_metric_regrounding.csv")
+                .display()
+                .to_string(),
+            target_d_regression_analysis_path: run_dir
+                .join("target_d_regression_analysis.json")
+                .display()
+                .to_string(),
+            missed_failure_root_cause_path: run_dir
+                .join("missed_failure_root_cause.json")
+                .display()
+                .to_string(),
+            lead_time_comparison_path: run_dir
+                .join("lead_time_comparison.csv")
+                .display()
+                .to_string(),
+            lead_time_explanation_path: run_dir
+                .join("lead_time_explanation.json")
+                .display()
+                .to_string(),
+            episode_precision_metrics_path: run_dir
+                .join("episode_precision_metrics.json")
+                .display()
+                .to_string(),
+            paper_abstract_artifact_path: run_dir
+                .join("paper_abstract_artifact.txt")
                 .display()
                 .to_string(),
             secom_archive_layout_path: run_dir
