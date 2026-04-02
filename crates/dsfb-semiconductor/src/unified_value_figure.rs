@@ -1091,7 +1091,7 @@ fn build_markdown_section(
         None => "- PHM 2018 lead-time artifacts are not yet completed in the current crate-local outputs, so Panel C is a placeholder and the figure does not claim early-warning value from SECOM alone.\n".into(),
     };
     format!(
-        "{SECTION_MARKDOWN_START}\n## Unified Structural Compression and Early-Warning Value\n\n![Unified DSFB value figure]({figure_rel_path})\n\n{caption}\n\n- SECOM burden compression uses the numeric-only DSA investigation baseline `{}` and the raw boundary episode baseline `{}`.\n- The SECOM operator result shown here is bounded: policy-governed Review/Escalate points fall from `{}` to `{}`, DSA episodes fall from `{}` to `{}`, and bounded failure coverage remains at `{}/{} `.\n- Episode precision is promoted as the primary SECOM operator metric: `{:.1}%` versus raw boundary precision proxy `{:.2}%`, a `{:.1}x` gain.\n{}- This section keeps the claims separated: SECOM supports burden compression and precision, while PHM 2018 provides bounded early-warning evidence only.\n\n{SECTION_MARKDOWN_END}\n\n",
+        "{SECTION_MARKDOWN_START}\n## Unified Structural Compression and Degradation Value\n\n![Unified DSFB value figure]({figure_rel_path})\n\n{caption}\n\n- SECOM burden compression uses the numeric-only DSA investigation baseline `{}` and the raw boundary episode baseline `{}`.\n- The SECOM operator result shown here is bounded: policy-governed Review/Escalate points fall from `{}` to `{}`, DSA episodes fall from `{}` to `{}`, and bounded failure coverage remains at `{}/{} `.\n- Episode precision is promoted as the primary SECOM operator metric: `{:.1}%` versus raw boundary precision proxy `{:.2}%`, a `{:.1}x` gain.\n{}- This section keeps the claims separated: SECOM supports burden compression and precision, while PHM 2018 provides bounded degradation-oriented timing evidence only.\n\n{SECTION_MARKDOWN_END}\n\n",
         "numeric_only_dsa",
         "raw_boundary",
         format_count(secom.baseline_investigation_points),
@@ -1128,7 +1128,7 @@ fn build_tex_section(
         None => "PHM 2018 lead-time artifacts are not yet completed in the current crate-local outputs, so Panel C is a placeholder and this figure does not claim early-warning value from SECOM alone.".into(),
     };
     format!(
-        "{SECTION_TEX_START}\n\\section*{{Unified Structural Compression and Early-Warning Value}}\n\\begin{{figure}}[htbp]\n\\centering\n\\includegraphics[width=0.98\\linewidth]{{figures/dsfb_unified_value_figure.png}}\n\\caption{{{}}}\n\\end{{figure}}\n{}\n\nThe SECOM burden-compression panel uses the numeric-only DSA investigation baseline \\texttt{{numeric\\_only\\_dsa}} and the raw boundary episode baseline \\texttt{{raw\\_boundary}}. The bounded SECOM result shown here reduces policy-governed Review/Escalate points from {} to {}, reduces DSA episodes from {} to {}, and preserves bounded failure coverage at {}/{}. Episode precision is promoted as the primary SECOM operator metric: {:.1}\\% versus raw boundary precision proxy {:.2}\\%, a {:.1}x gain.\n\n{SECTION_TEX_END}\n\n",
+        "{SECTION_TEX_START}\n\\section*{{Unified Structural Compression and Degradation Value}}\n\\begin{{figure}}[htbp]\n\\centering\n\\includegraphics[width=0.98\\linewidth]{{figures/dsfb_unified_value_figure.png}}\n\\caption{{{}}}\n\\end{{figure}}\n{}\n\nThe SECOM burden-compression panel uses the numeric-only DSA investigation baseline \\texttt{{numeric\\_only\\_dsa}} and the raw boundary episode baseline \\texttt{{raw\\_boundary}}. The bounded SECOM result shown here reduces policy-governed Review/Escalate points from {} to {}, reduces DSA episodes from {} to {}, and preserves bounded failure coverage at {}/{}. Episode precision is promoted as the primary SECOM operator metric: {:.1}\\% versus raw boundary precision proxy {:.2}\\%, a {:.1}x gain.\n\n{SECTION_TEX_END}\n\n",
         latex_escape(caption),
         phm_text,
         format_count(secom.baseline_investigation_points),
@@ -1482,7 +1482,7 @@ mod tests {
         let csv = fs::read_to_string(&artifacts.csv_path).unwrap();
         assert!(csv.contains("phm_panel_status"));
         let report = fs::read_to_string(secom.join("engineering_report.md")).unwrap();
-        assert!(report.contains("## Unified Structural Compression and Early-Warning Value"));
+        assert!(report.contains("## Unified Structural Compression and Degradation Value"));
         assert!(report.contains("Panel C is a placeholder"));
     }
 

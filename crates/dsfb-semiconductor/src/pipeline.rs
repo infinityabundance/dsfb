@@ -23,6 +23,7 @@ use crate::metrics::{
     LeadTimeSummary, PerFailureRunSignal,
 };
 use crate::nominal::build_nominal_model;
+use crate::non_intrusive::materialize_non_intrusive_artifacts;
 use crate::output_paths::{create_timestamped_run_dir, default_output_root};
 use crate::plots::{generate_figures, FigureManifest};
 use crate::precursor::{
@@ -133,6 +134,7 @@ struct ArtifactManifest {
     dsa_policy_operator_burden_contributions_path: String,
     dsa_recall_recovery_efficiency_path: String,
     dsfb_single_change_iteration_log_path: String,
+    optimization_log_path: String,
     failures_index_path: String,
     missed_failure_priority_path: String,
     failure_case_paths: Vec<String>,
@@ -158,6 +160,9 @@ struct ArtifactManifest {
     drsc_dsa_combined_figure_path: Option<String>,
     dsa_focus_trace_path: Option<String>,
     dsa_focus_figure_path: Option<String>,
+    non_intrusive_interface_spec_path: String,
+    non_intrusive_architecture_png_path: String,
+    non_intrusive_architecture_svg_path: String,
     report_markdown_path: String,
     report_tex_path: String,
     report_pdf_path: Option<String>,
@@ -256,7 +261,7 @@ pub fn run_secom_benchmark(
         &grammar,
         config.pre_failure_lookback_runs,
     );
-    let semantic_layer = build_semantic_layer(
+    let mut semantic_layer = build_semantic_layer(
         &prepared,
         &residuals,
         &signs,
@@ -309,6 +314,10 @@ pub fn run_secom_benchmark(
     let dsa_grid_summary = optimization.optimized_execution.grid_summary.clone();
     let cohort_summary = optimization.optimized_execution.summary.clone();
     metrics.dsa_summary = Some(dsa.summary.clone());
+    semantic_layer.structural_delta_metrics.episode_precision =
+        dsa.episode_summary.precursor_quality;
+    semantic_layer.structural_delta_metrics.compression_ratio =
+        dsa.episode_summary.compression_ratio;
     let rating_delta_forecast =
         compute_rating_delta_forecast(&dsa, &metrics, Some(&cohort_summary));
     let rating_delta_failure_analysis =
@@ -349,6 +358,7 @@ pub fn run_secom_benchmark(
         .unwrap_or_else(default_output_root);
     fs::create_dir_all(&output_root)?;
     let run_dir = create_timestamped_run_dir(&output_root, "secom")?;
+    let non_intrusive_artifacts = materialize_non_intrusive_artifacts(&run_dir)?;
 
     write_json_pretty(&run_dir.join("dataset_summary.json"), &prepared.summary)?;
     write_json_pretty(&run_dir.join("parameter_manifest.json"), &config)?;
@@ -514,6 +524,10 @@ pub fn run_secom_benchmark(
     )?;
     write_single_change_iteration_log_csv(
         &run_dir.join("dsfb_single_change_iteration_log.csv"),
+        &optimization.single_change_iteration_log,
+    )?;
+    write_json_pretty(
+        &run_dir.join("optimization_log.json"),
         &optimization.single_change_iteration_log,
     )?;
     write_json_pretty(
@@ -736,10 +750,13 @@ pub fn run_secom_benchmark(
         run_dir.join("paper_abstract_artifact.txt"),
         &secom_addendum.paper_abstract_artifact,
     )?;
-    let figures = generate_figures(
+    let mut figures = generate_figures(
         &run_dir, &prepared, &nominal, &residuals, &signs, &baselines, &grammar, &metrics, &dsa,
         &config,
     )?;
+    figures
+        .files
+        .push("dsfb_non_intrusive_architecture.png".into());
     let report = write_reports(
         &run_dir,
         &config,
@@ -878,6 +895,7 @@ pub fn run_secom_benchmark(
                 .join("dsfb_single_change_iteration_log.csv")
                 .display()
                 .to_string(),
+            optimization_log_path: run_dir.join("optimization_log.json").display().to_string(),
             failures_index_path: run_dir.join("failures_index.json").display().to_string(),
             missed_failure_priority_path: run_dir
                 .join("missed_failure_priority.csv")
@@ -1152,6 +1170,18 @@ pub fn run_secom_benchmark(
                     .display()
                     .to_string()
             }),
+            non_intrusive_interface_spec_path: non_intrusive_artifacts
+                .interface_spec_path
+                .display()
+                .to_string(),
+            non_intrusive_architecture_png_path: non_intrusive_artifacts
+                .architecture_png_path
+                .display()
+                .to_string(),
+            non_intrusive_architecture_svg_path: non_intrusive_artifacts
+                .architecture_svg_path
+                .display()
+                .to_string(),
             report_markdown_path: report.markdown_path.display().to_string(),
             report_tex_path: report.tex_path.display().to_string(),
             report_pdf_path: report
