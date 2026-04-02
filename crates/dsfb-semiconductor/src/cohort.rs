@@ -1517,9 +1517,11 @@ fn semantic_persistence_contribution_by_feature(
     let by_feature = top_candidate_by_feature_run.into_iter().fold(
         BTreeMap::<usize, Vec<(usize, String, f64)>>::new(),
         |mut acc, ((feature_index, run_index), (heuristic_name, structural_score, _rank))| {
-            acc.entry(feature_index)
-                .or_default()
-                .push((run_index, heuristic_name.to_string(), structural_score));
+            acc.entry(feature_index).or_default().push((
+                run_index,
+                heuristic_name.to_string(),
+                structural_score,
+            ));
             acc
         },
     );
@@ -2094,7 +2096,10 @@ pub fn run_recall_optimization(
             enabled: true,
             ..RecallRescueConfig::default()
         },
-        semantic_rescue_support: build_semantic_rescue_support(semantic_layer, dataset.labels.len()),
+        semantic_rescue_support: build_semantic_rescue_support(
+            semantic_layer,
+            dataset.labels.len(),
+        ),
     };
 
     let optimized_compression_execution = run_cohort_dsa_grid_with_policy(
@@ -2384,8 +2389,11 @@ fn feature_review_burden_maps(
         .enumerate()
         .filter_map(|(index, label)| (*label == 1).then_some(index))
         .collect::<Vec<_>>();
-    let failure_window_mask =
-        build_failure_window_mask(dataset.labels.len(), &failure_indices, pre_failure_lookback_runs);
+    let failure_window_mask = build_failure_window_mask(
+        dataset.labels.len(),
+        &failure_indices,
+        pre_failure_lookback_runs,
+    );
     let mut pass_review_burden = BTreeMap::new();
     let mut pre_failure_review_burden = BTreeMap::new();
     for trace in &evaluation.traces {
@@ -2456,7 +2464,12 @@ fn failure_local_support_candidates(
             .filter_map(|trace| {
                 let semantic_hits = semantic_support
                     .get(&trace.feature_index)
-                    .map(|flags| flags[start..failure_index].iter().filter(|flag| **flag).count())
+                    .map(|flags| {
+                        flags[start..failure_index]
+                            .iter()
+                            .filter(|flag| **flag)
+                            .count()
+                    })
                     .unwrap_or(0);
                 if semantic_hits == 0 {
                     return None;
@@ -2787,11 +2800,12 @@ fn build_feature_policy_overrides(
             pre_failure_lookback_runs,
             &candidate_overrides,
         )?;
-        let affected_failures = newly_recovered_failures(&current_evaluation, &candidate_evaluation);
+        let affected_failures =
+            newly_recovered_failures(&current_evaluation, &candidate_evaluation);
         let accepted = !affected_failures.is_empty();
         iteration_log.push(single_change_iteration_row(
             iteration,
-            "failure_recovery_override",
+            "rescue_rule",
             &candidate.feature_name,
             candidate.override_reason.clone(),
             &affected_failures,
@@ -2811,11 +2825,8 @@ fn build_feature_policy_overrides(
         .iter()
         .map(|override_entry| override_entry.feature_index)
         .collect::<BTreeSet<_>>();
-    let isolated_nuisance_overrides = build_isolated_nuisance_overrides(
-        dataset,
-        &current_evaluation,
-        &protected_features,
-    );
+    let isolated_nuisance_overrides =
+        build_isolated_nuisance_overrides(dataset, &current_evaluation, &protected_features);
 
     nuisance_overrides.extend(isolated_nuisance_overrides);
     nuisance_overrides.sort_by(|left, right| left.feature_name.cmp(&right.feature_name));
@@ -2841,7 +2852,8 @@ fn build_feature_policy_overrides(
         )?;
         let accepted = candidate_evaluation.summary.failure_run_recall
             >= current_evaluation.summary.failure_run_recall
-            && (candidate_evaluation.summary.alert_point_count < current_evaluation.summary.alert_point_count
+            && (candidate_evaluation.summary.alert_point_count
+                < current_evaluation.summary.alert_point_count
                 || candidate_evaluation.episode_summary.dsa_episode_count
                     < current_evaluation.episode_summary.dsa_episode_count
                 || compare_option_gt(
@@ -2850,7 +2862,7 @@ fn build_feature_policy_overrides(
                 ) == Some(true));
         iteration_log.push(single_change_iteration_row(
             iteration,
-            "nuisance_suppression_override",
+            "policy_constraint",
             &candidate.feature_name,
             candidate.override_reason.clone(),
             &[],
@@ -2895,7 +2907,10 @@ fn evaluate_selected_row_with_overrides(
             enabled: true,
             ..RecallRescueConfig::default()
         },
-        semantic_rescue_support: build_semantic_rescue_support(semantic_layer, dataset.labels.len()),
+        semantic_rescue_support: build_semantic_rescue_support(
+            semantic_layer,
+            dataset.labels.len(),
+        ),
     };
     let config = DsaConfig {
         window: baseline_selected_row.window,
@@ -2933,10 +2948,7 @@ fn evaluate_selected_row_with_overrides(
     )
 }
 
-fn newly_recovered_failures(
-    previous: &DsaEvaluation,
-    candidate: &DsaEvaluation,
-) -> Vec<usize> {
+fn newly_recovered_failures(previous: &DsaEvaluation, candidate: &DsaEvaluation) -> Vec<usize> {
     let previous_detected = previous
         .per_failure_run_signals
         .iter()
@@ -3015,7 +3027,8 @@ fn build_isolated_nuisance_overrides(
         .map(|trace| {
             (
                 trace.feature_index,
-                trace.dsa_alert
+                trace
+                    .dsa_alert
                     .iter()
                     .enumerate()
                     .filter(|(run_index, flag)| dataset.labels[*run_index] == 1 && **flag)
@@ -3029,7 +3042,8 @@ fn build_isolated_nuisance_overrides(
         .map(|trace| {
             (
                 trace.feature_index,
-                trace.dsa_alert
+                trace
+                    .dsa_alert
                     .iter()
                     .enumerate()
                     .filter(|(run_index, flag)| dataset.labels[*run_index] == -1 && **flag)
@@ -3380,8 +3394,15 @@ fn stage1_candidates(
         .cloned()
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| {
-        compare_operator_rows(left, right, operator_baselines)
-            .then_with(|| compare_stage_a_rows(left, right, operator_baselines.current_policy_dsa.pass_run_nuisance_proxy))
+        compare_operator_rows(left, right, operator_baselines).then_with(|| {
+            compare_stage_a_rows(
+                left,
+                right,
+                operator_baselines
+                    .current_policy_dsa
+                    .pass_run_nuisance_proxy,
+            )
+        })
     });
     candidates
 }
@@ -3400,8 +3421,10 @@ fn compare_operator_rows(
     right: &CohortGridResult,
     baselines: &OperatorBaselines,
 ) -> Ordering {
-    let left_delta_investigation =
-        delta_relative_count(baselines.baseline_investigation_points, left.investigation_point_count);
+    let left_delta_investigation = delta_relative_count(
+        baselines.baseline_investigation_points,
+        left.investigation_point_count,
+    );
     let right_delta_investigation = delta_relative_count(
         baselines.baseline_investigation_points,
         right.investigation_point_count,
@@ -3922,12 +3945,8 @@ fn build_operator_baselines(
     let numeric_only_dsa = OperatorBaselineLayer {
         name: "numeric_only_dsa".into(),
         investigation_points: baseline_evaluation.summary.numeric_alert_point_count,
-        episode_count: episode_ranges(
-            &baseline_evaluation
-                .run_signals
-                .numeric_primary_run_alert,
-        )
-        .len(),
+        episode_count: episode_ranges(&baseline_evaluation.run_signals.numeric_primary_run_alert)
+            .len(),
         review_escalate_points_per_pass_run: numeric_alert_points_per_pass_run(
             dataset,
             baseline_evaluation,
@@ -3937,8 +3956,12 @@ fn build_operator_baselines(
             baseline_evaluation,
         ),
         precursor_quality: baseline_evaluation.episode_summary.precursor_quality,
-        recall: baseline_evaluation.summary.numeric_primary_failure_run_recall,
-        pass_run_nuisance_proxy: baseline_evaluation.summary.numeric_primary_pass_run_nuisance_proxy,
+        recall: baseline_evaluation
+            .summary
+            .numeric_primary_failure_run_recall,
+        pass_run_nuisance_proxy: baseline_evaluation
+            .summary
+            .numeric_primary_pass_run_nuisance_proxy,
     };
     let current_policy_dsa = OperatorBaselineLayer {
         name: "current_policy_dsa".into(),
@@ -3993,13 +4016,16 @@ fn compute_operator_delta_targets(
 ) -> OperatorDeltaTargets {
     let baseline_precursor_quality = baselines.baseline_precursor_quality;
     let optimized_precursor_quality = selected_row.precursor_quality;
-    let precursor_quality_status = match (baseline_precursor_quality, optimized_precursor_quality) {
-        (Some(baseline), Some(optimized)) if optimized > baseline + 1.0e-9 => "improved",
-        (Some(baseline), Some(optimized)) if (optimized - baseline).abs() <= 1.0e-9 => "preserved",
-        (Some(_), Some(_)) => "degraded",
-        _ => "unavailable",
-    }
-    .to_string();
+    let precursor_quality_status =
+        match (baseline_precursor_quality, optimized_precursor_quality) {
+            (Some(baseline), Some(optimized)) if optimized > baseline + 1.0e-9 => "improved",
+            (Some(baseline), Some(optimized)) if (optimized - baseline).abs() <= 1.0e-9 => {
+                "preserved"
+            }
+            (Some(_), Some(_)) => "degraded",
+            _ => "unavailable",
+        }
+        .to_string();
 
     OperatorDeltaTargets {
         primary_success_definition:
@@ -4089,16 +4115,16 @@ fn build_operator_delta_attainment_matrix(
             baselines.baseline_review_escalate_episodes_per_pass_run,
             row.review_escalate_episodes_per_pass_run,
         );
-        let precursor_quality_status = match (baselines.baseline_precursor_quality, row.precursor_quality)
-        {
-            (Some(baseline), Some(optimized)) if optimized > baseline + 1.0e-9 => "improved",
-            (Some(baseline), Some(optimized)) if (optimized - baseline).abs() <= 1.0e-9 => {
-                "preserved"
+        let precursor_quality_status =
+            match (baselines.baseline_precursor_quality, row.precursor_quality) {
+                (Some(baseline), Some(optimized)) if optimized > baseline + 1.0e-9 => "improved",
+                (Some(baseline), Some(optimized)) if (optimized - baseline).abs() <= 1.0e-9 => {
+                    "preserved"
+                }
+                (Some(_), Some(_)) => "degraded",
+                _ => "unavailable",
             }
-            (Some(_), Some(_)) => "degraded",
-            _ => "unavailable",
-        }
-        .to_string();
+            .to_string();
         let delta_nuisance_vs_ewma = delta_nuisance_relative(
             metrics.summary.pass_run_ewma_nuisance_rate,
             row.pass_run_nuisance_proxy,
@@ -4114,13 +4140,15 @@ fn build_operator_delta_attainment_matrix(
             recall: row.failure_recall,
             mean_lead_time_runs: row.mean_lead_time_runs,
             delta_nuisance_vs_ewma,
-            target_a_investigation_load_ge_040: delta_investigation_load >= OPERATOR_DELTA_THRESHOLD,
+            target_a_investigation_load_ge_040: delta_investigation_load
+                >= OPERATOR_DELTA_THRESHOLD,
             target_b_episode_count_ge_040: delta_episode_count >= OPERATOR_DELTA_THRESHOLD,
             target_c_review_points_per_pass_run_ge_040: delta_review_points_per_pass_run
                 >= OPERATOR_DELTA_THRESHOLD,
             target_d_review_episodes_per_pass_run_ge_040: delta_review_episodes_per_pass_run
                 >= OPERATOR_DELTA_THRESHOLD,
-            target_e_precursor_quality_preserved_or_improved: precursor_quality_status != "degraded",
+            target_e_precursor_quality_preserved_or_improved: precursor_quality_status
+                != "degraded",
             target_f_recall_ge_103: row.failure_recall >= 103,
             target_g_recall_eq_104: row.failure_recall >= 104,
             target_h_nuisance_ge_015: delta_nuisance_vs_ewma >= 0.15,
@@ -4205,11 +4233,10 @@ fn build_recall_recovery_efficiency(
         optimized.summary.failure_run_recall as i64 - baseline.summary.failure_run_recall as i64;
     let added_review_escalate_points =
         optimized.summary.alert_point_count as i64 - baseline.summary.alert_point_count as i64;
-    let added_episode_count =
-        optimized.episode_summary.dsa_episode_count as i64 - baseline.episode_summary.dsa_episode_count as i64;
-    let added_review_points_per_pass_run =
-        review_escalate_points_per_pass_run(dataset, optimized)
-            - review_escalate_points_per_pass_run(dataset, baseline);
+    let added_episode_count = optimized.episode_summary.dsa_episode_count as i64
+        - baseline.episode_summary.dsa_episode_count as i64;
+    let added_review_points_per_pass_run = review_escalate_points_per_pass_run(dataset, optimized)
+        - review_escalate_points_per_pass_run(dataset, baseline);
     let added_review_episodes_per_pass_run =
         review_escalate_episodes_per_pass_run(dataset, optimized)
             - review_escalate_episodes_per_pass_run(dataset, baseline);
@@ -4264,21 +4291,18 @@ fn build_recall_recovery_efficiency(
         let start = failure_run_index.saturating_sub(pre_failure_lookback_runs);
         let end = failure_run_index;
         let baseline_review_points = review_escalate_points_in_window(baseline, start, end) as i64;
-        let optimized_review_points = review_escalate_points_in_window(optimized, start, end) as i64;
+        let optimized_review_points =
+            review_escalate_points_in_window(optimized, start, end) as i64;
         let baseline_pass_review_points =
             review_escalate_points_in_pass_window(dataset, baseline, start, end);
         let optimized_pass_review_points =
             review_escalate_points_in_pass_window(dataset, optimized, start, end);
-        let baseline_episode_count = primary_episode_count_in_window(
-            &baseline.run_signals.primary_run_alert,
-            start,
-            end,
-        ) as i64;
-        let optimized_episode_count = primary_episode_count_in_window(
-            &optimized.run_signals.primary_run_alert,
-            start,
-            end,
-        ) as i64;
+        let baseline_episode_count =
+            primary_episode_count_in_window(&baseline.run_signals.primary_run_alert, start, end)
+                as i64;
+        let optimized_episode_count =
+            primary_episode_count_in_window(&optimized.run_signals.primary_run_alert, start, end)
+                as i64;
         let pass_runs_in_window = dataset.labels[start..end]
             .iter()
             .filter(|label| **label == -1)
@@ -4354,15 +4378,16 @@ fn stable_precursor_lead_time_delta(selected_evaluation: &DsaEvaluation) -> Opti
     }
 }
 
-fn review_escalate_points_in_window(
-    evaluation: &DsaEvaluation,
-    start: usize,
-    end: usize,
-) -> usize {
+fn review_escalate_points_in_window(evaluation: &DsaEvaluation, start: usize, end: usize) -> usize {
     evaluation
         .traces
         .iter()
-        .map(|trace| trace.dsa_alert[start..end].iter().filter(|flag| **flag).count())
+        .map(|trace| {
+            trace.dsa_alert[start..end]
+                .iter()
+                .filter(|flag| **flag)
+                .count()
+        })
         .sum()
 }
 
@@ -4480,10 +4505,7 @@ fn review_escalate_points_per_pass_run(
     points as f64 / pass_run_count as f64
 }
 
-fn numeric_alert_points_per_pass_run(
-    dataset: &PreparedDataset,
-    evaluation: &DsaEvaluation,
-) -> f64 {
+fn numeric_alert_points_per_pass_run(dataset: &PreparedDataset, evaluation: &DsaEvaluation) -> f64 {
     let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
     if pass_run_count == 0 {
         return 0.0;
@@ -4539,10 +4561,7 @@ fn numeric_alert_episodes_per_pass_run(
     episode_ranges(&mask).len() as f64 / pass_run_count as f64
 }
 
-fn raw_boundary_points_per_pass_run(
-    dataset: &PreparedDataset,
-    grammar: &GrammarSet,
-) -> f64 {
+fn raw_boundary_points_per_pass_run(dataset: &PreparedDataset, grammar: &GrammarSet) -> f64 {
     let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
     if pass_run_count == 0 {
         return 0.0;
@@ -4556,7 +4575,8 @@ fn raw_boundary_points_per_pass_run(
                 .iter()
                 .enumerate()
                 .filter(|(run_index, state)| {
-                    dataset.labels[*run_index] == -1 && **state == crate::grammar::GrammarState::Boundary
+                    dataset.labels[*run_index] == -1
+                        && **state == crate::grammar::GrammarState::Boundary
                 })
                 .count()
         })
@@ -4564,10 +4584,7 @@ fn raw_boundary_points_per_pass_run(
     points as f64 / pass_run_count as f64
 }
 
-fn raw_boundary_episodes_per_pass_run(
-    dataset: &PreparedDataset,
-    grammar: &GrammarSet,
-) -> f64 {
+fn raw_boundary_episodes_per_pass_run(dataset: &PreparedDataset, grammar: &GrammarSet) -> f64 {
     let pass_run_count = dataset.labels.iter().filter(|label| **label == -1).count();
     if pass_run_count == 0 {
         return 0.0;
