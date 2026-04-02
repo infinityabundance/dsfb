@@ -9,7 +9,7 @@ use crate::cohort::{
     write_missed_failure_diagnostics_csv, write_motif_policy_contributions_csv,
     write_policy_contribution_analysis_csv, write_precursor_quality_csv,
     write_recall_critical_features_csv, write_recall_recovery_efficiency_csv,
-    write_recall_rescue_results_csv,
+    write_recall_rescue_results_csv, write_single_change_iteration_log_csv,
 };
 use crate::config::{PipelineConfig, RunConfiguration};
 use crate::dataset::phm2018::{support_status as phm_support_status, Phm2018SupportStatus};
@@ -119,12 +119,19 @@ struct ArtifactManifest {
     dsa_operator_delta_attainment_matrix_path: String,
     dsa_policy_operator_burden_contributions_path: String,
     dsa_recall_recovery_efficiency_path: String,
+    dsfb_single_change_iteration_log_path: String,
     failures_index_path: String,
+    missed_failure_priority_path: String,
     failure_case_paths: Vec<String>,
     feature_motif_grounding_path: String,
+    feature_to_motif_path: String,
+    negative_control_report_path: String,
     dsfb_heuristics_bank_minimal_path: String,
+    dsfb_heuristic_provenance_path: String,
     policy_decisions_path: String,
     policy_burden_summary_path: String,
+    dsfb_feature_role_validation_path: String,
+    dsfb_group_validation_path: String,
     dsfb_vs_ewma_case_paths: Vec<String>,
     dsa_stage1_candidates_path: String,
     dsa_stage2_candidates_path: String,
@@ -478,7 +485,15 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsa_recall_recovery_efficiency.csv"),
         &optimization.recall_recovery_efficiency,
     )?;
+    write_single_change_iteration_log_csv(
+        &run_dir.join("dsfb_single_change_iteration_log.csv"),
+        &optimization.single_change_iteration_log,
+    )?;
     write_json_pretty(&run_dir.join("failures_index.json"), &failure_driven.failures_index)?;
+    write_serialized_csv(
+        &run_dir.join("missed_failure_priority.csv"),
+        &failure_driven.missed_failure_priority,
+    )?;
     for failure_case in &failure_driven.failure_cases {
         write_json_pretty(
             &run_dir.join(format!("failure_case_{}.json", failure_case.failure_id)),
@@ -490,12 +505,32 @@ pub fn run_secom_benchmark(
         &failure_driven.feature_motif_grounding,
     )?;
     write_json_pretty(
+        &run_dir.join("feature_to_motif.json"),
+        &failure_driven.feature_to_motif,
+    )?;
+    write_json_pretty(
+        &run_dir.join("negative_control_report.json"),
+        &failure_driven.negative_control_report,
+    )?;
+    write_json_pretty(
         &run_dir.join("dsfb_heuristics_bank_minimal.json"),
         &failure_driven.minimal_heuristics_bank,
     )?;
     write_serialized_csv(
+        &run_dir.join("dsfb_heuristic_provenance.csv"),
+        &failure_driven.heuristic_provenance,
+    )?;
+    write_serialized_csv(
         &run_dir.join("policy_burden_summary.csv"),
         &failure_driven.policy_burden_summary,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_feature_role_validation.csv"),
+        &failure_driven.feature_role_validation,
+    )?;
+    write_serialized_csv(
+        &run_dir.join("dsfb_group_validation.csv"),
+        &failure_driven.group_validation,
     )?;
     for case in &failure_driven.dsfb_vs_ewma_cases {
         write_json_pretty(
@@ -763,7 +798,15 @@ pub fn run_secom_benchmark(
                 .join("dsa_recall_recovery_efficiency.csv")
                 .display()
                 .to_string(),
+            dsfb_single_change_iteration_log_path: run_dir
+                .join("dsfb_single_change_iteration_log.csv")
+                .display()
+                .to_string(),
             failures_index_path: run_dir.join("failures_index.json").display().to_string(),
+            missed_failure_priority_path: run_dir
+                .join("missed_failure_priority.csv")
+                .display()
+                .to_string(),
             failure_case_paths: failure_driven
                 .failure_cases
                 .iter()
@@ -778,13 +821,33 @@ pub fn run_secom_benchmark(
                 .join("feature_motif_grounding.json")
                 .display()
                 .to_string(),
+            feature_to_motif_path: run_dir
+                .join("feature_to_motif.json")
+                .display()
+                .to_string(),
+            negative_control_report_path: run_dir
+                .join("negative_control_report.json")
+                .display()
+                .to_string(),
             dsfb_heuristics_bank_minimal_path: run_dir
                 .join("dsfb_heuristics_bank_minimal.json")
+                .display()
+                .to_string(),
+            dsfb_heuristic_provenance_path: run_dir
+                .join("dsfb_heuristic_provenance.csv")
                 .display()
                 .to_string(),
             policy_decisions_path: run_dir.join("policy_decisions.csv").display().to_string(),
             policy_burden_summary_path: run_dir
                 .join("policy_burden_summary.csv")
+                .display()
+                .to_string(),
+            dsfb_feature_role_validation_path: run_dir
+                .join("dsfb_feature_role_validation.csv")
+                .display()
+                .to_string(),
+            dsfb_group_validation_path: run_dir
+                .join("dsfb_group_validation.csv")
                 .display()
                 .to_string(),
             dsfb_vs_ewma_case_paths: failure_driven
