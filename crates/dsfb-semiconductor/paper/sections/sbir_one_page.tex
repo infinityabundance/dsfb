@@ -1,0 +1,62 @@
+\clearpage
+\thispagestyle{plain}
+\begingroup
+\small
+\setlength{\parindent}{0pt}
+\setlist[itemize]{leftmargin=1.2em,itemsep=1pt,topsep=2pt}
+
+\begin{center}
+{\Large\bfseries DSFB: Non-Intrusive Structural Interpretation Layer for Semiconductor Monitoring Systems}
+\end{center}
+
+\textbf{1. WHAT IT DOES}
+\begin{itemize}
+  \item Converts residual alarm streams into structured episodes
+  \item Reduces operator review surface by 99.75\%
+  \item Raises event relevance from 0.36\% to 80.3\%
+\end{itemize}
+
+\textbf{2. WHAT IT DOES NOT DO}
+\begin{itemize}
+  \item Does not modify SPC/EWMA/FDC systems
+  \item Does not change thresholds or control loops
+  \item Does not introduce feedback into the process
+\end{itemize}
+
+\textbf{3. OPERATOR DELTA}
+\begin{itemize}
+  \item 28{,}607 $\rightarrow$ 71 review events ($-$99.75\%)
+  \item 0.36\% $\rightarrow$ 80.3\% precision (220.8x)
+  \item 63.5\% reduction in investigation load
+  \item 104 / 104 failures preserved
+\end{itemize}
+
+\textbf{4. WHY THIS IS LOW RISK}
+\begin{itemize}
+  \item read-only
+  \item side-channel execution
+  \item deterministic outputs
+  \item removable with zero system impact
+\end{itemize}
+
+\textbf{5. PHASE I DELIVERABLE}
+\begin{itemize}
+  \item integrate with real FDC streams
+  \item validate on tool-level data
+  \item measure operator burden reduction
+\end{itemize}
+
+\textbf{6. WHAT SUCCESS LOOKS LIKE}
+\begin{itemize}
+  \item fewer alarms
+  \item higher signal relevance
+  \item unchanged upstream systems
+\end{itemize}
+
+\vfill
+\footnotesize
+Evidence basis: selected SECOM operator row emitted by
+\texttt{dsa\_operator\_delta\_targets.json} and
+\texttt{episode\_precision\_metrics.json}.
+\par
+\endgroup

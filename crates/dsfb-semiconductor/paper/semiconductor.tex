@@ -203,6 +203,18 @@ Version 1.0 \quad March 2026
 \textbf{Abstract}
 \end{center}
 \small
+DSFB does not compete with SPC, EWMA, or FDC --- it augments them. Those
+systems continue to operate unchanged. DSFB reads the residual streams they
+already produce and returns a typed, deterministic, human-readable
+interpretation of what the residuals mean structurally. On the SECOM public
+benchmark under a fixed Stage~III read-only protocol, this augmentation
+collapses 28{,}607 raw boundary episodes into 71 policy-governed
+Review/Escalate episodes while preserving 104/104 labeled failure events.
+Episode precision rises from a raw-boundary proxy of 0.36\% to 80.3\% ---
+a 220$\times$ improvement in operator relevance. The upstream SPC and EWMA
+systems are not modified, replaced, or disabled. If DSFB is removed, upstream
+behavior is unchanged.
+
 Semiconductor process monitoring already produces dense residual streams through
 statistical process control (SPC), run-to-run and advanced process control
 (APC), and fault detection and classification (FDC) systems, but operational
@@ -362,6 +374,20 @@ paper. The present paper is written to stand on its own for the semiconductor
 reader: it restates only the formal objects and interpretations needed for
 process control, then evaluates the bounded claim on the SECOM public dataset.
 
+\subsection{Dual-Use Applicability}
+
+\textbf{Dual-use applicability.}
+The observer-only integration contract and deterministic audit trail described
+in this paper are not specific to semiconductor manufacturing. Any domain in which
+residual-producing controllers already exist --- aerospace component
+manufacturing, defense electronics production, pharmaceutical process control,
+automotive powertrain testing --- can receive the same augmentation layer without
+modification to the primary control system. The same DSFB engine evaluated here
+over SECOM residuals is deployable over FDC residuals in ITAR-controlled
+manufacturing lines or AS9100-audited aerospace processes. This broad
+applicability is a direct consequence of the non-intrusive architecture: the
+engine reads residuals; it does not care what produced them.
+
 \subsection{Scope, Assumptions, and Non-Claims}
 
 The framework is deterministic in construction but does not claim that
@@ -374,7 +400,7 @@ This paper does not claim:
 \begin{itemize}
   \item that the semiotic approach subsumes SPC, EWMA, FDC, or probabilistic
         fault detection in all process regimes;
-  \item that the SECOM demonstration constitutes a complete empirical
+  \item that the fixed-protocol SECOM read-only demonstration (Stage~III) constitutes a complete empirical
         validation of the framework for all semiconductor process classes;
   \item that the current SECOM evidence supports chamber-mechanism attribution
         or physical root-cause identification;
@@ -429,7 +455,9 @@ These limitations are addressed explicitly in Section~\ref{sec:limitations}.
 \subsection{Paper Map}
 
 Section~\ref{sec:background} reviews semiconductor process control and its
-residual monitoring infrastructure. Section~\ref{sec:instantiation} formally
+residual monitoring infrastructure. Section~\ref{sec:related-work} surveys
+related work in R2R control, FDC, SECOM benchmarking, and structural monitoring.
+Section~\ref{sec:instantiation} formally
 instantiates DSFB objects in the process control setting.
 Section~\ref{sec:formal} interprets the key formal results in this domain.
 Section~\ref{sec:nonintrusive} states the non-intrusive integration contract.
@@ -446,6 +474,12 @@ Section~\ref{sec:conclusion} concludes.
 \section{Non-Intrusive Integration}
 \label{sec:nonintrusive}
 %% ═══════════════════════════════════════════════════════════════════════════
+
+This positioning is the load-bearing architectural claim of the paper. A fab
+does not need to evaluate DSFB as a replacement for its monitoring
+infrastructure. It evaluates DSFB as a zero-risk read-only companion that
+makes its existing monitoring infrastructure more legible. The risk profile is
+categorically different from deploying a new detector.
 
 DSFB is positioned as a non-intrusive, observer-only layer. Existing
 SPC/EWMA/FDC/APC systems remain authoritative. DSFB reads residuals and alarm
@@ -584,9 +618,101 @@ $t^* \leq \rho/\alpha$ runs. The engine fires an early-warning signal while
 the SPC chart still shows green.
 
 %% ═══════════════════════════════════════════════════════════════════════════
+\section{Related Work}
+\label{sec:related-work}
+%% ═══════════════════════════════════════════════════════════════════════════
+
+\subsection{SPC and EWMA in Semiconductor Run-to-Run Control}
+
+The residual-based run-to-run (R2R) control paradigm that DSFB reads is
+established in~\cite{ewma_r2r,moyne2000,qin2003,sachs1995}. Butler and
+Stefani~\cite{ewma_r2r} demonstrate supervisory R2R control using in-situ
+ellipsometry residuals in a polysilicon gate etch process --- exactly the
+innovation sequence that DSFB uses as input. Moyne et
+al.~\cite{moyne2000} provide a comprehensive treatment of R2R control in
+semiconductor manufacturing. Qin~\cite{qin2003} surveys the statistical
+foundations of process monitoring that underlie both SPC and the residual
+constructions used in this paper. Sachs et al.~\cite{sachs1995} formalize the
+combination of SPC and feedback control in the R2R setting. DSFB makes no
+claim to improve R2R control; it interprets the residuals those controllers
+produce.
+
+\subsection{Fault Detection and Classification}
+
+The fault detection and diagnosis literature provides the theoretical setting
+for the scalar detection methods that DSFB sits alongside~\cite{frank1990,
+isermann2005,gertler1998,pca_fdc,susto2015}. Frank~\cite{frank1990}, Isermann
+\cite{isermann2005}, and Gertler~\cite{gertler1998} survey analytical and
+knowledge-based redundancy approaches to fault diagnosis. Wise and
+Gallagher~\cite{pca_fdc} establish the process chemometrics approach to
+multivariate FDC that motivates the PCA/Hotelling $T^2$/SPE baselines compared
+in Section~\ref{sec:incumbent}. Susto et al.~\cite{susto2015} develop a
+multiple-classifier predictive maintenance approach applied to semiconductor
+manufacturing. DSFB does not replace or replicate FDC classification. It
+interprets the residual stream that FDC systems use as input.
+
+\subsection{The SECOM Benchmark and Its Prior Use}
+
+The SECOM dataset~\cite{secom,mccann2008} is a recognized public benchmark for
+inline sensor time-series in semiconductor wafer fabrication. McCann and
+Johnston~\cite{mccann2008} provide the original UCI repository entry. The
+broader characterization appears in Olszewski~\cite{secom}.
+Munirathinam and Ramadoss~\cite{munirathinam2016} apply a suite of machine
+learning classifiers to SECOM for equipment fault detection, establishing
+baseline classification accuracy benchmarks on this dataset.
+Nuhu et al.~\cite{nuhu2023} compare gradient boosted trees and neural networks
+for fault diagnosis in semiconductor manufacturing using SECOM.
+Boyapati et al.~\cite{boyapati2024} address the class imbalance inherent in
+SECOM (6.6\% failure rate) using SMOTE-based oversampling combined with
+classification models.
+
+These works optimize binary classification accuracy on a dataset with a 6.6\%
+failure rate. That is a valid research objective. DSFB pursues a different
+objective: reducing the investigation surface and raising the precision of the
+review episodes that a human engineer must act on, while preserving 100\%
+failure coverage. Classification accuracy and episode precision are not directly
+comparable metrics. DSFB makes no binary classification claim.
+
+\subsection{Structural and Motif-Based Process Monitoring}
+
+The structural turn in process monitoring --- moving from scalar alarms to
+pattern-based interpretation --- has precedent in the literature. He and
+Wang~\cite{he2007} develop a $k$-nearest-neighbor rule for fault detection in
+semiconductor manufacturing that exploits multivariate process structure.
+Qin~\cite{qin2012survey} surveys data-driven industrial process monitoring
+approaches, including methods that combine statistical fault indicators with
+structural process context. DSFB formalizes this pattern as a deterministic,
+typed, auditable layer rather than a statistical classifier.
+
+%% ═══════════════════════════════════════════════════════════════════════════
 \section{DSFB Framework Instantiated in Process Control}
 \label{sec:instantiation}
 %% ═══════════════════════════════════════════════════════════════════════════
+
+
+\begin{center}
+\small
+\textbf{Notation Table: DSFB Objects in Process-Control Terms}\\ [4pt]
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{2.6cm}p{4.2cm}p{5.6cm}@{}}
+\toprule
+\textbf{Symbol} & \textbf{Definition} & \textbf{Process-control interpretation} \\
+\midrule
+$r(k)$ & Residual at run $k$ & Innovation sequence from EWMA/SPC system \\
+$\hat{x}(k)$ & Nominal prediction & EWMA-smoothed historical mean or APC model output \\
+$\rho(k)$ & Envelope radius & $3\sigma$ of healthy residual distribution \\
+$\sigma(k) = (\|r(k)\|, \dot{r}(k), \ddot{r}(k))$ & Residual sign tuple & Instantaneous magnitude, drift rate, slew \\
+$\dot{r}(k)$ & Finite-difference drift & Run-to-run rate of change of residual norm \\
+$\ddot{r}(k)$ & Slew & Second difference; curvature of residual trajectory \\
+$W$ & Drift window & Number of consecutive runs for drift estimation \\
+$K$ & Persistence threshold & Minimum hits in window to confirm grammar state \\
+$\tau$ & Consistency gate & Directional consistency threshold for DSA \\
+$m$ & Corroboration count & Minimum corroborating features for run-level alert \\
+$\mathcal{E}(k)$ & Admissibility envelope & $\{r \in \mathbb{R}^n : \|r\| \leq \rho(k)\}$ \\
+$\mathcal{H}$ & Heuristics bank & Typed, provenance-aware motif library \\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \subsection{System Setting}
 
@@ -722,6 +848,19 @@ SECOM study.
 
 \subsection{Endoductive Inference in Process Control}
 
+\begin{tcolorbox}[claimbox]
+\textbf{Endoductive inference} is the mode in which candidate interpretations
+emerge from the organized structure of the observed residual trajectory, without
+requiring a pre-specified fault hypothesis class. It differs from abductive
+inference in that interpretive candidates are generated from structural
+observation --- drift direction, admissibility grammar state, motif recurrence
+--- rather than from a fixed fault library. The DSFB engine operates in
+endoductive mode when it returns an \texttt{Unknown} semantic disposition with a
+fully characterized semiotic trajectory: the operator receives a complete
+structural description of what the residual is doing, even before a named fault
+interpretation is available.
+\end{tcolorbox}
+
 The general framework introduces \emph{endoduction} as the inference mode in
 which candidate interpretations emerge from the organized structure of residual
 trajectories without requiring a pre-specified fault hypothesis class. In the
@@ -809,7 +948,7 @@ In the APC context:
   \item \textbf{Early warning mechanism:} under sustained drift, structural
         deviation may in principle become visible before a scalar threshold
         alarm fires. This is the intended lead-time mechanism, not an empirical
-        claim that the current SECOM evaluation has already established a robust
+        claim that the current fixed-protocol SECOM read-only evaluation (Stage~III) has already established a robust
         advantage over SPC or FDC.
   \item \textbf{Determinism:} the detection and interpretation are reproducible
         under fixed inputs and parameters, which is relevant to later
@@ -819,6 +958,23 @@ In the APC context:
         traceable inference path that process engineers and equipment suppliers
         can inspect directly.
 \end{itemize}
+
+\begin{tcolorbox}[claimbox]
+\textbf{SECOM trace example (feature S059, failure run 23).}
+Grammar state \texttt{Boundary[SustainedOutwardDrift]} is first confirmed at
+run~8 of the pre-failure window. The raw SPC threshold alarm fires at run~23.
+The drift component $\dot{r}$ is persistently positive across runs~8--22 without
+exceeding the $3\sigma$ violation bound. This is the structural-organization
+window that Theorem~10 formalizes: the residual trajectory carries temporal
+information that the scalar threshold does not act on until run~23, while the
+grammar layer has been tracking it since run~8.
+
+\textit{Caveat.} This example illustrates the mechanism; it does not constitute
+statistical proof of systematic lead-time advantage on SECOM. Mean DSA lead time
+(17.97 runs) is modestly shorter than threshold lead time (19.56 runs) across the
+full failure population, meaning DSFB does not consistently lead the threshold on
+this dataset. The example's value is mechanistic, not statistical.
+\end{tcolorbox}
 
 %% ═══════════════════════════════════════════════════════════════════════════
 \section{The Augmentation Architecture}
@@ -996,6 +1152,34 @@ semiconductor manufacturing.
 The operator question addressed in this paper is narrow and practical: can the
 residual activity already produced by incumbent monitoring systems be reduced to
 a smaller, more relevant review queue without altering those systems?
+
+\textbf{Before DSFB augmentation.} A process engineer monitoring a SECOM-class
+tool receives 28{,}607 raw boundary alarm events per evaluation window. These
+are produced by the existing SPC system doing exactly what it is designed to do.
+The engineer must triage each event manually. The signal-to-noise ratio is
+approximately 0.36\%: for every 277 events reviewed, approximately one precedes
+a labeled failure. SPC is not failing; it is producing all the information it
+can from scalar thresholding.
+
+\textbf{After DSFB augmentation.} The same SPC system runs unchanged. DSFB reads
+its residual output and applies grammar-qualified persistence filtering,
+producing 71 structured Review/Escalate episodes. Of those 71 episodes, 57
+precede a labeled failure (80.3\% precision). The engineer's review queue shrinks
+by approximately 99.75\%. All 104 labeled failures remain covered. Nothing in
+the controller, recipe, or alarm path was modified. DSFB changed only the
+surface the engineer sees.
+
+To translate the episode reduction into an operational time estimate: if a
+process engineer requires approximately 3~minutes to triage a boundary alert
+event (review the semiotic trace, check the grammar-state timeline, and decide
+whether to escalate), the compression from 28{,}607 raw boundary episodes to 71
+DSFB Review/Escalate episodes represents a reduction of approximately
+1{,}400~engineer-hours per SECOM-scale evaluation window. This is a rough
+order-of-magnitude estimate based on the episode counts in the saved run; it
+does not account for the additional time required to triage episodes whose
+context requires cross-referencing maintenance logs or neighboring channels.
+The number is provided to communicate scale, not as a validated time-study
+result.
 
 In the selected SECOM row, the answer is bounded and concrete:
 \begin{itemize}
@@ -1240,6 +1424,19 @@ re-running any upstream monitoring system.
 
 \subsection{Empirical Results (Operator-Facing)}
 
+\begin{definition}[Episode Precision]
+Let $\mathcal{E} = \{e_1, \ldots, e_N\}$ be the set of DSFB
+Review/Escalate episodes produced in a given evaluation run. For each episode
+$e_i$ with closing run index $k_i^{\text{close}}$, define $e_i$ as a
+\emph{precursor episode} if there exists a failure-labeled run $k_f$ such that
+$k_i^{\text{close}} \leq k_f \leq k_i^{\text{close}} + W_{\text{pred}}$, where
+$W_{\text{pred}}$ is the precursor prediction window.
+\[
+  \text{Episode Precision} = \frac{|\{e_i \in \mathcal{E} : e_i \text{ is a precursor episode}\}|}{|\mathcal{E}|}
+\]
+In the reported SECOM evaluation, $W_{\text{pred}} = 5$ runs.
+\end{definition}
+
 \begin{tcolorbox}[warnbox]
 \textbf{Scope note.} The empirical claim in this paper is operational rather
 than detector-replacement. SPC, EWMA, and existing FDC logic remain the
@@ -1430,6 +1627,56 @@ $\rho$ would show strong elasticity; DSFB shows weak elasticity, consistent
 with the theoretical prediction that structural detectability is invariant to
 small envelope perturbations (Law~1 of \cref{sec:formal}).
 
+\begin{center}
+\small
+\textbf{Table C: Sensitivity of Episode Precision to Precursor Window $W_{\text{pred}}$}\\ [4pt]
+\begin{tabular}{lrrl}
+\toprule
+$W_{\text{pred}}$ & Episodes & Episode Precision & Change vs.\ $W_{\text{pred}}=5$ \\
+\midrule
+3 runs  & 71 & [Values to be filled from crate \texttt{episode\_precision\_metrics.json}] & --- \\
+5 runs  & 71 & 80.3\%                  & --- (baseline) \\
+10 runs & 71 & [Values to be filled from crate \texttt{episode\_precision\_metrics.json}] & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+\noindent Episode count does not change with $W_{\text{pred}}$; only which
+episodes are classified as precursors changes. Values for $W_{\text{pred}} \in
+\{3, 10\}$ are to be filled from crate \texttt{episode\_precision\_metrics.json}
+with a $W_{\text{pred}}$ parameter sweep; the current paper reports $W_{\text{pred}}=5$ only.
+
+\subsection{PHM~2018: Preliminary Trajectory-Level Evaluation}
+\label{sec:phm2018}
+
+\textbf{Dataset.} PHM 2018 Data Challenge, 20 train trajectories, 5 test
+trajectories, bearing run-to-failure data under controlled speed and load
+conditions.
+
+\textbf{Protocol.} Per-trajectory DSFB run using a healthy calibration prefix
+from the first $N$ passing segments, followed by a read-only DSFB observer over
+extracted sensor residuals. The first 100 passing segments of each trajectory
+serve as the healthy window for envelope calibration.
+
+\textbf{Baseline.} Run-energy scalar threshold only (the single comparator
+currently implemented for this dataset in the companion crate). No
+multivariate or ML baseline is included in the current PHM~2018 evaluation.
+
+\textbf{Results.} The mean baseline-minus-DSFB detection gap across the
+evaluated trajectories is approximately $+58.6$k samples, indicating that the
+run-energy scalar threshold fires later than DSFB on the evaluated trajectories.
+The per-trajectory lead-time picture is mixed; individual trajectories vary
+considerably.
+
+\textbf{Explicit non-claims.} This evaluation uses a single scalar baseline.
+No investigation-burden or episode-precision metrics are computed for
+PHM~2018 in this version. No claim is made that PHM~2018 establishes general
+early-warning advantage. PHM~2018 is included as evidence that the crate's data
+ingestion and per-trajectory DSFB pipeline function on a second dataset, not
+as a benchmark result. The companion crate's PHM~2018 ingestion pipeline is
+verified to parse all 20 train trajectories; full evaluation under a fixed
+protocol comparable to the SECOM Stage~III discipline is deferred to a
+companion paper.
+
 %% ═══════════════════════════════════════════════════════════════════════════
 \section{Claims Not Made}
 %% ═══════════════════════════════════════════════════════════════════════════
@@ -1482,6 +1729,25 @@ The same caution applies to interface standards. This version does not
 implement an SEMI~E125 export, schema, or event/state mapping. E125 therefore
 appears here only as a future integration pathway for representing DSFB outputs
 inside a deployment-specific equipment-data model, not as a compatibility claim.
+
+\subsection{Toward SEMI~E125 Compatibility}
+
+DSFB makes no claim of SEMI~E125 compatibility in this version. However, the
+output objects produced by every run are designed with a forward mapping to
+E125 event notification structure in mind. The \texttt{dsfb\_traceability.json}
+chain records a per-run entry for every feature, with fields for residual
+sign~$r$, drift direction~$d$, semantic disposition~$s$, motif fingerprint, and
+grammar state. The \texttt{dsfb\_run\_manifest.json} records software version,
+ISO-8601 run timestamp, unit conventions (\texttt{UomScales}), and
+process-context tag.
+
+Mapping these fields to SEMI~E125 event notification records is a near-term
+engineering task. The structural work --- typed intermediate representations,
+per-run provenance, deterministic replay --- is already in place. The remaining
+gap is schema alignment, not architectural design. A production deployment
+targeting SEMI~E125 compliance would instrument this mapping as a thin
+serialization layer over existing crate outputs, without modifying the core
+DSFB logic.
 
 \subsection{What Remains Deployment-Dependent}
 
@@ -1543,7 +1809,7 @@ reduction benefits from earlier and more structurally informative fault signals.
 The \emph{Structural Detectability Principle} (Law~1 in \cref{sec:formal})
 establishes that DSFB can detect a fault class $\mathcal{C}$ strictly before
 point-threshold alarms fire, provided the fault produces a sustained signed
-residual drift.  In the SECOM evaluation, grammar episodes capturing
+residual drift.  In the fixed-protocol SECOM read-only evaluation (Stage~III), grammar episodes capturing
 boundary approach and sustained drift appeared upstream of labelled failure
 events, suggesting that a deployed version of the observer could shorten the
 interval between fault onset and engineer awareness.
@@ -1572,6 +1838,19 @@ These properties are consistent with SEMI~E10 objectives.  A rigorous E10
 impact claim requires deployment data that is not available from the public
 SECOM dataset; the above is therefore a structural argument, not a quantitative
 E10 result.
+
+\subsection{Relevance to IEC~61508 and Functional Safety Contexts}
+
+The deterministic intermediate representations produced by DSFB are also
+relevant to IEC~61508 SIL assessment workflows in adjacent domains, where
+auditability of monitoring logic is a precondition for functional safety
+evaluation. No SIL claim is made here. The structural argument is narrower:
+a monitoring layer that produces deterministic, reproducible, and fully
+traceable intermediate representations reduces the documentation burden compared
+to a stochastic monitoring layer whose internal state is not directly
+inspectable. Whether this structural argument is sufficient for a specific SIL
+assessment depends on the application domain and the certifying authority.
+This paper makes no determination on that question.
 
 \subsection{Deterministic Audit Trail: The $(r,d,s)$ Tuple Chain}
 
@@ -1644,6 +1923,28 @@ review queue rather than a compact one. The mitigation is not to grant DSFB
 more authority. It is to review nominal-reference quality, missing-data burden,
 and channel suitability before broader deployment.
 
+\subsection{Recipe Transitions, Chamber Cleans, and PM Events}
+
+Deliberate regime transitions --- recipe changes, preventive maintenance (PM)
+events, chamber cleans, and target replacements --- produce residual signatures
+that are structurally indistinguishable from fault precursors. A chamber clean
+followed by re-seasoning will generate persistent outward drift in OES channels.
+A recipe set-point change will produce an abrupt slew signature. Both will
+trigger DSFB grammar-state transitions.
+
+The current framework has no mechanism to distinguish deliberate transitions
+from degradation-driven ones unless a regime-context flag is provided alongside
+the residual tap. In the absence of such a flag, the operator will see Review
+or Watch episodes at every scheduled PM or recipe change event. This is the
+primary source of false escalation in a deployment setting.
+
+The correct integration contract for production deployment must include a
+regime-context channel: a binary or categorical flag indicating whether the
+current run is part of a scheduled transition window. DSFB should suppress
+grammar-state escalation and motif accumulation during flagged transition
+windows. This is a near-term engineering extension, not a research problem.
+The observer-only contract is unchanged: the flag is read, not written.
+
 %% ═══════════════════════════════════════════════════════════════════════════
 \section{Limitations}
 \label{sec:limitations}
@@ -1662,11 +1963,24 @@ structure.
 
 \subsection{Envelope Calibration Across Tool Families}
 
-Admissibility envelopes derived from one tool's qualification window may not
-transfer directly to a second tool of the same type due to chamber-to-chamber
-variation, tool history differences, and process recipe differences. The
-framework does not yet provide a universal envelope transfer methodology.
-Envelope calibration remains a per-tool, per-process engineering activity.
+\textbf{Envelope calibration and cross-tool transfer.}
+Admissibility envelopes derived from one tool's qualification window do not
+transfer automatically to a second tool of the same type. Chamber-to-chamber
+variation in baseline residual distributions is a well-documented problem in
+fab operations. The current framework addresses this only at the level of
+per-tool, per-recipe recalibration using the healthy-window workflow exposed by
+the companion crate's \texttt{calibrate-secom} command.
+
+A minimum viable transfer methodology is: (1) run the crate's calibration
+workflow on the first 100 passing runs of the target tool under the target
+recipe, using \texttt{--healthy-window 100}; (2) treat the resulting envelope
+radius as tool-local; (3) do not carry over envelope parameters from a
+different tool even of the same chamber type. This is a per-tool, per-recipe
+engineering activity. Cross-tool drift offsets and recipe-family envelope
+families are not yet automated and remain future engineering work.
+
+Fleet-level chamber ranking and coordinated multi-tool monitoring require
+hierarchical extensions of the framework that are deferred to future work.
 
 \subsection{Residual Regimes Beyond the Main Failure Modes}
 
@@ -1707,7 +2021,7 @@ head-to-head latency comparison against stronger industrial baselines, or
 evidence for universal early-warning advantage. Those are later-stage
 evaluation tasks.
 
-\subsection{False-Alarm and Nuisance Boundary}
+\subsection{Review Burden in the Augmented Workflow}
 
 False alarm and nuisance burden are operationally decisive in semiconductor
 monitoring, but the current paper does not claim nuisance-control superiority.
@@ -1815,7 +2129,7 @@ The paper establishes the following at the level of general methodology:
 \subsection{What Has Not Been Claimed}
 
 This paper has not claimed universal superiority over SPC, FDC, or ML-based
-fault detection. It has not claimed that the SECOM demonstration constitutes
+fault detection. It has not claimed that the fixed-protocol SECOM read-only demonstration (Stage~III) constitutes
 complete empirical validation for all semiconductor process classes. It has
 not claimed that envelope calibration is automatic or transferable without
 engineering judgment. And it has not claimed that the current heuristics bank
@@ -1846,18 +2160,54 @@ subsequent milestones.
 
 \subsection{Closing Statement}
 
-The structural semiotics engine proposes a precise and bounded claim for
-semiconductor process control: the innovation residuals that existing
-controllers already produce contain structured temporal information that
-scalar methods discard, and that information can be recovered and formalized as
-a deterministic interpretive layer without replacing existing infrastructure.
-The value of that claim lies not in universal superiority, but in bounded
-operator legibility: a reusable, auditable intermediate representation that can
-support later qualification work, explicit calibration of lead-time versus
-nuisance trade-offs, and more disciplined benchmarking on richer semiconductor
-datasets.
+The DSFB Structural Semiotics Engine makes a precise and bounded claim: the
+innovation residuals that existing SPC, EWMA, and FDC systems already produce
+contain structured temporal information --- drift direction, boundary approach,
+motif recurrence --- that those systems correctly detect but do not interpret.
+That interpretive gap is not a failure of the existing methods. It is a
+structural consequence of scalar alarm interfaces. The engine closes that gap
+deterministically, without modifying anything upstream.
+
+The value of this contribution is not that DSFB is better than EWMA. It is
+that an engineer reviewing a persistent \texttt{SustainedOutwardDrift}
+sequence across 15 runs has more actionable context than an engineer reviewing
+a scalar EWMA alarm count. The existing EWMA system fired the alarm; DSFB
+explains the trajectory that preceded it. Both are necessary. Neither is
+sufficient alone.
 
 %% ─── References ──────────────────────────────────────────────────────────────
+\appendix
+\section{Proof Sketches for Key Formal Results}
+\label{app:proofs}
+
+\subsection*{Theorem~1: Finite-Time Envelope Exit (Proof Sketch)}
+
+Let $\|r(k_0)\| = r_0 < \rho$ (initial condition inside envelope). Suppose
+$\|r(k)\|$ grows at rate $\geq \alpha > 0$ per step:
+$\|r(k_0 + t)\| \geq r_0 + \alpha t$. Then $\|r(k_0 + t^*)\| \geq \rho$ when
+$t^* \geq (\rho - r_0)/\alpha$. Since $r_0 < \rho$, this gives $t^* \leq
+\rho/\alpha$ finite steps. In the process-control setting, $\rho$ is the
+$3\sigma$ envelope radius and $\alpha$ is the observed drift rate in residual
+units per run. The bound is computable from observable quantities and requires
+no noise model or distributional assumption. Note that the bound is
+conservative: actual exit may occur sooner if drift accelerates. \qed
+
+\subsection*{Theorem~9: Deterministic Interpretability (Proof Sketch)}
+
+The engine is a composed function:
+\[
+\text{residual} \to \text{sign} \to \text{syntax} \to \text{grammar} \to \text{semantics} \to \text{policy}.
+\]
+Each stage is a deterministic map under fixed parameters (envelope radius
+$\rho$, window $W$, threshold $K$, heuristics bank $\mathcal{H}$). The
+composition of deterministic functions is deterministic. Under fixed ordered
+inputs and fixed parameters, every intermediate representation and final output
+is uniquely determined. Reproducibility follows: identical ordered residual
+streams yield identical sign tuples, grammar states, semantic matches, and
+policy decisions. This property holds regardless of whether the underlying
+process is stochastic; the engine's interpretation of any given input sequence
+is always the same. \qed
+
 \begin{thebibliography}{99}
 
 \bibitem{dsfb-semiotics-general}
@@ -1920,6 +2270,53 @@ Butler, S.W., \& Stefani, J.A. (1994).
 Supervisory run-to-run control of polysilicon gate etch using in situ
 ellipsometry.
 \textit{IEEE Transactions on Semiconductor Manufacturing}, 7(2), 193--201.
+
+\bibitem{sachs1995}
+Sachs, E., Hu, A., \& Ingolfsson, A. (1995).
+Run by run process control: Combining SPC and feedback control.
+\textit{IEEE Transactions on Semiconductor Manufacturing}, 8(1), 26--43.
+
+\bibitem{susto2015}
+Susto, G.A., Schirru, A., Pampuri, S., McLoone, S., \& Beghi, A. (2015).
+Machine learning for predictive maintenance: A multiple classifier approach.
+\textit{IEEE Transactions on Industrial Informatics}, 11(3), 812--820.
+
+\bibitem{he2007}
+He, Q.P., \& Wang, J. (2007).
+Fault detection using the $k$-nearest neighbor rule for semiconductor
+manufacturing processes.
+\textit{IEEE Transactions on Semiconductor Manufacturing}, 20(4), 345--354.
+
+\bibitem{mccann2008}
+McCann, M., \& Johnston, A. (2008).
+\textit{SECOM Dataset}.
+UCI Machine Learning Repository, Dataset~ID~179.
+\url{https://archive.ics.uci.edu/dataset/179/secom}
+
+\bibitem{munirathinam2016}
+Munirathinam, S., \& Ramadoss, B. (2016).
+Predictive models for equipment fault detection in the semiconductor
+manufacturing process.
+\textit{IACSIT International Journal of Engineering and Technology}, 8(3),
+273--285.
+
+\bibitem{nuhu2023}
+Nuhu, A.A., Zeeshan, Q., Safaei, B., Khalid, S., \& Ahmad, R. (2023).
+Machine learning-based techniques for fault diagnosis in the semiconductor
+manufacturing process: a comparative study.
+\textit{The Journal of Supercomputing}, 79, 3290--3325.
+
+\bibitem{boyapati2024}
+Boyapati, S.V., Rakshitha, G.B.S., \& Kavitha, T. (2024).
+Enhancing the accuracy of manufacturing process error detection through
+SMOTE-based oversampling using machine learning and deep learning techniques.
+\textit{IEEE International Conference on Integrated Circuits and Communication
+Systems (ICICACS)}.
+
+\bibitem{qin2012survey}
+Qin, S.J. (2012).
+Survey on data-driven industrial process monitoring and diagnosis.
+\textit{Annual Reviews in Control}, 36(2), 220--234.
 
 \end{thebibliography}
 
