@@ -2426,6 +2426,10 @@ fn artifact_inventory(
             role: "Feature-scaffold policy decisions produced only after grammar-qualified semantic retrieval.".into(),
         },
         ArtifactInventoryEntry {
+            path: "dsfb_traceability.json".into(),
+            role: "End-to-end event traceability chain from residual and sign through motif, grammar, semantic label, and policy state.".into(),
+        },
+        ArtifactInventoryEntry {
             path: "dsfb_group_definitions.json".into(),
             role: "Data-grounded grouped-semiotics scaffold definitions with member roles, preferred motifs, and empirical support counts.".into(),
         },

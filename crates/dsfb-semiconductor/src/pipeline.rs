@@ -37,6 +37,7 @@ use crate::secom_addendum::{
 };
 use crate::semiotics::{build_scaffold_semiotics, build_semantic_layer, classify_motifs};
 use crate::signs::compute_signs;
+use crate::traceability::{build_traceability_entries, write_traceability_json};
 use serde::Serialize;
 use std::fs::{self, File};
 use std::io::Write;
@@ -113,6 +114,7 @@ struct ArtifactManifest {
     dsfb_semantic_matches_path: String,
     dsfb_semantic_ranked_candidates_path: String,
     dsfb_feature_policy_decisions_path: String,
+    dsfb_traceability_path: String,
     dsfb_group_definitions_path: String,
     dsfb_group_signs_path: String,
     dsfb_group_grammar_states_path: String,
@@ -719,6 +721,11 @@ pub fn run_secom_benchmark(
         &run_dir.join("policy_decisions.csv"),
         &scaffold_semiotics.feature_policy_decisions,
     )?;
+    let traceability_entries = build_traceability_entries(&scaffold_semiotics);
+    write_traceability_json(
+        &run_dir.join("dsfb_traceability.json"),
+        &traceability_entries,
+    )?;
     write_json_pretty(
         &run_dir.join("dsfb_group_definitions.json"),
         &scaffold_semiotics.group_definitions,
@@ -1150,6 +1157,10 @@ pub fn run_secom_benchmark(
                 .to_string(),
             dsfb_feature_policy_decisions_path: run_dir
                 .join("dsfb_feature_policy_decisions.csv")
+                .display()
+                .to_string(),
+            dsfb_traceability_path: run_dir
+                .join("dsfb_traceability.json")
                 .display()
                 .to_string(),
             dsfb_group_definitions_path: run_dir

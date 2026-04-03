@@ -1,0 +1,12 @@
+[
+  {
+    "event_id": "etch-12:S059:1143",
+    "features": [
+      "S059"
+    ],
+    "motif": "slow_drift_precursor",
+    "grammar": "SustainedDrift",
+    "semantic": "pre-failure cluster",
+    "policy": "Escalate"
+  }
+]

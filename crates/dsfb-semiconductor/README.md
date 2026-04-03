@@ -4,6 +4,13 @@
 
 `dsfb-semiconductor` is the empirical software companion for the DSFB semiconductor paper. It instantiates the paper's bounded claim: DSFB is a deterministic, non-intrusive augmentation layer over existing semiconductor monitoring signals, not a replacement for incumbent SPC/APC/FDC infrastructure.
 
+The operator-facing result in the saved SECOM row is bounded and concrete:
+
+- `28,607 -> 71` structured review episodes (`-99.75%`)
+- `0.36% -> 80.3%` event relevance (`220.8x`)
+- `10,554 -> 3,854` investigation-worthy decisions (`-63.5%`)
+- `104 / 104` failure-labeled runs preserved
+
 The crate is intentionally read-only and side-channel by design:
 
 - SPC, EWMA, threshold logic, APC, and controller behavior remain authoritative and unchanged
@@ -28,8 +35,16 @@ The current crate turns real semiconductor datasets into inspectable DSFB artifa
 - a deterministic residual stateflow chart (DRSC) plus aligned trace CSV for the top boundary-activity feature
 - a publication-quality Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA) plus aligned trace CSV for that same selected feature window
 - all notebook-parity PNG figures directly from the crate
+- a generated `dsfb_traceability.json` artifact exposing the chain `Residual -> Sign -> Motif -> Grammar -> Semantic -> Policy`
 - an engineering report in Markdown, LaTeX, and PDF when `pdflatex` is available; the PDF includes the generated figures and an artifact inventory
 - a ZIP bundle of the full run directory
+
+Operator-facing docs bundled in the crate:
+
+- `docs/sbir_one_page.md`
+- `docs/fab_data_integration.md`
+- `docs/compute_cost.md`
+- `docs/failure_modes.md`
 
 ## What math from the paper is instantiated
 

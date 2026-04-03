@@ -12,6 +12,10 @@ pub trait DSFBObserver {
     fn output(&self) -> Vec<PolicyDecision>;
 }
 
+pub trait FabDataSource {
+    fn residual_stream(&self) -> Vec<ResidualSample>;
+}
+
 #[derive(Debug, Default)]
 pub struct ReadOnlyDsfbObserver {
     residuals: RwLock<Vec<ResidualSample>>,
@@ -93,6 +97,12 @@ impl DSFBObserver for ReadOnlyDsfbObserver {
     }
 }
 
+impl FabDataSource for ResidualStream {
+    fn residual_stream(&self) -> Vec<ResidualSample> {
+        self.samples().to_vec()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,5 +131,18 @@ mod tests {
         assert_eq!(first.policy_decisions, second.policy_decisions);
         assert_eq!(first.semantic_matches, second.semantic_matches);
         assert_eq!(first.grammar_states, second.grammar_states);
+    }
+
+    #[test]
+    fn residual_stream_implements_fab_data_source_read_only() {
+        let source = ResidualStream::new(vec![ResidualSample {
+            timestamp: 1.0,
+            feature_id: "S059".into(),
+            value: 0.5,
+        }]);
+        let exported = source.residual_stream();
+        assert_eq!(exported.len(), 1);
+        assert_eq!(exported[0].feature_id, "S059");
+        assert_eq!(source.samples().len(), 1);
     }
 }
