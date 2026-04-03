@@ -30,7 +30,11 @@ pub struct TraceabilityEntry {
     pub run_index: usize,
     pub timestamp: String,
     pub label: i8,
+    /// Primary residual scalar (normalized). Kept for backward compatibility.
     pub residual: f64,
+    /// Full residual value vector for this event (one entry per feature in `features`).
+    /// Use this field when iterating over multi-feature episodes.
+    pub residual_values: Vec<f64>,
     pub sign: TraceabilitySign,
     pub motif: String,
     pub grammar: String,
@@ -130,6 +134,7 @@ pub fn build_traceability_entries(
                 timestamp: policy_row.timestamp.clone(),
                 label: policy_row.label,
                 residual: sign_row.normalized_residual,
+                residual_values: vec![sign_row.normalized_residual],
                 sign: TraceabilitySign {
                     normalized_residual: sign_row.normalized_residual,
                     drift: sign_row.drift,
