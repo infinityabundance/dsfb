@@ -3,6 +3,7 @@ use crate::semiotics::{
     FeatureGrammarStateRecord, FeatureMotifTimelineRecord, FeatureSignRecord,
     ScaffoldSemioticsArtifacts,
 };
+use crate::units::UomScales;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -38,6 +39,60 @@ pub struct TraceabilityEntry {
     pub rationale: String,
     pub chain: String,
     pub integration_mode: String,
+}
+
+// ─── Run Manifest (dsfb_run_manifest.json) ────────────────────────────────────
+
+/// The complete run manifest emitted as `dsfb_run_manifest.json` for every
+/// DSFB run.  This satisfies the "Audit Trail" requirement: every alarm can
+/// be traced back to the software version, unit conventions, and process
+/// context used during the run.
+#[derive(Debug, Clone, Serialize)]
+pub struct DsfbRunManifest {
+    /// Crate semver version string.
+    pub software_version: String,
+    /// ISO-8601 timestamp at which the run was initiated.
+    pub run_timestamp: String,
+    /// Physical unit conventions used during this run.
+    pub uom_scales: UomScales,
+    /// Process context active at run start (best-effort; may be empty for
+    /// batch runs without recipe-step metadata).
+    pub process_context_tag: String,
+    /// Total number of traceability entries emitted.
+    pub traceability_entry_count: usize,
+    /// The trace chain string for documentation.
+    pub trace_chain: &'static str,
+    /// Integration mode — always `"read_only_side_channel"`.
+    pub integration_mode: &'static str,
+    /// Abstract summary of missingness across the run.
+    pub missingness_summary: Option<serde_json::Value>,
+}
+
+impl DsfbRunManifest {
+    /// Construct a manifest for a completed DSFB run.
+    pub fn new(
+        run_timestamp: String,
+        process_context_tag: String,
+        traceability_entry_count: usize,
+    ) -> Self {
+        Self {
+            software_version: env!("CARGO_PKG_VERSION").to_string(),
+            run_timestamp,
+            uom_scales: UomScales::default(),
+            process_context_tag,
+            traceability_entry_count,
+            trace_chain: TRACE_CHAIN,
+            integration_mode: INTEGRATION_MODE,
+            missingness_summary: None,
+        }
+    }
+
+    /// Write the manifest to `path` as pretty-printed JSON.
+    pub fn write(&self, path: &Path) -> Result<()> {
+        let file = std::fs::File::create(path)?;
+        serde_json::to_writer_pretty(file, self)?;
+        Ok(())
+    }
 }
 
 pub fn build_traceability_entries(

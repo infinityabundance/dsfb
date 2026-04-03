@@ -21,6 +21,9 @@ pub enum DsfbSemiconductorError {
     ExternalCommand(String),
     #[error("network fetch failed: {0}")]
     Network(String),
+    /// Configuration or validation error — e.g., invalid signature schema.
+    #[error("configuration error: {0}")]
+    Config(String),
 }
 
 pub type Result<T> = std::result::Result<T, DsfbSemiconductorError>;
