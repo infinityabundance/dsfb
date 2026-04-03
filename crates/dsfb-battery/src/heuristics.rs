@@ -467,8 +467,7 @@ pub fn build_heuristic_observation_profile(
             if grammar_rank(sample.grammar_state) < grammar_rank(previous_state) {
                 has_regressive_transition = true;
             }
-            if previous_state == GrammarState::Boundary
-                && sample.grammar_state == GrammarState::Admissible
+            if previous_state == GrammarState::Boundary && sample.grammar_state == GrammarState::Admissible
             {
                 boundary_return_count += 1;
             }
@@ -494,8 +493,9 @@ pub fn build_heuristic_observation_profile(
             && transition.cycle < first_violation_cycle.unwrap_or(usize::MAX)
     });
     let has_violation_return = violation_return_count > 0;
-    let has_recurrent_reentry_loop = if let Some(index) =
-        transitions.iter().position(|transition| {
+    let has_recurrent_reentry_loop = if let Some(index) = transitions
+        .iter()
+        .position(|transition| {
             transition.previous_state == GrammarState::Violation
                 && transition.current_state == GrammarState::Admissible
         }) {
@@ -859,7 +859,9 @@ fn write_implementation_summary(
         "- No unique physical mechanism identification is claimed for any heuristic entry."
             .to_string(),
     );
-    lines.push("- Cross-chemistry or non-NASA transfer is not claimed by this bank.".to_string());
+    lines.push(
+        "- Cross-chemistry or non-NASA transfer is not claimed by this bank.".to_string(),
+    );
     lines.push(
         "- The accelerating-fade/knee entry remains illustrative because the current default NASA PCoE runs do not populate that reason code."
             .to_string(),
@@ -870,7 +872,8 @@ fn write_implementation_summary(
     lines.push("- Existing mono-cell production figure filenames were not reused.".to_string());
     lines.push("- Existing production stage-II artifact filenames were not reused.".to_string());
     lines.push(
-        "Confirmation: the existing mono-cell production figure path was not modified.".to_string(),
+        "Confirmation: the existing mono-cell production figure path was not modified."
+            .to_string(),
     );
 
     if let Some(parent) = path.parent() {
@@ -905,20 +908,11 @@ fn evaluate_match(
     let mut unsatisfied_conditions = Vec::new();
     let mut total_conditions = 0usize;
 
-    if !entry
-        .match_criteria
-        .required_primary_reason_codes
-        .is_empty()
-    {
+    if !entry.match_criteria.required_primary_reason_codes.is_empty() {
         total_conditions += 1;
         let satisfied = profile
             .primary_reason_code
-            .map(|code| {
-                entry
-                    .match_criteria
-                    .required_primary_reason_codes
-                    .contains(&code)
-            })
+            .map(|code| entry.match_criteria.required_primary_reason_codes.contains(&code))
             .unwrap_or(false);
         push_condition(
             satisfied,
@@ -939,10 +933,7 @@ fn evaluate_match(
             .contains(&profile.final_state);
         push_condition(
             satisfied,
-            format!(
-                "final_state in {:?}",
-                entry.match_criteria.required_final_states
-            ),
+            format!("final_state in {:?}", entry.match_criteria.required_final_states),
             &mut satisfied_conditions,
             &mut unsatisfied_conditions,
         );
@@ -965,8 +956,7 @@ fn evaluate_match(
         &mut unsatisfied_conditions,
     );
     evaluate_optional_bool_condition(
-        entry
-            .match_criteria
+        entry.match_criteria
             .requires_positive_lead_vs_threshold_baseline,
         profile
             .lead_time_vs_threshold_baseline
@@ -986,9 +976,7 @@ fn evaluate_match(
         &mut unsatisfied_conditions,
     );
     evaluate_optional_bool_condition(
-        entry
-            .match_criteria
-            .requires_boundary_return_before_violation,
+        entry.match_criteria.requires_boundary_return_before_violation,
         profile.has_boundary_return_before_violation,
         "boundary return before first violation",
         &mut total_conditions,

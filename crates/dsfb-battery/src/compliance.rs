@@ -154,10 +154,7 @@ struct DeterministicSummary {
     t_star: usize,
 }
 
-pub fn resolve_compliance_output_dir(
-    crate_dir: &Path,
-    explicit_output: Option<PathBuf>,
-) -> PathBuf {
+pub fn resolve_compliance_output_dir(crate_dir: &Path, explicit_output: Option<PathBuf>) -> PathBuf {
     if let Some(output) = explicit_output {
         return output;
     }
@@ -231,7 +228,10 @@ pub fn run_compliance_workflow_from_input(
     let operator_overlay_dir = output_dir.join("operator_overlay");
     fs::create_dir_all(&operator_overlay_dir)?;
 
-    write_json(&safe_rust_audit, &output_dir.join("safe_rust_audit.json"))?;
+    write_json(
+        &safe_rust_audit,
+        &output_dir.join("safe_rust_audit.json"),
+    )?;
     write_text(
         &render_misra_equivalent_report(&safe_rust_audit),
         &output_dir.join("misra_equivalent_report.txt"),
@@ -252,7 +252,10 @@ pub fn run_compliance_workflow_from_input(
         &overlay_rows,
         &operator_overlay_dir.join("operator_overlay_timeline.csv"),
     )?;
-    write_standards_status_csv(&standards, &output_dir.join("standards_status_matrix.csv"))?;
+    write_standards_status_csv(
+        &standards,
+        &output_dir.join("standards_status_matrix.csv"),
+    )?;
 
     let summary = ComplianceImplementationSummary {
         artifact_type: COMPLIANCE_ARTIFACT_TYPE.to_string(),
@@ -326,9 +329,7 @@ pub fn render_misra_equivalent_report(audit: &SafeRustAudit) -> String {
     ];
 
     if audit.unsafe_hits_all_src.is_empty() {
-        lines.push(
-            "- No unsafe tokens were found in src/ by the current heuristic scan.".to_string(),
-        );
+        lines.push("- No unsafe tokens were found in src/ by the current heuristic scan.".to_string());
     } else {
         for finding in &audit.unsafe_hits_all_src {
             lines.push(format!(
@@ -339,9 +340,7 @@ pub fn render_misra_equivalent_report(audit: &SafeRustAudit) -> String {
     }
 
     if audit.dynamic_allocation_hits_core.is_empty() {
-        lines.push(
-            "- No dynamic-allocation patterns were found in the core boundary set.".to_string(),
-        );
+        lines.push("- No dynamic-allocation patterns were found in the core boundary set.".to_string());
     } else {
         for finding in &audit.dynamic_allocation_hits_core {
             lines.push(format!(
@@ -352,9 +351,7 @@ pub fn render_misra_equivalent_report(audit: &SafeRustAudit) -> String {
     }
 
     if audit.recursion_hits_all_src.is_empty() {
-        lines.push(
-            "- No direct recursion was found in src/ by the current heuristic scan.".to_string(),
-        );
+        lines.push("- No direct recursion was found in src/ by the current heuristic scan.".to_string());
     } else {
         for finding in &audit.recursion_hits_all_src {
             lines.push(format!(
@@ -615,8 +612,7 @@ fn build_determinism_check(
         summary_hash_run_1,
         summary_hash_run_2,
         notes: vec![
-            "This helper checks repeated local execution on the same toolchain and input ordering."
-                .to_string(),
+            "This helper checks repeated local execution on the same toolchain and input ordering.".to_string(),
             "It does not claim cross-platform IEEE 754 bit-for-bit equivalence.".to_string(),
         ],
     })
@@ -750,9 +746,7 @@ fn scan_safe_rust_subset(crate_dir: &Path) -> Result<SafeRustAudit, ComplianceEr
     let dynamic_allocation_hits_core = scan_for_patterns(
         crate_dir,
         &core_paths,
-        &[
-            "Vec<", "vec![", "String", "format!(", "Box<", "Box::", "alloc::",
-        ],
+        &["Vec<", "vec![", "String", "format!(", "Box<", "Box::", "alloc::"],
     );
     let recursion_hits_all_src = scan_for_direct_recursion(crate_dir, &files);
 
@@ -787,7 +781,10 @@ fn collect_rs_files(dir: &Path) -> Result<Vec<PathBuf>, ComplianceError> {
     Ok(files)
 }
 
-fn collect_rs_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), ComplianceError> {
+fn collect_rs_files_recursive(
+    dir: &Path,
+    files: &mut Vec<PathBuf>,
+) -> Result<(), ComplianceError> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -800,11 +797,7 @@ fn collect_rs_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()
     Ok(())
 }
 
-fn scan_for_patterns(
-    crate_dir: &Path,
-    files: &[PathBuf],
-    patterns: &[&str],
-) -> Vec<SafeRustFinding> {
+fn scan_for_patterns(crate_dir: &Path, files: &[PathBuf], patterns: &[&str]) -> Vec<SafeRustFinding> {
     let mut findings = Vec::new();
     for path in files {
         let Ok(text) = fs::read_to_string(path) else {
@@ -921,21 +914,13 @@ fn write_operator_overlay_csv(
         fs::create_dir_all(parent)?;
     }
     let mut writer = csv::Writer::from_path(path)?;
-    writer.write_record([
-        "cycle",
-        "state",
-        "tri_state_color",
-        "reason_code",
-        "advisory_text",
-    ])?;
+    writer.write_record(["cycle", "state", "tri_state_color", "reason_code", "advisory_text"])?;
     for row in rows {
         writer.write_record([
             row.cycle.to_string(),
             row.state.to_string(),
             row.tri_state_color.clone(),
-            row.reason_code
-                .map(|code| code.to_string())
-                .unwrap_or_default(),
+            row.reason_code.map(|code| code.to_string()).unwrap_or_default(),
             row.advisory_text.clone(),
         ])?;
     }
@@ -984,10 +969,7 @@ fn render_implementation_summary(
         format!("Artifact type: {}", summary.artifact_type),
         format!("Output root: {}", summary.output_root),
         format!("Input source: {}", source_path.display()),
-        format!(
-            "DSFB alarm cycle observed in helper run: {:?}",
-            dsfb_alarm_cycle
-        ),
+        format!("DSFB alarm cycle observed in helper run: {:?}", dsfb_alarm_cycle),
         format!(
             "Threshold baseline cycle observed in helper run: {:?}",
             threshold_alarm_cycle
@@ -1000,7 +982,9 @@ fn render_implementation_summary(
     for record in &summary.standards_covered {
         lines.push(format!(
             "- {} -> {:?} ({})",
-            record.standard, record.status, record.mapping_artifact
+            record.standard,
+            record.status,
+            record.mapping_artifact
         ));
     }
 
@@ -1059,10 +1043,12 @@ mod tests {
     fn resolve_compliance_output_dir_defaults_to_timestamped_directory() {
         let crate_dir = Path::new("/tmp/dsfb-battery");
         let output = resolve_compliance_output_dir(crate_dir, None);
-        assert!(output
-            .display()
-            .to_string()
-            .contains("outputs/compliance/dsfb_battery_compliance_"));
+        assert!(
+            output
+                .display()
+                .to_string()
+                .contains("outputs/compliance/dsfb_battery_compliance_")
+        );
     }
 
     #[test]
@@ -1073,11 +1059,7 @@ mod tests {
         fs::create_dir_all(&first).unwrap();
         let second = unique_named_output_dir(&root, "dsfb_battery_compliance_fixed");
         assert_ne!(second, first);
-        assert!(second
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .contains("_r1"));
+        assert!(second.file_name().unwrap().to_string_lossy().contains("_r1"));
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -1100,14 +1082,18 @@ mod tests {
         assert!(output_dir.join("determinism_check.json").exists());
         assert!(output_dir.join("stc_traceability_support.json").exists());
         assert!(output_dir.join("standards_status_matrix.csv").exists());
-        assert!(output_dir
-            .join("operator_overlay")
-            .join("operator_overlay_summary.json")
-            .exists());
-        assert!(output_dir
-            .join("operator_overlay")
-            .join("operator_overlay_timeline.csv")
-            .exists());
+        assert!(
+            output_dir
+                .join("operator_overlay")
+                .join("operator_overlay_summary.json")
+                .exists()
+        );
+        assert!(
+            output_dir
+                .join("operator_overlay")
+                .join("operator_overlay_timeline.csv")
+                .exists()
+        );
         assert_eq!(
             summary.no_production_modification_statement,
             IMPLEMENTATION_SUMMARY_STATEMENT
@@ -1115,8 +1101,7 @@ mod tests {
         assert!(!output_dir.join("stage2_detection_results.json").exists());
         assert!(!output_dir.join("fig01_capacity_fade.svg").exists());
 
-        let summary_text =
-            fs::read_to_string(output_dir.join("implementation_summary.txt")).unwrap();
+        let summary_text = fs::read_to_string(output_dir.join("implementation_summary.txt")).unwrap();
         assert!(summary_text.contains("No production code or figures were modified"));
 
         let _ = fs::remove_dir_all(&output_dir);

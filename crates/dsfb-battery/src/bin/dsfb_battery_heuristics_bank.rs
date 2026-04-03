@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use dsfb_battery::{resolve_helper_output_dir, run_nasa_heuristics_bank_workflow, PipelineConfig};
+use dsfb_battery::{
+    resolve_helper_output_dir, run_nasa_heuristics_bank_workflow, PipelineConfig,
+};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -32,8 +34,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cli.output,
     );
 
-    let artifact =
-        run_nasa_heuristics_bank_workflow(&data_dir, &output_dir, &PipelineConfig::default())?;
+    let artifact = run_nasa_heuristics_bank_workflow(
+        &data_dir,
+        &output_dir,
+        &PipelineConfig::default(),
+    )?;
 
     println!(
         "NASA-grounded heuristics bank helper completed for cells: {}",
