@@ -677,7 +677,7 @@ fn build_failures_index(
 }
 
 fn build_failure_cases(
-    dataset: &PreparedDataset,
+    _dataset: &PreparedDataset,
     feature_bundles: &BTreeMap<usize, FeatureBundle<'_>>,
     semantic_layer: &SemanticLayer,
     baseline_by_failure: &BTreeMap<usize, &PerFailureRunDsaSignal>,

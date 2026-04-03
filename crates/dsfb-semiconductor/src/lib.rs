@@ -28,4 +28,5 @@ pub mod semiotics;
 pub mod sign;
 pub mod signs;
 pub mod syntax;
+pub mod traceability;
 pub mod unified_value_figure;

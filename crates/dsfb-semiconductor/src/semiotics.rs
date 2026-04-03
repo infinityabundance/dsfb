@@ -554,9 +554,9 @@ pub fn build_semantic_layer(
 
 pub fn feature_semantic_flags(
     residual_trace: &ResidualFeatureTrace,
-    sign_trace: &FeatureSigns,
+    _sign_trace: &FeatureSigns,
     grammar_trace: &FeatureGrammarTrace,
-    feature_rho: f64,
+    _feature_rho: f64,
 ) -> FeatureSemanticFlags {
     let mut semantic_flags = BTreeMap::<&'static str, Vec<bool>>::new();
     for heuristic_name in [
@@ -884,15 +884,6 @@ fn semantic_candidates_for_run(
     }
 
     candidates
-}
-
-fn semantic_flag_aliases(heuristic_name: &'static str) -> &'static [&'static str] {
-    match heuristic_name {
-        TRANSITION_EXCURSION => &[TRANSIENT_EXCURSION],
-        PRE_FAILURE_SLOW_DRIFT => &[PRE_FAILURE_SLOW_DRIFT],
-        RECURRENT_BOUNDARY_APPROACH => &[RECURRENT_BOUNDARY_APPROACH],
-        _ => &[],
-    }
 }
 
 fn build_feature_sign_records(

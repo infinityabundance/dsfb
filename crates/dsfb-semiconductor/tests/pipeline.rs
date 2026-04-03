@@ -282,6 +282,7 @@ fn benchmark_run_writes_expected_core_artifacts() {
         "dsfb_semantic_matches.csv",
         "dsfb_semantic_ranked_candidates.csv",
         "dsfb_feature_policy_decisions.csv",
+        "dsfb_traceability.json",
         "dsfb_group_definitions.json",
         "dsfb_group_signs.csv",
         "dsfb_group_grammar_states.csv",

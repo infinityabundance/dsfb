@@ -1,6 +1,6 @@
 use crate::baselines::BaselineSet;
 use crate::error::{DsfbSemiconductorError, Result};
-use crate::grammar::{GrammarReason, GrammarSet, GrammarState};
+use crate::grammar::{GrammarSet, GrammarState};
 use crate::heuristics::{
     dsa_contributing_motif_names, heuristic_policy_definition, FeaturePolicyOverride,
     HeuristicAlertClass, HeuristicPolicyDefinition,
@@ -1928,15 +1928,6 @@ fn assemble_dsa_evaluation(
         comparison_summary,
         motif_policy_contributions,
         per_failure_run_signals,
-    }
-}
-
-fn dsa_motif_name(reason: &GrammarReason) -> Option<&'static str> {
-    match reason {
-        GrammarReason::SustainedOutwardDrift => Some("pre_failure_slow_drift"),
-        GrammarReason::AbruptSlewViolation => Some("transient_excursion"),
-        GrammarReason::RecurrentBoundaryGrazing => Some("recurrent_boundary_approach"),
-        GrammarReason::Admissible | GrammarReason::EnvelopeViolation => None,
     }
 }
 
