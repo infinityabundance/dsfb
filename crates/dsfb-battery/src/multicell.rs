@@ -51,7 +51,12 @@ pub fn run_multicell_workflow(
         }
 
         let raw_data = load_capacity_csv(&path)?;
-        let run = evaluate_cell(cell.cell_id, path.to_string_lossy().as_ref(), &raw_data, config)?;
+        let run = evaluate_cell(
+            cell.cell_id,
+            path.to_string_lossy().as_ref(),
+            &raw_data,
+            config,
+        )?;
         runs.push(run);
     }
 
@@ -80,11 +85,24 @@ pub fn run_multicell_workflow(
     };
 
     write_pretty_json(&artifact, &output_dir.join(MULTICELL_JSON_NAME))?;
-    write_multicell_csv(&artifact.cell_summaries, &output_dir.join(MULTICELL_CSV_NAME))?;
-    generate_multicell_lead_time_figure(&artifact.cell_summaries, &output_dir.join(LEAD_FIGURE_NAME))?;
-    generate_multicell_trigger_cycle_figure(&artifact.cell_summaries, &output_dir.join(TRIGGER_FIGURE_NAME))?;
+    write_multicell_csv(
+        &artifact.cell_summaries,
+        &output_dir.join(MULTICELL_CSV_NAME),
+    )?;
+    generate_multicell_lead_time_figure(
+        &artifact.cell_summaries,
+        &output_dir.join(LEAD_FIGURE_NAME),
+    )?;
+    generate_multicell_trigger_cycle_figure(
+        &artifact.cell_summaries,
+        &output_dir.join(TRIGGER_FIGURE_NAME),
+    )?;
     generate_multicell_residual_state_overview(&runs, &output_dir.join(OVERVIEW_FIGURE_NAME))?;
-    write_summary_text(&artifact, &output_dir.join(MULTICELL_SUMMARY_NAME), output_dir)?;
+    write_summary_text(
+        &artifact,
+        &output_dir.join(MULTICELL_SUMMARY_NAME),
+        output_dir,
+    )?;
 
     Ok(artifact)
 }
@@ -172,7 +190,10 @@ fn write_summary_text(
 ) -> Result<(), ExportError> {
     let mut lines = Vec::new();
     lines.push("Multi-cell workflow completion summary".to_string());
-    lines.push(format!("Cells included: {}", artifact.cells_included.join(", ")));
+    lines.push(format!(
+        "Cells included: {}",
+        artifact.cells_included.join(", ")
+    ));
     lines.push(format!(
         "Unavailable cells: {}",
         unavailable_label(&artifact.unavailable_cells)
@@ -188,9 +209,14 @@ fn write_summary_text(
     lines.push("Gates protecting production outputs:".to_string());
     lines.push("- Existing dsfb-battery-demo binary was left unchanged.".to_string());
     lines.push("- This workflow writes only into its own output directory.".to_string());
-    lines.push("- Production figure filenames and stage-II artifact paths were not reused.".to_string());
+    lines.push(
+        "- Production figure filenames and stage-II artifact paths were not reused.".to_string(),
+    );
     lines.push("Data availability limitations:".to_string());
-    lines.push("- The workflow evaluates only cell CSVs present in the provided data directory.".to_string());
+    lines.push(
+        "- The workflow evaluates only cell CSVs present in the provided data directory."
+            .to_string(),
+    );
     lines.push("Confirmation: existing mono-cell production figure paths were not modified by this workflow.".to_string());
 
     if let Some(parent) = path.parent() {
@@ -246,7 +272,9 @@ mod tests {
     fn write_cell_csv(dir: &Path, cell_id: &str, capacities: &[f64]) {
         let path = dir.join(format!("nasa_{}_capacity.csv", cell_id.to_lowercase()));
         let mut writer = csv::Writer::from_path(path).unwrap();
-        writer.write_record(["cycle", "capacity_ah", "type"]).unwrap();
+        writer
+            .write_record(["cycle", "capacity_ah", "type"])
+            .unwrap();
         for (index, capacity) in capacities.iter().enumerate() {
             writer
                 .write_record([
@@ -268,7 +296,10 @@ mod tests {
             ("B0005", vec![2.0, 1.99, 1.98, 1.93, 1.86, 1.78, 1.70, 1.58]),
             ("B0006", vec![2.1, 2.08, 2.05, 1.97, 1.89, 1.80, 1.68, 1.55]),
             ("B0007", vec![1.9, 1.89, 1.88, 1.84, 1.79, 1.71, 1.62, 1.50]),
-            ("B0018", vec![1.85, 1.84, 1.83, 1.78, 1.72, 1.63, 1.54, 1.45]),
+            (
+                "B0018",
+                vec![1.85, 1.84, 1.83, 1.78, 1.72, 1.63, 1.54, 1.45],
+            ),
         ];
         for (cell_id, capacities) in cells {
             write_cell_csv(&data_dir, cell_id, &capacities);
@@ -288,8 +319,12 @@ mod tests {
             .unwrap()
             .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
             .collect();
-        assert!(!entries.iter().any(|entry| production_figure_filenames().contains(&entry.as_str())));
-        assert!(!entries.iter().any(|entry| entry == "stage2_detection_results.json"));
+        assert!(!entries
+            .iter()
+            .any(|entry| production_figure_filenames().contains(&entry.as_str())));
+        assert!(!entries
+            .iter()
+            .any(|entry| entry == "stage2_detection_results.json"));
 
         let _ = fs::remove_dir_all(&data_dir);
         let _ = fs::remove_dir_all(&output_dir);

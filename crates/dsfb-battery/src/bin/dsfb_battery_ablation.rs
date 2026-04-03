@@ -55,12 +55,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let data_dir = cli.data_dir.unwrap_or_else(|| crate_dir.join("data"));
-    let output_dir = resolve_helper_output_dir(
-        &crate_dir,
-        "ablation",
-        "dsfb_battery_ablation",
-        cli.output,
-    );
+    let output_dir =
+        resolve_helper_output_dir(&crate_dir, "ablation", "dsfb_battery_ablation", cli.output);
 
     let mut config = PipelineConfig::default();
     if let Some(value) = cli.healthy_window {

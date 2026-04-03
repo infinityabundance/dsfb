@@ -7,9 +7,9 @@
 //   "DSFB Structural Semiotics Engine for Battery Health Monitoring"
 //   by Riaan de Beer, Version 1.0.
 
+use crate::types::EnvelopeParams;
 use alloc::vec;
 use alloc::vec::Vec;
-use crate::types::EnvelopeParams;
 use thiserror::Error;
 
 /// Errors arising from math operations on battery residual data.

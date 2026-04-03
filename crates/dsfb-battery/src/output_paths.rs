@@ -28,12 +28,8 @@ mod tests {
     #[test]
     fn helper_output_defaults_to_timestamped_nested_directory() {
         let crate_dir = Path::new("/tmp/dsfb-battery");
-        let resolved = resolve_helper_output_dir(
-            crate_dir,
-            "multicell",
-            "dsfb_battery_multicell",
-            None,
-        );
+        let resolved =
+            resolve_helper_output_dir(crate_dir, "multicell", "dsfb_battery_multicell", None);
 
         assert_eq!(resolved.parent().unwrap().file_name().unwrap(), "multicell");
         let stem = resolved.file_name().unwrap().to_string_lossy();
