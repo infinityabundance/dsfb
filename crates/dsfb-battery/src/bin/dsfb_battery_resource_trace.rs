@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use dsfb_battery::{load_capacity_csv, resolve_helper_output_dir, run_resource_trace_workflow, PipelineConfig};
+use dsfb_battery::{
+    load_capacity_csv, resolve_helper_output_dir, run_resource_trace_workflow, PipelineConfig,
+};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]

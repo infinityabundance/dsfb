@@ -5,7 +5,11 @@ use dsfb_battery::{resolve_compliance_output_dir, run_compliance_workflow};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-#[command(author, version, about = "Generate isolated compliance/support artifacts for dsfb-battery")]
+#[command(
+    author,
+    version,
+    about = "Generate isolated compliance/support artifacts for dsfb-battery"
+)]
 struct Args {
     /// Path to the NASA B0005 capacity CSV file
     #[arg(long)]
@@ -26,7 +30,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let summary = run_compliance_workflow(&crate_dir, &data_path, &output_dir)?;
 
-    println!("Compliance support artifacts written to {}", output_dir.display());
+    println!(
+        "Compliance support artifacts written to {}",
+        output_dir.display()
+    );
     println!(
         "Implementation summary: {}",
         output_dir.join("implementation_summary.txt").display()

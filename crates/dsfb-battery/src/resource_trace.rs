@@ -455,7 +455,8 @@ fn build_heuristics_cost(
         average_evaluated_entries_per_cycle: ResourceMetric {
             value: Some(average_evaluated_entries_per_cycle),
             measurement_mode: MeasurementMode::Inferred,
-            note: "Derived from one full-bank retrieval divided by logical cycle count.".to_string(),
+            note: "Derived from one full-bank retrieval divided by logical cycle count."
+                .to_string(),
         },
         average_lookup_time_per_run_ns: ResourceMetric {
             value: Some(average_lookup_time_per_run_ns),
@@ -475,7 +476,8 @@ fn build_heuristics_cost(
         estimated_loaded_bank_bytes: ResourceMetric {
             value: Some(estimated_loaded_bank_bytes),
             measurement_mode: MeasurementMode::Estimated,
-            note: "Approximate lower-bound in-memory size based on serde serialization length.".to_string(),
+            note: "Approximate lower-bound in-memory size based on serde serialization length."
+                .to_string(),
         },
         regime_gating_applied: false,
         notes: notes.clone(),
@@ -496,7 +498,8 @@ fn build_heuristics_cost(
         average_evaluated_entries_per_cycle: ResourceMetric {
             value: Some(average_evaluated_entries_per_cycle),
             measurement_mode: MeasurementMode::Inferred,
-            note: "One retrieval per run amortized across the logical cycles in this batch helper.".to_string(),
+            note: "One retrieval per run amortized across the logical cycles in this batch helper."
+                .to_string(),
         },
         average_lookup_time_per_run_ns: ResourceMetric {
             value: Some(average_lookup_time_per_run_ns),
@@ -511,7 +514,8 @@ fn build_heuristics_cost(
         approximate_memory_footprint_bytes: ResourceMetric {
             value: Some(estimated_loaded_bank_bytes),
             measurement_mode: MeasurementMode::Estimated,
-            note: "Estimated loaded-bank footprint derived from serde serialization size.".to_string(),
+            note: "Estimated loaded-bank footprint derived from serde serialization size."
+                .to_string(),
         },
         regime_gating_reduced_scope: false,
         notes,
@@ -524,7 +528,10 @@ fn build_memory_footprint(
     config: &PipelineConfig,
     heuristics_cost: &HeuristicsCost,
 ) -> Result<MemoryFootprint, Box<dyn std::error::Error>> {
-    let serialized_bank_bytes = heuristics_cost.serialized_bank_bytes.value.unwrap_or_default();
+    let serialized_bank_bytes = heuristics_cost
+        .serialized_bank_bytes
+        .value
+        .unwrap_or_default();
     let hot_loop_state_estimate_bytes = estimate_hot_loop_state_bytes(config);
 
     Ok(MemoryFootprint {
@@ -569,7 +576,11 @@ fn estimate_hot_loop_state_bytes(config: &PipelineConfig) -> usize {
     let envelope_bytes = size_of::<EnvelopeParams>();
     let config_bytes = size_of::<PipelineConfig>();
 
-    residual_window_bytes + drift_window_bytes + persistence_counter_bytes + envelope_bytes + config_bytes
+    residual_window_bytes
+        + drift_window_bytes
+        + persistence_counter_bytes
+        + envelope_bytes
+        + config_bytes
 }
 
 fn build_memory_budget_report() -> MemoryBudgetReport {
@@ -644,7 +655,10 @@ fn write_resource_trace_summary(
             .value
             .map(|value| value.to_string())
             .unwrap_or_else(|| "not reported".to_string()),
-        trace.memory_footprint.heap_allocation_count.measurement_mode
+        trace
+            .memory_footprint
+            .heap_allocation_count
+            .measurement_mode
     ));
     lines.push(format!(
         "Stack usage bytes: {} ({:?})",
@@ -708,7 +722,10 @@ fn write_implementation_summary(
     lines.push("Implemented:".to_string());
     lines.push("- Typed ResourceTrace, HeuristicsCost, HeuristicsDensityReport, MemoryBudgetReport, and AuditHeader output contracts.".to_string());
     lines.push("- Host-side timing measurements for the existing batch evaluation helper and heuristics-bank lookup.".to_string());
-    lines.push("- SHA-256 input, configuration, and validation hashing for the resource trace artifact.".to_string());
+    lines.push(
+        "- SHA-256 input, configuration, and validation hashing for the resource trace artifact."
+            .to_string(),
+    );
     lines.push("- Compile-time size assertions for selected core runtime structs.".to_string());
     lines.push("Measured vs estimated vs asserted:".to_string());
     lines.push("- Host timing values are measured on the current host only.".to_string());
@@ -722,7 +739,9 @@ fn write_implementation_summary(
     lines.push("Protection gates:".to_string());
     lines.push("- Existing dsfb-battery-demo behavior was not modified.".to_string());
     lines.push("- Resource tracing writes only into outputs/resource_trace/...".to_string());
-    lines.push("- Production figure filenames and stage-II artifact filenames are not reused.".to_string());
+    lines.push(
+        "- Production figure filenames and stage-II artifact filenames are not reused.".to_string(),
+    );
     lines.push(format!(
         "Heuristics density lookup count: {}",
         density_report.lookup_count
@@ -892,6 +911,9 @@ mod tests {
     #[test]
     fn window_integrity_holds_for_default_config() {
         assert!(verify_window_integrity(&PipelineConfig::default()));
-        assert_eq!(estimate_hot_loop_state_bytes(&PipelineConfig::default()), estimate_hot_loop_state_bytes(&PipelineConfig::default()));
+        assert_eq!(
+            estimate_hot_loop_state_bytes(&PipelineConfig::default()),
+            estimate_hot_loop_state_bytes(&PipelineConfig::default())
+        );
     }
 }
