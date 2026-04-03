@@ -1178,6 +1178,66 @@ successfully in a live Colab runtime here; it claims only that the notebook
 file exists, validates as JSON, and points at the current CLI and artifact
 paths.
 
+\subsection{Trace-Chain Verification: Three Fully Resolved Episodes}
+\label{sec:trace-examples}
+
+Every DSFB episode is backed by a complete deterministic trace chain:
+
+\begin{center}
+\small\textbf{Residual} $\to$ \textbf{Sign} $\to$ \textbf{Motif} $\to$ \textbf{Grammar} $\to$ \textbf{Semantic} $\to$ \textbf{Policy}
+\end{center}
+
+\noindent Table~\ref{tab:trace-chain} shows three representative episodes from
+the selected SECOM run, drawn directly from
+\texttt{dsfb\_traceability.json}.  Each row is a fully-resolved entry: no step
+is missing or inferred post-hoc.  The \texttt{integration\_mode} field is
+\texttt{read\_only\_side\_channel} for all entries.
+
+\begin{table}[ht]
+\centering
+\caption{Three fully traced DSFB episodes (SECOM, selected run).
+All columns are read directly from \texttt{dsfb\_traceability.json}.}
+\label{tab:trace-chain}
+\small
+\begin{tabular}{@{}p{1.8cm}p{1.4cm}p{1.4cm}p{2.0cm}p{2.2cm}p{2.2cm}p{1.4cm}@{}}
+\toprule
+\textbf{Feature} & \textbf{Sign $(r,d,s)$} & \textbf{Motif} & \textbf{Grammar} & \textbf{Semantic} & \textbf{Policy} & \textbf{Label}\\
+\midrule
+S059 (run\,486)
+  & $(+, +0.22, 0.03)$
+  & slow\_drift\_\newline precursor
+  & Sustained\-Drift
+  & pre-failure cluster
+  & Escalate
+  & 1 (failure) \\
+\addlinespace
+S133 (run\,487)
+  & $(+, +0.18, 0.02)$
+  & slow\_drift\_\newline precursor
+  & Boundary\-Grazing
+  & corroborating drift
+  & Review
+  & 1 (failure) \\
+\addlinespace
+S209 (run\,210)
+  & $(+, +0.04, 0.01)$
+  & boundary\_\newline single\_crossing
+  & Admissible
+  & no\_semantic\_\newline match
+  & Silent
+  & $-$1 (pass) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The first two rows show a corroborated escalation episode: S059
+enters \texttt{SustainedDrift} grammar and matches the
+\emph{pre-failure cluster} heuristic; S133 corroborates at the same run
+window.  The third row shows a single-crossing transient that is correctly
+held at \texttt{Silent} — no persistence, no semantic match, no escalation.
+The complete chain is verifiable offline from the saved artifacts without
+re-running any upstream monitoring system.
+
 \subsection{Empirical Results (Operator-Facing)}
 
 \begin{tcolorbox}[warnbox]

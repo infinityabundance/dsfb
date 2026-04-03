@@ -162,11 +162,11 @@ impl ProcessContext {
     /// | `Other`        | 1.00 ×    | Baseline                                |
     ///
     /// During a `ChamberClean` tool state, deviations are fully suppressed
-    /// (`f64::MAX`).
+    /// (`f64::INFINITY` — no finite residual can exceed an infinite envelope).
     #[must_use]
     pub fn admissibility_multiplier(&self) -> f64 {
         if self.tool_state == ToolState::ChamberClean {
-            return f64::MAX; // suppress all deviations; chamber is intentionally dirty
+            return f64::INFINITY; // suppress all deviations; chamber is intentionally dirty
         }
         match &self.recipe_step {
             RecipeStep::GasStabilize => 1.50,
