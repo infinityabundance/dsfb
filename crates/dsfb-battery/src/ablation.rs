@@ -56,13 +56,16 @@ pub fn build_cumulative_residual_detection(
     config: &PipelineConfig,
 ) -> DetectionResult {
     let alarm_cycle = detect_cumulative_residual_alarm(trajectory, envelope, config);
-    let eol_cycle = capacities.iter().enumerate().find_map(|(index, capacity)| {
-        if *capacity < eol_capacity {
-            Some(index + 1)
-        } else {
-            None
-        }
-    });
+    let eol_cycle = capacities
+        .iter()
+        .enumerate()
+        .find_map(|(index, capacity)| {
+            if *capacity < eol_capacity {
+                Some(index + 1)
+            } else {
+                None
+            }
+        });
     let lead_time_cycles = alarm_cycle
         .zip(eol_cycle)
         .map(|(alarm, eol)| eol as i64 - alarm as i64);
@@ -91,12 +94,7 @@ pub fn run_ablation_workflow(
         }
 
         let raw_data = load_capacity_csv(&path)?;
-        let run = evaluate_cell(
-            cell.cell_id,
-            path.to_string_lossy().as_ref(),
-            &raw_data,
-            config,
-        )?;
+        let run = evaluate_cell(cell.cell_id, path.to_string_lossy().as_ref(), &raw_data, config)?;
         runs.push(run);
     }
 
@@ -225,22 +223,14 @@ fn threshold_stable_to_end(capacities: &[f64], threshold_fraction: f64) -> Optio
         return None;
     }
     let threshold = capacities[0] * threshold_fraction;
-    let alarm_cycle = capacities
-        .iter()
-        .enumerate()
-        .find_map(|(index, capacity)| {
-            if *capacity < threshold {
-                Some(index + 1)
-            } else {
-                None
-            }
-        })?;
-    Some(
-        capacities
-            .iter()
-            .skip(alarm_cycle - 1)
-            .all(|capacity| *capacity < threshold),
-    )
+    let alarm_cycle = capacities.iter().enumerate().find_map(|(index, capacity)| {
+        if *capacity < threshold {
+            Some(index + 1)
+        } else {
+            None
+        }
+    })?;
+    Some(capacities.iter().skip(alarm_cycle - 1).all(|capacity| *capacity < threshold))
 }
 
 fn is_non_admissible(sample: &BatteryResidual) -> bool {
@@ -316,14 +306,8 @@ fn write_summary_text(
 ) -> Result<(), ExportError> {
     let mut lines = Vec::new();
     lines.push("Ablation workflow completion summary".to_string());
-    lines.push(format!(
-        "Cells included: {}",
-        artifact.cells_included.join(", ")
-    ));
-    lines.push(format!(
-        "Unavailable cells: {}",
-        unavailable_label(&artifact.unavailable_cells)
-    ));
+    lines.push(format!("Cells included: {}", artifact.cells_included.join(", ")));
+    lines.push(format!("Unavailable cells: {}", unavailable_label(&artifact.unavailable_cells)));
     lines.push(format!("Methods run: {}", artifact.methods.join(", ")));
     lines.push("Generated artifacts:".to_string());
     lines.push(format!("- {}", json_name));
@@ -334,14 +318,9 @@ fn write_summary_text(
     lines.push("Gates protecting production outputs:".to_string());
     lines.push("- Existing dsfb-battery-demo binary was left unchanged.".to_string());
     lines.push("- This workflow writes only into its own output directory.".to_string());
-    lines.push(
-        "- Production figure filenames and stage-II artifact paths were not reused.".to_string(),
-    );
+    lines.push("- Production figure filenames and stage-II artifact paths were not reused.".to_string());
     lines.push("Data availability limitations:".to_string());
-    lines.push(
-        "- The workflow evaluates only cell CSVs present in the provided data directory."
-            .to_string(),
-    );
+    lines.push("- The workflow evaluates only cell CSVs present in the provided data directory.".to_string());
     lines.push("Confirmation: existing mono-cell production figure paths were not modified by this workflow.".to_string());
 
     if let Some(parent) = path.parent() {
@@ -391,9 +370,7 @@ mod tests {
     fn write_cell_csv(dir: &Path, cell_id: &str, capacities: &[f64]) {
         let path = dir.join(format!("nasa_{}_capacity.csv", cell_id.to_lowercase()));
         let mut writer = csv::Writer::from_path(path).unwrap();
-        writer
-            .write_record(["cycle", "capacity_ah", "type"])
-            .unwrap();
+        writer.write_record(["cycle", "capacity_ah", "type"]).unwrap();
         for (index, capacity) in capacities.iter().enumerate() {
             writer
                 .write_record([
@@ -415,10 +392,7 @@ mod tests {
             ("B0005", vec![2.0, 1.99, 1.98, 1.93, 1.86, 1.78, 1.70, 1.58]),
             ("B0006", vec![2.1, 2.08, 2.05, 1.97, 1.89, 1.80, 1.68, 1.55]),
             ("B0007", vec![1.9, 1.89, 1.88, 1.84, 1.79, 1.71, 1.62, 1.50]),
-            (
-                "B0018",
-                vec![1.85, 1.84, 1.83, 1.78, 1.72, 1.63, 1.54, 1.45],
-            ),
+            ("B0018", vec![1.85, 1.84, 1.83, 1.78, 1.72, 1.63, 1.54, 1.45]),
         ];
         for (cell_id, capacities) in cells {
             write_cell_csv(&data_dir, cell_id, &capacities);
@@ -436,12 +410,8 @@ mod tests {
             .unwrap()
             .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
             .collect();
-        assert!(!entries
-            .iter()
-            .any(|entry| production_figure_filenames().contains(&entry.as_str())));
-        assert!(!entries
-            .iter()
-            .any(|entry| entry == "stage2_detection_results.json"));
+        assert!(!entries.iter().any(|entry| production_figure_filenames().contains(&entry.as_str())));
+        assert!(!entries.iter().any(|entry| entry == "stage2_detection_results.json"));
 
         let _ = fs::remove_dir_all(&data_dir);
         let _ = fs::remove_dir_all(&output_dir);

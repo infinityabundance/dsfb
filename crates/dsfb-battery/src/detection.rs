@@ -7,15 +7,15 @@
 // transitions (Proposition 3), reason code assignment (Section 5),
 // full pipeline execution, and threshold-baseline comparison.
 
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::cmp::Ordering;
 use crate::math::{compute_all_drifts, compute_all_residuals, compute_all_slews, compute_envelope};
 use crate::types::{
     BatteryResidual, DetectionResult, EnvelopeParams, GrammarState, PipelineConfig, ReasonCode,
     SignTuple, Theorem1Result,
 };
-use alloc::format;
-use alloc::string::String;
-use alloc::vec::Vec;
-use core::cmp::Ordering;
 use thiserror::Error;
 
 /// Errors arising from detection operations.
@@ -501,10 +501,7 @@ mod tests {
             traj[3].reason_code,
             Some(ReasonCode::InvalidStreamSuppression)
         );
-        assert!(traj
-            .iter()
-            .skip(3)
-            .any(|sample| !classification_is_emitted(sample)));
+        assert!(traj.iter().skip(3).any(|sample| !classification_is_emitted(sample)));
         assert!(classification_is_emitted(traj.last().unwrap()));
         assert!(detect_dsfb_alarm(&traj).is_some());
     }
