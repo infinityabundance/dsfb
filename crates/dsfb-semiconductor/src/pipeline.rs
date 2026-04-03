@@ -1,4 +1,5 @@
 use crate::baselines::compute_baselines;
+use chrono::Utc;
 use crate::cohort::{
     build_seed_feature_check, compute_rating_delta_forecast, compute_rating_failure_analysis,
     run_recall_optimization, write_cohort_results_csv,
@@ -37,7 +38,7 @@ use crate::secom_addendum::{
 };
 use crate::semiotics::{build_scaffold_semiotics, build_semantic_layer, classify_motifs};
 use crate::signs::compute_signs;
-use crate::traceability::{build_traceability_entries, write_traceability_json};
+use crate::traceability::{build_traceability_entries, write_traceability_json, DsfbRunManifest};
 use serde::Serialize;
 use std::fs::{self, File};
 use std::io::Write;
@@ -726,6 +727,15 @@ pub fn run_secom_benchmark(
         &run_dir.join("dsfb_traceability.json"),
         &traceability_entries,
     )?;
+    // Emit the per-run audit manifest (Part 4: dsfb_run_manifest.json).
+    {
+        let manifest = DsfbRunManifest::new(
+            Utc::now().to_rfc3339(),
+            "batch_secom_no_recipe_context".to_string(),
+            traceability_entries.len(),
+        );
+        manifest.write(&run_dir.join("dsfb_run_manifest.json"))?;
+    }
     write_json_pretty(
         &run_dir.join("dsfb_group_definitions.json"),
         &scaffold_semiotics.group_definitions,

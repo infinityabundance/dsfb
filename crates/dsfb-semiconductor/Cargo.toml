@@ -24,6 +24,14 @@ include = [
 
 [workspace]
 
+[features]
+# Default: full standard-library build (CLI, I/O, networking).
+default = ["std"]
+# no_std: enable for bare-metal / FPGA / MCU edge-AI deployments.
+# Core computation modules (sign, grammar, syntax, semantics, policy, units,
+# process_context) are no_std-compatible; I/O and CLI modules require std.
+std = []
+
 [dependencies]
 chrono = { version = "0.4", features = ["clock", "serde"] }
 clap = { version = "4.5", features = ["derive"] }
