@@ -103,6 +103,11 @@ Don’t believe a sensor all at once.
 > *Residual Streams in Gradient Flows: Drift-Slew Decomposition of Optimization Residuals as a Convergence Diagnostic and Saddle-Proximity Indicator* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.19410569]
 
+> **de Beer, R.** (2026). 
+> *DSFB Structural Semiotics Engine for Semiconductor Process Control - A Deterministic Augmentation Layer for Typed Residual Interpretation for Fault Detection and Run-to-Run Variation in Advanced Manufacturing* (v1.0).
+> Zenodo. [https://doi.org/10.5281/zenodo.19413110]
+
+
 ---
 
 `DSFB Simulation Notebook:`
@@ -142,8 +147,10 @@ Don’t believe a sensor all at once.
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-lattice/dsfb_lattice_colab.ipynb)
 
 `DSFB Battery Health Monitoring`
-
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-battery/notebooks/dsfb_battery_demo.ipynb)
+
+`DSFB Semiconductor`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-semiconductor/notebooks/dsfb_semiconductor_secom_colab.ipynb)
 
 ---
 
