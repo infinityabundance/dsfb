@@ -1,9 +1,12 @@
+#[cfg(feature = "std")]
 use crate::error::Result;
 use crate::grammar::layer::GrammarState;
 use crate::syntax::MotifTimelinePoint;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
 use std::collections::BTreeMap;
-use std::path::Path;
+#[cfg(not(feature = "std"))]
+use alloc::{collections::BTreeMap, string::String, vec::Vec};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Heuristic {
@@ -124,13 +127,15 @@ pub fn match_semantics(
     matches
 }
 
-pub fn write_heuristics_bank_json(path: &Path, rows: &[Heuristic]) -> Result<()> {
+#[cfg(feature = "std")]
+pub fn write_heuristics_bank_json(path: &std::path::Path, rows: &[Heuristic]) -> Result<()> {
     let file = std::fs::File::create(path)?;
     serde_json::to_writer_pretty(file, rows)?;
     Ok(())
 }
 
-pub fn write_semantic_matches_csv(path: &Path, rows: &[SemanticMatch]) -> Result<()> {
+#[cfg(feature = "std")]
+pub fn write_semantic_matches_csv(path: &std::path::Path, rows: &[SemanticMatch]) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     for row in rows {
         writer.serialize(row)?;

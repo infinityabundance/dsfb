@@ -476,6 +476,25 @@ The crate establishes deterministic structural artifact generation on real semic
 - The lead-time, density, and nuisance values remain proxy metrics on SECOM labels, not fab-qualified false-alarm or economic metrics.
 - The DRSC and DSA figures are deterministic and replayable from saved traces, but they are operator-facing visualizations of current rule-based state evolution, not probabilistic explanation layers.
 
+## no_std kernel
+
+The DSFB computation kernel compiles without the standard library and
+requires only `alloc`. This enables deployment on Cortex-M microcontrollers,
+FPGAs, and RTOS targets where no OS is available.
+
+**Kernel modules available without std:**
+`process_context`, `units`, `signs`, `sign`, `grammar`, `grammar::layer`,
+`syntax`, `policy`, `semantics`, `config`, `nominal`, `residual`, `input`
+
+**Verified in CI** against `thumbv7em-none-eabi` (Cortex-M4/M7, no OS):
+
+```sh
+cargo check --lib --no-default-features --target thumbv7em-none-eabi
+```
+
+The I/O layer (CLI, pipeline, plotting, dataset adapters, SECOM evaluation)
+requires `std` and is compiled with the default feature set.
+
 ## Caveats and non-claims
 
 - This crate does not claim SEMI standards compliance or completed qualification.
@@ -486,7 +505,7 @@ The crate establishes deterministic structural artifact generation on real semic
 - SECOM is real semiconductor data, but it is not a deployment validation dataset.
 - PHM 2018 claims are intentionally bounded to degradation-oriented timing and structure-emergence analysis against the saved `run_energy_scalar_threshold` baseline; this crate does not claim PHM burden reduction or universal DSFB timing superiority.
 - This crate does not claim Kani verification for `dsfb-semiconductor`.
-- This crate does not claim `no_alloc`, `no_std`, SIMD, rayon, or other parallel-acceleration support.
+- The computation kernel (`sign`, `grammar`, `syntax`, `semantics`, `policy`, `process_context`, `units`) supports `no_std` with `alloc`, verified in CI against `thumbv7em-none-eabi`. No claim of `no_alloc`, SIMD, rayon, or parallel-acceleration support. The I/O layer (CLI, pipeline, dataset adapters) requires `std`.
 - This crate does not claim SEMI E125 compatibility.
 - PDF generation depends on `pdflatex` being installed in the runtime.
 - The notebook file is wired to the current CLI and output paths, but this README does not claim that a live Colab execution was performed in this environment.

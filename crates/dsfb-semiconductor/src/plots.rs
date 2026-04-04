@@ -4,6 +4,9 @@ use crate::error::{DsfbSemiconductorError, Result};
 use crate::grammar::{GrammarSet, GrammarState};
 use crate::metrics::BenchmarkMetrics;
 use crate::nominal::NominalModel;
+use crate::phm2018_loader::{
+    Phm2018EarlyWarningStats, Phm2018RunDetail, Phm2018StructuralMetrics,
+};
 use crate::precursor::DsaEvaluation;
 use crate::preprocessing::PreparedDataset;
 use crate::residual::ResidualSet;
@@ -2253,6 +2256,357 @@ fn annotate_chart<DB: DrawingBackend>(
             ("sans-serif", 28).into_font(),
         )))
         .map_err(plot_error)?;
+    Ok(())
+}
+
+// ── PHM2018 figures ──────────────────────────────────────────────────────────
+
+/// Generate all PHM2018 comparison figures into `run_dir/figures/`.
+/// Returns the list of filenames created.
+pub fn generate_phm2018_figures(
+    run_dir: &Path,
+    run_details: &[Phm2018RunDetail],
+    _early_warning: &Phm2018EarlyWarningStats,
+    structural: &Phm2018StructuralMetrics,
+) -> Result<Vec<String>> {
+    let figure_dir = run_dir.join("figures");
+    std::fs::create_dir_all(&figure_dir).map_err(|e| {
+        DsfbSemiconductorError::Io(std::io::Error::new(e.kind(), format!("create figures dir: {e}")))
+    })?;
+    let mut files = Vec::new();
+
+    draw_phm_lead_before_fault(&figure_dir, run_details)?;
+    files.push("phm_lead_before_fault.png".into());
+
+    draw_phm_lead_delta_per_run(&figure_dir, run_details)?;
+    files.push("phm_lead_delta_per_run.png".into());
+
+    draw_phm_structural_emergence(&figure_dir, run_details, structural)?;
+    files.push("phm_structural_emergence.png".into());
+
+    Ok(files)
+}
+
+/// Grouped bar per run: DSFB lead (blue) vs threshold lead (red) before fault.
+/// "Lead" = fault_time - detection_time. Runs without any detection are omitted.
+fn draw_phm_lead_before_fault(figure_dir: &Path, run_details: &[Phm2018RunDetail]) -> Result<()> {
+    let out_path = figure_dir.join("phm_lead_before_fault.png");
+
+    // Per-run: (label, dsfb_lead, threshold_lead). Skip runs with no detection at all.
+    let rows: Vec<(String, Option<f64>, Option<f64>)> = run_details
+        .iter()
+        .filter(|r| r.dsfb_detection_time.is_some() || r.threshold_detection_time.is_some())
+        .map(|r| {
+            let dsfb = r
+                .dsfb_detection_time
+                .map(|t| (r.fault_time - t) as f64 / 1_000.0);
+            let thr = r
+                .threshold_detection_time
+                .map(|t| (r.fault_time - t) as f64 / 1_000.0);
+            (r.run_id.clone(), dsfb, thr)
+        })
+        .collect();
+
+    let n = rows.len();
+    if n == 0 {
+        return Ok(());
+    }
+
+    let max_y = rows
+        .iter()
+        .flat_map(|(_, d, t)| [*d, *t])
+        .flatten()
+        .fold(0.0_f64, f64::max)
+        * 1.15;
+    let max_y = max_y.max(1.0);
+
+    // 3 x-slots per run: DSFB bar, threshold bar, gap
+    let x_max = n * 3;
+
+    let root = BitMapBackend::new(&out_path, (WIDTH, HEIGHT)).into_drawing_area();
+    root.fill(&WHITE).map_err(plot_error)?;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            "PHM2018: Lead time before fault — DSFB vs threshold (per run)",
+            ("sans-serif", 24),
+        )
+        .margin(20)
+        .x_label_area_size(70)
+        .y_label_area_size(80)
+        .build_cartesian_2d(0..x_max, 0.0f64..max_y)
+        .map_err(plot_error)?;
+
+    chart
+        .configure_mesh()
+        .disable_mesh()
+        .x_labels(n)
+        .x_label_formatter(&|x| {
+            let run_idx = x / 3;
+            if x % 3 == 1 {
+                rows.get(run_idx)
+                    .map(|(id, _, _)| id.clone())
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            }
+        })
+        .x_label_style(("sans-serif", 14).into_font().transform(FontTransform::Rotate90))
+        .y_desc("Timestamp units before fault (÷1000)")
+        .draw()
+        .map_err(plot_error)?;
+
+    // DSFB bars (blue)
+    chart
+        .draw_series(rows.iter().enumerate().filter_map(|(i, (_, dsfb, _))| {
+            dsfb.map(|v| {
+                Rectangle::new(
+                    [(i * 3, 0.0), (i * 3 + 1, v)],
+                    BLUE.mix(0.75).filled(),
+                )
+            })
+        }))
+        .map_err(plot_error)?
+        .label("DSFB (DSA)")
+        .legend(|(x, y)| {
+            Rectangle::new([(x, y - 7), (x + 18, y + 7)], BLUE.mix(0.75).filled())
+        });
+
+    // Threshold bars (red)
+    chart
+        .draw_series(rows.iter().enumerate().filter_map(|(i, (_, _, thr))| {
+            thr.map(|v| {
+                Rectangle::new(
+                    [(i * 3 + 1, 0.0), (i * 3 + 2, v)],
+                    RED.mix(0.65).filled(),
+                )
+            })
+        }))
+        .map_err(plot_error)?
+        .label("Run-energy threshold")
+        .legend(|(x, y)| {
+            Rectangle::new([(x, y - 7), (x + 18, y + 7)], RED.mix(0.65).filled())
+        });
+
+    chart
+        .configure_series_labels()
+        .position(SeriesLabelPosition::UpperRight)
+        .background_style(WHITE.mix(0.85))
+        .border_style(BLACK)
+        .label_font(("sans-serif", 18))
+        .draw()
+        .map_err(plot_error)?;
+
+    root.present().map_err(plot_error)?;
+    Ok(())
+}
+
+/// Single bar per run showing lead_time_delta (positive = DSFB earlier than threshold).
+/// Green bars above zero, red bars below, grey for missing.
+fn draw_phm_lead_delta_per_run(
+    figure_dir: &Path,
+    run_details: &[Phm2018RunDetail],
+) -> Result<()> {
+    let out_path = figure_dir.join("phm_lead_delta_per_run.png");
+
+    let n = run_details.len();
+    if n == 0 {
+        return Ok(());
+    }
+
+    let deltas: Vec<f64> = run_details
+        .iter()
+        .map(|r| r.lead_time_delta.map(|d| d as f64 / 1_000.0).unwrap_or(0.0))
+        .collect();
+
+    let max_abs = deltas
+        .iter()
+        .copied()
+        .map(f64::abs)
+        .fold(0.0_f64, f64::max)
+        .max(1.0)
+        * 1.2;
+
+    let root = BitMapBackend::new(&out_path, (WIDTH, HEIGHT)).into_drawing_area();
+    root.fill(&WHITE).map_err(plot_error)?;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            "PHM2018: Lead delta per run (DSFB earlier > 0, threshold earlier < 0)",
+            ("sans-serif", 22),
+        )
+        .margin(20)
+        .x_label_area_size(70)
+        .y_label_area_size(80)
+        .build_cartesian_2d(0..n, -max_abs..max_abs)
+        .map_err(plot_error)?;
+
+    chart
+        .configure_mesh()
+        .disable_mesh()
+        .x_labels(n)
+        .x_label_formatter(&|i| {
+            run_details
+                .get(*i)
+                .map(|r| r.run_id.clone())
+                .unwrap_or_default()
+        })
+        .x_label_style(("sans-serif", 14).into_font().transform(FontTransform::Rotate90))
+        .y_desc("Timestamp units (÷1000)")
+        .draw()
+        .map_err(plot_error)?;
+
+    // Zero baseline
+    chart
+        .draw_series(LineSeries::new(
+            [(0, 0.0), (n, 0.0)],
+            BLACK.stroke_width(1),
+        ))
+        .map_err(plot_error)?;
+
+    // Bars
+    for (i, (row, delta)) in run_details.iter().zip(deltas.iter()).enumerate() {
+        let (lo, hi) = if *delta >= 0.0 {
+            (0.0, *delta)
+        } else {
+            (*delta, 0.0)
+        };
+        let color = if row.lead_time_delta.is_none() {
+            RGBColor(160, 160, 160).mix(0.7)
+        } else if *delta >= 0.0 {
+            GREEN.mix(0.75)
+        } else {
+            RED.mix(0.65)
+        };
+        chart
+            .draw_series(std::iter::once(Rectangle::new(
+                [(i, lo), (i + 1, hi)],
+                color.filled(),
+            )))
+            .map_err(plot_error)?;
+    }
+
+    root.present().map_err(plot_error)?;
+    Ok(())
+}
+
+/// Summary bar chart: how many runs fall in each structural emergence category.
+fn draw_phm_structural_emergence(
+    figure_dir: &Path,
+    run_details: &[Phm2018RunDetail],
+    structural: &Phm2018StructuralMetrics,
+) -> Result<()> {
+    let out_path = figure_dir.join("phm_structural_emergence.png");
+
+    let mut structure_before_threshold = 0usize;
+    let mut threshold_before_structure = 0usize;
+    let mut dsfb_only = 0usize;
+    let mut threshold_only = 0usize;
+    let mut neither = 0usize;
+    let mut tied = 0usize;
+
+    for r in run_details {
+        match (r.lead_time_delta, r.structure_minus_threshold_delta) {
+            (Some(delta), _) if delta > 0 => structure_before_threshold += 1,
+            (Some(delta), _) if delta < 0 => threshold_before_structure += 1,
+            (Some(_), _) => tied += 1, // delta == 0
+            _ => {}
+        }
+        match (r.dsfb_detection_time, r.threshold_detection_time) {
+            (Some(_), None) => dsfb_only += 1,
+            (None, Some(_)) => threshold_only += 1,
+            (None, None) => neither += 1,
+            _ => {}
+        }
+    }
+
+    let categories: Vec<(&str, usize, RGBColor)> = vec![
+        ("DSFB earlier", structure_before_threshold, RGBColor(30, 100, 200)),
+        ("Threshold earlier", threshold_before_structure, RGBColor(200, 50, 50)),
+        ("Tied", tied, RGBColor(100, 100, 100)),
+        ("DSFB only", dsfb_only, RGBColor(60, 160, 80)),
+        ("Threshold only", threshold_only, RGBColor(180, 120, 40)),
+        ("Neither detected", neither, RGBColor(160, 160, 160)),
+    ];
+
+    let max_count = categories
+        .iter()
+        .map(|(_, c, _)| *c)
+        .max()
+        .unwrap_or(1)
+        .max(1);
+    let n = categories.len();
+
+    let root = BitMapBackend::new(&out_path, (WIDTH, HEIGHT)).into_drawing_area();
+    root.fill(&WHITE).map_err(plot_error)?;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption(
+            format!(
+                "PHM2018: Detection outcome summary ({} runs, {} with structure before threshold)",
+                run_details.len(),
+                structural.runs_with_structure_before_threshold
+            ),
+            ("sans-serif", 20),
+        )
+        .margin(20)
+        .x_label_area_size(60)
+        .y_label_area_size(60)
+        .build_cartesian_2d(0..n, 0usize..((max_count as f64 * 1.2) as usize + 1))
+        .map_err(plot_error)?;
+
+    chart
+        .configure_mesh()
+        .disable_mesh()
+        .x_labels(n)
+        .x_label_formatter(&|i| {
+            categories
+                .get(*i)
+                .map(|(label, _, _)| label.to_string())
+                .unwrap_or_default()
+        })
+        .x_label_style(("sans-serif", 18).into_font())
+        .y_desc("Number of runs")
+        .draw()
+        .map_err(plot_error)?;
+
+    for (i, (label, count, color)) in categories.iter().enumerate() {
+        chart
+            .draw_series(std::iter::once(Rectangle::new(
+                [(i, 0), (i + 1, *count)],
+                color.mix(0.8).filled(),
+            )))
+            .map_err(plot_error)?
+            .label(*label)
+            .legend({
+                let c = *color;
+                move |(x, y)| {
+                    Rectangle::new([(x, y - 7), (x + 18, y + 7)], c.mix(0.8).filled())
+                }
+            });
+
+        // Count label on bar
+        if *count > 0 {
+            chart
+                .draw_series(std::iter::once(Text::new(
+                    count.to_string(),
+                    (i, *count),
+                    ("sans-serif", 20).into_font(),
+                )))
+                .map_err(plot_error)?;
+        }
+    }
+
+    chart
+        .configure_series_labels()
+        .position(SeriesLabelPosition::UpperRight)
+        .background_style(WHITE.mix(0.85))
+        .border_style(BLACK)
+        .label_font(("sans-serif", 16))
+        .draw()
+        .map_err(plot_error)?;
+
+    root.present().map_err(plot_error)?;
     Ok(())
 }
 

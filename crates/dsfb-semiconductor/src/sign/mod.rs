@@ -1,8 +1,11 @@
+#[cfg(feature = "std")]
 use crate::error::Result;
 use crate::input::residual_stream::ResidualStream;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
 use std::collections::BTreeMap;
-use std::path::Path;
+#[cfg(not(feature = "std"))]
+use alloc::{collections::BTreeMap, string::{String, ToString}, vec::Vec};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct Sign {
@@ -71,7 +74,11 @@ pub fn build_feature_signs(stream: &ResidualStream) -> Vec<FeatureSignPoint> {
     rows
 }
 
-pub fn write_feature_signs_csv(path: &Path, rows: &[FeatureSignPoint]) -> Result<()> {
+#[cfg(feature = "std")]
+pub fn write_feature_signs_csv(
+    path: &std::path::Path,
+    rows: &[FeatureSignPoint],
+) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     for row in rows {
         writer.serialize(row)?;

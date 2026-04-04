@@ -1,8 +1,14 @@
+#[cfg(feature = "std")]
 use crate::config::PipelineConfig;
+#[cfg(feature = "std")]
 use crate::nominal::NominalModel;
+#[cfg(feature = "std")]
 use crate::preprocessing::PreparedDataset;
+#[cfg(feature = "std")]
 use crate::residual::ResidualSet;
 use serde::Serialize;
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FeatureSigns {
@@ -19,6 +25,7 @@ pub struct SignSet {
     pub traces: Vec<FeatureSigns>,
 }
 
+#[cfg(feature = "std")]
 pub fn compute_signs(
     dataset: &PreparedDataset,
     nominal: &NominalModel,
@@ -100,6 +107,7 @@ pub fn compute_slew(drift: &[f64], is_imputed: &[bool]) -> Vec<f64> {
     slew
 }
 
+#[cfg(feature = "std")]
 fn sample_std(values: &[f64]) -> Option<f64> {
     if values.len() < 2 {
         return None;

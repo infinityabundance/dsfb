@@ -5,6 +5,8 @@ use crate::nominal::NominalModel;
 use crate::residual::ResidualSet;
 use crate::signs::SignSet;
 use serde::Serialize;
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum GrammarState {

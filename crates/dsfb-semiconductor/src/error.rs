@@ -1,3 +1,5 @@
+// std-only. Excluded from the kernel build by lib.rs.
+// Kernel modules use Option or local error enums where error handling is needed.
 use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]

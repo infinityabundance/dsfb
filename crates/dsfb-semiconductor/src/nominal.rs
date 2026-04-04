@@ -1,6 +1,10 @@
-use crate::config::PipelineConfig;
+#[cfg(feature = "std")]
 use crate::preprocessing::PreparedDataset;
+#[cfg(feature = "std")]
+use crate::config::PipelineConfig;
 use serde::Serialize;
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct NominalFeature {
@@ -18,6 +22,7 @@ pub struct NominalModel {
     pub features: Vec<NominalFeature>,
 }
 
+#[cfg(feature = "std")]
 pub fn build_nominal_model(dataset: &PreparedDataset, config: &PipelineConfig) -> NominalModel {
     let feature_count = dataset.feature_names.len();
     let mut features = Vec::with_capacity(feature_count);
@@ -53,10 +58,12 @@ pub fn build_nominal_model(dataset: &PreparedDataset, config: &PipelineConfig) -
     NominalModel { features }
 }
 
+#[cfg(feature = "std")]
 fn mean(values: &[f64]) -> Option<f64> {
     (!values.is_empty()).then(|| values.iter().sum::<f64>() / values.len() as f64)
 }
 
+#[cfg(feature = "std")]
 fn sample_std(values: &[f64], mean: f64) -> Option<f64> {
     if values.len() < 2 {
         return None;
@@ -72,7 +79,7 @@ fn sample_std(values: &[f64], mean: f64) -> Option<f64> {
     Some(variance.sqrt())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 

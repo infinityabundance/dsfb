@@ -1,9 +1,12 @@
+#[cfg(feature = "std")]
 use crate::error::Result;
 use crate::grammar::layer::GrammarState;
 use crate::semantics::SemanticMatch;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
 use std::collections::BTreeMap;
-use std::path::Path;
+#[cfg(not(feature = "std"))]
+use alloc::{collections::BTreeMap, string::{String, ToString}, vec::Vec};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PolicyDecision {
@@ -53,7 +56,11 @@ pub fn derive_policy(
         .collect()
 }
 
-pub fn write_policy_decisions_csv(path: &Path, rows: &[PolicyDecision]) -> Result<()> {
+#[cfg(feature = "std")]
+pub fn write_policy_decisions_csv(
+    path: &std::path::Path,
+    rows: &[PolicyDecision],
+) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     for row in rows {
         writer.serialize(row)?;

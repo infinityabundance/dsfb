@@ -1,5 +1,8 @@
+#[cfg(feature = "std")]
 use crate::precursor::DsaConfig;
 use serde::{Deserialize, Serialize};
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineConfig {
@@ -25,6 +28,7 @@ pub struct PipelineConfig {
     pub pre_failure_lookback_runs: usize,
     pub minimum_healthy_observations: usize,
     pub epsilon: f64,
+    #[cfg(feature = "std")]
     pub dsa: DsaConfig,
 }
 
@@ -53,6 +57,7 @@ impl Default for PipelineConfig {
             pre_failure_lookback_runs: 20,
             minimum_healthy_observations: 2,
             epsilon: 1.0e-9,
+            #[cfg(feature = "std")]
             dsa: DsaConfig::default(),
         }
     }
@@ -109,11 +114,13 @@ impl PipelineConfig {
         if self.minimum_healthy_observations < 2 {
             return Err("minimum_healthy_observations must be at least 2".into());
         }
+        #[cfg(feature = "std")]
         self.dsa.validate().map_err(|err| err.to_string())?;
         Ok(())
     }
 }
 
+#[cfg(feature = "std")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunConfiguration {
     pub dataset: String,

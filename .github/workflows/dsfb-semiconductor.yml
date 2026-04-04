@@ -1,0 +1,56 @@
+name: dsfb-semiconductor CI
+
+on: [push, pull_request]
+
+jobs:
+  std-build:
+    name: Full build (std)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates/dsfb-semiconductor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: cargo test
+
+  no-std-kernel-check:
+    name: no_std kernel — bare metal target
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates/dsfb-semiconductor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabi
+      - name: Verify kernel compiles without std on bare-metal target
+        # --lib excludes the binary (which needs an OS entry point).
+        # thumbv7em-none-eabi has no std layer at all — if this passes,
+        # the no_std claim is proven by the compiler, not by assertion.
+        run: |
+          cargo check \
+            --lib \
+            --no-default-features \
+            --target thumbv7em-none-eabi
+
+  no-std-kernel-tests:
+    name: no_std kernel — host tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates/dsfb-semiconductor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run kernel unit tests without std on host
+        # The test harness itself uses std, but the library under test
+        # is compiled with no_std. This catches kernel logic regressions
+        # without requiring a bare-metal test runner.
+        run: |
+          cargo test \
+            --lib \
+            --no-default-features \
+            -- --test-threads=1

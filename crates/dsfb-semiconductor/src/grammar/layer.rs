@@ -1,9 +1,25 @@
+#[cfg(feature = "std")]
 use crate::error::Result;
 use crate::sign::FeatureSignPoint;
 use crate::syntax::MotifTimelinePoint;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
 use std::collections::BTreeMap;
-use std::path::Path;
+#[cfg(not(feature = "std"))]
+use alloc::{collections::BTreeMap, string::{String, ToString}, vec::Vec};
+
+#[cfg(not(feature = "std"))]
+#[inline]
+fn maybe_sqrt(x: f64) -> f64 {
+    if x <= 0.0 {
+        return 0.0;
+    }
+    let mut s = x / 2.0;
+    for _ in 0..32 {
+        s = (s + x / s) * 0.5;
+    }
+    s
+}
 
 pub const ALLOWED_GRAMMAR_STATES: [&str; 6] = [
     "Admissible",
@@ -108,7 +124,8 @@ pub fn build_grammar_states(
     states
 }
 
-pub fn write_grammar_states_csv(path: &Path, rows: &[GrammarState]) -> Result<()> {
+#[cfg(feature = "std")]
+pub fn write_grammar_states_csv(path: &std::path::Path, rows: &[GrammarState]) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     for row in rows {
         writer.serialize(row)?;
@@ -127,7 +144,10 @@ fn feature_envelope(points: &[&FeatureSignPoint]) -> f64 {
         })
         .sum::<f64>()
         / points.len().max(1) as f64;
-    (mean + variance.sqrt()).max(1.0)
+    #[cfg(feature = "std")]
+    return (mean + variance.sqrt()).max(1.0);
+    #[cfg(not(feature = "std"))]
+    return (mean + maybe_sqrt(variance)).max(1.0);
 }
 
 #[cfg(test)]
