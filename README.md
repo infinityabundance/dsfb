@@ -91,6 +91,18 @@ Don’t believe a sensor all at once.
 > *DSFB Structural Semiotics Engine for Battery Health Monitoring: A Deterministic Early-Warning Framework for Capacity Fade, Internal Resistance Drift, and Knee-Onset Detection in Safety-Critical Energy Storage Systems* (v1.0).
 > Zenodo. [https://doi.org/10.5281/zenodo.19339713]
 
+> **de Beer, R.** (2026). 
+> *Residual Trajectories as Primary Epistemic Objects: Drift-Slew Decomposition of Laplacian Relaxation and the Spectral Fingerprint of Graph Structure* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19382012]
+
+> **de Beer, R.** (2026). 
+> *Residual Streams in the Three-Body Problem: Drift-Slew Decomposition of Integration Residuals as a Model-Free Dynamical Regime Indicator* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19410239]
+
+> **de Beer, R.** (2026). 
+> *Residual Streams in Gradient Flows: Drift-Slew Decomposition of Optimization Residuals as a Convergence Diagnostic and Saddle-Proximity Indicator* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19410569]
+
 ---
 
 `DSFB Simulation Notebook:`
