@@ -4,3 +4,8 @@ data/raw/
 *.log
 *.out
 *.toc
+*.synctex.gz
+
+# Paper source and generated run artifacts — managed separately
+paper/
+output-dsfb-semiconductor/
