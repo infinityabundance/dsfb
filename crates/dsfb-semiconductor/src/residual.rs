@@ -1,6 +1,10 @@
-use crate::nominal::NominalModel;
+#[cfg(feature = "std")]
 use crate::preprocessing::PreparedDataset;
+#[cfg(feature = "std")]
+use crate::nominal::NominalModel;
 use serde::Serialize;
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ResidualFeatureTrace {
@@ -18,6 +22,7 @@ pub struct ResidualSet {
     pub traces: Vec<ResidualFeatureTrace>,
 }
 
+#[cfg(feature = "std")]
 pub fn compute_residuals(dataset: &PreparedDataset, nominal: &NominalModel) -> ResidualSet {
     let run_count = dataset.raw_values.len();
     let feature_count = dataset.feature_names.len();

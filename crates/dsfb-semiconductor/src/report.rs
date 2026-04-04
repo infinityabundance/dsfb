@@ -15,7 +15,6 @@ use crate::secom_addendum::SecomAddendumArtifacts;
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 #[derive(Debug, Clone, Serialize)]
 struct ArtifactInventoryEntry {
@@ -2877,65 +2876,7 @@ fn motif_row(metric: &MotifMetric) -> String {
 }
 
 fn compile_pdf(tex_path: &Path, output_dir: &Path) -> (Option<PathBuf>, Option<String>) {
-    let filename = tex_path
-        .file_name()
-        .map(|name| name.to_string_lossy().to_string())
-        .unwrap_or_else(|| "engineering_report.tex".into());
-    let pdf_path = output_dir.join(filename.replace(".tex", ".pdf"));
-    let mut combined_output = String::new();
-    let mut any_success = false;
-
-    for _ in 0..3 {
-        match Command::new("pdflatex")
-            .arg("-interaction=nonstopmode")
-            .arg("-halt-on-error")
-            .arg("-output-directory")
-            .arg(".")
-            .arg(&filename)
-            .current_dir(output_dir)
-            .output()
-        {
-            Ok(output) => {
-                let pass_output = format!(
-                    "{}{}",
-                    String::from_utf8_lossy(&output.stderr),
-                    String::from_utf8_lossy(&output.stdout)
-                );
-                let needs_rerun = pass_output.contains("Rerun to get outlines right")
-                    || pass_output.contains("Label(s) may have changed")
-                    || pass_output.contains("Rerun to get cross-references right");
-                combined_output.push_str(&String::from_utf8_lossy(&output.stderr));
-                combined_output.push_str(&String::from_utf8_lossy(&output.stdout));
-                if output.status.success() {
-                    any_success = true;
-                    if !needs_rerun {
-                        break;
-                    }
-                }
-            }
-            Err(err) => {
-                if pdf_path.exists() {
-                    return (Some(pdf_path), Some(err.to_string()));
-                }
-                return (None, Some(err.to_string()));
-            }
-        }
-    }
-
-    if any_success && pdf_path.exists() {
-        return (Some(pdf_path), None);
-    }
-    if pdf_path.exists() {
-        return (
-            Some(pdf_path),
-            (!combined_output.trim().is_empty()).then_some(combined_output),
-        );
-    }
-
-    (
-        None,
-        (!combined_output.trim().is_empty()).then_some(combined_output),
-    )
+    crate::output_paths::compile_pdf(tex_path, output_dir)
 }
 
 fn format_option_f64(value: Option<f64>) -> String {

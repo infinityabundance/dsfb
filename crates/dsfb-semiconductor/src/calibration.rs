@@ -5,7 +5,7 @@ use crate::error::{DsfbSemiconductorError, Result};
 use crate::grammar::evaluate_grammar;
 use crate::metrics::compute_metrics;
 use crate::nominal::build_nominal_model;
-use crate::output_paths::{create_timestamped_run_dir, default_output_root};
+use crate::output_paths::{compile_pdf, create_timestamped_run_dir, default_output_root, zip_directory};
 use crate::precursor::{
     run_dsa_calibration_grid, summarize_dsa_grid, DsaCalibrationGrid, DsaCalibrationRow,
     DsaGridSummary,
@@ -47,6 +47,9 @@ pub struct CalibrationArtifacts {
     pub grid_results_csv: PathBuf,
     pub summary_json: PathBuf,
     pub report_markdown: PathBuf,
+    pub tex_report_path: PathBuf,
+    pub pdf_path: Option<PathBuf>,
+    pub zip_path: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -55,6 +58,9 @@ pub struct DsaCalibrationArtifacts {
     pub grid_results_csv: PathBuf,
     pub summary_json: PathBuf,
     pub report_markdown: PathBuf,
+    pub tex_report_path: PathBuf,
+    pub pdf_path: Option<PathBuf>,
+    pub zip_path: PathBuf,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -476,11 +482,35 @@ pub fn run_secom_calibration(
         ),
     )?;
 
+    let tex_report_path = run_dir.join("calibration_engineering_report.tex");
+    fs::write(
+        &tex_report_path,
+        calibration_tex_report(
+            &rows,
+            best_by_persistent_boundary_recall(&rows).as_ref(),
+            best_by_persistent_boundary_minus_threshold_delta(&rows).as_ref(),
+            best_by_persistent_boundary_minus_ewma_delta(&rows).as_ref(),
+            best_by_low_persistent_boundary_nuisance(&rows).as_ref(),
+        ),
+    )?;
+    let (pdf_path, pdf_error) = compile_pdf(&tex_report_path, &run_dir);
+    if let Some(ref err) = pdf_error {
+        eprintln!(
+            "[calibrate-secom] PDF compile warning: {}",
+            err.lines().next().unwrap_or("unknown")
+        );
+    }
+    let zip_path = run_dir.join("calibration_bundle.zip");
+    zip_directory(&run_dir, &zip_path)?;
+
     Ok(CalibrationArtifacts {
         run_dir,
         grid_results_csv,
         summary_json,
         report_markdown,
+        tex_report_path,
+        pdf_path,
+        zip_path,
     })
 }
 
@@ -531,6 +561,18 @@ pub fn run_secom_dsa_calibration(
     write_dsa_grid_results(&grid_results_csv, &rows)?;
     fs::write(&summary_json, serde_json::to_string_pretty(&summary)?)?;
     fs::write(&report_markdown, dsa_calibration_report(&summary))?;
+
+    let tex_report_path = run_dir.join("dsa_calibration_engineering_report.tex");
+    fs::write(&tex_report_path, dsa_calibration_tex_report(&summary))?;
+    let (pdf_path, pdf_error) = compile_pdf(&tex_report_path, &run_dir);
+    if let Some(ref err) = pdf_error {
+        eprintln!(
+            "[calibrate-secom-dsa] PDF compile warning: {}",
+            err.lines().next().unwrap_or("unknown")
+        );
+    }
+    let zip_path = run_dir.join("dsa_calibration_bundle.zip");
+    zip_directory(&run_dir, &zip_path)?;
     fs::write(
         run_dir.join("dsa_calibration_run_configuration.json"),
         serde_json::to_string_pretty(&CalibrationRunConfiguration {
@@ -572,6 +614,9 @@ pub fn run_secom_dsa_calibration(
         grid_results_csv,
         summary_json,
         report_markdown,
+        tex_report_path,
+        pdf_path,
+        zip_path,
     })
 }
 
@@ -823,6 +868,150 @@ fn calibration_report(
         "A positive persistent-boundary lead delta is meaningful only if it is paired with acceptable nuisance and bounded calibration sensitivity. In the current crate this grid is intended to surface trade-offs explicitly, not to imply that a favorable configuration is already deployment-ready.\n",
     );
     out
+}
+
+fn calibration_tex_report(
+    rows: &[CalibrationResultRow],
+    best_recall: Option<&CalibrationResultRow>,
+    best_threshold_delta: Option<&CalibrationResultRow>,
+    best_ewma_delta: Option<&CalibrationResultRow>,
+    best_low_nuisance: Option<&CalibrationResultRow>,
+) -> String {
+    let fmt = format_option_f64;
+    let row_section = |label: &str, row: Option<&CalibrationResultRow>| -> String {
+        match row {
+            None => format!("\\subsection{{{label}}}\nNo row available.\n\n"),
+            Some(r) => format!(
+                "\\subsection{{{label}}}\n\
+                 \\begin{{itemize}}\n\
+                 \\item config\\_id: {}\n\
+                 \\item persistent boundary recall: {}\n\
+                 \\item mean persistent boundary lead runs: {}\n\
+                 \\item persistent boundary minus threshold delta: {}\n\
+                 \\item pass-run persistent boundary nuisance rate: {:.4}\n\
+                 \\end{{itemize}}\n\n",
+                r.config_id,
+                r.dsfb_persistent_boundary_recall,
+                fmt(r.mean_persistent_boundary_lead_runs),
+                fmt(r.mean_persistent_boundary_minus_threshold_delta_runs),
+                r.pass_run_dsfb_persistent_boundary_nuisance_rate,
+            ),
+        }
+    };
+
+    format!(
+        r#"\documentclass{{article}}
+\usepackage[utf8]{{inputenc}}
+\usepackage[margin=1in]{{geometry}}
+\usepackage{{booktabs}}
+\usepackage{{hyperref}}
+\usepackage{{parskip}}
+\title{{DSFB SECOM Calibration Engineering Report}}
+\author{{DSFB Semiconductor Companion Crate}}
+\date{{\today}}
+\begin{{document}}
+\maketitle
+
+\section{{Grid Summary}}
+\begin{{itemize}}
+  \item Dataset: SECOM (UCI Machine Learning Repository)
+  \item Grid points evaluated: {}
+  \item Purpose: surface parameter trade-offs; not a superiority claim
+\end{{itemize}}
+
+\section{{Best Configurations}}
+{}{}{}{}
+\section{{Interpretation}}
+A positive persistent-boundary lead delta is meaningful only if paired with
+acceptable nuisance and bounded calibration sensitivity.
+This grid surfaces trade-offs explicitly; a favorable configuration here does
+not imply deployment readiness.
+
+\end{{document}}
+"#,
+        rows.len(),
+        row_section("Best persistent-boundary recall", best_recall),
+        row_section(
+            "Best persistent-boundary minus threshold delta",
+            best_threshold_delta
+        ),
+        row_section(
+            "Best persistent-boundary minus EWMA delta",
+            best_ewma_delta
+        ),
+        row_section("Lowest persistent-boundary nuisance", best_low_nuisance),
+    )
+}
+
+fn dsa_calibration_tex_report(summary: &crate::precursor::DsaGridSummary) -> String {
+    let fmt = format_option_f64;
+    let closest_section = match &summary.closest_to_success {
+        None => "No row available.\n".into(),
+        Some(r) => format!(
+            "\\begin{{itemize}}\n\
+             \\item config\\_id: {}\n\
+             \\item W: {}, K: {}, $\\tau$: {:.2}, m: {}\n\
+             \\item recall: {}/{}\n\
+             \\item mean lead time: {}\n\
+             \\item nuisance proxy: {:.4}\n\
+             \\item precursor quality: {}\n\
+             \\item compression ratio: {}\n\
+             \\end{{itemize}}\n",
+            r.config_id,
+            r.window,
+            r.persistence_runs,
+            r.alert_tau,
+            r.corroborating_feature_count_min,
+            r.failure_run_recall,
+            r.failure_runs,
+            fmt(r.mean_lead_time_runs),
+            r.pass_run_nuisance_proxy,
+            fmt(r.precursor_quality),
+            fmt(r.compression_ratio),
+        ),
+    };
+
+    format!(
+        r#"\documentclass{{article}}
+\usepackage[utf8]{{inputenc}}
+\usepackage[margin=1in]{{geometry}}
+\usepackage{{booktabs}}
+\usepackage{{hyperref}}
+\usepackage{{parskip}}
+\title{{DSFB SECOM DSA Calibration Engineering Report}}
+\author{{DSFB Semiconductor Companion Crate}}
+\date{{\today}}
+\begin{{document}}
+\maketitle
+
+\section{{Grid Summary}}
+\begin{{itemize}}
+  \item Dataset: SECOM (UCI Machine Learning Repository)
+  \item Grid points evaluated: {}
+  \item Primary success condition: {}
+  \item Success rows: {}
+  \item Cross-feature corroboration effect: {}
+  \item Limiting factor: {}
+\end{{itemize}}
+
+\section{{Closest to Primary Success}}
+{closest_section}
+\section{{Interpretation}}
+The DSA calibration grid sweeps $(W, K, \tau, m)$ over additive structural
+accumulator parameters.
+The primary success condition is a strict operational threshold.
+Rows labelled as success satisfy the threshold; closeness indicates
+how far the best configuration falls from guaranteed deployment quality.
+
+\end{{document}}
+"#,
+        summary.grid_point_count,
+        summary.primary_success_condition_definition,
+        summary.success_row_count,
+        summary.cross_feature_corroboration_effect,
+        summary.limiting_factor,
+        closest_section = closest_section,
+    )
 }
 
 fn format_option_f64(value: Option<f64>) -> String {

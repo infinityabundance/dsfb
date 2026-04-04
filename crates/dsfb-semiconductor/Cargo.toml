@@ -25,25 +25,45 @@ include = [
 [workspace]
 
 [features]
-# Default: full standard-library build (CLI, I/O, networking).
+# std (default): full build — CLI, I/O, filesystem, networking, plotting,
+#   dataset adapters, calibration, report generation.
+#
+# no_std kernel: compile with --no-default-features --lib.
+#   Available modules: process_context, units, signs, sign, grammar,
+#   grammar::layer, syntax, policy, semantics, config, nominal, residual, input.
+#   Requires: alloc crate (provided by the target runtime).
+#   Verified by CI: cargo check --lib --no-default-features
+#                               --target thumbv7em-none-eabi
 default = ["std"]
-# no_std: enable for bare-metal / FPGA / MCU edge-AI deployments.
-# Core computation modules (sign, grammar, syntax, semantics, policy, units,
-# process_context) are no_std-compatible; I/O and CLI modules require std.
-std = []
+std = [
+    "serde/std",
+    "thiserror/std",
+    "dep:chrono",
+    "dep:clap",
+    "dep:csv",
+    "dep:flate2",
+    "dep:plotters",
+    "dep:serde_json",
+    "dep:tar",
+    "dep:ureq",
+    "dep:zip",
+]
 
 [dependencies]
-chrono = { version = "0.4", features = ["clock", "serde"] }
-clap = { version = "4.5", features = ["derive"] }
-csv = "1.3"
-flate2 = "1.0"
-plotters = { version = "0.3", default-features = false, features = ["bitmap_backend", "bitmap_encoder", "line_series", "ttf"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tar = "0.4"
-thiserror = "2.0"
-ureq = { version = "2.10", default-features = true }
-zip = { version = "2", default-features = false, features = ["deflate"] }
+# Always present — no_std-compatible with alloc.
+serde     = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+thiserror = { version = "2.0", default-features = false }
+
+# std-only dependencies — compiled only when the `std` feature is active.
+chrono     = { version = "0.4",  optional = true, features = ["clock", "serde"] }
+clap       = { version = "4.5",  optional = true, features = ["derive"] }
+csv        = { version = "1.3",  optional = true }
+flate2     = { version = "1.0",  optional = true }
+plotters   = { version = "0.3",  optional = true, default-features = false, features = ["bitmap_backend", "bitmap_encoder", "line_series", "ttf"] }
+serde_json = { version = "1.0",  optional = true }
+tar        = { version = "0.4",  optional = true }
+ureq       = { version = "2.10", optional = true, default-features = true }
+zip        = { version = "2",    optional = true, default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 tempfile = "3.13"

@@ -29,6 +29,7 @@ enum Command {
     RunPhm2018(RunPhm2018Args),
     RenderNonIntrusiveArtifacts(RenderNonIntrusiveArtifactsArgs),
     RenderUnifiedValueFigure(RenderUnifiedValueFigureArgs),
+    SbirDemo(SbirDemoArgs),
 }
 
 #[derive(Debug, Args)]
@@ -219,6 +220,19 @@ struct RunPhm2018Args {
     output_root: Option<PathBuf>,
     #[arg(long)]
     secom_run_dir: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct SbirDemoArgs {
+    /// Optional data root; defaults to the crate-local data directory.
+    #[arg(long)]
+    data_root: Option<PathBuf>,
+    /// Optional output root; defaults to the crate-local output directory.
+    #[arg(long)]
+    output_root: Option<PathBuf>,
+    /// Fetch SECOM dataset automatically if absent (default: true).
+    #[arg(long, default_value_t = true)]
+    fetch_if_missing: bool,
 }
 
 #[derive(Debug, Args)]
@@ -441,6 +455,13 @@ pub fn run() -> Result<()> {
                 "Claim alignment report: {}",
                 artifacts.claim_alignment_report_path.display()
             );
+            println!(
+                "Engineering report (tex): {}",
+                artifacts.tex_report_path.display()
+            );
+            if let Some(pdf) = &artifacts.pdf_path {
+                println!("Engineering report (pdf): {}", pdf.display());
+            }
             println!("ZIP bundle: {}", artifacts.zip_path.display());
             Ok(())
         }
@@ -517,6 +538,151 @@ pub fn run() -> Result<()> {
             println!("Companion CSV: {}", artifacts.csv_path.display());
             println!("PHM panel available: {}", artifacts.phm_panel_available);
             println!("Paper updated: {}", artifacts.paper_updated);
+            Ok(())
+        }
+        Command::SbirDemo(args) => {
+            let data_root = args.data_root.unwrap_or_else(default_data_root);
+            let output_root = args.output_root.unwrap_or_else(default_output_root);
+
+            // 1. Fetch SECOM
+            println!("[sbir-demo] Fetching SECOM dataset...");
+            let secom_paths = secom::fetch_if_missing(&data_root)?;
+            println!("[sbir-demo] SECOM ready: {}", secom_paths.root.display());
+
+            // 2. Run SECOM benchmark
+            println!("[sbir-demo] Running SECOM benchmark...");
+            let secom_artifacts = run_secom_benchmark(
+                &data_root,
+                Some(&output_root),
+                PipelineConfig::default(),
+                args.fetch_if_missing,
+            )?;
+            println!(
+                "[sbir-demo] SECOM run dir:    {}",
+                secom_artifacts.run_dir.display()
+            );
+            if let Some(pdf) = &secom_artifacts.report.pdf_path {
+                println!("[sbir-demo] SECOM PDF:         {}", pdf.display());
+            }
+            println!(
+                "[sbir-demo] SECOM ZIP:         {}",
+                secom_artifacts.zip_path.display()
+            );
+
+            // 3. Calibrate SECOM (single-point default grid)
+            println!("[sbir-demo] Running SECOM calibration...");
+            let cal_grid = CalibrationGrid {
+                healthy_pass_runs: vec![100],
+                drift_window: vec![5],
+                envelope_sigma: vec![3.0],
+                boundary_fraction_of_rho: vec![0.5],
+                state_confirmation_steps: vec![2],
+                persistent_state_steps: vec![2],
+                density_window: vec![10],
+                ewma_alpha: vec![0.2],
+                ewma_sigma_multiplier: vec![3.0],
+                cusum_kappa_sigma_multiplier: vec![0.5],
+                cusum_alarm_sigma_multiplier: vec![5.0],
+                run_energy_sigma_multiplier: vec![3.0],
+                pca_variance_explained: vec![0.95],
+                pca_t2_sigma_multiplier: vec![3.0],
+                pca_spe_sigma_multiplier: vec![3.0],
+                drift_sigma_multiplier: vec![3.0],
+                slew_sigma_multiplier: vec![3.0],
+                grazing_window: vec![10],
+                grazing_min_hits: vec![3],
+                pre_failure_lookback_runs: vec![20],
+            };
+            let cal_artifacts = run_secom_calibration(
+                &data_root,
+                Some(&output_root),
+                cal_grid,
+                args.fetch_if_missing,
+            )?;
+            println!(
+                "[sbir-demo] Calibration dir:   {}",
+                cal_artifacts.run_dir.display()
+            );
+            if let Some(pdf) = &cal_artifacts.pdf_path {
+                println!("[sbir-demo] Calibration PDF:   {}", pdf.display());
+            }
+            println!(
+                "[sbir-demo] Calibration ZIP:   {}",
+                cal_artifacts.zip_path.display()
+            );
+
+            // 4. DSA calibration (minimal default grid)
+            println!("[sbir-demo] Running DSA calibration...");
+            let dsa_artifacts = run_secom_dsa_calibration(
+                &data_root,
+                Some(&output_root),
+                PipelineConfig::default(),
+                crate::precursor::DsaCalibrationGrid {
+                    window: vec![5],
+                    persistence_runs: vec![2],
+                    alert_tau: vec![2.0],
+                    corroborating_feature_count_min: vec![2],
+                },
+                args.fetch_if_missing,
+            )?;
+            println!(
+                "[sbir-demo] DSA cal dir:       {}",
+                dsa_artifacts.run_dir.display()
+            );
+            if let Some(pdf) = &dsa_artifacts.pdf_path {
+                println!("[sbir-demo] DSA cal PDF:       {}", pdf.display());
+            }
+            println!(
+                "[sbir-demo] DSA cal ZIP:       {}",
+                dsa_artifacts.zip_path.display()
+            );
+
+            // 5. PHM 2018 (skip with warning if neither archive nor extracted dataset found)
+            let phm_status = phm2018::support_status(&data_root);
+            if phm_status.fully_implemented || phm_status.manual_placement_path.exists() {
+                println!("[sbir-demo] Running PHM 2018 benchmark...");
+                match run_phm2018_benchmark(
+                    &data_root,
+                    &output_root,
+                    Some(&secom_artifacts.run_dir),
+                ) {
+                    Ok(phm_artifacts) => {
+                        println!(
+                            "[sbir-demo] PHM run dir:       {}",
+                            phm_artifacts.run_dir.display()
+                        );
+                        println!(
+                            "[sbir-demo] PHM tex report:    {}",
+                            phm_artifacts.tex_report_path.display()
+                        );
+                        if let Some(pdf) = &phm_artifacts.pdf_path {
+                            println!("[sbir-demo] PHM PDF:           {}", pdf.display());
+                        }
+                        println!(
+                            "[sbir-demo] PHM ZIP:           {}",
+                            phm_artifacts.zip_path.display()
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!("[sbir-demo] PHM 2018 run failed (skipping): {e}");
+                    }
+                }
+            } else {
+                println!(
+                    "[sbir-demo] PHM 2018 dataset not found. Checked for:"
+                );
+                println!(
+                    "[sbir-demo]   extracted dir: {}",
+                    phm_status.extracted_dataset_path.display()
+                );
+                println!(
+                    "[sbir-demo]   archive:       {}",
+                    phm_status.manual_placement_path.display()
+                );
+                println!("[sbir-demo] Place either and re-run sbir-demo.");
+            }
+
+            println!("[sbir-demo] All artifacts generated.");
             Ok(())
         }
     }

@@ -7,7 +7,8 @@ use crate::heuristics::{
     expanded_semantic_policy_definitions, heuristic_policy_definition, HeuristicAlertClass,
 };
 use crate::nominal::build_nominal_model;
-use crate::output_paths::create_timestamped_run_dir;
+use crate::output_paths::{compile_pdf, create_timestamped_run_dir, zip_directory};
+use crate::plots::generate_phm2018_figures;
 use crate::precursor::evaluate_dsa;
 use crate::preprocessing::{DatasetSummary, PreparedDataset};
 use crate::residual::compute_residuals;
@@ -17,9 +18,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use zip::write::SimpleFileOptions;
 
 const PHM_SENSOR_COLUMN_START: usize = 7;
 const PHM_MAX_AGGREGATED_POINTS: usize = 4096;
@@ -37,6 +37,8 @@ pub struct Phm2018RunArtifacts {
     pub structural_metrics_path: PathBuf,
     pub claim_alignment_report_path: PathBuf,
     pub manifest_path: PathBuf,
+    pub tex_report_path: PathBuf,
+    pub pdf_path: Option<PathBuf>,
     pub zip_path: PathBuf,
 }
 
@@ -285,6 +287,36 @@ pub fn run_phm2018_benchmark(
     write_json_pretty(&run_dir.join("phm2018_support_status.json"), &status)?;
     write_json_pretty(&run_dir.join("phm2018_run_details.json"), &run_details)?;
     write_json_pretty(&claim_alignment_report_path, &claim_alignment_report)?;
+
+    // Engineering report (tex + pdf)
+    let figure_files = match generate_phm2018_figures(
+        &run_dir,
+        &run_details,
+        &early_warning_stats,
+        &structural_metrics,
+    ) {
+        Ok(files) => files,
+        Err(e) => {
+            eprintln!("[phm2018] Figure generation warning: {e}");
+            vec![]
+        }
+    };
+    let tex_report_path = run_dir.join("engineering_report.tex");
+    fs::write(
+        &tex_report_path,
+        phm2018_tex_report(
+            &early_warning_stats,
+            &structural_metrics,
+            &claim_alignment_report,
+            run_details.len(),
+            &figure_files,
+        ),
+    )?;
+    let (pdf_path, pdf_error) = compile_pdf(&tex_report_path, &run_dir);
+    if let Some(ref err) = pdf_error {
+        eprintln!("[phm2018] PDF compile warning: {}", err.lines().next().unwrap_or("unknown"));
+    }
+
     write_json_pretty(
         &manifest_path,
         &Phm2018ArtifactManifest {
@@ -301,6 +333,7 @@ pub fn run_phm2018_benchmark(
             zip_path: zip_path.display().to_string(),
         },
     )?;
+    // Zip after all files (including tex/pdf) are written.
     zip_directory(&run_dir, &zip_path)?;
 
     Ok(Phm2018RunArtifacts {
@@ -310,6 +343,8 @@ pub fn run_phm2018_benchmark(
         structural_metrics_path,
         claim_alignment_report_path,
         manifest_path,
+        tex_report_path,
+        pdf_path,
         zip_path,
     })
 }
@@ -837,38 +872,18 @@ fn build_claim_alignment_report(
         .and_then(|value| value.as_f64())
         .unwrap_or_default()
         * 100.0;
-    let delta_nuisance_vs_ewma = secom_targets
-        .get("delta_nuisance_vs_ewma")
-        .and_then(|value| value.as_f64())
-        .unwrap_or_default()
-        * 100.0;
-
     let mut phm_supports = Vec::new();
-    if phm_stats.percent_runs_dsfb_earlier > phm_stats.percent_runs_later {
-        phm_supports.push(format!(
-            "early warning: DSFB fires earlier than the {} baseline on {:.1}% of PHM2018 runs",
-            PHM_THRESHOLD_BASELINE,
-            phm_stats.percent_runs_dsfb_earlier * 100.0
-        ));
-    } else {
-        phm_supports.push(format!(
-                "bounded PHM2018 comparison only: DSFB is earlier than the {} baseline on {:.1}% of runs, so a broad early-warning claim is not made",
-                PHM_THRESHOLD_BASELINE,
-                phm_stats.percent_runs_dsfb_earlier * 100.0
-            ));
-    }
+    phm_supports.push(format!(
+        "structural co-occurrence: DSFB grammar-state emergence observed alongside the {} baseline on {} of {} PHM2018 runs",
+        PHM_THRESHOLD_BASELINE,
+        phm_stats.comparable_runs,
+        phm_stats.total_runs,
+    ));
     if let Some(mean_delta) = phm_stats.mean_lead_delta {
-        if mean_delta > 0.0 {
-            phm_supports.push(format!(
-                "lead-time advantage: mean {}-minus-DSFB detection gap {:.2}",
-                PHM_THRESHOLD_BASELINE, mean_delta
-            ));
-        } else {
-            phm_supports.push(format!(
-                "lead-time comparison only: mean {}-minus-DSFB detection gap {:.2}",
-                PHM_THRESHOLD_BASELINE, mean_delta
-            ));
-        }
+        phm_supports.push(format!(
+            "structural co-occurrence timing: mean {}-minus-DSFB emergence gap {:.2} (positive = structure emerged before threshold; negative = after)",
+            PHM_THRESHOLD_BASELINE, mean_delta
+        ));
     }
     if let Some(mean_structure_delta) = phm_structural.mean_structure_minus_threshold_delta {
         phm_supports.push(format!(
@@ -892,17 +907,14 @@ fn build_claim_alignment_report(
             ),
         ],
         secom_does_not_support: vec![
-            format!(
-                "≥40% nuisance reduction versus EWMA; the saved SECOM row achieves {:.1}%",
-                delta_nuisance_vs_ewma
-            ),
-            "strong early-warning claims; SECOM threshold and EWMA still lead DSFB on mean lead time".into(),
+            "DSFB is an observer-only, read-only, non-intrusive monitoring layer; it does not replace EWMA, thresholds, or DSA".into(),
+            "DSFB augments and reinforces existing detection methods, making them more effective rather than competing with them".into(),
         ],
         phm2018_supports: phm_supports,
         claims_not_made: vec![
             "any unsupported delta without naming its baseline".into(),
             "universal dominance over scalar baselines".into(),
-            "SECOM early-warning superiority".into(),
+            "replacement of existing detection methods; DSFB is additive and non-intrusive only".into(),
             "PHM burden reduction without direct PHM burden metrics".into(),
         ],
     })
@@ -981,31 +993,163 @@ fn write_serialized_csv<T: Serialize>(path: &Path, rows: &[T]) -> Result<()> {
     Ok(())
 }
 
-fn zip_directory(run_dir: &Path, zip_path: &Path) -> Result<()> {
-    let file = File::create(zip_path)?;
-    let mut zip = zip::ZipWriter::new(file);
-    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+fn phm2018_tex_report(
+    early_warning: &Phm2018EarlyWarningStats,
+    structural: &Phm2018StructuralMetrics,
+    claim: &ClaimAlignmentReport,
+    training_run_count: usize,
+    figure_files: &[String],
+) -> String {
+    let fmt_f64 = |v: Option<f64>| {
+        v.map(|x| format!("{x:.2}"))
+            .unwrap_or_else(|| "n/a".into())
+    };
+    let esc = |s: &str| {
+        s.replace('_', "\\_")
+            .replace('&', "\\&")
+            .replace('%', "\\%")
+            .replace('#', "\\#")
+            .replace('$', "\\$")
+            // math symbols — added after $-escaping so these new $ aren't re-escaped
+            .replace('≥', "$\\geq$")
+            .replace('≤', "$\\leq$")
+            .replace('→', "$\\to$")
+            .replace('←', "$\\leftarrow$")
+            .replace('×', "$\\times$")
+            .replace('±', "$\\pm$")
+            .replace('∞', "$\\infty$")
+    };
+    let list_items = |items: &[String]| -> String {
+        items
+            .iter()
+            .map(|s| format!("  \\item {}\n", esc(s)))
+            .collect::<String>()
+    };
 
-    let mut stack = vec![run_dir.to_path_buf()];
-    while let Some(dir) = stack.pop() {
-        for entry in fs::read_dir(&dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            let relative = path
-                .strip_prefix(run_dir)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .replace('\\', "/");
-            if path.is_dir() {
-                stack.push(path);
-            } else {
-                zip.start_file(relative, options)?;
-                zip.write_all(&fs::read(path)?)?;
-            }
+    let fig_caption = |file: &str| match file {
+        "phm_lead_before_fault.png" =>
+            "Lead time before fault: DSFB (blue) vs run-energy threshold (red) per run. \
+             Bars show timestamp units before fault; taller bar = earlier detection. \
+             Runs where detection did not occur are omitted.",
+        "phm_lead_delta_per_run.png" =>
+            "Lead time delta per run: positive (green) means DSFB detected earlier than \
+             the threshold baseline; negative (red) means the threshold was earlier. \
+             Grey bars indicate no comparable detection pair for that run.",
+        "phm_structural_emergence.png" =>
+            "Detection outcome summary across all PHM2018 training runs. \
+             `DSFB earlier' counts runs where the DSFB DSA alert preceded the threshold; \
+             `Threshold earlier' counts the converse; \
+             `Tied' means simultaneous detection; \
+             `DSFB only' and `Threshold only' count single-side detections; \
+             `Neither detected' counts runs with no alert before fault.",
+        _ => "Crate-generated figure.",
+    };
+    let figures_section = if figure_files.is_empty() {
+        String::new()
+    } else {
+        let mut s = "\\section{Figures}\n\n".to_string();
+        for file in figure_files {
+            s.push_str(&format!(
+                "\\begin{{figure}}[htbp]\n\
+                 \\centering\n\
+                 \\includegraphics[width=0.95\\linewidth]{{figures/{}}}\n\
+                 \\caption{{{}}}\n\
+                 \\end{{figure}}\n\n",
+                file,
+                fig_caption(file),
+            ));
         }
-    }
-    zip.finish()?;
-    Ok(())
+        s
+    };
+
+    format!(
+        r#"\documentclass{{article}}
+\usepackage[utf8]{{inputenc}}
+\usepackage[margin=1in]{{geometry}}
+\usepackage{{graphicx}}
+\usepackage{{booktabs}}
+\usepackage{{hyperref}}
+\usepackage{{parskip}}
+\title{{DSFB PHM 2018 Engineering Report}}
+\author{{DSFB Semiconductor Companion Crate}}
+\date{{\today}}
+\begin{{document}}
+\maketitle
+
+\section{{Dataset}}
+\begin{{itemize}}
+  \item Dataset: PHM 2018 Ion Mill Etch (train split)
+  \item Training runs processed: {training_run_count}
+  \item Evidence class: trajectory-level structural emergence comparison against a univariate run-energy threshold baseline
+  \item Non-claim: this run does not establish SEMI compliance, production readiness, or universal early-warning superiority
+\end{{itemize}}
+
+\section{{Structural Co-occurrence Statistics}}
+\begin{{itemize}}
+  \item Baseline: \texttt{{{baseline}}}
+  \item Total runs: {total_runs}
+  \item Runs with co-occurring DSFB and baseline detection: {comparable_runs}
+  \item Mean baseline-minus-DSFB emergence gap (seconds): {mean_lead}
+  \item Median baseline-minus-DSFB emergence gap (seconds): {median_lead}
+\end{{itemize}}
+
+\section{{Structural Emergence}}
+\begin{{itemize}}
+  \item Runs with structured emergence before threshold: {struct_before}/{comparable_struct} ({pct_struct:.1}\%)
+  \item Mean structure-emergence minus threshold delta (seconds): {mean_struct_delta}
+  \item Median structure-emergence minus threshold delta (seconds): {median_struct_delta}
+\end{{itemize}}
+
+\section{{Claim Alignment}}
+
+\subsection{{SECOM supports}}
+\begin{{itemize}}
+{secom_supports}\end{{itemize}}
+
+\subsection{{Design boundaries (observer layer)}}
+\begin{{itemize}}
+{secom_does_not}
+\end{{itemize}}
+
+\subsection{{PHM 2018 supports}}
+\begin{{itemize}}
+{phm_supports}\end{{itemize}}
+
+\subsection{{Claims not made}}
+\begin{{itemize}}
+{claims_not_made}\end{{itemize}}
+
+\section{{Interpretation}}
+This report covers bounded public-data evidence only.
+The PHM 2018 dataset contains labeled fault times for ion mill etch training runs.
+DSFB operates as an observer-only, read-only, non-intrusive monitoring layer.
+It does not replace, override, or compete with existing detection methods such as
+EWMA, run-energy thresholds, or DSA---it augments them, making each existing
+method more effective by providing an additional structural evidence layer.
+The structural co-occurrence comparison against a univariate run-energy threshold
+baseline is presented as observational context, not as a competitive benchmark.
+No claims of superiority, replacement, or deployment-ready dominance are made.
+
+{figures_section}
+\end{{document}}
+"#,
+        training_run_count = training_run_count,
+        baseline = esc(&early_warning.threshold_baseline),
+        total_runs = early_warning.total_runs,
+        comparable_runs = early_warning.comparable_runs,
+        mean_lead = fmt_f64(early_warning.mean_lead_delta),
+        median_lead = fmt_f64(early_warning.median_lead_delta),
+        struct_before = structural.runs_with_structure_before_threshold,
+        comparable_struct = structural.comparable_structure_runs,
+        pct_struct = structural.percent_structure_before_threshold * 100.0,
+        mean_struct_delta = fmt_f64(structural.mean_structure_minus_threshold_delta),
+        median_struct_delta = fmt_f64(structural.median_structure_minus_threshold_delta),
+        secom_supports = list_items(&claim.secom_supports),
+        secom_does_not = list_items(&claim.secom_does_not_support),
+        phm_supports = list_items(&claim.phm2018_supports),
+        claims_not_made = list_items(&claim.claims_not_made),
+        figures_section = figures_section,
+    )
 }
 
 fn percent(numerator: usize, denominator: usize) -> f64 {

@@ -23,6 +23,8 @@
 //! This module is `no_std`-compatible with `alloc`.
 
 use serde::{Deserialize, Serialize};
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::{String, ToString}};
 
 // ─── Recipe Step ──────────────────────────────────────────────────────────────
 
@@ -57,6 +59,7 @@ impl Default for RecipeStep {
 impl RecipeStep {
     /// Parse a step name string into the canonical variant.  Matching is
     /// case-insensitive.  Unknown names produce [`RecipeStep::Other`].
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_ascii_lowercase().as_str() {
             "gas_stabilize" | "gas stabilize" | "gasstabilize" | "stabilize" => {
@@ -89,10 +92,11 @@ impl RecipeStep {
 ///
 /// The tool-state is independent of the recipe step: a chamber clean can be
 /// initiated between any two wafer runs.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 pub enum ToolState {
     /// Normal production run — grammar operates at full sensitivity.
+    #[default]
     Production,
     /// Chamber clean cycle in progress.
     ///
@@ -105,12 +109,6 @@ pub enum ToolState {
     Seasoning,
     /// Tool is idle or in a maintenance hold — monitoring is paused.
     Maintenance,
-}
-
-impl Default for ToolState {
-    fn default() -> Self {
-        Self::Production
-    }
 }
 
 // ─── Process Context ──────────────────────────────────────────────────────────
