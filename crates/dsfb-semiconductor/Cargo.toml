@@ -1,6 +1,6 @@
 [package]
 name = "dsfb-semiconductor"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.74"
 default-run = "dsfb-semiconductor"
@@ -14,10 +14,10 @@ categories = ["science", "command-line-utilities"]
 include = [
     "src/**",
     "tests/**",
+    "examples/**",
     "paper/**",
     "notebooks/**",
     "dsfb_semiconductor.ipynb",
-    "data/**",
     "Cargo.toml",
     "README.md",
 ]

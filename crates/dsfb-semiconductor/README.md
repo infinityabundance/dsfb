@@ -1,527 +1,798 @@
 # dsfb-semiconductor
 
+[![Crates.io](https://img.shields.io/crates/v/dsfb-semiconductor.svg)](https://crates.io/crates/dsfb-semiconductor)
+[![Docs.rs](https://docs.rs/dsfb-semiconductor/badge.svg)](https://docs.rs/dsfb-semiconductor)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-semiconductor/notebooks/dsfb_semiconductor_secom_colab.ipynb)
 
-`dsfb-semiconductor` is the empirical software companion for the DSFB semiconductor paper. It instantiates the paper's bounded claim: DSFB is a deterministic, non-intrusive augmentation layer over existing semiconductor monitoring signals, not a replacement for incumbent SPC/APC/FDC infrastructure.
+`dsfb-semiconductor` is a **deterministic, non-intrusive structural semiotics
+engine** for semiconductor process control — a read-only augmentation layer that
+operates over typed residual streams, producing advisory episode classifications
+without touching upstream SPC, APC, FDC, or EWMA/CUSUM controllers.
 
-The operator-facing result in the saved SECOM row is bounded and concrete:
+The crate is the empirical software companion for the DSFB semiconductor paper
+(see [Citation](#citation) below). It instantiates the paper's bounded claim:
+DSFB compresses raw structural alarms into inspectable, precision-governed
+episodes while preserving full failure coverage.
 
-- `28,607 -> 71` structured review episodes (`-99.75%`)
-- `0.36% -> 80.3%` event relevance (`220.8x`)
-- `10,554 -> 3,854` investigation-worthy decisions (`-63.5%`)
-- `104 / 104` failure-labeled runs preserved
+On the SECOM benchmark with default parameters:
 
-The crate is intentionally read-only and side-channel by design:
+| Metric | Raw | DSFB | Change |
+|--------|-----|------|--------|
+| Review episodes | 28,607 | 71 | -99.75 % |
+| Episode precision | 0.36 % | 80.3 % | 220.8x |
+| Investigation-worthy decisions | 10,554 | 3,854 | -63.5 % |
+| Failure-labeled runs covered | 104 | 104 | 0 (full) |
 
-- SPC, EWMA, threshold logic, APC, and controller behavior remain authoritative and unchanged
-- DSFB consumes immutable residual streams, alarm streams, and metadata only
-- DSFB emits advisory interpretations only; there is no control-output or threshold-write API
-- identical inputs replay to identical outputs
-- if DSFB fails, upstream plant behavior is unchanged
+---
 
-The current crate turns real semiconductor datasets into inspectable DSFB artifacts:
+## Table of Contents
 
-- nominal reference summaries
-- residual traces
-- drift traces
-- slew traces
-- admissibility-envelope / grammar-state traces
-- DSA structural traces, scores, consistency flags, and policy-governed feature states
-- provenance-aware heuristics-bank entries with active alert-governance fields
-- explicit DSFB feature-scaffold sign / syntax / grammar / semantics / policy traces for `S059`, `S133`, `S123`, `S540`, `S128`, and `S104`, plus grouped semiotics for `{S059,S133}`, `{S123,S540,S128}`, and `{S104}`
-- lead-time, sliding-window density, and pass-run nuisance proxy metrics
-- calibration grid artifacts over the fixed DSFB parameter surface
-- a bounded DSA calibration grid over fixed deterministic threshold and persistence settings
-- a deterministic residual stateflow chart (DRSC) plus aligned trace CSV for the top boundary-activity feature
-- a publication-quality Deterministic Residual Stateflow Chart with Structural Accumulation (DRSC+DSA) plus aligned trace CSV for that same selected feature window
-- all notebook-parity PNG figures directly from the crate
-- a generated `dsfb_traceability.json` artifact exposing the chain `Residual -> Sign -> Motif -> Grammar -> Semantic -> Policy`
-- an engineering report in Markdown, LaTeX, and PDF when `pdflatex` is available; the PDF includes the generated figures and an artifact inventory
-- a ZIP bundle of the full run directory
+- [Design principles](#design-principles)
+- [Feature flags](#feature-flags)
+- [Mathematical foundation](#mathematical-foundation)
+  - [Residual construction](#residual-construction)
+  - [Sign computation -- drift and slew](#sign-computation--drift-and-slew)
+  - [Grammar -- admissibility finite-state machine](#grammar--admissibility-finite-state-machine)
+  - [Syntax -- motif classification](#syntax--motif-classification)
+  - [Semantics -- heuristics-bank lookup](#semantics--heuristics-bank-lookup)
+  - [Policy -- decision ranking](#policy--decision-ranking)
+  - [DSA -- deterministic structural accumulation](#dsa--deterministic-structural-accumulation)
+  - [Baselines included for comparison](#baselines-included-for-comparison)
+  - [Process context -- recipe-step admissibility and maintenance hysteresis](#process-context--recipe-step-admissibility-and-maintenance-hysteresis)
+  - [Multivariate observer](#multivariate-observer)
+- [Code architecture](#code-architecture)
+- [Library usage](#library-usage)
+  - [Minimal no_std observer](#minimal-no_std-observer-zero-copy-no-heap)
+  - [Full pipeline -- fab sidecar pattern](#full-pipeline--fab-sidecar-pattern)
+  - [Process-context gating](#process-context-gating)
+  - [Signature file lock](#signature-file-lock)
+- [Data preparation](#data-preparation)
+- [CLI quickstart](#cli-quickstart)
+- [Supported datasets](#supported-datasets)
+- [Output artifacts](#output-artifacts)
+- [no_std kernel](#no_std-kernel)
+- [Reproducibility discipline](#reproducibility-discipline)
+- [Caveats and non-claims](#caveats-and-non-claims)
+- [Citation](#citation)
 
-Operator-facing docs bundled in the crate:
+---
 
-- `docs/sbir_one_page.md`
-- `docs/fab_data_integration.md`
-- `docs/compute_cost.md`
-- `docs/failure_modes.md`
+## Design principles
 
-## What math from the paper is instantiated
+DSFB is a **supervisory, read-only** system. There is no write path.
 
-This crate implements the paper's core operator-facing objects with explicit saved parameters:
+| Guarantee | Enforcement |
+|-----------|-------------|
+| No mutation of upstream data | Observer API accepts only `&[f64]` (shared reference) |
+| No control-path influence | No write path into any upstream structure |
+| Deterministic under identical inputs | Pure function composition over fixed parameters |
+| Removable without system impact | Advisory outputs only; zero coupling |
+| No side effects | Kernel `observe()` is a pure function |
 
-- nominal reference from an initial healthy passing window
-- residuals `r(k) = x(k) - x_hat(k)`
-- drift from a finite window difference on residual norms
-- slew as the first difference of drift
-- admissibility envelope radius `rho = sigma_multiplier * healthy_std`
-- grammar states `Admissible`, `Boundary`, and `Violation`
-- hysteretic state confirmation together with persistent boundary / violation traces
-- a separate deterministic DSA feature layer built from rolling raw-boundary density, outward drift persistence, slew density, normalized EWMA occupancy, motif recurrence, and a directional-consistency gate
-- a heuristics-governed DSA policy engine that maps active motifs into feature-level `Silent`, `Watch`, `Review`, and `Escalate` states
-- explicit semantics of silence: transient, fragmented, or unsupported structure can remain `Silent` even when the numeric structural score is nonzero
-- policy-gated feature-level DSA alerts that require both the numeric persistence condition `dsa_score >= tau` for at least `K` runs and the motif-policy reduction to `Review` or `Escalate`
-- run-level DSA aggregation as cross-feature corroboration `feature_count_review_or_escalate(k) >= m`, together with emitted watch/review/escalate feature counts and a stricter `strict_escalate_run_alert(k)` trace
-- a provenance-aware heuristics bank built from observed grammar motifs, severity tags, action notes, action-governance fields, and limitations
-- five explicit deterministic comparators: a raw residual-magnitude threshold, a univariate EWMA residual-norm comparator, a positive CUSUM residual-norm comparator, a run-level residual-energy comparator, and a PCA T2/SPE multivariate FDC comparator
-- per-failure-run earliest-signal tracking and lead-time deltas against the scalar comparators for both the DSFB state logic and the DSA layer
-- sliding-window density summaries for boundary / violation / threshold / EWMA occupancy
-- pass-run nuisance proxies derived from SECOM pass labels
-- a deterministic SECOM calibration workflow over explicit parameter grids
-- a bounded DSA calibration workflow over `W`, `K`, `tau`, and corroboration count `m`
-- a deterministic feature-ranking step plus explicit DSA cohorts over `top_4`, `top_8`, `top_16`, and `all_features`
-- a grammar-conditioned feature-scaffold semiotics pass over selected SECOM channels that emits `dsfb_feature_signs.csv`, `dsfb_feature_motif_timeline.csv`, `dsfb_feature_grammar_states.csv`, `dsfb_semantic_matches.csv`, `dsfb_feature_policy_decisions.csv`, and grouped semiotics artifacts
-- a deterministic residual stateflow chart (DRSC) that synchronizes residual/drift/slew structure, confirmation-filtered grammar state, a DSA overlay band, and the run-level comparator overlay for one emitted feature trace without redefining DSFB state semantics
-- a publication-oriented DRSC+DSA figure that keeps the same selected feature but simplifies the view into four aligned grayscale panels: normalized residual / drift / slew, persistent deterministic DSFB state, DSA activation, and run-level threshold / EWMA trigger timing
-- a separate DSA structural-focus figure that exposes rolling DSA inputs, DSA score, persistence gating, and feature-level comparator bands for that same emitted feature trace
+If DSFB stops running, the upstream plant is entirely unaffected.
+SPC, EWMA, threshold logic, APC, and controller behaviour remain authoritative.
 
-The implementation is intentionally simple and deterministic. It is designed for auditability and reproducibility, not for inflated benchmark claims.
+---
+
+## Feature flags
+
+| Feature | Default | Effect |
+|---------|---------|--------|
+| `std` | **yes** | Enables CLI, I/O, dataset adapters, plotting, calibration, and all benchmark pipeline modules. |
+| *(none, `--no-default-features`)* | -- | Kernel-only build: `sign`, `grammar`, `syntax`, `semantics`, `policy`, `process_context`, `units`. Suitable for bare-metal, RTOS, and FPGA deployments. Requires only `alloc`. |
+
+---
+
+## Mathematical foundation
+
+### Residual construction
+
+Given a feature vector x(k) in R^p at sample index k, the nominal reference
+model is computed from the first N_h healthy-window observations:
+
+```
+mu_i   = (1/N_h) * sum x_i(k)                      (healthy window mean)
+sigma_i = sqrt((1/N_h) * sum (x_i(k) - mu_i)^2)    (healthy window std)
+rho_i  = sigma_env * sigma_i                         (envelope radius, default sigma_env = 3)
+r_i(k) = |x_i(k) - mu_i|                            (per-feature residual norm)
+```
+
+Missing values (NaN) are tracked by an imputation mask and replaced with mu_i
+before norm computation, ensuring the pipeline never propagates non-finite values
+downstream.
+
+All thresholds are computed from the healthy window at run time and saved verbatim
+to `parameter_manifest.json` for every run. There are no pre-fit magic constants.
+
+### Sign computation -- drift and slew
+
+The **drift** of feature i at index k is the finite-difference slope of the
+residual norm over a rolling window of width W_d:
+
+```
+drift_i(k) = (r_i(k) - r_i(k - W_d)) / W_d     (default W_d = 5)
+```
+
+Drift captures the directional rate of change: positive drift means the residual
+is growing; negative drift means it is recovering. Imputed samples zero-out the
+drift for that window.
+
+The **slew** is the first difference of drift (acceleration of residual change):
+
+```
+slew_i(k) = drift_i(k) - drift_i(k-1)
+```
+
+Both drift and slew thresholds are set at 3 sigma of the healthy-window
+distribution of the respective sign:
+
+```
+delta_i = 3 * std(drift_i during healthy window)
+zeta_i  = 3 * std(slew_i  during healthy window)
+```
+
+The sign triple (r_i, drift_i, slew_i) forms the input to the grammar layer.
+This representation encodes where the residual is, how fast it is moving, and how
+that speed is changing -- without any probabilistic model.
+
+### Grammar -- admissibility finite-state machine
+
+The grammar FSM maps the residual norm and drift onto one of three states per
+feature per sample:
+
+| State | Condition |
+|-------|-----------|
+| `Admissible` | r_i(k) <= rho_i and no sustained outward drift |
+| `Boundary` | r_i(k) in (0.5*rho_i, rho_i] with positive drift, or recurrent boundary grazing |
+| `Violation` | r_i(k) > rho_i |
+
+**Recurrent grazing** fires `Boundary` when at least `grazing_min_hits` out of
+the last `grazing_window` samples exceeded 0.5*rho_i, even if no individual
+sample has crossed rho_i. This captures slow creep that would be invisible to a
+simple threshold.
+
+**Hysteretic confirmation** (controlled by `state_confirmation_steps`) requires
+a new state to persist for at least C consecutive steps before the FSM
+transitions. This prevents flickering between states on marginal samples.
+
+**Persistent state masks** are derived after hysteresis: a feature is in
+`persistent_boundary` or `persistent_violation` if the confirmed grammar state
+has held for at least `persistent_state_steps` consecutive indices.
+
+The grammar evaluates each feature independently. The resulting `GrammarSet`
+carries a full `FeatureGrammarTrace` per feature, including raw states, confirmed
+states, suppression flags, and both persistent masks.
+
+In the minimal `observe()` kernel the grammar uses only squared norms to avoid
+`sqrt` and remain `no_std`-compatible:
+r^2 > rho^2 -> Violation, r^2 > (0.5*rho)^2 and drift > 0 -> Boundary, else Admissible.
+
+Grammar reasons:
+- `SustainedOutwardDrift`    -- drift > delta_i for C consecutive steps
+- `AbruptSlewViolation`      -- slew > zeta_i in a single step
+- `RecurrentBoundaryGrazing` -- grazing density gate fires
+- `EnvelopeViolation`        -- r_i > rho_i directly
+
+### Syntax -- motif classification
+
+The syntax layer classifies the time-ordered sign sequence for each feature into
+one of eight named motifs:
+
+| Motif | Description |
+|-------|-------------|
+| `slow_drift_precursor` | Sustained positive drift below the violation envelope -- the classic pre-failure creep pattern |
+| `boundary_grazing` | Repeated boundary touches without full violation -- persistent instability near the edge |
+| `transient_excursion` | A brief violation that decays quickly back to admissible |
+| `persistent_instability` | Extended violation or recurrent boundary-grazing over many consecutive samples |
+| `burst_instability` | High-slew entry into violation -- abrupt excursion rather than gradual drift |
+| `recovery_pattern` | Confirmed return to admissible after prior non-admissible state |
+| `noise_like` | Small, unstructured residual fluctuation; no directional coherence |
+| `null` | Insufficient data or all-imputed window |
+
+Classification uses envelope statistics (inter-quartile range, median, peak norm)
+computed from the sign sequence, combined with directional drift tests. Motif
+boundaries are run-length encoded so each feature produces a compact `Vec<Motif>`
+timeline, not a flat label-per-sample array.
+
+The motif layer is what separates DSFB from a simple threshold: a threshold fires
+whenever r > rho; the motif layer tracks *what kind* of structural event is
+happening.
+
+### Semantics -- heuristics-bank lookup
+
+The semantics layer matches grammar-conditional motifs against a deterministic
+heuristics bank. Each bank entry has the form:
+
+```text
+heuristic_id      -- unique identifier
+grammar_condition -- required grammar state (e.g., "Boundary", "Violation")
+motif_type        -- required motif (e.g., "slow_drift_precursor")
+action            -- advisory output: "Silent" | "Watch" | "Review" | "Escalate"
+severity_tag      -- informational: "low" | "medium" | "high"
+action_note       -- human-readable rationale
+limitations       -- explicit scope limit of this heuristic
+```
+
+A `SemanticMatch` is emitted only when both the grammar condition **and** the
+motif type match the current feature state. This is the key gate that separates
+structural patterns from random noise: a fragment that passes the grammar check
+but does not match any motif stays `Silent`.
+
+Default heuristics for key patterns:
+
+| Pattern | Grammar | Action |
+|---------|---------|--------|
+| `slow_drift_precursor` | Boundary | Review |
+| `boundary_grazing` (recurrent) | Boundary | Watch |
+| `transient_excursion` (single) | Violation | Silent |
+| `persistent_instability` | Violation | Escalate |
+| `burst_instability` | Violation | Review |
+| `recovery_pattern` | Admissible | Silent |
+
+The heuristics bank is operator-overridable via `DsfbSignatureFile`, which locks
+the entire configuration to a JSON file that can be version-controlled and
+diff-audited across tool generations.
+
+### Policy -- decision ranking
+
+The policy layer merges grammar-level fallback signals with semantic-match actions
+into a single ordered decision per timestamp, using strict rank promotion:
+
+```
+rank(Escalate) = 3
+rank(Review)   = 2
+rank(Watch)    = 1
+rank(Silent)   = 0
+```
+
+For each timestamp k:
+1. Grammar fallback: Admissible -> Silent, Boundary/Violation -> Watch
+2. Semantic matches: promote timestamp rank to semantic.action if higher
+3. The maximum rank across all features at timestamp k is the run-level output
+
+This means a single Escalate-grade semantic match on any feature raises the
+run-level decision. Conversely, a run with no semantic matches and only admissible
+grammar is always Silent.
+
+### DSA -- deterministic structural accumulation
+
+DSA (Deterministic Structural Accumulation) is a per-feature score that aggregates
+six structural inputs, each derived purely from the sign-level data:
+
+| Input | Symbol | Description |
+|-------|--------|-------------|
+| Rolling boundary density | d_B(k) | Fraction of last W samples in Boundary |
+| Drift persistence | d_P(k) | Fraction of last W samples with drift > delta_i |
+| Slew density | d_S(k) | Fraction of last W samples with slew > zeta_i |
+| EWMA occupancy | d_E(k) | Normalized EWMA residual norm relative to envelope |
+| Motif recurrence | d_M(k) | Fraction of last W motif samples that are non-null |
+| Directional consistency | d_C(k) | 1 if drift direction is consistently outward, else 0 |
+
+The DSA score is a fixed linear combination:
+
+```
+DSA_i(k) = w_B*d_B + w_P*d_P + w_S*d_S + w_E*d_E + w_M*d_M + w_C*d_C
+```
+
+Default weights: w_B=1.0, w_P=1.0, w_S=0.5, w_E=0.5, w_M=0.5, w_C=0.5.
+
+A **feature-level DSA alert** fires when:
+
+```
+DSA_i(k) >= tau    for at least K consecutive runs
+```
+
+The parameters W (window), K (persistence), tau (threshold), and m (corroboration
+count) are the four calibration knobs. They are bounded and saved to
+`dsa_parameter_manifest.json`.
+
+A **run-level DSA alert** fires when at least m features are simultaneously in
+Review or Escalate:
+
+```
+|{i : policy_i(k) in {Review, Escalate}}| >= m
+```
+
+The paper-selected configuration on SECOM is W=5, K=2, tau=2.0, m=2. The bounded
+calibration grid covers W in {5,10,15}, K in {2,3,4}, tau in {2.0,2.5,3.0},
+m in {1,2,3,5}, and all results are saved.
+
+### Baselines included for comparison
+
+| Baseline | Acronym | Formula |
+|----------|---------|---------|
+| Residual-magnitude threshold | THR | r_i(k) > rho_i |
+| Univariate EWMA residual norm | EWMA | z_i(k) = alpha*r_i(k) + (1-alpha)*z_i(k-1); alarm at z_i > mu_z + 3*sigma_z |
+| Positive CUSUM | CUSUM | C+(k) = max(0, C+(k-1) + r_i(k) - mu_r - kappa); alarm at C+ > h (kappa=0.5*sigma_r, h=5*sigma_r) |
+| Run-energy scalar | RES | E(k) = (1/p)*sum r_i^2(k); alarm threshold from healthy E distribution |
+| PCA T2/SPE multivariate FDC | PCA | Healthy-window PCA fit; Hotelling T2 statistic and SPE (Q-statistic) both at 3 sigma |
+
+All five baselines are computed from the same healthy window used by the DSFB
+grammar, and their results are saved alongside DSFB output for direct comparison.
+
+### Process context -- recipe-step admissibility and maintenance hysteresis
+
+Industrial processes are not stationary. The `process_context` module encodes two
+kinds of domain knowledge that are invisible to purely data-driven methods:
+
+**Recipe-step admissibility (LUT):** The envelope radius rho_i is scaled by a
+step-specific multiplier before the grammar evaluation:
+
+| Recipe step | LUT multiplier | Rationale |
+|-------------|---------------|-----------|
+| `GasStabilize` | 1.5x | Transient overshoots are physically expected during MFC ramp |
+| `MainEtch` | 1.0x | Yield-critical window; full-sensitivity grammar |
+| `Deposition` | 1.2x | Moderate tolerance |
+| `OverEtch` | 1.1x | Slightly relaxed |
+| `Seasoning` | 2.0x | Post-maintenance conditioning; widest tolerance |
+| `Other` | 1.0x | Baseline |
+
+**Maintenance hysteresis (Warm Reset):** When the tool signals `ChamberClean`,
+the accumulated grammar state is cleared and a configurable guard window
+(`post_clean_guard_runs`) suppresses new alarms for the first N_g runs.
+This prevents spurious escalations during the seasoning period.
+
+### Multivariate observer
+
+The `multivariate_observer` module (std-only) implements a Hotelling T2/SPE
+observer over all analyzable features simultaneously. A PCA model is fit on the
+healthy-window residual matrix, retaining enough principal components to explain
+`pca_variance_explained` (default 95%) of healthy variance.
+
+At each sample k:
+
+```
+T2(k) = z(k)^T * Lambda^-1 * z(k)    (Hotelling statistic in PCA subspace)
+Q(k)  = ||r(k) - r_hat(k)||^2         (SPE / Q-statistic)
+```
+
+where z(k) are the scores in the retained PCA subspace, Lambda the diagonal
+eigenvalue matrix, and r_hat(k) the PCA reconstruction. Alarms fire at
+T2 > tau_T2 or Q > tau_Q.
+
+---
+
+## Code architecture
+
+```
+src/
+|-- lib.rs                   # Crate root; observe() minimal kernel API
+|-- config.rs                # PipelineConfig -- all tunable parameters with validated defaults
+|-- units.rs                 # Type-safe physical-quantity newtypes (f64 wrappers)
+|-- sign/mod.rs              # FeatureSignPoint -- structured sign at a single timestamp
+|-- signs.rs                 # compute_drift(), compute_slew() -- sign computation
+|-- nominal.rs               # NominalModel -- healthy-window mean/sigma/rho per feature
+|-- residual.rs              # ResidualSet -- r(k) = |x(k) - mu| per feature
+|-- grammar.rs               # GrammarSet -- per-feature Admissible/Boundary/Violation FSM
+|-- grammar/layer.rs         # Streaming six-state grammar for sign-stream integration
+|-- syntax/mod.rs            # Motif classification -- 8 named motif types
+|-- semantics/mod.rs         # SemanticMatch -- grammar-conditional heuristics-bank lookup
+|-- policy/mod.rs            # PolicyDecision -- rank-promoted decision per timestamp
+|-- process_context.rs       # RecipeStep LUT + MaintenanceHysteresis warm reset
+|
+|-- baselines.rs             # EWMA, CUSUM, PCA -- comparison baselines
+|-- calibration.rs           # Deterministic parameter-grid calibration
+|-- cohort.rs                # Feature cohort selection and delta-target assessment
+|-- dataset/                 # SECOM and PHM 2018 dataset adapters
+|-- failure_driven.rs        # Failure-labeled run diagnostics
+|-- heuristics.rs            # Heuristics-bank construction and policy overrides
+|-- input/                   # ResidualStream and AlarmStream sorted input types
+|-- interface/mod.rs         # FabDataSource trait -- non-intrusive integration surface
+|-- metrics.rs               # Episode precision, lead-time, density metrics
+|-- missingness.rs           # Missing-value tracker and suppression rules
+|-- multivariate_observer.rs # PCA T2/SPE observer
+|-- non_intrusive.rs         # Architecture-spec artifact generation
+|-- output_paths.rs          # Timestamped, non-reusing output directory paths
+|-- pipeline.rs              # Full SECOM / PHM benchmark pipeline entry points
+|-- plots.rs                 # PNG figure generation (grammar timeline, DRSC, DSA)
+|-- precursor.rs             # DsaConfig + DSA scoring, persistence, cohort grid
+|-- preprocessing.rs         # Dataset preparation, healthy-window split
+|-- report.rs                # Markdown / LaTeX / PDF engineering report generation
+|-- secom_addendum.rs        # SECOM-specific delta targets, rating-delta analysis
+|-- semiotics.rs             # Grouped semiotics scaffold -- multi-feature sign scaffolds
+|-- signature.rs             # DsfbSignatureFile -- version-controlled config lock
+|-- traceability.rs          # Full chain: Residual -> Sign -> Motif -> Grammar -> Semantic -> Policy
+|-- unified_value_figure.rs  # Unified SECOM + PHM paper figure
+`-- cli.rs                   # clap-based CLI for all benchmark subcommands
+```
+
+---
+
+## Library usage
+
+### Minimal no_std observer (zero-copy, no heap)
+
+```rust
+use dsfb_semiconductor::observe;
+
+let residuals: &[f64] = &[0.1, 0.2, 0.5, 1.2, 2.1, 0.3, 0.1];
+let episodes = observe(residuals);
+
+for e in &episodes {
+    // Advisory only -- no write-back, no upstream coupling
+    println!(
+        "i={} |r|2={:.3} drift={:.3} grammar={} decision={}",
+        e.index, e.residual_norm_sq, e.drift, e.grammar, e.decision
+    );
+}
+// grammar  in { "Admissible", "Boundary", "Violation" }
+// decision in { "Silent", "Review", "Escalate" }
+```
+
+`observe()` is a pure function. Identical inputs always produce identical outputs.
+NaN/inf samples are automatically imputed as admissible.
+
+### Full pipeline -- fab sidecar pattern
+
+```rust
+use dsfb_semiconductor::{
+    config::PipelineConfig,
+    interface::FabDataSource,
+    input::residual_stream::ResidualStream,
+};
+
+// Build an advisory observer -- read-only, no write-back to upstream
+let config = PipelineConfig::default();
+let mut stream = ResidualStream::new();
+
+// Push residual observations from your existing FDC or SPC system.
+// The stream holds only &[f64] -- no mutation of upstream buffers.
+for (feature_id, residual_value) in your_fdc_residuals() {
+    stream.push(feature_id, residual_value, current_timestamp);
+}
+
+// Read the sorted, deterministic stream (order guaranteed)
+let sorted = stream.sorted();
+// All outputs are advisory; there is no write path.
+```
+
+For integration with an existing fab data system, implement the `FabDataSource` trait:
+
+```rust
+use dsfb_semiconductor::interface::FabDataSource;
+
+struct MyFdcAdapter { /* your fields */ }
+
+impl FabDataSource for MyFdcAdapter {
+    fn feature_ids(&self) -> Vec<String> { /* ... */ }
+    fn residual_at(&self, feature_id: &str, index: usize) -> Option<f64> { /* ... */ }
+    fn sample_count(&self) -> usize { /* ... */ }
+}
+```
+
+The `FabDataSource` trait is intentionally read-only: there is no `write` or `set`
+method. This makes the non-intrusion guarantee structurally enforced by the type system.
+
+### Process-context gating
+
+```rust
+use dsfb_semiconductor::process_context::{
+    RecipeStep, ToolState, MaintenanceHysteresis, AdmissibilityLut,
+};
+
+// Recipe-step LUT scales the grammar envelope per step
+let lut = AdmissibilityLut::default();
+let rho_main_etch = lut.scale(RecipeStep::MainEtch) * base_rho;     // 1.0x
+let rho_gas_stab  = lut.scale(RecipeStep::GasStabilize) * base_rho; // 1.5x
+
+// Maintenance hysteresis: suppress grammar for 5 runs after chamber clean
+let mut hysteresis = MaintenanceHysteresis::new(5);
+let grammar_active = hysteresis.update(ToolState::ChamberClean);
+// grammar_active == false for next 5 calls to update()
+```
+
+### Signature file lock
+
+The `DsfbSignatureFile` type provides a JSON-serializable configuration lock that
+pins algorithm version, all pipeline parameters, and the full heuristics bank to a
+file. Any parameter change is explicit, diff-auditable, and tied to a version
+identifier:
+
+```rust
+use dsfb_semiconductor::signature::DsfbSignatureFile;
+use std::path::Path;
+
+// Create a signature from the current config + heuristics bank
+let sig = DsfbSignatureFile::from_config(&config, &heuristics_bank, "v1.0.0-secom");
+sig.write(Path::new("dsfb_signature.json"))?;
+
+// Load and verify -- fails if any field changed
+let loaded = DsfbSignatureFile::load(Path::new("dsfb_signature.json"))?;
+assert_eq!(loaded.schema_version, "1");
+```
+
+---
+
+## Data preparation
+
+The crate ships **no dataset files**. All benchmark data is either downloaded at
+runtime or must be placed manually before running any pipeline subcommand.
+Skipping this step causes an immediate `DatasetMissing` error.
+
+### Step 1 — Fetch SECOM (automated, ~4 MB)
+
+SECOM is downloaded automatically from the UCI ML Repository the first time you
+run `fetch-secom`. The archive is cached so subsequent runs are instant.
+
+```bash
+# Run once, from the crate directory (or wherever you want the data/ folder)
+cargo run --release -- fetch-secom
+```
+
+This creates:
+
+```
+data/raw/secom/
+  secom.data           # 1567 rows x 590 features, space-separated, NaN as -1 or missing
+  secom_labels.data    # 1567 rows: label (-1/1) and Unix timestamp
+  secom.names          # attribute metadata
+```
+
+After this completes, `run-secom`, `calibrate-secom`, `calibrate-secom-dsa`,
+`render-non-intrusive-artifacts`, `render-unified-value-figure`, and `sbir-demo`
+are all ready to run.
+
+### Step 2 — Place PHM 2018 data (manual, ~2 GB)
+
+The PHM 2018 dataset is not freely redistributable via automated download. You
+must obtain it manually:
+
+1. Go to the [PHM 2018 data challenge page](https://phmsociety.org/conference/annual-conference-of-the-phm-society/annual-conference-of-the-prognostics-and-health-management-society-2018-b/phm-data-challenge-6/)
+2. Download the archive (Google Drive link on that page, ~2 GB `.tar.gz`)
+3. Place the file **without extracting** at:
+
+```
+data/raw/phm2018/phm_data_challenge_2018.tar.gz
+```
+
+The crate extracts it on first use. Once placed, `probe-phm2018` and
+`run-phm2018` are ready.
+
+> **If you skip this step** and run `run-phm2018`, you will see:
+> ```
+> [phm2018] dataset not found — see --help or probe-phm2018 for placement instructions
+> ```
+> Use `probe-phm2018` at any time to check detection status.
+
+### Working directory note
+
+All subcommands resolve `data/` relative to the **current working directory**
+when the binary is launched. If you install via `cargo install dsfb-semiconductor`,
+always run the binary from the same directory where you placed (or will place)
+your `data/` folder.
+
+```bash
+# Installed globally -- must cd to your data root first
+cd ~/dsfb-workdir
+dsfb-semiconductor fetch-secom
+dsfb-semiconductor run-secom
+```
+
+---
+
+## CLI quickstart
+
+> **Prerequisite:** complete [Data preparation](#data-preparation) first.
+
+```bash
+# Fetch the SECOM dataset (automated download)
+cargo run --release -- fetch-secom
+
+# Run the full SECOM benchmark
+cargo run --release -- run-secom
+
+# Run deterministic SECOM parameter-grid calibration
+cargo run --release -- calibrate-secom \
+  --drift-window-grid 3,5 \
+  --boundary-fraction-of-rho-grid 0.4,0.5 \
+  --state-confirmation-steps-grid 1,2
+
+# Run bounded DSA calibration grid (W, K, tau, m)
+cargo run --release -- calibrate-secom-dsa
+
+# Run PHM 2018 degradation benchmark
+cargo run --release -- run-phm2018
+
+# Probe PHM 2018 dataset availability
+cargo run --release -- probe-phm2018
+
+# Render non-intrusive architecture artifacts from a SECOM run
+cargo run --release -- render-non-intrusive-artifacts \
+  --run-dir output-dsfb-semiconductor/20260404_091433_203_dsfb-semiconductor_secom
+
+# Render unified SECOM + PHM value figure
+cargo run --release -- render-unified-value-figure \
+  --secom-run-dir output-dsfb-semiconductor/<secom_run> \
+  --phm-run-dir  output-dsfb-semiconductor/<phm_run>
+
+# Run full SBIR demo (SECOM + calibration + DSA calibration + PHM in one shot)
+cargo run --release -- sbir-demo
+
+# Verify that the crate reproduces the paper headline numbers
+cargo run --release -- paper-lock
+# [paper-lock] episode count :   71  (expected 71)  OK
+# [paper-lock] precision     :  80.3%  (expected >= 80%)  OK
+# [paper-lock] recall        : 104/104  (expected 104/104)  OK
+# [paper-lock] PASS -- headline numbers reproduced.
+```
+
+Key tunable flags for `run-secom`:
+
+```
+--healthy-pass-runs                    Healthy-window size (default 100)
+--drift-window                         W_d for drift computation (default 5)
+--envelope-sigma                       sigma multiplier for rho (default 3.0)
+--boundary-fraction-of-rho             Threshold for Boundary zone (default 0.5)
+--state-confirmation-steps             Hysteresis confirmation steps (default 2)
+--persistent-state-steps               Persistent-mask steps (default 2)
+--dsa-window                           W for DSA rolling window (default 5)
+--dsa-persistence-runs                 K for DSA persistence gate (default 2)
+--dsa-alert-tau                        tau for DSA score threshold (default 2.0)
+--dsa-corroborating-feature-count-min  m for run-level alert (default 2)
+```
+
+---
 
 ## Supported datasets
 
+See [Data preparation](#data-preparation) for setup instructions. This section
+describes the datasets themselves.
+
 ### SECOM
 
-Implemented and verified as the first real-data benchmark path.
+Source: [UCI Machine Learning Repository — SECOM](https://archive.ics.uci.edu/dataset/179/secom)
 
-- Source: UCI Machine Learning Repository SECOM dataset
-- Access mode: automated download via `fetch-secom`, or manual placement of `secom.zip`
-- Role in this crate: real-data benchmark for residual structure, drift, slew, grammar, and motif extraction
-- Non-claim: SECOM is anonymized and instance-level; it does not by itself validate chamber-mechanism attribution or full run-to-failure prognostics
+- 590 numeric sensor columns
+- 1567 wafer runs
+- 104 failure-labeled runs (label = 1); 1463 pass runs (label = -1)
+- ~40% of values are missing (NaN) — imputed by the healthy-window nominal mean
+- Auto-downloaded by `fetch-secom`; cached at `data/raw/secom/`
 
-Archive-layout note:
-
-- The current distributed `secom.data` parses as `590` numeric columns.
-- The UCI metadata text in `secom.names` states `591` attributes.
-- This crate uses the `590` numeric columns actually present in `secom.data` and reads pass/fail labels plus timestamps separately from `secom_labels.data`.
-- The exact resolved note is emitted to `secom_archive_layout.json` in every run bundle.
-
-Expected raw-data location after fetch or manual placement:
-
-```text
-crates/dsfb-semiconductor/data/raw/secom/
-  secom.zip
-  secom.data
-  secom_labels.data
-  secom.names
-```
+SECOM is the primary benchmark for precision, recall, alarm burden, and episode
+compression claims in the paper. All headline numbers come from SECOM.
 
 ### PHM 2018 ion mill etch
 
-Implemented as a parallel, bounded degradation-oriented benchmark path.
+Source: [PHM 2018 data challenge](https://phmsociety.org/conference/annual-conference-of-the-phm-society/annual-conference-of-the-prognostics-and-health-management-society-2018-b/phm-data-challenge-6/)
 
-- The crate loads continuous degradation trajectories from the extracted PHM 2018 dataset already staged under `crates/dsfb-semiconductor/data/`
-- The PHM path runs the same DSFB stack shape used in the crate: residual -> sign -> syntax -> grammar -> semantics -> policy
-- The comparison baseline is explicit and narrow: `run_energy_scalar_threshold`
-- The saved claim is bounded: PHM 2018 is used for degradation-oriented structure-emergence and timing analysis, not for burden-compression claims
-- The current saved PHM run at `crates/dsfb-semiconductor/output-dsfb-semiconductor/20260402_192526_564_dsfb-semiconductor_phm2018/` reports `14` comparable runs, mean lead delta `+58,572.43`, median lead delta `+26,746.0`, and a mixed split of `45% earlier / 5% equal / 50% later`
+- Continuous multi-sensor degradation trajectories for 10 tools, 2 datasets each
+- 20 training runs + 5 test runs (25 CSVs total after extraction)
+- Must be placed manually at `data/raw/phm2018/phm_data_challenge_2018.tar.gz`
 
-Expected manual archive path:
+PHM 2018 claims are bounded to degradation-oriented structure-emergence and
+timing analysis against the run_energy_scalar_threshold baseline. No
+burst-detection or burden-compression claim is made on PHM 2018.
 
-```text
-crates/dsfb-semiconductor/data/raw/phm2018/phm_data_challenge_2018.tar.gz
+---
+
+## Output artifacts
+
+All runs write to a timestamped directory that is never reused:
+
 ```
-
-Probe command:
-
-```bash
-cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- probe-phm2018
-```
-
-## Exact run instructions
-
-Fetch SECOM into the crate-local raw-data directory:
-
-```bash
-cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- fetch-secom
-```
-
-Run the full SECOM benchmark with default parameters:
-
-```bash
-cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- run-secom --fetch-if-missing
-```
-
-Run the deterministic SECOM calibration grid:
-
-```bash
-cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- calibrate-secom \
-  --healthy-pass-runs-grid 80,100,120 \
-  --drift-window-grid 3,5 \
-  --boundary-fraction-of-rho-grid 0.4,0.5 \
-  --state-confirmation-steps-grid 1,2 \
-  --persistent-state-steps-grid 1,2 \
-  --density-window-grid 10 \
-  --pre-failure-lookback-runs-grid 10,20
-```
-
-Run the bounded deterministic DSA calibration grid:
-
-```bash
-cargo run --manifest-path crates/dsfb-semiconductor/Cargo.toml -- calibrate-secom-dsa --fetch-if-missing
-```
-
-The bounded DSA grid is fixed at:
-
-- `W ∈ {5, 10, 15}`
-- `K ∈ {2, 3, 4}`
-- `tau ∈ {2.0, 2.5, 3.0}`
-- `m ∈ {2, 3, 5}`
-
-The current crate default for `run-secom` is the bounded-grid best-recall point:
-
-- `W = 5`
-- `K = 2`
-- `tau = 2.0`
-
-Key configurable parameters:
-
-- `--healthy-pass-runs`
-- `--drift-window`
-- `--envelope-sigma`
-- `--boundary-fraction-of-rho`
-- `--ewma-alpha`
-- `--ewma-sigma-multiplier`
-- `--drift-sigma-multiplier`
-- `--slew-sigma-multiplier`
-- `--grazing-window`
-- `--grazing-min-hits`
-- `--pre-failure-lookback-runs`
-- `--state-confirmation-steps`
-- `--persistent-state-steps`
-- `--density-window`
-- `--dsa-window`
-- `--dsa-persistence-runs`
-- `--dsa-alert-tau`
-- `--dsa-corroborating-feature-count-min`
-- `--cusum-kappa-sigma-multiplier`
-- `--cusum-alarm-sigma-multiplier`
-- `--run-energy-sigma-multiplier`
-
-Calibration-grid arguments:
-
-- `--healthy-pass-runs-grid`
-- `--drift-window-grid`
-- `--envelope-sigma-grid`
-- `--boundary-fraction-of-rho-grid`
-- `--ewma-alpha-grid`
-- `--ewma-sigma-multiplier-grid`
-- `--cusum-kappa-sigma-multiplier-grid`
-- `--cusum-alarm-sigma-multiplier-grid`
-- `--run-energy-sigma-multiplier-grid`
-- `--drift-sigma-multiplier-grid`
-- `--slew-sigma-multiplier-grid`
-- `--grazing-window-grid`
-- `--grazing-min-hits-grid`
-- `--pre-failure-lookback-runs-grid`
-- `--state-confirmation-steps-grid`
-- `--persistent-state-steps-grid`
-- `--density-window-grid`
-- `--dsa-window-grid`
-- `--dsa-persistence-runs-grid`
-- `--dsa-alert-tau-grid`
-- `--dsa-corroborating-feature-count-min-grid`
-
-Current implemented baselines:
-
-- residual-threshold baseline: `|r(k)| > rho`
-- EWMA baseline: univariate EWMA on residual norms with explicit `alpha` and healthy-window thresholding
-- CUSUM baseline: positive residual-norm CUSUM with fixed healthy-window `kappa` and alarm-threshold multipliers
-- run-energy baseline: mean squared residual z-energy across analyzable features with a fixed healthy-window threshold
-- PCA T2/SPE baseline: deterministic multivariate FDC comparator with a healthy-window PCA fit and fixed T2/SPE sigma thresholds
-
-DSFB state-layer distinction:
-
-- `DSFB Violation`: hard envelope exit `|r(k)| > rho`
-- `DSA`: persistence-constrained structural accumulation from rolling structural features
-
-Current baseline classes not implemented:
-
-- lightweight ML anomaly baselines
-
-## Output structure
-
-All benchmark runs write to a repo-level timestamped directory and do not reuse an existing run folder:
-
-```text
 output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_<dataset>/
 ```
 
-The current SECOM pipeline writes:
+Key SECOM artifacts:
 
-```text
-artifact_manifest.json
-baseline_comparison_summary.json
-benchmark_metrics.json
-dataset_summary.json
-density_metrics.csv
-drsc_top_feature.csv
-drsc_dsa_combined.csv
-dsa_top_feature.csv
-drifts.csv
-cusum_baseline.csv
-run_energy_baseline.csv
-ewma_baseline.csv
-engineering_report.md
-engineering_report.tex
-engineering_report.pdf          # when pdflatex is available; includes figures and artifact inventory
-feature_metrics.csv
-figures/
-grammar_states.csv
-heuristics_bank.json
-lead_time_metrics.csv
-parameter_manifest.json
-dsa_parameter_manifest.json
-dsa_feature_ranking.csv
-dsa_feature_ranking_recall_aware.csv
-dsa_feature_ranking_dsfb_aware.csv
-dsa_feature_ranking_burden_aware.csv
-dsa_feature_ranking_comparison.csv
-dsa_seed_feature_check.json
-dsa_feature_cohorts.json
-dsa_feature_policy_overrides.json
-dsa_feature_policy_summary.csv
-dsa_recall_rescue_results.csv
-dsa_recall_critical_features.csv
-dsa_recall_recovery_efficiency.csv
-dsfb_single_change_iteration_log.csv
-optimization_log.json
-dsa_operator_baselines.json
-dsa_operator_delta_targets.json
-dsa_operator_delta_attainment_matrix.csv
-dsa_policy_operator_burden_contributions.csv
-dsa_feature_policy_summary.csv
-dsa_feature_policy_overrides.json
-failures_index.json
-missed_failure_priority.csv
-feature_to_motif.json
-negative_control_report.json
-dsfb_feature_role_validation.csv
-dsfb_group_validation.csv
-dsfb_heuristic_provenance.csv
-policy_decisions.csv
-policy_burden_summary.csv
-episode_precision_metrics.json
-recurrent_boundary_stats.json
-recurrent_boundary_tradeoff_curve.csv
-recurrent_boundary_tradeoff_plot.png
-lead_time_comparison.csv
-lead_time_explanation.json
-missed_failure_root_cause.json
-target_d_regression_analysis.json
-dsfb_structural_delta_metrics.json
-non_intrusive_interface_spec.md
-dsa_delta_target_assessment.json
-dsa_pareto_frontier.csv
-dsa_stage_a_candidates.csv
-dsa_stage_b_candidates.csv
-dsa_missed_failure_diagnostics.csv
-dsa_cohort_results.csv
-dsa_cohort_results_recall_aware.csv
-dsa_cohort_results_dsfb_aware.csv
-dsa_cohort_results_burden_aware.csv
-dsa_cohort_summary.json
-dsa_cohort_summary_recall_aware.json
-dsa_cohort_summary_dsfb_aware.json
-dsa_cohort_summary_burden_aware.json
-dsa_cohort_precursor_quality.csv
-dsa_cohort_failure_analysis.md   # emitted when no cohort satisfies the primary success condition
-dsa_heuristic_policy_failure_analysis.md
-dsa_motif_policy_contributions.csv
-dsa_policy_contribution_analysis.csv
-dsa_rating_delta_forecast.json
-dsa_rating_delta_failure_analysis.md  # emitted when the rating-delta primary success condition is not met
-dsa_grid_results.csv
-dsa_grid_summary.json
-per_failure_run_signals.csv
-per_failure_run_dsa_signals.csv
-phm2018_support_status.json
-dsa_metrics.csv
-dsa_run_signals.csv
-dsa_vs_baselines.json
-dsfb_group_definitions.json
-pca_fdc_baseline.csv
-residuals.csv
-run_bundle.zip
-run_configuration.json
-secom_archive_layout.json
-slews.csv
-```
+| File | Contents |
+|------|----------|
+| `benchmark_metrics.json` | Per-feature rho, thresholds, alarm counts, DSA scores |
+| `episode_precision_metrics.json` | Episode count, precision, precision gain factor |
+| `dsfb_traceability.json` | Full chain: Residual -> Sign -> Motif -> Grammar -> Semantic -> Policy |
+| `parameter_manifest.json` | Every threshold computed from the healthy window |
+| `dsa_parameter_manifest.json` | All DSA weights, tau, K, W, m |
+| `engineering_report.pdf` | PDF report including all figures and artifact inventory |
+| `run_bundle.zip` | Complete run directory as a ZIP |
+| `figures/dsfb_unified_value_figure.png` | SECOM + PHM value figure |
+| `figures/dsfb_non_intrusive_architecture.png` | Architecture diagram |
+| `figures/drsc_dsa_combined.png` | Deterministic Residual Stateflow Chart + DSA overlay |
+| `dsa_grid_results.csv` | Full bounded calibration grid results |
+| `dsa_cohort_results.csv` | Per-cohort DSA results |
+| `heuristics_bank.json` | Active operator-facing heuristics with governance fields |
+| `non_intrusive_interface_spec.md` | Machine-readable non-intrusion guarantees |
 
-Notable generated figure artifacts now include:
+The DRSC (Deterministic Residual Stateflow Chart) figure aligns four panels:
 
-- `figures/dsfb_unified_value_figure.png`
-- `figures/dsfb_non_intrusive_architecture.png`
-- `figures/dsfb_non_intrusive_architecture.svg`
+1. Normalized residual / drift / slew (r/rho, drift/delta, slew/zeta)
+2. Confirmed persistent grammar state band
+3. Feature-level DSA score with persistence-gated alert shading
+4. Run-level threshold / EWMA / CUSUM / run-energy trigger timing
 
-The PHM 2018 benchmark writes a parallel run bundle with:
-
-```text
-artifact_manifest.json
-claim_alignment_report.json
-phm2018_early_warning_stats.json
-phm2018_lead_time_metrics.csv
-phm2018_run_details.json
-phm2018_structural_metrics.json
-phm2018_support_status.json
-run_bundle.zip
-```
-
-## Current heuristics-governed DSA result
-
-The latest audited SECOM run at `crates/dsfb-semiconductor/output-dsfb-semiconductor/20260402_183530_113_dsfb-semiconductor_secom/` keeps the empirical claim narrow and operator-focused.
-
-- Ranking formula: `candidate_score = z(dsfb_raw_boundary_points) - z(dsfb_raw_violation_points) + z(ewma_alarm_points) - I(missing_fraction > 0.50) * 2.0`
-- Recall-aware ranking formula: `candidate_score_recall = z(pre_failure_run_hits) + z(motif_precision_proxy) + z(ewma_alarm_points) + 0.5 * z(dsfb_raw_boundary_points) + 0.5 * z(recall_rescue_contribution) - 0.5 * z(dsfb_raw_violation_points) - I(missing_fraction > 0.50) * 2.0`
-- DSFB-aware ranking formula: `candidate_score_dsfb = z(pre_failure_run_hits) + z(motif_precision_proxy) + 0.5 * z(recall_rescue_contribution) + 0.5 * z(semantic_persistence_contribution) + 0.5 * z(grouped_semantic_support) + 0.25 * z(dsfb_raw_boundary_points) - z(operator_burden_contribution) - 0.5 * z(violation_overdominance_penalty) - I(missing_fraction > 0.50) * 2.0`
-- Seed-feature check: `S059` ranked 1 and `S044` ranked 6; `S061`, `S222`, `S354`, and `S173` ranked 19, 31, 49, and 88 respectively, so only `S059` reached `top_4` and only `S059` plus `S044` reached `top_8`
-- Full bounded cohort grid evaluated: `405` saved rows across `top_4`, `top_8`, `top_16`, and `all_features` with `W in {5,10,15}`, `K in {2,3,4}`, `tau in {2.0,2.5,3.0}`, and `m in {1,2,3,5}` where valid
-- The heuristics bank is now active policy, not passive reporting: `pre_failure_slow_drift` defaults to `Review`, `recurrent_boundary_approach` to `Watch`, and `transient_excursion` to `Silent`, with deterministic persistence, corroboration, and fragmentation gates
-- The operator baselines are explicit and saved: numeric-only DSA provides the investigation-point baseline (`10554` Review/Escalate points), raw boundary provides the episode baseline (`28607` episodes), and the prior policy-governed DSA row provides the pass-run review-burden baseline
-- The current selected configuration preserves full recall at `104/104` while reducing investigation-worthy burden to `3854` Review/Escalate points and compressing episodes to `71`
-- The strongest SECOM deltas are now explicit and baseline-named: `63.5%` investigation-load reduction versus numeric-only DSA, `99.8%` episode reduction versus raw boundary episodes, and `80.3%` episode precision versus a `0.36%` raw boundary precision proxy (`220.8x`)
-- Honest nuisance reporting is also explicit: nuisance reduction versus EWMA is only `19.3%`, so the crate does not claim a generic `40%+` nuisance delta on SECOM
-- The structural limitation is now surfaced directly: `recurrent_boundary_approach` carries both useful precursor signal and dominant pass-run nuisance, so aggressive suppression trades away recall
-- All four ranking strategies converge to the same selected all-feature row; the best ranked cohort remains much lower-nuisance but materially lower-recall than the selected all-feature configuration
-- Feature-aware bounded rescue remains explicit and saved; in the latest run it recovers all four baseline-missed failures, including failure run `2` through low-burden semantic support on `S092`
-- Semantics of silence remain measurable on the selected row: `4093` feature points are suppressed to `Silent`, leaving `187` watch points, `3560` review points, and `819` escalate points
-- The new DSFB scaffold is additive rather than rhetorical: `S059` is supported as a recurrent-boundary precursor, `S123` is partially supported as a transition / instability feature, `S540` and `S128` stay corroborative, `S104` behaves as a watch-only sentinel, and `S133` remains semantically ambiguous rather than a clean slow-drift precursor
-- Grouped semiotics is now explicitly audited in `dsfb_group_definitions.json`; the scaffold groups remain corroborative structure rather than root-cause claims
-- Motif contribution is still not generic: the operator-facing value comes more from investigation-load reduction and episode compression than from run-level nuisance alone, and the strongest remaining blocker is failure coverage rather than burden
-- The best reachable Pareto point under the latest saved deterministic sweep is still bounded: DSA materially lowers investigation-worthy burden and compresses episodes while now reaching equal-threshold coverage, but it still trails threshold and EWMA on mean lead and it does not preserve precursor quality or pass-run review-burden reductions
-
-The current figure set includes:
-
-- `figures/missingness_top20.png`
-- `figures/drsc_top_feature.png`
-- `figures/drsc_dsa_combined.png`
-- `figures/dsa_top_feature.png`
-- `figures/benchmark_comparison.png`
-- `figures/grammar_timeline.png`
-- `figures/top_feature_residual_norms.png`
-- `figures/top_feature_drift.png`
-- `figures/top_feature_ewma.png`
-- `figures/top_feature_slew.png`
-- `figures/dsfb_unified_value_figure.png`
-- `figures/dsfb_non_intrusive_architecture.png`
-
-The DRSC figure is an operator-facing synchronized chart for the top boundary-activity feature in the run. Its layers are:
-
-- normalized residual / drift / slew structure
-- confirmation-filtered persistent grammar state band
-- feature-level DSA score with persistence-constrained alert shading
-- normalized admissibility-envelope occupancy together with normalized EWMA occupancy and normalized run-energy occupancy
-
-The emitted DRSC also annotates the first persistent boundary, the first persistent violation when present in the selected window, and the failure-labeled run. This crate does not currently implement a trust scalar, so the DRSC lower layer is an admissibility overlay rather than a trust plot.
-
-The emitted DRSC+DSA figure is the publication-oriented version of that same selected feature window. It keeps the data deterministic and grayscale-safe while reducing the view to four aligned panels:
-
-- normalized residual / drift / slew using fixed threshold-normalized formulas `residual / rho`, `drift / drift_threshold`, and `slew / slew_threshold`
-- the actual persistent DSFB state band with the display aliases `Admissible`, `Boundary`, and `Violation`
-- a binary DSA layer rendered as feature-level DSA alert plus corroborated run-level DSA alert
-- run-level threshold and EWMA any-feature trigger timing
-
-This figure is intended to make the current crate value legible in one glance. It does not by itself claim earlier precursor timing than scalar baselines unless that is actually visible in the saved run bundle.
-
-The emitted DSA structural-focus figure is separate from DRSC on purpose. It expands the structural inputs for the same selected feature window while showing:
-
-- rolling boundary density, drift persistence, slew density, normalized EWMA occupancy, and motif recurrence
-- DSA score with the fixed `tau` line and persistence-gated alert shading
-- feature-level DSA / boundary / violation / threshold / EWMA / CUSUM alert bands plus the run-level residual-energy and PCA T2/SPE alarm bands in one aligned view
-
-The crate emits these PNG figures directly; the notebook simply renders the contents of `run_dir/figures/*.png` inline. No notebook-only plotting logic is required to obtain them.
-
-The calibration pipeline writes:
-
-```text
-output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_calibration/
-  calibration_best_by_metric.json
-  calibration_grid_results.csv
-  calibration_report.md
-  calibration_run_configuration.json
-  parameter_grid_manifest.json
-```
-
-The bounded DSA calibration pipeline writes:
-
-```text
-output-dsfb-semiconductor/<timestamp>_dsfb-semiconductor_secom_dsa_calibration/
-  dsa_grid_results.csv
-  dsa_grid_summary.json
-  dsa_calibration_report.md
-  dsa_calibration_run_configuration.json
-  dsa_parameter_grid_manifest.json
-```
-
-## Reproducibility discipline
-
-- Every meaningful threshold and window is saved to `parameter_manifest.json`
-- Fixed DSA weights, the corroborated run-level aggregation choice, the consistency rule, the primary-success recall tolerance, and the optimization-priority order are saved to `dsa_parameter_manifest.json`
-- Dataset source and output root are saved to `run_configuration.json`
-- Calibration grids are saved verbatim to `parameter_grid_manifest.json`
-- The bounded DSA calibration grid is saved verbatim to `dsa_parameter_grid_manifest.json`
-- Missing values are preserved at load time and then deterministically imputed with the healthy-window nominal mean before residual construction
-- Repeated runs with the same inputs and parameters produce the same metrics, traces, and calibration rows, modulo different timestamped output directories
-
-## Current empirical boundary
-
-The crate establishes deterministic structural artifact generation on real semiconductor data, not a blanket superiority claim over scalar baselines.
-
-- `DSFB Violation` and feature-level `DSA` are intentionally different signals: violation is a hard envelope exit, while feature-level DSA is a persistence-constrained structural accumulator.
-- The primary run-level DSA comparison signal is fixed cross-feature corroboration: `feature_count_review_or_escalate(k) >= m`.
-- The authoritative comparison artifact for the DSA layer is `dsa_vs_baselines.json`.
-- The legacy one-run nuisance/recall sweep gate saved in `dsa_parameter_manifest.json` is: DSA pass-run nuisance below EWMA nuisance and DSA failure recall within `1` run of threshold recall. The stronger operator-relevant target is now logged separately in `dsa_delta_target_assessment.json`.
-- The current selected SECOM row under `output-dsfb-semiconductor/20260402_183530_113_dsfb-semiconductor_secom/` reports DSA recall `104/104`, investigation-load reduction `0.6348`, episode reduction `0.9975`, pass-run nuisance reduction versus EWMA `0.1933`, mean lead `17.97`, and episode precision `0.8028`.
-- On that saved run, the heuristics-governed policy layer strongly reduces operator-facing investigation burden (`10554 -> 3854`) and compresses raw structural episodes (`28607 -> 71`) while keeping threshold-level recall. The operator burden success story is therefore real, but SECOM still does not support a strong early-warning claim or a `40%+` nuisance claim versus EWMA.
-- The current bounded cohort DSA grid under `output-dsfb-semiconductor/20260402_062248_909_dsfb-semiconductor_secom/` contains `405` saved rows over cohort, `W`, `K`, `tau`, and `m` for each ranking strategy. The compression-biased, recall-aware, burden-aware, and DSFB-aware rankings all converge to the same `all_features (W=10, K=4, tau=2.0, m=1)` configuration, while narrower cohorts still trade away too much recall for burden reduction.
-- The lead-time, density, and nuisance values remain proxy metrics on SECOM labels, not fab-qualified false-alarm or economic metrics.
-- The DRSC and DSA figures are deterministic and replayable from saved traces, but they are operator-facing visualizations of current rule-based state evolution, not probabilistic explanation layers.
+---
 
 ## no_std kernel
 
-The DSFB computation kernel compiles without the standard library and
-requires only `alloc`. This enables deployment on Cortex-M microcontrollers,
-FPGAs, and RTOS targets where no OS is available.
+The computation kernel compiles without the standard library, requiring only
+`alloc`. This enables deployment on Cortex-M microcontrollers, FPGAs, and RTOS
+targets.
 
-**Kernel modules available without std:**
-`process_context`, `units`, `signs`, `sign`, `grammar`, `grammar::layer`,
-`syntax`, `policy`, `semantics`, `config`, `nominal`, `residual`, `input`
+Kernel modules available without std:
 
-**Verified in CI** against `thumbv7em-none-eabi` (Cortex-M4/M7, no OS):
+```
+config            process_context   units
+sign              signs             nominal
+residual          grammar           grammar::layer
+syntax            semantics         policy
+input
+```
+
+Verify no_std compilation for the Cortex-M4/M7 target:
 
 ```sh
 cargo check --lib --no-default-features --target thumbv7em-none-eabi
 ```
 
-The I/O layer (CLI, pipeline, plotting, dataset adapters, SECOM evaluation)
-requires `std` and is compiled with the default feature set.
+---
+
+## Reproducibility discipline
+
+- All thresholds computed from the healthy window are saved to
+  `parameter_manifest.json` at every run.
+- All DSA weights, gate parameters, and corroboration rules are saved to
+  `dsa_parameter_manifest.json`.
+- Missing values are preserved at load time and imputed deterministically with
+  the healthy-window nominal mean before residual construction.
+- Repeated runs on identical inputs with identical parameters produce identical
+  metrics, traces, and calibration rows (modulo timestamp in the output directory
+  name).
+- The `DsfbSignatureFile` type enables version-locked, diff-auditable
+  configuration tracking across tool generations.
+- The `paper-lock` CLI command verifies that the crate reproduces all three
+  headline numbers from the paper with no code changes required.
+
+---
 
 ## Caveats and non-claims
 
 - This crate does not claim SEMI standards compliance or completed qualification.
-- This crate does not claim universal superiority over SPC, EWMA/CUSUM, multivariate FDC, or ML baselines.
-- The current comparator set is still bounded: a univariate residual-magnitude threshold, univariate EWMA and positive CUSUM residual-norm comparators, a run-level residual-energy comparator, and a deterministic PCA T2/SPE multivariate FDC comparator.
-- The current nuisance analysis is a pass-run proxy on SECOM labels, not a fab-qualified false-alarm-rate study.
-- The current lead-time analysis is bounded to fixed lookback windows on the available labels.
+- This crate does not claim universal superiority over SPC, EWMA/CUSUM,
+  multivariate FDC, or ML baselines.
+- The comparator set is bounded: univariate threshold, EWMA, CUSUM, run-energy
+  scalar, and PCA T2/SPE. No ML anomaly baselines.
+- The current nuisance analysis is a pass-run proxy on SECOM labels, not a
+  fab-qualified false-alarm-rate study.
 - SECOM is real semiconductor data, but it is not a deployment validation dataset.
-- PHM 2018 claims are intentionally bounded to degradation-oriented timing and structure-emergence analysis against the saved `run_energy_scalar_threshold` baseline; this crate does not claim PHM burden reduction or universal DSFB timing superiority.
-- This crate does not claim Kani verification for `dsfb-semiconductor`.
-- The computation kernel (`sign`, `grammar`, `syntax`, `semantics`, `policy`, `process_context`, `units`) supports `no_std` with `alloc`, verified in CI against `thumbv7em-none-eabi`. No claim of `no_alloc`, SIMD, rayon, or parallel-acceleration support. The I/O layer (CLI, pipeline, dataset adapters) requires `std`.
-- This crate does not claim SEMI E125 compatibility.
-- PDF generation depends on `pdflatex` being installed in the runtime.
-- The notebook file is wired to the current CLI and output paths, but this README does not claim that a live Colab execution was performed in this environment.
+- PHM 2018 claims are bounded to degradation-oriented timing analysis.
+- PDF generation depends on `pdflatex` being present at runtime.
+- The no_std kernel is verified against `thumbv7em-none-eabi`. No claim of
+  `no_alloc`, SIMD, or parallel-acceleration support.
+- Lead-time and density values are proxy metrics, not fab-qualified economic
+  metrics.
 
-## Notebook
+---
 
-The Colab notebook lives at:
+## Citation
 
-[`crates/dsfb-semiconductor/notebooks/dsfb_semiconductor_secom_colab.ipynb`](/home/one/dsfb/crates/dsfb-semiconductor/notebooks/dsfb_semiconductor_secom_colab.ipynb)
+If you use this software in academic work, please cite both the software and
+the associated paper:
 
-It is wired to:
+**Paper:**
 
-- bootstrap a Rust environment in Colab
-- fetch or reuse the real SECOM dataset
-- run the crate end to end
-- inspect archive-layout, lead-time, nuisance, and PHM-support summary artifacts
-- display the generated figures inline
-- optionally run the bounded calibration grid
-- surface the PDF report and ZIP bundle for download
+> de Beer, R. (2026). *DSFB Structural Semiotics Engine for Semiconductor
+> Process Control -- A Deterministic Augmentation Layer for Typed Residual
+> Interpretation for Fault Detection and Run-to-Run Variation in Advanced
+> Manufacturing* (v1.0). Zenodo.
+> https://doi.org/10.5281/zenodo.19413110
+
+**BibTeX:**
+
+```bibtex
+@software{debeer2026dsfb,
+  author    = {de Beer, R.},
+  title     = {{DSFB Structural Semiotics Engine for Semiconductor Process Control}},
+  subtitle  = {A Deterministic Augmentation Layer for Typed Residual Interpretation
+               for Fault Detection and Run-to-Run Variation in Advanced Manufacturing},
+  year      = {2026},
+  version   = {1.0},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.19413110},
+  url       = {https://doi.org/10.5281/zenodo.19413110}
+}
+```
+
+---
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
