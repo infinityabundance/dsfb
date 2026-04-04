@@ -420,6 +420,7 @@ pub fn run_secom_benchmark(
     let run_dir = create_timestamped_run_dir(&output_root, "secom")?;
     let non_intrusive_artifacts = materialize_non_intrusive_artifacts(&run_dir)?;
     write_readme_first(&run_dir, &config)?;
+    write_operator_summary(&run_dir, &config)?;
 
     write_json_pretty(&run_dir.join("dataset_summary.json"), &prepared.summary)?;
     write_json_pretty(&run_dir.join("parameter_manifest.json"), &config)?;
@@ -1404,6 +1405,59 @@ REPRODUCIBILITY
         sigma        = config.envelope_sigma,
     );
     fs::write(run_dir.join("README_FIRST.txt"), content).map_err(Into::into)
+}
+
+/// Write a concise operator-facing summary manifest to `RUN_SUMMARY_OPERATOR.txt`.
+///
+/// Intended for non-technical reviewers and auditors. Summarises what the run
+/// produces, what DSFB does not do, and how to reproduce the artifacts.
+fn write_operator_summary(
+    run_dir: &std::path::Path,
+    config: &crate::config::PipelineConfig,
+) -> crate::error::Result<()> {
+    let content = format!(
+        r#"DSFB-SEMICONDUCTOR — OPERATOR RUN SUMMARY
+==========================================
+
+PURPOSE
+  This run applies the DSFB structural semiotics observer to SECOM residuals.
+  The observer is read-only: it does not modify any upstream control system.
+
+SELECTED CONFIGURATION
+  DSA drift window         : {dsa_window}  (W in paper)
+  DSA persistence runs     : {dsa_persistence}  (K in paper)
+  DSA alert threshold      : {dsa_tau:.1}  (tau in paper)
+  DSA corroboration count  : {dsa_m}  (m in paper)
+  Feature strategy         : all_features [compression_biased]
+  Grammar drift window     : {drift_window}
+  Envelope sigma           : {sigma:.1}
+
+WHAT THIS RUN PRODUCES
+  - Structured episode list (Watch / Review / Escalate per feature)
+  - Traceability chain: dsfb_traceability.json
+  - Benchmark metrics:  benchmark_metrics.json
+  - Full report:        report.tex / report.pdf
+
+WHAT THIS RUN DOES NOT PRODUCE
+  - No modifications to SPC, EWMA, FDC, or CUSUM thresholds
+  - No write-back to upstream control systems
+  - No physical attribution claims
+  - No predictive lead-time guarantee
+
+REPRODUCTION
+  cargo run --release --bin dsfb-semiconductor -- run-secom
+  cargo run --release --bin dsfb-semiconductor -- paper-lock
+
+All outputs are deterministic under fixed configuration and dataset.
+"#,
+        dsa_window   = config.dsa.window,
+        dsa_persistence = config.dsa.persistence_runs,
+        dsa_tau      = config.dsa.alert_tau,
+        dsa_m        = config.dsa.corroborating_feature_count_min,
+        drift_window = config.drift_window,
+        sigma        = config.envelope_sigma,
+    );
+    fs::write(run_dir.join("RUN_SUMMARY_OPERATOR.txt"), content).map_err(Into::into)
 }
 
 fn build_baseline_comparison_summary(
