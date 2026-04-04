@@ -6,7 +6,7 @@ use crate::error::Result;
 use crate::non_intrusive::materialize_non_intrusive_artifacts;
 use crate::output_paths::{default_data_root, default_output_root};
 use crate::phm2018_loader::run_phm2018_benchmark;
-use crate::pipeline::run_secom_benchmark;
+use crate::pipeline::{run_secom_benchmark, PaperLockMetrics};
 use crate::unified_value_figure::{render_unified_value_figure, resolve_latest_completed_run};
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
@@ -30,6 +30,17 @@ enum Command {
     RenderNonIntrusiveArtifacts(RenderNonIntrusiveArtifactsArgs),
     RenderUnifiedValueFigure(RenderUnifiedValueFigureArgs),
     SbirDemo(SbirDemoArgs),
+    /// Verify that the crate reproduces the paper headline numbers.
+    ///
+    /// Runs the SECOM benchmark with the fixed paper-lock configuration
+    /// (all_features [compression_biased], W=5, K=20, tau=2.0, m=2) and
+    /// checks that:
+    ///   - episode count  == 71
+    ///   - precision      >= 0.80 (paper value: 80.3 %)
+    ///   - recall count   == 104 / 104
+    ///
+    /// Exits 0 on match, 1 on mismatch.
+    PaperLock(PaperLockArgs),
 }
 
 #[derive(Debug, Args)]
@@ -224,6 +235,19 @@ struct RunPhm2018Args {
 
 #[derive(Debug, Args)]
 struct SbirDemoArgs {
+    /// Optional data root; defaults to the crate-local data directory.
+    #[arg(long)]
+    data_root: Option<PathBuf>,
+    /// Optional output root; defaults to the crate-local output directory.
+    #[arg(long)]
+    output_root: Option<PathBuf>,
+    /// Fetch SECOM dataset automatically if absent (default: true).
+    #[arg(long, default_value_t = true)]
+    fetch_if_missing: bool,
+}
+
+#[derive(Debug, Args)]
+struct PaperLockArgs {
     /// Optional data root; defaults to the crate-local data directory.
     #[arg(long)]
     data_root: Option<PathBuf>,
@@ -684,6 +708,52 @@ pub fn run() -> Result<()> {
 
             println!("[sbir-demo] All artifacts generated.");
             Ok(())
+        }
+        Command::PaperLock(args) => {
+            let data_root = args.data_root.unwrap_or_else(default_data_root);
+            let output_root = args.output_root.unwrap_or_else(default_output_root);
+
+            println!("[paper-lock] Running SECOM benchmark with fixed paper-lock config...");
+            let artifacts = run_secom_benchmark(
+                &data_root,
+                Some(&output_root),
+                PipelineConfig::default(),
+                args.fetch_if_missing,
+            )?;
+
+            let PaperLockMetrics {
+                episode_count,
+                precision,
+                detected_failures,
+                total_failures,
+            } = artifacts.paper_lock_metrics;
+
+            const EXPECTED_EPISODES: usize = 71;
+            const EXPECTED_MIN_PRECISION: f64 = 0.80;
+            const EXPECTED_RECALL: usize = 104;
+
+            let episode_ok  = episode_count == EXPECTED_EPISODES;
+            let precision_ok = precision >= EXPECTED_MIN_PRECISION;
+            let recall_ok   = detected_failures == EXPECTED_RECALL
+                           && total_failures     == EXPECTED_RECALL;
+
+            println!("[paper-lock] episode count : {episode_count:>4}  (expected {EXPECTED_EPISODES})  {}",
+                if episode_ok  { "OK" } else { "FAIL" });
+            println!("[paper-lock] precision     : {:>7.1}%  (expected >= {:.0}%)  {}",
+                precision * 100.0,
+                EXPECTED_MIN_PRECISION * 100.0,
+                if precision_ok { "OK" } else { "FAIL" });
+            println!("[paper-lock] recall        : {detected_failures}/{total_failures}  (expected {EXPECTED_RECALL}/{EXPECTED_RECALL})  {}",
+                if recall_ok   { "OK" } else { "FAIL" });
+            println!("[paper-lock] run dir       : {}", artifacts.run_dir.display());
+
+            if episode_ok && precision_ok && recall_ok {
+                println!("[paper-lock] PASS — headline numbers reproduced.");
+                Ok(())
+            } else {
+                eprintln!("[paper-lock] FAIL — one or more headline numbers did not match.");
+                std::process::exit(1);
+            }
         }
     }
 }

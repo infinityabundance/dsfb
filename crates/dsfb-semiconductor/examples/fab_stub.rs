@@ -1,46 +1,33 @@
-use dsfb_semiconductor::input::residual_stream::ResidualSample;
-use dsfb_semiconductor::interface::{DSFBObserver, FabDataSource, ReadOnlyDsfbObserver};
-
-struct ToolResidualTap {
-    tool_name: &'static str,
-    residuals: Vec<ResidualSample>,
-}
-
-impl FabDataSource for ToolResidualTap {
-    fn residual_stream(&self) -> Vec<ResidualSample> {
-        self.residuals.clone()
-    }
-}
+//! fab_stub — minimal read-only integration example.
+//!
+//! Demonstrates the DSFB observer contract:
+//!   - input:  &[f64] residual slice from any upstream monitoring system
+//!   - output: advisory Episode list — no write-back, no upstream coupling
+//!
+//! The upstream system (SPC / EWMA / FDC) is NOT modified.
+//! DSFB can be removed without changing any upstream behavior.
 
 fn main() {
-    let source = ToolResidualTap {
-        tool_name: "etch-chamber-12",
-        residuals: vec![
-            ResidualSample {
-                timestamp: 1.0,
-                feature_id: "S059".into(),
-                value: 0.42,
-            },
-            ResidualSample {
-                timestamp: 2.0,
-                feature_id: "S059".into(),
-                value: 0.87,
-            },
-            ResidualSample {
-                timestamp: 3.0,
-                feature_id: "S059".into(),
-                value: 1.31,
-            },
-        ],
-    };
+    // Residuals produced by an existing upstream monitoring system.
+    // DSFB receives a read-only slice — no mutable reference, no ownership.
+    let residuals: &[f64] = &[
+        0.10, 0.12, 0.15, 0.18, 0.21,   // nominal range
+        0.35, 0.52, 0.74, 1.05, 1.40,   // drift onset
+        1.80, 2.20, 2.65, 3.10, 3.60,   // boundary / violation
+    ];
 
-    let observer = ReadOnlyDsfbObserver::new();
-    for sample in source.residual_stream() {
-        observer.ingest(&sample);
+    let episodes = dsfb_semiconductor::observe(residuals);
+
+    // Advisory output only — no write-back, no coupling to upstream.
+    println!("tool=etch-chamber-12  features=S059  [advisory, read-only]");
+    for e in &episodes {
+        if e.decision != "Silent" {
+            println!(
+                "  index={:>2}  grammar={:<12}  decision={}",
+                e.index, e.grammar, e.decision
+            );
+        }
     }
 
-    println!("tool={}", source.tool_name);
-    for decision in observer.output() {
-        println!("timestamp={:.0} decision={}", decision.timestamp, decision.decision);
-    }
+    println!("\n[no write-back]  [no upstream coupling]  [deterministic under replay]");
 }
