@@ -45,7 +45,21 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use zip::write::SimpleFileOptions;
 
-#[derive(Debug, Clone, Serialize)]
+/// High-level metrics extracted in-process for paper-lock validation.
+/// All fields are populated from in-memory data — no CSV parsing required.
+#[derive(Debug, Clone)]
+pub struct PaperLockMetrics {
+    /// Number of DSFB-filtered episodes (target: 71).
+    pub episode_count: usize,
+    /// Episode precision after DSFB filtering (target: ≥ 0.80).
+    pub precision: f64,
+    /// Failure runs detected with a preceding DSFB signal (target: 104).
+    pub detected_failures: usize,
+    /// Total failure runs in SECOM dataset (target: 104).
+    pub total_failures: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct SecomRunArtifacts {
     pub run_dir: PathBuf,
     pub report: ReportArtifacts,
@@ -54,6 +68,7 @@ pub struct SecomRunArtifacts {
     pub manifest_path: PathBuf,
     pub zip_path: PathBuf,
     pub phm2018_status: Phm2018SupportStatus,
+    pub paper_lock_metrics: PaperLockMetrics,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -385,12 +400,26 @@ pub fn run_secom_benchmark(
         config.pre_failure_lookback_runs,
     );
 
+    let paper_lock_metrics = PaperLockMetrics {
+        episode_count: secom_addendum.episode_precision_metrics.dsfb_episode_count,
+        precision: secom_addendum.episode_precision_metrics.dsfb_precision,
+        detected_failures: optimization
+            .operator_delta_targets
+            .selected_configuration
+            .failure_recall,
+        total_failures: optimization
+            .operator_delta_targets
+            .selected_configuration
+            .failure_runs,
+    };
+
     let output_root = output_root
         .map(Path::to_path_buf)
         .unwrap_or_else(default_output_root);
     fs::create_dir_all(&output_root)?;
     let run_dir = create_timestamped_run_dir(&output_root, "secom")?;
     let non_intrusive_artifacts = materialize_non_intrusive_artifacts(&run_dir)?;
+    write_readme_first(&run_dir, &config)?;
 
     write_json_pretty(&run_dir.join("dataset_summary.json"), &prepared.summary)?;
     write_json_pretty(&run_dir.join("parameter_manifest.json"), &config)?;
@@ -1319,7 +1348,62 @@ pub fn run_secom_benchmark(
         manifest_path,
         zip_path,
         phm2018_status,
+        paper_lock_metrics,
     })
+}
+
+/// Write a human-readable README_FIRST.txt at the top of the run directory.
+///
+/// Describes what DSFB does and explicitly states what it does NOT do,
+/// making it audit-friendly for any reviewer inspecting the artifacts.
+fn write_readme_first(run_dir: &std::path::Path, config: &crate::config::PipelineConfig) -> crate::error::Result<()> {
+    let content = format!(
+        r#"DSFB-SEMICONDUCTOR — RUN SUMMARY
+=================================
+
+CONFIGURATION
+  W  (drift_window)                : {drift_window}
+  K  (pre_failure_lookback_runs)   : {lookback}
+  tau (dsa.alert_tau)              : {tau:.1}
+  m  (corroborating_feature_min)   : {m}
+  envelope_sigma                   : {sigma:.1}
+  strategy                         : all_features [compression_biased]
+
+WHAT DSFB DOES
+  - Reads residual streams produced by SECOM feature extraction (read-only).
+  - Restructures those residuals into a compact set of structured episodes
+    annotated with grammar states (Admissible / Boundary / Violation).
+  - Emits advisory policy decisions (Silent / Review / Escalate) per feature.
+  - Writes no data back to any upstream system.
+
+WHAT DSFB DOES NOT DO (explicit non-claims)
+  - Does NOT alter any FDC, SPC, EWMA, or CUSUM system.
+  - Does NOT predict failure lead-time or claim empirical lead-time advantage.
+  - Does NOT replace process engineering review or control plan sign-off.
+  - Does NOT claim physical attribution for any motif class observed in SECOM.
+  - Is NOT a certified or production-qualified fault-detection system.
+  - Removal of the DSFB layer leaves all upstream systems entirely unchanged.
+
+FILES IN THIS DIRECTORY
+  metrics_summary.json              — Full benchmark metric tree
+  baseline_comparison_summary.json  — DSFB vs. EWMA / CUSUM / PCA baselines
+  dsfb_episode_precision.csv        — Filtered episode count and precision
+  dsfb_recall_metrics.csv           — Failure-run recall
+  report.tex / report.pdf           — LaTeX narrative report
+  dsfb_semiconductor_secom.zip      — Full reproducibility archive
+
+REPRODUCIBILITY
+  Re-run with: cargo run --release -- run-secom
+  Paper-lock:  cargo run --release -- paper-lock
+  All outputs are deterministic under fixed config and dataset.
+"#,
+        drift_window = config.drift_window,
+        lookback     = config.pre_failure_lookback_runs,
+        tau          = config.dsa.alert_tau,
+        m            = config.dsa.corroborating_feature_count_min,
+        sigma        = config.envelope_sigma,
+    );
+    fs::write(run_dir.join("README_FIRST.txt"), content).map_err(Into::into)
 }
 
 fn build_baseline_comparison_summary(
