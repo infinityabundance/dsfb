@@ -15,8 +15,8 @@ use crate::pipeline::{
     run_all_filtered, run_check_signing, run_demo_a, run_demo_a_filtered, run_demo_b,
     run_demo_b_efficiency_only, run_demo_b_filtered, run_engine_realistic_bridge,
     run_external_replay_only, run_gpu_path_only, run_realism_bridge_only,
-    run_resolution_scaling_only, run_sensitivity_only, run_timing_only, validate_artifact_bundle,
-    validate_engine_native_gates, validate_final_bundle,
+    run_resolution_scaling_only, run_sbir_demo, run_sensitivity_only, run_timing_only,
+    validate_artifact_bundle, validate_engine_native_gates, validate_final_bundle,
 };
 use crate::unreal_native::run_unreal_native;
 
@@ -184,6 +184,15 @@ pub enum Command {
     /// Generate the check-signing evidence report answering all panel objections.
     RunCheckSigning {
         #[arg(long, default_value = "generated/final_bundle")]
+        output: PathBuf,
+    },
+    /// Run all tests and pipeline stages, then generate a single PDF engineering
+    /// report suitable for SBIR crate-quality review.
+    ///
+    /// Writes sbir_demo_report.pdf into the output directory alongside all
+    /// intermediate artifacts and a machine-readable test_results.json.
+    SbirDemo {
+        #[arg(long, default_value = "generated/sbir_demo")]
         output: PathBuf,
     },
 }
@@ -405,6 +414,12 @@ pub fn run(cli: Cli) -> Result<()> {
         Command::RunCheckSigning { output } => {
             let report = run_check_signing(&config, &output)?;
             println!("check-signing report: {}", report.display());
+        }
+        Command::SbirDemo { output } => {
+            let artifacts = run_sbir_demo(&config, &output)?;
+            println!("sbir-demo output: {}", artifacts.output_dir.display());
+            println!("pdf: {}", artifacts.pdf_path.display());
+            println!("test results: {}", artifacts.test_results_path.display());
         }
     }
     Ok(())
