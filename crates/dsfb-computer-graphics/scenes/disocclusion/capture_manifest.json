@@ -1,0 +1,126 @@
+{
+  "schema_version": "dsfb_unreal_native_v1",
+  "dataset_kind": "unreal_native",
+  "provenance_label": "unreal_native",
+  "dataset_id": "scene_disocclusion_history_invalidation",
+  "description": "Scene B — Disocclusion / History Invalidation. Interpretive regime view over the canonical ordered Unreal Engine capture. All five frames are included; the full sequence spans pre-disocclusion baseline through partial recovery. No new data is introduced; this manifest is a non-destructive view over the shared capture family.",
+  "engine": {
+    "engine_name": "unreal_engine",
+    "engine_version": "5.7.2",
+    "capture_tool": "scene_capture2d_png_export_plus_dataset_builder",
+    "project_path": "../../unreal/DSFBTemporalCapture/DSFBTemporalCapture.uproject",
+    "capture_script": "../../unreal/DSFBTemporalCapture/Scripts/export_unreal_native_capture.py",
+    "real_engine_capture": true
+  },
+  "contract": {
+    "color_space": "linear_rgb_from_scene_capture_png",
+    "tonemap": "scene_capture_png_linearized",
+    "depth_convention": "monotonic_visualized_depth",
+    "normal_space": "world_space_unit",
+    "motion_vector_convention": "pixel_offset_to_prev",
+    "coordinate_space": "screen_space_current_to_previous",
+    "history_source": "previous_frame_export_plus_metadata_motion_reprojection",
+    "notes": [
+      "Regime view: disocclusion / history invalidation. All 5 frames from the canonical ordered capture.",
+      "Same buffer files and same pipeline as the canonical sequence; dataset_id differs to identify the regime.",
+      "No new Unreal captures are introduced. Grouping is interpretive."
+    ]
+  },
+  "frames": [
+    {
+      "label": "frame_0001",
+      "frame_index": 1,
+      "history_frame_index": 0,
+      "buffers": {
+        "current_color":     { "path": "../../data/unreal_native/sample_capture/frame_0001/current_color.json",     "format": "json_rgb_f32",    "semantic": "current_color",     "width": 256, "height": 144, "channels": 3 },
+        "previous_color":    { "path": "../../data/unreal_native/sample_capture/frame_0001/previous_color.json",    "format": "json_rgb_f32",    "semantic": "previous_color",    "width": 256, "height": 144, "channels": 3 },
+        "motion_vectors":    { "path": "../../data/unreal_native/sample_capture/frame_0001/motion_vectors.json",    "format": "json_vec2_f32",   "semantic": "motion_vectors",    "width": 256, "height": 144, "channels": 2 },
+        "current_depth":     { "path": "../../data/unreal_native/sample_capture/frame_0001/current_depth.json",     "format": "json_scalar_f32", "semantic": "current_depth",     "width": 256, "height": 144, "channels": 1 },
+        "previous_depth":    { "path": "../../data/unreal_native/sample_capture/frame_0001/previous_depth.json",    "format": "json_scalar_f32", "semantic": "previous_depth",    "width": 256, "height": 144, "channels": 1 },
+        "current_normals":   { "path": "../../data/unreal_native/sample_capture/frame_0001/current_normals.json",   "format": "json_vec3_f32",   "semantic": "current_normals",   "width": 256, "height": 144, "channels": 3 },
+        "previous_normals":  { "path": "../../data/unreal_native/sample_capture/frame_0001/previous_normals.json",  "format": "json_vec3_f32",   "semantic": "previous_normals",  "width": 256, "height": 144, "channels": 3 },
+        "reference_color":   { "path": "../../data/unreal_native/sample_capture/frame_0001/reference_color.json",   "format": "json_rgb_f32",    "semantic": "reference_color",   "width": 256, "height": 144, "channels": 3 },
+        "metadata":          { "path": "../../data/unreal_native/sample_capture/frame_0001/metadata.json",          "format": "json_metadata",   "semantic": "metadata" },
+        "roi_mask":          { "path": "../../data/unreal_native/sample_capture/frame_0001/roi_mask.json",          "format": "json_mask_bool",  "semantic": "roi_mask",          "width": 256, "height": 144, "channels": 1 },
+        "disocclusion_mask": { "path": "../../data/unreal_native/sample_capture/frame_0001/disocclusion_mask.json", "format": "json_mask_bool",  "semantic": "disocclusion_mask", "width": 256, "height": 144, "channels": 1 }
+      }
+    },
+    {
+      "label": "frame_0002",
+      "frame_index": 2,
+      "history_frame_index": 1,
+      "buffers": {
+        "current_color":     { "path": "../../data/unreal_native/sample_capture/frame_0002/current_color.json",     "format": "json_rgb_f32",    "semantic": "current_color",     "width": 256, "height": 144, "channels": 3 },
+        "previous_color":    { "path": "../../data/unreal_native/sample_capture/frame_0002/previous_color.json",    "format": "json_rgb_f32",    "semantic": "previous_color",    "width": 256, "height": 144, "channels": 3 },
+        "motion_vectors":    { "path": "../../data/unreal_native/sample_capture/frame_0002/motion_vectors.json",    "format": "json_vec2_f32",   "semantic": "motion_vectors",    "width": 256, "height": 144, "channels": 2 },
+        "current_depth":     { "path": "../../data/unreal_native/sample_capture/frame_0002/current_depth.json",     "format": "json_scalar_f32", "semantic": "current_depth",     "width": 256, "height": 144, "channels": 1 },
+        "previous_depth":    { "path": "../../data/unreal_native/sample_capture/frame_0002/previous_depth.json",    "format": "json_scalar_f32", "semantic": "previous_depth",    "width": 256, "height": 144, "channels": 1 },
+        "current_normals":   { "path": "../../data/unreal_native/sample_capture/frame_0002/current_normals.json",   "format": "json_vec3_f32",   "semantic": "current_normals",   "width": 256, "height": 144, "channels": 3 },
+        "previous_normals":  { "path": "../../data/unreal_native/sample_capture/frame_0002/previous_normals.json",  "format": "json_vec3_f32",   "semantic": "previous_normals",  "width": 256, "height": 144, "channels": 3 },
+        "reference_color":   { "path": "../../data/unreal_native/sample_capture/frame_0002/reference_color.json",   "format": "json_rgb_f32",    "semantic": "reference_color",   "width": 256, "height": 144, "channels": 3 },
+        "metadata":          { "path": "../../data/unreal_native/sample_capture/frame_0002/metadata.json",          "format": "json_metadata",   "semantic": "metadata" },
+        "roi_mask":          { "path": "../../data/unreal_native/sample_capture/frame_0002/roi_mask.json",          "format": "json_mask_bool",  "semantic": "roi_mask",          "width": 256, "height": 144, "channels": 1 },
+        "disocclusion_mask": { "path": "../../data/unreal_native/sample_capture/frame_0002/disocclusion_mask.json", "format": "json_mask_bool",  "semantic": "disocclusion_mask", "width": 256, "height": 144, "channels": 1 }
+      }
+    },
+    {
+      "label": "frame_0003",
+      "frame_index": 3,
+      "history_frame_index": 2,
+      "buffers": {
+        "current_color":     { "path": "../../data/unreal_native/sample_capture/frame_0003/current_color.json",     "format": "json_rgb_f32",    "semantic": "current_color",     "width": 256, "height": 144, "channels": 3 },
+        "previous_color":    { "path": "../../data/unreal_native/sample_capture/frame_0003/previous_color.json",    "format": "json_rgb_f32",    "semantic": "previous_color",    "width": 256, "height": 144, "channels": 3 },
+        "motion_vectors":    { "path": "../../data/unreal_native/sample_capture/frame_0003/motion_vectors.json",    "format": "json_vec2_f32",   "semantic": "motion_vectors",    "width": 256, "height": 144, "channels": 2 },
+        "current_depth":     { "path": "../../data/unreal_native/sample_capture/frame_0003/current_depth.json",     "format": "json_scalar_f32", "semantic": "current_depth",     "width": 256, "height": 144, "channels": 1 },
+        "previous_depth":    { "path": "../../data/unreal_native/sample_capture/frame_0003/previous_depth.json",    "format": "json_scalar_f32", "semantic": "previous_depth",    "width": 256, "height": 144, "channels": 1 },
+        "current_normals":   { "path": "../../data/unreal_native/sample_capture/frame_0003/current_normals.json",   "format": "json_vec3_f32",   "semantic": "current_normals",   "width": 256, "height": 144, "channels": 3 },
+        "previous_normals":  { "path": "../../data/unreal_native/sample_capture/frame_0003/previous_normals.json",  "format": "json_vec3_f32",   "semantic": "previous_normals",  "width": 256, "height": 144, "channels": 3 },
+        "reference_color":   { "path": "../../data/unreal_native/sample_capture/frame_0003/reference_color.json",   "format": "json_rgb_f32",    "semantic": "reference_color",   "width": 256, "height": 144, "channels": 3 },
+        "metadata":          { "path": "../../data/unreal_native/sample_capture/frame_0003/metadata.json",          "format": "json_metadata",   "semantic": "metadata" },
+        "roi_mask":          { "path": "../../data/unreal_native/sample_capture/frame_0003/roi_mask.json",          "format": "json_mask_bool",  "semantic": "roi_mask",          "width": 256, "height": 144, "channels": 1 },
+        "disocclusion_mask": { "path": "../../data/unreal_native/sample_capture/frame_0003/disocclusion_mask.json", "format": "json_mask_bool",  "semantic": "disocclusion_mask", "width": 256, "height": 144, "channels": 1 }
+      }
+    },
+    {
+      "label": "frame_0004",
+      "frame_index": 4,
+      "history_frame_index": 3,
+      "buffers": {
+        "current_color":     { "path": "../../data/unreal_native/sample_capture/frame_0004/current_color.json",     "format": "json_rgb_f32",    "semantic": "current_color",     "width": 256, "height": 144, "channels": 3 },
+        "previous_color":    { "path": "../../data/unreal_native/sample_capture/frame_0004/previous_color.json",    "format": "json_rgb_f32",    "semantic": "previous_color",    "width": 256, "height": 144, "channels": 3 },
+        "motion_vectors":    { "path": "../../data/unreal_native/sample_capture/frame_0004/motion_vectors.json",    "format": "json_vec2_f32",   "semantic": "motion_vectors",    "width": 256, "height": 144, "channels": 2 },
+        "current_depth":     { "path": "../../data/unreal_native/sample_capture/frame_0004/current_depth.json",     "format": "json_scalar_f32", "semantic": "current_depth",     "width": 256, "height": 144, "channels": 1 },
+        "previous_depth":    { "path": "../../data/unreal_native/sample_capture/frame_0004/previous_depth.json",    "format": "json_scalar_f32", "semantic": "previous_depth",    "width": 256, "height": 144, "channels": 1 },
+        "current_normals":   { "path": "../../data/unreal_native/sample_capture/frame_0004/current_normals.json",   "format": "json_vec3_f32",   "semantic": "current_normals",   "width": 256, "height": 144, "channels": 3 },
+        "previous_normals":  { "path": "../../data/unreal_native/sample_capture/frame_0004/previous_normals.json",  "format": "json_vec3_f32",   "semantic": "previous_normals",  "width": 256, "height": 144, "channels": 3 },
+        "reference_color":   { "path": "../../data/unreal_native/sample_capture/frame_0004/reference_color.json",   "format": "json_rgb_f32",    "semantic": "reference_color",   "width": 256, "height": 144, "channels": 3 },
+        "metadata":          { "path": "../../data/unreal_native/sample_capture/frame_0004/metadata.json",          "format": "json_metadata",   "semantic": "metadata" },
+        "roi_mask":          { "path": "../../data/unreal_native/sample_capture/frame_0004/roi_mask.json",          "format": "json_mask_bool",  "semantic": "roi_mask",          "width": 256, "height": 144, "channels": 1 },
+        "disocclusion_mask": { "path": "../../data/unreal_native/sample_capture/frame_0004/disocclusion_mask.json", "format": "json_mask_bool",  "semantic": "disocclusion_mask", "width": 256, "height": 144, "channels": 1 }
+      }
+    },
+    {
+      "label": "frame_0005",
+      "frame_index": 5,
+      "history_frame_index": 4,
+      "buffers": {
+        "current_color":     { "path": "../../data/unreal_native/sample_capture/frame_0005/current_color.json",     "format": "json_rgb_f32",    "semantic": "current_color",     "width": 256, "height": 144, "channels": 3 },
+        "previous_color":    { "path": "../../data/unreal_native/sample_capture/frame_0005/previous_color.json",    "format": "json_rgb_f32",    "semantic": "previous_color",    "width": 256, "height": 144, "channels": 3 },
+        "motion_vectors":    { "path": "../../data/unreal_native/sample_capture/frame_0005/motion_vectors.json",    "format": "json_vec2_f32",   "semantic": "motion_vectors",    "width": 256, "height": 144, "channels": 2 },
+        "current_depth":     { "path": "../../data/unreal_native/sample_capture/frame_0005/current_depth.json",     "format": "json_scalar_f32", "semantic": "current_depth",     "width": 256, "height": 144, "channels": 1 },
+        "previous_depth":    { "path": "../../data/unreal_native/sample_capture/frame_0005/previous_depth.json",    "format": "json_scalar_f32", "semantic": "previous_depth",    "width": 256, "height": 144, "channels": 1 },
+        "current_normals":   { "path": "../../data/unreal_native/sample_capture/frame_0005/current_normals.json",   "format": "json_vec3_f32",   "semantic": "current_normals",   "width": 256, "height": 144, "channels": 3 },
+        "previous_normals":  { "path": "../../data/unreal_native/sample_capture/frame_0005/previous_normals.json",  "format": "json_vec3_f32",   "semantic": "previous_normals",  "width": 256, "height": 144, "channels": 3 },
+        "reference_color":   { "path": "../../data/unreal_native/sample_capture/frame_0005/reference_color.json",   "format": "json_rgb_f32",    "semantic": "reference_color",   "width": 256, "height": 144, "channels": 3 },
+        "metadata":          { "path": "../../data/unreal_native/sample_capture/frame_0005/metadata.json",          "format": "json_metadata",   "semantic": "metadata" },
+        "roi_mask":          { "path": "../../data/unreal_native/sample_capture/frame_0005/roi_mask.json",          "format": "json_mask_bool",  "semantic": "roi_mask",          "width": 256, "height": 144, "channels": 1 },
+        "disocclusion_mask": { "path": "../../data/unreal_native/sample_capture/frame_0005/disocclusion_mask.json", "format": "json_mask_bool",  "semantic": "disocclusion_mask", "width": 256, "height": 144, "channels": 1 }
+      }
+    }
+  ],
+  "notes": [
+    "Regime view — disocclusion / history invalidation. All 5 frames from the canonical ordered capture.",
+    "No data duplication. All buffers point to the canonical sample_capture family.",
+    "This manifest exists to allow independent pipeline execution and artifact generation for this regime."
+  ]
+}

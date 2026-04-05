@@ -42,3 +42,6 @@ path = "src/lib.rs"
 [[bin]]
 name = "dsfb-computer-graphics"
 path = "src/main.rs"
+
+[dev-dependencies]
+serial_test = "3"
