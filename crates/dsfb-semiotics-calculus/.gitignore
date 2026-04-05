@@ -1,0 +1,9 @@
+# Generated artifacts — do not commit
+generated/
+
+# Colab output caches
+colab/__pycache__/
+colab/.ipynb_checkpoints/
+
+# Local artifact directories created by --output arg
+dsfb-sc-artifacts/

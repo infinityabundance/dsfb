@@ -9,6 +9,7 @@ members = [
     "crates/dsfb-add",
     "crates/dsfb-dscd",
     "crates/dsfb-endoduction",
+    "crates/dsfb-semiotics-calculus",
 ]
 default-members = ["crates/dsfb"]
 resolver = "2"

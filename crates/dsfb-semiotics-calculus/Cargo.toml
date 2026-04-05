@@ -1,0 +1,30 @@
+[package]
+name = "dsfb-semiotics-calculus"
+version = "0.1.0"
+edition = "2021"
+authors = ["Riaan de Beer <riaan@invariantforge.net>"]
+description = "DSFB Structural Semiotics Calculus — typed residual sign framework, grammar FSM, endoductive operator, and provenance engine. Rust type-level realization of the DSSC formal calculus (Invariant Forge LLC, April 2026)."
+license = "Apache-2.0"
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-semiotics-calculus"
+documentation = "https://docs.rs/dsfb-semiotics-calculus"
+keywords = ["dsfb", "semiotics", "residual", "endoduction", "deterministic"]
+categories = ["science", "algorithms"]
+readme = "README.md"
+include = [
+    "src/**",
+    "Cargo.toml",
+    "README.md",
+]
+
+[lib]
+name = "dsfb_semiotics_calculus"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb-semiotics-calculus"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+zip = "0.6"
