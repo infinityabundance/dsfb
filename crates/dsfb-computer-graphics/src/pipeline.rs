@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command as StdCommand;
 
 use serde::{Deserialize, Serialize};
 
@@ -103,6 +104,13 @@ pub struct RunAllArtifacts {
     pub five_mentor_audit_path: PathBuf,
     pub blocker_report_path: PathBuf,
     pub demo_b_decision_report_path: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct SbirDemoArtifacts {
+    pub output_dir: PathBuf,
+    pub pdf_path: PathBuf,
+    pub test_results_path: PathBuf,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -807,6 +815,143 @@ pub fn export_minimal_report(config: &DemoConfig, output_dir: &Path) -> Result<P
         ),
     )?;
     Ok(path)
+}
+
+pub fn run_sbir_demo(config: &DemoConfig, output_dir: &Path) -> Result<SbirDemoArtifacts> {
+    fs::create_dir_all(output_dir)?;
+
+    // Step 1: run the full pipeline to produce all artifacts.
+    println!("[sbir-demo] Running full pipeline (run-all)...");
+    let _artifacts = run_all(config, output_dir)?;
+    println!("[sbir-demo] Pipeline complete.");
+
+    // Step 2: run the test suite and capture per-test pass/fail.
+    println!("[sbir-demo] Running test suite...");
+    let test_results_path = output_dir.join("test_results.json");
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
+
+    let test_output = StdCommand::new(&cargo)
+        .arg("test")
+        .arg("--manifest-path")
+        .arg(manifest_dir.join("Cargo.toml"))
+        .arg("--no-fail-fast")
+        .arg("--")
+        .arg("--test-output")
+        .arg("immediate")
+        .output()
+        .map_err(|e| Error::Message(format!("failed to run cargo test: {e}")))?;
+
+    let stdout = String::from_utf8_lossy(&test_output.stdout);
+    let stderr = String::from_utf8_lossy(&test_output.stderr);
+    let combined = format!("{stdout}\n{stderr}");
+
+    let test_results = parse_cargo_test_output(&combined);
+    fs::write(
+        &test_results_path,
+        serde_json::to_string_pretty(&test_results)
+            .map_err(|e| Error::Message(format!("failed to serialize test results: {e}")))?,
+    )?;
+    let passed = test_results["passed"].as_u64().unwrap_or(0);
+    let failed = test_results["failed"].as_u64().unwrap_or(0);
+    println!("[sbir-demo] Tests: {passed} passed, {failed} failed.");
+
+    // Step 3: invoke the Python PDF generator.
+    println!("[sbir-demo] Generating PDF report...");
+    let pdf_path = output_dir.join("sbir_demo_report.pdf");
+    let script = manifest_dir.join("colab").join("sbir_demo_report.py");
+    if !script.exists() {
+        return Err(Error::Message(format!(
+            "PDF script not found at {}; ensure colab/sbir_demo_report.py is present",
+            script.display()
+        )));
+    }
+
+    let python = std::env::var("PYTHON3").unwrap_or_else(|_| "python3".to_string());
+    let pdf_status = StdCommand::new(&python)
+        .arg(&script)
+        .arg("--run-dir")
+        .arg(output_dir)
+        .arg("--test-results")
+        .arg(&test_results_path)
+        .arg("--output")
+        .arg(&pdf_path)
+        .status()
+        .map_err(|e| Error::Message(format!("failed to invoke python3 sbir_demo_report.py: {e}")))?;
+
+    if !pdf_status.success() {
+        return Err(Error::Message(
+            "sbir_demo_report.py exited with a non-zero status; check that Pillow is installed"
+                .to_string(),
+        ));
+    }
+    println!("[sbir-demo] PDF written to {}", pdf_path.display());
+
+    Ok(SbirDemoArtifacts {
+        output_dir: output_dir.to_path_buf(),
+        pdf_path,
+        test_results_path,
+    })
+}
+
+/// Parse `cargo test` stdout/stderr into a JSON summary including per-test results.
+fn parse_cargo_test_output(output: &str) -> serde_json::Value {
+    let mut tests: Vec<serde_json::Value> = Vec::new();
+    let mut passed: u64 = 0;
+    let mut failed: u64 = 0;
+    let mut ignored: u64 = 0;
+
+    for line in output.lines() {
+        let line = line.trim();
+
+        // Individual test result lines: "test foo::bar ... ok" or "... FAILED"
+        if line.starts_with("test ") && (line.ends_with(" ok") || line.ends_with(" FAILED") || line.ends_with(" ignored")) {
+            let parts: Vec<&str> = line.splitn(2, ' ').collect();
+            if parts.len() < 2 {
+                continue;
+            }
+            let rest = parts[1];
+            if let Some(name_end) = rest.rfind(" ... ") {
+                let name = &rest[..name_end];
+                let status = &rest[name_end + 5..];
+                let ok = status == "ok";
+                let ig = status == "ignored";
+                tests.push(serde_json::json!({
+                    "name": name,
+                    "ok": ok,
+                    "ignored": ig,
+                }));
+            }
+        }
+
+        // Summary line: "test result: ok. 5 passed; 0 failed; 0 ignored; ..."
+        if line.starts_with("test result:") {
+            for segment in line.split(';') {
+                let s = segment.trim();
+                if let Some(n) = extract_count(s, "passed") {
+                    passed = passed.saturating_add(n);
+                } else if let Some(n) = extract_count(s, "failed") {
+                    failed = failed.saturating_add(n);
+                } else if let Some(n) = extract_count(s, "ignored") {
+                    ignored = ignored.saturating_add(n);
+                }
+            }
+        }
+    }
+
+    serde_json::json!({
+        "passed": passed,
+        "failed": failed,
+        "ignored": ignored,
+        "tests": tests,
+    })
+}
+
+fn extract_count(segment: &str, keyword: &str) -> Option<u64> {
+    // Matches "5 passed" or "ok. 5 passed"
+    let idx = segment.find(keyword)?;
+    let before = segment[..idx].trim();
+    before.split_whitespace().last()?.parse::<u64>().ok()
 }
 
 pub fn run_all(config: &DemoConfig, output_dir: &Path) -> Result<RunAllArtifacts> {
