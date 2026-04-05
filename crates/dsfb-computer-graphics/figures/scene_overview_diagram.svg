@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="340" viewBox="0 0 760 340" font-family="sans-serif">
+
+  <!-- Background -->
+  <rect width="760" height="340" fill="#fafafa" rx="6"/>
+
+  <!-- Title -->
+  <text x="380" y="30" text-anchor="middle" font-size="15" font-weight="bold" fill="#222">
+    Unreal Engine Scene Regimes — Single DSFB Pipeline
+  </text>
+  <text x="380" y="48" text-anchor="middle" font-size="10" fill="#666">
+    All four regimes pass through an identical, deterministic pipeline. Grouping is interpretive; no separate configurations are used.
+  </text>
+
+  <!-- ── REGIME BOXES ── -->
+
+  <!-- Scene A -->
+  <rect x="30" y="75" width="140" height="90" rx="6" fill="#e8f0fe" stroke="#4a80d4" stroke-width="1.5"/>
+  <text x="100" y="97"  text-anchor="middle" font-size="11" font-weight="bold" fill="#2c5fa8">Scene A</text>
+  <text x="100" y="112" text-anchor="middle" font-size="9"  fill="#2c5fa8">Thin Geometry /</text>
+  <text x="100" y="124" text-anchor="middle" font-size="9"  fill="#2c5fa8">Subpixel Reveal</text>
+  <text x="100" y="140" text-anchor="middle" font-size="8"  fill="#555">localized trust reduction</text>
+  <text x="100" y="152" text-anchor="middle" font-size="8"  fill="#555">structured residual onset</text>
+
+  <!-- Scene B -->
+  <rect x="195" y="75" width="140" height="90" rx="6" fill="#fce8e6" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="265" y="97"  text-anchor="middle" font-size="11" font-weight="bold" fill="#8e1c11">Scene B</text>
+  <text x="265" y="112" text-anchor="middle" font-size="9"  fill="#8e1c11">Disocclusion /</text>
+  <text x="265" y="124" text-anchor="middle" font-size="9"  fill="#8e1c11">History Invalidation</text>
+  <text x="265" y="140" text-anchor="middle" font-size="8"  fill="#555">elevated slew</text>
+  <text x="265" y="152" text-anchor="middle" font-size="8"  fill="#555">abrupt residual transition</text>
+
+  <!-- Scene C -->
+  <rect x="360" y="75" width="140" height="90" rx="6" fill="#e6f4ea" stroke="#27ae60" stroke-width="1.5"/>
+  <text x="430" y="97"  text-anchor="middle" font-size="11" font-weight="bold" fill="#1a6e3c">Scene C</text>
+  <text x="430" y="112" text-anchor="middle" font-size="9"  fill="#1a6e3c">Camera Motion /</text>
+  <text x="430" y="124" text-anchor="middle" font-size="9"  fill="#1a6e3c">Reprojection Instability</text>
+  <text x="430" y="140" text-anchor="middle" font-size="8"  fill="#555">sustained drift variation</text>
+  <text x="430" y="152" text-anchor="middle" font-size="8"  fill="#555">diffuse trust reduction</text>
+
+  <!-- Scene D -->
+  <rect x="525" y="75" width="140" height="90" rx="6" fill="#fef9e7" stroke="#d4ac0d" stroke-width="1.5"/>
+  <text x="595" y="97"  text-anchor="middle" font-size="11" font-weight="bold" fill="#7d6608">Scene D</text>
+  <text x="595" y="112" text-anchor="middle" font-size="9"  fill="#7d6608">High-Contrast /</text>
+  <text x="595" y="124" text-anchor="middle" font-size="9"  fill="#7d6608">Edge-Dominated</text>
+  <text x="595" y="140" text-anchor="middle" font-size="8"  fill="#555">structured residual at edges</text>
+  <text x="595" y="152" text-anchor="middle" font-size="8"  fill="#555">persistent partial trust reduction</text>
+
+  <!-- ── ARROWS from each regime box down to convergence line ── -->
+  <!-- A -->
+  <line x1="100" y1="165" x2="100" y2="200" stroke="#888" stroke-width="1.2" marker-end="url(#arr)"/>
+  <!-- B -->
+  <line x1="265" y1="165" x2="265" y2="200" stroke="#888" stroke-width="1.2" marker-end="url(#arr)"/>
+  <!-- C -->
+  <line x1="430" y1="165" x2="430" y2="200" stroke="#888" stroke-width="1.2" marker-end="url(#arr)"/>
+  <!-- D -->
+  <line x1="595" y1="165" x2="595" y2="200" stroke="#888" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- Horizontal convergence line -->
+  <line x1="100" y1="200" x2="595" y2="200" stroke="#888" stroke-width="1.2"/>
+
+  <!-- Drop to pipeline box -->
+  <line x1="347" y1="200" x2="347" y2="228" stroke="#888" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- ── PIPELINE BOX ── -->
+  <rect x="217" y="228" width="260" height="64" rx="6" fill="#2c3e50" stroke="#1a252f" stroke-width="1.5"/>
+  <text x="347" y="250" text-anchor="middle" font-size="12" font-weight="bold" fill="#ecf0f1">
+    DSFB Pipeline
+  </text>
+  <text x="347" y="265" text-anchor="middle" font-size="9" fill="#bdc3c7">proxy ensemble · trust accumulator</text>
+  <text x="347" y="278" text-anchor="middle" font-size="9" fill="#bdc3c7">grammar classifier · gated TAA</text>
+
+  <!-- Arrow to outputs -->
+  <line x1="347" y1="292" x2="347" y2="318" stroke="#888" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- ── OUTPUTS row ── -->
+  <text x="347" y="333" text-anchor="middle" font-size="9" fill="#444">
+    trust maps · intervention maps · ROI metrics · artifact bundle · comparison summary
+  </text>
+
+  <!-- ── ARROWHEAD MARKER ── -->
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#888"/>
+    </marker>
+  </defs>
+
+</svg>
