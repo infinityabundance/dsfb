@@ -836,9 +836,6 @@ pub fn run_sbir_demo(config: &DemoConfig, output_dir: &Path) -> Result<SbirDemoA
         .arg("--manifest-path")
         .arg(manifest_dir.join("Cargo.toml"))
         .arg("--no-fail-fast")
-        .arg("--")
-        .arg("--test-output")
-        .arg("immediate")
         .output()
         .map_err(|e| Error::Message(format!("failed to run cargo test: {e}")))?;
 
@@ -902,30 +899,35 @@ fn parse_cargo_test_output(output: &str) -> serde_json::Value {
     let mut ignored: u64 = 0;
 
     for line in output.lines() {
-        let line = line.trim();
+        // Strip ANSI escape codes before matching.
+        let line = strip_ansi(line.trim());
 
         // Individual test result lines: "test foo::bar ... ok" or "... FAILED"
-        if line.starts_with("test ") && (line.ends_with(" ok") || line.ends_with(" FAILED") || line.ends_with(" ignored")) {
-            let parts: Vec<&str> = line.splitn(2, ' ').collect();
-            if parts.len() < 2 {
-                continue;
-            }
-            let rest = parts[1];
-            if let Some(name_end) = rest.rfind(" ... ") {
-                let name = &rest[..name_end];
-                let status = &rest[name_end + 5..];
-                let ok = status == "ok";
-                let ig = status == "ignored";
-                tests.push(serde_json::json!({
-                    "name": name,
-                    "ok": ok,
-                    "ignored": ig,
-                }));
+        if line.starts_with("test ") {
+            let ok = line.ends_with(" ok");
+            let ig = line.ends_with(" ignored");
+            let fail = line.ends_with(" FAILED");
+            if ok || ig || fail {
+                // Extract the test name between "test " and " ..."
+                if let Some(rest) = line.strip_prefix("test ") {
+                    let name = if let Some(idx) = rest.rfind(" ... ") {
+                        &rest[..idx]
+                    } else {
+                        rest.trim_end_matches(" ok")
+                            .trim_end_matches(" FAILED")
+                            .trim_end_matches(" ignored")
+                    };
+                    tests.push(serde_json::json!({
+                        "name": name,
+                        "ok": ok,
+                        "ignored": ig,
+                    }));
+                }
             }
         }
 
         // Summary line: "test result: ok. 5 passed; 0 failed; 0 ignored; ..."
-        if line.starts_with("test result:") {
+        if line.contains("test result:") && line.contains("passed") {
             for segment in line.split(';') {
                 let s = segment.trim();
                 if let Some(n) = extract_count(s, "passed") {
@@ -947,8 +949,29 @@ fn parse_cargo_test_output(output: &str) -> serde_json::Value {
     })
 }
 
+/// Remove ANSI escape sequences from a string.
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // consume until end of escape sequence (letter)
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                for inner in chars.by_ref() {
+                    if inner.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 fn extract_count(segment: &str, keyword: &str) -> Option<u64> {
-    // Matches "5 passed" or "ok. 5 passed"
     let idx = segment.find(keyword)?;
     let before = segment[..idx].trim();
     before.split_whitespace().last()?.parse::<u64>().ok()
