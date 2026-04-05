@@ -94,3 +94,27 @@ Checked-in sample specifics:
 - `motion_vectors.json` is metadata-derived for this minimal sample
 - `current_normals.json` and `previous_normals.json` are metadata-derived for this minimal sample
 - `current_depth.json` and `previous_depth.json` are decoded from a real Unreal depth-visualization export and therefore use `depth_convention = "monotonic_visualized_depth"`
+
+## Depth Threshold Calibration Note
+
+The `depth_convention` field controls which end of the linearized depth range
+maps to "near".  The crate's depth-discontinuity proxy uses a single
+`SmoothstepThreshold` whose numeric value is always interpreted relative to the
+normalized `[0, 1]` depth extent **after convention normalization**.
+
+Calibration guidance:
+
+- For `"linear_view_space_z"` depth, a threshold of **0.05** (5 % of the depth
+  range) is used in the canonical scenario suite.
+- For `"monotonic_visualized_depth"` depth (Unreal visualization export), the
+  same 0.05 threshold applies because the importer normalizes the channel to
+  `[0, 1]` before handing it to the proxy.
+- If your engine exports raw hardware depth (`[0, 1]` NDC, non-linear), convert
+  to linear view-space Z before ingestion so that threshold values remain
+  physically meaningful.
+
+Changing the depth convention without recalibrating the threshold may cause the
+proxy to classify every inter-frame depth delta as a discontinuity (threshold
+too low) or never trigger (threshold too high).  The threshold value is exposed
+via `HostSupervisionProfile.depth_threshold` and is logged in the artifact
+manifest for every run.

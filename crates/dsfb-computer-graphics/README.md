@@ -254,3 +254,42 @@ The crate does not claim:
 - [`docs/EVIDENCE_WORKFLOW.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/EVIDENCE_WORKFLOW.md)
 - [`docs/FAILURE_MODES.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/FAILURE_MODES.md)
 - [`docs/REPRODUCIBILITY.md`](/home/one/dsfb/crates/dsfb-computer-graphics/docs/REPRODUCIBILITY.md)
+
+## Canonical Evidence Bundle
+
+The reproducible evidence bundle for the companion paper consists of the
+artifacts produced by `cargo run -- run-all` plus the following committed
+reference items:
+
+| Artifact | Location | Produced by |
+|---|---|---|
+| Demo A supervision frames (PNG) | `generated/demo_a/supervision/` | `run-all` |
+| Demo A metrics JSON | `generated/demo_a/metrics.json` | `run-all` |
+| Demo B ablation summary JSON | `generated/demo_b/metrics.json` | `run-all` |
+| Scenario-suite MAE table (JSON) | `generated/scenario_suite_mae.json` | `run-all` |
+| Unreal native sample | `data/unreal_native/sample_capture/` | committed |
+| GPU timing log (external replay) | blocked — requires GPU build target | `run-external-replay` |
+
+The bundle is self-contained and reproducible from source: `cargo run -- run-all`
+re-generates every non-blocked artifact deterministically.
+
+## DSFB Component Implementation Coverage
+
+The table below records which DSFB components from the companion paper are
+implemented inside this crate versus deferred.
+
+| DSFB Component | Paper section | Implemented | Notes |
+|---|---|---|---|
+| Gated TAA host (`run_gated_taa`) | §4, §17 | ✅ | canonical reference method |
+| Uncertainty proxy ensemble | §4 | ✅ | local contrast, neighborhood inconsistency, motion disagreement |
+| Smoothstep threshold | §4 | ✅ | `SmoothstepThreshold` parameter struct |
+| Host supervision profile | §4 | ✅ | `HostSupervisionProfile` |
+| Trust accumulator (low-pass) | §5 | ✅ | per-pixel exponential average |
+| Grammar classifier | §5.8 | ✅ | four-label family |
+| Meta-residual formulation | §6 | ✅ | `MetaResidual` coordinate-invariant form |
+| ROI contract (α = 0.15) | §17 | ✅ | `ROI_CONTRACT_ALPHA` constant + test |
+| Scenario suite (10 scenarios) | §17 | ✅ | including 3 adversarial |
+| Four-method ablation ladder | §17, Table 2 | ✅ | gated / visibility / motion / residual-only |
+| GPU kernel (real-time path) | §17 | ❌ | blocked — requires GPU build target |
+| External engine replay | §17 | ❌ | blocked — requires engine-side integration |
+| Fully calibrated trust semantics | §17 | ❌ | out of scope (pure-DSFB limitation) |

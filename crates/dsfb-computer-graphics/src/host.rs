@@ -414,9 +414,9 @@ fn local_contrast_proxy(
 ) -> f32 {
     let center = frame.get(x, y).luma();
     let mut strongest = 0.0f32;
-    for (nx, ny) in neighbors(x, y, frame.width(), frame.height()) {
+    for_each_neighbor(x, y, frame.width(), frame.height(), |nx, ny| {
         strongest = strongest.max((center - frame.get(nx, ny).luma()).abs());
-    }
+    });
     smoothstep_threshold(threshold, strongest)
 }
 
@@ -429,11 +429,11 @@ fn neighborhood_inconsistency_proxy(
 ) -> f32 {
     let mut min_luma = f32::INFINITY;
     let mut max_luma = f32::NEG_INFINITY;
-    for (nx, ny) in neighbors(x, y, current_color.width(), current_color.height()) {
+    for_each_neighbor(x, y, current_color.width(), current_color.height(), |nx, ny| {
         let luma = current_color.get(nx, ny).luma();
         min_luma = min_luma.min(luma);
         max_luma = max_luma.max(luma);
-    }
+    });
     let current_luma = current_color.get(x, y).luma();
     min_luma = min_luma.min(current_luma);
     max_luma = max_luma.max(current_luma);
@@ -458,12 +458,12 @@ fn motion_disagreement_proxy(
 ) -> f32 {
     let base = motion_vectors[y * width + x];
     let mut strongest = 0.0f32;
-    for (nx, ny) in neighbors(x, y, width, height) {
+    for_each_neighbor(x, y, width, height, |nx, ny| {
         let neighbor = motion_vectors[ny * width + nx];
         let delta_x = base.to_prev_x - neighbor.to_prev_x;
         let delta_y = base.to_prev_y - neighbor.to_prev_y;
         strongest = strongest.max((delta_x * delta_x + delta_y * delta_y).sqrt());
-    }
+    });
     smoothstep_threshold(threshold, strongest)
 }
 
@@ -506,19 +506,30 @@ fn smoothstep_threshold(threshold: SmoothstepThreshold, value: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-fn neighbors(x: usize, y: usize, width: usize, height: usize) -> Vec<(usize, usize)> {
-    let mut values = Vec::with_capacity(8);
+/// Calls `f` for each of the (up to 8) 8-connected neighbours of `(x, y)`.
+/// Zero heap allocation. Inlined by the compiler in the per-pixel hot path.
+#[inline(always)]
+fn for_each_neighbor(
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+    mut f: impl FnMut(usize, usize),
+) {
+    let x = x as i32;
+    let y = y as i32;
+    let w = width as i32;
+    let h = height as i32;
     for dy in -1i32..=1 {
         for dx in -1i32..=1 {
             if dx == 0 && dy == 0 {
                 continue;
             }
-            let nx = x as i32 + dx;
-            let ny = y as i32 + dy;
-            if nx >= 0 && nx < width as i32 && ny >= 0 && ny < height as i32 {
-                values.push((nx as usize, ny as usize));
+            let nx = x + dx;
+            let ny = y + dy;
+            if nx >= 0 && nx < w && ny >= 0 && ny < h {
+                f(nx as usize, ny as usize);
             }
         }
     }
-    values
 }

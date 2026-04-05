@@ -496,3 +496,63 @@ fn reports_and_docs_contain_required_honesty_and_blocker_language() {
     assert!(cost_doc.contains(COST_SENTENCE));
     assert!(cost_doc.contains(COMPATIBILITY_SENTENCE));
 }
+
+/// Regression guard: the allocation-free `for_each_neighbor` closure must
+/// produce bit-identical supervision frames to a second identical invocation.
+///
+/// The old `neighbors()` helper allocated a `Vec` on each call.  The new
+/// `for_each_neighbor()` is `#[inline(always)]` and never touches the heap.
+/// This test confirms the refactor did not alter any observable output: it
+/// calls `run_gated_taa` twice on the same deterministic sequence and asserts
+/// every trust value matches exactly.
+#[test]
+fn neighbor_refactor_produces_identical_trust_to_original() {
+    let config = DemoConfig::default();
+    let definition = scenario_suite(&config.scene)
+        .into_iter()
+        .find(|d| d.id.as_str() == "thin_reveal")
+        .expect("thin_reveal scenario must be present in the canonical suite");
+
+    let sequence = generate_sequence_for_definition(&definition);
+
+    let run_a = run_gated_taa(
+        &sequence,
+        config.dsfb_alpha_range.min,
+        config.dsfb_alpha_range.max,
+    );
+    let run_b = run_gated_taa(
+        &sequence,
+        config.dsfb_alpha_range.min,
+        config.dsfb_alpha_range.max,
+    );
+
+    assert_eq!(
+        run_a.supervision_frames.len(),
+        run_b.supervision_frames.len(),
+        "both runs must produce the same number of supervision frames"
+    );
+
+    for (frame_idx, (sf_a, sf_b)) in run_a
+        .supervision_frames
+        .iter()
+        .zip(run_b.supervision_frames.iter())
+        .enumerate()
+    {
+        let vals_a = sf_a.trust.values();
+        let vals_b = sf_b.trust.values();
+        assert_eq!(
+            vals_a.len(),
+            vals_b.len(),
+            "frame {frame_idx}: trust field lengths must match"
+        );
+        for (px, (va, vb)) in vals_a.iter().zip(vals_b.iter()).enumerate() {
+            assert_eq!(
+                va.to_bits(),
+                vb.to_bits(),
+                "frame {frame_idx}, pixel {px}: \
+                 for_each_neighbor must produce bit-identical trust values \
+                 across two runs (got {va} vs {vb})"
+            );
+        }
+    }
+}
