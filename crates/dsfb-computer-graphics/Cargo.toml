@@ -17,9 +17,6 @@ include = [
     "docs/**",
     "colab/**",
     "examples/**",
-    "data/**",
-    "unreal/**",
-    "generated/**",
     "Cargo.toml",
     "README.md",
 ]
