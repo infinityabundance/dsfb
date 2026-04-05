@@ -2,6 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/dsfb-computer-graphics.svg)](https://crates.io/crates/dsfb-computer-graphics)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-computer-graphics/colab/dsfb_computer_graphics_demo.ipynb)
 
 `dsfb-computer-graphics` is a Rust research crate that implements a **deterministic supervisory layer** for temporal graphics pipelines, grounded in the DSFB (Drift–Slew Fusion Bootstrap) structural semiotics framework. It does not replace temporal anti-aliasing, denoising, or neural reconstruction. It attaches to an existing pipeline, interprets the residual process between predictions and observations, and produces trust, integrity, and intervention signals that regulate temporal history reuse.
 
