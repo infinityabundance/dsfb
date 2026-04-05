@@ -14,7 +14,7 @@ use crate::pipeline::{
     export_evaluator_handoff, export_minimal_report, generate_scene_artifacts, run_all,
     run_all_filtered, run_check_signing, run_demo_a, run_demo_a_filtered, run_demo_b,
     run_demo_b_efficiency_only, run_demo_b_filtered, run_engine_realistic_bridge,
-    run_external_replay_only, run_gpu_path_only, run_realism_bridge_only,
+    run_external_replay_only, run_fast_path_only, run_gpu_path_only, run_realism_bridge_only,
     run_resolution_scaling_only, run_sbir_demo, run_sensitivity_only, run_timing_only,
     validate_artifact_bundle, validate_engine_native_gates, validate_final_bundle,
 };
@@ -184,6 +184,15 @@ pub enum Command {
     /// Generate the check-signing evidence report answering all panel objections.
     RunCheckSigning {
         #[arg(long, default_value = "generated/final_bundle")]
+        output: PathBuf,
+    },
+    /// Run the minimal inline fast-path proxy at 1080p and 4K, measure GPU timings,
+    /// and write artifacts to output/fast_path/.
+    ///
+    /// This is a reduced deployment proxy derived from DSFB residual structure.
+    /// It is NOT the full DSFB supervisory system.
+    RunFastPath {
+        #[arg(long, default_value = "generated/fast_path_runs")]
         output: PathBuf,
     },
     /// Run all tests and pipeline stages, then generate a single PDF engineering
@@ -414,6 +423,14 @@ pub fn run(cli: Cli) -> Result<()> {
         Command::RunCheckSigning { output } => {
             let report = run_check_signing(&config, &output)?;
             println!("check-signing report: {}", report.display());
+        }
+        Command::RunFastPath { output } => {
+            let artifacts = run_fast_path_only(&output)?;
+            println!("fast-path output: {}", artifacts.output_dir.display());
+            println!("timing json: {}", artifacts.timing_json_path.display());
+            println!("summary json: {}", artifacts.summary_json_path.display());
+            println!("trust svg: {}", artifacts.trust_svg_path.display());
+            println!("summary md: {}", artifacts.summary_md_path.display());
         }
         Command::SbirDemo { output } => {
             let artifacts = run_sbir_demo(&config, &output)?;
