@@ -1,3 +1,4 @@
+use std::fmt::Write as FmtWrite;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command as StdCommand;
@@ -3346,4 +3347,144 @@ pub fn scenario_definitions_for_filter(
     } else {
         Ok(scenario_suite(&config.scene))
     }
+}
+
+// ─── Fast-path proxy pipeline ──────────────────────────────────────────────────
+
+/// Artifacts produced by `run_fast_path_only`.
+pub struct FastPathArtifacts {
+    /// Directory containing all fast-path outputs.
+    pub output_dir: PathBuf,
+    /// Machine-readable timing JSON.
+    pub timing_json_path: PathBuf,
+    /// Machine-readable summary JSON.
+    pub summary_json_path: PathBuf,
+    /// Trust visualisation SVG.
+    pub trust_svg_path: PathBuf,
+    /// Human-readable markdown summary.
+    pub summary_md_path: PathBuf,
+}
+
+/// Run the minimal inline fast-path proxy, measure GPU timings, and emit artifacts.
+///
+/// This function does NOT alter any existing pipeline outputs.
+/// All new files are written under `output_dir/fast_path/`.
+pub fn run_fast_path_only(output_dir: &Path) -> Result<FastPathArtifacts> {
+    use crate::fast_path::{
+        render_trust_strip_svg, run_fast_path_cpu, run_fast_path_timing_study,
+        FAST_PATH_K, FAST_PATH_LAMBDA,
+    };
+
+    let fp_dir = output_dir.join("fast_path");
+    fs::create_dir_all(&fp_dir)?;
+
+    // 1. Run timing study (actual GPU measurements).
+    let study = run_fast_path_timing_study()?;
+    let timing_json_path = fp_dir.join("fast_path_timing.json");
+    fs::write(&timing_json_path, serde_json::to_string_pretty(&study)?)?;
+
+    // 2. Run a small CPU reference frame for the trust visualisation.
+    let vis_w = 256usize;
+    let vis_h = 64usize;
+    let vis_pixels = vis_w * vis_h;
+    // Synthetic gradient: left = low residual, right = high residual.
+    let mut current_rgb: Vec<[f32; 3]> = Vec::with_capacity(vis_pixels);
+    let mut history_rgb: Vec<[f32; 3]> = Vec::with_capacity(vis_pixels);
+    for _y in 0..vis_h {
+        for x in 0..vis_w {
+            let t = x as f32 / vis_w as f32;
+            current_rgb.push([0.5 + t * 0.4, 0.5, 0.5]);
+            history_rgb.push([0.5, 0.5, 0.5]);
+        }
+    }
+    let res_in = vec![0.0f32; vis_pixels];
+    let drift_in = vec![0.0f32; vis_pixels];
+    let cpu_out = run_fast_path_cpu(
+        &current_rgb,
+        &history_rgb,
+        &res_in,
+        &drift_in,
+        vis_w,
+        vis_h,
+        FAST_PATH_LAMBDA,
+        FAST_PATH_K,
+        false,
+    );
+    let trust_svg = render_trust_strip_svg(&cpu_out.trust, vis_w, vis_h);
+    let trust_svg_path = fp_dir.join("fast_path_trust_visualisation.svg");
+    fs::write(&trust_svg_path, &trust_svg)?;
+
+    // 3. Build summary JSON.
+    let summary = serde_json::json!({
+        "description": "Minimal Inline Deployment (Fast-Path Proxy) — reduced proxy, not the full DSFB observer.",
+        "lambda": FAST_PATH_LAMBDA,
+        "k": FAST_PATH_K,
+        "local_aggregation_enabled": false,
+        "actual_gpu_timing": study.actual_gpu_timing,
+        "timing_entries": study.entries.iter().map(|e| serde_json::json!({
+            "resolution": e.resolution_label,
+            "width": e.width,
+            "height": e.height,
+            "mean_dispatch_ms": e.mean_dispatch_ms,
+            "mean_total_ms": e.mean_total_ms,
+            "warmup_runs": e.warmup_runs,
+            "measured_runs": e.measured_runs,
+            "adapter": e.adapter_name,
+            "backend": e.backend,
+        })).collect::<Vec<_>>(),
+        "notes": study.notes,
+    });
+    let summary_json_path = fp_dir.join("fast_path_summary.json");
+    fs::write(&summary_json_path, serde_json::to_string_pretty(&summary)?)?;
+
+    // 4. Build markdown summary.
+    let summary_md_path = fp_dir.join("fast_path_summary.md");
+    let mut md = String::new();
+    let _ = writeln!(md, "# Minimal Inline Deployment (Fast-Path Proxy)\n");
+    let _ = writeln!(md, "> This is a reduced deployment proxy derived from DSFB residual structure.");
+    let _ = writeln!(md, "> It is **not** the full DSFB supervisory system and does not reproduce its full behaviour.\n");
+    let _ = writeln!(md, "## Configuration\n");
+    let _ = writeln!(md, "| Parameter | Value |");
+    let _ = writeln!(md, "|-----------|-------|");
+    let _ = writeln!(md, "| λ (slew weight) | {FAST_PATH_LAMBDA} |");
+    let _ = writeln!(md, "| k (trust slope) | {FAST_PATH_K} |");
+    let _ = writeln!(md, "| Local aggregation | disabled (optional) |\n");
+    let _ = writeln!(md, "## Formulae\n");
+    let _ = writeln!(md, "```\nr_t = L1(C_t - H_t) / 3\nd_t = r_t - r_{{t-1}}\ns_t = d_t - d_{{t-1}}\nu_t = |d_t| + λ |s_t|\nT_t = saturate(1 - k · u_t)\n```\n");
+    let _ = writeln!(md, "## GPU Timing\n");
+    if study.actual_gpu_timing && !study.entries.is_empty() {
+        let _ = writeln!(md, "| Resolution | Mean dispatch (ms) | Mean total (ms) | Runs | Adapter |");
+        let _ = writeln!(md, "|------------|--------------------|-----------------|------|---------|");
+        for e in &study.entries {
+            let adapter = e.adapter_name.as_deref().unwrap_or("n/a");
+            let _ = writeln!(
+                md,
+                "| {} | {:.3} | {:.3} | {}+{} | {} |",
+                e.resolution_label,
+                e.mean_dispatch_ms,
+                e.mean_total_ms,
+                e.warmup_runs,
+                e.measured_runs,
+                adapter
+            );
+        }
+    } else {
+        let _ = writeln!(md, "_No GPU adapter available. Timing was not measured._\n");
+        for note in &study.notes {
+            let _ = writeln!(md, "- {note}");
+        }
+    }
+    let _ = writeln!(md, "\n## Artifacts\n");
+    let _ = writeln!(md, "- `fast_path_timing.json` — machine-readable timing study");
+    let _ = writeln!(md, "- `fast_path_summary.json` — machine-readable summary");
+    let _ = writeln!(md, "- `fast_path_trust_visualisation.svg` — trust heatmap (synthetic gradient input)");
+    fs::write(&summary_md_path, &md)?;
+
+    Ok(FastPathArtifacts {
+        output_dir: fp_dir,
+        timing_json_path,
+        summary_json_path,
+        trust_svg_path,
+        summary_md_path,
+    })
 }

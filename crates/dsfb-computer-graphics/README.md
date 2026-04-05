@@ -293,3 +293,57 @@ implemented inside this crate versus deferred.
 | GPU kernel (real-time path) | §17 | ❌ | blocked — requires GPU build target |
 | External engine replay | §17 | ❌ | blocked — requires engine-side integration |
 | Fully calibrated trust semantics | §17 | ❌ | out of scope (pure-DSFB limitation) |
+
+| Minimal Inline Deployment (Fast-Path Proxy) | §17.5 | ✅ | `src/fast_path.rs` — reduced proxy, not the full observer |
+
+## Minimal Inline Deployment (Fast-Path Proxy)
+
+The crate includes a **reduced deployment proxy** implemented in `src/fast_path.rs`.
+This is **not** the full DSFB supervisory system and does not reproduce its complete behaviour.
+It is a per-pixel approximation intended to assess deployment feasibility under real-time budgets.
+
+### What it computes
+
+For each pixel at frame t:
+
+```
+r_t = L1(C_t - H_t) / 3
+d_t = r_t - r_{t-1}
+s_t = d_t - d_{t-1}
+u_t = |d_t| + λ·|s_t|
+T_t = saturate(1 − k·u_t)
+```
+
+Parameters: λ = 0.5, k = 2.0.
+Optional 3×3 local aggregation averages `u_t` over a neighbourhood before computing `T_t`.
+
+### Running it
+
+```bash
+cargo run --release -- run-fast-path --output generated/fast_path_runs
+```
+
+Emits four artifact files under `generated/fast_path_runs/fast_path/`:
+- `fast_path_timing.json` — per-resolution timing study (warmup + measured runs)
+- `fast_path_summary.json` — configuration summary
+- `fast_path_trust_visualisation.svg` — synthetic trust heatmap
+- `fast_path_summary.md` — human-readable summary
+
+### Measured GPU timings (RTX 4080 SUPER, Vulkan, wgpu)
+
+| Resolution | Mean dispatch (ms) |
+|---|---|
+| 1920×1080 | 1.44 |
+| 3840×2160 | 5.74 |
+
+3 warmup runs, mean of 10 measured runs, CPU-side wall-clock (dispatch + `Maintain::Wait`).
+
+### Tests
+
+9 correctness tests in `tests/fast_path.rs`:
+- Determinism, trust bounds [0, 1], zero residual → max trust
+- Constant residual → drift converges to ~0
+- Local aggregation equivalence for spatially uniform input
+- Exact 1×1 history buffer update
+- GPU/CPU delta < 1e-4 (gracefully skips if no GPU adapter)
+- Pre-allocation smoke check
