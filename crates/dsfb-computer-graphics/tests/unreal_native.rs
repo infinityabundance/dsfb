@@ -13,6 +13,7 @@ use dsfb_computer_graphics::unreal_native::{
     run_unreal_native, UNREAL_NATIVE_EVIDENCE_MANIFEST_FILE_NAME, UNREAL_NATIVE_EXECUTIVE_SHEET_FILE_NAME,
     UNREAL_NATIVE_PDF_FILE_NAME, UNREAL_NATIVE_ZIP_FILE_NAME,
 };
+use serial_test::serial;
 use serde_json::{json, Value};
 
 fn unique_output_dir(name: &str) -> PathBuf {
@@ -407,6 +408,166 @@ fn unreal_native_sample_manifest_smoke_runs() {
     assert!(current_status.contains("0.78657 -> 0.35245 -> 0.49284"));
     assert!(current_status.contains("0.21345 -> 0.64758 -> 0.50715"));
 }
+
+// ── Scene regime tests ────────────────────────────────────────────────────────
+// Each test loads a per-scene capture_manifest.json from scenes/<name>/ and
+// runs the full run_unreal_native pipeline against it. The manifests reference
+// the same canonical sample_capture data; only the dataset_id and frame subset
+// differ. No data is duplicated.
+
+#[serial]
+#[test]
+fn scene_thin_geometry_pipeline_runs_and_produces_artifacts() {
+    let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("scenes")
+        .join("thin_geometry")
+        .join("capture_manifest.json");
+    let output_root = unique_output_dir("scene_thin_geometry").join("out");
+    let artifacts = run_unreal_native(
+        &DemoConfig::default(),
+        &manifest_path,
+        &output_root,
+        Some("scene_thin_geometry"),
+        &[],
+    )
+    .expect("thin_geometry scene manifest should replay successfully");
+
+    assert!(artifacts.summary_path.exists(), "summary must exist");
+    assert!(artifacts.metrics_summary_path.exists(), "metrics_summary must exist");
+    assert!(artifacts.comparison_summary_path.exists(), "comparison_summary must exist");
+    assert!(artifacts.failure_modes_path.exists(), "failure_modes must exist");
+    assert!(artifacts.pdf_path.exists(), "pdf bundle must exist");
+    assert!(artifacts.zip_path.exists(), "zip bundle must exist");
+
+    let summary_text = fs::read_to_string(&artifacts.summary_path).expect("summary readable");
+    let summary: Value = serde_json::from_str(&summary_text).expect("summary is valid json");
+    assert_eq!(summary["dataset_kind"], "unreal_native");
+    assert_eq!(summary["provenance_label"], "unreal_native");
+    assert_eq!(summary["capture_count"], 3, "thin_geometry has 3 frames");
+    assert_eq!(summary["dataset_id"], "scene_thin_geometry_subpixel_reveal");
+    assert!(summary_text.contains(ROI_CONTRACT_STATEMENT));
+
+    let comparison = fs::read_to_string(&artifacts.comparison_summary_path)
+        .expect("comparison_summary readable");
+    assert!(comparison.contains(PURE_DSFB_LIMITATION_STATEMENT));
+    assert!(comparison.contains(ROI_HONESTY_STATEMENT));
+}
+
+#[serial]
+#[test]
+fn scene_disocclusion_pipeline_runs_and_produces_artifacts() {
+    let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("scenes")
+        .join("disocclusion")
+        .join("capture_manifest.json");
+    let output_root = unique_output_dir("scene_disocclusion").join("out");
+    let artifacts = run_unreal_native(
+        &DemoConfig::default(),
+        &manifest_path,
+        &output_root,
+        Some("scene_disocclusion"),
+        &[],
+    )
+    .expect("disocclusion scene manifest should replay successfully");
+
+    assert!(artifacts.summary_path.exists(), "summary must exist");
+    assert!(artifacts.metrics_summary_path.exists(), "metrics_summary must exist");
+    assert!(artifacts.comparison_summary_path.exists(), "comparison_summary must exist");
+    assert!(artifacts.failure_modes_path.exists(), "failure_modes must exist");
+    assert!(artifacts.pdf_path.exists(), "pdf bundle must exist");
+    assert!(artifacts.zip_path.exists(), "zip bundle must exist");
+
+    let summary_text = fs::read_to_string(&artifacts.summary_path).expect("summary readable");
+    let summary: Value = serde_json::from_str(&summary_text).expect("summary is valid json");
+    assert_eq!(summary["dataset_kind"], "unreal_native");
+    assert_eq!(summary["provenance_label"], "unreal_native");
+    assert_eq!(summary["capture_count"], 5, "disocclusion has 5 frames");
+    assert_eq!(summary["dataset_id"], "scene_disocclusion_history_invalidation");
+    assert!(summary_text.contains(ROI_CONTRACT_STATEMENT));
+
+    let comparison = fs::read_to_string(&artifacts.comparison_summary_path)
+        .expect("comparison_summary readable");
+    assert!(comparison.contains(PURE_DSFB_LIMITATION_STATEMENT));
+    assert!(comparison.contains(ROI_HONESTY_STATEMENT));
+}
+
+#[serial]
+#[test]
+fn scene_camera_motion_pipeline_runs_and_produces_artifacts() {
+    let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("scenes")
+        .join("camera_motion")
+        .join("capture_manifest.json");
+    let output_root = unique_output_dir("scene_camera_motion").join("out");
+    let artifacts = run_unreal_native(
+        &DemoConfig::default(),
+        &manifest_path,
+        &output_root,
+        Some("scene_camera_motion"),
+        &[],
+    )
+    .expect("camera_motion scene manifest should replay successfully");
+
+    assert!(artifacts.summary_path.exists(), "summary must exist");
+    assert!(artifacts.metrics_summary_path.exists(), "metrics_summary must exist");
+    assert!(artifacts.comparison_summary_path.exists(), "comparison_summary must exist");
+    assert!(artifacts.failure_modes_path.exists(), "failure_modes must exist");
+    assert!(artifacts.pdf_path.exists(), "pdf bundle must exist");
+    assert!(artifacts.zip_path.exists(), "zip bundle must exist");
+
+    let summary_text = fs::read_to_string(&artifacts.summary_path).expect("summary readable");
+    let summary: Value = serde_json::from_str(&summary_text).expect("summary is valid json");
+    assert_eq!(summary["dataset_kind"], "unreal_native");
+    assert_eq!(summary["provenance_label"], "unreal_native");
+    assert_eq!(summary["capture_count"], 5, "camera_motion has 5 frames");
+    assert_eq!(summary["dataset_id"], "scene_camera_motion_reprojection_instability");
+    assert!(summary_text.contains(ROI_CONTRACT_STATEMENT));
+
+    let comparison = fs::read_to_string(&artifacts.comparison_summary_path)
+        .expect("comparison_summary readable");
+    assert!(comparison.contains(PURE_DSFB_LIMITATION_STATEMENT));
+    assert!(comparison.contains(ROI_HONESTY_STATEMENT));
+}
+
+#[serial]
+#[test]
+fn scene_high_contrast_pipeline_runs_and_produces_artifacts() {
+    let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("scenes")
+        .join("high_contrast")
+        .join("capture_manifest.json");
+    let output_root = unique_output_dir("scene_high_contrast").join("out");
+    let artifacts = run_unreal_native(
+        &DemoConfig::default(),
+        &manifest_path,
+        &output_root,
+        Some("scene_high_contrast"),
+        &[],
+    )
+    .expect("high_contrast scene manifest should replay successfully");
+
+    assert!(artifacts.summary_path.exists(), "summary must exist");
+    assert!(artifacts.metrics_summary_path.exists(), "metrics_summary must exist");
+    assert!(artifacts.comparison_summary_path.exists(), "comparison_summary must exist");
+    assert!(artifacts.failure_modes_path.exists(), "failure_modes must exist");
+    assert!(artifacts.pdf_path.exists(), "pdf bundle must exist");
+    assert!(artifacts.zip_path.exists(), "zip bundle must exist");
+
+    let summary_text = fs::read_to_string(&artifacts.summary_path).expect("summary readable");
+    let summary: Value = serde_json::from_str(&summary_text).expect("summary is valid json");
+    assert_eq!(summary["dataset_kind"], "unreal_native");
+    assert_eq!(summary["provenance_label"], "unreal_native");
+    assert_eq!(summary["capture_count"], 5, "high_contrast has 5 frames");
+    assert_eq!(summary["dataset_id"], "scene_high_contrast_edge_dominated");
+    assert!(summary_text.contains(ROI_CONTRACT_STATEMENT));
+
+    let comparison = fs::read_to_string(&artifacts.comparison_summary_path)
+        .expect("comparison_summary readable");
+    assert!(comparison.contains(PURE_DSFB_LIMITATION_STATEMENT));
+    assert!(comparison.contains(ROI_HONESTY_STATEMENT));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
 fn unreal_native_notebook_is_valid_and_strict() {
