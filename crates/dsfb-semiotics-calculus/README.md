@@ -10,6 +10,8 @@ interpretation of residual trajectories. Every safety-case claim is enforced at
 the type level by the Rust compiler; no runtime configuration required.
 
 ---
+https://github.com/infinityabundance/dsfb/blob/main/crates/dsfb-semiotics-calculus/colab/dsfb_semiotics_calculus_figures.ipynb
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-semiotics-calculus/colab/dsfb_semiotics_calculus_figures.ipynb)
 
 ## Contents
 
@@ -257,7 +259,7 @@ Colour convention (both Rust and Python):
 `colab/dsfb_semiotics_calculus_figures.ipynb` reproduces all 10 figures using
 NumPy + Matplotlib and the identical synthetic trajectory.
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/invariantforge/dsfb/blob/main/crates/dsfb-semiotics-calculus/colab/dsfb_semiotics_calculus_figures.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-semiotics-calculus/colab/dsfb_semiotics_calculus_figures.ipynb)
 
 The notebook:
 - Installs `fpdf2` for PDF generation
