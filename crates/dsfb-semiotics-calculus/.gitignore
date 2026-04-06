@@ -1,6 +1,9 @@
 # Generated artifacts — do not commit
 generated/
 
+# Proprietary paper — do not commit
+paper/
+
 # Colab output caches
 colab/__pycache__/
 colab/.ipynb_checkpoints/
