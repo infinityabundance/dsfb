@@ -107,6 +107,10 @@ Don’t believe a sensor all at once.
 > *DSFB Structural Semiotics Engine for Semiconductor Process Control - A Deterministic Augmentation Layer for Typed Residual Interpretation for Fault Detection and Run-to-Run Variation in Advanced Manufacturing* (v1.0).
 > Zenodo. [https://doi.org/10.5281/zenodo.19413110]
 
+> **de Beer, R. (2026).** 
+> *DSFB and Computer Graphics: Deterministic Structural Semiotics - A Narrow Wedge for Structural Supervision of Trust-Regulated Temporal Reuse - A Deterministic Observer Layer for Graphics Diagnostics, Auditability, and Low-Risk Integration* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19432403]
+
 
 ---
 
@@ -151,6 +155,9 @@ Don’t believe a sensor all at once.
 
 `DSFB Semiconductor`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-semiconductor/notebooks/dsfb_semiconductor_secom_colab.ipynb)
+
+`DSFB Computer Graphics` 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-computer-graphics/colab/dsfb_computer_graphics_demo.ipynb)
 
 ---
 
