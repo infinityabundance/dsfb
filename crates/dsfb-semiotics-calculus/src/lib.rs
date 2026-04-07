@@ -11,7 +11,7 @@
 //! The crate encodes the core DSSC types and traits exactly as they appear in the companion
 //! paper *"DSFB Structural Semiotics Calculus: Formal Syntax, Composition Rules, and Provable
 //! Properties of Endoductive Inference over Residual Trajectories"* (Invariant Forge LLC,
-//! DOI: 10.5281/zenodo.XXXXXXX). The type system enforces at compile time:
+//! DOI: 10.5281/zenodo.19446580). The type system enforces at compile time:
 //!
 //! - **Non-interference** (SC-2): `Observer` is a pure function over `Trajectory`; it holds
 //!   no mutable references to the observed system.
