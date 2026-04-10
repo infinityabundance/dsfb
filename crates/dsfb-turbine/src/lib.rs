@@ -71,7 +71,7 @@ pub mod report;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Paper DOI for reproducibility lock.
-pub const PAPER_DOI: &str = "TBD-zenodo-gas-turbine";
+pub const PAPER_DOI: &str = "https://doi.org/10.5281/zenodo.19498878";
 
 /// Non-interference contract version.
 pub const NON_INTERFERENCE_CONTRACT: &str = "v1.0-read-only-observer-only";
