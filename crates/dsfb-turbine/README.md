@@ -72,6 +72,158 @@ synthetic demonstration path.
 If `train_FD001.txt` is absent, the evaluation example falls back to a
 synthetic demonstration rather than claiming a paper reproduction run.
 
+## Math
+
+For a single health channel and cycle index `k`, the paper-level object is the
+residual sign
+
+```text
+sigma_k = (r_k, d_k, s_k)
+```
+
+with
+
+```text
+r_k = y_k - y_hat_k
+```
+
+where `y_k` is the observed health quantity and `y_hat_k` is the nominal
+reference under the declared operating regime. In this crate, the default
+benchmark path estimates that reference from the healthy window at the start of
+each channel, so the implemented residual is formed relative to the healthy
+window mean returned by `compute_baseline`.
+
+The paper states the pointwise structural descriptors as
+
+```text
+d_k = r_k - r_{k-1}
+s_k = d_k - d_{k-1}
+```
+
+The crate uses windowed forms for robustness against short transients:
+
+```text
+drift_k = (1 / W) * sum_{i=0}^{W-1} (r_{k-i} - r_{k-i-1})
+slew_k  = (1 / W) * sum_{i=0}^{W-1} (drift_{k-i} - drift_{k-i-1})
+```
+
+where `W` is taken from `DsfbConfig::drift_window` and
+`DsfbConfig::slew_window`. This is the behavior implemented by
+`compute_drift` and `compute_slew`.
+
+Admissibility is defined relative to a regime-conditioned envelope constructed
+from healthy-window statistics:
+
+```text
+E = [mu - envelope_sigma * std, mu + envelope_sigma * std]
+```
+
+The operational test in the crate is therefore equivalent to checking whether
+`|r_k| <= envelope_sigma * std`, together with the normalized position and gap
+used by `AdmissibilityEnvelope`.
+
+The grammar layer then maps each cycle into `Admissible`, `Boundary`, or
+`Violation`. In the current implementation:
+
+- `Admissible -> Boundary` occurs when the residual approaches the envelope or
+  when outward drift persists beyond `persistence_threshold`
+- `Boundary -> Violation` occurs when the envelope is exceeded or when
+  nontrivial slew persists beyond `slew_persistence_threshold`
+- `Violation` is terminal within a single evaluation pass
+
+The paper's finite-exit bound is represented in `TheoremOneBound`:
+
+```text
+k_star - k_0 <= ceil(g_k0 / (eta - kappa))
+g_k = epsilon_k - |r_k|
+```
+
+For the fixed-envelope benchmark runs in this crate, `kappa` is typically zero.
+The reported theorem check is therefore an audit quantity for the observed
+trajectory under the chosen configuration, not a blanket claim of universal
+performance.
+
+## Code
+
+The crate follows the same separation described in the paper:
+
+- `src/core/residual.rs`: baseline estimation, residual formation, drift, slew,
+  and the `ResidualSign` tuple
+- `src/core/envelope.rs`: admissibility envelope construction, normalized
+  position, and envelope-status classification
+- `src/core/grammar.rs`: deterministic grammar-state machine plus multi-channel
+  aggregation
+- `src/core/heuristics.rs`: typed reason codes and the heuristics bank used to
+  attach structural interpretations
+- `src/core/episode.rs`, `src/core/audit.rs`, and `src/core/theorem.rs`:
+  operator-facing episodes, audit traces, and the finite-exit bound report
+- `src/pipeline/engine_eval.rs`: std-backed orchestration from per-channel core
+  operators to engine-level outputs
+- `examples/basic_pipeline.rs` and `examples/cmapss_eval.rs`: runnable entry
+  points for the minimal core path and the full benchmark path
+- `tests/non_interference.rs`: crate-local checks for the observer-only,
+  borrowed-input contract
+
+Minimal core usage looks like this:
+
+```rust
+use dsfb_turbine::core::config::DsfbConfig;
+use dsfb_turbine::core::envelope::AdmissibilityEnvelope;
+use dsfb_turbine::core::grammar::GrammarEngine;
+use dsfb_turbine::core::regime::OperatingRegime;
+use dsfb_turbine::core::residual::{
+    compute_baseline, compute_drift, compute_residuals, compute_slew, sign_at,
+};
+
+let values = [1580.0, 1580.2, 1580.1, 1580.4, 1580.9, 1581.4];
+let config = DsfbConfig::cmapss_fd001_default();
+let (mean, std) = compute_baseline(&values, &config);
+
+let mut residuals = [0.0; 6];
+let mut drift = [0.0; 6];
+let mut slew = [0.0; 6];
+
+compute_residuals(&values, mean, &mut residuals);
+compute_drift(&residuals, config.drift_window, &mut drift);
+compute_slew(&drift, config.slew_window, &mut slew);
+
+let envelope = AdmissibilityEnvelope::from_baseline(
+    mean,
+    std,
+    OperatingRegime::SeaLevelStatic,
+    &config,
+);
+let mut grammar = GrammarEngine::new();
+
+for k in 0..values.len() {
+    let sign = sign_at(&residuals, &drift, &slew, k, 1);
+    grammar.advance(&sign, &envelope, &config);
+}
+```
+
+That snippet is intentionally narrow: it shows the deterministic core path on a
+single channel. The std-backed pipeline layers build on the same operators for
+dataset loading, fleet evaluation, reports, and figure generation.
+
+## How To Run
+
+Use the path that matches the claim you want to make:
+
+- Core-only compile check:
+  `cargo check --lib --no-default-features`
+- Minimal deterministic walkthrough with synthetic local data:
+  `cargo run --example basic_pipeline`
+- Full benchmark reproduction from local C-MAPSS files:
+  `cargo run --example cmapss_eval -- --require-real-data path/to/cmapss_data_dir output/`
+- Fresh-runtime Colab reproduction and artifact packaging:
+  open `notebooks/dsfb_turbine_colab.ipynb`
+
+The strict `--require-real-data` mode is the reproducibility path for the paper
+workflow. It aborts if the required `train_FD001.txt`, `train_FD002.txt`, and
+`train_FD003.txt` files are not present. Running without that flag is useful
+for local smoke testing, but it may fall back to the synthetic demo and should
+not be described as a benchmark reproduction run.
+
 ## How To Read The Benchmark Outputs
 
 The recommended C-MAPSS runs in this crate may produce visually "clean"
