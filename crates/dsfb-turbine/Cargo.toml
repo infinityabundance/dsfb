@@ -1,0 +1,43 @@
+[package]
+name = "dsfb-turbine"
+version = "0.1.0"
+edition = "2021"
+authors = ["Riaan de Beer <riaan@invariantforge.net>"]
+license = "Apache-2.0"
+description = """
+DSFB Structural Semiotics Engine for Gas Turbine Jet Engine Health Monitoring.
+A deterministic, read-only, observer-only augmentation layer for typed residual
+interpretation over existing Engine Health Monitoring (EHM), Gas Path Analysis (GPA),
+and Prognostics and Health Management (PHM) systems.
+
+The core engine is no_std + no_alloc. Unsafe code is forbidden in the library.
+Dataset loading, fleet evaluation, reporting, and executable examples are std-gated.
+"""
+repository = "https://github.com/infinityabundance/dsfb"
+keywords = ["dsfb", "gas-turbine", "health-monitoring", "prognostics", "no_std"]
+categories = ["aerospace", "embedded", "no-std", "science"]
+readme = "README.md"
+
+# ─── SAFETY ────────────────────────────────────────────────────────────
+# Unsafe code is forbidden in the library crate.
+# The core engine (everything under src/core/) is the no_std + no_alloc surface.
+# The default std feature enables dataset loading, evaluation, reporting, and examples.
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+# No external dependencies for the core engine.
+# All dependencies are std-gated for dataset loading and reporting.
+
+[dev-dependencies]
+
+[[example]]
+name = "basic_pipeline"
+path = "examples/basic_pipeline.rs"
+
+[[example]]
+name = "cmapss_eval"
+path = "examples/cmapss_eval.rs"
+required-features = ["std"]
