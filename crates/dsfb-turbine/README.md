@@ -323,10 +323,15 @@ Apache-2.0. Commercial deployment requires separate license from Invariant Forge
 
 ## Citation
 
-de Beer, R. (2026). DSFB Structural Semiotics Engine for Gas Turbine Jet Engine
-Health Monitoring. Invariant Forge LLC.
+de Beer, R. (2026). *DSFB Structural Semiotics Engine for Gas Turbine Jet
+Engine Health Monitoring: A Deterministic Augmentation Layer for Typed Residual
+Interpretation over Engine Health Monitoring, Gas Path Analysis, and
+Prognostics and Health Management Systems in Aircraft and Industrial Gas
+Turbine Applications* (v1.0). Zenodo.
+<https://doi.org/10.5281/zenodo.19498878>
 
 ## Prior Art
 
 This work constitutes prior art under 35 U.S.C. § 102, timestamped via
-Zenodo DOI and crates.io publication.
+Zenodo DOI <https://doi.org/10.5281/zenodo.19498878> and crates.io
+publication.
