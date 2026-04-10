@@ -7,7 +7,7 @@
 //! The example binary itself uses `std` for console output.
 
 use dsfb_turbine::core::config::DsfbConfig;
-use dsfb_turbine::core::residual::{compute_baseline, compute_residuals, compute_drift, compute_slew, sign_at, ResidualSign};
+use dsfb_turbine::core::residual::{compute_baseline, compute_residuals, compute_drift, compute_slew, sign_at};
 use dsfb_turbine::core::envelope::AdmissibilityEnvelope;
 use dsfb_turbine::core::grammar::{GrammarEngine, GrammarState};
 use dsfb_turbine::core::heuristics::HeuristicsBank;
