@@ -4,10 +4,12 @@
 //!
 //! Usage:
 //!   cargo run --example cmapss_eval -- [data-dir] [output-dir]
+//!   cargo run --example cmapss_eval -- --require-real-data [data-dir] [output-dir]
 //!
 //! Expects `data-dir` to contain `train_FD001.txt`, `train_FD002.txt`, and
-//! `train_FD003.txt` for the full paper evaluation suite. If `train_FD001.txt`
-//! is unavailable, the example falls back to a synthetic demonstration.
+//! `train_FD003.txt` for the full paper evaluation suite. By default, if
+//! `train_FD001.txt` is unavailable, the example falls back to a synthetic
+//! demonstration. Pass `--require-real-data` to abort instead.
 
 use std::env;
 use std::fs;
@@ -34,9 +36,24 @@ fn main() {
     println!("================================================================");
     println!();
 
-    let args: Vec<String> = env::args().collect();
-    let data_dir = args.get(1).map(|s| s.as_str()).unwrap_or("data");
-    let output_dir = args.get(2).map(|s| s.as_str()).unwrap_or("output_full");
+    let mut require_real_data = false;
+    let mut positional_args = Vec::new();
+    for arg in env::args().skip(1) {
+        if arg == "--require-real-data" {
+            require_real_data = true;
+        } else {
+            positional_args.push(arg);
+        }
+    }
+
+    let data_dir = positional_args
+        .first()
+        .map(|s| s.as_str())
+        .unwrap_or("data");
+    let output_dir = positional_args
+        .get(1)
+        .map(|s| s.as_str())
+        .unwrap_or("output_full");
 
     fs::create_dir_all(output_dir).ok();
 
@@ -47,9 +64,16 @@ fn main() {
         eprintln!("Dataset not found: {}", fd001_path);
         eprintln!("Download from: https://phm-datasets.s3.amazonaws.com/NASA/6.+Turbofan+Engine+Degradation+Simulation+Data+Set.zip");
         eprintln!();
-        eprintln!("Running synthetic demo instead...");
-        run_synthetic_demo(output_dir);
-        return;
+        if require_real_data {
+            eprintln!(
+                "Strict benchmark mode enabled; aborting instead of using the synthetic demo."
+            );
+            std::process::exit(2);
+        } else {
+            eprintln!("Running synthetic demo instead...");
+            run_synthetic_demo(output_dir);
+            return;
+        }
     }
 
     let fd001 = load_dataset(&fd001_path, "FD001");

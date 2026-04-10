@@ -55,12 +55,19 @@ cargo run --example cmapss_eval
 
 # Reproduce the paper evaluation suite explicitly
 cargo run --example cmapss_eval -- path/to/cmapss_data_dir output/
+
+# Require benchmark data and abort instead of falling back to synthetic
+cargo run --example cmapss_eval -- --require-real-data path/to/cmapss_data_dir output/
 ```
 
 `cargo run --example cmapss_eval -- path/to/cmapss_data_dir output/`
 reproduces the FD001/FD002/FD003 evaluation used in the paper when
 `train_FD001.txt`, `train_FD002.txt`, and `train_FD003.txt` are present in
 that directory.
+
+`cargo run --example cmapss_eval -- --require-real-data path/to/cmapss_data_dir output/`
+enforces a benchmark-only run and exits with an error instead of invoking the
+synthetic demonstration path.
 
 If `train_FD001.txt` is absent, the evaluation example falls back to a
 synthetic demonstration rather than claiming a paper reproduction run.
@@ -85,17 +92,22 @@ The crate ships with a Colab notebook at
 
 - clones the repository into a fresh Colab runtime
 - installs Rust and the small Python dependencies needed for artifact packaging
-- attempts to download the public NASA C-MAPSS archive used by the crate example
-- runs `cargo run --example cmapss_eval -- <data-dir> <output-dir>`
+- downloads the public NASA C-MAPSS benchmark archive used by the crate example
+- runs `cargo run --example cmapss_eval -- --require-real-data <data-dir> <output-dir>`
 - stages generated SVG figures into a dedicated figures folder
 - builds a single PDF containing all generated figures
 - builds a zip archive containing the run artifacts for download
 
 The notebook writes run outputs under `crates/dsfb-turbine/colab_output/`
-inside the fresh clone. If the public dataset download fails or the required
-`train_FD001.txt` file is unavailable, the notebook still runs successfully by
-using the crate's synthetic fallback path; that fallback is not a paper
-reproduction run.
+inside the fresh clone. It recursively extracts the downloaded archive and
+requires `train_FD001.txt`, `train_FD002.txt`, and `train_FD003.txt` to be
+present before the evaluation step. If those files are not recovered, the
+notebook aborts rather than using the crate's synthetic fallback path. The
+notebook enforces this by invoking the example's `--require-real-data` mode.
+
+For empirical clarity: the downloaded NASA C-MAPSS archive is the public
+benchmark simulation dataset used by the paper workflow. It is not field-engine
+telemetry.
 
 ## Crate Structure
 
