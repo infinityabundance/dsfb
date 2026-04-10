@@ -72,6 +72,29 @@ synthetic demonstration path.
 If `train_FD001.txt` is absent, the evaluation example falls back to a
 synthetic demonstration rather than claiming a paper reproduction run.
 
+## How To Read The Benchmark Outputs
+
+The recommended C-MAPSS runs in this crate may produce visually "clean"
+headline numbers, including 100% Boundary detection, 100% Violation
+occurrence, 100% early warning, and 0% clean-window false alarms for selected
+configurations. That behavior is expected in this workflow because the example
+explicitly performs an in-benchmark parameter sweep and then reports what DSFB
+can do when calibrated for that benchmark setting.
+
+Those outputs should therefore be read narrowly. They are not presented as a
+head-to-head performance comparison against incumbent prognostic methods, and
+they are not evidence that DSFB is universally superior or deployment-ready.
+Comparator baselines, uncertainty estimates, and broader robustness studies are
+separate empirical questions and are out of scope for this crate's example
+artifacts.
+
+The purpose of these runs is different: to show the structural information that
+DSFB can expose when it is well-tuned for a residual stream. DSFB is not
+intended to compete with or replace existing probabilistic EHM, GPA, or PHM
+methods. It is intended to augment them by attaching deterministic, typed,
+human-readable structural meaning to residual behavior that is otherwise often
+thresholded away, aggregated, or left uninterpreted.
+
 ## Build Modes
 
 Typical usage in this crate is split into two layers:
