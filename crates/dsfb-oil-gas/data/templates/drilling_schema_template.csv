@@ -1,0 +1,24 @@
+# DSFB Oil & Gas — Drilling Domain Schema Template
+#
+# Domain: Rotary drilling torque monitoring (MPD / conventional).
+# Physical channel: torque residual in kN·m.
+#
+# Column definitions:
+#   timestamp         : s (elapsed from spud or Unix epoch)
+#   expected_torque   : kN·m — from torque-and-drag (T&D) model
+#   observed_torque   : kN·m — from top-drive or rotary table sensor
+#   wob               : kN   — weight on bit (contextual)
+#   rpm               : rpm  — rotary speed (contextual)
+#
+# Envelope defaults (AdmissibilityEnvelope::default_drilling()):
+#   r  ∈ [-8.0, +8.0]  kN·m
+#   δ  ∈ [-3.0, +3.0]  kN·m
+#   σ  ∈ [-20.0, +20.0] kN·m/s
+#   grazing_band = 1.5  kN·m
+#
+# Physics note: stick-slip events produce SlewSpike tokens in DSFB.
+# Bit-wear produces slow DriftAccum progression.
+# DSFB does not distinguish the physical cause; it structures the residual signal only.
+
+timestamp,expected_torque,observed_torque,wob,rpm
+# 0.000,18.0000,18.1200,150.3000,80.0000

@@ -1,0 +1,31 @@
+# DSFB Oil & Gas — Historian / SCADA Generic Tag Template
+#
+# This file documents the minimum tag schema required for any generic historian
+# or SCADA integration with the DSFB residual structuring engine.
+#
+# Column conventions:
+#   timestamp          : Unix epoch seconds (float64) or ISO-8601 string.
+#                        Required. Must be monotonically non-decreasing.
+#   expected_<signal>  : Model or setpoint value for the channel (float64).
+#                        Source: RTTM, physics model, OPC-UA model, or manual setpoint.
+#   observed_<signal>  : Live or historian-archived measurement (float64).
+#                        Source: DCS historian tag or OSIsoft PI tag.
+#   <auxiliary_1..N>   : Optional contextual columns (e.g., WOB, valve_command).
+#                        Not used by the residual engine but logged for context.
+#
+# Notes:
+#   - All values must be numeric after type conversion.  Text, status codes,
+#     and engineering-unit labels must be stripped before ingestion.
+#   - Missing values (NaN, empty string) will cause a ParseFloat error.
+#     Impute or filter upstream before passing to the DSFB loader.
+#   - The DSFB engine is read-only: it writes no tags back to the historian.
+#
+# LIMITATIONS:
+#   The DSFB framework provides NO quality assessment of sensor readings,
+#   NO calibration drift detection, and NO data-validity checking.
+#   Garbage-in produces structured garbage-out.
+
+timestamp,expected_<signal>,observed_<signal>,<auxiliary_1>,<auxiliary_2>
+# 0.000,<float>,<float>,<float>,<float>
+# 0.500,<float>,<float>,<float>,<float>
+# ...

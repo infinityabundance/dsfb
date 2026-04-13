@@ -1,0 +1,24 @@
+# DSFB Oil & Gas — Pipeline Domain Schema Template
+#
+# Domain: Subsea/surface pipeline and flowline integrity monitoring.
+# Physical channel: flow balance residual (observed − expected) in m³/h.
+#
+# Column definitions:
+#   timestamp                : s (Unix epoch or elapsed)
+#   expected_flow_balance    : m³/h — from RTTM or steady-state mass balance
+#   observed_flow_balance    : m³/h — from SCADA flow meter historian tag
+#   inlet_pressure           : bar  — upstream pressure measurement
+#   outlet_pressure          : bar  — downstream pressure measurement
+#
+# Envelope defaults (configurable via AdmissibilityEnvelope::default_pipeline()):
+#   r  ∈ [-5.0, +5.0]  m³/h
+#   δ  ∈ [-2.0, +2.0]  m³/h  (5-sample window drift)
+#   σ  ∈ [-8.0, +8.0]  m³/h/s
+#   grazing_band = 0.5  m³/h
+#
+# Typical sample interval: 30 s historian compression; DSFB works at any rate.
+# Minimum recommended: ≥ 2 samples per expected slew transient duration.
+
+timestamp,expected_flow_balance,observed_flow_balance,inlet_pressure,outlet_pressure
+# 0.000,100.0000,100.0000,52.1000,47.3000
+# 0.500,100.0000,100.1234,52.0950,47.2970
