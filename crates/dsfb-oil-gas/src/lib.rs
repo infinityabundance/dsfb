@@ -1,4 +1,24 @@
 // DSFB Oil & Gas — Library Root
+// ##############################
+// 
+// Copyright (c) 2026 Invariant Forge LLC
+//
+// 13 April 2026
+//
+// Riaan de Beer
+// Chief Research Advisor
+// Invariant Forge LLC
+// riaan@invariantforge.net
+//
+// Commercial deployment requires a separate written license. 
+// Reference implementations are released under Apache~2.0. 
+// Licensing: licensing@invariantforge.net
+//
+// https://orcid.org/0009-0006-1155-027X
+//
+// https://doi.org/10.5281/zenodo.19549262
+//
+// https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-oil-gas
 //
 // Deterministic, read-only residual structuring framework for upstream
 // and midstream oil and gas systems.
