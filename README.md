@@ -175,7 +175,8 @@ Don’t believe a sensor all at once.
 `DSFB Computer Graphics` 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-computer-graphics/colab/dsfb_computer_graphics_demo.ipynb)
 
-
+`DSFB Semiotics Calculus`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-semiotics-calculus/colab/dsfb_semiotics_calculus_figures.ipynb)
 
 `DSFB Oil & Gas`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-oil-gas/notebook/dsfb_oil_gas.ipynb)
