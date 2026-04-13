@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+title: "DSFB: Structural Residual Semiotics Engine
+for Upstream and Midstream Oil and Gas Systems"
+authors:
+  - family-names: "de Beer"
+    given-names: "Riaan"
+affiliation: "Invariant Forge LLC"
+date-released: 2026-04-13
+license: Commercial deployment requires a separate written license.  
+Reference implementations are released under Apache~2.0.  
+
+Licensing: 
+licensing@invariantforge.net
+doi: 10.5281/zenodo.19549262
+url: https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-oil-gas
