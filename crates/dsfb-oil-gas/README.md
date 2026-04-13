@@ -558,3 +558,13 @@ for Upstream and Midstream Oil and Gas Systems* (v1.0). Zenodo.
 This work constitutes prior art under 35 U.S.C. § 102, timestamped via
 Zenodo DOI <https://doi.org/10.5281/zenodo.19549262> and crates.io `dsfb-oil-gas`
 publication.
+
+## IP Notice
+
+The theoretical framework, formal constructions, and supervisory methods
+described herein constitute proprietary Background IP of Invariant Forge LLC
+(Delaware LLC No.\ 10529072), with prior art established by this publication
+and earlier Zenodo DOI publications by the same author.  Commercial deployment
+requires a separate written license.  Reference implementations are released
+under Apache~2.0.  Licensing:
+[mailto:licensing@invariantforge.net]
