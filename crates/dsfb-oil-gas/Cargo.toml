@@ -10,7 +10,7 @@ description = "DSFB deterministic residual structuring framework for Upstream an
 interpretation. The core engine is no_std + no_alloc. Unsafe code is forbidden in the library.
 Dataset loading, fleet evaluation, reporting, and executable examples are std-gated."
 keywords = ["dsfb", "oil", "gas", "drilling", "pipeline", "prognostics", "no_std"]
-categories = ["data-processing", "simulation", "command-line-utilities" ,"no-std", "science"]
+categories = ["data-structures", "simulation", "command-line-utilities" ,"no-std", "science", "embedded"]
 # ── Kani formal verification ─────────────────────────────────────────────────
 # 15 Kani harnesses are in src/kani_proofs.rs (compiled only under cfg(kani)).
 # To run all proofs:
