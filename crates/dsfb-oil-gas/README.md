@@ -546,6 +546,18 @@ Four demonstrable assurance properties, each tested:
 ## License
 
 Apache-2.0. Commercial deployment requires separate license from Invariant Forge LLC.
+Licensing:
+[licensing@invariantforge.net]
+
+
+## Real World Datasets License
+
+The third-party real-world evaluation datasets are governed by their
+respective licences: Petrobras 3W is released under CC~BY~4.0;
+Equinor Volve is released under the Equinor Volve Data Licence~V1.0;
+RPDBCS ESPset is released under the MIT License.
+None of these dataset licences govern the framework software or this
+publication.
 
 ## Paper
 
@@ -574,6 +586,8 @@ This work constitutes prior art under 35 U.S.C. § 102, timestamped via
 Zenodo DOI <https://doi.org/10.5281/zenodo.19549262> and crates.io `dsfb-oil-gas`
 publication.
 
+All rights reserved to prior-art date of public deposit.
+
 ## IP Notice
 
 The theoretical framework, formal constructions, and supervisory methods
@@ -582,4 +596,4 @@ described herein constitute proprietary Background IP of Invariant Forge LLC
 and earlier Zenodo DOI publications by the same author.  Commercial deployment
 requires a separate written license.  Reference implementations are released
 under Apache~2.0.  Licensing:
-licensing@invariantforge.net
+[licensing@invariantforge.net]
