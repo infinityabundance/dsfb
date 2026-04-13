@@ -17,6 +17,10 @@ Instead of treating a sensor as valid or invalid, DSFB treats it as trusted prop
 
 **Essentially:** *Proportional Trust Observer.*
 
+DSFB creates human readable structure from usually discarded residuals. Information from the signatures or fingerprints of noise.
+And it does it without ML or LLM (AI), meaning it is white-box and can run on the edge with minimal computational requirements.
+DSFB doesn't replace existing, proven, tried and tested sensors and methods, it augments them, and makes them even more important in as a read-only observer.
+
 ---
 
 ### ELI5
