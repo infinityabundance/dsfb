@@ -567,4 +567,4 @@ described herein constitute proprietary Background IP of Invariant Forge LLC
 and earlier Zenodo DOI publications by the same author.  Commercial deployment
 requires a separate written license.  Reference implementations are released
 under Apache~2.0.  Licensing:
-[mailto:licensing@invariantforge.net]
+licensing@invariantforge.net
