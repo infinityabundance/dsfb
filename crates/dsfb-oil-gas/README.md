@@ -557,6 +557,7 @@ for Upstream and Midstream Oil and Gas Systems* (v1.0). Zenodo.
 
 If you use this work, please cite:
 
+```
 @software{dsfb_oil_gas_2026,
   author = {de Beer, Riaan},
   title = {DSFB: Structural Residual Semiotics Engine
@@ -565,6 +566,7 @@ for Upstream and Midstream Oil and Gas Systems},
   doi = {10.5281/zenodo.19549262},
   publisher = {Zenodo}
 }
+```
 
 ## Prior Art
 
