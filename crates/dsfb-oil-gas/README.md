@@ -553,6 +553,19 @@ de Beer, R. (2026). *DSFB: Structural Residual Semiotics Engine\\
 for Upstream and Midstream Oil and Gas Systems* (v1.0). Zenodo.
 <https://doi.org/10.5281/zenodo.19549262>
 
+## Citation
+
+If you use this work, please cite:
+
+@software{dsfb_oil_gas_2026,
+  author = {de Beer, Riaan},
+  title = {DSFB: Structural Residual Semiotics Engine
+for Upstream and Midstream Oil and Gas Systems},
+  year = {2026},
+  doi = {10.5281/zenodo.19549262},
+  publisher = {Zenodo}
+}
+
 ## Prior Art
 
 This work constitutes prior art under 35 U.S.C. § 102, timestamped via
