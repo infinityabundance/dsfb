@@ -22,7 +22,6 @@ include = [
     "README.md",
 ]
 
-[workspace]
 
 [features]
 # std (default): full build — CLI, I/O, filesystem, networking, plotting,
