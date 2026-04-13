@@ -1,0 +1,15 @@
+## Intellectual Property Notice
+
+The DSFB (Drift–Slew Fusion Bootstrap) framework and its underlying methods constitute proprietary background intellectual property of Invariant Forge LLC.
+
+This repository provides an implementation of DSFB under the Apache License 2.0 for evaluation, research, and integration purposes.
+
+The open-source license applies to the code contained in this repository only and does not grant rights to the underlying DSFB framework beyond those explicitly stated.
+
+The theoretical framework, formal constructions, and supervisory methods
+described herein constitute proprietary Background IP of Invariant Forge LLC
+(Delaware LLC No.\ 10529072), with prior art established by this publication
+and earlier Zenodo DOI publications by the same author.  Commercial deployment
+requires a separate written license.  Reference implementations are released
+under Apache~2.0.  Licensing:
+\href{mailto:licensing@invariantforge.net}{\texttt{licensing@invariantforge.net}}
