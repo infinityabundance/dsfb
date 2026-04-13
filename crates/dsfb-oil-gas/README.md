@@ -1,5 +1,7 @@
 # DSFB Oil & Gas
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-oil-gas/notebook/dsfb_oil_gas.ipynb)
+
 **Drift–Slew Fusion Bootstrap (DSFB): Structural Residual Semantics for Upstream and Midstream Oil and Gas Systems**
 
 A deterministic, read-only residual structuring framework implemented in Rust, with a companion LaTeX monograph paper and a reproducible Jupyter notebook (`notebook/dsfb_oil_gas.ipynb`, regenerable via `scripts/gen_notebook.py`).
