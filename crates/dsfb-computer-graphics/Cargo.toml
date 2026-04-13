@@ -21,7 +21,6 @@ include = [
     "README.md",
 ]
 
-[workspace]
 
 [dependencies]
 bytemuck = { version = "1.16", features = ["derive"] }
