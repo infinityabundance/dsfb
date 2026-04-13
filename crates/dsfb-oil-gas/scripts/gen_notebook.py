@@ -1205,6 +1205,25 @@ cells.append(md(
     "5. **TRL 3 only.** Phase II field validation required before production use.",
 ))
 
+# ── Cell 39 ── License / citation / prior art ────────────────────────────────
+cells.append(md(
+    "## License",
+    "",
+    "Apache-2.0. Commercial deployment requires separate license from Invariant Forge LLC.",
+    "",
+    "## Citation",
+    "",
+    "de Beer, R. (2026). *DSFB: Structural Residual Semiotics Engine\\\\",
+    "for Upstream and Midstream Oil and Gas Systems* (v1.0). Zenodo.",
+    "<https://doi.org/10.5281/zenodo.19549262>",
+    "",
+    "## Prior Art",
+    "",
+    "This work constitutes prior art under 35 U.S.C. § 102, timestamped via",
+    "Zenodo DOI <https://doi.org/10.5281/zenodo.19549262> and crates.io `dsfb-oil-gas`",
+    "publication.",
+))
+
 # ── Assign sequential IDs ────────────────────────────────────────────────────
 for i, cell in enumerate(cells):
     cell['id'] = f'cell{i+1:04d}'
