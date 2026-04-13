@@ -547,7 +547,7 @@ Four demonstrable assurance properties, each tested:
 
 Apache-2.0. Commercial deployment requires separate license from Invariant Forge LLC.
 
-## Citation
+## Paper
 
 de Beer, R. (2026). *DSFB: Structural Residual Semiotics Engine\\
 for Upstream and Midstream Oil and Gas Systems* (v1.0). Zenodo.
