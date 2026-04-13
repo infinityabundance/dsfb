@@ -111,6 +111,10 @@ Don’t believe a sensor all at once.
 > *DSFB and Computer Graphics: Deterministic Structural Semiotics - A Narrow Wedge for Structural Supervision of Trust-Regulated Temporal Reuse - A Deterministic Observer Layer for Graphics Diagnostics, Auditability, and Low-Risk Integration* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.19432403]
 
+> **de Beer, R.** (2026). 
+> *DSFB: Structural Residual Semiotics Engine for Upstream and Midstream Oil and Gas Systems* (v1.0). Zenodo.
+> [https://doi.org/10.5281/zenodo.19549262]
+
 
 ---
 
