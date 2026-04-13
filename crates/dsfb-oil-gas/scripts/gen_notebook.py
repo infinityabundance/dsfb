@@ -1220,7 +1220,7 @@ cells.append(md(
     "## Prior Art",
     "",
     "This work constitutes prior art under 35 U.S.C. § 102, timestamped via",
-    "Zenodo DOI <https://doi.org/10.5281/zenodo.19549262> and crates.io `dsfb-oil-gas`",
+    "Zenodo DOI <https://doi.org/10.5281/zenodo.19549262> and crates.io dsfb-oil-gas",
     "publication.",
 ))
 
