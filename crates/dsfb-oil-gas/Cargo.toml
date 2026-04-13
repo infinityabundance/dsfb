@@ -11,6 +11,16 @@ interpretation. The core engine is no_std + no_alloc. Unsafe code is forbidden i
 Dataset loading, fleet evaluation, reporting, and executable examples are std-gated."
 keywords = ["dsfb", "oil", "gas", "drilling", "pipeline", "prognostics", "no_std"]
 categories = ["data-structures", "simulation", "command-line-utilities" ,"no-std", "science", "embedded"]
+readme = "README.md"
+include = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "src/**",
+    "examples/**",
+    "tests/**",
+    "notebook/dsfb_oil_gas.ipynb",
+]
 # ── Kani formal verification ─────────────────────────────────────────────────
 # 15 Kani harnesses are in src/kani_proofs.rs (compiled only under cfg(kani)).
 # To run all proofs:
