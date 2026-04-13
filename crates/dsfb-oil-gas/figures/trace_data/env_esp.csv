@@ -1,0 +1,8 @@
+param,value
+r_min,-0.1
+r_max,0.1
+delta_min,-0.05
+delta_max,0.05
+sigma_min,-0.3
+sigma_max,0.3
+grazing_band,0.1
