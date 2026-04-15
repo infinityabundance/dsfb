@@ -533,37 +533,49 @@ fn rewrite_public_marked_sections(
     _bundle: &PublicEvaluationBundle,
     snippets: &GeneratedPublicSnippets,
 ) -> io::Result<()> {
-    rewrite_marked_section(
+    rewrite_marked_section_if_present(
         &root.join("README.md"),
         "<!-- DSFB:README_RESULTS:BEGIN -->",
         "<!-- DSFB:README_RESULTS:END -->",
         &snippets.readme_results,
     )?;
-    rewrite_marked_section(
+    rewrite_marked_section_if_present(
         &root.join("README.md"),
         "<!-- DSFB:EVIDENCE_LEDGER:BEGIN -->",
         "<!-- DSFB:EVIDENCE_LEDGER:END -->",
         &snippets.evidence_ledger,
     )?;
-    rewrite_marked_section(
+    rewrite_marked_section_if_present(
         &root.join("paper/paper.md"),
         "<!-- DSFB:PAPER_RESULTS:BEGIN -->",
         "<!-- DSFB:PAPER_RESULTS:END -->",
         &snippets.paper_results_md,
     )?;
-    rewrite_marked_section(
+    rewrite_marked_section_if_present(
         &root.join("paper/paper.md"),
         "<!-- DSFB:PAPER_CLAIM_LEDGER:BEGIN -->",
         "<!-- DSFB:PAPER_CLAIM_LEDGER:END -->",
         &snippets.claim_ledger,
     )?;
-    rewrite_marked_section(
+    rewrite_marked_section_if_present(
         &root.join("paper/paper.md"),
         "<!-- DSFB:PAPER_AUDIT_CONTRACT:BEGIN -->",
         "<!-- DSFB:PAPER_AUDIT_CONTRACT:END -->",
         &snippets.audit_contract,
     )?;
     Ok(())
+}
+
+fn rewrite_marked_section_if_present(
+    path: &Path,
+    start_marker: &str,
+    end_marker: &str,
+    generated: &str,
+) -> io::Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+    rewrite_marked_section(path, start_marker, end_marker, generated)
 }
 
 /// Whether every reproducibility run matched the first baseline run.
