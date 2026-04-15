@@ -4,6 +4,7 @@
 ![Unsafe](https://img.shields.io/badge/unsafe-deny-brightgreen)
 ![Mode](https://img.shields.io/badge/runtime-read--only-blue)
 ![Scan](https://img.shields.io/badge/attestation-SARIF%20%2B%20DSSE-orange)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-gray/notebooks/dsfb_gray_crates_audit.ipynb)
 
 **DSFB-Gray is a deterministic Rust crate auditing system that performs structural code-quality interpretation, emits assurance scores, and produces machine-verifiable attestation artifacts.
 
