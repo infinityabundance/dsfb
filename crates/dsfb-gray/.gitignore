@@ -1,0 +1,10 @@
+# Build artifacts
+target/
+Cargo.lock
+
+# Scan output runs (regenerated, not checked in)
+output-dsfb-gray/
+
+# Re-include committed evaluation artifacts overridden by the parent *.csv rule
+!data/
+!data/*.csv

@@ -1,0 +1,55 @@
+[package]
+name = "dsfb-gray"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94"
+authors = ["Riaan de Beer <riaan@invariantforge.net>"]
+license = "Apache-2.0"
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-gray"
+documentation = "https://docs.rs/dsfb-gray"
+homepage = "https://github.com/infinityabundance/dsfb"
+readme = "README.md"
+description = """
+DSFB-Gray Structural Semiotics Engine: Deterministic Rust crate auditing with structural code-quality interpretation, assurance scoring, and attestation export.
+
+Core observer modules remain no_std-compatible when built without the default
+std feature.
+"""
+keywords = ["rust", "static-analysis", "audit", "software-assurance", "supply-chain"]
+categories = ["no-std", "algorithms", "science"]
+
+[features]
+default = ["std"]
+std = [
+    "dep:base64",
+    "dep:ed25519-dalek",
+    "dep:serde_json",
+    "dep:sha2",
+    "dep:time",
+]
+
+[dependencies]
+base64 = { version = "0.22", optional = true }
+ed25519-dalek = { version = "2", features = ["std"], optional = true }
+serde_json = { version = "1", optional = true }
+sha2 = { version = "0.10", optional = true }
+time = { version = "0.3", features = ["formatting"], optional = true }
+
+[dev-dependencies]
+loom = "0.7"
+proptest = "1"
+
+[[bin]]
+name = "dsfb-demo"
+path = "src/bin/dsfb-demo.rs"
+required-features = ["std"]
+
+[[bin]]
+name = "dsfb-scan-crate"
+path = "src/bin/dsfb-scan-crate.rs"
+required-features = ["std"]
+
+[[bin]]
+name = "dsfb-regenerate-public-artifacts"
+path = "src/bin/dsfb-regenerate-public-artifacts.rs"
+required-features = ["std"]
