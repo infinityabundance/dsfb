@@ -11,7 +11,14 @@ The release discipline for this repository is:
 
 ## Unreleased
 
-- Added `TelemetryAdapter`, static-prior support, and `ReasonEvidence` to the runtime observer surface.
-- Added reproducible public-artifact generation through `dsfb-regenerate-public-artifacts`.
-- Added generated README / paper result and evidence sections.
-- Added scan profiles, remediation guidance, evidence IDs, and derived runtime structural priors.
+## 0.1.0 — 2026-04-16
+
+Initial crates.io release.
+
+- Deterministic static crate auditing via `dsfb-scan-crate` with `dsfb-assurance-score-v1` scoring.
+- Attestation export: SARIF 2.1.0, in-toto v1, DSSE envelope.
+- 12-entry heuristic motif bank for structural code-quality interpretation.
+- Runtime observer with `TelemetryAdapter`, `StaticPriorSet`, `ReasonEvidence`.
+- Fault-injection harness: clock drift, partial partition, channel backpressure, async starvation.
+- Reproducible public-artifact generation through `dsfb-regenerate-public-artifacts`.
+- Core observer modules available in `no_std` mode.
