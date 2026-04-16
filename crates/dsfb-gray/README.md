@@ -51,6 +51,13 @@ The crate also retains a broader DSFB runtime observer framework, which can cons
 
 ## Quick Start
 
+Single command:
+
+```bash
+cargo run --bin dsfb-scan-crate tokio
+```
+
+
 ```bash
 cargo test
 cargo run --bin dsfb-demo
@@ -129,7 +136,7 @@ cargo run --bin dsfb-scan-crate -- \
     --path /path/to/tokio-1.x.x/
 ```
 
-## Outputs
+### Outputs
 
 The audit produces:
 
@@ -143,7 +150,7 @@ Artifacts are written to:
 output-dsfb-gray/<timestamp>/
 ```
 
-## Colab Notebook Execution
+### Colab Notebook Execution
 
 A companion Colab notebook:
 
@@ -153,7 +160,7 @@ A companion Colab notebook:
 - displays results inline
 - exports a ZIP of all artifacts
 
-## Determinism Note
+### Determinism Note
 
 Repeated execution on the same crate version and configuration produces identical outputs.
 
