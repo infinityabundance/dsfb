@@ -187,6 +187,9 @@ Don’t believe a sensor all at once.
 `DSFB Oil & Gas`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-oil-gas/notebook/dsfb_oil_gas.ipynb)
 
+`DSFB Gray Rust Crate Audit`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-gray/notebooks/dsfb_gray_crates_audit.ipynb)
+
 ---
 
 ## IP Notice
