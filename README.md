@@ -127,6 +127,9 @@ Don’t believe a sensor all at once.
 > *DSFB: Structural Residual Semiotics Engine for Upstream and Midstream Oil and Gas Systems* (v1.0). Zenodo.
 > [https://doi.org/10.5281/zenodo.19549262]
 
+> **de Beer, R.** (2026).
+> *DSFB Structural Semiotics Engine for Deterministic Rust Crate Auditing: A Non-Intrusive Deterministic Augmentation Layer for Structural Code Quality Interpretation and Certification Compliance Estimation* (v1.0).
+> Zenodo. [https://doi.org/10.5281/zenodo.19600872]
 
 ---
 
