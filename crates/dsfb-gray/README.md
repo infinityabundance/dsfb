@@ -343,6 +343,23 @@ This is a domain instantiation of the DSFB framework. Other instantiations:
 - [Semiconductor Process Control](https://crates.io/crates/dsfb-semiconductor) — SECOM dataset
 - [Battery Health Monitoring](https://doi.org/10.5281/zenodo.19176473) — NASA PCoE
 
+## Citation
+
+```bibtex
+@software{debeer2026dsfbgray,
+  author    = {de Beer, Riaan},
+  title     = {{DSFB Structural Semiotics Engine for Deterministic Rust Crate
+               Auditing: A Non-Intrusive Deterministic Augmentation Layer for
+               Structural Code Quality Interpretation and Certification
+               Compliance Estimation}},
+  year      = {2026},
+  version   = {1.0},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.19600872},
+  url       = {https://doi.org/10.5281/zenodo.19600872}
+}
+```
+
 ## License
 
 The theoretical framework, formal constructions, and supervisory methods described herein constitute proprietary Background IP of Invariant Forge LLC (Delaware LLC No.\ 10529072), with prior art established by this publication and earlier Zenodo DOI publications by the same author. Commercial deployment requires a separate written license. Reference implementations are released under Apache~2.0. 
