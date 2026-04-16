@@ -8,7 +8,7 @@
 
 ![DSFB Gray Audit: 93.8% strong assurance posture](https://img.shields.io/badge/DSFB%20Gray%20Audit-93.8%25-brightgreen)
 
-**DSFB-Gray is a deterministic Rust crate auditing system that performs structural code-quality interpretation, emits assurance scores, and produces machine-verifiable attestation artifacts.
+**DSFB-Gray** is a deterministic Rust crate auditing system that performs structural code-quality interpretation, emits assurance scores, and produces machine-verifiable attestation artifacts.
 
 The crate operates as a read-only audit layer over Rust source trees, generating reproducible outputs intended for code review, CI integration, and supply-chain traceability. It does not claim certification or compliance.**
 
