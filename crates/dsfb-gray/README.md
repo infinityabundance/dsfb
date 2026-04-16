@@ -57,6 +57,7 @@ Single command:
 cargo run --bin dsfb-scan-crate tokio
 ```
 
+Other Commands:
 
 ```bash
 cargo test
