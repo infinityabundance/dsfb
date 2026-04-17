@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
 use dsfb_database::adapters::DatasetAdapter;
-use dsfb_database::adapters::{ceb::Ceb, job::Job, snowset::Snowset, sqlshare::SqlShare, tpcds::TpcDs};
+use dsfb_database::adapters::{
+    ceb::Ceb, job::Job, snowset::Snowset, sqlshare::SqlShare, sqlshare_text::SqlShareText,
+    tpcds::TpcDs,
+};
 use dsfb_database::grammar::{replay, MotifClass, MotifEngine, MotifGrammar};
 use dsfb_database::metrics::evaluate;
 use dsfb_database::non_claims;
@@ -93,6 +96,7 @@ fn adapter_for(name: &str) -> Result<Box<dyn DatasetAdapter>> {
     Ok(match name {
         "snowset" => Box::new(Snowset),
         "sqlshare" => Box::new(SqlShare),
+        "sqlshare-text" => Box::new(SqlShareText),
         "ceb" => Box::new(Ceb),
         "job" => Box::new(Job),
         "tpcds" => Box::new(TpcDs),

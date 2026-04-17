@@ -103,15 +103,40 @@ output.
 
 | Dataset | Tier | License | Role |
 |---|---|---|---|
-| [Snowset](https://github.com/resource-disaggregation/snowset) | Real | CC-BY 4.0 | Workload phase + resource motifs |
-| [SQLShare](https://uwescience.github.io/sqlshare/data_release.html) | Real | CC-BY 4.0 | Real ad-hoc human SQL |
-| [CEB](https://github.com/learnedsystems/CEB) | Real (ground-truth cardinalities) | MIT | Cardinality mismatch with `EXPLAIN ANALYZE` truths |
-| [JOB](https://github.com/gregrahn/join-order-benchmark) | Controlled | MIT | Plan-regression stress on real correlated data |
-| TPC-DS (DuckDB extension) | Controlled | TPC EULA | Reproducible perturbation harness |
+| Dataset | Tier | License | Bundled sample | Full-corpus fetch |
+|---|---|---|---|---|
+| [Snowset](https://github.com/resource-disaggregation/snowset) | Real | CC-BY 4.0 | `examples/data/snowset_sample.csv` — 5 k real rows from the Cornell mirror | `scripts/fetch_snowset_subset.sh` (~7.5 GB gzipped, slices first 200 k rows) |
+| [SQLShare](https://uwescience.github.io/sqlshare/data_release.html) | Real (text-only) | CC-BY 4.0 | `examples/data/queries.txt` — full 11,136-query release | `scripts/fetch_sqlshare.sh` (S3 bucket decommissioned — falls back to the bundled file or a user-provided zip) |
+| [CEB](https://github.com/learnedsystems/CEB) | Real (ground-truth cardinalities) | MIT | `examples/data/ceb_sample.csv` — 5 k real `(actual, expected)` rows | `scripts/fetch_ceb.sh` (clones repo + pulls the CEB-IMDb pickle tarball) |
+| [JOB](https://github.com/gregrahn/join-order-benchmark) | Real (EXPLAIN ANALYZE trace) | MIT | `examples/data/job_trace_sample.csv` — all 113 JOB queries × 3 replays, real DuckDB+IMDb EXPLAIN ANALYZE | `scripts/fetch_job.sh` (downloads IMDb 1.17 GB, loads into DuckDB, runs every query) |
+| TPC-DS (DuckDB extension) | Controlled | TPC EULA | — | `scripts/build_tpcds.sh` (deterministic in-process, no download required for paper figures) |
 
-Subsetting and checksum-verified download scripts live in `scripts/`.
-The TPC-DS harness ships fully deterministic in-process — no external
-download required for the paper figures.
+All bundled samples are **real data**, sliced directly from the authoritative
+public dumps; they are large enough to exercise every motif each dataset can
+support and small enough that `cargo run --release -- run --dataset <ds>
+--path examples/data/<sample>` completes in a few seconds. The
+`scripts/fetch_*.sh` scripts pull the full corpora for anyone who wants to
+rerun at production scale — they are heavy and are not required to
+reproduce the paper's fingerprints.
+
+**SQLShare — text-only mode disclosure.** The 2015 SIGMOD release's
+richer CSV (`QueriesWithPlan.csv`, carrying `user_id` / `runtime_seconds`
+/ `submitted_at`) lived on the S3 bucket `shrquerylogs`, which has been
+decommissioned (`NoSuchBucket` as of 2026-04). The only remaining public
+artefact is the UW eScience `sqlshare_data_release1.zip`, whose
+`queries.txt` contains raw SQL texts separated by 40-underscore
+dividers — **no timing, no user id, no submission timestamp**. We
+therefore ship a narrower adapter (`--dataset sqlshare-text`) that emits
+**only** the `WorkloadPhase` motif, using Jensen-Shannon divergence
+between skeleton-histograms of consecutive 200-query ordinal buckets.
+This is **structural-ordering JSD, not temporal drift**: the `t` axis is
+ordinal-bucket-index (scaled for plot consistency), not wall-clock. The
+`PlanRegression`, `Cardinality`, `Contention`, and `CacheIo` classes are
+absent for this dataset — the public release does not carry the fields
+required to construct them, and fabricating those fields would be a
+category error. Streams from this adapter carry the
+`sqlshare-text@<file>` source tag so downstream reports cannot confuse
+them with wall-clock-indexed SQLShare runs.
 
 ---
 
@@ -172,9 +197,9 @@ paper is updated. This is the technical mechanism behind the
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-database/colab/dsfb_database_repro.ipynb)
 
 Tier-1 reproduction with no local install: the notebook at
-`colab/dsfb_database_repro.ipynb` clones the repo, builds the crate, runs
-the controlled-perturbation pipeline, and surfaces the same CSV / JSON /
-PNG artefacts that `scripts/reproduce_paper.sh` produces locally.
+`colab/dsfb_database_repro.ipynb` clones the repo, builds the crate, and
+runs the controlled-perturbation pipeline, producing the CSV / JSON / PNG
+artefacts.
 
 ---
 

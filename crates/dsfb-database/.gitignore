@@ -5,10 +5,14 @@ target/
 out/
 
 # Operator-supplied real data (Snowset shards, real pg_stat_statements
-# dumps) — never commit. The bundled redacted sample under
-# `examples/data/` is the only data file that ships with the crate.
+# dumps) — never commit. The bundled real-data samples under
+# `examples/data/` are the only data files that ship with the crate.
 /data/
 !examples/data/
+# Parent .gitignore has a blanket `*.csv` rule — re-include the
+# bundled real-data samples.
+!examples/data/*.csv
+!examples/data/*.txt
 
 # LaTeX build artefacts
 paper/*.aux

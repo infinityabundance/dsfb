@@ -1,22 +1,28 @@
 //! Snowset adapter (Vuppalapati et al., NSDI 2020).
 //!
-//! Real subset: CSV files distributed at
-//! [github.com/resource-disaggregation/snowset](https://github.com/resource-disaggregation/snowset),
-//! columns (subset used here):
-//!   * `queryId`, `warehouseId`, `databaseId`
-//!   * `createdTime`, `endTime` (epoch microseconds)
-//!   * `compilationTime`, `executionTime`, `queueTime` (microseconds)
-//!   * `bytesScannedFromCache`, `bytesScannedFromStorage`
-//!   * `usrCpuTime`, `sysCpuTime`
+//! Real subset: CSV distributed at
+//! [github.com/resource-disaggregation/snowset](https://github.com/resource-disaggregation/snowset)
+//! (mirror: `http://www.cs.cornell.edu/~midhul/snowset/snowset-main.csv.gz`),
+//! verified schema (2026-04) for the columns this adapter touches:
+//!   * `queryId`, `warehouseId`
+//!   * `createdTime` — ISO-8601 UTC string with microsecond precision,
+//!     e.g. `2018-03-02 14:44:02.768000+00:00`
+//!   * `execTime` — query execution time in microseconds
+//!   * `persistentReadBytesCache` — bytes served from the persistent
+//!     cache (the analogue of the earlier-documented
+//!     `bytesScannedFromCache`)
+//!   * `persistentReadBytesS3` — bytes read from S3 (the analogue of
+//!     `bytesScannedFromStorage`)
 //!
 //! What we extract:
-//!   * `PlanRegression` — `executionTime − rolling_baseline(executionTime)`
-//!     per `(warehouseId, queryId)` pair (proxy for query class — Snowset
-//!     anonymises SQL text per fact #16).
+//!   * `PlanRegression` — `execTime − rolling_baseline(execTime)`
+//!     per `(warehouseId, queryId)` pair (proxy for query class —
+//!     Snowset anonymises SQL text per fact #16).
 //!   * `WorkloadPhase` — JS divergence over the per-warehouse query-class
 //!     histogram in 5-minute buckets.
-//!   * `CacheIo` — `bytesScannedFromStorage / (bytes…Cache + bytes…Storage)`
-//!     drift (cache-miss-rate residual).
+//!   * `CacheIo` — `persistentReadBytesS3 /
+//!     (persistentReadBytesCache + persistentReadBytesS3)` drift
+//!     (cache-miss-rate residual).
 //!
 //! What we cannot extract (paper says so explicitly):
 //!   * `Cardinality` — Snowset does not publish `est_rows`/`actual_rows`.
@@ -27,6 +33,7 @@ use crate::residual::{
     cache_io, plan_regression, workload_phase, ResidualStream,
 };
 use anyhow::{Context, Result};
+use chrono::DateTime;
 use rand::SeedableRng;
 use rand::Rng;
 use std::collections::{HashMap, VecDeque};
@@ -35,19 +42,38 @@ use std::path::Path;
 pub struct Snowset;
 
 #[derive(Debug, serde::Deserialize)]
-struct Row {
+struct RawRow {
     #[serde(rename = "queryId")]
     query_id: String,
     #[serde(rename = "warehouseId")]
     warehouse_id: String,
     #[serde(rename = "createdTime")]
-    created_time_us: f64,
-    #[serde(rename = "executionTime")]
-    execution_time_us: f64,
-    #[serde(default, rename = "bytesScannedFromCache")]
+    created_time: String,
+    #[serde(rename = "execTime")]
+    exec_time_us: f64,
+    #[serde(default, rename = "persistentReadBytesCache")]
     bytes_cache: f64,
-    #[serde(default, rename = "bytesScannedFromStorage")]
+    #[serde(default, rename = "persistentReadBytesS3")]
     bytes_storage: f64,
+}
+
+struct Row {
+    query_id: String,
+    warehouse_id: String,
+    created_time_us: f64,
+    execution_time_us: f64,
+    bytes_cache: f64,
+    bytes_storage: f64,
+}
+
+fn parse_created_time(s: &str) -> Option<f64> {
+    // Snowset ships UTC timestamps with microsecond precision, e.g.
+    // "2018-03-02 14:44:02.768000+00:00". chrono parses both the
+    // hyphen-offset ("+00:00") and the Z form.
+    let parsed = DateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f%:z")
+        .or_else(|_| DateTime::parse_from_rfc3339(s))
+        .ok()?;
+    Some(parsed.timestamp_micros() as f64)
 }
 
 impl DatasetAdapter for Snowset {
@@ -60,14 +86,24 @@ impl DatasetAdapter for Snowset {
             .with_context(|| format!("opening snowset subset at {}", path.display()))?;
         let mut rows: Vec<Row> = Vec::new();
         for r in rdr.deserialize() {
-            let row: Row = match r {
+            let raw: RawRow = match r {
                 Ok(r) => r,
                 Err(_) => continue, // tolerate malformed rows
             };
-            if !row.execution_time_us.is_finite() || !row.created_time_us.is_finite() {
+            let Some(created_time_us) = parse_created_time(&raw.created_time) else {
+                continue;
+            };
+            if !raw.exec_time_us.is_finite() {
                 continue;
             }
-            rows.push(row);
+            rows.push(Row {
+                query_id: raw.query_id,
+                warehouse_id: raw.warehouse_id,
+                created_time_us,
+                execution_time_us: raw.exec_time_us,
+                bytes_cache: raw.bytes_cache,
+                bytes_storage: raw.bytes_storage,
+            });
         }
         rows.sort_by(|a, b| {
             a.created_time_us

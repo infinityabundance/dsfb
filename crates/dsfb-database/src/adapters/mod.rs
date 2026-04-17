@@ -29,6 +29,7 @@ pub mod job;
 pub mod postgres;
 pub mod snowset;
 pub mod sqlshare;
+pub mod sqlshare_text;
 pub mod tpcds;
 
 /// Trait for the five dataset adapters.
