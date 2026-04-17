@@ -167,6 +167,17 @@ paper is updated. This is the technical mechanism behind the
 
 ---
 
+## Colab
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-database/colab/dsfb_database_repro.ipynb)
+
+Tier-1 reproduction with no local install: the notebook at
+`colab/dsfb_database_repro.ipynb` clones the repo, builds the crate, runs
+the controlled-perturbation pipeline, and surfaces the same CSV / JSON /
+PNG artefacts that `scripts/reproduce_paper.sh` produces locally.
+
+---
+
 ## Citing
 
 See `CITATION.cff`. The companion paper (`paper/dsfb-database.tex` +
