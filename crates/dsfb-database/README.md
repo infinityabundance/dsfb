@@ -2,6 +2,7 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![MSRV: 1.74](https://img.shields.io/badge/MSRV-1.74-orange.svg)](Cargo.toml)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-database/colab/dsfb_database_repro.ipynb)
 
 A deterministic, read-only structural observer for residual trajectories in
 SQL database telemetry. Built on the
@@ -185,3 +186,12 @@ Changelog: see [`CHANGELOG.md`](CHANGELOG.md).
 ## License
 
 Apache-2.0. See `LICENSE`.
+
+## IP Notice
+
+The theoretical framework, formal constructions, and supervisory methods
+described herein constitute proprietary Background IP of Invariant Forge LLC
+(Delaware LLC No. 10529072), with prior art established by this publication and
+earlier Zenodo DOI publications by the same author. Commercial deployment
+requires a separate written license. Reference implementations are released
+under Apache 2.0. Licensing: licensing@invariantforge.net
