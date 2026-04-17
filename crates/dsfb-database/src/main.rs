@@ -187,8 +187,53 @@ fn reproduce(seed: u64, out: PathBuf) -> Result<()> {
     for m in MotifClass::ALL {
         let title = format!("TPC-DS perturbed: {} residuals + episodes", m.name());
         let path = out.join(format!("tpcds.{}.png", m.name()));
-        plots::plot_residual_overlay(&path, &title, &stream, m.residual_class(), &episodes, m)?;
+        let p = grammar.params(m);
+        plots::plot_residual_overlay(
+            &path,
+            &title,
+            &stream,
+            m.residual_class(),
+            &episodes,
+            m,
+            p.slew_threshold,
+            p.drift_threshold,
+        )?;
+        // Companion figures: per-channel small multiples + episode
+        // distribution. Skipped when the motif emitted no samples or no
+        // episodes (the plotters render honest empty states but we prefer
+        // not to spam the out/ directory with them for the controlled
+        // harness).
+        if stream.iter_class(m.residual_class()).next().is_some() {
+            let ch_title = format!(
+                "TPC-DS perturbed: per-channel residual strips ({})",
+                m.name()
+            );
+            plots::plot_channel_small_multiples(
+                &out.join(format!("tpcds.{}.channels.png", m.name())),
+                &ch_title,
+                &stream,
+                m.residual_class(),
+                &episodes,
+                m,
+                8,
+            )?;
+        }
+        if episodes.iter().any(|e| e.motif == m) {
+            plots::plot_episode_distribution(
+                &out.join(format!("tpcds.{}.distribution.png", m.name())),
+                &format!("TPC-DS perturbed: episode peak + duration distribution ({})", m.name()),
+                &episodes,
+                m,
+            )?;
+        }
     }
+    // Episode summary table across all motifs.
+    plots::plot_episode_summary_table(
+        &out.join("tpcds.summary_table.png"),
+        "TPC-DS perturbed: motif × channel episode count",
+        &episodes,
+        6,
+    )?;
     // Pipeline funnel: raw samples -> naive slew-threshold crossings ->
     // DSFB episodes. Replaces the compression-by-motif bar chart, which
     // was just sample-density in disguise. The funnel exposes the
@@ -534,7 +579,17 @@ fn exemplar(dataset: &str, seed: u64, out: PathBuf) -> Result<()> {
         }
         let title = format!("{} exemplar: {} residuals + episodes", dataset, m.name());
         let path = out.join(format!("{dataset}.exemplar.{}.png", m.name()));
-        plots::plot_residual_overlay(&path, &title, &stream, m.residual_class(), &episodes, m)?;
+        let p = grammar.params(m);
+        plots::plot_residual_overlay(
+            &path,
+            &title,
+            &stream,
+            m.residual_class(),
+            &episodes,
+            m,
+            p.slew_threshold,
+            p.drift_threshold,
+        )?;
     }
     Ok(())
 }
@@ -543,24 +598,80 @@ fn run_real(dataset: &str, path: PathBuf, out: PathBuf) -> Result<()> {
     let adapter = adapter_for(dataset)?;
     let stream = adapter.load(&path)?;
     let grammar = MotifGrammar::default();
-    let engine = MotifEngine::new(grammar);
+    let engine = MotifEngine::new(grammar.clone());
     let episodes = engine.run(&stream);
     fs::create_dir_all(&out)?;
     write_provenance(&out.join(format!("{dataset}.provenance.txt")), &stream.source)?;
     write_episodes_csv(&out.join(format!("{dataset}.episodes.csv")), &episodes)?;
 
-    // Emit per-motif PNG residual overlays for any class with samples,
-    // so a real-data run produces the same figure shape the paper uses
-    // for the controlled tier. Captions identify the source as real
-    // (no `[exemplar]` tag) so a reader cannot confuse the two.
+    // Emit per-motif PNG residual overlays + companion per-channel
+    // small multiples + per-motif episode distribution figures. Captions
+    // identify the source as real (no `[exemplar]` tag).
     for m in MotifClass::ALL {
         let count = stream.iter_class(m.residual_class()).count();
         if count == 0 {
             continue;
         }
+        let p = grammar.params(m);
         let title = format!("{dataset} (real shard): {} residuals + episodes", m.name());
-        let path = out.join(format!("{dataset}.{}.png", m.name()));
-        plots::plot_residual_overlay(&path, &title, &stream, m.residual_class(), &episodes, m)?;
+        let overlay_path = out.join(format!("{dataset}.{}.png", m.name()));
+        plots::plot_residual_overlay(
+            &overlay_path,
+            &title,
+            &stream,
+            m.residual_class(),
+            &episodes,
+            m,
+            p.slew_threshold,
+            p.drift_threshold,
+        )?;
+
+        // Per-channel strip figure — only when there is >1 distinct
+        // channel with non-degenerate residuals; single-channel streams
+        // (e.g. sqlshare-text) are already fully described by the
+        // overlay figure.
+        let chan_count = stream
+            .iter_class(m.residual_class())
+            .map(|s| s.channel.as_deref().unwrap_or(""))
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        if chan_count > 1 {
+            let ch_title = format!(
+                "{dataset} (real shard): per-channel residual strips ({})",
+                m.name()
+            );
+            plots::plot_channel_small_multiples(
+                &out.join(format!("{dataset}.{}.channels.png", m.name())),
+                &ch_title,
+                &stream,
+                m.residual_class(),
+                &episodes,
+                m,
+                8,
+            )?;
+        }
+
+        // Distribution figure — only when there is at least one episode
+        // for this motif (otherwise the histograms are empty).
+        if episodes.iter().any(|e| e.motif == m) {
+            plots::plot_episode_distribution(
+                &out.join(format!("{dataset}.{}.distribution.png", m.name())),
+                &format!(
+                    "{dataset} (real shard): episode peak + duration distribution ({})",
+                    m.name()
+                ),
+                &episodes,
+                m,
+            )?;
+        }
+    }
+    if !episodes.is_empty() {
+        plots::plot_episode_summary_table(
+            &out.join(format!("{dataset}.summary_table.png")),
+            &format!("{dataset} (real shard): motif × channel episode count"),
+            &episodes,
+            6,
+        )?;
     }
 
     eprintln!("real-data run: {} episodes from {}", episodes.len(), stream.source);
