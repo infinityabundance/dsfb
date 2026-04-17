@@ -1,0 +1,44 @@
+# Motif grammar — published baseline parameters for DSFB-Database.
+#
+# These parameters are the ones used in every figure and table in the paper.
+# Operators may refit them to their workload via the same controlled
+# perturbation harness (`crate::perturbation`); the elasticity sweep
+# (`cargo run --release -- elasticity`) reports F1 sensitivity at +-20 %.
+#
+# The schema matches `crate::grammar::MotifGrammar` so this file deserialises
+# directly with `MotifGrammar::from_yaml`.
+
+plan_regression_onset:
+  rho: 0.9
+  sigma0: 0.05
+  drift_threshold: 0.20      # relative latency drift (fraction of baseline)
+  slew_threshold: 0.50       # relative latency slew  (fraction of baseline)
+  min_dwell_seconds: 5.0
+
+cardinality_mismatch_regime:
+  rho: 0.9
+  sigma0: 0.05
+  drift_threshold: 0.50      # log10(act/est); 0.50 = 3.16x sustained mismatch
+  slew_threshold: 1.00       # log10(act/est); 1.00 = 10x instantaneous mismatch
+  min_dwell_seconds: 2.0
+
+contention_ramp:
+  rho: 0.85
+  sigma0: 0.01
+  drift_threshold: 0.05      # seconds of EMA-smoothed wait
+  slew_threshold: 0.50       # seconds of instantaneous wait
+  min_dwell_seconds: 1.0
+
+cache_collapse:
+  rho: 0.9
+  sigma0: 0.02
+  drift_threshold: 0.10      # absolute hit-ratio drop (fraction)
+  slew_threshold: 0.30       # absolute hit-ratio drop (fraction)
+  min_dwell_seconds: 5.0
+
+workload_phase_transition:
+  rho: 0.9
+  sigma0: 0.02
+  drift_threshold: 0.15      # Jensen-Shannon divergence (bits, 0..1)
+  slew_threshold: 0.35       # JSD (bits, 0..1)
+  min_dwell_seconds: 30.0

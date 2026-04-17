@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+title: "DSFB-Database: A Deterministic, Read-Only Structural Observer for Residual Trajectories in SQL Database Telemetry"
+message: "If you use this software or paper, please cite both this entry and the upstream DSFB core crate."
+type: software
+authors:
+  - family-names: "DSFB Authors"
+    affiliation: "Infinity Abundance"
+repository-code: "https://github.com/infinityabundance/dsfb"
+abstract: >-
+  DSFB-Database is an empirical prior-art demonstration of the
+  Drift-Slew Fusion Bootstrap (DSFB) used as a deterministic, read-only
+  structural observer over residuals already emitted by SQL database
+  engines (PostgreSQL pg_stat_statements / pg_stat_io, SQL Server
+  Query Store + DMVs, MySQL Performance Schema, Oracle ASH/AWR).
+  Five operator-legible motif classes (plan-regression onset,
+  cardinality-mismatch regime, contention ramp, cache/buffer collapse,
+  workload phase transition) are emitted as a replayable episode
+  stream with bytewise-deterministic SHA256 fingerprints. Evaluated on
+  five public datasets: Snowset, SQLShare, CEB, JOB, and TPC-DS via a
+  controlled perturbation harness.
+keywords:
+  - "drift-slew fusion bootstrap"
+  - "DSFB"
+  - "database observability"
+  - "performance forensics"
+  - "PostgreSQL"
+  - "SQL Server Query Store"
+  - "ASH"
+  - "Performance Schema"
+license: Apache-2.0
+version: 0.1.0
+date-released: 2026-04-16
+references:
+  - type: software
+    title: "dsfb (Drift-Slew Fusion Bootstrap, core crate)"
+    repository-code: "https://github.com/infinityabundance/dsfb"
+    version: 0.1.2

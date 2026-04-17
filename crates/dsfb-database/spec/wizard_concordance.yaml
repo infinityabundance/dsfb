@@ -1,0 +1,306 @@
+# Concordance between the 50 expert SQL truths from
+# `paperstack/50 things.txt` and the DSFB-Database motif grammar. Every
+# fact maps to (a) a motif class it informs, (b) a telemetry surface where
+# the underlying residual lives, and (c) a one-line operator implication.
+# Appendix A of the paper renders this file directly as a table.
+
+facts:
+  - id: 1
+    title: estimated_vs_actual_rows
+    motif: CardinalityMismatchRegime
+    surface: SQL Server sys.dm_exec_query_plan EstimateRows/ActualRows; Oracle V$SQL_PLAN_STATISTICS_ALL OUTPUT_ROWS; PostgreSQL EXPLAIN ANALYZE
+    implication: Canonical SQL residual; the entire cardinality motif is built around it.
+
+  - id: 2
+    title: single_column_stats_insufficient
+    motif: CardinalityMismatchRegime
+    surface: PostgreSQL CREATE STATISTICS (dependencies, ndistinct, mcv)
+    implication: Cardinality mismatch despite freshness flags column-correlation breakage as a structured motif.
+
+  - id: 3
+    title: mcv_histograms_lossy
+    motif: CardinalityMismatchRegime
+    surface: PostgreSQL pg_stats; SQL Server statistics histograms
+    implication: Optimiser already operates from compressed approximations; DSFB watches where they stop being trustworthy.
+
+  - id: 4
+    title: physical_logical_correlation
+    motif: PlanRegressionOnset
+    surface: PostgreSQL pg_stats.correlation
+    implication: Same predicate, different access path -> different latency; deep planner residual, not noise.
+
+  - id: 5
+    title: prepared_generic_vs_custom
+    motif: PlanRegressionOnset
+    surface: PostgreSQL plan_cache_mode; pg_prepared_statements
+    implication: Generic-vs-custom plan switch is a regime shift the latency residual must catch.
+
+  - id: 6
+    title: parameter_sensitive_plan
+    motif: PlanRegressionOnset
+    surface: SQL Server PSP optimisation; sys.query_store_runtime_stats per parameter set
+    implication: One cached plan can be wrong for different parameter regimes; motif catches the latency reaction.
+
+  - id: 7
+    title: local_variables_poison_estimates
+    motif: CardinalityMismatchRegime
+    surface: SQL Server architecture guide; query_text patterns in Query Store
+    implication: Density-average estimates create a recognisable cardinality-residual signature.
+
+  - id: 8
+    title: ascending_key_out_of_range
+    motif: CardinalityMismatchRegime
+    surface: SQL Server statistics auto-update; PostgreSQL pg_stats freshness
+    implication: Fresh-data estimate fracture is a temporal motif, not a generic anomaly.
+
+  - id: 9
+    title: stats_present_semantically_stale
+    motif: CardinalityMismatchRegime
+    surface: pg_stat_user_tables.last_analyze + per-query est/actual gap
+    implication: Stats freshness is not binary; DSFB models the gap, not the flag.
+
+  - id: 10
+    title: plan_change_plus_behaviour_plus_waits
+    motif: PlanRegressionOnset
+    surface: SQL Server Query Store query/plan/runtime/wait history
+    implication: A plan-hash transition without latency or wait reaction is not an episode.
+
+  - id: 11
+    title: spill_onset_vs_chronic
+    motif: CacheCollapse
+    surface: SQL Server sort/hash warnings; tempdb spill events
+    implication: Spill onset, chronic spill regime, spill recovery are distinct motifs over the same residual.
+
+  - id: 12
+    title: overgrant_reduces_concurrency
+    motif: ContentionRamp
+    surface: SQL Server memory grant DMVs
+    implication: Watch undergrant AND overgrant residuals; both reduce throughput.
+
+  - id: 13
+    title: memory_grant_feedback_disable
+    motif: PlanRegressionOnset
+    surface: SQL Server query_store_query.is_memory_grant_feedback_disabled
+    implication: An adaptive mechanism gave up; treat as a governance regime, not an anomaly.
+
+  - id: 14
+    title: compilation_waits_blind_spot
+    motif: PlanRegressionOnset
+    surface: Query Store wait stats omit compilation
+    implication: High-CPU events can be compile-driven; report telemetry holes explicitly.
+
+  - id: 15
+    title: parallel_exchange_spill
+    motif: CacheCollapse
+    surface: SQL Server parallel query Exchange Spill warnings
+    implication: Specific parallel pathology with its own latency-and-tempdb signature.
+
+  - id: 16
+    title: digest_normalised_classes
+    motif: WorkloadPhaseTransition
+    surface: MySQL Performance Schema statement digests; pg_stat_statements queryid
+    implication: Group similar SQL into workload classes before measuring phase shifts.
+
+  - id: 17
+    title: digest_histograms
+    motif: WorkloadPhaseTransition
+    surface: MySQL events_statements_histogram_by_digest
+    implication: Latency-shape changes inform the workload phase residual.
+
+  - id: 18
+    title: nested_event_hierarchy
+    motif: ContentionRamp
+    surface: MySQL Performance Schema (waits in stages in statements in transactions)
+    implication: Use the engine's structural language; do not invent a parallel one.
+
+  - id: 19
+    title: ash_active_session_sampling
+    motif: ContentionRamp
+    surface: Oracle V$ACTIVE_SESSION_HISTORY (1 s sampling); AWR persistence
+    implication: Wait-centric tuning is the real craft; treat ASH samples as the contention residual stream.
+
+  - id: 20
+    title: innodb_intention_locks
+    motif: ContentionRamp
+    surface: MySQL information_schema.innodb_locks; performance_schema.metadata_locks
+    implication: Multigranular locking demands an engine-aware contention motif.
+
+  - id: 21
+    title: gap_locks_next_key
+    motif: ContentionRamp
+    surface: MySQL InnoDB lock monitor; data_locks
+    implication: Range-contention amplification is recognisable to MySQL operators.
+
+  - id: 22
+    title: deadlock_buildup_before_snapshot
+    motif: ContentionRamp
+    surface: innodb_print_all_deadlocks; SQL Server xml_deadlock_report
+    implication: Detect the ramp, not just the snapshot.
+
+  - id: 23
+    title: blocked_by_chain_object
+    motif: ContentionRamp
+    surface: MySQL data_lock_waits; SQL Server sys.dm_os_waiting_tasks
+    implication: Follow lock-dependency structure; chain depth is its own residual.
+
+  - id: 24
+    title: wait_taxonomies_semantic
+    motif: ContentionRamp
+    surface: Oracle wait_class; SQL Server wait_type categories
+    implication: Reuse the engine wait taxonomies in the motif channel naming.
+
+  - id: 25
+    title: compile_vs_execute_waits
+    motif: PlanRegressionOnset
+    surface: Query Store omits compile waits
+    implication: Holes in telemetry are part of the motif description.
+
+  - id: 26
+    title: throughput_flatten_before_error
+    motif: ContentionRamp
+    surface: pg_stat_database.xact_commit + waits
+    implication: Concurrency collapse looks like flat throughput before the error spike.
+
+  - id: 27
+    title: lock_pathologies_masquerade
+    motif: ContentionRamp
+    surface: ASH causal ordering of waits and CPU
+    implication: Causal ordering is required to demix lock vs CPU vs I/O explanations.
+
+  - id: 28
+    title: table_lock_cascading
+    motif: ContentionRamp
+    surface: MySQL table-level locking; SHOW PROCESSLIST
+    implication: Modern locking is not row-level only; keep the contention motif general.
+
+  - id: 29
+    title: read_phenomena_engine_specific
+    motif: ContentionRamp
+    surface: MVCC + isolation level matrices
+    implication: "'Repeatable read' has different contention signatures across engines."
+
+  - id: 30
+    title: vacuum_debt_accumulation
+    motif: CacheCollapse
+    surface: pg_stat_all_tables.n_dead_tup; autovacuum logs
+    implication: MVCC bloat amplifies I/O; second-order coupling to cache motif.
+
+  - id: 31
+    title: txid_wraparound_anti_catastrophe
+    motif: WorkloadPhaseTransition
+    surface: "PostgreSQL pg_stat_activity (autovacuum: aggressive)"
+    implication: Some performance events are anti-catastrophe maintenance; treat as their own phase.
+
+  - id: 32
+    title: hot_updates_index_pressure
+    motif: CardinalityMismatchRegime
+    surface: pg_stat_all_tables.n_tup_hot_upd
+    implication: Update intensity vs heap/index churn residual.
+
+  - id: 33
+    title: checkpoint_smoothing
+    motif: CacheCollapse
+    surface: pg_stat_bgwriter; checkpoint_timeout / checkpoint_completion_target
+    implication: Checkpoint-coupled stalls are a specific I/O motif.
+
+  - id: 34
+    title: page_8k_locality
+    motif: CacheCollapse
+    surface: pg_stat_all_tables; pgstattuple
+    implication: Bloat / fill / locality are physical-level residuals.
+
+  - id: 35
+    title: autovacuum_fts_pending
+    motif: CacheCollapse
+    surface: pg_stat_user_tables; gin_pending_list
+    implication: "Second-order coupling: autovacuum cadence vs FTS pending list."
+
+  - id: 36
+    title: innodb_purge_lag_history_list
+    motif: ContentionRamp
+    surface: InnoDB History list length
+    implication: MVCC debt buildup; DML can be delayed.
+
+  - id: 37
+    title: maintenance_as_workload_phase
+    motif: WorkloadPhaseTransition
+    surface: AWR; pg_stat_progress_*
+    implication: Segment maintenance debt repayment as a phase, not noise.
+
+  - id: 38
+    title: analyze_vacuum_stat_hygiene
+    motif: CardinalityMismatchRegime
+    surface: pg_stat_user_tables.last_analyze
+    implication: Hygiene change is causal context for cardinality residual.
+
+  - id: 39
+    title: pg_stat_io_v16
+    motif: CacheCollapse
+    surface: PostgreSQL pg_stat_io (v16+)
+    implication: Funded systems can read more direct I/O residuals than pre-2023 papers.
+
+  - id: 40
+    title: top_sql_alone_insufficient
+    motif: PlanRegressionOnset
+    surface: pg_stat_statements + waits join
+    implication: DSFB value is the structural fusion of top SQL and waits.
+
+  - id: 41
+    title: digest_default_ingest_unit
+    motif: WorkloadPhaseTransition
+    surface: MySQL digest_text; pg_stat_statements normalised query
+    implication: Consume normalised classes by default; brittle SQL strings second.
+
+  - id: 42
+    title: per_query_waits
+    motif: ContentionRamp
+    surface: SQL Server query_store_wait_stats
+    implication: "'Query class is CPU-bound' vs 'instance is busy' is a critical operational distinction."
+
+  - id: 43
+    title: telemetry_version_fragility
+    motif: WorkloadPhaseTransition
+    surface: PostgreSQL release notes; wait_event renames
+    implication: Schema/version drift in telemetry itself; motif must tolerate it.
+
+  - id: 44
+    title: adaptive_features_exclude_each_other
+    motif: PlanRegressionOnset
+    surface: SQL Server CE feedback disabled when plan forced
+    implication: Detect 'adaptive assistance unavailable' as a motif state.
+
+  - id: 45
+    title: forced_plan_governance_regime
+    motif: PlanRegressionOnset
+    surface: SQL Server sys.query_store_plan.is_forced_plan
+    implication: Forced-plan windows are their own regime; treat as governance state.
+
+  - id: 46
+    title: layered_observability_stack
+    motif: PlanRegressionOnset
+    surface: pg_stat_statements + Query Store + ASH + Performance Schema
+    implication: Be explicit about which layer the residual is read from.
+
+  - id: 47
+    title: residuals_typed_by_consequence
+    motif: PlanRegressionOnset
+    surface: aggregate operator narrative
+    implication: Type residuals by operator consequence (PSP fracture, vacuum debt, etc.), not by metric family.
+
+  - id: 48
+    title: narrow_engine_aware_observer
+    motif: PlanRegressionOnset
+    surface: Query Store + pg_stat_statements + Performance Schema + AWR
+    implication: Strongest prior-art demo is engine-aware observation, not universal claim.
+
+  - id: 49
+    title: replayable_grammar_of_health_states
+    motif: PlanRegressionOnset
+    surface: motif episode stream
+    implication: Compact, replayable grammar is the operator pitch.
+
+  - id: 50
+    title: serious_pitch_complement_not_replace
+    motif: PlanRegressionOnset
+    surface: read-only sidecar deployment
+    implication: Read-only complement to existing engines is the licensable form.

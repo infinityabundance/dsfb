@@ -1,0 +1,74 @@
+# Perturbation injection windows for the controlled-evaluation pipeline.
+#
+# These windows ARE the ground truth for §8 of the paper — each one
+# corresponds to exactly one motif class so the F1 / TTD / FAR table is
+# unambiguous. The harness in `crate::perturbation::tpcds_with_perturbations`
+# reads this file and the values below MUST match the constants in that file
+# (the `tests/non_claim_lock.rs` test pins them).
+
+trace:
+  source: "tpcds-perturbed"
+  duration_seconds: 1800
+  baseline_query_count: 99
+  random_seed_default: 42
+
+perturbations:
+  - name: latency_injection_q42
+    class: LatencyInjection
+    motif: PlanRegressionOnset
+    t_start: 200
+    t_end: 280
+    channel: q42
+    magnitude: 6.0
+    description: >
+      q42 latency held at ~6x baseline for 80 s. Motivation: fact #11 from
+      the paperstack — "plan change alone is not the event"; we test whether
+      the motif fires on sustained latency drift even without a plan-change
+      impulse.
+
+  - name: statistics_staleness_q17
+    class: StatisticsStaleness
+    motif: CardinalityMismatchRegime
+    t_start: 600
+    t_end: 720
+    channel: q17
+    magnitude: 30.0
+    description: >
+      q17 cardinality estimate held at 1/30 of actual rows for 120 s.
+      Motivation: fact #1 — estimated vs actual rows is the canonical SQL
+      residual. CEB ground truth uses the same residual encoding.
+
+  - name: lock_hold_row_lock
+    class: LockHold
+    motif: ContentionRamp
+    t_start: 900
+    t_end: 1020
+    channel: row_lock
+    magnitude: 1.5
+    description: >
+      Linear wait-time ramp 0.05 -> 1.55 s on wait_event=row_lock; chain
+      depth grows 1 -> 5. Motivation: facts #24-32 — multigranular locking,
+      lock chain depth, deadlock build-up motif.
+
+  - name: cache_eviction_storage
+    class: CacheEviction
+    motif: CacheCollapse
+    t_start: 1200
+    t_end: 1320
+    channel: tpcds
+    magnitude: 0.45
+    description: >
+      Hit ratio drops 0.95 -> 0.50 for 120 s. Motivation: fact #44 — pg_stat_io
+      hit/eviction residuals; SQL Server buffer pool descriptors.
+
+  - name: workload_shift_jsd
+    class: WorkloadShift
+    motif: WorkloadPhaseTransition
+    t_start: 1500
+    t_end: 1680
+    channel: tpcds
+    magnitude: 0.4
+    description: >
+      Per-bucket Jensen-Shannon divergence elevated to ~0.45 for 180 s.
+      Motivation: fact #19 — MySQL Performance Schema digests; SQL Server
+      query_hash; PostgreSQL queryid normalise statement classes.
