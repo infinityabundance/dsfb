@@ -30,7 +30,5 @@ pub fn push(
     let est = estimated_rows.max(1.0);
     let act = actual_rows.max(1.0);
     let q = (act / est).log10();
-    stream.push(
-        ResidualSample::new(t, ResidualClass::Cardinality, q).with_channel(qclass),
-    );
+    stream.push(ResidualSample::new(t, ResidualClass::Cardinality, q).with_channel(qclass));
 }

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 //! # dsfb-database
 //!
 //! Deterministic, read-only structural observer over residual trajectories in
@@ -27,12 +29,15 @@
 //! compile-time test (`tests/non_claim_lock.rs`).
 
 pub mod adapters;
+pub mod baselines;
 pub mod grammar;
 pub mod metrics;
+pub mod metrics_exporter;
 pub mod non_claims;
 pub mod perturbation;
 pub mod report;
 pub mod residual;
+pub mod streaming;
 
 pub use grammar::{Episode, MotifClass, MotifEngine, MotifGrammar};
 pub use residual::{ResidualClass, ResidualSample, ResidualStream};

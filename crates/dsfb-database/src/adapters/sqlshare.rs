@@ -67,76 +67,131 @@ fn skeleton(q: &str) -> String {
     out.trim().to_string()
 }
 
+/// Upper bound on SQLShare rows loaded. The released SQLShare dataset
+/// has ~24k queries; 100M is a ~4000× cap that still rejects pathological
+/// or corrupted inputs without silently truncating realistic traces.
+const MAX_SQLSHARE_ROWS: usize = 100_000_000;
+
+/// Rolling-baseline window for per-skeleton plan-regression deltas.
+const PLAN_BASELINE_WIN: usize = 32;
+
+/// Workload-phase bucket width in seconds (one day).
+const PHASE_BUCKET_SECONDS: f64 = 86_400.0;
+
+/// Max characters retained from the normalised skeleton when building
+/// the per-user channel label. Keeps labels reviewable and bounded.
+const SKELETON_LABEL_MAX: usize = 64;
+
+fn load_sqlshare_rows(path: &Path) -> Result<Vec<Row>> {
+    let mut rdr = csv::Reader::from_path(path)
+        .with_context(|| format!("opening sqlshare csv at {}", path.display()))?;
+    let mut rows: Vec<Row> = rdr
+        .deserialize()
+        .filter_map(Result::ok)
+        .take(MAX_SQLSHARE_ROWS)
+        .collect();
+    debug_assert!(rows.len() <= MAX_SQLSHARE_ROWS, "iterator bound enforced");
+    rows.sort_by(|a, b| {
+        a.submitted_at
+            .partial_cmp(&b.submitted_at)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    Ok(rows)
+}
+
+fn emit_sqlshare_residuals(stream: &mut ResidualStream, rows: &[Row], t0: f64) {
+    debug_assert!(t0.is_finite(), "t0 must be finite");
+    let mut baselines: HashMap<(String, String), VecDeque<f64>> = HashMap::new();
+    let mut histos: HashMap<String, HashMap<String, u64>> = HashMap::new();
+    let mut prev_histos: HashMap<String, HashMap<String, u64>> = HashMap::new();
+    let mut current_bucket: i64 = 0;
+
+    for r in rows.iter() {
+        let t = r.submitted_at - t0;
+        let sk = skeleton(&r.query_text);
+        emit_plan_regression_sample(stream, &mut baselines, r, t, &sk);
+
+        let bucket = (t / PHASE_BUCKET_SECONDS) as i64;
+        if bucket != current_bucket {
+            flush_histogram_deltas(stream, &histos, &prev_histos, current_bucket);
+            prev_histos = std::mem::take(&mut histos);
+            current_bucket = bucket;
+        }
+        *histos
+            .entry(r.user_id.clone())
+            .or_default()
+            .entry(sk)
+            .or_insert(0) += 1;
+    }
+}
+
+fn emit_plan_regression_sample(
+    stream: &mut ResidualStream,
+    baselines: &mut HashMap<(String, String), VecDeque<f64>>,
+    r: &Row,
+    t: f64,
+    sk: &str,
+) {
+    debug_assert!(r.runtime_seconds.is_finite(), "runtime must be finite");
+    debug_assert!(t.is_finite(), "t must be finite");
+    let key = (r.user_id.clone(), sk.to_string());
+    let q = baselines.entry(key).or_default();
+    let baseline = if q.is_empty() {
+        r.runtime_seconds
+    } else {
+        q.iter().sum::<f64>() / q.len() as f64
+    };
+    plan_regression::push_latency(
+        stream,
+        t,
+        &format!("{}#{}", r.user_id, &sk[..sk.len().min(SKELETON_LABEL_MAX)]),
+        r.runtime_seconds,
+        baseline,
+    );
+    q.push_back(r.runtime_seconds);
+    if q.len() > PLAN_BASELINE_WIN {
+        q.pop_front();
+    }
+    debug_assert!(
+        q.len() <= PLAN_BASELINE_WIN,
+        "rolling-window bound enforced"
+    );
+}
+
+fn flush_histogram_deltas(
+    stream: &mut ResidualStream,
+    histos: &HashMap<String, HashMap<String, u64>>,
+    prev_histos: &HashMap<String, HashMap<String, u64>>,
+    current_bucket: i64,
+) {
+    debug_assert!(current_bucket >= 0, "bucket index is non-negative");
+    for (u, h) in histos.iter() {
+        if let Some(prev) = prev_histos.get(u) {
+            let d = workload_phase::js_divergence(prev, h);
+            debug_assert!((0.0..=1.0).contains(&d), "JSD is in [0,1]");
+            workload_phase::push_jsd(stream, current_bucket as f64 * PHASE_BUCKET_SECONDS, u, d);
+        }
+    }
+}
+
 impl DatasetAdapter for SqlShare {
     fn name(&self) -> &'static str {
         "sqlshare"
     }
 
     fn load(&self, path: &Path) -> Result<ResidualStream> {
-        let mut rdr = csv::Reader::from_path(path)
-            .with_context(|| format!("opening sqlshare csv at {}", path.display()))?;
-        let mut rows: Vec<Row> = rdr.deserialize().filter_map(Result::ok).collect();
-        rows.sort_by(|a, b| {
-            a.submitted_at
-                .partial_cmp(&b.submitted_at)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        let rows = load_sqlshare_rows(path)?;
+        debug_assert!(
+            !rows.is_empty(),
+            "non-empty input implied by csv parse success"
+        );
         let t0 = rows.first().map(|r| r.submitted_at).unwrap_or(0.0);
+        debug_assert!(t0.is_finite(), "t0 must be finite");
         let mut stream = ResidualStream::new(format!(
             "sqlshare@{}",
             path.file_name().and_then(|n| n.to_str()).unwrap_or("?")
         ));
-        let mut baselines: HashMap<(String, String), VecDeque<f64>> = HashMap::new();
-        const WIN: usize = 32;
-        let mut histos: HashMap<String, HashMap<String, u64>> = HashMap::new();
-        let mut prev_histos: HashMap<String, HashMap<String, u64>> = HashMap::new();
-        let mut current_bucket: i64 = 0;
-        let bucket_seconds = 86400.0;
-
-        for r in &rows {
-            let t = r.submitted_at - t0;
-            let sk = skeleton(&r.query_text);
-            let key = (r.user_id.clone(), sk.clone());
-            let q = baselines.entry(key.clone()).or_default();
-            let baseline = if q.is_empty() {
-                r.runtime_seconds
-            } else {
-                q.iter().sum::<f64>() / q.len() as f64
-            };
-            plan_regression::push_latency(
-                &mut stream,
-                t,
-                &format!("{}#{}", r.user_id, &sk[..sk.len().min(64)]),
-                r.runtime_seconds,
-                baseline,
-            );
-            q.push_back(r.runtime_seconds);
-            if q.len() > WIN {
-                q.pop_front();
-            }
-
-            let bucket = (t / bucket_seconds) as i64;
-            if bucket != current_bucket {
-                for (u, h) in &histos {
-                    if let Some(prev) = prev_histos.get(u) {
-                        let d = workload_phase::js_divergence(prev, h);
-                        workload_phase::push_jsd(
-                            &mut stream,
-                            current_bucket as f64 * bucket_seconds,
-                            u,
-                            d,
-                        );
-                    }
-                }
-                prev_histos = std::mem::take(&mut histos);
-                current_bucket = bucket;
-            }
-            *histos
-                .entry(r.user_id.clone())
-                .or_default()
-                .entry(sk)
-                .or_insert(0) += 1;
-        }
+        emit_sqlshare_residuals(&mut stream, &rows, t0);
         stream.sort();
         Ok(stream)
     }
@@ -147,7 +202,13 @@ impl DatasetAdapter for SqlShare {
         // 5 users; each has 200 queries spread over 5 days; user 3 develops a
         // long-running ad-hoc query starting at day 3.
         let users = ["alice", "bob", "carol", "dave", "eve"];
-        let qskeletons = ["select count from t", "join a b", "group by x", "where y", "subselect"];
+        let qskeletons = [
+            "select count from t",
+            "join a b",
+            "group by x",
+            "where y",
+            "subselect",
+        ];
         for (u, user) in users.iter().enumerate() {
             for q in 0..200 {
                 let t = (q as f64) * 86400.0 / 200.0 * 5.0 + (u as f64) * 30.0;

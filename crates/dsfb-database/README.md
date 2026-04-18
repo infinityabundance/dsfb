@@ -140,6 +140,178 @@ them with wall-clock-indexed SQLShare runs.
 
 ---
 
+## Operator runbook (production deployment)
+
+The ten-line quickstart above gets one CSV through the pipe. This section
+covers the rest: feature flags, the OpenTelemetry adapter, the streaming
+ingestor, Prometheus exposition, per-motif threshold tuning, and alerting
+hooks. Everything here is additive to the batch path — the four pinned
+fingerprint locks continue to construct via the canonical batch
+`ResidualStream::push` → `sort` sequence.
+
+### Feature profiles
+
+The crate is feature-gated so library consumers can opt out of CLI,
+plotting, JSON, and OTel payload surface they do not need. `cargo tree
+--depth 1` reports ≤10 direct dependencies on the default profile.
+
+| Feature | Pulls | When to enable |
+|---|---|---|
+| `cli` *(default)* | `clap` | The bundled `dsfb-database` binary and the nine auxiliary binaries (`variance_sweep`, `pr_sweep`, `null_trace`, `baseline_bake_off`, `inject_over_real`, `ingest_throughput`, `ablation_sweep`, `tpc_c_generalization`). |
+| `report` | `plotters`, `serde_json` | PNG figure emission and JSON sidecar artefacts. Required by the main binary and `pr_sweep`. |
+| `otel` | `serde_json` | The OpenTelemetry DB-spans adapter at [src/adapters/otel.rs](src/adapters/otel.rs). |
+| `full` | all of the above | Convenience superset: `cargo install dsfb-database --features full`. |
+
+Library-mode consumers who only want the motif grammar and the batch
+adapters should depend on `dsfb-database` with `default-features = false`.
+
+### OpenTelemetry DB-spans adapter (`--features otel`)
+
+The OTel adapter consumes a JSON array of simplified DB spans and emits
+`PlanRegression` residuals from per-`statement_hash` duration drift. The
+shape is forward-compatible with `otel-collector`'s OTLP/JSON DB-span
+export:
+
+```json
+[
+  {"t_start_ns": 1700000000000000000, "t_end_ns": 1700000000050000000,
+   "statement_hash": "a1b2c3", "db_system": "postgresql"},
+  {"t_start_ns": 1700000001000000000, "t_end_ns": 1700000001048000000,
+   "statement_hash": "a1b2c3", "db_system": "postgresql"}
+]
+```
+
+```rust
+use dsfb_database::adapters::otel::load_otel_db_spans;
+let stream = load_otel_db_spans(std::path::Path::new("spans.json"))?;
+```
+
+Baseline is the first `BASELINE_WINDOW = 3` observed durations per
+`statement_hash`; subsequent samples emit a `log(duration / baseline)`
+residual. Emission order is deterministic (hashes sorted; ties broken on
+`t_start_ns`). Non-positive durations are dropped. A production
+`otel-collector` pipeline that writes a rolling JSON file consumed by
+this adapter is the lowest-friction way to get live OTel signal into the
+motif grammar today; a native OTLP/gRPC ingestor is deferred to a pilot
+LOI.
+
+### Streaming ingestor and reorder-window tuning
+
+`StreamingIngestor` at [src/streaming.rs](src/streaming.rs) accepts
+samples one at a time and flushes a correctly-ordered prefix as the
+reorder window slides forward:
+
+```rust
+use dsfb_database::streaming::StreamingIngestor;
+let mut ing = StreamingIngestor::new("pg_stat_statements@prod-01");
+ing.push(sample);
+// ... later ...
+let (stream, dropped_out_of_window) = ing.finish();
+```
+
+The default window is 10 s (`DEFAULT_REORDER_WINDOW_S`). Sizing guidance:
+
+| Telemetry source | Typical cadence | Suggested window |
+|---|---|---|
+| `pg_stat_statements` poll | 60 s | 10 s (≈6× margin — default) |
+| `pg_stat_io` poll | 10 s | 2 s |
+| OTel DB spans (batched) | sub-second | 1 s |
+| Log-tail adapter (file-based) | async bursty | 30 s |
+
+Any sample whose `t` falls more than `reorder_window_s` behind the
+already-flushed frontier is **dropped** and counted in
+`dropped_out_of_window`. The streaming path is **parallel** to batch; it
+is not expected to produce the batch path's pinned fingerprint on
+jitter-bearing inputs (that is why batch is the reproducibility baseline).
+
+### Prometheus / OpenMetrics exposition
+
+[src/metrics_exporter.rs](src/metrics_exporter.rs) renders a
+deterministic OpenMetrics 1.0 text blob from a `MetricsSnapshot`:
+
+```rust
+use dsfb_database::metrics_exporter::{MetricsSnapshot, render_openmetrics};
+let snap = MetricsSnapshot::from_episodes(&closed_episodes)
+    .with_streaming(&ingestor);
+let body = render_openmetrics(&snap);
+```
+
+No HTTP runtime is pulled in. Three wiring options, each under 100
+lines, cover the realistic deployment shapes:
+
+1. **Plain `std::net::TcpListener` loop** — one accept loop, read until
+   `\r\n\r\n`, respond with `HTTP/1.1 200 OK\r\nContent-Type: application/openmetrics-text; version=1.0.0; charset=utf-8\r\n\r\n{body}`.
+   Zero extra dependencies.
+2. **`tiny_http` crate** — add `tiny_http = "0.12"`, bind `:9184`, respond
+   to every request with the body. One page of code; survives 100 rps
+   scraping easily.
+3. **Textfile collector (recommended for hardened environments)** —
+   write the body atomically to `/var/lib/node_exporter/dsfb.prom` on a
+   timer; `node_exporter`'s `textfile` collector picks it up. No extra
+   listener, no extra port, no extra CVE surface.
+
+Exposed metrics:
+
+- `dsfb_episodes_total{motif}` — counter, per-motif episodes emitted.
+- `dsfb_episode_peak_last{motif}` — gauge, `|peak|` of the most recently
+  closed episode.
+- `dsfb_episode_trust_sum_last{motif}` — gauge, observer trust-sum at
+  the episode boundary. **Should stay in [0.99, 1.01]**; deviations
+  indicate an observer bug.
+- `dsfb_streaming_residuals_staged` — gauge, current reorder-buffer
+  occupancy.
+- `dsfb_streaming_residuals_flushed_total` — counter.
+- `dsfb_streaming_residuals_dropped_out_of_window_total` — counter.
+  **Any non-zero value is alertable**: it means the telemetry pipeline's
+  jitter exceeds the configured reorder window; raise
+  `reorder_window_s` or fix the upstream cadence.
+
+### Per-motif envelope tuning
+
+The default `MotifParams` (`drift_threshold=1.0`, `slew_threshold=1.0`,
+`min_dwell_seconds=30`, `rho=0.90`, `sigma0=0.10`) are the values used
+for the pinned fingerprints and the published F1 results. The
+`ablation_sweep` binary reports which knobs each motif is most sensitive
+to:
+
+- `plan_regression`, `contention`, `cache_collapse` are stable under
+  ±50% envelope sweeps (F1 = 1.0 across the tested range).
+- `cardinality_mismatch` and `workload_phase_transition` recall collapse
+  above `slew_threshold ≥ 1.5×`. For workloads where these two motifs
+  matter, keep the envelope within the pre-registered band.
+
+Start with defaults. If false-alarm rate on a quiet null trace exceeds
+the per-motif bounds cited in the paper's §6.3 (`null_trace` calibration),
+raise `drift_threshold` by 0.1 at a time. If detection latency is too
+high on a known incident, lower `min_dwell_seconds` — never below 10 s
+for `pg_stat_statements`-class telemetry (you will see poll-jitter
+episodes).
+
+### Alerting
+
+A minimal PagerDuty / Slack integration reads the CSV episode stream
+(`out/episodes.csv`) and fires one event per row. A more integrated
+deployment scrapes `dsfb_episodes_total{motif}` and alerts on a non-zero
+delta within a 5-minute window — this de-duplicates naturally and leaves
+the full episode record (peak, `trust_sum`, channel, `t_start`/`t_end`)
+in the Prometheus history for post-incident review. Always alert on
+`dsfb_streaming_residuals_dropped_out_of_window_total > 0`; it is the
+telemetry-pipeline health signal, not a motif signal.
+
+### What is intentionally not shipped yet
+
+- A live `pg_stat_statements` daemon (polling a running Postgres on a
+  configurable interval) is deferred to a pilot LOI. The offline adapter
+  at [src/adapters/postgres.rs](src/adapters/postgres.rs) handles the
+  same CSV schema a psql `\copy` cron produces, so the near-term
+  deployment path is `cron` + the offline adapter.
+- Helm chart and Docker image are deferred for the same reason: the
+  right ergonomics (values-file layout, sidecar vs. daemonset, secret
+  handling) are deployment-shape-specific and are best drawn from a
+  real pilot environment rather than synthesised up front.
+
+---
+
 ## Architecture
 
 ```

@@ -231,7 +231,7 @@ mod tests {
             );
         }
         // Two bucket-boundary residuals for three full buckets.
-        assert_eq!(stream.samples.iter().count(), 2);
+        assert_eq!(stream.samples.len(), 2);
     }
 
     #[test]

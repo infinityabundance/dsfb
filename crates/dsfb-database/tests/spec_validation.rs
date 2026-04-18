@@ -51,8 +51,8 @@ fn motif_camel_names() -> HashSet<&'static str> {
 fn motifs_yaml_parses_as_grammar_and_round_trips() {
     let yaml = fs::read_to_string(spec_path("motifs.yaml"))
         .expect("spec/motifs.yaml must be present alongside the crate");
-    let g: MotifGrammar = serde_yaml::from_str(&yaml)
-        .expect("spec/motifs.yaml must deserialise as MotifGrammar");
+    let g: MotifGrammar =
+        serde_yaml::from_str(&yaml).expect("spec/motifs.yaml must deserialise as MotifGrammar");
     // Cross-check that the YAML defines parameters for every MotifClass —
     // round-tripping through `params(class)` is the surest way to detect a
     // missing top-level section.
@@ -81,8 +81,8 @@ struct PerturbationEntry {
 fn perturbations_yaml_motifs_resolve_to_real_classes() {
     let yaml = fs::read_to_string(spec_path("perturbations.yaml"))
         .expect("spec/perturbations.yaml must be present");
-    let parsed: PerturbationsFile = serde_yaml::from_str(&yaml)
-        .expect("spec/perturbations.yaml must deserialise");
+    let parsed: PerturbationsFile =
+        serde_yaml::from_str(&yaml).expect("spec/perturbations.yaml must deserialise");
     let valid = motif_camel_names();
     assert_eq!(
         parsed.perturbations.len(),
@@ -115,8 +115,8 @@ struct ConcordanceFact {
 fn wizard_concordance_yaml_motifs_resolve_to_real_classes() {
     let yaml = fs::read_to_string(spec_path("wizard_concordance.yaml"))
         .expect("spec/wizard_concordance.yaml must be present");
-    let parsed: ConcordanceFile = serde_yaml::from_str(&yaml)
-        .expect("spec/wizard_concordance.yaml must deserialise");
+    let parsed: ConcordanceFile =
+        serde_yaml::from_str(&yaml).expect("spec/wizard_concordance.yaml must deserialise");
     let valid = motif_camel_names();
     assert!(
         !parsed.facts.is_empty(),

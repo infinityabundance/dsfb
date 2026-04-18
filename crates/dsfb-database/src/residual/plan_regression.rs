@@ -28,9 +28,7 @@ pub fn push_latency(
 ) {
     let denom = baseline.abs().max(1e-9);
     let r = (latency - baseline) / denom;
-    stream.push(
-        ResidualSample::new(t, ResidualClass::PlanRegression, r).with_channel(qclass),
-    );
+    stream.push(ResidualSample::new(t, ResidualClass::PlanRegression, r).with_channel(qclass));
 }
 
 /// Mark a plan-hash transition. This is encoded as a unit-impulse residual on

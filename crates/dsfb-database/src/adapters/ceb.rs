@@ -26,6 +26,11 @@ use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Upper bound on the number of CEB rows loaded from a CSV. The
+/// published CEB release is ~13k rows; this ~7000× headroom catches
+/// runaway input without silently truncating realistic datasets.
+const MAX_CEB_ROWS: usize = 100_000_000;
+
 pub struct Ceb;
 
 #[derive(Debug, serde::Deserialize)]
@@ -44,7 +49,12 @@ impl DatasetAdapter for Ceb {
     fn load(&self, path: &Path) -> Result<ResidualStream> {
         let mut rdr = csv::Reader::from_path(path)
             .with_context(|| format!("opening ceb csv at {}", path.display()))?;
-        let mut rows: Vec<Row> = rdr.deserialize().filter_map(Result::ok).collect();
+        let mut rows: Vec<Row> = rdr
+            .deserialize()
+            .filter_map(Result::ok)
+            .take(MAX_CEB_ROWS)
+            .collect();
+        debug_assert!(rows.len() <= MAX_CEB_ROWS, "iterator bound enforced");
         rows.sort_by(|a, b| a.query_id.cmp(&b.query_id));
         let mut stream = ResidualStream::new(format!(
             "ceb@{}",
@@ -98,13 +108,7 @@ impl DatasetAdapter for Ceb {
                 } else {
                     true_rows * (1.0 + rng.gen_range(-0.1..0.1))
                 };
-                cardinality::push(
-                    &mut stream,
-                    t,
-                    &format!("sp{sp}"),
-                    est_rows,
-                    true_rows,
-                );
+                cardinality::push(&mut stream, t, &format!("sp{sp}"), est_rows, true_rows);
             }
         }
         stream.sort();

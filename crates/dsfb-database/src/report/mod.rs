@@ -2,12 +2,19 @@
 //! paper includes verbatim. Every report header embeds the crate version
 //! and the non-claim block so a reviewer can verify provenance.
 
+// `plots` renders PNG figures via `plotters`; it is gated behind the
+// `report` feature so library-mode consumers opt out of the full
+// figure-rendering toolchain (font-kit, cm-super, etc.). Binaries that
+// use `plots` (main, pr_sweep) set `required-features = ["report"]`.
+#[cfg(feature = "report")]
 pub mod plots;
 
 use crate::grammar::Episode;
 use crate::metrics::PerMotifMetrics;
 use crate::non_claims;
-use anyhow::{Context, Result};
+#[cfg(feature = "report")]
+use anyhow::Context;
+use anyhow::Result;
 use serde::Serialize;
 use std::fs::{self, File};
 use std::io::Write;
@@ -87,7 +94,12 @@ pub fn write_metrics_csv(path: &Path, metrics: &[PerMotifMetrics]) -> Result<()>
     Ok(())
 }
 
-pub fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<()> {
+/// JSON sidecar emitter (pretty-printed). Gated behind `report` so the
+/// library's default dependency tree does not carry `serde_json`. Main
+/// and any binary that writes JSON artefacts must declare
+/// `required-features = ["report"]`.
+#[cfg(feature = "report")]
+pub fn write_json<T: Serialize + ?Sized>(path: &Path, value: &T) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }

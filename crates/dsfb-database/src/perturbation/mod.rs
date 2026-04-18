@@ -80,7 +80,13 @@ pub fn tpcds_with_perturbations_scaled(
         let est_rows = true_rows * (1.0 + rng.gen_range(-0.08..0.08));
         cardinality::push(&mut stream, t, &qid, est_rows, true_rows);
         plan_regression::push_latency(&mut stream, t, &qid, 50.0 + rng.gen_range(-2.0..2.0), 50.0);
-        cache_io::push_hit_ratio(&mut stream, t, "tpcds", 0.95, 0.95 + rng.gen_range(-0.005..0.005));
+        cache_io::push_hit_ratio(
+            &mut stream,
+            t,
+            "tpcds",
+            0.95,
+            0.95 + rng.gen_range(-0.005..0.005),
+        );
     }
 
     // 1) Latency injection — at scale=1.0 q42 latency runs at 6× baseline.

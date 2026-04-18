@@ -112,8 +112,13 @@ impl ResidualStream {
     }
 
     pub fn sort(&mut self) {
-        self.samples
-            .sort_by(|a, b| a.t.partial_cmp(&b.t).expect("residual t is finite"));
+        self.samples.sort_by(|a, b| {
+            debug_assert!(
+                a.t.is_finite() && b.t.is_finite(),
+                "residual t must be finite"
+            );
+            a.t.partial_cmp(&b.t).unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
 
     pub fn len(&self) -> usize {
@@ -127,16 +132,17 @@ impl ResidualStream {
     pub fn duration(&self) -> f64 {
         match (self.samples.first(), self.samples.last()) {
             (Some(a), Some(b)) => b.t - a.t,
-            _ => 0.0,
+            (None, None) => 0.0,
+            (None, Some(_)) | (Some(_), None) => {
+                debug_assert!(false, "first/last disagree on emptiness");
+                0.0
+            }
         }
     }
 
     /// View-only iterator over samples of a single class (used by the
     /// per-motif state machines).
-    pub fn iter_class(
-        &self,
-        class: ResidualClass,
-    ) -> impl Iterator<Item = &ResidualSample> + '_ {
+    pub fn iter_class(&self, class: ResidualClass) -> impl Iterator<Item = &ResidualSample> + '_ {
         self.samples.iter().filter(move |s| s.class == class)
     }
 

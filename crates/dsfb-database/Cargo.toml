@@ -1,4 +1,5 @@
 [workspace]
+exclude = ["fuzz"]
 
 # IP Notice. The theoretical framework, formal constructions, and supervisory
 # methods described herein constitute proprietary Background IP of Invariant
@@ -20,6 +21,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/infinityabundance/dsfb"
 homepage = "https://github.com/infinityabundance/dsfb"
+documentation = "https://docs.rs/dsfb-database"
 keywords = ["dsfb", "database", "observability", "residual", "sql"]
 categories = ["science", "command-line-utilities"]
 include = [
@@ -35,23 +37,59 @@ include = [
     "CITATION.cff",
 ]
 
+# Phase-C7: library-mode consumers pay for core adapter + grammar +
+# metrics + fingerprint machinery only. The `cli` feature adds `clap`
+# for the bundled binaries; the `report` feature adds `plotters` +
+# `serde_json` for PNG/JSON emission. `full` is the convenience
+# superset users get from `cargo install dsfb-database --features full`.
+# `cargo tree --depth 1` on default features reports ≤10 direct
+# dependencies; `--features report` stays ≤13 (Phase-C DoD).
+[features]
+default = ["cli"]
+cli = ["dep:clap"]
+report = ["dep:plotters", "dep:serde_json"]
+# Phase-C1: OpenTelemetry DB-spans ingestor. Adds a JSON-array adapter
+# for a simplified OTel DB-span shape that is forward-compatible with
+# the OTLP/JSON export format used by `otel-collector` in 2026 (see
+# `src/adapters/otel.rs` for the shape). Pulls `serde_json`.
+otel = ["dep:serde_json"]
+full = ["cli", "report", "otel"]
+
 [dependencies]
 dsfb = "0.1.2"
 anyhow = "1"
-thiserror = "1"
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive"], optional = true }
 csv = "1.3"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", optional = true }
 serde_yaml = "0.9"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 sha2 = "0.10"
 rand = "0.8"
 rand_pcg = "0.3"
-plotters = { version = "0.3", default-features = false, features = ["bitmap_backend", "bitmap_encoder", "line_series", "ttf"] }
+# plotters: `ttf` feature is required because in plotters 0.3.7 the
+# default `FontData::draw` stub panics with "The font implementation is
+# unable to draw text" — see
+# plotters-0.3.7/src/style/font/mod.rs:75. Dropping the ttf feature
+# disables *all* caption / axis / annotation text rendering, which
+# makes every PNG emitter in this crate unusable. We accept the
+# font-kit dylib-resolution surface that PLUGIN-LOAD flags: the
+# trade-off is honestly in favour of producing the figures the paper
+# cites. Phase-C7 feature-gates `plotters` behind the `report`
+# feature so library-mode consumers can opt out.
+plotters = { version = "0.3", default-features = false, features = ["bitmap_backend", "bitmap_encoder", "line_series", "ttf"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"
+# Property-testing: `arbtest` is used in `tests/property_envelope_arbtest.rs`
+# to cross-validate the kani proofs of `grammar::envelope::classify` with
+# randomised shrinkable cases.
+arbtest = "0.3"
+# Concurrency exploration: `loom` is used in `tests/concurrent_stream_loom.rs`
+# to verify that a cloned `ResidualStream` read from two threads is
+# observationally equivalent to a single-threaded read. The crate itself
+# is single-threaded; loom documents the absence of shared-state hazards.
+loom = "0.7"
 
 [lib]
 name = "dsfb_database"
@@ -60,6 +98,91 @@ path = "src/lib.rs"
 [[bin]]
 name = "dsfb-database"
 path = "src/main.rs"
+# Main binary emits figures (plotters) and JSON sidecars (serde_json),
+# so it needs both `cli` and `report`.
+required-features = ["cli", "report"]
+
+# Phase-A1: multi-seed variance sweep. Runs the controlled TPC-DS
+# perturbation pipeline across seeds 1..=N and reports mean/stddev/min/
+# max for every per-motif metric. Produces artefacts outside the pinned
+# fingerprint path (out/variance.csv); the single-seed fingerprint lock
+# is untouched.
+[[bin]]
+name = "variance_sweep"
+path = "src/bin/variance_sweep.rs"
+required-features = ["cli"]
+
+# Phase-A2: precision/recall/F1 sweep over the (drift, slew)
+# thresholds. Emits one CSV + one PNG per motif, plus the baseline
+# operating point marked on each figure. Produces artefacts outside the
+# pinned fingerprint path (out/pr.<motif>.csv, out/pr.<motif>.png).
+[[bin]]
+name = "pr_sweep"
+path = "src/bin/pr_sweep.rs"
+# PR sweep emits PNG figures — requires the `report` feature in
+# addition to `cli`.
+required-features = ["cli", "report"]
+
+# Phase-A3: false-alarm calibration on a Gaussian null trace. Runs the
+# motif grammar on a pure-noise residual stream across a seed range and
+# reports per-motif mean false-alarms-per-hour with a 95% CI. Produces
+# artefacts outside the pinned fingerprint path (out/null.csv).
+[[bin]]
+name = "null_trace"
+path = "src/bin/null_trace.rs"
+required-features = ["cli"]
+
+# Phase-A4: bake-off vs. published change-point baselines (ADWIN,
+# BOCPD, PELT) on the same TPC-DS perturbation stream. Emits one CSV per
+# motif comparing dsfb-database against each baseline under identical
+# scoring. Produces artefacts outside the pinned fingerprint path
+# (out/bakeoff.<motif>.csv).
+[[bin]]
+name = "baseline_bake_off"
+path = "src/bin/baseline_bake_off.rs"
+required-features = ["cli"]
+
+# Phase-B1: inject one parametric perturbation onto each adapter's
+# real-shaped exemplar (Snowset, SQLShare, CEB, JOB) and measure
+# per-(carrier, motif, scale) detection latency and onset-localization
+# error against the injected ground truth. Produces artefacts outside
+# the pinned fingerprint path (out/inject_over_real.csv).
+[[bin]]
+name = "inject_over_real"
+path = "src/bin/inject_over_real.rs"
+required-features = ["cli"]
+
+# Phase-B5: cost / overhead benchmark. Replicates the seed-42 TPC-DS
+# perturbation stream up to the target residual count, times
+# MotifEngine::run, and reports throughput, per-step mean latency,
+# and peak resident set size. Produces artefacts outside the pinned
+# fingerprint path (out/cost.csv).
+[[bin]]
+name = "ingest_throughput"
+path = "src/bin/ingest_throughput.rs"
+required-features = ["cli"]
+
+# Phase-B4: one-at-a-time motif-parameter ablation. Sweeps each of
+# the five MotifParams knobs independently per motif and reports per-
+# (motif, parameter, probe) precision / recall / F1. Produces
+# artefacts outside the pinned fingerprint path
+# (out/ablation.<motif>.csv).
+[[bin]]
+name = "ablation_sweep"
+path = "src/bin/ablation_sweep.rs"
+required-features = ["cli"]
+
+# Phase-B2: TPC-C generalization replay through the unchanged
+# pg_stat_statements adapter. Synthesises a TPC-C-shaped snapshot CSV
+# (a workload shape the envelope was never tuned against), plants two
+# ground-truth perturbations (plan regression + workload-phase
+# concentration), and reports per-motif episode counts plus
+# localization against the planted windows. Produces artefacts outside
+# the pinned fingerprint path (out/tpc_c_generalization.csv).
+[[bin]]
+name = "tpc_c_generalization"
+path = "src/bin/tpc_c_generalization.rs"
+required-features = ["cli"]
 
 [profile.release]
 opt-level = 3

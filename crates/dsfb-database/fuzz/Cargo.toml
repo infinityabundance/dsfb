@@ -1,0 +1,43 @@
+[package]
+name = "dsfb-database-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+dsfb-database = { path = ".." }
+tempfile = "3"
+
+[[bin]]
+name = "pg_stat_statements_csv"
+path = "fuzz_targets/pg_stat_statements_csv.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sqlshare_text"
+path = "fuzz_targets/sqlshare_text.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "adapter_malformed"
+path = "fuzz_targets/adapter_malformed.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "motif_params"
+path = "fuzz_targets/motif_params.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

@@ -34,14 +34,19 @@ use dsfb_database::grammar::{replay, MotifClass, MotifEngine, MotifGrammar};
 use std::path::Path;
 
 fn main() -> Result<()> {
-    let csv_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/data/pg_stat_statements_sample.csv");
+    let csv_path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/data/pg_stat_statements_sample.csv");
     let stream = load_pg_stat_statements(&csv_path)?;
     println!("loaded residual stream: {}", stream.source);
     println!("samples: {}", stream.samples.len());
+    // `.take(SHA256_HEX_BYTES)` is an explicit finite-source bound: the
+    // fingerprint is exactly 32 bytes (SHA-256 output). The bound also
+    // satisfies dsfb-gray's ITER-UNB audit without silently truncating.
+    const SHA256_HEX_BYTES: usize = 32;
     let stream_fp = stream
         .fingerprint()
         .iter()
+        .take(SHA256_HEX_BYTES)
         .map(|b| format!("{:02x}", b))
         .collect::<String>();
     println!("stream fingerprint = {}", stream_fp);
@@ -85,7 +90,10 @@ fn main() -> Result<()> {
         "episode fingerprint drift: motif state machine or adapter changed"
     );
 
-    println!("OK: {} plan_regression_onset episode(s) detected.", regressions);
+    println!(
+        "OK: {} plan_regression_onset episode(s) detected.",
+        regressions
+    );
     println!("OK: stream + episode fingerprints match pinned values.");
     Ok(())
 }

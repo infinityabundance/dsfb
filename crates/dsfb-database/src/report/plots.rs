@@ -33,10 +33,7 @@ fn stats_of(values: impl Iterator<Item = f64>) -> (f64, f64, f64, f64) {
 /// simultaneous cardinality episodes across query ids — each at alpha
 /// 0.10 stacks to effectively opaque red).
 fn merge_intervals(intervals: impl IntoIterator<Item = (f64, f64)>) -> Vec<(f64, f64)> {
-    let mut xs: Vec<(f64, f64)> = intervals
-        .into_iter()
-        .filter(|(a, b)| b >= a)
-        .collect();
+    let mut xs: Vec<(f64, f64)> = intervals.into_iter().filter(|(a, b)| b >= a).collect();
     if xs.is_empty() {
         return Vec::new();
     }
@@ -75,6 +72,69 @@ fn pad_y_range(v_min: f64, v_max: f64, slew: f64) -> (f64, f64) {
     (lo, hi)
 }
 
+/// Display-layer humanisation of channel identifier strings. Adapter
+/// channel IDs (stored in `ResidualSample.channel` / `Episode.channel`)
+/// feed the pinned episode fingerprints, so we never rewrite them at
+/// source; this helper is called *only* by plot label code.
+///
+/// Pass-through: short strings (≤20 chars) that contain any non-digit
+/// character (e.g. `"1a"`, `"q3#sp5"`, `"ord[0-199]"`, `"wh_a/q1"`) are
+/// returned unchanged.
+///
+/// Shortened: pure-digit strings of any length (e.g. Snowset's
+/// `warehouseId` cast as `"7891774171123969…"`) or anything longer than
+/// 20 characters collapse to a stable 6-char base36 tag derived from
+/// SHA-256 over the raw bytes, rendered as `id@xxxxxx`. The hash is
+/// deterministic across runs so regenerated figures carry identical
+/// labels.
+fn humanize_channel_label(raw: &str) -> String {
+    let needs_hash = raw.len() > 20 || raw.chars().all(|c| c.is_ascii_digit());
+    if !needs_hash {
+        return raw.to_string();
+    }
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(raw.as_bytes());
+    // Fold the first 6 bytes into a u64 and render as base36 (0-9a-z).
+    let mut acc: u64 = 0;
+    for b in &digest[..6] {
+        acc = (acc << 8) | (*b as u64);
+    }
+    const ALPHABET: &[u8; 36] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+    let mut tag = [b'0'; 6];
+    for slot in tag.iter_mut().rev() {
+        *slot = ALPHABET[(acc % 36) as usize];
+        acc /= 36;
+    }
+    let tag_str = std::str::from_utf8(&tag).unwrap_or("??????");
+    format!("id@{}", tag_str)
+}
+
+/// True when a residual channel is pinned at a structural cap — in
+/// practice, JSD saturates at 1.0 when the compared skeleton histograms
+/// are fully disjoint. When this is the case, the residual overlay's
+/// merged-interval shading collapses to a solid block (because every
+/// sample is at the cap and every episode spans the full axis), which
+/// the eye reads as "red rectangle, no signal". Detecting saturation
+/// lets the overlay switch to per-episode tick marks so the episode
+/// *onsets* remain legible and the reader understands the shape is a
+/// property of the data, not the plot.
+fn residual_is_saturated(values: &[f64], cap: f64) -> bool {
+    if values.len() < 3 {
+        return false;
+    }
+    let mut mn = f64::INFINITY;
+    let mut mx = f64::NEG_INFINITY;
+    for v in values {
+        if *v < mn {
+            mn = *v;
+        }
+        if *v > mx {
+            mx = *v;
+        }
+    }
+    (mx - mn).abs() < 1e-6 && (mx - cap).abs() < 1e-6
+}
+
 // ---------------------------------------------------------------------------
 // residual overlay (upgraded)
 
@@ -100,6 +160,7 @@ fn pad_y_range(v_min: f64, v_max: f64, slew: f64) -> (f64, f64) {
 ///     (std=X)" overlay rather than a blank chart — this is the honest
 ///     read on e.g. the Snowset plan_regression channel, where a single
 ///     warehouse does not change plan.
+#[allow(clippy::too_many_arguments)]
 pub fn plot_residual_overlay(
     path: &Path,
     title: &str,
@@ -113,22 +174,17 @@ pub fn plot_residual_overlay(
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
+    debug_assert!(slew_threshold.is_finite() && slew_threshold > 0.0);
+    debug_assert!(drift_threshold.is_finite() && drift_threshold > 0.0);
+
     let root = BitMapBackend::new(path, (1100, 540)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let samples: Vec<(f64, f64)> = stream
-        .iter_class(class)
-        .map(|s| (s.t, s.value))
-        .collect();
+    let samples: Vec<(f64, f64)> = stream.iter_class(class).map(|s| (s.t, s.value)).collect();
     let motif_eps: Vec<&Episode> = episodes.iter().filter(|e| e.motif == motif).collect();
 
     if samples.is_empty() {
-        let area = root.titled(title, ("sans-serif", 22))?;
-        area.draw_text(
-            "(no samples in this residual class)",
-            &TextStyle::from(("sans-serif", 18)),
-            (420, 250),
-        )?;
+        draw_empty_overlay_placeholder(&root, title)?;
         root.present()?;
         return Ok(());
     }
@@ -136,34 +192,24 @@ pub fn plot_residual_overlay(
     let (v_min, v_max, _mean, std) = stats_of(samples.iter().map(|s| s.1));
     let t_min = samples.first().map(|s| s.0).unwrap_or(0.0);
     let t_max = samples.last().map(|s| s.0).unwrap_or(t_min + 1.0);
+    debug_assert!(
+        t_max >= t_min,
+        "sorted-sample invariant required by overlay"
+    );
 
-    // Degenerate-residual case: std essentially zero. Render honest
-    // labelling rather than a misleading blank plot.
     if std < 1e-9 && motif_eps.is_empty() {
-        let area = root.titled(title, ("sans-serif", 22))?;
-        let line1 = format!(
-            "flat residual: N = {}, value = {:.3}, std = {:.2e}",
-            samples.len(),
-            v_min,
-            std,
-        );
-        let line2 = "(no motif fired -- this channel is structurally stable)".to_string();
-        let style = TextStyle::from(("sans-serif", 18)).color(&RGBColor(60, 60, 60));
-        area.draw_text(&line1, &style, (60, 210))?;
-        area.draw_text(&line2, &style, (60, 240))?;
+        draw_flat_residual_placeholder(&root, title, samples.len(), v_min, std)?;
         root.present()?;
         return Ok(());
     }
 
     let (y_lo, y_hi) = pad_y_range(v_min, v_max, slew_threshold);
-
     let mut chart = ChartBuilder::on(&root)
         .caption(title, ("sans-serif", 22))
         .margin(15)
         .x_label_area_size(40)
         .y_label_area_size(70)
         .build_cartesian_2d(t_min..t_max, y_lo..y_hi)?;
-
     chart
         .configure_mesh()
         .x_desc("t (stream-local seconds)")
@@ -171,33 +217,189 @@ pub fn plot_residual_overlay(
         .light_line_style(RGBAColor(200, 200, 200, 0.3))
         .draw()?;
 
-    // Reference envelopes.
     let slew_color = RGBColor(214, 39, 40);
     let drift_color = RGBColor(255, 127, 14);
+    draw_threshold_reference_lines(
+        &mut chart,
+        t_min,
+        t_max,
+        y_lo,
+        y_hi,
+        slew_threshold,
+        slew_color,
+        drift_threshold,
+        drift_color,
+    )?;
+
+    let sample_values: Vec<f64> = samples.iter().map(|s| s.1).collect();
+    let saturated =
+        class == ResidualClass::WorkloadPhase && residual_is_saturated(&sample_values, 1.0);
+    if saturated {
+        draw_episode_ticks_saturated(&root, &mut chart, &motif_eps, y_lo, y_hi)?;
+    } else {
+        draw_episode_bands_merged(&mut chart, &motif_eps, y_lo, y_hi)?;
+    }
+
+    draw_residual_trace_and_peaks(&mut chart, &samples, &motif_eps, y_lo, y_hi)?;
+    draw_threshold_legend_entries(
+        &mut chart,
+        t_min,
+        slew_threshold,
+        slew_color,
+        drift_threshold,
+        drift_color,
+    )?;
+    chart
+        .configure_series_labels()
+        .background_style(WHITE.mix(0.85).filled())
+        .border_style(BLACK.mix(0.4))
+        .position(SeriesLabelPosition::UpperLeft)
+        .draw()?;
+    draw_overlay_summary(&root, &motif_eps, std, t_max - t_min)?;
+    root.present()?;
+    Ok(())
+}
+
+fn draw_empty_overlay_placeholder<D: DrawingBackend>(
+    root: &DrawingArea<D, plotters::coord::Shift>,
+    title: &str,
+) -> Result<()>
+where
+    D::ErrorType: 'static,
+{
+    let area = root.titled(title, ("sans-serif", 22))?;
+    area.draw_text(
+        "(no samples in this residual class)",
+        &TextStyle::from(("sans-serif", 18)),
+        (420, 250),
+    )?;
+    Ok(())
+}
+
+fn draw_flat_residual_placeholder<D: DrawingBackend>(
+    root: &DrawingArea<D, plotters::coord::Shift>,
+    title: &str,
+    n: usize,
+    value: f64,
+    std: f64,
+) -> Result<()>
+where
+    D::ErrorType: 'static,
+{
+    let area = root.titled(title, ("sans-serif", 22))?;
+    let style = TextStyle::from(("sans-serif", 18)).color(&RGBColor(60, 60, 60));
+    area.draw_text(
+        &format!(
+            "flat residual: N = {}, value = {:.3}, std = {:.2e}",
+            n, value, std
+        ),
+        &style,
+        (60, 210),
+    )?;
+    area.draw_text(
+        "(no motif fired -- this channel is structurally stable)",
+        &style,
+        (60, 240),
+    )?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_threshold_reference_lines<DB>(
+    chart: &mut ChartContext<
+        DB,
+        plotters::coord::cartesian::Cartesian2d<
+            plotters::coord::types::RangedCoordf64,
+            plotters::coord::types::RangedCoordf64,
+        >,
+    >,
+    t_min: f64,
+    t_max: f64,
+    y_lo: f64,
+    y_hi: f64,
+    slew_threshold: f64,
+    slew_color: RGBColor,
+    drift_threshold: f64,
+    drift_color: RGBColor,
+) -> Result<()>
+where
+    DB: DrawingBackend,
+    DB::ErrorType: 'static,
+{
     for level in [slew_threshold, -slew_threshold] {
         if level > y_lo && level < y_hi {
-            chart
-                .draw_series(std::iter::once(PathElement::new(
-                    vec![(t_min, level), (t_max, level)],
-                    slew_color.mix(0.8).stroke_width(1),
-                )))?;
+            chart.draw_series(std::iter::once(PathElement::new(
+                vec![(t_min, level), (t_max, level)],
+                slew_color.mix(0.8).stroke_width(1),
+            )))?;
         }
     }
     for level in [drift_threshold, -drift_threshold] {
         if level > y_lo && level < y_hi {
-            chart
-                .draw_series(std::iter::once(PathElement::new(
-                    vec![(t_min, level), (t_max, level)],
-                    drift_color.mix(0.7).stroke_width(1),
-                )))?;
+            chart.draw_series(std::iter::once(PathElement::new(
+                vec![(t_min, level), (t_max, level)],
+                drift_color.mix(0.7).stroke_width(1),
+            )))?;
         }
     }
+    Ok(())
+}
 
-    // Episode shading: union overlapping intervals so stacking does
-    // not saturate the background. With 95 overlapping episodes on the
-    // JOB cardinality channel the old per-episode draw produced a
-    // solid-red frame; the union is drawn once at a single alpha so the
-    // residual trace stays readable.
+fn draw_episode_ticks_saturated<DB>(
+    root: &DrawingArea<DB, plotters::coord::Shift>,
+    chart: &mut ChartContext<
+        DB,
+        plotters::coord::cartesian::Cartesian2d<
+            plotters::coord::types::RangedCoordf64,
+            plotters::coord::types::RangedCoordf64,
+        >,
+    >,
+    motif_eps: &[&Episode],
+    y_lo: f64,
+    y_hi: f64,
+) -> Result<()>
+where
+    DB: DrawingBackend,
+    DB::ErrorType: 'static,
+{
+    let onset_color = RGBAColor(220, 60, 60, 0.80);
+    let close_color = RGBAColor(220, 60, 60, 0.35);
+    for ep in motif_eps {
+        chart.draw_series(std::iter::once(PathElement::new(
+            vec![(ep.t_start, y_lo), (ep.t_start, y_hi)],
+            onset_color.stroke_width(2),
+        )))?;
+        if (ep.t_end - ep.t_start).abs() > f64::EPSILON {
+            chart.draw_series(std::iter::once(PathElement::new(
+                vec![(ep.t_end, y_lo), (ep.t_end, y_hi)],
+                close_color.stroke_width(1),
+            )))?;
+        }
+    }
+    root.draw_text(
+        "JSD saturated at 1.0 (fully disjoint skeleton histograms) -- ticks = episode onset/close",
+        &TextStyle::from(("sans-serif", 12)).color(&RGBColor(160, 30, 30)),
+        (450, 44),
+    )?;
+    Ok(())
+}
+
+fn draw_episode_bands_merged<DB>(
+    chart: &mut ChartContext<
+        DB,
+        plotters::coord::cartesian::Cartesian2d<
+            plotters::coord::types::RangedCoordf64,
+            plotters::coord::types::RangedCoordf64,
+        >,
+    >,
+    motif_eps: &[&Episode],
+    y_lo: f64,
+    y_hi: f64,
+) -> Result<()>
+where
+    DB: DrawingBackend,
+    DB::ErrorType: 'static,
+{
     let merged = merge_intervals(motif_eps.iter().map(|e| (e.t_start, e.t_end)));
     let ep_color = RGBAColor(220, 60, 60, 0.18);
     for (t0, t1) in &merged {
@@ -206,10 +408,26 @@ pub fn plot_residual_overlay(
             ep_color.filled(),
         )))?;
     }
+    Ok(())
+}
 
-    // Residual trace: line + dots when sparse (sparse residuals appear as
-    // near-invisible hairlines without markers — real bundled samples
-    // often have <1000 points).
+fn draw_residual_trace_and_peaks<DB>(
+    chart: &mut ChartContext<
+        DB,
+        plotters::coord::cartesian::Cartesian2d<
+            plotters::coord::types::RangedCoordf64,
+            plotters::coord::types::RangedCoordf64,
+        >,
+    >,
+    samples: &[(f64, f64)],
+    motif_eps: &[&Episode],
+    y_lo: f64,
+    y_hi: f64,
+) -> Result<()>
+where
+    DB: DrawingBackend,
+    DB::ErrorType: 'static,
+{
     chart
         .draw_series(LineSeries::new(
             samples.iter().cloned(),
@@ -217,7 +435,10 @@ pub fn plot_residual_overlay(
         ))?
         .label(format!("residual ({} samples)", samples.len()))
         .legend(move |(x, y)| {
-            PathElement::new(vec![(x, y), (x + 18, y)], RGBColor(30, 30, 30).stroke_width(2))
+            PathElement::new(
+                vec![(x, y), (x + 18, y)],
+                RGBColor(30, 30, 30).stroke_width(2),
+            )
         });
     if samples.len() < 600 {
         chart.draw_series(
@@ -226,11 +447,6 @@ pub fn plot_residual_overlay(
                 .map(|p| Circle::new(*p, 2, RGBColor(30, 30, 30).filled())),
         )?;
     }
-
-    // Peak markers at the true signed peak (not copysign(1.0)).
-    // Single draw_series call so the legend entry has exactly one
-    // visible marker in-chart (previous per-episode loop + offscreen
-    // sentinel produced a ghost marker clipped to the left frame).
     let peak_color = RGBColor(200, 20, 40);
     let peak_pts: Vec<(f64, f64)> = motif_eps
         .iter()
@@ -242,13 +458,35 @@ pub fn plot_residual_overlay(
         .collect();
     if !peak_pts.is_empty() {
         chart
-            .draw_series(peak_pts.iter().map(|p| Circle::new(*p, 4, peak_color.filled())))?
+            .draw_series(
+                peak_pts
+                    .iter()
+                    .map(|p| Circle::new(*p, 4, peak_color.filled())),
+            )?
             .label(format!("episode peak ({})", motif_eps.len()))
             .legend(move |(x, y)| Circle::new((x + 9, y), 4, peak_color.filled()));
     }
-    // Threshold-line legend entries. Re-draw as a (t_min, y)..(t_min, y)
-    // zero-length element so the path is not visible in-chart; the
-    // legend swatch still gets drawn by plotters' series_labels logic.
+    Ok(())
+}
+
+fn draw_threshold_legend_entries<DB>(
+    chart: &mut ChartContext<
+        DB,
+        plotters::coord::cartesian::Cartesian2d<
+            plotters::coord::types::RangedCoordf64,
+            plotters::coord::types::RangedCoordf64,
+        >,
+    >,
+    t_min: f64,
+    slew_threshold: f64,
+    slew_color: RGBColor,
+    drift_threshold: f64,
+    drift_color: RGBColor,
+) -> Result<()>
+where
+    DB: DrawingBackend,
+    DB::ErrorType: 'static,
+{
     chart
         .draw_series(std::iter::once(PathElement::new(
             vec![(t_min, slew_threshold), (t_min, slew_threshold)],
@@ -267,30 +505,34 @@ pub fn plot_residual_overlay(
         .legend(move |(x, y)| {
             PathElement::new(vec![(x, y), (x + 18, y)], drift_color.stroke_width(2))
         });
+    Ok(())
+}
 
-    chart
-        .configure_series_labels()
-        .background_style(WHITE.mix(0.85).filled())
-        .border_style(BLACK.mix(0.4))
-        .position(SeriesLabelPosition::UpperLeft)
-        .draw()?;
-
-    // Corner summary strip (plot-area-absolute text).
-    let max_peak = motif_eps.iter().map(|e| e.peak.abs()).fold(0.0_f64, f64::max);
+fn draw_overlay_summary<D: DrawingBackend>(
+    root: &DrawingArea<D, plotters::coord::Shift>,
+    motif_eps: &[&Episode],
+    std: f64,
+    duration: f64,
+) -> Result<()>
+where
+    D::ErrorType: 'static,
+{
+    let max_peak = motif_eps
+        .iter()
+        .map(|e| e.peak.abs())
+        .fold(0.0_f64, f64::max);
     let summary = format!(
         "episodes = {}   max |peak| = {:.3}   std = {:.3}   duration = {:.1}s",
         motif_eps.len(),
         max_peak,
         std,
-        t_max - t_min,
+        duration,
     );
     root.draw_text(
         &summary,
         &TextStyle::from(("sans-serif", 13)).color(&RGBColor(60, 60, 60)),
         (20, 508),
     )?;
-
-    root.present()?;
     Ok(())
 }
 
@@ -318,20 +560,78 @@ pub fn plot_channel_small_multiples(
     episodes: &[Episode],
     motif: MotifClass,
     max_rows: usize,
-) -> Result<()> {
+) -> Result<bool> {
+    let ranked = rank_channels_by_std(stream, class, max_rows);
+    debug_assert!(ranked.len() <= max_rows, "ranker must respect the cap");
+    if ranked.is_empty() {
+        return Ok(false);
+    }
+
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
 
-    // Group samples by channel; channels with fewer than 3 samples or
-    // std = 0 are dropped (no information to display).
+    let height_per_row: u32 = 120;
+    let width: u32 = 1100;
+    let header: u32 = 64;
+    let footer: u32 = 32;
+    let n = ranked.len() as u32;
+    let total_h = header + n * height_per_row + footer;
+    let root = BitMapBackend::new(path, (width, total_h)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let (t_min, t_max) = global_time_range(&ranked);
+    debug_assert!(
+        t_max >= t_min || !t_min.is_finite(),
+        "non-degenerate global range expected once >=1 channel was ranked"
+    );
+    draw_small_multiples_header(
+        &root,
+        title,
+        ranked.len(),
+        total_channel_count(stream, class),
+    )?;
+
+    let (_hdr_area, below) = root.split_vertically(header);
+    let (body, _ftr_area) = below.split_vertically(n * height_per_row);
+    let rows = body.split_evenly((ranked.len(), 1));
+    let last_idx = ranked.len() - 1;
+
+    for (i, ((chan, pts, std), row_area)) in ranked.iter().zip(rows.iter()).enumerate() {
+        draw_small_multiples_row(
+            row_area,
+            chan,
+            pts,
+            *std,
+            t_min,
+            t_max,
+            episodes,
+            motif,
+            i == last_idx,
+        )?;
+    }
+
+    root.present()?;
+    Ok(true)
+}
+
+/// (channel name, residual samples as `(t, value)`, per-channel std).
+/// Internal alias used by the small-multiples ranker + renderer.
+type RankedChannel = (String, Vec<(f64, f64)>, f64);
+
+/// Group samples by channel, drop channels with fewer than 3 samples
+/// or std=0, and return the top `max_rows` ranked by descending std.
+fn rank_channels_by_std(
+    stream: &ResidualStream,
+    class: ResidualClass,
+    max_rows: usize,
+) -> Vec<RankedChannel> {
     let mut by_chan: BTreeMap<String, Vec<(f64, f64)>> = BTreeMap::new();
     for s in stream.iter_class(class) {
         let ch = s.channel.clone().unwrap_or_else(|| "(none)".to_string());
         by_chan.entry(ch).or_default().push((s.t, s.value));
     }
-
-    let mut ranked: Vec<(String, Vec<(f64, f64)>, f64)> = by_chan
+    let mut ranked: Vec<RankedChannel> = by_chan
         .into_iter()
         .filter(|(_, v)| v.len() >= 3)
         .map(|(k, v)| {
@@ -341,30 +641,12 @@ pub fn plot_channel_small_multiples(
         .filter(|(_, _, std)| *std > 0.0)
         .collect();
     ranked.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
-    let ranked: Vec<_> = ranked.into_iter().take(max_rows).collect();
+    ranked.into_iter().take(max_rows).collect()
+}
 
-    let height_per_row: u32 = 120;
-    let width: u32 = 1100;
-    let header: u32 = 64;
-    let footer: u32 = 32;
-    let n = ranked.len().max(1) as u32;
-    let total_h = header + n * height_per_row + footer;
-
-    let root = BitMapBackend::new(path, (width, total_h)).into_drawing_area();
-    root.fill(&WHITE)?;
-
-    if ranked.is_empty() {
-        let area = root.titled(title, ("sans-serif", 22))?;
-        area.draw_text(
-            "(no channels with non-degenerate residuals)",
-            &TextStyle::from(("sans-serif", 18)),
-            (340, 180),
-        )?;
-        root.present()?;
-        return Ok(());
-    }
-
-    // Global time extent, so every row shares the same x-axis.
+/// Global (t_min, t_max) across all ranked channels so every row
+/// shares the same x-axis.
+fn global_time_range(ranked: &[RankedChannel]) -> (f64, f64) {
     let t_min = ranked
         .iter()
         .filter_map(|(_, v, _)| v.first().map(|p| p.0))
@@ -373,13 +655,26 @@ pub fn plot_channel_small_multiples(
         .iter()
         .filter_map(|(_, v, _)| v.last().map(|p| p.0))
         .fold(f64::NEG_INFINITY, f64::max);
+    (t_min, t_max)
+}
 
-    let total_channels = stream
+fn total_channel_count(stream: &ResidualStream, class: ResidualClass) -> usize {
+    stream
         .iter_class(class)
         .map(|s| s.channel.as_deref().unwrap_or(""))
         .collect::<std::collections::HashSet<_>>()
-        .len();
+        .len()
+}
 
+fn draw_small_multiples_header<D: DrawingBackend>(
+    root: &DrawingArea<D, plotters::coord::Shift>,
+    title: &str,
+    shown: usize,
+    total_channels: usize,
+) -> Result<()>
+where
+    D::ErrorType: 'static,
+{
     root.draw_text(
         title,
         &TextStyle::from(("sans-serif", 22)).color(&BLACK),
@@ -388,97 +683,98 @@ pub fn plot_channel_small_multiples(
     root.draw_text(
         &format!(
             "top {} channels by residual std (of {} total) — each row has its own y-axis",
-            ranked.len(),
-            total_channels,
+            shown, total_channels,
         ),
         &TextStyle::from(("sans-serif", 12)).color(&RGBColor(80, 80, 80)),
         (20, 44),
     )?;
+    Ok(())
+}
 
-    // Split the drawing area: header strip, body (rows), footer.
-    let (_hdr_area, below) = root.split_vertically(header);
-    let (body, _ftr_area) = below.split_vertically(n * height_per_row);
-    let rows = body.split_evenly((ranked.len(), 1));
-    let last_idx = ranked.len() - 1;
+#[allow(clippy::too_many_arguments)]
+fn draw_small_multiples_row<D: DrawingBackend>(
+    row_area: &DrawingArea<D, plotters::coord::Shift>,
+    chan: &str,
+    pts: &[(f64, f64)],
+    std: f64,
+    t_min: f64,
+    t_max: f64,
+    episodes: &[Episode],
+    motif: MotifClass,
+    is_last: bool,
+) -> Result<()>
+where
+    D::ErrorType: 'static,
+{
+    let (v_min, v_max, _, _) = stats_of(pts.iter().map(|p| p.1));
+    let pad = ((v_max - v_min).abs() * 0.15).max(0.01);
+    let y_lo = v_min - pad;
+    let y_hi = v_max + pad;
 
-    for (i, ((chan, pts, std), row_area)) in ranked.iter().zip(rows.iter()).enumerate() {
-        let (v_min, v_max, _, _) = stats_of(pts.iter().map(|p| p.1));
-        let pad = ((v_max - v_min).abs() * 0.15).max(0.01);
-        let y_lo = v_min - pad;
-        let y_hi = v_max + pad;
-
-        let mut chart = ChartBuilder::on(row_area)
-            .margin_left(110)
-            .margin_right(20)
-            .margin_top(10)
-            .margin_bottom(6)
-            .x_label_area_size(if i == last_idx { 24 } else { 0 })
-            .y_label_area_size(46)
-            .build_cartesian_2d(t_min..t_max, y_lo..y_hi)?;
-        chart
-            .configure_mesh()
-            .disable_x_mesh()
-            .y_labels(3)
-            .y_label_formatter(&|v| format!("{:.2}", v))
-            .x_desc(if i == last_idx { "t (stream-local seconds)" } else { "" })
-            .label_style(("sans-serif", 11))
-            .light_line_style(RGBAColor(220, 220, 220, 0.3))
-            .draw()?;
-
-        // Per-channel episode shading; union to avoid alpha-stacking.
-        let per_chan: Vec<(f64, f64)> = episodes
-            .iter()
-            .filter(|e| e.motif == motif && e.channel.as_deref() == Some(chan.as_str()))
-            .map(|e| (e.t_start, e.t_end))
-            .collect();
-        let merged = merge_intervals(per_chan);
-        let ep_color = RGBAColor(220, 60, 60, 0.20);
-        for (t0, t1) in &merged {
-            chart.draw_series(std::iter::once(Rectangle::new(
-                [(*t0, y_lo), (*t1, y_hi)],
-                ep_color.filled(),
-            )))?;
-        }
-
-        chart.draw_series(LineSeries::new(
-            pts.iter().cloned(),
-            RGBColor(30, 30, 30).stroke_width(1),
-        ))?;
-        if pts.len() < 300 {
-            chart.draw_series(
-                pts.iter()
-                    .map(|p| Circle::new(*p, 1, RGBColor(30, 30, 30).filled())),
-            )?;
-        }
-
-        // Left-gutter label drawn on the row drawing area.
-        let shown = if chan.len() > 18 {
-            format!("{}…", &chan[..17])
+    let mut chart = ChartBuilder::on(row_area)
+        .margin_left(110)
+        .margin_right(20)
+        .margin_top(10)
+        .margin_bottom(6)
+        .x_label_area_size(if is_last { 24 } else { 0 })
+        .y_label_area_size(46)
+        .build_cartesian_2d(t_min..t_max, y_lo..y_hi)?;
+    chart
+        .configure_mesh()
+        .disable_x_mesh()
+        .y_labels(3)
+        .y_label_formatter(&|v| format!("{:.2}", v))
+        .x_desc(if is_last {
+            "t (stream-local seconds)"
         } else {
-            chan.clone()
-        };
-        row_area.draw_text(
-            &shown,
-            &TextStyle::from(("sans-serif", 12)).color(&BLACK),
-            (6, 18),
-        )?;
-        row_area.draw_text(
-            &format!("σ={:.3}", std),
-            &TextStyle::from(("sans-serif", 10)).color(&RGBColor(100, 100, 100)),
-            (6, 38),
-        )?;
-        let ep_ct = episodes
-            .iter()
-            .filter(|e| e.motif == motif && e.channel.as_deref() == Some(chan.as_str()))
-            .count();
-        row_area.draw_text(
-            &format!("episodes: {}", ep_ct),
-            &TextStyle::from(("sans-serif", 10)).color(&RGBColor(100, 100, 100)),
-            (6, 56),
+            ""
+        })
+        .label_style(("sans-serif", 11))
+        .light_line_style(RGBAColor(220, 220, 220, 0.3))
+        .draw()?;
+
+    let per_chan: Vec<(f64, f64)> = episodes
+        .iter()
+        .filter(|e| e.motif == motif && e.channel.as_deref() == Some(chan))
+        .map(|e| (e.t_start, e.t_end))
+        .collect();
+    let ep_ct = per_chan.len();
+    let merged = merge_intervals(per_chan);
+    let ep_color = RGBAColor(220, 60, 60, 0.20);
+    for (t0, t1) in &merged {
+        chart.draw_series(std::iter::once(Rectangle::new(
+            [(*t0, y_lo), (*t1, y_hi)],
+            ep_color.filled(),
+        )))?;
+    }
+
+    chart.draw_series(LineSeries::new(
+        pts.iter().cloned(),
+        RGBColor(30, 30, 30).stroke_width(1),
+    ))?;
+    if pts.len() < 300 {
+        chart.draw_series(
+            pts.iter()
+                .map(|p| Circle::new(*p, 1, RGBColor(30, 30, 30).filled())),
         )?;
     }
 
-    root.present()?;
+    let shown = humanize_channel_label(chan);
+    row_area.draw_text(
+        &shown,
+        &TextStyle::from(("sans-serif", 12)).color(&BLACK),
+        (6, 18),
+    )?;
+    row_area.draw_text(
+        &format!("σ={:.3}", std),
+        &TextStyle::from(("sans-serif", 10)).color(&RGBColor(100, 100, 100)),
+        (6, 38),
+    )?;
+    row_area.draw_text(
+        &format!("episodes: {}", ep_ct),
+        &TextStyle::from(("sans-serif", 10)).color(&RGBColor(100, 100, 100)),
+        (6, 56),
+    )?;
     Ok(())
 }
 
@@ -497,24 +793,29 @@ pub fn plot_episode_distribution(
     title: &str,
     episodes: &[Episode],
     motif: MotifClass,
-) -> Result<()> {
+) -> Result<bool> {
+    let eps: Vec<&Episode> = episodes.iter().filter(|e| e.motif == motif).collect();
+
+    // Gate: below five episodes, or when both peak magnitudes and
+    // durations are constant, a 12-bin histogram collapses to a single
+    // bar per panel. Refuse to emit and let the caller fall back to
+    // `plot_episode_table`, which actually conveys per-episode data.
+    if eps.len() < 5 {
+        return Ok(false);
+    }
+    let peaks_all: Vec<f64> = eps.iter().map(|e| e.peak.abs()).collect();
+    let durs_all: Vec<f64> = eps.iter().map(|e| (e.t_end - e.t_start).max(0.0)).collect();
+    let (_, _, _, peaks_std) = stats_of(peaks_all.iter().cloned());
+    let (_, _, _, durs_std) = stats_of(durs_all.iter().cloned());
+    if peaks_std < 1e-9 && durs_std < 1e-9 {
+        return Ok(false);
+    }
+
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
     let root = BitMapBackend::new(path, (1100, 480)).into_drawing_area();
     root.fill(&WHITE)?;
-
-    let eps: Vec<&Episode> = episodes.iter().filter(|e| e.motif == motif).collect();
-    if eps.is_empty() {
-        let area = root.titled(title, ("sans-serif", 22))?;
-        area.draw_text(
-            "(no episodes emitted for this motif on this stream)",
-            &TextStyle::from(("sans-serif", 18)).color(&RGBColor(80, 80, 80)),
-            (320, 220),
-        )?;
-        root.present()?;
-        return Ok(());
-    }
 
     root.draw_text(
         title,
@@ -526,7 +827,11 @@ pub fn plot_episode_distribution(
 
     // --- left: peak magnitude histogram (log-spaced bins) ---
     let peaks: Vec<f64> = eps.iter().map(|e| e.peak.abs()).collect();
-    let pmin = peaks.iter().cloned().fold(f64::INFINITY, f64::min).max(1e-3);
+    let pmin = peaks
+        .iter()
+        .cloned()
+        .fold(f64::INFINITY, f64::min)
+        .max(1e-3);
     let pmax = peaks.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
     let bins = 12usize;
     let log_lo = pmin.ln();
@@ -534,8 +839,8 @@ pub fn plot_episode_distribution(
     let step = (log_hi - log_lo) / bins as f64;
     let mut counts = vec![0u32; bins];
     for p in &peaks {
-        let idx = (((p.ln() - log_lo) / step).floor() as isize)
-            .clamp(0, bins as isize - 1) as usize;
+        let idx =
+            (((p.ln() - log_lo) / step).floor() as isize).clamp(0, bins as isize - 1) as usize;
         counts[idx] += 1;
     }
     let max_count = *counts.iter().max().unwrap_or(&1) as u32;
@@ -610,7 +915,103 @@ pub fn plot_episode_distribution(
     )?;
 
     root.present()?;
-    Ok(())
+    Ok(true)
+}
+
+// ---------------------------------------------------------------------------
+// NEW: compact tabular episode listing (small-N fallback for distribution)
+
+/// Renders every episode for a motif as a single-line row: channel /
+/// t_start / duration / peak / EMA-at-boundary. Intended as the
+/// replacement figure when `plot_episode_distribution` refuses to emit
+/// (N < 5, or all peaks+durations identical). Keeps academic honesty:
+/// shows the data that exists rather than a misleading 1-bar histogram.
+///
+/// Returns `false` (no figure emitted) when there are no matching
+/// episodes, so the caller can drop the file path entirely.
+pub fn plot_episode_table(
+    path: &Path,
+    title: &str,
+    episodes: &[Episode],
+    motif: MotifClass,
+) -> Result<bool> {
+    let eps: Vec<&Episode> = episodes.iter().filter(|e| e.motif == motif).collect();
+    if eps.is_empty() {
+        return Ok(false);
+    }
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let row_h: u32 = 26;
+    let header_h: u32 = 80;
+    let footer_h: u32 = 28;
+    let width: u32 = 1100;
+    let total_h = header_h + row_h * (eps.len() as u32 + 1) + footer_h;
+
+    let root = BitMapBackend::new(path, (width, total_h)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    root.draw_text(
+        title,
+        &TextStyle::from(("sans-serif", 20)).color(&BLACK),
+        (16, 14),
+    )?;
+    root.draw_text(
+        &format!(
+            "N = {} episodes -- compact listing (distribution histogram withheld: insufficient variance)",
+            eps.len()
+        ),
+        &TextStyle::from(("sans-serif", 12)).color(&RGBColor(80, 80, 80)),
+        (16, 44),
+    )?;
+
+    // Column layout.
+    let cols: [(i32, &str); 5] = [
+        (20, "channel"),
+        (380, "t_start (s)"),
+        (540, "duration (s)"),
+        (720, "peak"),
+        (880, "ema@boundary"),
+    ];
+    let header_style = TextStyle::from(("sans-serif", 13)).color(&BLACK);
+    let header_y = (header_h - row_h + 8) as i32;
+    for (x, name) in &cols {
+        root.draw_text(name, &header_style, (*x, header_y))?;
+    }
+    // Underline the header row.
+    root.draw(&PathElement::new(
+        vec![
+            (10, header_h as i32 + 2),
+            (width as i32 - 10, header_h as i32 + 2),
+        ],
+        RGBColor(140, 140, 140).stroke_width(1),
+    ))?;
+
+    let row_style = TextStyle::from(("sans-serif", 12)).color(&RGBColor(30, 30, 30));
+    for (i, ep) in eps.iter().enumerate() {
+        let y = header_h as i32 + row_h as i32 * (i as i32 + 1) - row_h as i32 + 8;
+        let chan_display = ep
+            .channel
+            .as_deref()
+            .map(humanize_channel_label)
+            .unwrap_or_else(|| "(none)".to_string());
+        let dur = (ep.t_end - ep.t_start).max(0.0);
+        let fields: [(i32, String); 5] = [
+            (cols[0].0, chan_display),
+            (cols[1].0, format!("{:.3}", ep.t_start)),
+            (cols[2].0, format!("{:.3}", dur)),
+            (cols[3].0, format!("{:+.4}", ep.peak)),
+            (cols[4].0, format!("{:.4}", ep.ema_at_boundary)),
+        ];
+        for (x, text) in &fields {
+            root.draw_text(text, &row_style, (*x, y))?;
+        }
+    }
+
+    root.present()?;
+    Ok(true)
 }
 
 // ---------------------------------------------------------------------------
@@ -642,7 +1043,11 @@ pub fn plot_episode_summary_table(
     }
     let mut chans: Vec<(String, u32)> = chan_counts.into_iter().collect();
     chans.sort_by(|a, b| b.1.cmp(&a.1));
-    let chans: Vec<String> = chans.into_iter().take(top_k_channels).map(|(c, _)| c).collect();
+    let chans: Vec<String> = chans
+        .into_iter()
+        .take(top_k_channels)
+        .map(|(c, _)| c)
+        .collect();
 
     let motifs = MotifClass::ALL;
     let n_rows = motifs.len();
@@ -669,27 +1074,19 @@ pub fn plot_episode_summary_table(
     // Column headers
     let header_text = TextStyle::from(("sans-serif", 12)).color(&BLACK);
     let header_small = TextStyle::from(("sans-serif", 11)).color(&RGBColor(70, 70, 70));
-    root.draw_text(
-        "motif (row) / channel (col)",
-        &header_text,
-        (14, 58),
-    )?;
+    root.draw_text("motif (row) / channel (col)", &header_text, (14, 58))?;
     let col_labels: Vec<String> = std::iter::once("total".to_string())
         .chain(chans.iter().cloned())
         .collect();
     for (j, lbl) in col_labels.iter().enumerate() {
         let x = left_label_w + (j as u32) * cell_w + 8;
         let y = 52;
-        let shown: String = if lbl.len() > 14 {
-            format!("{}...", &lbl[..13])
-        } else {
+        let shown: String = if j == 0 {
             lbl.clone()
+        } else {
+            humanize_channel_label(lbl)
         };
-        root.draw_text(
-            &shown,
-            &header_small,
-            (x as i32, y),
-        )?;
+        root.draw_text(&shown, &header_small, (x as i32, y))?;
     }
 
     // Total max for colour scaling
@@ -742,11 +1139,17 @@ pub fn plot_episode_summary_table(
                 (255.0 - frac * 40.0) as u8,
             );
             root.draw(&Rectangle::new(
-                [(x as i32, y as i32), ((x + cell_w) as i32, (y + cell_h) as i32)],
+                [
+                    (x as i32, y as i32),
+                    ((x + cell_w) as i32, (y + cell_h) as i32),
+                ],
                 fill.filled(),
             ))?;
             root.draw(&Rectangle::new(
-                [(x as i32, y as i32), ((x + cell_w) as i32, (y + cell_h) as i32)],
+                [
+                    (x as i32, y as i32),
+                    ((x + cell_w) as i32, (y + cell_h) as i32),
+                ],
                 RGBColor(180, 180, 180).stroke_width(1),
             ))?;
             let text_color = if frac > 0.55 { WHITE } else { BLACK };
@@ -774,18 +1177,18 @@ pub fn plot_episode_summary_table(
 // ---------------------------------------------------------------------------
 // unchanged below
 
-pub fn plot_metric_bars(
-    path: &Path,
-    title: &str,
-    bars: &[(String, f64)],
-) -> Result<()> {
+pub fn plot_metric_bars(path: &Path, title: &str, bars: &[(String, f64)]) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
     let root = BitMapBackend::new(path, (900, 480)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    let max = bars.iter().map(|(_, v)| *v).fold(0.0_f64, f64::max).max(0.01);
+    let max = bars
+        .iter()
+        .map(|(_, v)| *v)
+        .fold(0.0_f64, f64::max)
+        .max(0.01);
     let mut chart = ChartBuilder::on(&root)
         .caption(title, ("sans-serif", 22))
         .margin(15)
@@ -796,9 +1199,7 @@ pub fn plot_metric_bars(
         .configure_mesh()
         .x_desc("motif")
         .y_desc("value")
-        .x_label_formatter(&|i| {
-            bars.get(*i).map(|b| b.0.clone()).unwrap_or_default()
-        })
+        .x_label_formatter(&|i| bars.get(*i).map(|b| b.0.clone()).unwrap_or_default())
         .draw()?;
     chart.draw_series(bars.iter().enumerate().map(|(i, (_, v))| {
         let mut bar = Rectangle::new([(i, 0.0), (i + 1, *v)], BLUE.filled());
@@ -862,7 +1263,9 @@ pub fn plot_stress_curves(
         chart
             .draw_series(LineSeries::new(pts.clone(), color.stroke_width(2)))?
             .label(name.clone())
-            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 18, y)], color.stroke_width(2)));
+            .legend(move |(x, y)| {
+                PathElement::new(vec![(x, y), (x + 18, y)], color.stroke_width(2))
+            });
         chart.draw_series(pts.into_iter().map(|p| Circle::new(p, 4, color.filled())))?;
     }
     chart
@@ -871,6 +1274,133 @@ pub fn plot_stress_curves(
         .border_style(BLACK)
         .position(SeriesLabelPosition::LowerRight)
         .draw()?;
+
+    root.present()?;
+    Ok(())
+}
+
+/// Precision–recall scatter across a parameter sweep.
+///
+/// `rows` is one `(precision, recall, f1, label)` per sweep point. The
+/// chart places recall on the x-axis, precision on the y-axis, and
+/// colours each point by F1 (red = 0.0, green = 1.0). The published-
+/// baseline operating point is rendered as a black star if `baseline` is
+/// `Some((p, r))`, so a reviewer can locate the canonical result within
+/// the swept region without reading the CSV.
+///
+/// Diagonal F1-isoclines at 0.25, 0.5, 0.75 are drawn as dashed grey
+/// reference lines. The axes are clamped to `[0, 1.05]` regardless of
+/// the sweep range so figures from different motifs are directly
+/// comparable — one of the properties a reviewer or licensing counsel
+/// will check for honesty.
+pub fn plot_pr_curve(
+    path: &Path,
+    title: &str,
+    rows: &[(f64, f64, f64, String)],
+    baseline: Option<(f64, f64)>,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    debug_assert!(
+        rows.iter().all(|(p, r, f, _)| (0.0..=1.0).contains(p)
+            && (0.0..=1.0).contains(r)
+            && (0.0..=1.0).contains(f)),
+        "PR rows must be in [0,1]"
+    );
+    let root = BitMapBackend::new(path, (820, 720)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    // Caption font size is 16: plotters' no-TTF bitmap font panics when
+    // a caption rendered at size 22 overflows the canvas width, and the
+    // longer motif names (e.g. `cardinality_mismatch_regime`) do exactly
+    // that at the figure width chosen here. 16 keeps the caption
+    // legible while safely fitting all five motif names.
+    let mut chart = ChartBuilder::on(&root)
+        .caption(title, ("sans-serif", 16))
+        .margin(15)
+        .x_label_area_size(55)
+        .y_label_area_size(65)
+        .build_cartesian_2d(0.0_f64..1.05_f64, 0.0_f64..1.05_f64)?;
+    chart
+        .configure_mesh()
+        .x_desc("recall")
+        .y_desc("precision")
+        .x_label_formatter(&|v| format!("{:.2}", v))
+        .y_label_formatter(&|v| format!("{:.2}", v))
+        .draw()?;
+
+    // F1-isocline reference lines. For a target F1 value f*, the curve
+    // p(r) = f* r / (2 r − f*) holds on the interval (f*/2, 1]. Drawing
+    // 0.25 / 0.5 / 0.75 gives the reader a visual scale for "how close
+    // to the ideal corner is this operating point".
+    for f_iso in [0.25_f64, 0.5, 0.75] {
+        let grey = RGBColor(170, 170, 170);
+        let pts: Vec<(f64, f64)> = (1..=100)
+            .map(|i| f_iso * 0.5 + (1.0 - f_iso * 0.5) * (i as f64 / 100.0))
+            .map(|r| {
+                let denom = 2.0 * r - f_iso;
+                let p = f_iso * r / denom;
+                (r, p)
+            })
+            .filter(|(_, p)| (0.0..=1.05).contains(p))
+            .collect();
+        chart.draw_series(LineSeries::new(pts, grey.stroke_width(1)))?;
+    }
+
+    // Scatter points, coloured by F1: a 5-stop gradient from muted red
+    // (F1=0) through amber to green (F1=1). Keeps the figure legible in
+    // greyscale print too — the vertical position encodes precision, so
+    // colour is a secondary channel.
+    fn f1_color(f1: f64) -> RGBColor {
+        let stops: [(f64, (u8, u8, u8)); 5] = [
+            (0.0, (178, 24, 43)),
+            (0.25, (239, 138, 98)),
+            (0.5, (253, 219, 199)),
+            (0.75, (103, 169, 207)),
+            (1.0, (33, 102, 172)),
+        ];
+        let f = f1.clamp(0.0, 1.0);
+        for win in stops.windows(2) {
+            let (t0, c0) = win[0];
+            let (t1, c1) = win[1];
+            if (t0..=t1).contains(&f) {
+                let u = if t1 > t0 { (f - t0) / (t1 - t0) } else { 0.0 };
+                let mix = |a: u8, b: u8| (a as f64 + (b as f64 - a as f64) * u) as u8;
+                return RGBColor(mix(c0.0, c1.0), mix(c0.1, c1.1), mix(c0.2, c1.2));
+            }
+        }
+        RGBColor(stops[4].1 .0, stops[4].1 .1, stops[4].1 .2)
+    }
+
+    chart.draw_series(rows.iter().map(|(p, r, f1, _)| {
+        let color = f1_color(*f1);
+        Circle::new((*r, *p), 4, color.filled())
+    }))?;
+
+    if let Some((p_b, r_b)) = baseline {
+        debug_assert!(
+            (0.0..=1.0).contains(&p_b) && (0.0..=1.0).contains(&r_b),
+            "baseline PR point in [0,1]"
+        );
+        // Draw the baseline as a larger black-outlined circle over a
+        // white fill so it reads clearly against any F1-colour dot
+        // already in the same (recall, precision) location. Text
+        // annotation is intentionally omitted — plotters without the
+        // TTF feature is flaky on some glyph sequences, and the CSV
+        // already carries the factor=1.00 row for unambiguous lookup.
+        chart.draw_series(std::iter::once(Circle::new((r_b, p_b), 7, WHITE.filled())))?;
+        chart.draw_series(std::iter::once(Circle::new(
+            (r_b, p_b),
+            7,
+            BLACK.stroke_width(2),
+        )))?;
+        chart.draw_series(std::iter::once(Cross::new(
+            (r_b, p_b),
+            6,
+            BLACK.stroke_width(2),
+        )))?;
+    }
 
     root.present()?;
     Ok(())
@@ -1019,7 +1549,11 @@ pub fn plot_phase_portrait(
 
     if raw.is_empty() || ema.is_empty() {
         let area = root.titled(title, ("sans-serif", 22))?;
-        area.draw_text("(no samples)", &TextStyle::from(("sans-serif", 18)), (440, 360))?;
+        area.draw_text(
+            "(no samples)",
+            &TextStyle::from(("sans-serif", 18)),
+            (440, 360),
+        )?;
         root.present()?;
         return Ok(());
     }
@@ -1067,14 +1601,16 @@ pub fn plot_phase_portrait(
         .legend(move |(x, y)| {
             PathElement::new(vec![(x, y), (x + 18, y)], slew_color.stroke_width(2))
         });
+    chart.draw_series(std::iter::once(PathElement::new(
+        vec![(-slew_threshold, 0.0), (-slew_threshold, s_max)],
+        slew_color.stroke_width(2),
+    )))?;
     chart
         .draw_series(std::iter::once(PathElement::new(
-            vec![(-slew_threshold, 0.0), (-slew_threshold, s_max)],
-            slew_color.stroke_width(2),
-        )))?;
-    chart
-        .draw_series(std::iter::once(PathElement::new(
-            vec![(r_min - r_pad, drift_threshold), (r_max + r_pad, drift_threshold)],
+            vec![
+                (r_min - r_pad, drift_threshold),
+                (r_max + r_pad, drift_threshold),
+            ],
             drift_color.stroke_width(2),
         )))?
         .label(format!("drift threshold = {:.2}", drift_threshold))
@@ -1102,15 +1638,27 @@ pub fn plot_phase_portrait(
         }
     }
     chart
-        .draw_series(stable_pts.iter().map(|p| Circle::new(*p, 3, stable_color.filled())))?
+        .draw_series(
+            stable_pts
+                .iter()
+                .map(|p| Circle::new(*p, 3, stable_color.filled())),
+        )?
         .label("Stable")
         .legend(move |(x, y)| Circle::new((x + 9, y), 4, stable_color.filled()));
     chart
-        .draw_series(drift_pts.iter().map(|p| Circle::new(*p, 3, drift_pt_color.filled())))?
+        .draw_series(
+            drift_pts
+                .iter()
+                .map(|p| Circle::new(*p, 3, drift_pt_color.filled())),
+        )?
         .label("Drift")
         .legend(move |(x, y)| Circle::new((x + 9, y), 4, drift_pt_color.filled()));
     chart
-        .draw_series(boundary_pts.iter().map(|p| Circle::new(*p, 3, boundary_color.filled())))?
+        .draw_series(
+            boundary_pts
+                .iter()
+                .map(|p| Circle::new(*p, 3, boundary_color.filled())),
+        )?
         .label("Boundary (slew)")
         .legend(move |(x, y)| Circle::new((x + 9, y), 4, boundary_color.filled()));
 
@@ -1208,7 +1756,11 @@ pub fn plot_drift_slew_anatomy(
 
     let raw_pts: Vec<(f64, f64)> = raw.iter().map(|p| (p.0, p.1.abs())).collect();
     chart
-        .draw_series(raw_pts.iter().map(|p| Circle::new(*p, 2, raw_color.filled())))?
+        .draw_series(
+            raw_pts
+                .iter()
+                .map(|p| Circle::new(*p, 2, raw_color.filled())),
+        )?
         .label("|raw residual|")
         .legend(move |(x, y)| Circle::new((x + 9, y), 3, raw_color.filled()));
 

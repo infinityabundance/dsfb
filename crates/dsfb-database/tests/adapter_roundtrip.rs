@@ -13,7 +13,9 @@
 //! `crate::perturbation`) and is asserted to emit *zero* episodes — the
 //! negative-control demonstration.
 
-use dsfb_database::adapters::{ceb::Ceb, job::Job, snowset::Snowset, sqlshare::SqlShare, tpcds::TpcDs, DatasetAdapter};
+use dsfb_database::adapters::{
+    ceb::Ceb, job::Job, snowset::Snowset, sqlshare::SqlShare, tpcds::TpcDs, DatasetAdapter,
+};
 use dsfb_database::grammar::{MotifClass, MotifEngine, MotifGrammar};
 
 fn assert_stream_well_formed<A: DatasetAdapter>(adapter: &A) {

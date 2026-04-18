@@ -25,6 +25,12 @@ use rand::{Rng, SeedableRng};
 use std::collections::{HashMap, VecDeque};
 use std::path::Path;
 
+/// Upper bound on the number of JOB rows loaded from a CSV. The
+/// original Join Order Benchmark has 113 queries; even with repeated
+/// iterations and plan-variant rows this cap catches runaway inputs
+/// without truncating realistic traces.
+const MAX_JOB_ROWS: usize = 100_000_000;
+
 pub struct Job;
 
 #[derive(Debug, serde::Deserialize)]
@@ -46,10 +52,14 @@ impl DatasetAdapter for Job {
     fn load(&self, path: &Path) -> Result<ResidualStream> {
         let mut rdr = csv::Reader::from_path(path)
             .with_context(|| format!("opening job csv at {}", path.display()))?;
-        let mut rows: Vec<Row> = rdr.deserialize().filter_map(Result::ok).collect();
+        let mut rows: Vec<Row> = rdr
+            .deserialize()
+            .filter_map(Result::ok)
+            .take(MAX_JOB_ROWS)
+            .collect();
+        debug_assert!(rows.len() <= MAX_JOB_ROWS, "iterator bound enforced");
         rows.sort_by(|a, b| {
-            (a.iteration, a.query_id.clone())
-                .cmp(&(b.iteration, b.query_id.clone()))
+            (a.iteration, a.query_id.clone()).cmp(&(b.iteration, b.query_id.clone()))
         });
         let mut stream = ResidualStream::new(format!(
             "job@{}",
@@ -60,26 +70,14 @@ impl DatasetAdapter for Job {
         const WIN: usize = 8;
         let mut t: f64 = 0.0;
         for r in &rows {
-            cardinality::push(
-                &mut stream,
-                t,
-                &r.query_id,
-                r.est_rows,
-                r.actual_rows,
-            );
+            cardinality::push(&mut stream, t, &r.query_id, r.est_rows, r.actual_rows);
             let q = baselines.entry(r.query_id.clone()).or_default();
             let baseline = if q.is_empty() {
                 r.latency_ms
             } else {
                 q.iter().sum::<f64>() / q.len() as f64
             };
-            plan_regression::push_latency(
-                &mut stream,
-                t,
-                &r.query_id,
-                r.latency_ms,
-                baseline,
-            );
+            plan_regression::push_latency(&mut stream, t, &r.query_id, r.latency_ms, baseline);
             q.push_back(r.latency_ms);
             if q.len() > WIN {
                 q.pop_front();

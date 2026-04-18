@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use anyhow::Result;
 use clap::Parser;
 use dsfb_database::adapters::DatasetAdapter;
@@ -122,36 +124,34 @@ fn main() -> Result<()> {
 fn run_ingest(engine: &str, csv: PathBuf, out: PathBuf) -> Result<()> {
     let stream = match engine {
         "postgres" => dsfb_database::adapters::postgres::load_pg_stat_statements(&csv)?,
-        other => anyhow::bail!(
-            "unknown --engine {other}; supported engines: postgres"
-        ),
+        other => anyhow::bail!("unknown --engine {other}; supported engines: postgres"),
     };
     let grammar = MotifGrammar::default();
     let engine_run = MotifEngine::new(grammar);
     let episodes = engine_run.run(&stream);
     fs::create_dir_all(&out)?;
-    write_provenance(&out.join(format!("{engine}.provenance.txt")), &stream.source)?;
+    write_provenance(
+        &out.join(format!("{engine}.provenance.txt")),
+        &stream.source,
+    )?;
     write_episodes_csv(&out.join(format!("{engine}.episodes.csv")), &episodes)?;
     eprintln!(
         "ingest({engine}): {} episodes from {}",
         episodes.len(),
         stream.source
     );
-    eprintln!(
-        "stream_fingerprint = {}",
-        hex(&stream.fingerprint())
-    );
+    eprintln!("stream_fingerprint = {}", hex(&stream.fingerprint()));
     eprintln!(
         "episodes_fingerprint = {}",
         replay::fingerprint_hex(&episodes)
     );
-    eprintln!(
-        "(no metrics written: real-engine ingest does not have ground-truth windows.)"
-    );
+    eprintln!("(no metrics written: real-engine ingest does not have ground-truth windows.)");
     Ok(())
 }
 
-fn samples_per_motif(stream: &dsfb_database::residual::ResidualStream) -> HashMap<MotifClass, usize> {
+fn samples_per_motif(
+    stream: &dsfb_database::residual::ResidualStream,
+) -> HashMap<MotifClass, usize> {
     let mut h = HashMap::new();
     for m in MotifClass::ALL {
         let count = stream.iter_class(m.residual_class()).count();
@@ -163,83 +163,171 @@ fn samples_per_motif(stream: &dsfb_database::residual::ResidualStream) -> HashMa
 fn reproduce(seed: u64, out: PathBuf) -> Result<()> {
     let (stream, windows) = tpcds_with_perturbations(seed);
     let grammar = MotifGrammar::default();
-    let engine = MotifEngine::new(grammar.clone());
-    let episodes = engine.run(&stream);
+    let episodes = MotifEngine::new(grammar.clone()).run(&stream);
     let samples_h = samples_per_motif(&stream);
     let metrics = evaluate(&episodes, &windows, &samples_h, stream.duration());
-
-    write_provenance(&out.join("provenance.txt"), &stream.source)?;
-    write_episodes_csv(&out.join("tpcds.episodes.csv"), &episodes)?;
-    write_metrics_csv(&out.join("tpcds.metrics.csv"), &metrics)?;
-    write_json(&out.join("tpcds.windows.json"), &windows)?;
-    write_json(&out.join("tpcds.grammar.json"), &grammar)?;
-
-    eprintln!(
-        "stream_fingerprint = {}",
-        hex(&stream.fingerprint())
+    debug_assert_eq!(
+        metrics.len(),
+        MotifClass::ALL.len(),
+        "one metrics row per motif"
     );
+
+    write_reproduce_csvs(&stream, &episodes, &windows, &grammar, &metrics, &out)?;
+    log_reproduce_fingerprints(&stream, &episodes);
+    emit_per_motif_plots(&stream, &episodes, &grammar, &out)?;
+    emit_summary_and_funnel(&stream, &episodes, &grammar, &out)?;
+
+    run_stress_sweep(seed, &out)?;
+    write_drift_slew_anatomy(&stream, &grammar, &episodes, &out)?;
+    write_throughput_report(seed, &out)?;
+    Ok(())
+}
+
+/// Writes provenance + all machine-readable CSV/JSON artefacts for the
+/// canonical reproducible run. Separated from the plotting phase so
+/// that downstream tooling can consume the CSVs without requiring the
+/// PNG pipeline to succeed.
+fn write_reproduce_csvs(
+    stream: &dsfb_database::residual::ResidualStream,
+    episodes: &[dsfb_database::grammar::Episode],
+    windows: &[dsfb_database::perturbation::PerturbationWindow],
+    grammar: &MotifGrammar,
+    metrics: &[dsfb_database::metrics::PerMotifMetrics],
+    out: &Path,
+) -> Result<()> {
+    debug_assert!(
+        out.exists() || out.parent().map(Path::exists).unwrap_or(true),
+        "out path resolvable"
+    );
+    debug_assert!(
+        metrics.len() == MotifClass::ALL.len(),
+        "metrics row count invariant"
+    );
+    write_provenance(&out.join("provenance.txt"), &stream.source)?;
+    write_episodes_csv(&out.join("tpcds.episodes.csv"), episodes)?;
+    write_metrics_csv(&out.join("tpcds.metrics.csv"), metrics)?;
+    write_json(&out.join("tpcds.windows.json"), windows)?;
+    write_json(&out.join("tpcds.grammar.json"), grammar)?;
+    Ok(())
+}
+
+fn log_reproduce_fingerprints(
+    stream: &dsfb_database::residual::ResidualStream,
+    episodes: &[dsfb_database::grammar::Episode],
+) {
+    eprintln!("stream_fingerprint = {}", hex(&stream.fingerprint()));
     eprintln!(
         "episodes_fingerprint = {}",
-        replay::fingerprint_hex(&episodes)
+        replay::fingerprint_hex(episodes)
     );
+}
 
-    // Per-motif plots
+fn emit_per_motif_plots(
+    stream: &dsfb_database::residual::ResidualStream,
+    episodes: &[dsfb_database::grammar::Episode],
+    grammar: &MotifGrammar,
+    out: &Path,
+) -> Result<()> {
     for m in MotifClass::ALL {
-        let title = format!("TPC-DS perturbed: {} residuals + episodes", m.name());
-        let path = out.join(format!("tpcds.{}.png", m.name()));
-        let p = grammar.params(m);
-        plots::plot_residual_overlay(
-            &path,
-            &title,
-            &stream,
+        emit_single_motif_plots(stream, episodes, grammar, m, out)?;
+    }
+    Ok(())
+}
+
+fn emit_single_motif_plots(
+    stream: &dsfb_database::residual::ResidualStream,
+    episodes: &[dsfb_database::grammar::Episode],
+    grammar: &MotifGrammar,
+    m: MotifClass,
+    out: &Path,
+) -> Result<()> {
+    let title = format!("TPC-DS perturbed: {} residuals + episodes", m.name());
+    let path = out.join(format!("tpcds.{}.png", m.name()));
+    let p = grammar.params(m);
+    debug_assert!(
+        p.slew_threshold >= p.drift_threshold,
+        "slew >= drift by construction"
+    );
+    plots::plot_residual_overlay(
+        &path,
+        &title,
+        stream,
+        m.residual_class(),
+        episodes,
+        m,
+        p.slew_threshold,
+        p.drift_threshold,
+    )?;
+    if stream.iter_class(m.residual_class()).next().is_some() {
+        let ch_title = format!(
+            "TPC-DS perturbed: per-channel residual strips ({})",
+            m.name()
+        );
+        let _emitted: bool = plots::plot_channel_small_multiples(
+            &out.join(format!("tpcds.{}.channels.png", m.name())),
+            &ch_title,
+            stream,
             m.residual_class(),
-            &episodes,
+            episodes,
             m,
-            p.slew_threshold,
-            p.drift_threshold,
+            8,
         )?;
-        // Companion figures: per-channel small multiples + episode
-        // distribution. Skipped when the motif emitted no samples or no
-        // episodes (the plotters render honest empty states but we prefer
-        // not to spam the out/ directory with them for the controlled
-        // harness).
-        if stream.iter_class(m.residual_class()).next().is_some() {
-            let ch_title = format!(
-                "TPC-DS perturbed: per-channel residual strips ({})",
+    }
+    if episodes.iter().any(|e| e.motif == m) {
+        let emitted = plots::plot_episode_distribution(
+            &out.join(format!("tpcds.{}.distribution.png", m.name())),
+            &format!(
+                "TPC-DS perturbed: episode peak + duration distribution ({})",
                 m.name()
-            );
-            plots::plot_channel_small_multiples(
-                &out.join(format!("tpcds.{}.channels.png", m.name())),
-                &ch_title,
-                &stream,
-                m.residual_class(),
-                &episodes,
-                m,
-                8,
-            )?;
-        }
-        if episodes.iter().any(|e| e.motif == m) {
-            plots::plot_episode_distribution(
-                &out.join(format!("tpcds.{}.distribution.png", m.name())),
-                &format!("TPC-DS perturbed: episode peak + duration distribution ({})", m.name()),
-                &episodes,
+            ),
+            episodes,
+            m,
+        )?;
+        if !emitted {
+            plots::plot_episode_table(
+                &out.join(format!("tpcds.{}.table.png", m.name())),
+                &format!("TPC-DS perturbed: episode listing ({})", m.name()),
+                episodes,
                 m,
             )?;
         }
     }
-    // Episode summary table across all motifs.
+    Ok(())
+}
+
+fn emit_summary_and_funnel(
+    stream: &dsfb_database::residual::ResidualStream,
+    episodes: &[dsfb_database::grammar::Episode],
+    grammar: &MotifGrammar,
+    out: &Path,
+) -> Result<()> {
     plots::plot_episode_summary_table(
         &out.join("tpcds.summary_table.png"),
         "TPC-DS perturbed: motif × channel episode count",
-        &episodes,
+        episodes,
         6,
     )?;
-    // Pipeline funnel: raw samples -> naive slew-threshold crossings ->
-    // DSFB episodes. Replaces the compression-by-motif bar chart, which
-    // was just sample-density in disguise. The funnel exposes the
-    // *differential* contribution of the motif state machine on top of
-    // a flat threshold — that's the SBIR-relevant claim.
-    let funnel_rows: Vec<(String, u64, u64, u64)> = MotifClass::ALL
+    let funnel_rows = compute_funnel_rows(stream, episodes, grammar);
+    debug_assert_eq!(
+        funnel_rows.len(),
+        MotifClass::ALL.len(),
+        "one funnel row per motif"
+    );
+    plots::plot_pipeline_funnel(
+        &out.join("tpcds.funnel.png"),
+        "TPC-DS perturbed: noise-reduction funnel per motif (log scale)",
+        &funnel_rows,
+    )?;
+    write_funnel_csv(&out.join("tpcds.funnel.csv"), &funnel_rows)?;
+    Ok(())
+}
+
+fn compute_funnel_rows(
+    stream: &dsfb_database::residual::ResidualStream,
+    episodes: &[dsfb_database::grammar::Episode],
+    grammar: &MotifGrammar,
+) -> Vec<(String, u64, u64, u64)> {
+    MotifClass::ALL
         .iter()
         .map(|m| {
             let raw = stream.iter_class(m.residual_class()).count() as u64;
@@ -249,60 +337,37 @@ fn reproduce(seed: u64, out: PathBuf) -> Result<()> {
                 .filter(|s| s.value.abs() >= slew)
                 .count() as u64;
             let eps = episodes.iter().filter(|e| e.motif == *m).count() as u64;
+            debug_assert!(naive <= raw, "naive cannot exceed raw samples");
             (m.name().to_string(), raw, naive, eps)
         })
-        .collect();
-    plots::plot_pipeline_funnel(
-        &out.join("tpcds.funnel.png"),
-        "TPC-DS perturbed: noise-reduction funnel per motif (log scale)",
-        &funnel_rows,
-    )?;
-    {
-        let mut funnel_csv = csv::Writer::from_path(out.join("tpcds.funnel.csv"))?;
+        .collect()
+}
+
+fn write_funnel_csv(path: &Path, funnel_rows: &[(String, u64, u64, u64)]) -> Result<()> {
+    let mut funnel_csv = csv::Writer::from_path(path)?;
+    funnel_csv.write_record([
+        "motif",
+        "raw_samples",
+        "naive_above_slew",
+        "dsfb_episodes",
+        "noise_reduction_factor",
+    ])?;
+    for (name, raw, naive, eps) in funnel_rows.iter() {
+        let nrf = if *eps == 0 {
+            0.0
+        } else {
+            *naive as f64 / *eps as f64
+        };
+        debug_assert!(nrf.is_finite(), "noise-reduction factor finite");
         funnel_csv.write_record([
-            "motif",
-            "raw_samples",
-            "naive_above_slew",
-            "dsfb_episodes",
-            "noise_reduction_factor",
+            name,
+            &raw.to_string(),
+            &naive.to_string(),
+            &eps.to_string(),
+            &format!("{:.2}", nrf),
         ])?;
-        for (name, raw, naive, eps) in &funnel_rows {
-            let nrf = if *eps == 0 {
-                0.0
-            } else {
-                *naive as f64 / *eps as f64
-            };
-            funnel_csv.write_record([
-                name,
-                &raw.to_string(),
-                &naive.to_string(),
-                &eps.to_string(),
-                &format!("{:.2}", nrf),
-            ])?;
-        }
-        funnel_csv.flush()?;
     }
-
-    // Stress sweep: where each motif breaks down. This replaces the
-    // uninformative uniform-F1 bar chart — five equal columns at F1=1.0
-    // told the reviewer nothing about the operating envelope. The sweep
-    // reports F1 across a range of perturbation magnitudes so the
-    // degradation curve per motif is visible.
-    run_stress_sweep(seed, &out)?;
-
-    // Drift-vs-slew anatomy figure on the cache_collapse channel.
-    // Pedagogical: shows how EMA lag and the drift envelope differ
-    // from instantaneous slew breaches. Uses the same DSFB params the
-    // motif loop uses, so the figure literally renders what the state
-    // machine sees.
-    write_drift_slew_anatomy(&stream, &grammar, &episodes, &out)?;
-
-    // Throughput measurement (recommendation D from the panel
-    // mentorship pass): measure µs per residual sample on the actual
-    // pipeline, on this hardware, with this build. Refuse to
-    // extrapolate to TPS — see §9 limitations.
-    write_throughput_report(seed, &out)?;
-
+    funnel_csv.flush()?;
     Ok(())
 }
 
@@ -395,16 +460,9 @@ fn write_throughput_report(seed: u64, out: &Path) -> Result<()> {
     let mut f = File::create(out.join("tpcds.throughput.txt"))?;
     writeln!(f, "DSFB-Database throughput report")?;
     writeln!(f, "================================")?;
-    writeln!(
-        f,
-        "harness        = tpcds_with_perturbations(seed={seed})"
-    )?;
+    writeln!(f, "harness        = tpcds_with_perturbations(seed={seed})")?;
     writeln!(f, "samples_total  = {}", samples_total)?;
-    writeln!(
-        f,
-        "stream_build   = {:.4} s (median of 5 runs)",
-        stream_med
-    )?;
+    writeln!(f, "stream_build   = {:.4} s (median of 5 runs)", stream_med)?;
     writeln!(
         f,
         "grammar_eval   = {:.4} s (median of 5 runs)",
@@ -448,14 +506,24 @@ fn run_stress_sweep(seed: u64, out: &Path) -> Result<()> {
     let grammar = MotifGrammar::default();
     let mut series: Vec<(String, Vec<f64>)> = MotifClass::ALL
         .iter()
-        .map(|m| (m.name().to_string(), Vec::with_capacity(STRESS_SCALES.len())))
+        .map(|m| {
+            (
+                m.name().to_string(),
+                Vec::with_capacity(STRESS_SCALES.len()),
+            )
+        })
         .collect();
     // Per-(motif, scale) median time-to-detection. NaN means no
     // detection at this scale, which is structurally different from
     // "detected immediately" (TTD = 0) and we keep them separate.
     let mut ttd_series: Vec<(String, Vec<f64>)> = MotifClass::ALL
         .iter()
-        .map(|m| (m.name().to_string(), Vec::with_capacity(STRESS_SCALES.len())))
+        .map(|m| {
+            (
+                m.name().to_string(),
+                Vec::with_capacity(STRESS_SCALES.len()),
+            )
+        })
         .collect();
 
     if let Some(parent) = out.parent() {
@@ -486,7 +554,10 @@ fn run_stress_sweep(seed: u64, out: &Path) -> Result<()> {
             // rather than a misleading zero.
             let ttd = match m_metric {
                 Some(m) if m.tp > 0 => m.time_to_detection_median_s,
-                _ => f64::NAN,
+                // Metric recorded but no true positives — TTD undefined.
+                Some(_) => f64::NAN,
+                // Motif produced no metric row at this scale — TTD undefined.
+                None => f64::NAN,
             };
             series[i].1.push(f1);
             ttd_series[i].1.push(ttd);
@@ -565,8 +636,14 @@ fn exemplar(dataset: &str, seed: u64, out: PathBuf) -> Result<()> {
     let grammar = MotifGrammar::default();
     let engine = MotifEngine::new(grammar.clone());
     let episodes = engine.run(&stream);
-    write_provenance(&out.join(format!("{dataset}.provenance.txt")), &stream.source)?;
-    write_episodes_csv(&out.join(format!("{dataset}.exemplar.episodes.csv")), &episodes)?;
+    write_provenance(
+        &out.join(format!("{dataset}.provenance.txt")),
+        &stream.source,
+    )?;
+    write_episodes_csv(
+        &out.join(format!("{dataset}.exemplar.episodes.csv")),
+        &episodes,
+    )?;
     eprintln!(
         "{} exemplar fingerprint = {}",
         dataset,
@@ -601,7 +678,10 @@ fn run_real(dataset: &str, path: PathBuf, out: PathBuf) -> Result<()> {
     let engine = MotifEngine::new(grammar.clone());
     let episodes = engine.run(&stream);
     fs::create_dir_all(&out)?;
-    write_provenance(&out.join(format!("{dataset}.provenance.txt")), &stream.source)?;
+    write_provenance(
+        &out.join(format!("{dataset}.provenance.txt")),
+        &stream.source,
+    )?;
     write_episodes_csv(&out.join(format!("{dataset}.episodes.csv")), &episodes)?;
 
     // Emit per-motif PNG residual overlays + companion per-channel
@@ -626,35 +706,34 @@ fn run_real(dataset: &str, path: PathBuf, out: PathBuf) -> Result<()> {
             p.drift_threshold,
         )?;
 
-        // Per-channel strip figure — only when there is >1 distinct
-        // channel with non-degenerate residuals; single-channel streams
-        // (e.g. sqlshare-text) are already fully described by the
-        // overlay figure.
-        let chan_count = stream
-            .iter_class(m.residual_class())
-            .map(|s| s.channel.as_deref().unwrap_or(""))
-            .collect::<std::collections::HashSet<_>>()
-            .len();
-        if chan_count > 1 {
-            let ch_title = format!(
-                "{dataset} (real shard): per-channel residual strips ({})",
-                m.name()
-            );
-            plots::plot_channel_small_multiples(
-                &out.join(format!("{dataset}.{}.channels.png", m.name())),
-                &ch_title,
-                &stream,
-                m.residual_class(),
-                &episodes,
-                m,
-                8,
-            )?;
-        }
+        // Per-channel strip figure — emission decision is delegated to
+        // the plotter: it returns false (no file written) when no
+        // channel survives the >=3 samples / std>0 filters. A
+        // single-channel overlay-complete stream (e.g. sqlshare-text)
+        // naturally lands in that skip branch.
+        let ch_title = format!(
+            "{dataset} (real shard): per-channel residual strips ({})",
+            m.name()
+        );
+        // Same pattern as the TPC-DS call site: the plotter decides
+        // whether to emit a file; we inspect the result via a named
+        // binding rather than `let _ =`.
+        let _emitted: bool = plots::plot_channel_small_multiples(
+            &out.join(format!("{dataset}.{}.channels.png", m.name())),
+            &ch_title,
+            &stream,
+            m.residual_class(),
+            &episodes,
+            m,
+            8,
+        )?;
 
         // Distribution figure — only when there is at least one episode
-        // for this motif (otherwise the histograms are empty).
+        // for this motif. If the histogram would collapse to a single
+        // bar (N<5 or zero peak/duration variance) the plotter returns
+        // false and we emit a compact tabular listing instead.
         if episodes.iter().any(|e| e.motif == m) {
-            plots::plot_episode_distribution(
+            let emitted = plots::plot_episode_distribution(
                 &out.join(format!("{dataset}.{}.distribution.png", m.name())),
                 &format!(
                     "{dataset} (real shard): episode peak + duration distribution ({})",
@@ -663,6 +742,14 @@ fn run_real(dataset: &str, path: PathBuf, out: PathBuf) -> Result<()> {
                 &episodes,
                 m,
             )?;
+            if !emitted {
+                plots::plot_episode_table(
+                    &out.join(format!("{dataset}.{}.table.png", m.name())),
+                    &format!("{dataset} (real shard): episode listing ({})", m.name()),
+                    &episodes,
+                    m,
+                )?;
+            }
         }
     }
     if !episodes.is_empty() {
@@ -674,18 +761,17 @@ fn run_real(dataset: &str, path: PathBuf, out: PathBuf) -> Result<()> {
         )?;
     }
 
-    eprintln!("real-data run: {} episodes from {}", episodes.len(), stream.source);
     eprintln!(
-        "stream_fingerprint = {}",
-        hex(&stream.fingerprint())
+        "real-data run: {} episodes from {}",
+        episodes.len(),
+        stream.source
     );
+    eprintln!("stream_fingerprint = {}", hex(&stream.fingerprint()));
     eprintln!(
         "episodes_fingerprint = {}",
         replay::fingerprint_hex(&episodes)
     );
-    eprintln!(
-        "(no metrics written: real-data runs do not have ground-truth windows.)"
-    );
+    eprintln!("(no metrics written: real-data runs do not have ground-truth windows.)");
     Ok(())
 }
 

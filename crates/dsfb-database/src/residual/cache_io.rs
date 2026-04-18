@@ -22,9 +22,7 @@ pub fn push_hit_ratio(
     observed: f64,
 ) {
     let drop = expected - observed;
-    stream.push(
-        ResidualSample::new(t, ResidualClass::CacheIo, drop).with_channel(cache_id),
-    );
+    stream.push(ResidualSample::new(t, ResidualClass::CacheIo, drop).with_channel(cache_id));
 }
 
 pub fn push_io_amplification(
@@ -40,7 +38,6 @@ pub fn push_io_amplification(
         0.0
     };
     stream.push(
-        ResidualSample::new(t, ResidualClass::CacheIo, amp)
-            .with_channel(format!("{file_id}#io")),
+        ResidualSample::new(t, ResidualClass::CacheIo, amp).with_channel(format!("{file_id}#io")),
     );
 }

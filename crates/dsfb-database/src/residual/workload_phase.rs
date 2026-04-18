@@ -44,15 +44,8 @@ pub fn js_divergence(p: &HashMap<String, u64>, q: &HashMap<String, u64>) -> f64 
 
 /// Push a phase residual at `t`. `bucket_id` identifies the time bucket
 /// (e.g. an ISO-week or a 5-minute window).
-pub fn push_jsd(
-    stream: &mut ResidualStream,
-    t: f64,
-    bucket_id: &str,
-    jsd: f64,
-) {
-    stream.push(
-        ResidualSample::new(t, ResidualClass::WorkloadPhase, jsd).with_channel(bucket_id),
-    );
+pub fn push_jsd(stream: &mut ResidualStream, t: f64, bucket_id: &str, jsd: f64) {
+    stream.push(ResidualSample::new(t, ResidualClass::WorkloadPhase, jsd).with_channel(bucket_id));
 }
 
 #[cfg(test)]

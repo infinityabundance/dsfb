@@ -25,9 +25,14 @@ fn non_claim_block_is_verbatim() {
         expected.len(),
         "non-claim count drifted; update both the crate and the paper"
     );
-    for (i, (actual, want)) in non_claims::NON_CLAIMS.iter().zip(expected.iter()).enumerate() {
+    for (i, (actual, want)) in non_claims::NON_CLAIMS
+        .iter()
+        .zip(expected.iter())
+        .enumerate()
+    {
         assert_eq!(
-            actual, want,
+            actual,
+            want,
             "non-claim #{} drifted from paper-locked text",
             i + 1
         );
@@ -96,9 +101,9 @@ fn paper_non_claims_section_matches_crate_strings() {
     let env_start_rel = section_tail.find("\\begin{enumerate}").expect(
         "non-claims section is missing its \\begin{enumerate}; the lock cannot match items",
     );
-    let env_end_rel = section_tail.find("\\end{enumerate}").expect(
-        "non-claims section is missing its \\end{enumerate}",
-    );
+    let env_end_rel = section_tail
+        .find("\\end{enumerate}")
+        .expect("non-claims section is missing its \\end{enumerate}");
     let block = &section_tail[env_start_rel..env_end_rel];
 
     let items: Vec<String> = block

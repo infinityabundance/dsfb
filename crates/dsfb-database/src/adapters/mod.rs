@@ -26,6 +26,8 @@ use anyhow::Result;
 
 pub mod ceb;
 pub mod job;
+#[cfg(feature = "otel")]
+pub mod otel;
 pub mod postgres;
 pub mod snowset;
 pub mod sqlshare;
