@@ -1,0 +1,5 @@
+error[E0599]: no method named `execute` found for reference `&ReadOnlyPgConn` in the current scope
+ --> tests/trybuild_readonly_conn/execute_is_not_exposed.rs:9:15
+  |
+9 |     let _ = c.execute("DROP TABLE users", &[]);
+  |               ^^^^^^^ method not found in `&ReadOnlyPgConn`

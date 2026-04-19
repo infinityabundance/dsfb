@@ -25,6 +25,7 @@ use crate::residual::ResidualStream;
 use anyhow::Result;
 
 pub mod ceb;
+pub mod generic_csv;
 pub mod job;
 #[cfg(feature = "otel")]
 pub mod otel;

@@ -1,0 +1,19 @@
+{
+  "tape_sha256": "e4f88dcb03d858c31f3e938f87e2c457476b82f1794d92e2d4e96e9719b2b782",
+  "fault_description": "ALTER TABLE pgbench_accounts DROP CONSTRAINT pgbench_accounts_pkey executed at t=30.0 s under c=16 j=4 pgbench scale-10 TPC-B-like load. Removing the PK forces sequential scans on every SELECT abalance FROM pgbench_accounts WHERE aid = $1 and every UPDATE pgbench_accounts, causing a per-statement execution-time slew on the two pgbench account qids.",
+  "windows": [
+    {
+      "motif": "plan_regression_onset",
+      "channel": "1f8a100dce7d21ef528d5c9fdac3d28a",
+      "t_start": 30.0,
+      "t_end": 70.0
+    },
+    {
+      "motif": "plan_regression_onset",
+      "channel": "793978ca6e24c91f0a87f8cc8020d232",
+      "t_start": 30.0,
+      "t_end": 70.0
+    }
+  ],
+  "notes": "Channels are md5(queryid::text) from pg_stat_statements. 1f8a100d... is the SELECT abalance qid; 793978ca... is the UPDATE pgbench_accounts qid. These two qids are the primary fault-bearing residual channels under DROP CONSTRAINT. Secondary qids (e.g. dsfb scraper's own pg_stat_* reads, lwlock contention channels) experience coincident load-induced effects but are not planted and are not part of this ground truth. Window runs from fault injection (t=30 s) to end of capture (t=70 s); the detector's observed episode dwell is always shorter because the motif grammar caps episode length at the per-motif dwell cap in spec/motifs.yaml. TTD is measured against t_start=30 s."
+}

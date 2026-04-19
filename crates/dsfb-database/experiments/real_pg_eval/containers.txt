@@ -1,0 +1,12 @@
+# Validated (image, digest) pairs for experiments/real_pg_eval/run.sh.
+# Override with PG_IMAGE + PG_IMAGE_DIGEST env vars.
+#
+# PG17 is the headline version evaluated in the paper (Table
+# tab:live-eval). PG16 is the compatibility-sanity point reported
+# in Table tab:pg-version-compat — not a headline result.
+
+PG_IMAGE=docker.io/library/postgres:17
+PG_IMAGE_DIGEST=sha256:7ad98329d513dd497293b951c195ca354274a77f12ddbbbbf85e68a811823d72
+
+PG_IMAGE=docker.io/library/postgres:16
+PG_IMAGE_DIGEST=sha256:01710bb7d42744d53c02d61d7b265b2901aa5fc21ed3f7e35e726b29af5deeb6

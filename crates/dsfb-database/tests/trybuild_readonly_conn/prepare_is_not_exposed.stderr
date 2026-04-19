@@ -1,0 +1,5 @@
+error[E0599]: no method named `prepare` found for reference `&ReadOnlyPgConn` in the current scope
+ --> tests/trybuild_readonly_conn/prepare_is_not_exposed.rs:6:15
+  |
+6 |     let _ = c.prepare("SELECT 1");
+  |               ^^^^^^^ method not found in `&ReadOnlyPgConn`

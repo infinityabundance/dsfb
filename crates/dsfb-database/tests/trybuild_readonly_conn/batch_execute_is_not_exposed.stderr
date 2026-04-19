@@ -1,0 +1,5 @@
+error[E0599]: no method named `batch_execute` found for reference `&ReadOnlyPgConn` in the current scope
+ --> tests/trybuild_readonly_conn/batch_execute_is_not_exposed.rs:5:15
+  |
+5 |     let _ = c.batch_execute("SELECT 1; DROP TABLE users");
+  |               ^^^^^^^^^^^^^ method not found in `&ReadOnlyPgConn`

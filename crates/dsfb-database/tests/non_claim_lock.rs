@@ -1,6 +1,6 @@
 //! Non-claim lock test.
 //!
-//! The five non-claim strings in [`dsfb_database::non_claims`] are
+//! The seven non-claim strings in [`dsfb_database::non_claims`] are
 //! reproduced verbatim in the abstract, in §10 of the paper, and in every
 //! CLI invocation. They are part of the paper's contract with reviewers
 //! and operators and may not silently change. This test pins the exact
@@ -19,6 +19,8 @@ fn non_claim_block_is_verbatim() {
         "DSFB-Database does not provide a forecasting or predictive guarantee; precursor structure is structural, not probabilistic.",
         "DSFB-Database does not provide ground-truth-validated detection on real workloads; we evaluate via injected perturbations, plan-hash concordance, and replay determinism.",
         "DSFB-Database does not claim a universal SQL grammar; motifs are engine-aware, telemetry-aware, and workload-aware.",
+        "DSFB-Database does not validate that an operator-supplied grammar is appropriate for a non-SQL residual stream; the generic CSV adapter is a worked example, not a universality claim.",
+        "DSFB-Database's live adapters (PostgreSQL via pg_stat_statements; MySQL via performance_schema) emit residuals at a cadence bounded by their polling interval, the engine's response latency, and the operator-configured CPU budget; they do not provide hard-real-time guarantees. Determinism holds only given a persisted tape — two live invocations against the same engine workload will produce different tapes.",
     ];
     assert_eq!(
         non_claims::NON_CLAIMS.len(),
@@ -45,7 +47,7 @@ fn non_claim_block_is_printable() {
     // newline-joined, numbered list. This protects against a refactor
     // that accidentally drops the formatting.
     let block = non_claims::as_block();
-    for n in 1..=5 {
+    for n in 1..=7 {
         assert!(
             block.contains(&format!("  {}.", n)),
             "non-claim numbering #{} missing",

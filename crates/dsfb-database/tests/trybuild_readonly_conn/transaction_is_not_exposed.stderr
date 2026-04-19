@@ -1,0 +1,5 @@
+error[E0599]: no method named `transaction` found for mutable reference `&mut ReadOnlyPgConn` in the current scope
+ --> tests/trybuild_readonly_conn/transaction_is_not_exposed.rs:6:15
+  |
+6 |     let _ = c.transaction();
+  |               ^^^^^^^^^^^ method not found in `&mut ReadOnlyPgConn`

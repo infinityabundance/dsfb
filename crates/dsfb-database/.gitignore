@@ -1,8 +1,11 @@
 # Crate-local Cargo build artefacts
 target/
 
-# Reproducibility outputs (figures, CSVs, JSON metrics)
+# Reproducibility outputs (figures, CSVs, JSON metrics).
+# Includes out/ (default) and out_<suffix>/ for parallel runs
+# (e.g. out_pg16/ for the engine-version compat sweep).
 out/
+out_*/
 
 # Operator-supplied real data (Snowset shards, real pg_stat_statements
 # dumps) — never commit. The bundled real-data samples under

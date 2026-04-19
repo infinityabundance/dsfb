@@ -24,7 +24,7 @@ optimiser, or modify execution plans.
 **One-line operator pitch:** point it at a `pg_stat_statements` CSV
 export, get back a deterministic episode stream telling you *which* of
 the five motifs fired, *when*, and on *which* channel — replayable to
-the byte, with five non-claims pinned by the test suite.
+the byte, with seven non-claims pinned by the test suite.
 
 ---
 
@@ -60,8 +60,10 @@ with your version + column list.
 3. DSFB-Database does not provide a forecasting or predictive guarantee; precursor structure is structural, not probabilistic.
 4. DSFB-Database does not provide ground-truth-validated detection on real workloads; we evaluate via injected perturbations, plan-hash concordance, and replay determinism.
 5. DSFB-Database does not claim a universal SQL grammar; motifs are engine-aware, telemetry-aware, and workload-aware.
+6. DSFB-Database does not validate that an operator-supplied grammar is appropriate for a non-SQL residual stream; the generic CSV adapter is a worked example, not a universality claim.
+7. DSFB-Database's live PostgreSQL adapter emits residuals at a cadence bounded by its polling interval, the engine's response latency, and the operator-configured CPU budget; it does not provide hard-real-time guarantees. Determinism holds only given a persisted tape — two live invocations against the same engine workload will produce different tapes.
 
-These five strings are pinned by `tests/non_claim_lock.rs` and
+These seven strings are pinned by `tests/non_claim_lock.rs` and
 reproduced verbatim in §10 of the paper.
 
 ---
@@ -70,10 +72,13 @@ reproduced verbatim in §10 of the paper.
 
 ```bash
 # Build
-cargo build --release
+cargo build --release --features report
 
 # Print non-claim charter
 ./target/release/dsfb-database non-claims
+
+# One-command reproduction (every bundled artefact + deterministic zip)
+./target/release/dsfb-database reproduce-all --seed 42 --out out
 
 # End-to-end controlled-perturbation pipeline (TPC-DS-shaped exemplar)
 ./target/release/dsfb-database reproduce --seed 42 --out out
@@ -89,9 +94,40 @@ cargo build --release
 
 # Threshold elasticity (+- 20 %)
 ./target/release/dsfb-database elasticity --seed 42 --out out
+
+# Generic CSV — apply the grammar to any residual stream (operator responsibility)
+./target/release/dsfb-database generic --csv examples/data/generic_sample.csv --out out
 ```
 
-The `reproduce` subcommand emits CSV (`tpcds.metrics.csv`,
+### One-command reproduction
+
+`reproduce-all` composes the canonical TPC-DS pipeline with all bundled
+dataset exemplars, the DSFB-vs-baselines comparison figure, the
+null-trace refusal figure, and the cross-signal / stability metrics,
+then packs everything into `out/dsfb_database_artifacts.zip`. The zip is
+byte-stable across runs (same seed ⇒ same SHA-256); the
+`tests/reproduce_all_zip_is_deterministic.rs` test pins this invariant.
+A `MANIFEST.md` in the same directory enumerates every file, grouped by
+paper section.
+
+### Generic CSV mode
+
+The `generic` subcommand runs the motif grammar over an
+operator-supplied CSV. The adapter auto-detects a timestamp column
+(header contains `t`/`time`/`timestamp`/`ts`), a numeric value column,
+and an optional `channel`/`qclass`/`group`/`series` column; CLI flags
+`--time-col`, `--value-col`, and `--channel-col` override the
+auto-detection. By default the adapter builds residuals the same way as
+the PostgreSQL adapter (subtract the mean of the first three samples
+per channel, normalise by `max(|baseline|, ε)`); `--pre-residualized`
+skips the subtraction for inputs that are already `(actual − expected)`
+residuals. `--grammar <path.json>` loads an alternate grammar (the
+JSON schema matches `out/tpcds.grammar.json`); the default is the
+crate's pinned grammar. This is a **worked example**, not a
+universality claim — the operator is responsible for confirming the
+grammar is appropriate for the input signal (see non-claim #6).
+
+The `reproduce` subcommand alone emits CSV (`tpcds.metrics.csv`,
 `tpcds.episodes.csv`), JSON (`tpcds.windows.json`,
 `tpcds.grammar.json`), per-motif residual-overlay PNGs, and the
 provenance manifest. Every figure in the paper is regenerated from this
@@ -312,6 +348,191 @@ telemetry-pipeline health signal, not a motif signal.
 
 ---
 
+## Live read-only mode (PostgreSQL)
+
+The default build reads residuals from files. Behind the optional
+`live-postgres` feature, `dsfb-database` can also connect directly to
+a running PostgreSQL instance, scrape `pg_stat_*` views at a
+configurable cadence, distill the cumulative-counter deltas into
+residual samples on the fly, and emit motif episodes as they close.
+
+The live path is a **read-only sidecar**, enforced by three layered
+controls documented in [`src/live/mod.rs`](src/live/mod.rs):
+
+1. **Type-level.** The public API on `ReadOnlyPgConn` is a single
+   method that accepts a variant of a closed allow-list enum. The
+   underlying `tokio_postgres::Client` is private; `execute`,
+   `prepare`, `transaction`, `copy_in`, `copy_out`, and
+   `batch_execute` are not re-exported. A compile-fail test
+   ([tests/live_readonly_conn_surface.rs](tests/live_readonly_conn_surface.rs))
+   pins this surface.
+2. **Session-level.** On connect we issue
+   `SET default_transaction_read_only = on` and verify via
+   `current_setting(...)` that the setting took effect.
+3. **Statement-level.** The SHA-256 of the concatenated allow-list
+   SQL texts is pinned by
+   [tests/live_query_allowlist_lock.rs](tests/live_query_allowlist_lock.rs).
+   Any edit to a live query forces an intentional lock bump.
+
+Together these are a **code-audit contract, not a cryptographic
+proof**. The crate's 7th non-claim is explicit about that distinction.
+
+### Operator quickstart
+
+```bash
+# 1. Provision the minimum-privilege observer role.
+#    (Reference: spec/permissions.postgres.sql; also dumped by --print-permissions-manifest.)
+./target/release/dsfb-database live --print-permissions-manifest | psql -U postgres
+
+# 2. Run a live session for 10 minutes at 1 Hz polling, 10 % CPU budget,
+#    writing an audit tape + an incremental episode CSV.
+./target/release/dsfb-database live \
+    --conn "host=/var/run/postgresql user=dsfb_observer dbname=app" \
+    --interval-ms 1000 \
+    --cpu-budget-pct 0.1 \
+    --max-duration-sec 600 \
+    --tape out/live.tape.jsonl \
+    --out out/live
+
+# 3. Replay the tape offline to produce a byte-deterministic episode stream.
+./target/release/dsfb-database replay-tape \
+    --tape out/live.tape.jsonl \
+    --out out/replay
+```
+
+### Determinism boundary
+
+The live path does **not** inherit the byte-determinism guarantee
+that offline adapters enjoy:
+
+* **engine → tape**: not deterministic. Two live sessions against the
+  same workload will produce different tapes because of sampling
+  jitter, counter-advance timing, and concurrent load.
+* **tape → episodes**: deterministic. Given a tape, the replayed
+  episode stream is byte-stable. This is pinned by
+  [tests/live_tape_replay_is_deterministic.rs](tests/live_tape_replay_is_deterministic.rs)
+  and stated verbatim in the 7th non-claim.
+
+### Backpressure (measurement-based, not contractual)
+
+The scraper maintains a rolling 16-poll window of wall-clock poll
+duration and self-time / wall-clock CPU ratio. If either signal
+crosses the operator-configured budget, the next inter-poll sleep
+doubles (bounded at 60 s). After three consecutive within-budget
+polls the sleep halves back toward the nominal interval. This is a
+**governor, not a contract**: the paper's §Live section and 7th
+non-claim explicitly disclaim a hard real-time guarantee. Every poll
+writes a telemetry-of-the-telemetry row to `out/live/poll_log.csv`
+so the operator can see what the sidecar is costing.
+
+### Cardinality is refused on the live path
+
+`pg_stat_statements` does not expose estimated-vs-actual row counts,
+so the live adapter **does not** emit a cardinality residual. This
+matches the `\pmark` in the paper's Table 10 for PostgreSQL ×
+Cardinality. Operators who need the cardinality channel must use
+`auto_explain` + JSON parsing, which is out of scope for this
+adapter.
+
+### Real-engine evaluation
+
+The paper's §Live Evaluation reports an empirical bake-off against
+a planted structural fault:
+
+* Container: `postgres:17` (pinned by SHA-256 digest; see
+  `experiments/real_pg_eval/run.sh`).
+* Workload: `pgbench -c 16 -j 4 -T 70` at scale-10
+  (TPC-B-like).
+* Fault: `ALTER TABLE pgbench_accounts DROP CONSTRAINT
+  pgbench_accounts_pkey` at `t = 30 s`, forcing sequential
+  scans on the two pgbench account qids.
+* Detectors: DSFB, ADWIN, BOCPD, PELT — all scored by the
+  identical `metrics::evaluate` path on the identical live-captured
+  tape, under the identical ground-truth window.
+* Aggregation: `n = 10` replications; bootstrap 95 % CI at
+  `B = 1000`.
+
+To reproduce the n=10 summary table (this runs locally, not in CI;
+requires `podman` and ~12 min of wall-clock per fault class):
+
+```
+cargo build --release --features "cli report live-postgres"
+# single fault class (default: drop_constraint):
+FAULT=drop_constraint bash experiments/real_pg_eval/run.sh
+# full multi-fault matrix (4 classes x 10 reps, ~50 min):
+for f in drop_constraint stats_stale lock_hold cache_evict; do
+  FAULT=$f bash experiments/real_pg_eval/run.sh
+done
+# writes experiments/real_pg_eval/out/<fault>/r*/bakeoff.csv +
+# experiments/real_pg_eval/out/summary.csv aggregated across faults
+```
+
+To reproduce the engine-version-compat row (PG16 vs PG17,
+~50 min) writing to an isolated directory that does not clobber
+the PG17 headline:
+
+```
+for f in drop_constraint stats_stale lock_hold cache_evict; do
+  OUT_DIR="$PWD/experiments/real_pg_eval/out_pg16" \
+  PG_IMAGE=docker.io/library/postgres:16 \
+  PG_IMAGE_DIGEST=sha256:01710bb7d42744d53c02d61d7b265b2901aa5fc21ed3f7e35e726b29af5deeb6 \
+  FAULT=$f \
+  bash experiments/real_pg_eval/run.sh
+done
+python3 experiments/real_pg_eval/compat_to_tex.py \
+  experiments/real_pg_eval/out/summary.csv \
+  experiments/real_pg_eval/out_pg16/summary.csv \
+  sha256:7ad98329d513dd497293b951c195ca354274a77f12ddbbbbf85e68a811823d72 \
+  sha256:01710bb7d42744d53c02d61d7b265b2901aa5fc21ed3f7e35e726b29af5deeb6 \
+  paper/tables/pg_version_compat.tex
+```
+
+### Multi-engine, multi-fault evaluation
+
+Beyond the single-fault PG17 protocol the paper reports four
+auxiliary harnesses. All are local-only, all are `podman`-based,
+and all share the identical `metrics::evaluate` scoring path:
+
+* **Observer self-load** (pgbench latency CDF with vs. without
+  the scraper) — `experiments/observer_load/run.sh`. Writes
+  `paper/tables/observer_self_load.tex` +
+  `paper/figs/observer_self_load_cdf.png`.
+* **Held-out baseline tuning** (ADWIN / BOCPD / PELT swept on
+  replication 01 of every fault class, frozen, and evaluated on
+  replications 02–10) — `experiments/baseline_tune/run.sh`.
+  Writes `paper/tables/baseline_tuned.tex`.
+* **Public-trace FAR bake-off** (DSFB + 3 baselines on Snowset,
+  SQLShare, CEB, JOB, TPC-DS — workload-stress FAR upper bound,
+  not detection quality) — `experiments/public_trace/run.sh`.
+  Writes `paper/tables/public_trace_far.tex`.
+* **MySQL live adapter contract** (contract-layer `podman mysql:8`
+  harness; provisions the verbatim `dsfb_observer` role from
+  `spec/permissions.mysql.sql` and prints the SHA-256-pinned
+  allow-list) — `experiments/real_mysql_eval/run.sh`. The
+  end-to-end tape capture is future work; the three-layer
+  code-audit contract (see `src/live_mysql/` and
+  `tests/live_query_allowlist_lock_mysql.rs`) is reviewable
+  today.
+
+The paper's two figures are byte-deterministic functions of the
+two **pinned** tapes at `paper/fixtures/live_pg_real/`, which are
+not regenerated by `run.sh` (engine→tape is non-deterministic
+per the 7th non-claim). The n=10 summary table **is** regenerated
+up to CI overlap.
+
+To re-render the figures:
+
+```
+./target/release/render_live_eval_figures \
+    --fixtures-dir paper/fixtures/live_pg_real \
+    --figs-dir paper/figs
+```
+
+Per-run byte-determinism of the bake-off CSV is pinned by
+[`tests/live_replay_baselines_reproducibility.rs`](tests/live_replay_baselines_reproducibility.rs).
+
+---
+
 ## Architecture
 
 ```
@@ -345,10 +566,16 @@ motif *grammar* layer (state machines + episode emission).
 ```bash
 cargo test --release            # full suite, including replay determinism
                                 #   and the non-claim lock
-./scripts/reproduce_paper.sh    # regenerates every figure + table in the paper
-                                #   (paper PDF build step is skipped if the
-                                #    companion paper/ directory is not present
-                                #    alongside the crate)
+./scripts/reproduce_paper.sh    # fast path (~minutes, no podman): regenerates
+                                #   every synthetic-data figure + table.
+                                #   Paper PDF build is skipped if the companion
+                                #   paper/ directory is absent.
+./experiments/reproduce_all.sh  # heavy path (~3.5 hours, requires podman):
+                                #   chains every live experiment behind the
+                                #   paper's auxiliary tables (real_pg_eval x
+                                #   {PG17, PG16}, observer_load, baseline_tune,
+                                #   public_trace, real_mysql_eval) and rebuilds
+                                #   the PDF.
 ```
 
 Two replay invariants are pinned:

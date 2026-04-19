@@ -53,7 +53,24 @@ report = ["dep:plotters", "dep:serde_json"]
 # the OTLP/JSON export format used by `otel-collector` in 2026 (see
 # `src/adapters/otel.rs` for the shape). Pulls `serde_json`.
 otel = ["dep:serde_json"]
-full = ["cli", "report", "otel"]
+# Live read-only PostgreSQL telemetry adapter. Adds an async tokio
+# current-thread runtime and tokio-postgres client for pulsed-scrape
+# observation of pg_stat_statements / pg_stat_activity / pg_stat_io.
+# Implies `report` because live mode emits episode CSVs and JSON
+# sidecars. See `src/live/*` and `paper/dsfb-database.tex §Live
+# read-only adapter` for the contract — determinism migrates to the
+# tape artefact, not the live engine→tape path.
+live-postgres = ["dep:tokio", "dep:tokio-postgres", "dep:futures-util", "report"]
+# Live read-only MySQL telemetry adapter (second engine). Shares the
+# three-layer contract documented on `live-postgres`, translated to
+# `performance_schema` and `information_schema` surfaces. See
+# `src/live_mysql/*` and `spec/permissions.mysql.sql`. The
+# allow-list enum and query-text SHA-256 lock are unconditionally
+# compiled (enum lives in library mode, see `src/live_mysql/queries.rs`);
+# the runtime connection wrapper is feature-gated because it pulls
+# `mysql_async` and its async TLS dependency tree.
+live-mysql = ["dep:mysql_async", "dep:tokio", "dep:futures-util", "report"]
+full = ["cli", "report", "otel", "live-postgres", "live-mysql"]
 
 [dependencies]
 dsfb = "0.1.2"
@@ -78,6 +95,28 @@ rand_pcg = "0.3"
 # cites. Phase-C7 feature-gates `plotters` behind the `report`
 # feature so library-mode consumers can opt out.
 plotters = { version = "0.3", default-features = false, features = ["bitmap_backend", "bitmap_encoder", "line_series", "ttf"], optional = true }
+# Deterministic zip for the `reproduce-all` artefact bundle. We use the
+# `stored` (no-compression) store-mode with pinned entry metadata so the
+# resulting archive is byte-stable across reruns of the same seed; a
+# determinism test (`tests/reproduce_all_zip_is_deterministic.rs`) pins
+# SHA-256 equality of two independent invocations. `default-features =
+# false` drops zstd / bzip2 / openssl surface; we do not compress.
+zip = { version = "0.6", default-features = false }
+# Live PostgreSQL adapter dependencies (feature-gated behind
+# `live-postgres`). Current-thread tokio runtime only — the live
+# subcommand does not need multi-thread scheduling, and dropping
+# `rt-multi-thread` keeps the default build's direct-dep count
+# unchanged. `tokio-postgres` is the sfackler/rust-postgres async
+# client; pinned to 0.7 (latest minor as of 2026-04).
+tokio = { version = "1", features = ["rt", "time", "macros", "signal", "sync"], optional = true }
+tokio-postgres = { version = "0.7", optional = true }
+futures-util = { version = "0.3", optional = true }
+# Live MySQL adapter dependency (feature-gated behind `live-mysql`).
+# `default-rustls` replaces the default native-tls backend with
+# rustls; `rustls-tls` is strictly more auditable than native-tls
+# for a paper that pins a three-layer code-audit contract. The dep
+# is behind an optional flag so library-mode consumers pay nothing.
+mysql_async = { version = "0.36", default-features = false, features = ["default-rustls"], optional = true }
 
 [dev-dependencies]
 tempfile = "3"
@@ -90,6 +129,12 @@ arbtest = "0.3"
 # observationally equivalent to a single-threaded read. The crate itself
 # is single-threaded; loom documents the absence of shared-state hazards.
 loom = "0.7"
+# Compile-fail harness for the read-only connection surface test
+# (`tests/live_readonly_conn_surface.rs`) — asserts that calling
+# `execute`, `prepare`, or `transaction` on a `ReadOnlyPgConn` fails
+# to compile. The data-diode guarantee is type-level, so the test
+# that pins it must be a build-time assertion.
+trybuild = "1"
 
 [lib]
 name = "dsfb_database"
@@ -183,6 +228,65 @@ required-features = ["cli"]
 name = "tpc_c_generalization"
 path = "src/bin/tpc_c_generalization.rs"
 required-features = ["cli"]
+
+# Paper §Live figure regeneration. Deterministically synthesises a
+# pg_stat_statements snapshot trajectory with a planted plan
+# regression, drives it through the live DistillerState (the exact
+# function called on every poll in live mode), and renders the
+# three-panel pulsed-scrape figure. Writes the fixture CSVs to
+# paper/fixtures/live_pg/ and the PNG to paper/figs/live_pulsed_scrape.png.
+[[bin]]
+name = "live_pulsed_scrape_figure"
+path = "src/bin/live_pulsed_scrape_figure.rs"
+required-features = ["cli", "report", "live-postgres"]
+
+# Paper §Live Evaluation: replay a SHA-256-pinned residual tape through
+# DSFB + ADWIN / BOCPD / PELT, score each against a ground-truth
+# windows JSON, and emit a single apples-to-apples bakeoff CSV. The
+# live-adapter analogue of the offline `baseline_bake_off` binary —
+# same scoring (`metrics::evaluate`), same detectors (`baselines::*`),
+# different input (a live-captured tape instead of the synthetic
+# perturbation stream).
+[[bin]]
+name = "replay_tape_baselines"
+path = "src/bin/replay_tape_baselines.rs"
+required-features = ["cli", "report", "live-postgres"]
+
+# Paper §Live Evaluation figure renderer. Consumes the two pinned
+# tapes under paper/fixtures/live_pg_real/ plus the ground-truth JSON
+# and produces two PNGs:
+#   * live_real_pg_trajectory.png — three-panel real-engine figure.
+#   * live_determinism_overlay.png — two-panel engine→tape /
+#     tape→episodes asymmetry figure.
+# Output is a byte-deterministic function of the pinned fixtures.
+[[bin]]
+name = "render_live_eval_figures"
+path = "src/bin/render_live_eval_figures.rs"
+required-features = ["cli", "report", "live-postgres"]
+
+# Paper §Live-Eval baseline-tuning sweep. Picks the best macro-F1
+# hyperparameter config for each of ADWIN/BOCPD/PELT on a held-out
+# training replication (default rep01 of every fault), freezes the
+# config, and evaluates it on the remaining replications. DSFB is
+# evaluated at defaults (not re-tuned) so the comparison is
+# "baselines at best training-split config" vs. "DSFB as published".
+# See paper/tables/baseline_tuned.tex + §Held-Out Baseline Tuning.
+[[bin]]
+name = "baseline_tune"
+path = "src/bin/baseline_tune.rs"
+required-features = ["cli", "report", "live-postgres"]
+
+# Paper §Public-Trace Bake-Off. Evaluates all four detectors on the
+# publicly-cited offline traces (Snowset, SQLShare, CEB, JOB) using
+# the same scoring pipeline as the live tape bake-off. Because those
+# traces are not fault-annotated, every emitted episode counts as an
+# FP; we report per-detector FAR/hr with 95 % bootstrap CI as a
+# workload-stress *upper bound* on false-alarm rate, not a
+# detection-quality claim. See paper/tables/public_trace_far.tex.
+[[bin]]
+name = "public_trace_bakeoff"
+path = "src/bin/public_trace_bakeoff.rs"
+required-features = ["cli", "report"]
 
 [profile.release]
 opt-level = 3

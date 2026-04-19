@@ -1,0 +1,5 @@
+error[E0599]: no method named `copy_in` found for reference `&ReadOnlyPgConn` in the current scope
+ --> tests/trybuild_readonly_conn/copy_in_is_not_exposed.rs:5:15
+  |
+5 |     let _ = c.copy_in::<_, Vec<u8>>("COPY users FROM STDIN");
+  |               ^^^^^^^ method not found in `&ReadOnlyPgConn`

@@ -251,3 +251,107 @@ pub fn f1_delta(baseline: &[PerMotifMetrics], scaled: &[PerMotifMetrics]) -> Vec
         .map(|(a, b)| (a.motif.clone(), b.f1 - a.f1))
         .collect()
 }
+
+/// Cross-signal agreement per episode and per-motif mean.
+///
+/// For each emitted episode `E` of motif class `c` on channel `ch` over
+/// `[t_s, t_e]`, define cross-signal agreement as the fraction of *other*
+/// motif classes `c' ≠ c` that also emit at least one episode overlapping
+/// `[t_s, t_e]` on any channel. Range `[0, 1]`; zero = isolated signal,
+/// one = full grammar coverage.
+///
+/// This is **not** a ground-truth correlation and **not** a causal score.
+/// High agreement can arise from a common exogenous stressor *or* from
+/// the grammar's overlapping sensitivity; low agreement is not evidence
+/// of isolation either. It is a structural co-occurrence measurement
+/// whose sole purpose is to quantify the multi-signal coupling that
+/// distinguishes DSFB episodes from per-series change-point reports.
+///
+/// See paper §7 for the matching limitation statement.
+pub fn cross_signal_agreement(episodes: &[Episode]) -> Vec<(MotifClass, f64)> {
+    let mut per_motif: Vec<(MotifClass, Vec<f64>)> =
+        MotifClass::ALL.iter().map(|m| (*m, Vec::new())).collect();
+    for ep in episodes {
+        let other_classes_with_overlap = MotifClass::ALL
+            .iter()
+            .filter(|m| **m != ep.motif)
+            .filter(|m| {
+                episodes
+                    .iter()
+                    .any(|e| e.motif == **m && e.t_end >= ep.t_start && e.t_start <= ep.t_end)
+            })
+            .count();
+        let agreement = other_classes_with_overlap as f64 / (MotifClass::ALL.len() - 1) as f64;
+        debug_assert!(
+            (0.0..=1.0).contains(&agreement),
+            "cross-signal agreement must be in [0,1]"
+        );
+        per_motif
+            .iter_mut()
+            .find(|(m, _)| *m == ep.motif)
+            .map(|(_, v)| v.push(agreement));
+    }
+    per_motif
+        .into_iter()
+        .map(|(m, vs)| {
+            let mean = if vs.is_empty() {
+                0.0
+            } else {
+                vs.iter().sum::<f64>() / vs.len() as f64
+            };
+            (m, mean)
+        })
+        .collect()
+}
+
+/// Stability-under-perturbation scalar metric.
+///
+/// Given per-(motif, scale) F1 rows from the stress sweep, compute the
+/// normalised area-under-the-F1 curve over scales in the operating
+/// envelope window `[0.5, 1.5]` (around the canonical scale of 1.0). The
+/// scalar collapses the F1-vs-scale curve to a single number in `[0, 1]`
+/// that answers "how robust is this motif's detection across a ±50%
+/// perturbation-magnitude window?" — higher is more stable.
+///
+/// Trapezoidal integration on the subset of provided scales that fall in
+/// the window; normalisation divides by the window width so the result
+/// is the mean F1 across the interval. Motifs with no samples in the
+/// window return 0.0.
+///
+/// This is a re-read of the existing `tpcds.stress.csv` data, not a new
+/// experiment. See paper §6 (operating envelope) for the companion
+/// narrative.
+pub fn stability_under_perturbation(
+    stress_rows: &[(f64, String, f64)],
+) -> std::collections::HashMap<String, f64> {
+    let (lo, hi) = (0.5_f64, 1.5_f64);
+    let mut by_motif: std::collections::BTreeMap<String, Vec<(f64, f64)>> =
+        std::collections::BTreeMap::new();
+    for (scale, motif, f1) in stress_rows {
+        if *scale >= lo && *scale <= hi && f1.is_finite() {
+            by_motif
+                .entry(motif.clone())
+                .or_default()
+                .push((*scale, *f1));
+        }
+    }
+    let mut out = std::collections::HashMap::new();
+    for (motif, mut pts) in by_motif {
+        pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        if pts.len() < 2 {
+            out.insert(motif, 0.0);
+            continue;
+        }
+        let mut auc = 0.0_f64;
+        for pair in pts.windows(2) {
+            let (x0, y0) = pair[0];
+            let (x1, y1) = pair[1];
+            auc += 0.5 * (y0 + y1) * (x1 - x0);
+        }
+        let width = pts.last().unwrap().0 - pts.first().unwrap().0;
+        let norm = if width > 0.0 { auc / width } else { 0.0 };
+        debug_assert!(norm.is_finite(), "stability AUC finite");
+        out.insert(motif, norm.clamp(0.0, 1.0));
+    }
+    out
+}

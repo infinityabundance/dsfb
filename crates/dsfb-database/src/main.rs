@@ -4,11 +4,11 @@ use anyhow::Result;
 use clap::Parser;
 use dsfb_database::adapters::DatasetAdapter;
 use dsfb_database::adapters::{
-    ceb::Ceb, job::Job, snowset::Snowset, sqlshare::SqlShare, sqlshare_text::SqlShareText,
-    tpcds::TpcDs,
+    ceb::Ceb, generic_csv, job::Job, snowset::Snowset, sqlshare::SqlShare,
+    sqlshare_text::SqlShareText, tpcds::TpcDs,
 };
 use dsfb_database::grammar::{replay, MotifClass, MotifEngine, MotifGrammar};
-use dsfb_database::metrics::evaluate;
+use dsfb_database::metrics::{cross_signal_agreement, evaluate, stability_under_perturbation};
 use dsfb_database::non_claims;
 use dsfb_database::perturbation::{tpcds_with_perturbations, tpcds_with_perturbations_scaled};
 use dsfb_database::report::{
@@ -16,7 +16,7 @@ use dsfb_database::report::{
 };
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
@@ -92,6 +92,95 @@ enum Cmd {
         #[arg(long, default_value = "out")]
         out: PathBuf,
     },
+    /// Run every bundled reproducible artefact end-to-end and bundle the
+    /// result into `out/dsfb_database_artifacts.zip`. Composes the existing
+    /// `reproduce`, `exemplar`, and stress / funnel / comparison / refusal
+    /// paths into a single offline invocation. Byte-stable across runs.
+    ReproduceAll {
+        #[arg(long, default_value_t = 42)]
+        seed: u64,
+        #[arg(long, default_value = "out")]
+        out: PathBuf,
+    },
+    /// Apply the motif grammar to a residual stream constructed from an
+    /// operator-supplied CSV. See `src/adapters/generic_csv.rs` for the
+    /// contract; the grammar is loaded from the optional `--grammar`
+    /// JSON (default: the crate's pinned grammar). This is a worked
+    /// example, not a universality claim — the operator is responsible
+    /// for confirming the grammar is appropriate for the input signal.
+    Generic {
+        #[arg(long)]
+        csv: PathBuf,
+        #[arg(long)]
+        grammar: Option<PathBuf>,
+        #[arg(long)]
+        time_col: Option<String>,
+        #[arg(long)]
+        value_col: Option<String>,
+        #[arg(long)]
+        channel_col: Option<String>,
+        #[arg(long, default_value_t = false)]
+        pre_residualized: bool,
+        #[arg(long, default_value = "out")]
+        out: PathBuf,
+    },
+    /// Live read-only PostgreSQL telemetry adapter
+    /// (feature = `live-postgres`). Polls `pg_stat_statements`,
+    /// `pg_stat_activity`, `pg_stat_io`, `pg_stat_database` at a
+    /// configurable cadence, writes a SHA-256-finalised *tape*, and
+    /// emits motif episodes incrementally. Determinism holds only
+    /// given the tape (§10 non-claim #7).
+    #[cfg(feature = "live-postgres")]
+    Live {
+        /// libpq-style connection string
+        /// (e.g. `"host=/tmp user=dsfb_observer"`). Required unless
+        /// `--print-permissions-manifest` is set.
+        #[arg(long)]
+        conn: Option<String>,
+        /// Nominal polling interval in milliseconds.
+        #[arg(long, default_value_t = 1000)]
+        interval_ms: u64,
+        /// Rolling-CPU-ratio ceiling (0.0–1.0). When exceeded, the
+        /// next inter-poll sleep doubles.
+        #[arg(long, default_value_t = 0.1)]
+        cpu_budget_pct: f64,
+        /// Upper bound on per-poll wall-clock duration in
+        /// milliseconds; exceeding this doubles the inter-poll sleep.
+        #[arg(long, default_value_t = 500)]
+        max_poll_ms: u64,
+        /// Maximum number of seconds the live loop runs before a
+        /// graceful shutdown. Absent = run until SIGINT.
+        #[arg(long)]
+        max_duration_sec: Option<u64>,
+        /// Tape file path. Absent = tape disabled (residuals are
+        /// distilled and episodes emitted but not persisted; the
+        /// determinism guarantee requires a tape).
+        #[arg(long)]
+        tape: Option<PathBuf>,
+        /// In-memory retention window for the rescan buffer.
+        #[arg(long, default_value_t = 3600.0)]
+        retention_window_sec: f64,
+        /// Output directory for episodes CSV and poll telemetry.
+        #[arg(long, default_value = "out/live")]
+        out: PathBuf,
+        /// Dump the permission manifest (`spec/permissions.postgres.sql`)
+        /// to stdout and exit; no connection attempted.
+        #[arg(long, default_value_t = false)]
+        print_permissions_manifest: bool,
+        /// Optional motif-grammar override (YAML).
+        #[arg(long)]
+        grammar: Option<PathBuf>,
+    },
+    /// Replay a persisted tape (JSONL + `.hash` manifest) through the
+    /// batch motif engine and emit a deterministic episodes CSV.
+    /// Usable without the live-postgres feature.
+    #[cfg(feature = "live-postgres")]
+    ReplayTape {
+        #[arg(long)]
+        tape: PathBuf,
+        #[arg(long, default_value = "out/replay")]
+        out: PathBuf,
+    },
 }
 
 fn adapter_for(name: &str) -> Result<Box<dyn DatasetAdapter>> {
@@ -118,6 +207,50 @@ fn main() -> Result<()> {
         Cmd::Elasticity { seed, out } => elasticity(seed, out),
         Cmd::StressSweep { seed, out } => stress_sweep(seed, out),
         Cmd::Ingest { engine, csv, out } => run_ingest(&engine, csv, out),
+        Cmd::ReproduceAll { seed, out } => reproduce_all(seed, out),
+        Cmd::Generic {
+            csv,
+            grammar,
+            time_col,
+            value_col,
+            channel_col,
+            pre_residualized,
+            out,
+        } => run_generic(
+            csv,
+            grammar,
+            time_col,
+            value_col,
+            channel_col,
+            pre_residualized,
+            out,
+        ),
+        #[cfg(feature = "live-postgres")]
+        Cmd::Live {
+            conn,
+            interval_ms,
+            cpu_budget_pct,
+            max_poll_ms,
+            max_duration_sec,
+            tape,
+            retention_window_sec,
+            out,
+            print_permissions_manifest,
+            grammar,
+        } => run_live(
+            conn,
+            interval_ms,
+            cpu_budget_pct,
+            max_poll_ms,
+            max_duration_sec,
+            tape,
+            retention_window_sec,
+            out,
+            print_permissions_manifest,
+            grammar,
+        ),
+        #[cfg(feature = "live-postgres")]
+        Cmd::ReplayTape { tape, out } => run_replay_tape(tape, out),
     }
 }
 
@@ -840,4 +973,599 @@ fn scale_grammar(g: &MotifGrammar, factor: f64) -> MotifGrammar {
 
 fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{:02x}", x)).collect()
+}
+
+/// Load an operator-supplied grammar JSON. The grammar JSON schema is
+/// exactly what `reproduce` emits to `out/tpcds.grammar.json`, so a
+/// user's easiest path is to run `reproduce` once, copy the file, and
+/// tweak the numbers.
+fn load_grammar(path: Option<PathBuf>) -> Result<MotifGrammar> {
+    use anyhow::Context;
+    match path {
+        None => Ok(MotifGrammar::default()),
+        Some(p) => {
+            let s = std::fs::read_to_string(&p)
+                .with_context(|| format!("reading grammar JSON at {}", p.display()))?;
+            let g: MotifGrammar = serde_json::from_str(&s)
+                .with_context(|| format!("parsing grammar JSON at {}", p.display()))?;
+            Ok(g)
+        }
+    }
+}
+
+fn run_generic(
+    csv: PathBuf,
+    grammar_path: Option<PathBuf>,
+    time_col: Option<String>,
+    value_col: Option<String>,
+    channel_col: Option<String>,
+    pre_residualized: bool,
+    out: PathBuf,
+) -> Result<()> {
+    let opts = generic_csv::GenericCsvOptions {
+        time_col,
+        value_col,
+        channel_col,
+        pre_residualized,
+    };
+    let stream = generic_csv::load_generic_csv(&csv, &opts)?;
+    let grammar = load_grammar(grammar_path)?;
+    let engine = MotifEngine::new(grammar.clone());
+    let episodes = engine.run(&stream);
+    fs::create_dir_all(&out)?;
+    write_provenance(&out.join("generic.provenance.txt"), &stream.source)?;
+    write_episodes_csv(&out.join("generic.episodes.csv"), &episodes)?;
+
+    for m in MotifClass::ALL {
+        let count = stream.iter_class(m.residual_class()).count();
+        if count == 0 {
+            continue;
+        }
+        let p = grammar.params(m);
+        let title = format!("generic CSV: {} residuals + episodes", m.name());
+        plots::plot_residual_overlay(
+            &out.join(format!("generic.{}.png", m.name())),
+            &title,
+            &stream,
+            m.residual_class(),
+            &episodes,
+            m,
+            p.slew_threshold,
+            p.drift_threshold,
+        )?;
+    }
+
+    let funnel_rows = compute_funnel_rows(&stream, &episodes, &grammar);
+    plots::plot_pipeline_funnel(
+        &out.join("generic.funnel.png"),
+        "Generic CSV: noise-reduction funnel per motif (log scale)",
+        &funnel_rows,
+    )?;
+    write_funnel_csv(&out.join("generic.funnel.csv"), &funnel_rows)?;
+
+    eprintln!(
+        "generic: {} episodes from {}",
+        episodes.len(),
+        stream.source
+    );
+    eprintln!("stream_fingerprint = {}", hex(&stream.fingerprint()));
+    eprintln!(
+        "episodes_fingerprint = {}",
+        replay::fingerprint_hex(&episodes)
+    );
+    Ok(())
+}
+
+/// Orchestrates every bundled, offline artefact the crate can produce
+/// at a single seed, writes a MANIFEST.md, and packs everything into a
+/// deterministic zip. See `tests/reproduce_all_zip_is_deterministic.rs`
+/// for the byte-stability guarantee.
+fn reproduce_all(seed: u64, out: PathBuf) -> Result<()> {
+    fs::create_dir_all(&out)?;
+
+    // 1. Canonical TPC-DS controlled-perturbation pipeline.
+    reproduce(seed, out.clone())?;
+
+    // 2. Bundled exemplars for every non-TPC-DS dataset.
+    for ds in &["snowset", "sqlshare-text", "ceb", "job"] {
+        exemplar(ds, seed, out.clone())?;
+    }
+
+    // 3. Comparison + refusal figures.
+    emit_comparison_figure(seed, &out)?;
+    emit_refusal_figure(seed, &out)?;
+
+    // 4. Extra metrics: cross-signal agreement + stability AUC.
+    emit_cross_signal_agreement(seed, &out)?;
+    emit_stability_auc(&out)?;
+
+    // 5. MANIFEST.md
+    write_manifest(&out)?;
+
+    // 6. Deterministic zip.
+    let zip_path = out.join("dsfb_database_artifacts.zip");
+    build_deterministic_zip(&out, &zip_path)?;
+    eprintln!("artifact bundle: {}", zip_path.display());
+    Ok(())
+}
+
+/// Emits `out/comparison.png` and `out/comparison.csv` contrasting
+/// PELT / BOCPD change-points with a DSFB episode on the TPC-DS
+/// perturbed `plan_regression` channel. Baselines are intentionally
+/// scored charitably (each point wrapped as an episode of duration
+/// `min_dwell_seconds`) — the purpose is *structural contrast*, not
+/// detection-quality ranking.
+fn emit_comparison_figure(seed: u64, out: &Path) -> Result<()> {
+    use dsfb_database::baselines::{bocpd::Bocpd, pelt::Pelt, ChangePointDetector};
+    let (stream, _windows) = tpcds_with_perturbations(seed);
+    let grammar = MotifGrammar::default();
+    let episodes = MotifEngine::new(grammar.clone()).run(&stream);
+
+    let channel = "q42";
+    let samples_on_channel: Vec<(f64, f64)> = stream
+        .iter_class(dsfb_database::residual::ResidualClass::PlanRegression)
+        .filter(|s| s.channel.as_deref() == Some(channel))
+        .map(|s| (s.t, s.value))
+        .collect();
+    if samples_on_channel.is_empty() {
+        return Ok(());
+    }
+    let pelt_events: Vec<f64> = Pelt::default().detect(&samples_on_channel);
+    let bocpd_events: Vec<f64> = Bocpd::default().detect(&samples_on_channel);
+
+    let t_lo = 150.0;
+    let t_hi = 330.0;
+    plots::plot_detector_contrast(
+        &out.join("comparison.png"),
+        "TPC-DS q42: PELT / BOCPD points vs DSFB episode (structural contrast)",
+        &stream,
+        dsfb_database::residual::ResidualClass::PlanRegression,
+        Some(channel),
+        &episodes,
+        &pelt_events,
+        &bocpd_events,
+        t_lo,
+        t_hi,
+    )?;
+
+    let mut w = csv::Writer::from_path(out.join("comparison.csv"))?;
+    w.write_record(["method", "event_type", "t_start", "t_end"])?;
+    for ep in episodes
+        .iter()
+        .filter(|e| e.channel.as_deref() == Some(channel))
+        .filter(|e| e.motif == MotifClass::PlanRegressionOnset)
+    {
+        w.write_record([
+            "dsfb",
+            "episode",
+            &format!("{:.3}", ep.t_start),
+            &format!("{:.3}", ep.t_end),
+        ])?;
+    }
+    for t in pelt_events.iter() {
+        w.write_record([
+            "pelt",
+            "change_point",
+            &format!("{:.3}", t),
+            &format!("{:.3}", t),
+        ])?;
+    }
+    for t in bocpd_events.iter() {
+        w.write_record([
+            "bocpd",
+            "change_point",
+            &format!("{:.3}", t),
+            &format!("{:.3}", t),
+        ])?;
+    }
+    w.flush()?;
+    Ok(())
+}
+
+/// Emits `out/refusal.png` and `out/refusal.csv` on a pure-noise
+/// Gaussian null trace. DSFB is expected to emit zero episodes; the
+/// baselines fire at a non-zero rate under the charitable point-wrap
+/// scoring. The figure anchors the "Cases Where Interpretation Is Not
+/// Justified" paper section.
+fn emit_refusal_figure(seed: u64, out: &Path) -> Result<()> {
+    use dsfb_database::baselines::{bocpd::Bocpd, pelt::Pelt, ChangePointDetector};
+    use dsfb_database::residual::{ResidualClass, ResidualSample, ResidualStream};
+    use rand::{Rng, SeedableRng};
+
+    let mut rng = rand_pcg::Pcg64::seed_from_u64(seed);
+    let n = 3600_usize;
+    let mut stream = ResidualStream::new(format!("null-trace@seed{seed}"));
+    let mut null_trace: Vec<(f64, f64)> = Vec::with_capacity(n);
+    for i in 0..n {
+        let t = i as f64;
+        let u1: f64 = rng.gen_range(1e-12..1.0);
+        let u2: f64 = rng.gen_range(0.0..1.0);
+        let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+        let v = z * 0.05;
+        null_trace.push((t, v));
+        stream.push(
+            ResidualSample::new(t, ResidualClass::PlanRegression, v).with_channel("null"),
+        );
+    }
+    stream.sort();
+
+    let grammar = MotifGrammar::default();
+    let episodes = MotifEngine::new(grammar).run(&stream);
+
+    let pelt_times: Vec<f64> = Pelt::default().detect(&null_trace);
+    let bocpd_times: Vec<f64> = Bocpd::default().detect(&null_trace);
+
+    let mut baseline_events: Vec<(f64, &'static str)> = pelt_times
+        .iter()
+        .map(|t| (*t, "pelt"))
+        .chain(bocpd_times.iter().map(|t| (*t, "bocpd")))
+        .collect();
+    baseline_events.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    plots::plot_refusal_contrast(
+        &out.join("refusal.png"),
+        "Null-trace refusal: baselines false-alarm; DSFB refuses",
+        &null_trace,
+        &episodes,
+        &baseline_events,
+    )?;
+
+    let dur_hours = null_trace.last().map(|p| p.0).unwrap_or(1.0) / 3600.0;
+    let mut w = csv::Writer::from_path(out.join("refusal.csv"))?;
+    w.write_record(["method", "false_alarms_per_hour", "episodes"])?;
+    w.write_record([
+        "pelt",
+        &format!("{:.3}", pelt_times.len() as f64 / dur_hours.max(1e-9)),
+        &pelt_times.len().to_string(),
+    ])?;
+    w.write_record([
+        "bocpd",
+        &format!("{:.3}", bocpd_times.len() as f64 / dur_hours.max(1e-9)),
+        &bocpd_times.len().to_string(),
+    ])?;
+    w.write_record([
+        "dsfb",
+        &format!("{:.3}", episodes.len() as f64 / dur_hours.max(1e-9)),
+        &episodes.len().to_string(),
+    ])?;
+    w.flush()?;
+    Ok(())
+}
+
+fn emit_cross_signal_agreement(seed: u64, out: &Path) -> Result<()> {
+    let (stream, _windows) = tpcds_with_perturbations(seed);
+    let grammar = MotifGrammar::default();
+    let episodes = MotifEngine::new(grammar).run(&stream);
+    let rows = cross_signal_agreement(&episodes);
+    let mut w = csv::Writer::from_path(out.join("tpcds.cross_signal.csv"))?;
+    w.write_record(["motif", "cross_signal_agreement_mean"])?;
+    for (m, v) in rows {
+        w.write_record([m.name().to_string(), format!("{:.4}", v)])?;
+    }
+    w.flush()?;
+    Ok(())
+}
+
+fn emit_stability_auc(out: &Path) -> Result<()> {
+    let stress_path = out.join("tpcds.stress.csv");
+    if !stress_path.exists() {
+        return Ok(());
+    }
+    let mut rdr = csv::Reader::from_path(&stress_path)?;
+    let headers = rdr.headers()?.clone();
+    let motif_cols: Vec<(usize, String)> = headers
+        .iter()
+        .enumerate()
+        .filter_map(|(i, h)| h.strip_suffix("_f1").map(|m| (i, m.to_string())))
+        .collect();
+    let mut rows: Vec<(f64, String, f64)> = Vec::new();
+    for rec in rdr.records() {
+        let rec = rec?;
+        let scale: f64 = rec.get(0).unwrap_or("nan").parse().unwrap_or(f64::NAN);
+        for (col_idx, motif) in &motif_cols {
+            let f1: f64 = rec.get(*col_idx).unwrap_or("nan").parse().unwrap_or(f64::NAN);
+            rows.push((scale, motif.clone(), f1));
+        }
+    }
+    let aucs = stability_under_perturbation(&rows);
+    let mut w = csv::Writer::from_path(out.join("tpcds.stability.csv"))?;
+    w.write_record(["motif", "auc_0p5_1p5"])?;
+    let mut motifs: Vec<String> = aucs.keys().cloned().collect();
+    motifs.sort();
+    for m in motifs {
+        w.write_record([m.clone(), format!("{:.4}", aucs[&m])])?;
+    }
+    w.flush()?;
+    Ok(())
+}
+
+fn write_manifest(out: &Path) -> Result<()> {
+    let mut f = File::create(out.join("MANIFEST.md"))?;
+    writeln!(f, "# DSFB-Database Artefact Manifest")?;
+    writeln!(f)?;
+    writeln!(
+        f,
+        "Every file below is produced by `dsfb-database reproduce-all --seed 42 --out out`"
+    )?;
+    writeln!(f, "at crate version `{}`.", dsfb_database::CRATE_VERSION)?;
+    writeln!(f)?;
+    writeln!(f, "## Phase A — TPC-DS controlled perturbation")?;
+    writeln!(f, "- `tpcds.episodes.csv` — episode stream")?;
+    writeln!(f, "- `tpcds.metrics.csv` — per-motif precision/recall/F1/TTD")?;
+    writeln!(f, "- `tpcds.windows.json` — planted perturbation windows")?;
+    writeln!(f, "- `tpcds.grammar.json` — pinned grammar parameters")?;
+    writeln!(f, "- `tpcds.*.png` — per-motif residual overlays")?;
+    writeln!(f, "- `tpcds.summary_table.png` — motif × channel episode count")?;
+    writeln!(f, "- `tpcds.funnel.png` + `tpcds.funnel.csv` — noise-reduction funnel")?;
+    writeln!(f, "- `tpcds.anatomy.png` + `tpcds.phase_portrait.png` — drift/slew anatomy with Lyapunov overlay")?;
+    writeln!(f, "- `tpcds.stress.csv` + `.png` + `.txt` — per-motif F1 vs. perturbation scale")?;
+    writeln!(f, "- `tpcds.ttd.csv` — per-(motif, scale) median time-to-detection")?;
+    writeln!(f, "- `tpcds.throughput.txt` — single-thread µs/sample")?;
+    writeln!(f, "- `tpcds.cross_signal.csv` — per-motif cross-signal agreement mean")?;
+    writeln!(f, "- `tpcds.stability.csv` — per-motif F1-AUC over scales [0.5, 1.5]")?;
+    writeln!(f)?;
+    writeln!(f, "## Phase B — bundled dataset exemplars")?;
+    writeln!(f, "Deterministic synthetic exemplars shaped like the real corpora.")?;
+    writeln!(f, "- `snowset.exemplar.episodes.csv` + `snowset.exemplar.*.png`")?;
+    writeln!(
+        f,
+        "- `sqlshare-text.exemplar.episodes.csv` + `sqlshare-text.exemplar.*.png`"
+    )?;
+    writeln!(f, "- `ceb.exemplar.episodes.csv` + `ceb.exemplar.*.png`")?;
+    writeln!(f, "- `job.exemplar.episodes.csv` + `job.exemplar.*.png`")?;
+    writeln!(f)?;
+    writeln!(f, "## Phase C — contrast and refusal")?;
+    writeln!(
+        f,
+        "- `comparison.png` + `comparison.csv` — DSFB episode vs PELT/BOCPD points on TPC-DS q42"
+    )?;
+    writeln!(
+        f,
+        "- `refusal.png` + `refusal.csv` — null-trace DSFB refuses while baselines false-alarm"
+    )?;
+    writeln!(f)?;
+    writeln!(f, "## Provenance")?;
+    writeln!(f, "- `provenance.txt` — crate version, source labels, non-claim charter")?;
+    writeln!(f, "- `dsfb_database_artifacts.zip` — byte-stable bundle of everything above")?;
+    Ok(())
+}
+
+fn build_deterministic_zip(out: &Path, zip_path: &Path) -> Result<()> {
+    use zip::{write::FileOptions, CompressionMethod, ZipWriter};
+    let mut paths: Vec<PathBuf> = Vec::new();
+    collect_files(out, out, &mut paths)?;
+    let zip_rel = zip_path.strip_prefix(out).unwrap_or(zip_path).to_path_buf();
+    // Exclude the zip itself and any file whose contents are
+    // wall-clock-dependent by construction (throughput numbers).
+    paths.retain(|p| {
+        let s = p.to_string_lossy();
+        p != &zip_rel && !s.ends_with("throughput.txt")
+    });
+    paths.sort();
+
+    let file = File::create(zip_path)?;
+    let mut zw = ZipWriter::new(file);
+    let pinned_dt = zip::DateTime::from_date_and_time(2026, 1, 1, 0, 0, 0)
+        .unwrap_or_else(|_| zip::DateTime::default());
+    let options = FileOptions::default()
+        .compression_method(CompressionMethod::Stored)
+        .unix_permissions(0o644)
+        .last_modified_time(pinned_dt);
+
+    for rel in &paths {
+        let abs = out.join(rel);
+        if !abs.is_file() {
+            continue;
+        }
+        let name = rel.to_string_lossy().replace('\\', "/");
+        zw.start_file(name, options)?;
+        let mut buf = Vec::new();
+        File::open(&abs)?.read_to_end(&mut buf)?;
+        zw.write_all(&buf)?;
+    }
+    zw.finish()?;
+    Ok(())
+}
+
+fn collect_files(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_files(root, &path, out)?;
+        } else if path.is_file() {
+            let rel = path.strip_prefix(root)?.to_path_buf();
+            out.push(rel);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "live-postgres")]
+const PERMISSIONS_MANIFEST: &str = include_str!("../spec/permissions.postgres.sql");
+
+#[cfg(feature = "live-postgres")]
+#[allow(clippy::too_many_arguments)]
+fn run_live(
+    conn: Option<String>,
+    interval_ms: u64,
+    cpu_budget_pct: f64,
+    max_poll_ms: u64,
+    max_duration_sec: Option<u64>,
+    tape: Option<PathBuf>,
+    retention_window_sec: f64,
+    out: PathBuf,
+    print_permissions_manifest: bool,
+    grammar_path: Option<PathBuf>,
+) -> Result<()> {
+    if print_permissions_manifest {
+        print!("{}", PERMISSIONS_MANIFEST);
+        return Ok(());
+    }
+    let conn = conn.ok_or_else(|| {
+        anyhow::anyhow!(
+            "--conn is required unless --print-permissions-manifest is set"
+        )
+    })?;
+    fs::create_dir_all(&out)?;
+    let grammar = match grammar_path.as_ref() {
+        Some(p) => {
+            let y = fs::read_to_string(p)?;
+            MotifGrammar::from_yaml(&y)?
+        }
+        None => MotifGrammar::default(),
+    };
+    let budget = dsfb_database::live::Budget {
+        max_poll_ms,
+        cpu_pct: cpu_budget_pct,
+    };
+    let interval = std::time::Duration::from_millis(interval_ms);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    runtime.block_on(async move {
+        live_loop_async(
+            &conn,
+            interval,
+            budget,
+            max_duration_sec,
+            tape,
+            retention_window_sec,
+            out,
+            grammar,
+        )
+        .await
+    })
+}
+
+#[cfg(feature = "live-postgres")]
+#[allow(clippy::too_many_arguments)]
+async fn live_loop_async(
+    conn_str: &str,
+    interval: std::time::Duration,
+    budget: dsfb_database::live::Budget,
+    max_duration_sec: Option<u64>,
+    tape_path: Option<PathBuf>,
+    retention_window_sec: f64,
+    out: PathBuf,
+    grammar: MotifGrammar,
+) -> Result<()> {
+    use dsfb_database::live::{
+        distiller::DistillerState, tape::Tape, LiveEmitter, ReadOnlyPgConn, Scraper,
+    };
+    let conn = ReadOnlyPgConn::connect(conn_str).await?;
+    let mut scraper = Scraper::new(conn, interval, budget);
+    let mut distiller = DistillerState::new();
+    let mut emitter = LiveEmitter::new(grammar, retention_window_sec, 4_000_000);
+    let mut tape: Option<Tape> = match &tape_path {
+        Some(p) => Some(Tape::create(p, format!("live-postgres:{}", conn_str))?),
+        None => None,
+    };
+    let mut poll_log = fs::File::create(out.join("poll_log.csv"))?;
+    writeln!(
+        poll_log,
+        "t_wall,snapshot_duration_ms,cpu_pct_rolling,throttle_factor,buffer_samples"
+    )?;
+    let episodes_path = out.join("live.episodes.csv");
+    let mut episodes_file = fs::File::create(&episodes_path)?;
+    writeln!(
+        episodes_file,
+        "motif,channel,t_start,t_end,peak,ema_at_boundary,trust_sum"
+    )?;
+
+    let start = std::time::Instant::now();
+    let deadline = max_duration_sec.map(|s| start + std::time::Duration::from_secs(s));
+    let mut last_tick = std::time::Instant::now();
+    let mut total_episodes: usize = 0;
+
+    loop {
+        let tick_start = std::time::Instant::now();
+        let (snapshot, wall) = tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                eprintln!("\nSIGINT received — flushing and shutting down cleanly.");
+                break;
+            }
+            r = scraper.next_snapshot() => r?,
+        };
+        let self_time = tick_start.elapsed();
+        let interval_since_last = last_tick.elapsed();
+        last_tick = std::time::Instant::now();
+        let report = scraper.record_and_plan(wall, self_time, interval_since_last);
+        let samples = distiller.ingest(&snapshot);
+        if let Some(t) = tape.as_mut() {
+            t.append(&samples)?;
+        }
+        let episodes = emitter.push_samples(samples);
+        for ep in episodes.iter() {
+            writeln!(
+                episodes_file,
+                "{},{},{},{},{},{},{}",
+                ep.motif.name(),
+                ep.channel.as_deref().unwrap_or(""),
+                ep.t_start,
+                ep.t_end,
+                ep.peak,
+                ep.ema_at_boundary,
+                ep.trust_sum,
+            )?;
+        }
+        total_episodes += episodes.len();
+        writeln!(
+            poll_log,
+            "{},{},{:.6},{:.3},{}",
+            report.t_wall_start,
+            report.snapshot_duration_ms,
+            report.cpu_pct_rolling,
+            report.throttle_factor,
+            emitter.buffer_len(),
+        )?;
+        poll_log.flush()?;
+        episodes_file.flush()?;
+        if let Some(d) = deadline {
+            if std::time::Instant::now() >= d {
+                eprintln!("max-duration reached; flushing and shutting down cleanly.");
+                break;
+            }
+        }
+        tokio::time::sleep(scraper.next_sleep()).await;
+    }
+    if let Some(t) = tape {
+        let manifest = t.finalize()?;
+        eprintln!(
+            "tape sha256 = {} ({} samples)",
+            manifest.sha256, manifest.sample_count
+        );
+        eprintln!(
+            "replay with: dsfb-database replay-tape --tape {} --out {}",
+            tape_path.as_ref().unwrap().display(),
+            out.display()
+        );
+    }
+    eprintln!(
+        "live loop shutdown: {} episodes emitted, emitter_total={}",
+        total_episodes,
+        emitter.emitted_count(),
+    );
+    Ok(())
+}
+
+#[cfg(feature = "live-postgres")]
+fn run_replay_tape(tape: PathBuf, out: PathBuf) -> Result<()> {
+    use dsfb_database::grammar::replay::fingerprint_hex;
+    use dsfb_database::live::tape::load_and_verify;
+    fs::create_dir_all(&out)?;
+    let (stream, manifest) = load_and_verify(&tape)?;
+    eprintln!(
+        "tape verified: sha256={} samples={}",
+        manifest.sha256, manifest.sample_count
+    );
+    let engine = MotifEngine::new(MotifGrammar::default());
+    let episodes = engine.run(&stream);
+    write_episodes_csv(&out.join("replay.episodes.csv"), &episodes)?;
+    eprintln!(
+        "replay: {} episodes; episodes_fingerprint = {}",
+        episodes.len(),
+        fingerprint_hex(&episodes)
+    );
+    Ok(())
 }

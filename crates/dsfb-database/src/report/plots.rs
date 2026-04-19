@@ -1618,6 +1618,42 @@ pub fn plot_phase_portrait(
             PathElement::new(vec![(x, y), (x + 18, y)], drift_color.stroke_width(2))
         });
 
+    // Lyapunov-style sublevel-set overlay: V(r,s) := max(|r|/θ_slew,
+    // s/θ_drift) ≤ 1 is exactly the stable region of the state machine's
+    // own rule. See Appendix E. The contour `V = 1` is a dashed
+    // rectangle |r| = θ_slew and s = θ_drift. This does NOT claim
+    // stability of the underlying workload — only of the observer's
+    // decision rule.
+    let lyap_color = RGBColor(50, 50, 50);
+    let lyap_style = ShapeStyle {
+        color: lyap_color.to_rgba(),
+        filled: false,
+        stroke_width: 2,
+    };
+    let rect_pts = vec![
+        (-slew_threshold, drift_threshold),
+        (slew_threshold, drift_threshold),
+        (slew_threshold, 0.0),
+        (-slew_threshold, 0.0),
+        (-slew_threshold, drift_threshold),
+    ];
+    chart
+        .draw_series(rect_pts.windows(2).map(|seg| {
+            PathElement::new(
+                vec![seg[0], seg[1]],
+                ShapeStyle {
+                    color: lyap_style.color,
+                    filled: false,
+                    stroke_width: 1,
+                }
+                .stroke_width(1),
+            )
+        }))?
+        .label("V(r,s) ≤ 1 (stable sublevel set)")
+        .legend(move |(x, y)| {
+            PathElement::new(vec![(x, y), (x + 18, y)], lyap_color.stroke_width(1))
+        });
+
     // Per-envelope-class point colours: Stable (blue), Drift
     // (orange), Boundary (red). Slew dominates drift when both fire
     // (matches the motif state machine's read order).
@@ -1778,6 +1814,254 @@ pub fn plot_drift_slew_anatomy(
         .border_style(BLACK)
         .position(SeriesLabelPosition::UpperLeft)
         .draw()?;
+
+    root.present()?;
+    Ok(())
+}
+
+/// DSFB vs baselines visual contrast on a single trace window.
+///
+/// Four stacked subplots sharing the same x-axis (time):
+///   (1) raw residual trace on the chosen channel,
+///   (2) PELT change-points as vertical ticks,
+///   (3) BOCPD change-points as vertical ticks,
+///   (4) DSFB episode as a single filled rectangle `[t_start, t_end]`.
+///
+/// This is a **structural** contrast, not a detection-quality
+/// comparison: baselines emit points (which we wrap in a nominal
+/// detection window for scoring), DSFB emits a typed, bounded,
+/// grammar-constrained episode. The caller is expected to quote that
+/// distinction verbatim in the figure caption.
+#[allow(clippy::too_many_arguments)]
+pub fn plot_detector_contrast(
+    path: &Path,
+    title: &str,
+    stream: &ResidualStream,
+    class: ResidualClass,
+    channel: Option<&str>,
+    dsfb_episodes: &[Episode],
+    pelt_events: &[f64],
+    bocpd_events: &[f64],
+    t_lo: f64,
+    t_hi: f64,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let root = BitMapBackend::new(path, (1100, 780)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let root = root.titled(title, ("sans-serif", 22))?;
+    let panels = root.split_evenly((4, 1));
+
+    let samples: Vec<(f64, f64)> = stream
+        .iter_class(class)
+        .filter(|s| match (channel, s.channel.as_deref()) {
+            (Some(want), Some(have)) => want == have,
+            (None, _) => true,
+            (Some(_), None) => false,
+        })
+        .filter(|s| s.t >= t_lo && s.t <= t_hi)
+        .map(|s| (s.t, s.value))
+        .collect();
+
+    let (v_min, v_max, _, _) = stats_of(samples.iter().map(|s| s.1));
+    let y_pad = (v_max - v_min).abs().max(0.01) * 0.10;
+
+    {
+        let mut chart = ChartBuilder::on(&panels[0])
+            .caption("residual", ("sans-serif", 16))
+            .margin(8)
+            .x_label_area_size(25)
+            .y_label_area_size(55)
+            .build_cartesian_2d(t_lo..t_hi, (v_min - y_pad)..(v_max + y_pad))?;
+        chart.configure_mesh().x_desc("t (s)").y_desc("r").draw()?;
+        chart.draw_series(LineSeries::new(
+            samples.iter().cloned(),
+            RGBColor(31, 119, 180).stroke_width(1),
+        ))?;
+    }
+
+    let tick_style = |color: RGBColor| color.stroke_width(2);
+
+    {
+        let mut chart = ChartBuilder::on(&panels[1])
+            .caption("PELT change-points", ("sans-serif", 16))
+            .margin(8)
+            .x_label_area_size(25)
+            .y_label_area_size(55)
+            .build_cartesian_2d(t_lo..t_hi, 0.0_f64..1.0_f64)?;
+        chart
+            .configure_mesh()
+            .x_desc("t (s)")
+            .disable_y_axis()
+            .draw()?;
+        let pelt_color = RGBColor(148, 103, 189);
+        for &t in pelt_events.iter().filter(|t| **t >= t_lo && **t <= t_hi) {
+            chart.draw_series(std::iter::once(PathElement::new(
+                vec![(t, 0.0), (t, 1.0)],
+                tick_style(pelt_color),
+            )))?;
+        }
+    }
+
+    {
+        let mut chart = ChartBuilder::on(&panels[2])
+            .caption("BOCPD change-points", ("sans-serif", 16))
+            .margin(8)
+            .x_label_area_size(25)
+            .y_label_area_size(55)
+            .build_cartesian_2d(t_lo..t_hi, 0.0_f64..1.0_f64)?;
+        chart
+            .configure_mesh()
+            .x_desc("t (s)")
+            .disable_y_axis()
+            .draw()?;
+        let bocpd_color = RGBColor(44, 160, 44);
+        for &t in bocpd_events.iter().filter(|t| **t >= t_lo && **t <= t_hi) {
+            chart.draw_series(std::iter::once(PathElement::new(
+                vec![(t, 0.0), (t, 1.0)],
+                tick_style(bocpd_color),
+            )))?;
+        }
+    }
+
+    {
+        let mut chart = ChartBuilder::on(&panels[3])
+            .caption("DSFB episode (typed, bounded)", ("sans-serif", 16))
+            .margin(8)
+            .x_label_area_size(25)
+            .y_label_area_size(55)
+            .build_cartesian_2d(t_lo..t_hi, 0.0_f64..1.0_f64)?;
+        chart
+            .configure_mesh()
+            .x_desc("t (s)")
+            .disable_y_axis()
+            .draw()?;
+        let ep_color = RGBColor(214, 39, 40).mix(0.4);
+        for ep in dsfb_episodes
+            .iter()
+            .filter(|e| e.t_end >= t_lo && e.t_start <= t_hi)
+        {
+            let a = ep.t_start.max(t_lo);
+            let b = ep.t_end.min(t_hi);
+            chart.draw_series(std::iter::once(Rectangle::new(
+                [(a, 0.1), (b, 0.9)],
+                ep_color.filled(),
+            )))?;
+        }
+    }
+
+    root.present()?;
+    Ok(())
+}
+
+/// Refusal contrast on a pure-noise null trace.
+///
+/// Two stacked subplots sharing the same x-axis:
+///   (1) null trace with baseline change-points overlaid as red ticks,
+///   (2) null trace with DSFB episodes overlaid as filled rectangles
+///       (empty by construction at published thresholds).
+///
+/// The figure anchors the "Cases Where Interpretation Is Not Justified"
+/// section of the paper.
+pub fn plot_refusal_contrast(
+    path: &Path,
+    title: &str,
+    null_trace: &[(f64, f64)],
+    dsfb_episodes: &[Episode],
+    baseline_events: &[(f64, &'static str)],
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let root = BitMapBackend::new(path, (1100, 620)).into_drawing_area();
+    root.fill(&WHITE)?;
+    let root = root.titled(title, ("sans-serif", 22))?;
+    let panels = root.split_evenly((2, 1));
+
+    if null_trace.is_empty() {
+        panels[0].draw_text(
+            "(empty null trace)",
+            &TextStyle::from(("sans-serif", 18)),
+            (440, 280),
+        )?;
+        root.present()?;
+        return Ok(());
+    }
+
+    let t_lo = null_trace.first().map(|p| p.0).unwrap_or(0.0);
+    let t_hi = null_trace.last().map(|p| p.0).unwrap_or(t_lo + 1.0);
+    let (v_min, v_max, _, _) = stats_of(null_trace.iter().map(|s| s.1));
+    let y_pad = (v_max - v_min).abs().max(0.01) * 0.10;
+
+    {
+        let mut chart = ChartBuilder::on(&panels[0])
+            .caption(
+                "null trace — baselines fire false alarms",
+                ("sans-serif", 16),
+            )
+            .margin(10)
+            .x_label_area_size(30)
+            .y_label_area_size(60)
+            .build_cartesian_2d(t_lo..t_hi, (v_min - y_pad)..(v_max + y_pad))?;
+        chart.configure_mesh().x_desc("t (s)").y_desc("r").draw()?;
+        chart.draw_series(LineSeries::new(
+            null_trace.iter().cloned(),
+            RGBAColor(120, 120, 120, 0.7).stroke_width(1),
+        ))?;
+        let fa_color = RGBColor(214, 39, 40);
+        for (t, _who) in baseline_events
+            .iter()
+            .filter(|(t, _)| *t >= t_lo && *t <= t_hi)
+        {
+            chart.draw_series(std::iter::once(PathElement::new(
+                vec![(*t, v_min - y_pad), (*t, v_max + y_pad)],
+                fa_color.stroke_width(2),
+            )))?;
+        }
+    }
+
+    {
+        let mut chart = ChartBuilder::on(&panels[1])
+            .caption(
+                "null trace — DSFB refuses interpretation",
+                ("sans-serif", 16),
+            )
+            .margin(10)
+            .x_label_area_size(30)
+            .y_label_area_size(60)
+            .build_cartesian_2d(t_lo..t_hi, (v_min - y_pad)..(v_max + y_pad))?;
+        chart.configure_mesh().x_desc("t (s)").y_desc("r").draw()?;
+        chart.draw_series(LineSeries::new(
+            null_trace.iter().cloned(),
+            RGBAColor(120, 120, 120, 0.7).stroke_width(1),
+        ))?;
+        let ep_color = RGBColor(31, 119, 180).mix(0.4);
+        for ep in dsfb_episodes
+            .iter()
+            .filter(|e| e.t_end >= t_lo && e.t_start <= t_hi)
+        {
+            let a = ep.t_start.max(t_lo);
+            let b = ep.t_end.min(t_hi);
+            chart.draw_series(std::iter::once(Rectangle::new(
+                [(a, v_min - y_pad), (b, v_max + y_pad)],
+                ep_color.filled(),
+            )))?;
+        }
+        if dsfb_episodes
+            .iter()
+            .filter(|e| e.t_end >= t_lo && e.t_start <= t_hi)
+            .count()
+            == 0
+        {
+            panels[1].draw_text(
+                "(no DSFB episodes — refusal by construction)",
+                &TextStyle::from(("sans-serif", 14)).color(&RGBColor(80, 80, 80)),
+                (320, 270),
+            )?;
+        }
+    }
 
     root.present()?;
     Ok(())

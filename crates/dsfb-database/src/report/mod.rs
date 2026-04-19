@@ -8,6 +8,8 @@
 // use `plots` (main, pr_sweep) set `required-features = ["report"]`.
 #[cfg(feature = "report")]
 pub mod plots;
+#[cfg(feature = "report")]
+pub mod plots_live;
 
 use crate::grammar::Episode;
 use crate::metrics::PerMotifMetrics;
@@ -24,7 +26,7 @@ use std::path::Path;
 pub struct ReportHeader {
     pub crate_version: &'static str,
     pub generated_at: String,
-    pub non_claims: [&'static str; 5],
+    pub non_claims: [&'static str; 6],
     pub source: String,
 }
 

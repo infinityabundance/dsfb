@@ -31,6 +31,9 @@
 pub mod adapters;
 pub mod baselines;
 pub mod grammar;
+#[cfg(feature = "live-postgres")]
+pub mod live;
+pub mod live_mysql;
 pub mod metrics;
 pub mod metrics_exporter;
 pub mod non_claims;
