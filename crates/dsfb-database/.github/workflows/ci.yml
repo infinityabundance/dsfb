@@ -1,0 +1,155 @@
+# Server-side CI for the dsfb-database crate.
+#
+# Mirrors the contributor-side gate at `ci/gate.sh`. Job order is load-
+# bearing: the fingerprint-lock gate runs first and gates every other job
+# via `needs:`. This is the same discipline `scripts/check_locks.sh`
+# enforces locally — drift in any of the four pinned SHAs (stream,
+# episodes, non-claims, allow-list) fails the build before any build /
+# lint / supply-chain work runs, so reviewers see the lock break first.
+#
+# Scope: this workflow lives inside the dsfb-database crate. The
+# repository-root path filter (`crates/dsfb-database/**`) keeps every job
+# pinned to changes inside the crate; edits in unrelated production
+# crates do not trigger this workflow.
+
+name: dsfb-database CI
+
+on:
+  push:
+    paths:
+      - 'crates/dsfb-database/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - 'crates/dsfb-database/**'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: crates/dsfb-database
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  fingerprint-gate:
+    name: Fingerprint locks (gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-database
+      - name: Run check_locks.sh
+        run: bash scripts/check_locks.sh
+
+  build-test:
+    name: build+test (${{ matrix.features }})
+    needs: fingerprint-gate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - "cli report"
+          - "cli report live-postgres"
+          - "cli report live-mysql"
+          - "full"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-database
+          key: ${{ matrix.features }}
+      - name: cargo build
+        run: cargo build --release --features "${{ matrix.features }}" --locked
+      - name: cargo test
+        run: cargo test --release --features "${{ matrix.features }}" --locked
+
+  lint:
+    name: fmt + clippy + trybuild
+    needs: fingerprint-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-database
+          key: lint
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        run: cargo clippy --release --features full --locked --all-targets -- -D warnings
+      - name: trybuild compile-fail proofs
+        run: cargo test --release --features full --locked --test live_readonly_conn_surface
+
+  forbidden-phrases:
+    name: Forbidden-phrase tripwire
+    needs: fingerprint-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-database
+          key: forbidden
+      - name: Run forbidden_phrases test
+        run: cargo test --release --features full --locked --test forbidden_phrases
+
+  property-tests:
+    name: Property tests (ADWIN/BOCPD/PELT)
+    needs: fingerprint-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-database
+          key: property
+      - name: Run property_baselines test
+        run: cargo test --release --features full --locked --test property_baselines
+
+  supply-chain:
+    name: cargo-deny + cargo-audit
+    needs: fingerprint-gate
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+      - name: cargo deny check
+        run: cargo deny --all-features check
+      - name: cargo audit
+        run: cargo audit
+
+  sbom:
+    name: CycloneDX SBOM
+    needs: fingerprint-gate
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-cyclonedx
+        run: cargo install --locked cargo-cyclonedx
+      - name: Generate SBOM
+        run: cargo cyclonedx --format json --override-filename dsfb-database-sbom
+      - name: Upload SBOM artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsfb-database-sbom
+          path: crates/dsfb-database/dsfb-database-sbom.json
+          if-no-files-found: warn

@@ -9,7 +9,11 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-dsfb-database = { path = ".." }
+# `live-postgres` activates the `live::distiller` module surface that the
+# `live_distiller` fuzz target exercises. The other fuzz targets do not
+# depend on the feature; cargo unifies the feature set across the
+# fuzz crate, so enabling it here is harmless for them.
+dsfb-database = { path = "..", features = ["live-postgres"] }
 tempfile = "3"
 
 [[bin]]
@@ -36,6 +40,20 @@ bench = false
 [[bin]]
 name = "motif_params"
 path = "fuzz_targets/motif_params.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "motif_engine"
+path = "fuzz_targets/motif_engine.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "live_distiller"
+path = "fuzz_targets/live_distiller.rs"
 test = false
 doc = false
 bench = false

@@ -1,0 +1,63 @@
+## cargo-deny configuration for dsfb-database.
+##
+## Run via:
+##   cargo deny --manifest-path crates/dsfb-database/Cargo.toml \
+##     --all-features check
+##
+## Wired into the per-crate gate script at `ci/gate.sh`. The Pass-2 plan
+## records the rationale at /home/one/.claude/plans/only-focus-on-dsfb-database-curious-scroll.md
+## (Track M2). The supply-chain story this file pins:
+##
+##   * Allowed licences are limited to permissive + weak-copyleft families
+##     (Apache-2.0 / MIT / BSD-{2,3} / ISC / MPL-2.0 / Zlib / Unicode-DFS-2016).
+##     AGPL / GPL / SSPL are denied so a transitive pull-in surfaces here
+##     before it reaches a release tarball.
+##   * `unmaintained` and `unsound` advisories deny the build; `notice`
+##     remains a warning so cargo-deny does not block on advisory metadata
+##     churn alone. `cargo audit` (run separately by the gate) gives the
+##     RustSec-DB cross-check.
+##   * Source registries are pinned to crates.io. No git-only or local
+##     filesystem dependencies are permitted to enter the supply chain
+##     without an explicit exception.
+
+[graph]
+all-features = true
+
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/RustSec/advisory-db"]
+yanked = "deny"
+ignore = []
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MPL-2.0",
+    "Zlib",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "CC0-1.0",
+    "OpenSSL",
+]
+confidence-threshold = 0.93
+exceptions = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+highlight = "all"
+allow = []
+deny = []
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

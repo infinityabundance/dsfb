@@ -135,6 +135,11 @@ loom = "0.7"
 # to compile. The data-diode guarantee is type-level, so the test
 # that pins it must be a build-time assertion.
 trybuild = "1"
+# Pass-2 M5: Criterion microbenchmarks for the motif engine, the
+# baseline detectors, and the live distiller. Used by the three
+# bench targets under `benches/`. Disabled-by-default `harness =
+# false` keeps the bench layout independent of the test runner.
+criterion = "0.5"
 
 [lib]
 name = "dsfb_database"
@@ -287,6 +292,39 @@ required-features = ["cli", "report", "live-postgres"]
 name = "public_trace_bakeoff"
 path = "src/bin/public_trace_bakeoff.rs"
 required-features = ["cli", "report"]
+
+# Pass-2 N4: Monte-Carlo coverage of the percentile-bootstrap 95 % CI
+# at small sample sizes. The §Live-Eval table reports CIs at n=10 and
+# the Pass-2 statistics reviewer asked for an empirical coverage curve
+# rather than just the literature caveat. Output is a CSV that the
+# paper's bootstrap-coverage figure renders directly. Pure synthetic
+# Monte Carlo — no engine touched, no fixture mutated.
+[[bin]]
+name = "bootstrap_coverage"
+path = "src/bin/bootstrap_coverage.rs"
+required-features = ["cli"]
+
+# Pass-2 M5: Criterion microbenchmarks. Each [[bench]] entry is a
+# standalone target with `harness = false` so Criterion's main()
+# replaces the default test harness. They live under benches/ and
+# are run by `cargo bench`.
+[[bench]]
+name = "motif_engine"
+path = "benches/motif_engine.rs"
+harness = false
+required-features = ["cli"]
+
+[[bench]]
+name = "baselines"
+path = "benches/baselines.rs"
+harness = false
+required-features = ["cli"]
+
+[[bench]]
+name = "live_distiller"
+path = "benches/live_distiller.rs"
+harness = false
+required-features = ["cli", "live-postgres"]
 
 [profile.release]
 opt-level = 3
