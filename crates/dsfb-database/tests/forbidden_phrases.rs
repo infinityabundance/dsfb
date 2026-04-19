@@ -208,12 +208,20 @@ fn allowed_exceptions_are_actually_present() {
     // Defends against `ALLOWED` rotting — if a paper edit shifts a line
     // number, this test fails immediately so the exception entry can be
     // updated rather than silently masking a new violation elsewhere.
+    //
+    // The `paper/` directory is a local-only working artefact (never
+    // published to the public GitHub repo or the crates.io `include`
+    // list), so ALLOWED entries that point into `paper/` are validated
+    // only when the file is actually present. A missing file is
+    // skipped silently; a present-but-drifted file still fires.
     let root = crate_root();
     for (rel, lineno, phrase) in ALLOWED {
         let path = root.join(rel);
-        let body = fs::read_to_string(&path).unwrap_or_else(|e| {
-            panic!("ALLOWED references missing file {}: {}", path.display(), e)
-        });
+        let body = match fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => panic!("ALLOWED references unreadable file {}: {}", path.display(), e),
+        };
         let line = body.lines().nth(*lineno - 1).unwrap_or_else(|| {
             panic!(
                 "ALLOWED references {}:{} but file only has {} lines",
