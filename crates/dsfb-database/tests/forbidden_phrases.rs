@@ -60,7 +60,7 @@ const ALLOWED: &[(&str, usize, &str)] = &[
     // are byte-equal and locked by `tests/non_claim_lock.rs`.
     ("src/non_claims.rs", 16, "real-time"),
     ("tests/non_claim_lock.rs", 23, "real-time"),
-    ("paper/dsfb-database.tex", 2002, "real-time"),
+    ("paper/dsfb-database.tex", 2006, "real-time"),
     ("README.md", 64, "real-time"),
     // README §Live-adapter prose paragraph that explicitly cites the
     // 7th non-claim's "hard real-time" disclaimer.
@@ -70,12 +70,12 @@ const ALLOWED: &[(&str, usize, &str)] = &[
     // grammar's structural guarantees do not translate into a wall-clock
     // speedup. The phrase is used to *deny* the marketing read, not
     // assert it.
-    ("paper/dsfb-database.tex", 3194, "lead-time advantage"),
+    ("paper/dsfb-database.tex", 3198, "lead-time advantage"),
     // Paper §16 ¶3 — "mission-critical operators" is a downstream
     // consumer descriptor inside the prior-art-positioning paragraph,
     // not an audience claim. Kept verbatim because the phrase has a
     // specific meaning in the SRE / ops literature being cited.
-    ("paper/dsfb-database.tex", 3390, "mission-critical"),
+    ("paper/dsfb-database.tex", 3394, "mission-critical"),
     // src/live/mod.rs L27 — "software data diode" is inside scare-
     // quotes as a metaphor for the three-layer code-audit contract; the
     // surrounding paragraph immediately disclaims any cryptographic

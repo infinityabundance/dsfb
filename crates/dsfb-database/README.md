@@ -604,10 +604,17 @@ artefacts.
 
 ## Citing
 
-See `CITATION.cff`. The companion paper (`paper/dsfb-database.tex` +
-`paper/dsfb-database.pdf`) is maintained alongside the crate source; when
-present it is rebuilt by `scripts/reproduce_paper.sh`. The upstream DSFB
-stack is at
+If you use this crate, please cite:
+
+> de Beer, R. (2026). *DSFB-Database: A Deterministic, Read-Only Structural
+> Observer for Residual Trajectories in SQL Database Telemetry: An Empirical
+> Prior-Art Demonstration on Five Public Workloads* (v1.0). Zenodo.
+> [https://doi.org/10.5281/zenodo.19656368](https://doi.org/10.5281/zenodo.19656368)
+
+See `CITATION.cff` for the machine-readable entry. The companion paper
+(`paper/dsfb-database.tex` + `paper/dsfb-database.pdf`) is maintained
+alongside the crate source; when present it is rebuilt by
+`scripts/reproduce_paper.sh`. The upstream DSFB stack is at
 [github.com/infinityabundance/dsfb](https://github.com/infinityabundance/dsfb)
 with Zenodo DOIs listed in the core crate's README.
 

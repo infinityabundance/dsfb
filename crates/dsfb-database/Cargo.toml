@@ -30,11 +30,11 @@ include = [
     "tests/**",
     "examples/**",
     "colab/dsfb_database_repro.ipynb",
-    "Cargo.toml",
-    "README.md",
-    "LICENSE",
-    "NOTICE",
-    "CITATION.cff",
+    "/Cargo.toml",
+    "/README.md",
+    "/LICENSE",
+    "/NOTICE",
+    "/CITATION.cff",
 ]
 
 # Phase-C7: library-mode consumers pay for core adapter + grammar +
