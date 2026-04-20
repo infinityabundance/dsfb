@@ -131,6 +131,11 @@ Don’t believe a sensor all at once.
 > *DSFB Structural Semiotics Engine for Deterministic Rust Crate Auditing: A Non-Intrusive Deterministic Augmentation Layer for Structural Code Quality Interpretation and Certification Compliance Estimation* (v1.0).
 > Zenodo. [https://doi.org/10.5281/zenodo.19600872]
 
+> **de Beer, R.** (2026). 
+> *DSFB-Database: A Deterministic, Read-Only Structural Observer for Residual Trajectories in SQL Database Telemetry: An Empirical Prior-Art Demonstration on Five Public Workloads* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19656368]
+
+
 ---
 
 `DSFB Simulation Notebook:`
@@ -189,6 +194,9 @@ Don’t believe a sensor all at once.
 
 `DSFB Gray Rust Crate Audit`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-gray/notebooks/dsfb_gray_crates_audit.ipynb)
+
+`DSFB Database`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-database/colab/dsfb_database_repro.ipynb)
 
 ---
 
