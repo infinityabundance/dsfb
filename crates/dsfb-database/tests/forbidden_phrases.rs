@@ -61,10 +61,10 @@ const ALLOWED: &[(&str, usize, &str)] = &[
     ("src/non_claims.rs", 16, "real-time"),
     ("tests/non_claim_lock.rs", 23, "real-time"),
     ("paper/dsfb-database.tex", 2006, "real-time"),
-    ("README.md", 64, "real-time"),
+    ("README.md", 65, "real-time"),
     // README §Live-adapter prose paragraph that explicitly cites the
     // 7th non-claim's "hard real-time" disclaimer.
-    ("README.md", 424, "real-time"),
+    ("README.md", 425, "real-time"),
     // Paper §15 ¶7 — "lead-time advantage relative to the same
     // orchestration" is in the *limitation* discussion of why the
     // grammar's structural guarantees do not translate into a wall-clock

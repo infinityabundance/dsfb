@@ -1,0 +1,695 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "predicate": {
+    "crate": {
+      "artifactsInspected": 107,
+      "filesScanned": 83,
+      "name": "dsfb-database",
+      "pathInVcs": "crates/dsfb-database",
+      "root": "/home/one/dsfb/crates/dsfb-gray/target/scan-sources/dsfb-database-0.1.0",
+      "sourceSha256": "12215cce94b8d8f588214407389121c8542028045665f74ef1e07b6dd9322be0",
+      "vcsCommit": "3cbe6312134dc0ad1ef2f6adb3db1588cd0eecc6",
+      "version": "0.1.0"
+    },
+    "generatedAtUtc": "2026-04-20T01:47:50.690251509Z",
+    "guidanceSemantics": {
+      "codeQualityGoal": true,
+      "nonCertificationStatement": "DSFB findings may support internal review against standards-oriented expectations, but DSFB does not certify compliance with IEC, ISO, RTCA, MIL, NIST, or other standards.",
+      "reviewReadinessGoal": true
+    },
+    "sarif": {
+      "mediaType": "application/sarif+json",
+      "resultCount": 21,
+      "sha256": "ee45eb7dbffd316b1037608a9918d319bea676a3d6aab42ea03a0ae94da4210e"
+    },
+    "scanner": {
+      "auditMode": "canonical-broad-audit",
+      "name": "dsfb-gray",
+      "recipe": [
+        "heuristics-bank-default",
+        "constrained-runtime-audit",
+        "unsafe-panic-ffi-audit",
+        "verification-audit",
+        "lifecycle-audit",
+        "nasa-power-of-ten-audit",
+        "advanced-structural-audit"
+      ],
+      "recipeVersion": 1,
+      "version": "0.1.0"
+    },
+    "summary": {
+      "advancedStructural": {
+        "clear": 15,
+        "elevated": 8,
+        "indeterminate": 0
+      },
+      "advisorySubscores": [
+        {
+          "basis": "Derived from safety surface, correctness-critical Power-of-Ten rules, and correctness-oriented structural checks.",
+          "id": "correctness",
+          "percent": 53.3,
+          "title": "Correctness"
+        },
+        {
+          "basis": "Derived from lifecycle/governance evidence, reviewability-oriented Power-of-Ten rules, and maintainability-heavy structural checks.",
+          "id": "maintainability",
+          "percent": 53.8,
+          "title": "Maintainability"
+        },
+        {
+          "basis": "Derived from async/concurrency structural checks and bounded-control-flow review signals.",
+          "id": "concurrency_async",
+          "percent": 50.0,
+          "title": "Concurrency / Async"
+        },
+        {
+          "basis": "Derived from runtime-allocation proxies, resource-lifecycle checks, and bounded-allocation / bounded-loop review rules.",
+          "id": "resource_discipline",
+          "percent": 36.7,
+          "title": "Resource Discipline"
+        },
+        {
+          "basis": "Derived from verification signals, build/tooling complexity, and analyzability-oriented Power-of-Ten rules.",
+          "id": "verification_reviewability",
+          "percent": 62.8,
+          "title": "Verification / Reviewability"
+        },
+        {
+          "basis": "Derived from the full locked rubric as a broad readiness-oriented advisory synthesis.",
+          "id": "assurance_provenance",
+          "percent": 63.9,
+          "title": "Assurance / Provenance"
+        }
+      ],
+      "auditScore": {
+        "band": "mixed assurance posture",
+        "earnedWeightedPoints": 58.9,
+        "guideline": [
+          "Method: weighted checkpoint scoring across Safety (15%), Verification (15%), Build/Tooling (10%), Lifecycle/Governance (10%), NASA/JPL Power of Ten (25%), and Advanced Structural Checks (25%).",
+          "Checkpoint credit: pass/clear/applied = 1.0, indeterminate/partial = 0.5, elevated/not applied = 0.0.",
+          "Fairness rule: raw motif counts do not linearly reduce the score; each checkpoint contributes once so large crates are not punished simply for having more code.",
+          "Informational-only signals such as DSFB heuristic motif matches, hotspot counts, and capability flags like no_std/no_alloc are reported but excluded from the score denominator.",
+          "Interpretation: this is a broad improvement and review-readiness score for source-visible controls and evidence, not a certification and not a measure of runtime correctness."
+        ],
+        "method": "dsfb-assurance-score-v1",
+        "overallPercent": 58.9,
+        "possibleWeightedPoints": 100.0,
+        "sections": [
+          {
+            "checkpointCount": 5,
+            "earnedCheckpoints": 3.0,
+            "id": "safety",
+            "sectionPercent": 60.0,
+            "title": "Safety Surface",
+            "weightPercent": 15.0,
+            "weightedPoints": 9.0
+          },
+          {
+            "checkpointCount": 5,
+            "earnedCheckpoints": 4.0,
+            "id": "verification",
+            "sectionPercent": 80.0,
+            "title": "Verification Evidence",
+            "weightPercent": 15.0,
+            "weightedPoints": 12.0
+          },
+          {
+            "checkpointCount": 6,
+            "earnedCheckpoints": 5.5,
+            "id": "build",
+            "sectionPercent": 91.7,
+            "title": "Build / Tooling Complexity",
+            "weightPercent": 10.0,
+            "weightedPoints": 9.2
+          },
+          {
+            "checkpointCount": 13,
+            "earnedCheckpoints": 8.0,
+            "id": "lifecycle",
+            "sectionPercent": 61.5,
+            "title": "Lifecycle / Governance",
+            "weightPercent": 10.0,
+            "weightedPoints": 6.2
+          },
+          {
+            "checkpointCount": 10,
+            "earnedCheckpoints": 2.5,
+            "id": "nasa_power_of_ten",
+            "sectionPercent": 25.0,
+            "title": "NASA/JPL Power of Ten",
+            "weightPercent": 25.0,
+            "weightedPoints": 6.3
+          },
+          {
+            "checkpointCount": 23,
+            "earnedCheckpoints": 15.0,
+            "id": "advanced_structural",
+            "sectionPercent": 65.2,
+            "title": "Advanced Structural Checks",
+            "weightPercent": 25.0,
+            "weightedPoints": 16.3
+          }
+        ]
+      },
+      "conclusionLenses": {
+        "certificationPreparation": "For certification-oriented preparation, treat ITER-UNB, JPL-R9, NASA-CC, SAFE-STATE, TIME-WAIT as pre-review cleanup targets and evidence-organizing prompts rather than certification outcomes.",
+        "complianceReadiness": "7 finding(s) directly affect analyzability, reproducibility, or review traceability. DSFB may support internal review against standards-oriented expectations, but it does not certify compliance.",
+        "distributedOperational": "Operational pressure is most visible in ITER-UNB, P10-5, H-ALLOC-01, H-SERDE-01, H-THRU-01. These findings are the most likely to matter later in runtime replay, backpressure review, or production-style load investigation.",
+        "rustMaintainer": "Use the 58.9% overall score as a broad code-improvement target, not a compliance or certification badge. The highest-value maintainer work is concentrated in JPL-R9, NASA-CC, SAFE-STATE, TIME-WAIT, JPL-R0."
+      },
+      "criticalityHotspots": [
+        {
+          "estimatedComplexity": 25,
+          "function": "plot_live_real_pg",
+          "line": 276,
+          "path": "src/report/plots_live.rs",
+          "riskScore": 36,
+          "signals": [
+            "complexity>15",
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 16,
+          "function": "load_generic_csv",
+          "line": 79,
+          "path": "src/adapters/generic_csv.rs",
+          "riskScore": 33,
+          "signals": [
+            "complexity>15",
+            "long-function",
+            "unwrap"
+          ]
+        },
+        {
+          "estimatedComplexity": 18,
+          "function": "load_otel_db_spans",
+          "line": 94,
+          "path": "src/adapters/otel.rs",
+          "riskScore": 29,
+          "signals": [
+            "complexity>15",
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 15,
+          "function": "run_stress_sweep",
+          "line": 638,
+          "path": "src/main.rs",
+          "riskScore": 26,
+          "signals": [
+            "long-function",
+            "iter-unbounded"
+          ]
+        },
+        {
+          "estimatedComplexity": 8,
+          "function": "live_loop_async",
+          "line": 1443,
+          "path": "src/main.rs",
+          "riskScore": 25,
+          "signals": [
+            "long-function",
+            "unwrap",
+            "hard-coded-wait"
+          ]
+        },
+        {
+          "estimatedComplexity": 15,
+          "function": "detect",
+          "line": 72,
+          "path": "src/baselines/bocpd.rs",
+          "riskScore": 23,
+          "signals": [
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 15,
+          "function": "plot_episode_summary_table",
+          "line": 1028,
+          "path": "src/report/plots.rs",
+          "riskScore": 23,
+          "signals": [
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 12,
+          "function": "discover_tapes",
+          "line": 129,
+          "path": "src/bin/baseline_tune.rs",
+          "riskScore": 23,
+          "signals": [
+            "long-function",
+            "iter-unbounded"
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "category": "advanced-structural",
+          "classification": "context-needed",
+          "confidence": "high",
+          "evidenceIds": [
+            "ITER-UNB-01-ablation-sweep-59",
+            "ITER-UNB-02-ablation-sweep-219",
+            "ITER-UNB-03-baseline-bake-off-54",
+            "ITER-UNB-04-baseline-tune-163"
+          ],
+          "id": "ITER-UNB",
+          "impactKind": "resource discipline",
+          "remediation": "Add `.take(...)`, explicit bounds, or documented finite-source guarantees on terminal iterator consumption.",
+          "status": "elevated",
+          "title": "Unbounded iterator terminal-consumption audit",
+          "verificationSuggestion": "Add a bound, trusted finite-source proof, or regression test that demonstrates the iterator cannot grow without limit."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "JPL-R9-01-generic-csv-154",
+            "JPL-R9-02-baseline-bake-off-89",
+            "JPL-R9-03-null-trace-235",
+            "JPL-R9-04-null-trace-278"
+          ],
+          "id": "JPL-R9",
+          "impactKind": "maintainability",
+          "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+          "status": "elevated",
+          "title": "Unchecked extraction / dereference safety audit",
+          "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "NASA-CC-01-plots-live-276",
+            "NASA-CC-02-otel-94",
+            "NASA-CC-03-generic-csv-79",
+            "NASA-CC-04-main-638"
+          ],
+          "id": "NASA-CC",
+          "impactKind": "maintainability",
+          "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+          "status": "elevated",
+          "title": "Cyclomatic complexity hotspot audit (NASA SWE-220 proxy)",
+          "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "defect-candidate",
+          "confidence": "high",
+          "evidenceIds": [
+            "SAFE-STATE-01-ablation-sweep-102",
+            "SAFE-STATE-02-ablation-sweep-126",
+            "SAFE-STATE-03-ablation-sweep-137",
+            "SAFE-STATE-04-inject-over-real-154"
+          ],
+          "id": "SAFE-STATE",
+          "impactKind": "correctness",
+          "remediation": "Make fallback states explicit and document what the safe-state behavior is for the affected control path.",
+          "status": "elevated",
+          "title": "Catch-all state handling / safe-state fallback audit",
+          "verificationSuggestion": "Add tests that drive the fallback path explicitly and confirm the intended safe-state behavior is named, not implied."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "TIME-WAIT-01-scraper-54",
+            "TIME-WAIT-02-scraper-55",
+            "TIME-WAIT-03-main-1422",
+            "TIME-WAIT-04-main-1477"
+          ],
+          "id": "TIME-WAIT",
+          "impactKind": "maintainability",
+          "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+          "status": "elevated",
+          "title": "Hard-coded timing assumption audit",
+          "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "JPL-R0-01-bocpd-217",
+            "JPL-R0-02-main-1375"
+          ],
+          "id": "JPL-R0",
+          "impactKind": "maintainability",
+          "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+          "status": "elevated",
+          "title": "Recursion and cyclic call graph audit",
+          "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "review-readiness",
+          "confidence": "high",
+          "evidenceIds": [
+            "PLUGIN-LOAD-01-cargo-665",
+            "PLUGIN-LOAD-02-cargo-1324"
+          ],
+          "id": "PLUGIN-LOAD",
+          "impactKind": "assurance/provenance",
+          "remediation": "Constrain dynamic loading behind verification, sandboxing, or explicit operator review.",
+          "status": "elevated",
+          "title": "Dynamic loading / plugin sandbox audit",
+          "verificationSuggestion": "Add review notes or CI checks that prove the dynamic-loading boundary is verified, sandboxed, or intentionally excluded from trusted paths."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "defect-candidate",
+          "confidence": "medium",
+          "evidenceIds": [
+            "SHORT-WRITE-01-tape-73"
+          ],
+          "id": "SHORT-WRITE",
+          "impactKind": "correctness",
+          "remediation": "Use `write_all`, retry `Interrupted`, or document why partial writes are already handled by the caller.",
+          "status": "elevated",
+          "title": "Partial-write / Interrupted handling audit",
+          "verificationSuggestion": "Add IO-path tests that inject Interrupted or partial writes and prove the caller handles them correctly."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-3-01-postgres-ingest-50",
+            "P10-3-02-ceb-51",
+            "P10-3-03-ceb-59",
+            "P10-3-04-ceb-65"
+          ],
+          "id": "P10-3",
+          "impactKind": "correctness",
+          "remediation": "Move dynamic allocation to initialization paths or document and bound the steady-state allocation sites.",
+          "status": "not applied",
+          "title": "No dynamic allocation after initialization",
+          "verificationSuggestion": "Profile the flagged path under steady-state load and confirm no avoidable heap growth remains after initialization."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-4-01-plots-live-276",
+            "P10-4-02-plots-1536",
+            "P10-4-03-plots-live-38",
+            "P10-4-04-plots-live-528"
+          ],
+          "id": "P10-4",
+          "impactKind": "maintainability",
+          "remediation": "Split large functions into reviewable units with clearer local invariants and narrower responsibilities.",
+          "status": "not applied",
+          "title": "Functions stay within a single-sheet size budget (~60 LOC)",
+          "verificationSuggestion": "Split the function and add narrower tests that name the local invariants introduced by the refactor."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "defect-candidate",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-5-01-plots-live-276",
+            "P10-5-02-plots-1536",
+            "P10-5-03-plots-live-528",
+            "P10-5-04-live-pulsed-scrape-figure-76"
+          ],
+          "id": "P10-5",
+          "impactKind": "concurrency/async",
+          "remediation": "Replace catch-all control flow with explicit state handling or document the fallback state as intentional.",
+          "status": "not applied",
+          "title": "Assertion density averages at least two per function",
+          "verificationSuggestion": "Add state-transition tests that cover the previously catch-all path explicitly."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "defect-candidate",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-7-01-baseline-tune-145",
+            "P10-7-02-generic-csv-154",
+            "P10-7-03-baseline-bake-off-89",
+            "P10-7-04-null-trace-235"
+          ],
+          "id": "P10-7",
+          "impactKind": "correctness",
+          "remediation": "Propagate errors explicitly rather than unwrapping, or document the invariant that justifies the unwrap/expect.",
+          "status": "not applied",
+          "title": "Return values are checked and parameters are validated",
+          "verificationSuggestion": "Replace unwrap/expect with explicit handling or add an invariant test that proves the extraction precondition."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "review-readiness",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-8-01-mod-30",
+            "P10-8-02-lib-34",
+            "P10-8-03-mod-45",
+            "P10-8-04-mod-50"
+          ],
+          "id": "P10-8",
+          "impactKind": "verification/reviewability",
+          "remediation": "Reduce conditional-compilation forks or document why each feature/macro path remains auditable.",
+          "status": "not applied",
+          "title": "Conditional compilation and metaprogramming stay minimal",
+          "verificationSuggestion": "Review feature/macro-expanded paths and add CI coverage for the meaningful forks."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-1-01-bocpd-217",
+            "P10-1-02-main-1375"
+          ],
+          "id": "P10-1",
+          "impactKind": "correctness",
+          "remediation": "Remove recursion where possible, or isolate the pattern behind a bounded proof and explicit review note.",
+          "status": "not applied",
+          "title": "Simple control flow; no recursion or equivalent escapes",
+          "verificationSuggestion": "Add a focused test or review note that proves the remaining recursion is bounded, or refactor it into an explicit loop/work queue."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "medium",
+          "evidenceIds": [
+            "P10-2-01-main-1481"
+          ],
+          "id": "P10-2",
+          "impactKind": "correctness",
+          "remediation": "Add explicit upper bounds, timeout guards, or fixed-step limits so loop behavior is reviewable.",
+          "status": "not applied",
+          "title": "All loops have a fixed upper bound",
+          "verificationSuggestion": "Add a regression test that demonstrates a visible loop bound, timeout, or cancellation path on the flagged logic."
+        },
+        {
+          "category": "heuristic",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-ALLOC-01-01-postgres-234",
+            "H-ALLOC-01-02-bocpd-92",
+            "H-ALLOC-01-03-pelt-82",
+            "H-ALLOC-01-04-baseline-tune-108",
+            "H-ALLOC-01-05-baseline-tune-266",
+            "H-ALLOC-01-06-bootstrap-coverage-169"
+          ],
+          "id": "H-ALLOC-01",
+          "impactKind": "resource discipline",
+          "remediation": "Audit hot-loop allocation sites and prefer bounded or reserved growth on steady-state paths.",
+          "status": "matched",
+          "title": "Monotonic increase in allocation latency with step-change at capacity doubling",
+          "verificationSuggestion": "Benchmark the flagged path under steady load and inspect allocation counts before and after preallocation changes."
+        },
+        {
+          "category": "heuristic",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-SERDE-01-01-cargo-77",
+            "H-SERDE-01-02-cargo-77",
+            "H-SERDE-01-03-cargo-80",
+            "H-SERDE-01-04-cargo-80",
+            "H-SERDE-01-05-cargo-309",
+            "H-SERDE-01-06-cargo-313"
+          ],
+          "id": "H-SERDE-01",
+          "impactKind": "resource discipline",
+          "remediation": "Review payload growth, eager allocation, and schema-boundary handling on the serialization path.",
+          "status": "matched",
+          "title": "Serialization latency increasing with step-change at schema boundary",
+          "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "review-readiness",
+          "confidence": "medium",
+          "evidenceIds": [
+            "P10-10-01-cargo-toml-124",
+            "P10-10-02-motifs-93",
+            "P10-10-03-motifs-162",
+            "P10-10-04-motifs-223"
+          ],
+          "id": "P10-10",
+          "impactKind": "verification/reviewability",
+          "remediation": "Keep warnings and analyzer gates active in CI so the audit surface stays reviewable over time.",
+          "status": "indeterminate",
+          "title": "Pedantic warnings and static analyzers are enforced",
+          "verificationSuggestion": "Keep analyzer and warnings-as-errors gates in CI and record the expected toolchain surface in the repo docs."
+        },
+        {
+          "category": "heuristic",
+          "classification": "context-needed",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-CLOCK-01-01-snowset-87",
+            "H-CLOCK-01-02-ingest-throughput-126",
+            "H-CLOCK-01-03-ingest-throughput-138",
+            "H-CLOCK-01-04-scraper-174",
+            "H-CLOCK-01-05-scraper-278",
+            "H-CLOCK-01-06-main-572"
+          ],
+          "id": "H-CLOCK-01",
+          "impactKind": "correctness",
+          "remediation": "Prefer monotonic clocks for control logic and isolate wall-clock use to presentation or external protocol boundaries.",
+          "status": "matched",
+          "title": "Monotonic drift in timestamp-derived residuals between nodes",
+          "verificationSuggestion": "Add a regression test that isolates monotonic timing logic from wall-clock presentation or protocol boundaries."
+        },
+        {
+          "category": "heuristic",
+          "classification": "context-needed",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-THRU-01-01-cargo-120",
+            "H-THRU-01-02-cargo-121",
+            "H-THRU-01-03-ingest-throughput-135",
+            "H-THRU-01-04-ingest-throughput-141",
+            "H-THRU-01-05-ingest-throughput-159",
+            "H-THRU-01-06-ingest-throughput-160"
+          ],
+          "id": "H-THRU-01",
+          "impactKind": "resource discipline",
+          "remediation": "Inspect hot paths for hidden copies, queue growth, or retry behavior that can erode throughput before alarms fire.",
+          "status": "matched",
+          "title": "Persistent throughput decline not attributable to workload reduction",
+          "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+        },
+        {
+          "category": "heuristic",
+          "classification": "context-needed",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-TCP-01-01-readonly-conn-45",
+            "H-TCP-01-02-readonly-conn-46",
+            "H-TCP-01-03-readonly-conn-48",
+            "H-TCP-01-04-readonly-conn-123",
+            "H-TCP-01-05-readonly-conn-125",
+            "H-TCP-01-06-main-1456"
+          ],
+          "id": "H-TCP-01",
+          "impactKind": "correctness",
+          "remediation": "Review partial-write handling, retry damping, timeout paths, and whether network assumptions are made explicit.",
+          "status": "matched",
+          "title": "Burst of retransmits followed by drift in RTT variance",
+          "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+        }
+      ],
+      "matchedHeuristics": [
+        {
+          "id": "H-SERDE-01",
+          "matchedPatterns": [
+            "deserialize",
+            "serde",
+            "serde_json",
+            "serialize"
+          ],
+          "reasonCode": "SerializationDrift",
+          "structuralPrior": {
+            "confidence": 0.95,
+            "driftScale": 0.7625,
+            "slewScale": 0.7150000000000001
+          },
+          "totalHits": 140
+        },
+        {
+          "id": "H-ALLOC-01",
+          "matchedPatterns": [
+            "vec::with_capacity"
+          ],
+          "reasonCode": "MemoryPressureEscalation",
+          "structuralPrior": {
+            "confidence": 0.7838735539822874,
+            "driftScale": 0.8040316115044281,
+            "slewScale": 0.7648379338053137
+          },
+          "totalHits": 22
+        },
+        {
+          "id": "H-CLOCK-01",
+          "matchedPatterns": [
+            "instant::now()",
+            "systemtime::now()",
+            "timestamp"
+          ],
+          "reasonCode": "ClockDriftDivergence",
+          "structuralPrior": {
+            "confidence": 0.6412373393653842,
+            "driftScale": 0.839690665158654,
+            "slewScale": 1.0
+          },
+          "totalHits": 12
+        },
+        {
+          "id": "H-THRU-01",
+          "matchedPatterns": [
+            "throughput"
+          ],
+          "reasonCode": "ThroughputDegradation",
+          "structuralPrior": {
+            "confidence": 0.6412373393653842,
+            "driftScale": 0.839690665158654,
+            "slewScale": 1.0
+          },
+          "totalHits": 12
+        },
+        {
+          "id": "H-TCP-01",
+          "matchedPatterns": [
+            "connect("
+          ],
+          "reasonCode": "PartialPartitionSignature",
+          "structuralPrior": {
+            "confidence": 0.4864775372638283,
+            "driftScale": 0.8783806156840429,
+            "slewScale": 0.8540567388208515
+          },
+          "totalHits": 6
+        }
+      ],
+      "powerOfTen": {
+        "applied": 2,
+        "indeterminate": 1,
+        "notApplied": 7
+      }
+    }
+  },
+  "predicateType": "https://github.com/infinityabundance/dsfb-gray/attestations/crate-scan/v1",
+  "subject": [
+    {
+      "digest": {
+        "sha256": "12215cce94b8d8f588214407389121c8542028045665f74ef1e07b6dd9322be0"
+      },
+      "name": "pkg:cargo/dsfb-database@0.1.0"
+    }
+  ]
+}

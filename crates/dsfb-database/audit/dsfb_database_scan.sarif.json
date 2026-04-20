@@ -1,0 +1,2213 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "dsfb-gray/crate-scan"
+      },
+      "invocations": [
+        {
+          "endTimeUtc": "2026-04-20T01:47:50.690251509Z",
+          "executionSuccessful": true
+        }
+      ],
+      "properties": {
+        "advisorySubscores": [
+          {
+            "basis": "Derived from safety surface, correctness-critical Power-of-Ten rules, and correctness-oriented structural checks.",
+            "id": "correctness",
+            "percent": 53.3,
+            "title": "Correctness"
+          },
+          {
+            "basis": "Derived from lifecycle/governance evidence, reviewability-oriented Power-of-Ten rules, and maintainability-heavy structural checks.",
+            "id": "maintainability",
+            "percent": 53.8,
+            "title": "Maintainability"
+          },
+          {
+            "basis": "Derived from async/concurrency structural checks and bounded-control-flow review signals.",
+            "id": "concurrency_async",
+            "percent": 50.0,
+            "title": "Concurrency / Async"
+          },
+          {
+            "basis": "Derived from runtime-allocation proxies, resource-lifecycle checks, and bounded-allocation / bounded-loop review rules.",
+            "id": "resource_discipline",
+            "percent": 36.7,
+            "title": "Resource Discipline"
+          },
+          {
+            "basis": "Derived from verification signals, build/tooling complexity, and analyzability-oriented Power-of-Ten rules.",
+            "id": "verification_reviewability",
+            "percent": 62.8,
+            "title": "Verification / Reviewability"
+          },
+          {
+            "basis": "Derived from the full locked rubric as a broad readiness-oriented advisory synthesis.",
+            "id": "assurance_provenance",
+            "percent": 63.9,
+            "title": "Assurance / Provenance"
+          }
+        ],
+        "artifactsInspected": 107,
+        "auditMode": "canonical-broad-audit",
+        "auditScore": {
+          "band": "mixed assurance posture",
+          "earnedWeightedPoints": 58.9,
+          "guideline": [
+            "Method: weighted checkpoint scoring across Safety (15%), Verification (15%), Build/Tooling (10%), Lifecycle/Governance (10%), NASA/JPL Power of Ten (25%), and Advanced Structural Checks (25%).",
+            "Checkpoint credit: pass/clear/applied = 1.0, indeterminate/partial = 0.5, elevated/not applied = 0.0.",
+            "Fairness rule: raw motif counts do not linearly reduce the score; each checkpoint contributes once so large crates are not punished simply for having more code.",
+            "Informational-only signals such as DSFB heuristic motif matches, hotspot counts, and capability flags like no_std/no_alloc are reported but excluded from the score denominator.",
+            "Interpretation: this is a broad improvement and review-readiness score for source-visible controls and evidence, not a certification and not a measure of runtime correctness."
+          ],
+          "method": "dsfb-assurance-score-v1",
+          "overallPercent": 58.9,
+          "possibleWeightedPoints": 100.0,
+          "sections": [
+            {
+              "checkpointCount": 5,
+              "earnedCheckpoints": 3.0,
+              "id": "safety",
+              "sectionPercent": 60.0,
+              "title": "Safety Surface",
+              "weightPercent": 15.0,
+              "weightedPoints": 9.0
+            },
+            {
+              "checkpointCount": 5,
+              "earnedCheckpoints": 4.0,
+              "id": "verification",
+              "sectionPercent": 80.0,
+              "title": "Verification Evidence",
+              "weightPercent": 15.0,
+              "weightedPoints": 12.0
+            },
+            {
+              "checkpointCount": 6,
+              "earnedCheckpoints": 5.5,
+              "id": "build",
+              "sectionPercent": 91.7,
+              "title": "Build / Tooling Complexity",
+              "weightPercent": 10.0,
+              "weightedPoints": 9.2
+            },
+            {
+              "checkpointCount": 13,
+              "earnedCheckpoints": 8.0,
+              "id": "lifecycle",
+              "sectionPercent": 61.5,
+              "title": "Lifecycle / Governance",
+              "weightPercent": 10.0,
+              "weightedPoints": 6.2
+            },
+            {
+              "checkpointCount": 10,
+              "earnedCheckpoints": 2.5,
+              "id": "nasa_power_of_ten",
+              "sectionPercent": 25.0,
+              "title": "NASA/JPL Power of Ten",
+              "weightPercent": 25.0,
+              "weightedPoints": 6.3
+            },
+            {
+              "checkpointCount": 23,
+              "earnedCheckpoints": 15.0,
+              "id": "advanced_structural",
+              "sectionPercent": 65.2,
+              "title": "Advanced Structural Checks",
+              "weightPercent": 25.0,
+              "weightedPoints": 16.3
+            }
+          ]
+        },
+        "conclusionLenses": {
+          "certificationPreparation": "For certification-oriented preparation, treat ITER-UNB, JPL-R9, NASA-CC, SAFE-STATE, TIME-WAIT as pre-review cleanup targets and evidence-organizing prompts rather than certification outcomes.",
+          "complianceReadiness": "7 finding(s) directly affect analyzability, reproducibility, or review traceability. DSFB may support internal review against standards-oriented expectations, but it does not certify compliance.",
+          "distributedOperational": "Operational pressure is most visible in ITER-UNB, P10-5, H-ALLOC-01, H-SERDE-01, H-THRU-01. These findings are the most likely to matter later in runtime replay, backpressure review, or production-style load investigation.",
+          "rustMaintainer": "Use the 58.9% overall score as a broad code-improvement target, not a compliance or certification badge. The highest-value maintainer work is concentrated in JPL-R9, NASA-CC, SAFE-STATE, TIME-WAIT, JPL-R0."
+        },
+        "crateName": "dsfb-database",
+        "crateVersion": "0.1.0",
+        "filesScanned": 83,
+        "guidanceSemantics": {
+          "codeQualityGoal": true,
+          "nonCertificationStatement": "DSFB does not certify compliance with IEC, ISO, RTCA, MIL, NIST, or other standards. Use this audit as a guideline for improvement and review readiness.",
+          "reviewReadinessGoal": true
+        },
+        "pathInVcs": "crates/dsfb-database",
+        "sourceRoot": "/home/one/dsfb/crates/dsfb-gray/target/scan-sources/dsfb-database-0.1.0",
+        "sourceSha256": "12215cce94b8d8f588214407389121c8542028045665f74ef1e07b6dd9322be0",
+        "vcsCommit": "3cbe6312134dc0ad1ef2f6adb3db1588cd0eecc6"
+      },
+      "results": [
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "otel = [\"dep:serde_json\"]"
+                  },
+                  "startLine": 77
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "otel = [\"dep:serde_json\"]"
+                  },
+                  "startLine": 77
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "\"dep:serde_json\","
+                  },
+                  "startLine": 80
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "\"dep:serde_json\","
+                  },
+                  "startLine": 80
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "[dependencies.serde]"
+                  },
+                  "startLine": 309
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "[dependencies.serde_json]"
+                  },
+                  "startLine": 313
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "H-SERDE-01 matched 140 source motif hit(s) with reason code SerializationDrift."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "heuristic",
+            "evidenceIds": [
+              "H-SERDE-01-01-cargo-77",
+              "H-SERDE-01-02-cargo-77",
+              "H-SERDE-01-03-cargo-80",
+              "H-SERDE-01-04-cargo-80",
+              "H-SERDE-01-05-cargo-309",
+              "H-SERDE-01-06-cargo-313"
+            ],
+            "impactKind": "resource discipline",
+            "matchedPatterns": [
+              "deserialize",
+              "serde",
+              "serde_json",
+              "serialize"
+            ],
+            "provenance": "serde deserialization with growing payload; schema migration overhead",
+            "remediation": "Review payload growth, eager allocation, and schema-boundary handling on the serialization path.",
+            "totalHits": 140,
+            "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+          },
+          "ruleId": "H-SERDE-01"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/postgres.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut means: Vec<(f64, f64)> = Vec::with_capacity(snaps.len().saturating_sub(1));"
+                  },
+                  "startLine": 234
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/baselines/bocpd.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut pred = Vec::with_capacity(run_posterior.len());"
+                  },
+                  "startLine": 92
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/baselines/pelt.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut next_cands: Vec<usize> = Vec::with_capacity(candidates.len() + 1);"
+                  },
+                  "startLine": 82
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/baseline_tune.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut windows = Vec::with_capacity(gt.windows.len());"
+                  },
+                  "startLine": 108
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/baseline_tune.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut boots = Vec::with_capacity(b);"
+                  },
+                  "startLine": 266
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/bootstrap_coverage.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut boots = Vec::with_capacity(b);"
+                  },
+                  "startLine": 169
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "H-ALLOC-01 matched 22 source motif hit(s) with reason code MemoryPressureEscalation."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "heuristic",
+            "evidenceIds": [
+              "H-ALLOC-01-01-postgres-234",
+              "H-ALLOC-01-02-bocpd-92",
+              "H-ALLOC-01-03-pelt-82",
+              "H-ALLOC-01-04-baseline-tune-108",
+              "H-ALLOC-01-05-baseline-tune-266",
+              "H-ALLOC-01-06-bootstrap-coverage-169"
+            ],
+            "impactKind": "resource discipline",
+            "matchedPatterns": [
+              "vec::with_capacity"
+            ],
+            "provenance": "Vec<T> capacity doubling in hot loop; jemalloc arena exhaustion",
+            "remediation": "Audit hot-loop allocation sites and prefer bounded or reserved growth on steady-state paths.",
+            "totalHits": 22,
+            "verificationSuggestion": "Benchmark the flagged path under steady load and inspect allocation counts before and after preallocation changes."
+          },
+          "ruleId": "H-ALLOC-01"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/snowset.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "Some(parsed.timestamp_micros() as f64)"
+                  },
+                  "startLine": 87
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ingest_throughput.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let build_start = Instant::now();"
+                  },
+                  "startLine": 126
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ingest_throughput.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let t0 = Instant::now();"
+                  },
+                  "startLine": 138
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live/scraper.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let start = Instant::now();"
+                  },
+                  "startLine": 174
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live/scraper.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "SystemTime::now()"
+                  },
+                  "startLine": 278
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let t0 = Instant::now();"
+                  },
+                  "startLine": 572
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "H-CLOCK-01 matched 12 source motif hit(s) with reason code ClockDriftDivergence."
+          },
+          "properties": {
+            "classification": "context-needed",
+            "confidence": "high",
+            "dsfbCategory": "heuristic",
+            "evidenceIds": [
+              "H-CLOCK-01-01-snowset-87",
+              "H-CLOCK-01-02-ingest-throughput-126",
+              "H-CLOCK-01-03-ingest-throughput-138",
+              "H-CLOCK-01-04-scraper-174",
+              "H-CLOCK-01-05-scraper-278",
+              "H-CLOCK-01-06-main-572"
+            ],
+            "impactKind": "correctness",
+            "matchedPatterns": [
+              "instant::now()",
+              "systemtime::now()",
+              "timestamp"
+            ],
+            "provenance": "TSC vs HPET clock source discrepancy between cluster nodes",
+            "remediation": "Prefer monotonic clocks for control logic and isolate wall-clock use to presentation or external protocol boundaries.",
+            "totalHits": 12,
+            "verificationSuggestion": "Add a regression test that isolates monotonic timing logic from wall-clock presentation or protocol boundaries."
+          },
+          "ruleId": "H-CLOCK-01"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "name = \"ingest_throughput\""
+                  },
+                  "startLine": 120
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "path = \"src/bin/ingest_throughput.rs\""
+                  },
+                  "startLine": 121
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ingest_throughput.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut throughput_samples = Vec::with_capacity(cli.repeats);"
+                  },
+                  "startLine": 135
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ingest_throughput.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "throughput_samples.push(cli.n_residuals as f64 / elapsed_s);"
+                  },
+                  "startLine": 141
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ingest_throughput.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "throughput_samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));"
+                  },
+                  "startLine": 159
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ingest_throughput.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let thr_median = throughput_samples[cli.repeats / 2];"
+                  },
+                  "startLine": 160
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "H-THRU-01 matched 12 source motif hit(s) with reason code ThroughputDegradation."
+          },
+          "properties": {
+            "classification": "context-needed",
+            "confidence": "high",
+            "dsfbCategory": "heuristic",
+            "evidenceIds": [
+              "H-THRU-01-01-cargo-120",
+              "H-THRU-01-02-cargo-121",
+              "H-THRU-01-03-ingest-throughput-135",
+              "H-THRU-01-04-ingest-throughput-141",
+              "H-THRU-01-05-ingest-throughput-159",
+              "H-THRU-01-06-ingest-throughput-160"
+            ],
+            "impactKind": "resource discipline",
+            "matchedPatterns": [
+              "throughput"
+            ],
+            "provenance": "Resource contention from co-located process; IO scheduler starvation",
+            "remediation": "Inspect hot paths for hidden copies, queue growth, or retry behavior that can erode throughput before alarms fire.",
+            "totalHits": 12,
+            "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+          },
+          "ruleId": "H-THRU-01"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live/readonly_conn.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "pub async fn connect(conn_str: &str) -> Result<Self> {"
+                  },
+                  "startLine": 45
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live/readonly_conn.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let (client, connection) = tokio_postgres::connect(conn_str, tokio_postgres::NoTls)"
+                  },
+                  "startLine": 46
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live_mysql/readonly_conn.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "pub async fn connect(url: &str) -> Result<Self> {"
+                  },
+                  "startLine": 48
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live_mysql/readonly_conn.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "pub async fn disconnect(self) -> Result<()> {"
+                  },
+                  "startLine": 123
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live_mysql/readonly_conn.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".disconnect()"
+                  },
+                  "startLine": 125
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let conn = ReadOnlyPgConn::connect(conn_str).await?;"
+                  },
+                  "startLine": 1456
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "H-TCP-01 matched 6 source motif hit(s) with reason code PartialPartitionSignature."
+          },
+          "properties": {
+            "classification": "context-needed",
+            "confidence": "high",
+            "dsfbCategory": "heuristic",
+            "evidenceIds": [
+              "H-TCP-01-01-readonly-conn-45",
+              "H-TCP-01-02-readonly-conn-46",
+              "H-TCP-01-03-readonly-conn-48",
+              "H-TCP-01-04-readonly-conn-123",
+              "H-TCP-01-05-readonly-conn-125",
+              "H-TCP-01-06-main-1456"
+            ],
+            "impactKind": "correctness",
+            "matchedPatterns": [
+              "connect("
+            ],
+            "provenance": "Partial network partition; selective packet loss on specific routes",
+            "remediation": "Review partial-write handling, retry damping, timeout paths, and whether network assumptions are made explicit.",
+            "totalHits": 6,
+            "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+          },
+          "ruleId": "H-TCP-01"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/baselines/bocpd.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "(PI / (PI * x).sin()).ln() - ln_gamma(1.0 - x)"
+                  },
+                  "startLine": 217
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "collect_files(root, &path, out)?;"
+                  },
+                  "startLine": 1375
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Simple control flow; no recursion or equivalent escapes: 2 direct-recursion site(s) or control-flow escape motif(s) observed."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-1-01-bocpd-217",
+              "P10-1-02-main-1375"
+            ],
+            "impactKind": "correctness",
+            "remediation": "Remove recursion where possible, or isolate the pattern behind a bounded proof and explicit review note.",
+            "status": "not applied",
+            "verificationSuggestion": "Add a focused test or review note that proves the remaining recursion is bounded, or refactor it into an explicit loop/work queue."
+          },
+          "ruleId": "P10-1"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "loop {"
+                  },
+                  "startLine": 1481
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "All loops have a fixed upper bound: 1 potentially unbounded `loop`/`while` construct(s) observed."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "medium",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-2-01-main-1481"
+            ],
+            "impactKind": "correctness",
+            "remediation": "Add explicit upper bounds, timeout guards, or fixed-step limits so loop behavior is reviewable.",
+            "status": "not applied",
+            "verificationSuggestion": "Add a regression test that demonstrates a visible loop bound, timeout, or cancellation path on the flagged logic."
+          },
+          "ruleId": "P10-2"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/postgres_ingest.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".map(|b| format!(\"{:02x}\", b))"
+                  },
+                  "startLine": 50
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/ceb.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".with_context(|| format!(\"opening ceb csv at {}\", path.display()))?;"
+                  },
+                  "startLine": 51
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/ceb.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut stream = ResidualStream::new(format!("
+                  },
+                  "startLine": 59
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/ceb.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut q_index: HashMap<String, usize> = HashMap::new();"
+                  },
+                  "startLine": 65
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "No dynamic allocation after initialization: 532 heap-allocation motif(s) observed, including 324 runtime-core signal(s). This crate-level scan cannot distinguish initialization-only allocation from steady-state allocation."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-3-01-postgres-ingest-50",
+              "P10-3-02-ceb-51",
+              "P10-3-03-ceb-59",
+              "P10-3-04-ceb-65"
+            ],
+            "impactKind": "correctness",
+            "remediation": "Move dynamic allocation to initialization paths or document and bound the steady-state allocation sites.",
+            "status": "not applied",
+            "verificationSuggestion": "Profile the flagged path under steady-state load and confirm no avoidable heap growth remains after initialization."
+          },
+          "ruleId": "P10-3"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/report/plots_live.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `plot_live_real_pg` spans 245 lines"
+                  },
+                  "startLine": 276
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/report/plots.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `plot_phase_portrait` spans 175 lines"
+                  },
+                  "startLine": 1536
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/report/plots_live.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `plot_live_pulsed_scrape` spans 168 lines"
+                  },
+                  "startLine": 38
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/report/plots_live.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `plot_live_determinism_overlay` spans 161 lines"
+                  },
+                  "startLine": 528
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Functions stay within a single-sheet size budget (~60 LOC): 44 function(s) exceed the 60-line threshold."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-4-01-plots-live-276",
+              "P10-4-02-plots-1536",
+              "P10-4-03-plots-live-38",
+              "P10-4-04-plots-live-528"
+            ],
+            "impactKind": "maintainability",
+            "remediation": "Split large functions into reviewable units with clearer local invariants and narrower responsibilities.",
+            "status": "not applied",
+            "verificationSuggestion": "Split the function and add narrower tests that name the local invariants introduced by the refactor."
+          },
+          "ruleId": "P10-4"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/report/plots_live.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `plot_live_real_pg` has 0 assertion site(s) across 245 lines"
+                  },
+                  "startLine": 276
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/report/plots.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `plot_phase_portrait` has 0 assertion site(s) across 175 lines"
+                  },
+                  "startLine": 1536
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/report/plots_live.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `plot_live_determinism_overlay` has 0 assertion site(s) across 161 lines"
+                  },
+                  "startLine": 528
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/live_pulsed_scrape_figure.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `main` has 0 assertion site(s) across 153 lines"
+                  },
+                  "startLine": 76
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Assertion density averages at least two per function: Estimated assertion density is 0.58 per function across 360 extracted function(s)."
+          },
+          "properties": {
+            "classification": "defect-candidate",
+            "confidence": "high",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-5-01-plots-live-276",
+              "P10-5-02-plots-1536",
+              "P10-5-03-plots-live-528",
+              "P10-5-04-live-pulsed-scrape-figure-76"
+            ],
+            "impactKind": "concurrency/async",
+            "remediation": "Replace catch-all control flow with explicit state handling or document the fallback state as intentional.",
+            "status": "not applied",
+            "verificationSuggestion": "Add state-transition tests that cover the previously catch-all path explicitly."
+          },
+          "ruleId": "P10-5"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/baseline_tune.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let _ = name;"
+                  },
+                  "startLine": 145
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/generic_csv.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let rows = by_channel.get_mut(ch).unwrap();"
+                  },
+                  "startLine": 154
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/baseline_bake_off.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".expect(\"evaluate() guarantees one row per motif\")"
+                  },
+                  "startLine": 89
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/null_trace.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".expect(\"accumulator populated for every motif\");"
+                  },
+                  "startLine": 235
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Return values are checked and parameters are validated: 1 explicit discard site(s) and 31 unwrap/expect site(s) observed. Parameter validation cannot be proven by this scan."
+          },
+          "properties": {
+            "classification": "defect-candidate",
+            "confidence": "high",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-7-01-baseline-tune-145",
+              "P10-7-02-generic-csv-154",
+              "P10-7-03-baseline-bake-off-89",
+              "P10-7-04-null-trace-235"
+            ],
+            "impactKind": "correctness",
+            "remediation": "Propagate errors explicitly rather than unwrapping, or document the invariant that justifies the unwrap/expect.",
+            "status": "not applied",
+            "verificationSuggestion": "Replace unwrap/expect with explicit handling or add an invariant test that proves the extraction precondition."
+          },
+          "ruleId": "P10-7"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/mod.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[cfg(feature = \"otel\")]"
+                  },
+                  "startLine": 30
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/lib.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[cfg(feature = \"live-postgres\")]"
+                  },
+                  "startLine": 34
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live_mysql/mod.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[cfg(feature = \"live-mysql\")]"
+                  },
+                  "startLine": 45
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live_mysql/mod.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[cfg(feature = \"live-mysql\")]"
+                  },
+                  "startLine": 50
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Conditional compilation and metaprogramming stay minimal: 22 review-relevant conditional-compilation site(s), 0 macro-definition/proc-macro site(s) observed. This is a Rust adaptation of the C preprocessor rule."
+          },
+          "properties": {
+            "classification": "review-readiness",
+            "confidence": "high",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-8-01-mod-30",
+              "P10-8-02-lib-34",
+              "P10-8-03-mod-45",
+              "P10-8-04-mod-50"
+            ],
+            "impactKind": "verification/reviewability",
+            "remediation": "Reduce conditional-compilation forks or document why each feature/macro path remains auditable.",
+            "status": "not applied",
+            "verificationSuggestion": "Review feature/macro-expanded paths and add CI coverage for the meaningful forks."
+          },
+          "ruleId": "P10-8"
+        },
+        {
+          "kind": "review",
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml.orig"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "# to cross-validate the kani proofs of `grammar::envelope::classify` with"
+                  },
+                  "startLine": 124
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/grammar/motifs.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[allow(clippy::too_many_arguments)]"
+                  },
+                  "startLine": 93
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/grammar/motifs.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[allow(clippy::too_many_arguments)]"
+                  },
+                  "startLine": 162
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/grammar/motifs.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[allow(clippy::too_many_arguments)]"
+                  },
+                  "startLine": 223
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Pedantic warnings and static analyzers are enforced: Observed warning/analyzer signal(s), but the full Power-of-Ten requirement for pedantic warnings plus regular analyzer use is not established. Warning signals: 0, analyzer signals: 12."
+          },
+          "properties": {
+            "classification": "review-readiness",
+            "confidence": "medium",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-10-01-cargo-toml-124",
+              "P10-10-02-motifs-93",
+              "P10-10-03-motifs-162",
+              "P10-10-04-motifs-223"
+            ],
+            "impactKind": "verification/reviewability",
+            "remediation": "Keep warnings and analyzer gates active in CI so the audit surface stays reviewable over time.",
+            "status": "indeterminate",
+            "verificationSuggestion": "Keep analyzer and warnings-as-errors gates in CI and record the expected toolchain surface in the repo docs."
+          },
+          "ruleId": "P10-10"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/baselines/bocpd.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "(PI / (PI * x).sin()).ln() - ln_gamma(1.0 - x)"
+                  },
+                  "startLine": 217
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "collect_files(root, &path, out)?;"
+                  },
+                  "startLine": 1375
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Recursion and cyclic call graph audit: 2 direct-recursion hit(s) and 0 local indirect cycle(s) observed."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "advanced-structural",
+            "evidenceIds": [
+              "JPL-R0-01-bocpd-217",
+              "JPL-R0-02-main-1375"
+            ],
+            "impactKind": "maintainability",
+            "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+            "status": "elevated",
+            "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+          },
+          "ruleId": "JPL-R0"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/generic_csv.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let rows = by_channel.get_mut(ch).unwrap();"
+                  },
+                  "startLine": 154
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/baseline_bake_off.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".expect(\"evaluate() guarantees one row per motif\")"
+                  },
+                  "startLine": 89
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/null_trace.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".expect(\"accumulator populated for every motif\");"
+                  },
+                  "startLine": 235
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/null_trace.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "accum.get_mut(&m).unwrap().push(count / hours);"
+                  },
+                  "startLine": 278
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Unchecked extraction / dereference safety audit: 31 unwrap/expect-like site(s) observed; these deserve explicit invariant review in high-assurance code."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "advanced-structural",
+            "evidenceIds": [
+              "JPL-R9-01-generic-csv-154",
+              "JPL-R9-02-baseline-bake-off-89",
+              "JPL-R9-03-null-trace-235",
+              "JPL-R9-04-null-trace-278"
+            ],
+            "impactKind": "maintainability",
+            "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+            "status": "elevated",
+            "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+          },
+          "ruleId": "JPL-R9"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/report/plots_live.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `plot_live_real_pg` has estimated complexity 25"
+                  },
+                  "startLine": 276
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/otel.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `load_otel_db_spans` has estimated complexity 18"
+                  },
+                  "startLine": 94
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/adapters/generic_csv.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `load_generic_csv` has estimated complexity 16"
+                  },
+                  "startLine": 79
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `run_stress_sweep` has estimated complexity 15"
+                  },
+                  "startLine": 638
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Cyclomatic complexity hotspot audit (NASA SWE-220 proxy): 4 extracted hotspot(s); 3 exceed the NASA safety-critical threshold of 15 by this lightweight estimate."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "advanced-structural",
+            "evidenceIds": [
+              "NASA-CC-01-plots-live-276",
+              "NASA-CC-02-otel-94",
+              "NASA-CC-03-generic-csv-79",
+              "NASA-CC-04-main-638"
+            ],
+            "impactKind": "maintainability",
+            "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+            "status": "elevated",
+            "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+          },
+          "ruleId": "NASA-CC"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ablation_sweep.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "_ => unreachable!(\"unknown param_name {param_name}\"),"
+                  },
+                  "startLine": 102
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ablation_sweep.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "_ => FACTORS.to_vec(),"
+                  },
+                  "startLine": 126
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ablation_sweep.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "_ => unreachable!(),"
+                  },
+                  "startLine": 137
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/inject_over_real.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "_ => unreachable!(\"CARRIERS list mismatch\"),"
+                  },
+                  "startLine": 154
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Catch-all state handling / safe-state fallback audit: 7 catch-all match arm(s) observed; explicit state enumeration is preferable for safety review."
+          },
+          "properties": {
+            "classification": "defect-candidate",
+            "confidence": "high",
+            "dsfbCategory": "advanced-structural",
+            "evidenceIds": [
+              "SAFE-STATE-01-ablation-sweep-102",
+              "SAFE-STATE-02-ablation-sweep-126",
+              "SAFE-STATE-03-ablation-sweep-137",
+              "SAFE-STATE-04-inject-over-real-154"
+            ],
+            "impactKind": "correctness",
+            "remediation": "Make fallback states explicit and document what the safe-state behavior is for the affected control path.",
+            "status": "elevated",
+            "verificationSuggestion": "Add tests that drive the fallback path explicitly and confirm the intended safe-state behavior is named, not implied."
+          },
+          "ruleId": "SAFE-STATE"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live/scraper.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "pub const MAX_SLEEP: Duration = Duration::from_secs(60);"
+                  },
+                  "startLine": 54
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live/scraper.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "pub const MIN_SLEEP: Duration = Duration::from_millis(50);"
+                  },
+                  "startLine": 55
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let interval = std::time::Duration::from_millis(interval_ms);"
+                  },
+                  "startLine": 1422
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let deadline = max_duration_sec.map(|s| start + std::time::Duration::from_secs(s));"
+                  },
+                  "startLine": 1477
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Hard-coded timing assumption audit: 5 hard-coded wait motif(s) observed. Review whether these are deterministic control waits or deadline-free timing assumptions."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "advanced-structural",
+            "evidenceIds": [
+              "TIME-WAIT-01-scraper-54",
+              "TIME-WAIT-02-scraper-55",
+              "TIME-WAIT-03-main-1422",
+              "TIME-WAIT-04-main-1477"
+            ],
+            "impactKind": "maintainability",
+            "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+            "status": "elevated",
+            "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+          },
+          "ruleId": "TIME-WAIT"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.lock"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "\"libloading\","
+                  },
+                  "startLine": 665
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.lock"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "name = \"libloading\""
+                  },
+                  "startLine": 1324
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Dynamic loading / plugin sandbox audit: 2 dynamic loading motif(s) observed."
+          },
+          "properties": {
+            "classification": "review-readiness",
+            "confidence": "high",
+            "dsfbCategory": "advanced-structural",
+            "evidenceIds": [
+              "PLUGIN-LOAD-01-cargo-665",
+              "PLUGIN-LOAD-02-cargo-1324"
+            ],
+            "impactKind": "assurance/provenance",
+            "remediation": "Constrain dynamic loading behind verification, sandboxing, or explicit operator review.",
+            "status": "elevated",
+            "verificationSuggestion": "Add review notes or CI checks that prove the dynamic-loading boundary is verified, sandboxed, or intentionally excluded from trusted paths."
+          },
+          "ruleId": "PLUGIN-LOAD"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ablation_sweep.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "h.insert(m, stream.iter_class(m.residual_class()).count());"
+                  },
+                  "startLine": 59
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/ablation_sweep.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".fold(f64::INFINITY, f64::min);"
+                  },
+                  "startLine": 219
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/baseline_bake_off.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "h.insert(m, stream.iter_class(m.residual_class()).count());"
+                  },
+                  "startLine": 54
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/bin/baseline_tune.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".collect();"
+                  },
+                  "startLine": 163
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Unbounded iterator terminal-consumption audit: 37 iterator terminal site(s) use collect/fold/count/last/sum without an obvious `.take()` or single-step bound."
+          },
+          "properties": {
+            "classification": "context-needed",
+            "confidence": "high",
+            "dsfbCategory": "advanced-structural",
+            "evidenceIds": [
+              "ITER-UNB-01-ablation-sweep-59",
+              "ITER-UNB-02-ablation-sweep-219",
+              "ITER-UNB-03-baseline-bake-off-54",
+              "ITER-UNB-04-baseline-tune-163"
+            ],
+            "impactKind": "resource discipline",
+            "remediation": "Add `.take(...)`, explicit bounds, or documented finite-source guarantees on terminal iterator consumption.",
+            "status": "elevated",
+            "verificationSuggestion": "Add a bound, trusted finite-source proof, or regression test that demonstrates the iterator cannot grow without limit."
+          },
+          "ruleId": "ITER-UNB"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/live/tape.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".write(true)"
+                  },
+                  "startLine": 73
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Partial-write / Interrupted handling audit: 1 function(s) call `.write(...)` without an obvious `write_all` or `Interrupted` handling path."
+          },
+          "properties": {
+            "classification": "defect-candidate",
+            "confidence": "medium",
+            "dsfbCategory": "advanced-structural",
+            "evidenceIds": [
+              "SHORT-WRITE-01-tape-73"
+            ],
+            "impactKind": "correctness",
+            "remediation": "Use `write_all`, retry `Interrupted`, or document why partial writes are already handled by the caller.",
+            "status": "elevated",
+            "verificationSuggestion": "Add IO-path tests that inject Interrupted or partial writes and prove the caller handles them correctly."
+          },
+          "ruleId": "SHORT-WRITE"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://github.com/infinityabundance/dsfb-gray",
+          "name": "DSFB Gray Scanner",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "serde deserialization with growing payload; schema migration overhead"
+              },
+              "help": {
+                "text": "Review payload growth, eager allocation, and schema-boundary handling on the serialization path."
+              },
+              "id": "H-SERDE-01",
+              "name": "H-SERDE-01",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "heuristic",
+                "guidanceOnly": true,
+                "impactKind": "resource discipline",
+                "reasonCode": "SerializationDrift"
+              },
+              "shortDescription": {
+                "text": "Serialization latency increasing with step-change at schema boundary"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Vec<T> capacity doubling in hot loop; jemalloc arena exhaustion"
+              },
+              "help": {
+                "text": "Audit hot-loop allocation sites and prefer bounded or reserved growth on steady-state paths."
+              },
+              "id": "H-ALLOC-01",
+              "name": "H-ALLOC-01",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "heuristic",
+                "guidanceOnly": true,
+                "impactKind": "resource discipline",
+                "reasonCode": "MemoryPressureEscalation"
+              },
+              "shortDescription": {
+                "text": "Monotonic increase in allocation latency with step-change at capacity doubling"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "TSC vs HPET clock source discrepancy between cluster nodes"
+              },
+              "help": {
+                "text": "Prefer monotonic clocks for control logic and isolate wall-clock use to presentation or external protocol boundaries."
+              },
+              "id": "H-CLOCK-01",
+              "name": "H-CLOCK-01",
+              "properties": {
+                "classification": "context-needed",
+                "confidence": "high",
+                "dsfbCategory": "heuristic",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "reasonCode": "ClockDriftDivergence"
+              },
+              "shortDescription": {
+                "text": "Monotonic drift in timestamp-derived residuals between nodes"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Resource contention from co-located process; IO scheduler starvation"
+              },
+              "help": {
+                "text": "Inspect hot paths for hidden copies, queue growth, or retry behavior that can erode throughput before alarms fire."
+              },
+              "id": "H-THRU-01",
+              "name": "H-THRU-01",
+              "properties": {
+                "classification": "context-needed",
+                "confidence": "high",
+                "dsfbCategory": "heuristic",
+                "guidanceOnly": true,
+                "impactKind": "resource discipline",
+                "reasonCode": "ThroughputDegradation"
+              },
+              "shortDescription": {
+                "text": "Persistent throughput decline not attributable to workload reduction"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Partial network partition; selective packet loss on specific routes"
+              },
+              "help": {
+                "text": "Review partial-write handling, retry damping, timeout paths, and whether network assumptions are made explicit."
+              },
+              "id": "H-TCP-01",
+              "name": "H-TCP-01",
+              "properties": {
+                "classification": "context-needed",
+                "confidence": "high",
+                "dsfbCategory": "heuristic",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "reasonCode": "PartialPartitionSignature"
+              },
+              "shortDescription": {
+                "text": "Burst of retransmits followed by drift in RTT variance"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "2 direct-recursion site(s) or control-flow escape motif(s) observed."
+              },
+              "help": {
+                "text": "Remove recursion where possible, or isolate the pattern behind a bounded proof and explicit review note."
+              },
+              "id": "P10-1",
+              "name": "P10-1",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "status": "not applied"
+              },
+              "shortDescription": {
+                "text": "Simple control flow; no recursion or equivalent escapes"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "1 potentially unbounded `loop`/`while` construct(s) observed."
+              },
+              "help": {
+                "text": "Add explicit upper bounds, timeout guards, or fixed-step limits so loop behavior is reviewable."
+              },
+              "id": "P10-2",
+              "name": "P10-2",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "medium",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "status": "not applied"
+              },
+              "shortDescription": {
+                "text": "All loops have a fixed upper bound"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "532 heap-allocation motif(s) observed, including 324 runtime-core signal(s). This crate-level scan cannot distinguish initialization-only allocation from steady-state allocation."
+              },
+              "help": {
+                "text": "Move dynamic allocation to initialization paths or document and bound the steady-state allocation sites."
+              },
+              "id": "P10-3",
+              "name": "P10-3",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "status": "not applied"
+              },
+              "shortDescription": {
+                "text": "No dynamic allocation after initialization"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "44 function(s) exceed the 60-line threshold."
+              },
+              "help": {
+                "text": "Split large functions into reviewable units with clearer local invariants and narrower responsibilities."
+              },
+              "id": "P10-4",
+              "name": "P10-4",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "maintainability",
+                "status": "not applied"
+              },
+              "shortDescription": {
+                "text": "Functions stay within a single-sheet size budget (~60 LOC)"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Estimated assertion density is 0.58 per function across 360 extracted function(s)."
+              },
+              "help": {
+                "text": "Replace catch-all control flow with explicit state handling or document the fallback state as intentional."
+              },
+              "id": "P10-5",
+              "name": "P10-5",
+              "properties": {
+                "classification": "defect-candidate",
+                "confidence": "high",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "concurrency/async",
+                "status": "not applied"
+              },
+              "shortDescription": {
+                "text": "Assertion density averages at least two per function"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "1 explicit discard site(s) and 31 unwrap/expect site(s) observed. Parameter validation cannot be proven by this scan."
+              },
+              "help": {
+                "text": "Propagate errors explicitly rather than unwrapping, or document the invariant that justifies the unwrap/expect."
+              },
+              "id": "P10-7",
+              "name": "P10-7",
+              "properties": {
+                "classification": "defect-candidate",
+                "confidence": "high",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "status": "not applied"
+              },
+              "shortDescription": {
+                "text": "Return values are checked and parameters are validated"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "22 review-relevant conditional-compilation site(s), 0 macro-definition/proc-macro site(s) observed. This is a Rust adaptation of the C preprocessor rule."
+              },
+              "help": {
+                "text": "Reduce conditional-compilation forks or document why each feature/macro path remains auditable."
+              },
+              "id": "P10-8",
+              "name": "P10-8",
+              "properties": {
+                "classification": "review-readiness",
+                "confidence": "high",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "verification/reviewability",
+                "status": "not applied"
+              },
+              "shortDescription": {
+                "text": "Conditional compilation and metaprogramming stay minimal"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Observed warning/analyzer signal(s), but the full Power-of-Ten requirement for pedantic warnings plus regular analyzer use is not established. Warning signals: 0, analyzer signals: 12."
+              },
+              "help": {
+                "text": "Keep warnings and analyzer gates active in CI so the audit surface stays reviewable over time."
+              },
+              "id": "P10-10",
+              "name": "P10-10",
+              "properties": {
+                "classification": "review-readiness",
+                "confidence": "medium",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "verification/reviewability",
+                "status": "indeterminate"
+              },
+              "shortDescription": {
+                "text": "Pedantic warnings and static analyzers are enforced"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "2 direct-recursion hit(s) and 0 local indirect cycle(s) observed."
+              },
+              "help": {
+                "text": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant."
+              },
+              "id": "JPL-R0",
+              "name": "JPL-R0",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "advanced-structural",
+                "guidanceOnly": true,
+                "impactKind": "maintainability",
+                "status": "elevated"
+              },
+              "shortDescription": {
+                "text": "Recursion and cyclic call graph audit"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "31 unwrap/expect-like site(s) observed; these deserve explicit invariant review in high-assurance code."
+              },
+              "help": {
+                "text": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant."
+              },
+              "id": "JPL-R9",
+              "name": "JPL-R9",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "advanced-structural",
+                "guidanceOnly": true,
+                "impactKind": "maintainability",
+                "status": "elevated"
+              },
+              "shortDescription": {
+                "text": "Unchecked extraction / dereference safety audit"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "4 extracted hotspot(s); 3 exceed the NASA safety-critical threshold of 15 by this lightweight estimate."
+              },
+              "help": {
+                "text": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant."
+              },
+              "id": "NASA-CC",
+              "name": "NASA-CC",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "advanced-structural",
+                "guidanceOnly": true,
+                "impactKind": "maintainability",
+                "status": "elevated"
+              },
+              "shortDescription": {
+                "text": "Cyclomatic complexity hotspot audit (NASA SWE-220 proxy)"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "7 catch-all match arm(s) observed; explicit state enumeration is preferable for safety review."
+              },
+              "help": {
+                "text": "Make fallback states explicit and document what the safe-state behavior is for the affected control path."
+              },
+              "id": "SAFE-STATE",
+              "name": "SAFE-STATE",
+              "properties": {
+                "classification": "defect-candidate",
+                "confidence": "high",
+                "dsfbCategory": "advanced-structural",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "status": "elevated"
+              },
+              "shortDescription": {
+                "text": "Catch-all state handling / safe-state fallback audit"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "5 hard-coded wait motif(s) observed. Review whether these are deterministic control waits or deadline-free timing assumptions."
+              },
+              "help": {
+                "text": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant."
+              },
+              "id": "TIME-WAIT",
+              "name": "TIME-WAIT",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "advanced-structural",
+                "guidanceOnly": true,
+                "impactKind": "maintainability",
+                "status": "elevated"
+              },
+              "shortDescription": {
+                "text": "Hard-coded timing assumption audit"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "2 dynamic loading motif(s) observed."
+              },
+              "help": {
+                "text": "Constrain dynamic loading behind verification, sandboxing, or explicit operator review."
+              },
+              "id": "PLUGIN-LOAD",
+              "name": "PLUGIN-LOAD",
+              "properties": {
+                "classification": "review-readiness",
+                "confidence": "high",
+                "dsfbCategory": "advanced-structural",
+                "guidanceOnly": true,
+                "impactKind": "assurance/provenance",
+                "status": "elevated"
+              },
+              "shortDescription": {
+                "text": "Dynamic loading / plugin sandbox audit"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "37 iterator terminal site(s) use collect/fold/count/last/sum without an obvious `.take()` or single-step bound."
+              },
+              "help": {
+                "text": "Add `.take(...)`, explicit bounds, or documented finite-source guarantees on terminal iterator consumption."
+              },
+              "id": "ITER-UNB",
+              "name": "ITER-UNB",
+              "properties": {
+                "classification": "context-needed",
+                "confidence": "high",
+                "dsfbCategory": "advanced-structural",
+                "guidanceOnly": true,
+                "impactKind": "resource discipline",
+                "status": "elevated"
+              },
+              "shortDescription": {
+                "text": "Unbounded iterator terminal-consumption audit"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "1 function(s) call `.write(...)` without an obvious `write_all` or `Interrupted` handling path."
+              },
+              "help": {
+                "text": "Use `write_all`, retry `Interrupted`, or document why partial writes are already handled by the caller."
+              },
+              "id": "SHORT-WRITE",
+              "name": "SHORT-WRITE",
+              "properties": {
+                "classification": "defect-candidate",
+                "confidence": "medium",
+                "dsfbCategory": "advanced-structural",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "status": "elevated"
+              },
+              "shortDescription": {
+                "text": "Partial-write / Interrupted handling audit"
+              }
+            }
+          ],
+          "version": "0.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

@@ -11,7 +11,7 @@ exclude = ["fuzz"]
 
 [package]
 name = "dsfb-database"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.74"
 authors = ["Riaan de Beer <riaan@invariantforge.net>"]
@@ -29,6 +29,7 @@ include = [
     "spec/**",
     "tests/**",
     "examples/**",
+    "audit/**",
     "colab/dsfb_database_repro.ipynb",
     "/Cargo.toml",
     "/README.md",

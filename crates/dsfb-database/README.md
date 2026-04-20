@@ -3,6 +3,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![MSRV: 1.74](https://img.shields.io/badge/MSRV-1.74-orange.svg)](Cargo.toml)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-database/colab/dsfb_database_repro.ipynb)
+[![DSFB Gray Audit: 58.9% mixed assurance posture](https://img.shields.io/badge/DSFB%20Gray%20Audit-58.9%25-yellowgreen)](audit/dsfb_database_scan.txt)
 
 A deterministic, read-only structural observer for residual trajectories in
 SQL database telemetry. Built on the
@@ -622,6 +623,43 @@ Reproducible Colab notebook (Tier-1 reproduction, no local install
 required): `colab/dsfb_database_repro.ipynb`.
 
 Changelog: see [`CHANGELOG.md`](CHANGELOG.md).
+
+---
+
+## Audit
+
+This crate is audited by
+[`dsfb-gray`](https://crates.io/crates/dsfb-gray), a deterministic,
+read-only static auditor that emits assurance scores and
+machine-verifiable attestation artifacts (SARIF, in-toto, DSSE). The
+current scan of `dsfb-database v0.1.0` reports an overall score of
+**58.9 %** ("mixed assurance posture"), against the
+`dsfb-assurance-score-v1` rubric.
+
+The scan is **not a compliance or certification claim** — it is a
+source-visible structural audit against the DSFB rubric, intended as
+a review-readiness and code-improvement signal.
+
+Full artefacts live under [`audit/`](audit/):
+
+| File | Purpose |
+| --- | --- |
+| [`audit/dsfb_database_scan.txt`](audit/dsfb_database_scan.txt) | Human-readable report with scoring, findings, and conclusion lenses |
+| [`audit/dsfb_database_scan.sarif.json`](audit/dsfb_database_scan.sarif.json) | SARIF 2.1.0 export for CI / code-review ingestion |
+| [`audit/dsfb_database_scan.intoto.json`](audit/dsfb_database_scan.intoto.json) | in-toto v1 attestation statement |
+| [`audit/dsfb_database_scan.dsse.json`](audit/dsfb_database_scan.dsse.json) | DSSE envelope wrapping the in-toto statement (unsigned by default) |
+
+To regenerate the audit against the current crate source:
+
+```bash
+cargo install dsfb-gray
+dsfb-scan-crate dsfb-database   # scans the latest crates.io release
+# or, against this working tree:
+dsfb-scan-crate crates/dsfb-database
+```
+
+The source SHA-256 recorded in each artefact pins the exact tarball
+that was scanned.
 
 ---
 
