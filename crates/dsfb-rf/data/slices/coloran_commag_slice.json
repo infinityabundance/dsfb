@@ -1,0 +1,6 @@
+{
+  "source": "https://raw.githubusercontent.com/wineslab/colosseum-oran-commag-dataset/master/slice_mixed/rome_static_close/tr0/exp1/bs1/bs1.csv",
+  "note": "Head slice of wineslab/colosseum-oran-commag-dataset slice_mixed KPI CSV; columns: time,nof_ue,dl_brate,ul_brate.",
+  "head_bytes": 65582,
+  "schema_hint": "O-RAN scheduling-policy KPI trace; non-IQ companion annex."
+}

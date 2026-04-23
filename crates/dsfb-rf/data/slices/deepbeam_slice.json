@@ -1,0 +1,15 @@
+{
+  "dsfb_rf:provenance": "real-local-file",
+  "dsfb_rf:source": "DeepBeam (Northeastern neu:ww72bh952) \u2014 user-downloaded HDF5",
+  "dsfb_rf:parent_file": "neu_ww72bk394.h5",
+  "dsfb_rf:parent_iq_rows_total": 11059200000,
+  "dsfb_rf:head_n_samples": 8192,
+  "dsfb_rf:schema": {
+    "iq": "float64 (N,2) \u2014 NI transceiver I/Q pairs",
+    "gain": "float64 (N,) \u2014 per-sample RF gain",
+    "rx_beam": "float64 (N,) \u2014 receive beam index",
+    "tx_beam": "float64 (N,) \u2014 transmit beam index"
+  },
+  "dsfb_rf:extracted_at": "2026-04-22T04:05:52Z",
+  "notice": "Real DeepBeam 60 GHz mmWave head slice; not a benchmark reproduction. Contextual residual-trace exhibit only."
+}

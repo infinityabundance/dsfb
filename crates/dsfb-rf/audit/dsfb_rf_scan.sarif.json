@@ -1,0 +1,1085 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "dsfb-gray/crate-scan"
+      },
+      "invocations": [
+        {
+          "endTimeUtc": "2026-04-22T20:20:49.646290903Z",
+          "executionSuccessful": true
+        }
+      ],
+      "properties": {
+        "advisorySubscores": [
+          {
+            "basis": "Derived from safety surface, correctness-critical Power-of-Ten rules, and correctness-oriented structural checks.",
+            "id": "correctness",
+            "percent": 83.3,
+            "title": "Correctness"
+          },
+          {
+            "basis": "Derived from lifecycle/governance evidence, reviewability-oriented Power-of-Ten rules, and maintainability-heavy structural checks.",
+            "id": "maintainability",
+            "percent": 94.4,
+            "title": "Maintainability"
+          },
+          {
+            "basis": "Derived from async/concurrency structural checks and bounded-control-flow review signals.",
+            "id": "concurrency_async",
+            "percent": 75.0,
+            "title": "Concurrency / Async"
+          },
+          {
+            "basis": "Derived from runtime-allocation proxies, resource-lifecycle checks, and bounded-allocation / bounded-loop review rules.",
+            "id": "resource_discipline",
+            "percent": 58.3,
+            "title": "Resource Discipline"
+          },
+          {
+            "basis": "Derived from verification signals, build/tooling complexity, and analyzability-oriented Power-of-Ten rules.",
+            "id": "verification_reviewability",
+            "percent": 94.4,
+            "title": "Verification / Reviewability"
+          },
+          {
+            "basis": "Derived from the full locked rubric as a broad readiness-oriented advisory synthesis.",
+            "id": "assurance_provenance",
+            "percent": 94.3,
+            "title": "Assurance / Provenance"
+          }
+        ],
+        "artifactsInspected": 1710,
+        "auditMode": "canonical-broad-audit",
+        "auditScore": {
+          "band": "strong assurance posture",
+          "earnedWeightedPoints": 91.4,
+          "guideline": [
+            "Method: weighted checkpoint scoring across Safety (15%), Verification (15%), Build/Tooling (10%), Lifecycle/Governance (10%), NASA/JPL Power of Ten (25%), and Advanced Structural Checks (25%).",
+            "Checkpoint credit: pass/clear/applied = 1.0, indeterminate/partial = 0.5, elevated/not applied = 0.0.",
+            "Fairness rule: raw motif counts do not linearly reduce the score; each checkpoint contributes once so large crates are not punished simply for having more code.",
+            "Informational-only signals such as DSFB heuristic motif matches, hotspot counts, and capability flags like no_std/no_alloc are reported but excluded from the score denominator.",
+            "Interpretation: this is a broad improvement and review-readiness score for source-visible controls and evidence, not a certification and not a measure of runtime correctness."
+          ],
+          "method": "dsfb-assurance-score-v1",
+          "overallPercent": 91.4,
+          "possibleWeightedPoints": 100.0,
+          "sections": [
+            {
+              "checkpointCount": 5,
+              "earnedCheckpoints": 5.0,
+              "id": "safety",
+              "sectionPercent": 100.0,
+              "title": "Safety Surface",
+              "weightPercent": 15.0,
+              "weightedPoints": 15.0
+            },
+            {
+              "checkpointCount": 5,
+              "earnedCheckpoints": 5.0,
+              "id": "verification",
+              "sectionPercent": 100.0,
+              "title": "Verification Evidence",
+              "weightPercent": 15.0,
+              "weightedPoints": 15.0
+            },
+            {
+              "checkpointCount": 6,
+              "earnedCheckpoints": 6.0,
+              "id": "build",
+              "sectionPercent": 100.0,
+              "title": "Build / Tooling Complexity",
+              "weightPercent": 10.0,
+              "weightedPoints": 10.0
+            },
+            {
+              "checkpointCount": 13,
+              "earnedCheckpoints": 13.0,
+              "id": "lifecycle",
+              "sectionPercent": 100.0,
+              "title": "Lifecycle / Governance",
+              "weightPercent": 10.0,
+              "weightedPoints": 10.0
+            },
+            {
+              "checkpointCount": 10,
+              "earnedCheckpoints": 7.0,
+              "id": "nasa_power_of_ten",
+              "sectionPercent": 70.0,
+              "title": "NASA/JPL Power of Ten",
+              "weightPercent": 25.0,
+              "weightedPoints": 17.5
+            },
+            {
+              "checkpointCount": 23,
+              "earnedCheckpoints": 22.0,
+              "id": "advanced_structural",
+              "sectionPercent": 95.7,
+              "title": "Advanced Structural Checks",
+              "weightPercent": 25.0,
+              "weightedPoints": 23.9
+            }
+          ]
+        },
+        "conclusionLenses": {
+          "certificationPreparation": "For certification-oriented preparation, treat PLUGIN-LOAD, P10-3, P10-5, P10-8, P10-7 as pre-review cleanup targets and evidence-organizing prompts rather than certification outcomes.",
+          "complianceReadiness": "4 finding(s) directly affect analyzability, reproducibility, or review traceability. DSFB may support internal review against standards-oriented expectations, but it does not certify compliance.",
+          "distributedOperational": "Operational pressure is most visible in P10-5, H-SERDE-01, H-GRPC-01, H-ALLOC-01. These findings are the most likely to matter later in runtime replay, backpressure review, or production-style load investigation.",
+          "rustMaintainer": "Use the 91.4% overall score as a broad code-improvement target, not a compliance or certification badge. The highest-value maintainer work is concentrated in P10-3, P10-5, H-SERDE-01, P10-7, H-ALLOC-01."
+        },
+        "crateName": "dsfb-rf",
+        "crateVersion": "1.0.0",
+        "filesScanned": 68,
+        "guidanceSemantics": {
+          "codeQualityGoal": true,
+          "nonCertificationStatement": "DSFB does not certify compliance with IEC, ISO, RTCA, MIL, NIST, or other standards. Use this audit as a guideline for improvement and review readiness.",
+          "reviewReadinessGoal": true
+        },
+        "pathInVcs": null,
+        "sourceRoot": "/home/one/dsfb/crates/dsfb-rf",
+        "sourceSha256": "5b79b4fe21a0335afb3fce3be20134d10dc8471ff9635d4f308cc63301de383f",
+        "vcsCommit": null
+      },
+      "results": [
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "serde = [\"std\", \"dep:serde\", \"dep:serde_json\"]"
+                  },
+                  "startLine": 24
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "serde = [\"std\", \"dep:serde\", \"dep:serde_json\"]"
+                  },
+                  "startLine": 24
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "paper_lock = [\"std\", \"serde\"]"
+                  },
+                  "startLine": 25
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "real_figures = [\"std\", \"serde\", \"hdf5_loader\", \"dep:csv\"]"
+                  },
+                  "startLine": 31
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "serde = { version = \"1\", features = [\"derive\"], optional = true }"
+                  },
+                  "startLine": 38
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.toml"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "serde_json = { version = \"1\", optional = true }"
+                  },
+                  "startLine": 39
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "H-SERDE-01 matched 96 source motif hit(s) with reason code SerializationDrift."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "heuristic",
+            "evidenceIds": [
+              "H-SERDE-01-01-cargo-24",
+              "H-SERDE-01-02-cargo-24",
+              "H-SERDE-01-03-cargo-25",
+              "H-SERDE-01-04-cargo-31",
+              "H-SERDE-01-05-cargo-38",
+              "H-SERDE-01-06-cargo-39"
+            ],
+            "impactKind": "resource discipline",
+            "matchedPatterns": [
+              "deserialize",
+              "serde",
+              "serde_json",
+              "serialize"
+            ],
+            "provenance": "serde deserialization with growing payload; schema migration overhead",
+            "remediation": "Review payload growth, eager allocation, and schema-boundary handling on the serialization path.",
+            "totalHits": 96,
+            "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+          },
+          "ruleId": "H-SERDE-01"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "use crate::pipeline::{RfObservation, RegimeTransitionEvent, HEALTHY_WINDOW_SIZE};"
+                  },
+                  "startLine": 83
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "max_snr, HEALTHY_WINDOW_SIZE, norm_factor);"
+                  },
+                  "startLine": 411
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".take(HEALTHY_WINDOW_SIZE)"
+                  },
+                  "startLine": 437
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "if healthy_idx.len() < HEALTHY_WINDOW_SIZE {"
+                  },
+                  "startLine": 440
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "healthy_idx.len(), max_snr, HEALTHY_WINDOW_SIZE"
+                  },
+                  "startLine": 443
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let calib_mean = (s / HEALTHY_WINDOW_SIZE as f64) as f32;"
+                  },
+                  "startLine": 451
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "H-GRPC-01 matched 16 source motif hit(s) with reason code FlowControlExhaustion."
+          },
+          "properties": {
+            "classification": "context-needed",
+            "confidence": "high",
+            "dsfbCategory": "heuristic",
+            "evidenceIds": [
+              "H-GRPC-01-01-hdf5-loader-83",
+              "H-GRPC-01-02-hdf5-loader-411",
+              "H-GRPC-01-03-hdf5-loader-437",
+              "H-GRPC-01-04-hdf5-loader-440",
+              "H-GRPC-01-05-hdf5-loader-443",
+              "H-GRPC-01-06-hdf5-loader-451"
+            ],
+            "impactKind": "concurrency/async",
+            "matchedPatterns": [
+              "window_size"
+            ],
+            "provenance": "tonic stream backpressure; h2 flow control window starvation",
+            "remediation": "Inspect flow-control behavior, buffering, and async fairness on the affected RPC path.",
+            "totalHits": 16,
+            "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+          },
+          "ruleId": "H-GRPC-01"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut amps = Vec::with_capacity(n_samples);"
+                  },
+                  "startLine": 137
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut templates: Vec<Vec<f32>> = Vec::with_capacity(n_classes);"
+                  },
+                  "startLine": 299
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut decoder_residual: Vec<f32> = Vec::with_capacity(n);"
+                  },
+                  "startLine": 324
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut observations: Vec<RfObservation> = Vec::with_capacity(n);"
+                  },
+                  "startLine": 414
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "Vec::with_capacity(n_classes);"
+                  },
+                  "startLine": 571
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut block_norms: Vec<f32> = Vec::with_capacity(n_blocks);"
+                  },
+                  "startLine": 636
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "H-ALLOC-01 matched 12 source motif hit(s) with reason code MemoryPressureEscalation."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "heuristic",
+            "evidenceIds": [
+              "H-ALLOC-01-01-hdf5-loader-137",
+              "H-ALLOC-01-02-hdf5-loader-299",
+              "H-ALLOC-01-03-hdf5-loader-324",
+              "H-ALLOC-01-04-hdf5-loader-414",
+              "H-ALLOC-01-05-hdf5-loader-571",
+              "H-ALLOC-01-06-hdf5-loader-636"
+            ],
+            "impactKind": "resource discipline",
+            "matchedPatterns": [
+              "vec::with_capacity"
+            ],
+            "provenance": "Vec<T> capacity doubling in hot loop; jemalloc arena exhaustion",
+            "remediation": "Audit hot-loop allocation sites and prefer bounded or reserved growth on steady-state paths.",
+            "totalHits": 12,
+            "verificationSuggestion": "Benchmark the flagged path under steady load and inspect allocation counts before and after preallocation changes."
+          },
+          "ruleId": "H-ALLOC-01"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/output.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "pub run_timestamp: String,"
+                  },
+                  "startLine": 190
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/output.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "run_timestamp: chrono_now_iso8601(),"
+                  },
+                  "startLine": 223
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/standards.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "pub timestamp_int_sec: u32,"
+                  },
+                  "startLine": 70
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/standards.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "pub timestamp_frac_ps: u64,"
+                  },
+                  "startLine": 72
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/standards.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "timestamp_int_sec: 0,"
+                  },
+                  "startLine": 86
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/standards.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "timestamp_frac_ps: 0,"
+                  },
+                  "startLine": 87
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "H-CLOCK-01 matched 6 source motif hit(s) with reason code ClockDriftDivergence."
+          },
+          "properties": {
+            "classification": "context-needed",
+            "confidence": "high",
+            "dsfbCategory": "heuristic",
+            "evidenceIds": [
+              "H-CLOCK-01-01-output-190",
+              "H-CLOCK-01-02-output-223",
+              "H-CLOCK-01-03-standards-70",
+              "H-CLOCK-01-04-standards-72",
+              "H-CLOCK-01-05-standards-86",
+              "H-CLOCK-01-06-standards-87"
+            ],
+            "impactKind": "correctness",
+            "matchedPatterns": [
+              "timestamp"
+            ],
+            "provenance": "TSC vs HPET clock source discrepancy between cluster nodes",
+            "remediation": "Prefer monotonic clocks for control logic and isolate wall-clock use to presentation or external protocol boundaries.",
+            "totalHits": 6,
+            "verificationSuggestion": "Add a regression test that isolates monotonic timing logic from wall-clock presentation or protocol boundaries."
+          },
+          "ruleId": "H-CLOCK-01"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "let mut amps = Vec::with_capacity(n_samples);"
+                  },
+                  "startLine": 137
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".map_err(|e| std::format!(\"Cannot open HDF5 file '{}': {}\", path, e))?;"
+                  },
+                  "startLine": 199
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": ".map_err(|e| std::format!(\"Dataset 'Z' not found in '{}': {}\", path, e))?;"
+                  },
+                  "startLine": 216
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/hdf5_loader.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "return Err(std::format!("
+                  },
+                  "startLine": 221
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "No dynamic allocation after initialization: 59 heap-allocation motif(s) observed, including 59 runtime-core signal(s). This crate-level scan cannot distinguish initialization-only allocation from steady-state allocation."
+          },
+          "properties": {
+            "classification": "design-review",
+            "confidence": "high",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-3-01-hdf5-loader-137",
+              "P10-3-02-hdf5-loader-199",
+              "P10-3-03-hdf5-loader-216",
+              "P10-3-04-hdf5-loader-221"
+            ],
+            "impactKind": "correctness",
+            "remediation": "Move dynamic allocation to initialization paths or document and bound the steady-state allocation sites.",
+            "status": "not applied",
+            "verificationSuggestion": "Profile the flagged path under steady-state load and confirm no avoidable heap growth remains after initialization."
+          },
+          "ruleId": "P10-3"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/pipeline.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `synthetic_radioml_stream` has 0 assertion site(s) across 51 lines"
+                  },
+                  "startLine": 488
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/audit.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `print` has 0 assertion site(s) across 50 lines"
+                  },
+                  "startLine": 180
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/pipeline.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `run_evaluation_pass` has 0 assertion site(s) across 50 lines"
+                  },
+                  "startLine": 342
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/stationarity.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "function `verify_wss` has 0 assertion site(s) across 49 lines"
+                  },
+                  "startLine": 178
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Assertion density averages at least two per function: Estimated assertion density is 0.05 per function across 489 extracted function(s)."
+          },
+          "properties": {
+            "classification": "defect-candidate",
+            "confidence": "high",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-5-01-pipeline-488",
+              "P10-5-02-audit-180",
+              "P10-5-03-pipeline-342",
+              "P10-5-04-stationarity-178"
+            ],
+            "impactKind": "concurrency/async",
+            "remediation": "Replace catch-all control flow with explicit state handling or document the fallback state as intentional.",
+            "status": "not applied",
+            "verificationSuggestion": "Add state-transition tests that cover the previously catch-all path explicitly."
+          },
+          "ruleId": "P10-5"
+        },
+        {
+          "kind": "review",
+          "level": "note",
+          "locations": [],
+          "message": {
+            "text": "Return values are checked and parameters are validated: No obvious unchecked-return motifs were observed, but parameter validation and full return-value propagation are not mechanically proven by this scanner."
+          },
+          "properties": {
+            "classification": "defect-candidate",
+            "confidence": "medium",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [],
+            "impactKind": "correctness",
+            "remediation": "Propagate errors explicitly rather than unwrapping, or document the invariant that justifies the unwrap/expect.",
+            "status": "indeterminate",
+            "verificationSuggestion": "Replace unwrap/expect with explicit handling or add an invariant test that proves the extraction precondition."
+          },
+          "ruleId": "P10-7"
+        },
+        {
+          "kind": "review",
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/engine.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[cfg(feature = \"alloc\")]"
+                  },
+                  "startLine": 423
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/lib.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[cfg(feature = \"alloc\")]"
+                  },
+                  "startLine": 125
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/lib.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[cfg(feature = \"serde\")]"
+                  },
+                  "startLine": 390
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/lib.rs"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "#[cfg(feature = \"paper_lock\")]"
+                  },
+                  "startLine": 395
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Conditional compilation and metaprogramming stay minimal: 9 review-relevant conditional-compilation site(s), 0 macro-definition/proc-macro site(s) observed. This is a Rust adaptation of the C preprocessor rule."
+          },
+          "properties": {
+            "classification": "review-readiness",
+            "confidence": "medium",
+            "dsfbCategory": "nasa-power-of-ten",
+            "evidenceIds": [
+              "P10-8-01-engine-423",
+              "P10-8-02-lib-125",
+              "P10-8-03-lib-390",
+              "P10-8-04-lib-395"
+            ],
+            "impactKind": "verification/reviewability",
+            "remediation": "Reduce conditional-compilation forks or document why each feature/macro path remains auditable.",
+            "status": "indeterminate",
+            "verificationSuggestion": "Review feature/macro-expanded paths and add CI coverage for the meaningful forks."
+          },
+          "ruleId": "P10-8"
+        },
+        {
+          "kind": "review",
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.lock"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "\"libloading\","
+                  },
+                  "startLine": 243
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.lock"
+                },
+                "region": {
+                  "snippet": {
+                    "text": "name = \"libloading\""
+                  },
+                  "startLine": 313
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Dynamic loading / plugin sandbox audit: 2 dynamic loading motif(s) observed."
+          },
+          "properties": {
+            "classification": "review-readiness",
+            "confidence": "high",
+            "dsfbCategory": "advanced-structural",
+            "evidenceIds": [
+              "PLUGIN-LOAD-01-cargo-243",
+              "PLUGIN-LOAD-02-cargo-313"
+            ],
+            "impactKind": "assurance/provenance",
+            "remediation": "Constrain dynamic loading behind verification, sandboxing, or explicit operator review.",
+            "status": "elevated",
+            "verificationSuggestion": "Add review notes or CI checks that prove the dynamic-loading boundary is verified, sandboxed, or intentionally excluded from trusted paths."
+          },
+          "ruleId": "PLUGIN-LOAD"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://github.com/infinityabundance/dsfb-gray",
+          "name": "DSFB Gray Scanner",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "serde deserialization with growing payload; schema migration overhead"
+              },
+              "help": {
+                "text": "Review payload growth, eager allocation, and schema-boundary handling on the serialization path."
+              },
+              "id": "H-SERDE-01",
+              "name": "H-SERDE-01",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "heuristic",
+                "guidanceOnly": true,
+                "impactKind": "resource discipline",
+                "reasonCode": "SerializationDrift"
+              },
+              "shortDescription": {
+                "text": "Serialization latency increasing with step-change at schema boundary"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "tonic stream backpressure; h2 flow control window starvation"
+              },
+              "help": {
+                "text": "Inspect flow-control behavior, buffering, and async fairness on the affected RPC path."
+              },
+              "id": "H-GRPC-01",
+              "name": "H-GRPC-01",
+              "properties": {
+                "classification": "context-needed",
+                "confidence": "high",
+                "dsfbCategory": "heuristic",
+                "guidanceOnly": true,
+                "impactKind": "concurrency/async",
+                "reasonCode": "FlowControlExhaustion"
+              },
+              "shortDescription": {
+                "text": "Flow control window approaching exhaustion with drift-then-violation"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Vec<T> capacity doubling in hot loop; jemalloc arena exhaustion"
+              },
+              "help": {
+                "text": "Audit hot-loop allocation sites and prefer bounded or reserved growth on steady-state paths."
+              },
+              "id": "H-ALLOC-01",
+              "name": "H-ALLOC-01",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "heuristic",
+                "guidanceOnly": true,
+                "impactKind": "resource discipline",
+                "reasonCode": "MemoryPressureEscalation"
+              },
+              "shortDescription": {
+                "text": "Monotonic increase in allocation latency with step-change at capacity doubling"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "TSC vs HPET clock source discrepancy between cluster nodes"
+              },
+              "help": {
+                "text": "Prefer monotonic clocks for control logic and isolate wall-clock use to presentation or external protocol boundaries."
+              },
+              "id": "H-CLOCK-01",
+              "name": "H-CLOCK-01",
+              "properties": {
+                "classification": "context-needed",
+                "confidence": "high",
+                "dsfbCategory": "heuristic",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "reasonCode": "ClockDriftDivergence"
+              },
+              "shortDescription": {
+                "text": "Monotonic drift in timestamp-derived residuals between nodes"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "59 heap-allocation motif(s) observed, including 59 runtime-core signal(s). This crate-level scan cannot distinguish initialization-only allocation from steady-state allocation."
+              },
+              "help": {
+                "text": "Move dynamic allocation to initialization paths or document and bound the steady-state allocation sites."
+              },
+              "id": "P10-3",
+              "name": "P10-3",
+              "properties": {
+                "classification": "design-review",
+                "confidence": "high",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "status": "not applied"
+              },
+              "shortDescription": {
+                "text": "No dynamic allocation after initialization"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Estimated assertion density is 0.05 per function across 489 extracted function(s)."
+              },
+              "help": {
+                "text": "Replace catch-all control flow with explicit state handling or document the fallback state as intentional."
+              },
+              "id": "P10-5",
+              "name": "P10-5",
+              "properties": {
+                "classification": "defect-candidate",
+                "confidence": "high",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "concurrency/async",
+                "status": "not applied"
+              },
+              "shortDescription": {
+                "text": "Assertion density averages at least two per function"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "No obvious unchecked-return motifs were observed, but parameter validation and full return-value propagation are not mechanically proven by this scanner."
+              },
+              "help": {
+                "text": "Propagate errors explicitly rather than unwrapping, or document the invariant that justifies the unwrap/expect."
+              },
+              "id": "P10-7",
+              "name": "P10-7",
+              "properties": {
+                "classification": "defect-candidate",
+                "confidence": "medium",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "correctness",
+                "status": "indeterminate"
+              },
+              "shortDescription": {
+                "text": "Return values are checked and parameters are validated"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "9 review-relevant conditional-compilation site(s), 0 macro-definition/proc-macro site(s) observed. This is a Rust adaptation of the C preprocessor rule."
+              },
+              "help": {
+                "text": "Reduce conditional-compilation forks or document why each feature/macro path remains auditable."
+              },
+              "id": "P10-8",
+              "name": "P10-8",
+              "properties": {
+                "classification": "review-readiness",
+                "confidence": "medium",
+                "dsfbCategory": "nasa-power-of-ten",
+                "guidanceOnly": true,
+                "impactKind": "verification/reviewability",
+                "status": "indeterminate"
+              },
+              "shortDescription": {
+                "text": "Conditional compilation and metaprogramming stay minimal"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "2 dynamic loading motif(s) observed."
+              },
+              "help": {
+                "text": "Constrain dynamic loading behind verification, sandboxing, or explicit operator review."
+              },
+              "id": "PLUGIN-LOAD",
+              "name": "PLUGIN-LOAD",
+              "properties": {
+                "classification": "review-readiness",
+                "confidence": "high",
+                "dsfbCategory": "advanced-structural",
+                "guidanceOnly": true,
+                "impactKind": "assurance/provenance",
+                "status": "elevated"
+              },
+              "shortDescription": {
+                "text": "Dynamic loading / plugin sandbox audit"
+              }
+            }
+          ],
+          "version": "0.1.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

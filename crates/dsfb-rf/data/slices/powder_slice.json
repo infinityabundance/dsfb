@@ -1,0 +1,38 @@
+{
+  "global": {
+    "core:datatype": "cf32",
+    "core:sample_rate": "7690000",
+    "core:version": "0.0.1",
+    "core:record_date": "May 12, 2020",
+    "core:description": "This is the meta file for transmission collected in the POWDER platform"
+  },
+  "captures": {
+    "core:sample_start": 0,
+    "core:center_frequency": "2685000000",
+    "core:band": "LTE Band 7",
+    "core:set": "1",
+    "core:day": "1"
+  },
+  "annotations": {
+    "core:sample_start": 0,
+    "core:sample_count": "262144",
+    "core:environment": "University of Utah Campus, POWDER platform",
+    "core:protocol": "4G",
+    "transmitter": {
+      "core:location": "bes",
+      "core:radio": "Ettus USRP X310",
+      "core:antenna": "VVSSP-360S-F"
+    },
+    "receiver": {
+      "core:location": "Humanities",
+      "core:radio": "Ettus USRP B210",
+      "core:antenna": "Taoglas GSA.8841"
+    }
+  },
+  "dsfb_rf_slice": {
+    "parent_zip": "neu_m046tb444.zip",
+    "parent_member": "GlobecomPOWDER/4G_Day_1_bes_s1.bin",
+    "head_bytes": 2097152,
+    "notice": "Head-slice byte-identical to parent .bin; truncated for git."
+  }
+}

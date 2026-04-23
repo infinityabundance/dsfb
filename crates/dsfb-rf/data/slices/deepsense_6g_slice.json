@@ -1,0 +1,18 @@
+{
+  "dsfb_rf:provenance": "real-local-zip",
+  "dsfb_rf:source": "DeepSense-6G Scenario 23 UAV mmWave (deepsense6g.net)",
+  "dsfb_rf:parent_zip": "scenario23_dev_w_resources.zip",
+  "dsfb_rf:head_n_samples": 1000,
+  "dsfb_rf:schema": {
+    "mmwave_power": "float32 (N,64) \u2014 60 GHz beamformed power per beam",
+    "best_beam_index": "int16 (N,) \u2014 ground-truth best-beam label",
+    "altitude": "float32 (N,) \u2014 UAV altitude (meters)",
+    "speed": "float32 (N,) \u2014 UAV speed (m/s)",
+    "pitch": "float32 (N,) \u2014 UAV pitch (rad)",
+    "roll": "float32 (N,) \u2014 UAV roll (rad)",
+    "distance": "float32 (N,) \u2014 UAV-BS distance (m)",
+    "height": "float32 (N,) \u2014 UAV height AGL (m)"
+  },
+  "dsfb_rf:extracted_at": "2026-04-22T04:05:53Z",
+  "notice": "Real DeepSense-6G Scenario 23 (UAV mmWave) head slice; not a benchmark reproduction. Contextual residual-trace exhibit only."
+}

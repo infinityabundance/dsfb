@@ -1,0 +1,90 @@
+# dsfb-rf crate-local ignore rules (additive to repo root .gitignore)
+#
+# RATIONALE
+#   The repo root .gitignore covers /target/, Cargo.lock, and /data/ at the
+#   monorepo level. This file adds crate-local exclusions that must never be
+#   pushed to main:
+#     * paper/            — LaTeX sources + compiled PDF + paperstack (219 MB).
+#                            Agents are forbidden from writing here (AGENTS.md §2).
+#                            Authors edit locally; the artefact stays local.
+#     * dsfb-rf-output/   — Figure/JSON output from generate_figures_all (174 MB+).
+#                            Each run emits a new timestamped subdir (AGENTS.md §1).
+#     * data/oracle|powder|colosseum/ — Large binary datasets downloaded via
+#                            REPRODUCE.md; tracked only by SHA-256 manifest.
+#
+# Do NOT modify the repo-root .gitignore — keep this file additive.
+
+# --- Paper sources and build artefacts (local only) ---
+paper/
+
+# --- Generated figures + JSON from generate_figures_all ---
+dsfb-rf-output/
+
+# --- Run-time emission artefacts (re-created by examples; paper references only) ---
+wpred_sweep_real.json
+
+# --- Rust build + lockfile (library crate) ---
+target/
+Cargo.lock
+
+# --- cargo-fuzz build artefacts ---
+fuzz/target/
+fuzz/Cargo.lock
+fuzz/corpus/
+fuzz/artifacts/
+
+# --- Large runtime datasets (checksum-referenced in REPRODUCE.md) ---
+data/*.hdf5
+data/*.sigmf-data
+data/*.sigmf-meta
+data/oracle/
+data/ORACLE/
+data/powder/
+data/POWDER/
+data/colosseum/
+data/tampere_gnss/
+data/deepbeam/
+data/deepsense_6g/
+data/Deepsense6G/
+data/coloran/
+data/coloran_commag/
+data/RadioML HDF5/
+
+# --- Slice catalog (≤2 MB each) is TRACKED; override root *.csv / crate data/*.hdf5 ---
+!data/slices/
+!data/slices/*.hdf5
+!data/slices/*.sigmf-data
+!data/slices/*.sigmf-meta
+!data/slices/*.bin
+!data/slices/*.json
+!data/slices/*.csv
+!data/slices/*.npy
+!data/slices/SLICE_MANIFEST.json
+
+# --- LaTeX transients (defence in depth vs. paper/) ---
+*.aux
+*.log
+*.synctex.gz
+*.out
+*.toc
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.snm
+*.nav
+*.vrb
+
+# --- Python scratch ---
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# --- Editor/OS cruft ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

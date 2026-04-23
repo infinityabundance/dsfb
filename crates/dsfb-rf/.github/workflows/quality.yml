@@ -1,0 +1,221 @@
+name: dsfb-rf Quality Gate
+# Additive to qemu_timing.yml (cross-target latency) — this workflow covers
+# static analysis, feature-matrix check, doctests, and unit tests. None of
+# the steps write to `paper/` or `dsfb-rf-output/`, per AGENTS.md §2.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/dsfb-rf/src/**'
+      - 'crates/dsfb-rf/tests/**'
+      - 'crates/dsfb-rf/benches/**'
+      - 'crates/dsfb-rf/examples/**'
+      - 'crates/dsfb-rf/Cargo.toml'
+      - 'crates/dsfb-rf/rust-toolchain.toml'
+      - 'crates/dsfb-rf/.github/workflows/quality.yml'
+  pull_request:
+    paths:
+      - 'crates/dsfb-rf/src/**'
+      - 'crates/dsfb-rf/tests/**'
+      - 'crates/dsfb-rf/Cargo.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: crates/dsfb-rf
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  fmt:
+    name: cargo fmt --check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.83.0
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  check-no-std:
+    name: "check (no-default-features, no_std core)"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+      - run: cargo check --no-default-features
+
+  check-std:
+    name: "check (std, serde)"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+      - run: cargo check --features std,serde --all-targets
+
+  check-hdf5:
+    name: "check (paper_lock + hdf5_loader)"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install libhdf5
+        run: sudo apt-get update && sudo apt-get install -y libhdf5-dev pkg-config
+      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+      - run: cargo check --features std,paper_lock,hdf5_loader
+
+  check-all-features:
+    name: "check --all-features"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install libhdf5
+        run: sudo apt-get update && sudo apt-get install -y libhdf5-dev pkg-config
+      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+      - run: cargo check --all-features --all-targets
+
+  clippy:
+    name: "clippy -D warnings"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install libhdf5
+        run: sudo apt-get update && sudo apt-get install -y libhdf5-dev pkg-config
+      - uses: dtolnay/rust-toolchain@1.83.0
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+      - run: cargo clippy --all-features --all-targets -- -D warnings
+
+  test:
+    name: "test --all-features"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install libhdf5
+        run: sudo apt-get update && sudo apt-get install -y libhdf5-dev pkg-config
+      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+      - run: cargo test --all-features
+
+  doctest:
+    name: "cargo test --doc"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+      - run: cargo test --doc --features std,serde
+
+  doc:
+    name: "rustdoc --no-deps -D warnings"
+    runs-on: ubuntu-24.04
+    env:
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+      - run: cargo doc --no-deps --features std,serde
+
+  # Placeholder jobs — enabled in v1.0.2 once inputs are captured on reference
+  # hardware. Declared here so the gate list is visible to reviewers.
+  #
+  # deny:
+  #   runs-on: ubuntu-24.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: EmbarkStudios/cargo-deny-action@v2
+  #       with:
+  #         manifest-path: crates/dsfb-rf/Cargo.toml
+  #
+  semver:
+    name: "cargo semver-checks (vs. crates.io 1.0.0)"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install libhdf5
+        run: sudo apt-get update && sudo apt-get install -y libhdf5-dev pkg-config
+      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          manifest-path: crates/dsfb-rf/Cargo.toml
+          package: dsfb-rf
+          baseline-version: 1.0.0
+
+
+  # kani:
+  #   runs-on: ubuntu-24.04
+  #   timeout-minutes: 30
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: model-checking/kani-github-action@v1
+  #       with:
+  #         working-directory: crates/dsfb-rf
+  #         args: --features std
+
+  kani-smoke:
+    name: kani harness enumeration smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Kani
+        run: |
+          cargo install --locked kani-verifier
+          cargo kani setup
+      - name: Enumerate Kani harnesses (smoke)
+        working-directory: crates/dsfb-rf
+        run: |
+          echo "::group::cargo kani list"
+          cargo kani list --features std
+          echo "::endgroup::"
+          echo "Enumerating proof harnesses only — full verification gated on the commented-out \`kani\` job above."
+          # Guardrail: fail if the expected harness set regresses. Any
+          # rename or accidental removal of a named harness surfaces here
+          # before it ships. List is authoritative vs src/kani_proofs.rs.
+          EXPECTED=(
+            proof_grammar_evaluator_no_panic
+            proof_grammar_state_severity_bounded
+            proof_envelope_judgment_consistency
+            proof_decimation_exact_epoch_count
+            proof_fixedpoint_resync_drift_bounded
+            proof_quantize_q16_16_no_panic
+          )
+          LIST_OUT=$(cargo kani list --features std 2>&1 || true)
+          for H in "${EXPECTED[@]}"; do
+            if ! echo "$LIST_OUT" | grep -q "$H"; then
+              echo "::error::Expected Kani harness missing: $H"
+              exit 1
+            fi
+          done
+          echo "All ${#EXPECTED[@]} expected harnesses present."

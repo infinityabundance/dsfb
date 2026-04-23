@@ -1,0 +1,137 @@
+[package]
+name = "dsfb-rf"
+version = "1.0.0"
+edition = "2021"
+authors = ["Riaan de Beer <riaan@invariantforge.net>"]
+description = "DSFB Structural Semiotics Engine for RF Signal Monitoring: deterministic, non-intrusive, no_std/no_alloc/zero-unsafe observer layer for typed IQ residual interpretation"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-rf"
+documentation = "https://docs.rs/dsfb-rf"
+homepage = "https://github.com/infinityabundance/dsfb"
+keywords = ["rf", "signal-processing", "semiotics", "ew", "no-std"]
+categories = ["embedded", "science", "no-std"]
+rust-version = "1.83"
+
+[lib]
+name = "dsfb_rf"
+path = "src/lib.rs"
+
+[features]
+default = []
+alloc = []
+std = ["alloc"]
+serde = ["std", "dep:serde", "dep:serde_json"]
+paper_lock = ["std", "serde"]
+# Real-dataset loader for RadioML 2018.01a HDF5 (requires libhdf5 system library).
+hdf5_loader = ["std", "paper_lock", "dep:hdf5-metno"]
+# Real-dataset figure bank — 80 additional figures (10 per slice × 8 slices)
+# gated behind this feature so the default build surface is unchanged for v1.0
+# consumers. Adds csv reader for ColO-RAN KPI slices.
+real_figures = ["std", "serde", "hdf5_loader", "dep:csv"]
+# Exploratory extensions not validated in the companion paper.
+# These modules implement research-stage capabilities excluded from the
+# paper-lock metric set and the Stage III fixed evaluation protocol.
+experimental = []
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+hdf5-metno = { version = "0.12", optional = true, package = "hdf5-metno" }
+csv = { version = "1", optional = true }
+
+[dev-dependencies]
+approx = "0.5"
+serde_json = { version = "1" }
+proptest = "1"
+
+[target.'cfg(loom)'.dev-dependencies]
+loom = "0.7"
+
+[[bin]]
+name = "paper-lock"
+path = "src/main.rs"
+required-features = ["std", "paper_lock", "hdf5_loader"]
+
+[[example]]
+name = "radioml_hdf5"
+required-features = ["std", "paper_lock", "hdf5_loader"]
+
+[[example]]
+name = "generate_figures"
+required-features = ["std", "serde"]
+
+[[example]]
+name = "generate_figures_all"
+required-features = ["std", "serde"]
+
+[[example]]
+name = "generate_figures_real"
+required-features = ["std", "serde", "real_figures"]
+
+[[example]]
+name = "darpa_sc2_adversarial"
+required-features = ["std"]
+
+[[example]]
+name = "nist_powder_playback"
+required-features = ["std"]
+
+[[example]]
+name = "iqengine_diversity"
+required-features = ["std"]
+
+[[example]]
+name = "oracle_usrp_b200"
+required-features = ["std"]
+
+[[example]]
+name = "gps_spoofing_detection"
+required-features = ["std"]
+
+[[example]]
+name = "atmospheric_fading_diag"
+required-features = ["std"]
+
+[[example]]
+name = "urban_multipath_prognosis"
+required-features = ["std"]
+
+[[example]]
+name = "deep_space_metrology"
+required-features = ["std"]
+
+[[example]]
+name = "crawdad_interference"
+required-features = ["std"]
+
+[[example]]
+name = "wpred_sweep"
+required-features = ["std"]
+
+[[example]]
+name = "wpred_sweep_real"
+required-features = ["std", "serde", "hdf5_loader"]
+
+[[bench]]
+name = "cycles_per_sample"
+harness = false
+required-features = ["std"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(kani)", "cfg(loom)"] }
+
+# Opt out of the parent monorepo workspace so this crate can be compiled
+# and published as a stand-alone crate (see /home/one/dsfb/Cargo.toml,
+# whose workspace.members list does not include dsfb-rf). Empty [workspace]
+# table is the documented Cargo escape hatch.
+[workspace]

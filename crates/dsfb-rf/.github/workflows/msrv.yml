@@ -1,0 +1,44 @@
+name: dsfb-rf MSRV Floor
+
+# Guards the declared `rust-version = "1.83"` floor in Cargo.toml.
+# Additive to quality.yml; does not overlap with its jobs.
+# Runs only against the no-default-features + std/serde build surfaces
+# (no hdf5_loader — the libhdf5 toolchain floor is validated by quality.yml).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/dsfb-rf/src/**'
+      - 'crates/dsfb-rf/Cargo.toml'
+      - 'crates/dsfb-rf/rust-toolchain.toml'
+      - 'crates/dsfb-rf/.github/workflows/msrv.yml'
+  pull_request:
+    paths:
+      - 'crates/dsfb-rf/src/**'
+      - 'crates/dsfb-rf/Cargo.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: crates/dsfb-rf
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  msrv-floor:
+    name: "check @ rust-version (1.83, MSRV floor)"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.83
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-rf -> target
+          key: msrv-floor
+      - run: cargo check --no-default-features
+      - run: cargo check --features std,serde

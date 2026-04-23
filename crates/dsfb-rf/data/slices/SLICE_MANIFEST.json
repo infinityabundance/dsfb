@@ -1,0 +1,120 @@
+{
+  "schema_version": 2,
+  "generated_by": "scripts/prepare_slices.py",
+  "generated_at": "2026-04-22T04:05:53Z",
+  "max_slice_bytes": 2097152,
+  "notice": "Eight-dataset slice catalog for the dsfb-rf Colab reproducibility notebook. 'real-in-repo' means the slice lives in git; 'real-local-zip' means it was extracted from a user-downloaded archive; 'real-public' means the slice was fetched from a public mirror at run time; 'synthetic-proxy' means the mirror was unreachable and the slice is a schema-preserving model-generated stand-in. No proxy is ever a substitute for a paper result.",
+  "slices": [
+    {
+      "name": "radioml",
+      "provenance": "real-in-repo",
+      "files": [
+        "radioml_2018_slice.hdf5"
+      ],
+      "bytes": 1850426,
+      "sha256": "9b8c069e960f3aa99fb1f6592204c1cd909f29386474914f9bf48f065f4bfddd",
+      "schema": "HDF5 {X: (N,1024,2) float32, Y: (N,24) int64, Z: (N,1) int64}",
+      "source_url": "DeepSig RadioML 2018.01a \u2014 CC BY-NC-SA 4.0 derivative",
+      "reason": "",
+      "generated_at": "2026-04-22T04:05:36Z"
+    },
+    {
+      "name": "oracle",
+      "provenance": "real-local-zip",
+      "files": [
+        "oracle_slice.sigmf-meta",
+        "oracle_slice.sigmf-data"
+      ],
+      "bytes": 2104264,
+      "sha256": "b8e357825b22783c1151cf1b36609e9902aeab9c210c5948610adaf212398e1c",
+      "schema": "SigMF .sigmf-meta + .sigmf-data; core:datatype=cf32 (parent quirk: on-disk cf64); sliced sample_count=131072",
+      "source_url": "local zip: neu_m044q5210.zip -> KRI-16Devices-RawData/14ft/WiFi_air_X310_3123D52_14ft_run1.sigmf-data",
+      "reason": "",
+      "generated_at": "2026-04-22T04:05:36Z"
+    },
+    {
+      "name": "powder",
+      "provenance": "real-local-zip",
+      "files": [
+        "powder_slice.json",
+        "powder_slice.bin"
+      ],
+      "bytes": 2098256,
+      "sha256": "23056358e4d6bb85357609682512243042ebdf9cc05fd7be0586537ae815c24c",
+      "schema": "POWDER cf32 raw .bin + .json; sliced sample_count=262144",
+      "source_url": "local zip: neu_m046tb444.zip -> GlobecomPOWDER/4G_Day_1_bes_s1.bin",
+      "reason": "",
+      "generated_at": "2026-04-22T04:05:36Z"
+    },
+    {
+      "name": "tampere_gnss",
+      "provenance": "real-public",
+      "files": [
+        "tampere_gnss_slice.bin",
+        "tampere_gnss_slice.json"
+      ],
+      "bytes": 2097375,
+      "sha256": "c4f5def143aea605a2ed9460fca52c1bcd8d0c0122e3fd917c45af7130bff2c4",
+      "schema": "Tampere GNSS Raw IQ (L1 C/A baseband) head slice; CC BY 4.0",
+      "source_url": "https://zenodo.org/records/13846381/files/Data.zip",
+      "reason": "",
+      "generated_at": "2026-04-22T04:05:51Z"
+    },
+    {
+      "name": "coloran",
+      "provenance": "real-public",
+      "files": [
+        "coloran_slice.csv",
+        "coloran_slice.json"
+      ],
+      "bytes": 90521,
+      "sha256": "15bcb51aa4c678c399596ab1feeaad3e130a5322cd8189a76f359b16e8b6029e",
+      "schema": "Colosseum ColO-RAN CSV KPI trace (DU-reported throughput/ratio)",
+      "source_url": "https://raw.githubusercontent.com/wineslab/colosseum-oran-coloran-dataset/master/rome_static_medium/sched0/tr0/exp1/bs1/bs1.csv",
+      "reason": "",
+      "generated_at": "2026-04-22T04:05:52Z"
+    },
+    {
+      "name": "coloran_commag",
+      "provenance": "real-public",
+      "files": [
+        "coloran_commag_slice.csv",
+        "coloran_commag_slice.json"
+      ],
+      "bytes": 65960,
+      "sha256": "aaefb7a892ad55cb2aa27b3f33141d2faeb315427de4dab28d405d2b17566b85",
+      "schema": "Colosseum ColO-RAN-commag CSV scheduling-policy trace",
+      "source_url": "https://raw.githubusercontent.com/wineslab/colosseum-oran-commag-dataset/master/slice_mixed/rome_static_close/tr0/exp1/bs1/bs1.csv",
+      "reason": "",
+      "generated_at": "2026-04-22T04:05:52Z"
+    },
+    {
+      "name": "deepbeam",
+      "provenance": "real-local-file",
+      "files": [
+        "deepbeam_slice.h5",
+        "deepbeam_slice.json"
+      ],
+      "bytes": 51712,
+      "sha256": "5669f9999ad4e50675b75fec954bd91603ec266a48ae12be4a6a8267996cbead",
+      "schema": "HDF5 head slice \u2014 iq (N,2) float64, gain (N,) float64, rx_beam (N,) float64, tx_beam (N,) float64; DeepBeam NI mmWave transceiver native layout",
+      "source_url": "local: /home/one/dsfb/crates/dsfb-rf/data/deepbeam/neu_ww72bk394.h5",
+      "reason": "",
+      "generated_at": "2026-04-22T04:05:52Z"
+    },
+    {
+      "name": "deepsense_6g",
+      "provenance": "real-local-zip",
+      "files": [
+        "deepsense_6g_slice.h5",
+        "deepsense_6g_slice.json"
+      ],
+      "bytes": 265885,
+      "sha256": "005ce6af4da9b57042697663c80574dc66118da0ddad2c804ca74a75dcad9275",
+      "schema": "HDF5 (N,64) mmwave_power float32 + best_beam_index int16 + UAV telemetry (altitude, speed, pitch, roll, distance, height); DeepSense-6G Scenario 23 UAV mmWave head slice",
+      "source_url": "https://www.deepsense6g.net/scenarios/scenario-23 (user-downloaded zip)",
+      "reason": "",
+      "generated_at": "2026-04-22T04:05:53Z"
+    }
+  ]
+}

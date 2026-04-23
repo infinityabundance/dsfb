@@ -1,0 +1,31 @@
+[package]
+name = "dsfb-rf-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+rust-version = "1.85.1"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+[dependencies.dsfb-rf]
+path = ".."
+features = ["std", "serde"]
+
+[[bin]]
+name = "engine_roundtrip"
+path = "fuzz_targets/engine_roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "grammar_fsm"
+path = "fuzz_targets/grammar_fsm.rs"
+test = false
+doc = false
+
+[workspace]

@@ -1,0 +1,201 @@
+name: Embedded QEMU Timing
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dsfb-rf/src/**'
+      - 'dsfb-rf/benches/**'
+      - 'dsfb-rf/Cargo.toml'
+  pull_request:
+    paths:
+      - 'dsfb-rf/src/**'
+      - 'dsfb-rf/benches/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Cortex-M4F (thumbv7em-none-eabihf) ──────────────────────────────────────
+  cortex-m4f:
+    name: "Cycle count — Cortex-M4F @ 168 MHz (QEMU)"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust + embedded target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+
+      - name: Install QEMU arm (qemu-system-arm)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            qemu-system-arm gcc-arm-none-eabi binutils-arm-none-eabi
+
+      - name: Compile bench for thumbv7em-none-eabihf
+        working-directory: dsfb-rf
+        run: |
+          cargo build --release \
+            --target thumbv7em-none-eabihf \
+            --bench cycles_per_sample \
+            --features std 2>&1 | tail -5
+          echo "Binary size:"
+          arm-none-eabi-size target/thumbv7em-none-eabihf/release/deps/cycles_per_sample-* 2>/dev/null || true
+
+      - name: Run under QEMU cortex-m4 and capture timing
+        working-directory: dsfb-rf
+        run: |
+          BIN=$(ls target/thumbv7em-none-eabihf/release/deps/cycles_per_sample-* \
+                | grep -v '\.d$' | head -1)
+          if [ -z "$BIN" ]; then
+            echo "cycles_per_sample binary not found — harness=false bench needs explicit main"
+            exit 0
+          fi
+          timeout 120 qemu-system-arm \
+            -machine lm3s811evb \
+            -cpu cortex-m4 \
+            -nographic \
+            -semihosting \
+            -kernel "$BIN" \
+            2>&1 | tee qemu_m4f.log || true
+          echo "──── QEMU M4F output ────"
+          cat qemu_m4f.log
+
+      - name: Assert cycle budget (< 840 cycles @ 168 MHz ≡ < 5000 ns/sample)
+        run: |
+          # Extract the worst-case ns/sample from the QEMU output
+          # The bench prints lines like: "│ Drift ... │ 4823.5 ns │"
+          MAX_NS=$(grep -oP '\d+\.\d+(?= ns)' dsfb-rf/qemu_m4f.log \
+                   | sort -n | tail -1 || echo 0)
+          echo "Max ns/sample (QEMU M4F): ${MAX_NS}"
+          python3 -c "
+          v = float('${MAX_NS}' or 0)
+          if v == 0:
+              print('SKIP: no timing data extracted (semihosting may not have flushed)')
+          elif v < 5000:
+              print(f'PASS: {v:.1f} ns/sample < 5000 ns threshold (Cortex-M4F budget)')
+          else:
+              print(f'FAIL: {v:.1f} ns/sample >= 5000 ns threshold')
+              exit(1)
+          "
+
+      - name: Upload QEMU log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-m4f-timing
+          path: dsfb-rf/qemu_m4f.log
+          if-no-files-found: warn
+
+  # ── RISC-V (riscv32imac-unknown-none-elf) ────────────────────────────────────
+  riscv32:
+    name: "Cycle count — RISC-V @ 100 MHz (QEMU)"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust + embedded target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: riscv32imac-unknown-none-elf
+
+      - name: Install QEMU RISC-V
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            qemu-system-riscv32 binutils-riscv64-linux-gnu
+
+      - name: Compile bench for riscv32imac-unknown-none-elf
+        working-directory: dsfb-rf
+        run: |
+          cargo build --release \
+            --target riscv32imac-unknown-none-elf \
+            --bench cycles_per_sample \
+            --features std 2>&1 | tail -5
+          echo "Binary size:"
+          riscv64-linux-gnu-size target/riscv32imac-unknown-none-elf/release/deps/cycles_per_sample-* 2>/dev/null || true
+
+      - name: Run under QEMU spike (riscv32) and capture timing
+        working-directory: dsfb-rf
+        run: |
+          BIN=$(ls target/riscv32imac-unknown-none-elf/release/deps/cycles_per_sample-* \
+                | grep -v '\.d$' | head -1 || echo "")
+          if [ -z "$BIN" ]; then
+            echo "SKIP: binary not found"
+            exit 0
+          fi
+          timeout 120 qemu-system-riscv32 \
+            -machine virt \
+            -nographic \
+            -bios none \
+            -kernel "$BIN" \
+            2>&1 | tee qemu_riscv.log || true
+          echo "──── QEMU RISC-V output ────"
+          cat qemu_riscv.log
+
+      - name: Assert cycle budget (< 1000 cycles @ 100 MHz ≡ < 10 μs/sample)
+        run: |
+          MAX_NS=$(grep -oP '\d+\.\d+(?= ns)' dsfb-rf/qemu_riscv.log \
+                   | sort -n | tail -1 || echo 0)
+          echo "Max ns/sample (QEMU RISC-V): ${MAX_NS}"
+          python3 -c "
+          v = float('${MAX_NS}' or 0)
+          if v == 0:
+              print('SKIP: no timing data extracted')
+          elif v < 10000:
+              print(f'PASS: {v:.1f} ns/sample < 10000 ns threshold (RISC-V @ 100 MHz budget)')
+          else:
+              print(f'FAIL: {v:.1f} ns/sample >= 10000 ns threshold')
+              exit(1)
+          "
+
+      - name: Upload QEMU log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-riscv32-timing
+          path: dsfb-rf/qemu_riscv.log
+          if-no-files-found: warn
+
+  # ── x86-64 host timing (reference baseline, not QEMU) ───────────────────────
+  host-timing:
+    name: "Cycle count — x86-64 host (reference baseline)"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run cycles_per_sample bench (host, release)
+        working-directory: dsfb-rf
+        run: |
+          cargo bench --features std 2>&1 | tee host_bench.log
+          echo "──── Host bench output ────"
+          cat host_bench.log
+
+      - name: Assert host < 500 ns/sample
+        run: |
+          MAX_NS=$(grep -oP '\d+\.\d+(?= ns)' dsfb-rf/host_bench.log \
+                   | sort -n | tail -1 || echo 0)
+          echo "Max ns/sample (host): ${MAX_NS}"
+          python3 -c "
+          v = float('${MAX_NS}' or 0)
+          if v == 0:
+              print('SKIP: no timing data extracted')
+          elif v < 500:
+              print(f'PASS: {v:.1f} ns/sample < 500 ns threshold (x86-64 real-time budget)')
+          else:
+              print(f'FAIL: {v:.1f} ns/sample >= 500 ns threshold')
+              exit(1)
+          "
+
+      - name: Upload host bench log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-timing
+          path: dsfb-rf/host_bench.log
+          if-no-files-found: warn

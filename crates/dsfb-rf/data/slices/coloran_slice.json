@@ -1,0 +1,6 @@
+{
+  "source": "https://raw.githubusercontent.com/wineslab/colosseum-oran-coloran-dataset/master/rome_static_medium/sched0/tr0/exp1/bs1/bs1.csv",
+  "note": "Head slice of wineslab/colosseum-oran-coloran-dataset rome_static_medium KPI CSV; columns: time,nof_ue,dl_brate,ul_brate.",
+  "head_bytes": 90156,
+  "schema_hint": "O-RAN KPI trace; non-IQ companion annex."
+}

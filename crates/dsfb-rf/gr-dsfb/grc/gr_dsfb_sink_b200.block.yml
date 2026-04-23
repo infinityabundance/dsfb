@@ -1,0 +1,87 @@
+id: gr_dsfb_sink_b200
+label: DSFB-RF Sink (B200/X310/LimeSDR)
+category: '[DSFB-RF]'
+flags: [python, throttle]
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+documentation: |-
+  DSFB-RF Structural Anomaly Observer — Read-Only Tap
+
+  Connects in parallel with the existing signal-processing chain.
+  Does NOT modify upstream behaviour. No output ports.
+
+  Paper: de Beer (2026) "A Deterministic, Non-Intrusive Structural Semiotics
+  Framework for RF Signal Integrity Monitoring"
+
+  Phase I OOT deliverable (paper §XI.B).
+
+# ── Parameters ────────────────────────────────────────────────────────────────
+parameters:
+  - id: platform_tag
+    label: Platform Tag
+    dtype: string
+    default: 'usrp_b200'
+    options: ['usrp_b200', 'usrp_x310', 'limesdr', 'rtlsdr', 'custom']
+    option_labels: ['USRP B200', 'USRP X310', 'LimeSDR', 'RTL-SDR', 'Custom']
+    hide: none
+
+  - id: carrier_hz
+    label: Carrier Frequency (Hz)
+    dtype: real
+    default: '915.0e6'
+    hide: none
+
+  - id: sample_rate
+    label: Sample Rate (S/s)
+    dtype: real
+    default: samp_rate
+    hide: none
+
+  - id: adc_bits
+    label: ADC Bit Depth
+    dtype: int
+    default: '12'
+    options: ['8', '10', '12', '14', '16']
+    option_labels: ['8-bit', '10-bit', '12-bit (B200)', '14-bit (X310)', '16-bit']
+    hide: none
+
+  - id: snr_floor_db
+    label: SNR Floor (dB)
+    dtype: real
+    default: '-10.0'
+    hide: none
+
+  - id: zmq_endpoint
+    label: ZeroMQ PUSH Endpoint
+    dtype: string
+    default: 'tcp://*:5560'
+    hide: none
+
+# ── Ports ─────────────────────────────────────────────────────────────────────
+inputs:
+  - label: CF32 in
+    domain: stream
+    dtype: complex
+    multiplicity: 1
+
+outputs: []
+
+# ── Templates (Python code generation) ───────────────────────────────────────
+templates:
+  imports: from gr_dsfb import dsfb_sink_b200
+  make: |
+    dsfb_sink_b200(
+        platform_tag  = '${platform_tag}',
+        carrier_hz    = ${carrier_hz},
+        sample_rate   = ${sample_rate},
+        adc_bits      = ${adc_bits},
+        snr_floor_db  = ${snr_floor_db},
+        zmq_endpoint  = '${zmq_endpoint}',
+    )
+
+# ── Callbacks ────────────────────────────────────────────────────────────────
+callbacks:
+  - set_snr_db(${snr_floor_db})
+
+# ── File format version ──────────────────────────────────────────────────────
+file_format: 1
