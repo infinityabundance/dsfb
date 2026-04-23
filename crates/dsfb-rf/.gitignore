@@ -17,6 +17,11 @@
 # --- Paper sources and build artefacts (local only) ---
 paper/
 
+# --- Local-only working docs (never published to GitHub) ---
+# Deleted from origin 2026-04-23; listed here so they cannot be re-tracked.
+AGENTS.md
+CONVENTIONS.md
+
 # --- Generated figures + JSON from generate_figures_all ---
 dsfb-rf-output/
 
