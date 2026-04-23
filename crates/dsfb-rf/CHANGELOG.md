@@ -9,6 +9,33 @@ foundation** for Structural Semiotics on RF signals. Changes in this log are
 additive to that foundation — we do not narrow claims or remove capabilities
 between versions without a major-version bump.
 
+## [1.0.1] - 2026-04-23
+
+### Added
+- **Miri undefined-behaviour audit** under `audit/miri/`. Three orthogonal
+  configurations — pure `no_std` + strict-provenance (351 tests),
+  `std` + `serde` under stacked-borrows (360 tests), `std` + `serde` under
+  tree-borrows (360 tests) — all CLEAN, zero undefined-behaviour findings.
+  Ships `MIRI_AUDIT.md` with methodology / scope / reproduction commands,
+  `RUN_MANIFEST.json` pinning the nightly rustc and Miri versions under
+  which the audit was produced, and the three full `cargo miri` stdout
+  captures.
+- **Miri badge** in the README header alongside the existing dsfb-gray badge,
+  and an expanded Audit section summarising both the static rubric scan and
+  the dynamic UB audit.
+- **Colab notebook** (`colab/dsfb_rf_reproduce.ipynb`) now displays every
+  figure inline and bundles a combined results PDF concatenating the
+  67 synthetic, 80 real-dataset, and optional `fig_149` pages into a single
+  reviewer-friendly document (bookmarked by bank). No crate-side rendering
+  changed.
+
+### Notes
+- No source or public-API changes. Scope of this release is audit artefacts,
+  documentation, and the reproduction notebook.
+- Integration tests (10⁶-sample end-to-end simulations) are explicitly
+  excluded from the Miri audit for runtime feasibility; the same module
+  code paths are covered by the lib Miri passes.
+
 ## [Unreleased]
 
 ### Added

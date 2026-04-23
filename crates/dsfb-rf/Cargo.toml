@@ -1,6 +1,6 @@
 [package]
 name = "dsfb-rf"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["Riaan de Beer <riaan@invariantforge.net>"]
 description = "DSFB-RF Structural Semiotics Engine for RF Signal Monitoring - A Deterministic, Non-Intrusive Observer Layer for Typed Structural Interpretation of IQ Residual Streams in Electronic Warfare, Spectrum Monitoring, and Cognitive Radio"
