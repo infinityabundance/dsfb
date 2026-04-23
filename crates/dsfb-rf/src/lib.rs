@@ -52,8 +52,11 @@
 //! This crate implements the DSFB Structural Semiotics Engine for RF signal
 //! monitoring as described in:
 //!
-//! > de Beer, R. (2026). *DSFB Structural Semiotics Engine for RF Signal
-//! > Monitoring*. Invariant Forge LLC. DOI: 10.5281/zenodo.XXXXXXXX
+//! > de Beer, R. (2026). *DSFB-RF Structural Semiotics Engine for RF Signal
+//! > Monitoring — A Deterministic, Non-Intrusive Observer Layer for Typed
+//! > Structural Interpretation of IQ Residual Streams in Electronic Warfare,
+//! > Spectrum Monitoring, and Cognitive Radio* (v1.0). Invariant Forge LLC.
+//! > Zenodo. DOI: [10.5281/zenodo.19702330](https://doi.org/10.5281/zenodo.19702330)
 //!
 //! The engine is a **read-only, non-intrusive, deterministic observer layer**
 //! that sits above existing RF receiver infrastructure (matched-filter banks,
@@ -88,7 +91,8 @@
 //! - **`#![no_alloc]`**: all internal structures use fixed-capacity
 //!   array-backed types. No heap allocation in any hot path.
 //! - **Zero `unsafe`**: no `unsafe` blocks, no `UnsafeCell`, no `RefCell`
-//!   in any observer code path. Enforced by `cargo geiger` in CI.
+//!   in any observer code path. Enforced at compile time by
+//!   `#![forbid(unsafe_code)]` (see `src/lib.rs` crate attribute).
 //!
 //! ## Non-Claims (from paper §11)
 //!

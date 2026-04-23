@@ -229,5 +229,8 @@ This satisfies DoD IV&V workflow documentation requirements structurally.
   for cognitive radio using blind source separation. *Proc. IEEE ICASSP 2022*.
   (ORACLE dataset: https://ieee-dataport.org/open-access/oracle-radio-frequency-fingerprinting-dataset)
 - Page, E. S. (1954). Continuous inspection schemes. *Biometrika*, 41(1/2), 100–115. (CUSUM)
-- de Beer, R. (2026). DSFB Structural Semiotics Engine for RF Signal Monitoring.
-  Invariant Forge LLC. https://doi.org/10.5281/zenodo.XXXXXXXX
+- de Beer, R. (2026). *DSFB-RF Structural Semiotics Engine for RF Signal
+  Monitoring — A Deterministic, Non-Intrusive Observer Layer for Typed
+  Structural Interpretation of IQ Residual Streams in Electronic Warfare,
+  Spectrum Monitoring, and Cognitive Radio* (v1.0). Invariant Forge LLC.
+  Zenodo. https://doi.org/10.5281/zenodo.19702330

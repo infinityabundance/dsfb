@@ -234,10 +234,12 @@ Every substantive technical contribution must be:
 2. Reflected in the paper (Zenodo DOI when registered)
 3. Present in the output artifact zip (traceability)
 
-The prior art date is the Zenodo deposit timestamp. Until the DOI is minted:
-- The DOI placeholder `https://doi.org/10.5281/zenodo.XXXXXXXX` must remain
-  in all artifacts — never remove it
-- Every output ZIP constitutes a timestamped delivery record
+The prior art date is the Zenodo deposit timestamp. The v1.0 DOI has been
+minted: `https://doi.org/10.5281/zenodo.19702330`. All crate-surface
+references (README, CITATION.cff, lib.rs rustdoc, docs/*, Colab notebook
+§6) must carry the resolved DOI — never revert to the `XXXXXXXX`
+placeholder. Every output ZIP continues to constitute a timestamped
+delivery record on top of the Zenodo deposit.
 
 **Never remove the "Prior art under 35 U.S.C. § 102" notice from any file.**
 
