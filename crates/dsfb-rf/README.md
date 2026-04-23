@@ -1,6 +1,7 @@
 # `dsfb-rf` — DSFB Structural Semiotics Engine for RF Signal Monitoring
 
 [![DSFB Gray Audit: 91.4% strong assurance posture](https://img.shields.io/badge/DSFB%20Gray%20Audit-91.4%25-brightgreen)](./audit/dsfb_rf_scan.txt)
+[![Miri: clean](https://img.shields.io/badge/Miri-clean-brightgreen)](./audit/miri/MIRI_AUDIT.md)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-rf/colab/dsfb_rf_reproduce.ipynb)
 
 **Invariant Forge LLC** — Prior art under 35 U.S.C. § 102.  
