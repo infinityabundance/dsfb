@@ -1,0 +1,91 @@
+{
+  "audit_kind": "miri",
+  "crate": {
+    "name": "dsfb-rf",
+    "version": "1.0.0"
+  },
+  "generated_at_utc": "2026-04-23T05:19:22Z",
+  "host": "x86_64-unknown-linux-gnu",
+  "toolchain": {
+    "rustc_stable": "rustc 1.85.1 (4eb161250 2025-03-15)",
+    "rustc_nightly": "rustc 1.97.0-nightly (0febdbab2 2026-04-18)",
+    "miri": "miri 0.1.0 (0febdbab27 2026-04-18)"
+  },
+  "passes": [
+    {
+      "name": "no_std + strict-provenance",
+      "file": "miri_nostd_strict_provenance.txt",
+      "cargo_invocation": "cargo +nightly miri test --no-default-features --lib",
+      "miri_flags": "-Zmiri-strict-provenance",
+      "aliasing_model": "stacked-borrows (default)",
+      "tests_passed": 351,
+      "tests_failed": 0,
+      "wall_clock_seconds": 50.11,
+      "result": "CLEAN"
+    },
+    {
+      "name": "std + serde + stacked-borrows",
+      "file": "miri_std_serde_stacked_borrows.txt",
+      "cargo_invocation": "cargo +nightly miri test --features std,serde --lib",
+      "miri_flags": "-Zmiri-strict-provenance -Zmiri-disable-isolation",
+      "aliasing_model": "stacked-borrows (default)",
+      "tests_passed": 360,
+      "tests_failed": 0,
+      "wall_clock_seconds": 90.38,
+      "result": "CLEAN"
+    },
+    {
+      "name": "std + serde + tree-borrows",
+      "file": "miri_std_serde_tree_borrows.txt",
+      "cargo_invocation": "cargo +nightly miri test --features std,serde --lib",
+      "miri_flags": "-Zmiri-strict-provenance -Zmiri-disable-isolation -Zmiri-tree-borrows",
+      "aliasing_model": "tree-borrows (experimental, stricter)",
+      "tests_passed": 360,
+      "tests_failed": 0,
+      "wall_clock_seconds": 135.28,
+      "result": "CLEAN"
+    }
+  ],
+  "overall_result": "CLEAN \u2014 zero undefined-behaviour findings across three orthogonal configurations",
+  "scope_included": [
+    "lib tests (360 with std+serde, 351 with no_std)",
+    "strict-provenance checking (CHERI-compatible pointer semantics)",
+    "stacked-borrows aliasing model (default)",
+    "tree-borrows aliasing model (stricter experimental)",
+    "alloc-backed paths (VecDeque, String, etc. when std feature is on)",
+    "zero-allocation paths (no_std pass)"
+  ],
+  "scope_excluded_and_why": {
+    "integration_tests": "tests/long_duration_stability.rs, tests/bit_exactness.rs, tests/concurrency_observer.rs, tests/proptest_invariants.rs are 1-million-sample end-to-end simulations. Native runtime is seconds; under Miri MIR interpretation this is estimated at tens of hours to a full day. They exercise the same module code paths already covered by the lib Miri passes. Excluded for runtime feasibility, not for defects.",
+    "doc_tests": "Doc tests build examples from rustdoc snippets; these are exercised by cargo test --doc under native execution and are not Miri-gated because the crate forbids unsafe code at compile time."
+  },
+  "what_miri_validates": [
+    "Undefined behaviour from integer-overflow in debug",
+    "Out-of-bounds slicing / indexing",
+    "Use-after-free in alloc-backed data structures",
+    "Aliasing-model violations (even though forbid(unsafe_code) eliminates most UB)",
+    "Thread-local storage misuse",
+    "Strict-provenance compatibility (forward-compatible with CHERI targets)"
+  ],
+  "what_miri_does_not_validate": [
+    "Real-time timing bounds (see .github/workflows/qemu_timing.yml)",
+    "Stack-depth bounds on bare-metal targets",
+    "Hardware-specific SIMD codegen correctness",
+    "Arithmetic overflow in release mode (Rust intentionally does not trap)"
+  ],
+  "artefacts": {
+    "miri_nostd_strict_provenance.txt": {
+      "sha256": "a401256b76b13e4b40d32391867a9e084e5c01b72378a492a753a47c7576a3c9",
+      "size_bytes": 21837
+    },
+    "miri_std_serde_stacked_borrows.txt": {
+      "sha256": "6c23a63cfd7ca55695d8944e30e8071d0eda804374588c42a5f161cfd9f2c69c",
+      "size_bytes": 22399
+    },
+    "miri_std_serde_tree_borrows.txt": {
+      "sha256": "88c2cca70278749a83a689d141fc925b5bd1633e306ab1111b4d93e07e733ba4",
+      "size_bytes": 22400
+    }
+  },
+  "non_certification_notice": "This audit is evidence for reviewers, not a certification. DSFB does not claim compliance with IEC, ISO, RTCA, MIL, NIST, or any other safety standard. The audit confirms that the lib test surface of dsfb-rf@1.0.0 executes without Miri-detectable undefined behaviour under the configurations listed above."
+}
