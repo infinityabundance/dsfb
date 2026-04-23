@@ -1,13 +1,14 @@
 # `dsfb-rf` — DSFB Structural Semiotics Engine for RF Signal Monitoring
 
 [![DSFB Gray Audit: 91.4% strong assurance posture](https://img.shields.io/badge/DSFB%20Gray%20Audit-91.4%25-brightgreen)](./audit/dsfb_rf_scan.txt)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-rf/colab/dsfb_rf_reproduce.ipynb)
 
 **Invariant Forge LLC** — Prior art under 35 U.S.C. § 102.  
 Commercial deployment requires a separate written license — `licensing@invariantforge.net`  
 Reference implementation: **Apache-2.0**
 
 **Paper:** de Beer, R. (2026). *DSFB Structural Semiotics Engine for RF Signal Monitoring*.
-Invariant Forge LLC. `https://doi.org/10.5281/zenodo.XXXXXXXX`
+Invariant Forge LLC. `https://doi.org/10.5281/zenodo.19702330`
 
 ---
 
@@ -1337,6 +1338,39 @@ certification**.
 Apache-2.0 (reference implementation).  
 Commercial deployment requires a separate written license.  
 `licensing@invariantforge.net`
+
+---
+
+## Citation
+
+If you reference this crate or its companion paper in academic or
+technical work, please cite:
+
+> de Beer, R. (2026). *DSFB-RF Structural Semiotics Engine for RF
+> Signal Monitoring — A Deterministic, Non-Intrusive Observer Layer
+> for Typed Structural Interpretation of IQ Residual Streams in
+> Electronic Warfare, Spectrum Monitoring, and Cognitive Radio*
+> (v1.0). Zenodo. <https://doi.org/10.5281/zenodo.19702330>
+
+A machine-readable `CITATION.cff` file is provided at the crate root
+for tools that support the Citation File Format (e.g., GitHub's
+"Cite this repository" button, Zenodo, Zotero).
+
+```bibtex
+@software{debeer_2026_dsfb_rf,
+  author    = {de Beer, Riaan},
+  title     = {{DSFB-RF Structural Semiotics Engine for RF Signal
+                Monitoring --- A Deterministic, Non-Intrusive Observer
+                Layer for Typed Structural Interpretation of IQ
+                Residual Streams in Electronic Warfare, Spectrum
+                Monitoring, and Cognitive Radio}},
+  year      = {2026},
+  version   = {v1.0},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.19702330},
+  url       = {https://doi.org/10.5281/zenodo.19702330}
+}
+```
 
 ---
 

@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use this crate or reference its companion paper, please cite it as below."
+title: "DSFB-RF Structural Semiotics Engine for RF Signal Monitoring — A Deterministic, Non-Intrusive Observer Layer for Typed Structural Interpretation of IQ Residual Streams in Electronic Warfare, Spectrum Monitoring, and Cognitive Radio"
+authors:
+  - family-names: "de Beer"
+    given-names: "Riaan"
+    affiliation: "Invariant Forge LLC"
+version: "1.0.0"
+date-released: 2026-04-23
+license: Apache-2.0
+license-note: >-
+  Apache-2.0 for the reference implementation. Commercial deployment
+  requires a separate written license. Contact: licensing@invariantforge.net
+doi: 10.5281/zenodo.19702330
+url: "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-rf"
+repository-code: "https://github.com/infinityabundance/dsfb"
+type: software
+keywords:
+  - dsfb
+  - rf
+  - signal-processing
+  - semiotics
+  - electronic-warfare
+  - spectrum-monitoring
+  - cognitive-radio
+  - no-std
+  - deterministic
+  - observer
+preferred-citation:
+  type: generic
+  title: "DSFB-RF Structural Semiotics Engine for RF Signal Monitoring — A Deterministic, Non-Intrusive Observer Layer for Typed Structural Interpretation of IQ Residual Streams in Electronic Warfare, Spectrum Monitoring, and Cognitive Radio"
+  authors:
+    - family-names: "de Beer"
+      given-names: "Riaan"
+      affiliation: "Invariant Forge LLC"
+  year: 2026
+  version: "v1.0"
+  publisher:
+    name: "Zenodo"
+  doi: 10.5281/zenodo.19702330
+  url: "https://doi.org/10.5281/zenodo.19702330"

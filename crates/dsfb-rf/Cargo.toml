@@ -12,6 +12,35 @@ homepage = "https://github.com/infinityabundance/dsfb"
 keywords = ["rf", "signal-processing", "semiotics", "ew", "no-std"]
 categories = ["embedded", "science", "no-std"]
 rust-version = "1.83"
+# Explicit allowlist of paths shipped in the crates.io bundle. Everything
+# outside this list — the companion paper sources, fuzzing corpus, the
+# GNU Radio out-of-tree block (`gr-dsfb/`), monorepo agent/contributor
+# markdown, and the generated figure/output directories — stays in the
+# GitHub tree but is omitted from `cargo package`.
+include = [
+    "src/**",
+    "tests/**",
+    "examples/**",
+    "benches/**",
+    "scripts/**",
+    "docs/**",
+    "audit/**",
+    "data/slices/**",
+    "colab/dsfb_rf_reproduce.ipynb",
+    "colab/README.md",
+    "/Cargo.toml",
+    "/README.md",
+    "/LICENSE",
+    "/NOTICE",
+    "/CITATION.cff",
+    "/CHANGELOG.md",
+    "/ARCHITECTURE.md",
+    "/SECURITY.md",
+    "/SAFETY.md",
+    "/REPRODUCE.md",
+    "/rust-toolchain.toml",
+    "/deny.toml",
+]
 
 [lib]
 name = "dsfb_rf"
