@@ -10,7 +10,8 @@ Reference implementation: **Apache-2.0**
 **Paper:** de Beer, R. (2026). *DSFB-RF Structural Semiotics Engine for RF Signal
 Monitoring — A Deterministic, Non-Intrusive Observer Layer for Typed Structural
 Interpretation of IQ Residual Streams in Electronic Warfare, Spectrum Monitoring,
-and Cognitive Radio* (v1.0). Zenodo. <https://doi.org/10.5281/zenodo.19702330>
+and Cognitive Radio* (v1.0). Invariant Forge LLC. Zenodo.
+<https://doi.org/10.5281/zenodo.19702330>
 
 ---
 
