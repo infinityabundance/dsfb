@@ -1,0 +1,32 @@
+[package]
+name = "dsfb-robotics-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.dsfb-robotics]
+path = ".."
+features = ["std"]
+
+[[bin]]
+name = "engine_roundtrip"
+path = "fuzz_targets/engine_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "grammar_fsm"
+path = "fuzz_targets/grammar_fsm.rs"
+test = false
+doc = false
+bench = false
+
+# Keep fuzz out of the parent workspace.
+[workspace]

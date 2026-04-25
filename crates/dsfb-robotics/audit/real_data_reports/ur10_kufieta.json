@@ -1,0 +1,21 @@
+{
+  "paper_lock_version": "0.1.0",
+  "crate_version": "0.1.0",
+  "dataset": "ur10_kufieta",
+  "family": "Kinematics",
+  "mode": "real-data",
+  "run_configuration": {
+    "W": 8,
+    "K": 4,
+    "boundary_frac": 0.5,
+    "delta_s": 0.05
+  },
+  "aggregate": {
+    "total_samples": 12349,
+    "admissible": 4388,
+    "boundary": 5540,
+    "violation": 2421,
+    "compression_ratio": 0.6446675844197911,
+    "max_residual_norm_sq": 17797.365632255525
+  }
+}

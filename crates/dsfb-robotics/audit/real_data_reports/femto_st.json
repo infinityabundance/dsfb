@@ -1,0 +1,21 @@
+{
+  "paper_lock_version": "0.1.0",
+  "crate_version": "0.1.0",
+  "dataset": "femto_st",
+  "family": "PHM",
+  "mode": "real-data",
+  "run_configuration": {
+    "W": 8,
+    "K": 4,
+    "boundary_frac": 0.5,
+    "delta_s": 0.05
+  },
+  "aggregate": {
+    "total_samples": 2803,
+    "admissible": 1461,
+    "boundary": 123,
+    "violation": 1219,
+    "compression_ratio": 0.4787727434891188,
+    "max_residual_norm_sq": 40.05625561589222
+  }
+}

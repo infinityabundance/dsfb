@@ -1,0 +1,21 @@
+{
+  "paper_lock_version": "0.1.0",
+  "crate_version": "0.1.0",
+  "dataset": "panda_gaz",
+  "family": "Kinematics",
+  "mode": "real-data",
+  "run_configuration": {
+    "W": 8,
+    "K": 4,
+    "boundary_frac": 0.5,
+    "delta_s": 0.05
+  },
+  "aggregate": {
+    "total_samples": 20544,
+    "admissible": 11122,
+    "boundary": 7082,
+    "violation": 2340,
+    "compression_ratio": 0.4586253894080997,
+    "max_residual_norm_sq": 3202.8029646019363
+  }
+}

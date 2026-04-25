@@ -1,0 +1,21 @@
+{
+  "paper_lock_version": "0.1.0",
+  "crate_version": "0.1.0",
+  "dataset": "cwru",
+  "family": "PHM",
+  "mode": "real-data",
+  "run_configuration": {
+    "W": 8,
+    "K": 4,
+    "boundary_frac": 0.5,
+    "delta_s": 0.05
+  },
+  "aggregate": {
+    "total_samples": 151,
+    "admissible": 30,
+    "boundary": 3,
+    "violation": 118,
+    "compression_ratio": 0.8013245033112583,
+    "max_residual_norm_sq": 0.056461860958846914
+  }
+}

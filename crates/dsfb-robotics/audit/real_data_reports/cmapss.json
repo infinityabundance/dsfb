@@ -1,0 +1,21 @@
+{
+  "paper_lock_version": "0.1.0",
+  "crate_version": "0.1.0",
+  "dataset": "cmapss",
+  "family": "RegimeDrift",
+  "mode": "real-data",
+  "run_configuration": {
+    "W": 8,
+    "K": 4,
+    "boundary_frac": 0.5,
+    "delta_s": 0.05
+  },
+  "aggregate": {
+    "total_samples": 20631,
+    "admissible": 16648,
+    "boundary": 3752,
+    "violation": 231,
+    "compression_ratio": 0.19305898890019874,
+    "max_residual_norm_sq": 0.0017094259797826603
+  }
+}

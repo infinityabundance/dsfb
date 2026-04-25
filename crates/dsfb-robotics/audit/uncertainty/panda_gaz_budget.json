@@ -1,0 +1,44 @@
+{
+  "$schema": "GUM-JCGM-100-2008",
+  "dataset": "panda_gaz",
+  "scope": "single-output residual norm uncertainty",
+  "components": [
+    {
+      "name": "u_meas",
+      "label": "Panda motor-current torque estimate",
+      "value": 0.1,
+      "type_per_GUM": "B (literature)",
+      "source": "10.1109/LRA.2019.2931248"
+    },
+    {
+      "name": "u_model",
+      "label": "Gaz 2019 Table III identified residual stddev",
+      "value": 0.4,
+      "type_per_GUM": "B (literature)",
+      "source": "10.1109/LRA.2019.2931248"
+    },
+    {
+      "name": "u_cal",
+      "label": "calibration-window SEM (Stage III \u00a73)",
+      "value": 0.09239335681527944,
+      "type_per_GUM": "A (computed in-tree)",
+      "source": "data/processed/panda_gaz.csv"
+    }
+  ],
+  "combined_standard_uncertainty": 0.42253583562059627,
+  "expanded_uncertainty_k2": 0.8450716712411925,
+  "calibration_window": {
+    "available": true,
+    "n_calibration_samples": 4108,
+    "n_total_samples": 20544,
+    "mean": 15.029030549820382,
+    "stddev": 5.921830378507181,
+    "standard_error_of_mean": 0.09239335681527944
+  },
+  "notes": [
+    "Type-A component is the standard error of the calibration-window mean, computed in-tree.",
+    "Type-B components reflect publicly reported sensor / model residual standard deviations from the cited source.",
+    "Combined uncertainty is the root-sum-square per JCGM 100:2008 \u00a75.1, assuming uncorrelated components.",
+    "DSFB bounds claims to the residual-emergence grammar; this budget supports interpreting numerical magnitudes, not new performance claims."
+  ]
+}

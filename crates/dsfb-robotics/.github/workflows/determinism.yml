@@ -1,0 +1,101 @@
+name: cross-architecture determinism
+
+on:
+  push:
+    paths:
+      - 'crates/dsfb-robotics/src/**'
+      - 'crates/dsfb-robotics/Cargo.toml'
+      - 'crates/dsfb-robotics/Cargo.lock'
+      - 'crates/dsfb-robotics/data/processed/**'
+      - '.github/workflows/determinism.yml'
+  pull_request:
+    paths:
+      - 'crates/dsfb-robotics/src/**'
+      - 'crates/dsfb-robotics/Cargo.toml'
+      - 'crates/dsfb-robotics/data/processed/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-run:
+    name: paper-lock @ ${{ matrix.os }} / ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: x86_64
+            runner: ubuntu-latest
+          - os: linux
+            arch: aarch64
+            runner: ubuntu-24.04-arm
+          - os: macos
+            arch: aarch64
+            runner: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.85.1
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-robotics
+
+      - name: Build paper-lock (release)
+        working-directory: crates/dsfb-robotics
+        run: cargo build --release --features std,paper_lock --bin paper-lock
+
+      - name: Run paper-lock on every dataset
+        working-directory: crates/dsfb-robotics
+        run: |
+          mkdir -p audit/json_outputs
+          for slug in $(./target/release/paper-lock --list); do
+            ./target/release/paper-lock "${slug}" > "audit/json_outputs/${slug}.json"
+          done
+          shasum -a 256 audit/json_outputs/*.json | sort > audit/checksums.${{ matrix.os }}.${{ matrix.arch }}.txt
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums-${{ matrix.os }}-${{ matrix.arch }}
+          path: crates/dsfb-robotics/audit/checksums.${{ matrix.os }}.${{ matrix.arch }}.txt
+
+  diff:
+    name: Verify cross-architecture determinism
+    needs: build-and-run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all checksum artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Diff across architectures
+        run: |
+          echo "=== checksums by arch ==="
+          for f in artifacts/checksums-*/checksums.*.txt; do
+            echo "--- ${f} ---"
+            cat "${f}"
+          done
+          # Strip the path prefix from each line so we compare hash+filename only.
+          for f in artifacts/checksums-*/checksums.*.txt; do
+            awk '{print $1, $2}' "${f}" > "${f}.norm"
+          done
+          first=$(ls artifacts/checksums-*/checksums.*.txt.norm | head -1)
+          fail=0
+          for f in artifacts/checksums-*/checksums.*.txt.norm; do
+            if ! diff -q "${first}" "${f}" > /dev/null; then
+              echo "DRIFT detected between ${first} and ${f}"
+              diff "${first}" "${f}" || true
+              fail=1
+            fi
+          done
+          if [[ ${fail} -ne 0 ]]; then
+            exit 1
+          fi
+          echo "OK: bit-exact paper-lock JSON across all matrix architectures"

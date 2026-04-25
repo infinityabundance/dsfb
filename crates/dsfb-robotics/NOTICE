@@ -1,0 +1,28 @@
+dsfb-robotics
+Copyright 2026 Invariant Forge LLC
+
+This product includes software developed by Invariant Forge LLC.
+
+IP Notice
+---------
+
+The theoretical framework, formal constructions, and supervisory methods
+described herein constitute proprietary Background IP of Invariant Forge LLC
+(Delaware LLC No. 10529072), with prior art established by this publication
+and earlier Zenodo DOI publications by the same author. Commercial deployment
+requires a separate written license. Reference implementations are released
+under Apache 2.0.
+
+Licensing: licensing@invariantforge.net
+
+Dataset Attribution
+-------------------
+
+This crate's companion paper evaluates the DSFB observer on ten public
+robotics and prognostics datasets. Each dataset retains its own upstream
+licence. The dsfb-robotics crate redistributes only stratified slices (or,
+where upstream terms require, manifest-only pointers with SHA-256 checksums)
+under the original dataset licences. Full datasets must be obtained by the
+user from the original providers under those providers' terms. See
+`data/slices/SLICE_MANIFEST.json` and the per-dataset oracle-protocol
+documents under `docs/` for provenance, licence, and fetch instructions.

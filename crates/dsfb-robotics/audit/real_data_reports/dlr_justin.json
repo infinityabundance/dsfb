@@ -1,0 +1,21 @@
+{
+  "paper_lock_version": "0.1.0",
+  "crate_version": "0.1.0",
+  "dataset": "dlr_justin",
+  "family": "Kinematics",
+  "mode": "real-data",
+  "run_configuration": {
+    "W": 8,
+    "K": 4,
+    "boundary_frac": 0.5,
+    "delta_s": 0.05
+  },
+  "aggregate": {
+    "total_samples": 2922,
+    "admissible": 2441,
+    "boundary": 451,
+    "violation": 30,
+    "compression_ratio": 0.16461327857631758,
+    "max_residual_norm_sq": 11.59976414776738
+  }
+}

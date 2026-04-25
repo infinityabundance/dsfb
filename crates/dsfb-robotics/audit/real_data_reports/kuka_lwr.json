@@ -1,0 +1,21 @@
+{
+  "paper_lock_version": "0.1.0",
+  "crate_version": "0.1.0",
+  "dataset": "kuka_lwr",
+  "family": "Kinematics",
+  "mode": "real-data",
+  "run_configuration": {
+    "W": 8,
+    "K": 4,
+    "boundary_frac": 0.5,
+    "delta_s": 0.05
+  },
+  "aggregate": {
+    "total_samples": 1767,
+    "admissible": 912,
+    "boundary": 855,
+    "violation": 0,
+    "compression_ratio": 0.4838709677419355,
+    "max_residual_norm_sq": 16.550015403135315
+  }
+}

@@ -1,0 +1,38 @@
+=== Kani verification — dsfb-robotics 0.1.0 ===
+Date:        2026-04-24T20:14+01:00
+Kani:        cargo-kani 0.67.0
+Backend:     CBMC with CaDiCaL 2.0.0 SAT solver
+Target:      --no-default-features --lib
+Total time:  ~1.3 seconds (four harnesses combined)
+
+--- proof_grammar_severity_is_total_order ---
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.011305714s
+
+--- proof_policy_from_grammar_is_total ---
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.04919469s
+
+--- proof_envelope_violation_is_monotone_in_norm ---
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.46588337s
+
+--- proof_engine_observe_bounded ---
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.7798255s
+(585 individual checks verified, 0 failures, 1 unreachable)
+
+=== Observer-purity coverage ===
+
+The property "two engine calls with identical inputs produce identical
+outputs" is covered by two independent test vectors rather than a
+Kani proof (CBMC cannot close the full-engine purity formula in a
+reasonable time budget). See KANI_AUDIT.md §"Observer-purity
+property — coverage path" for the full rationale.
+
+  - tests/proptest_invariants.rs::observe_is_deterministic
+      256 randomised inputs per invocation, asserting output equality.
+
+  - tests/paper_lock_binary.rs::fixture_output_is_bit_exact_across_repeat_invocations
+      Spawns the full paper-lock binary for all ten datasets three
+      times each, asserting byte-identical stdout.

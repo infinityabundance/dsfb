@@ -1,0 +1,21 @@
+{
+  "paper_lock_version": "0.1.0",
+  "crate_version": "0.1.0",
+  "dataset": "icub_pushrecovery",
+  "family": "Balancing",
+  "mode": "real-data",
+  "run_configuration": {
+    "W": 8,
+    "K": 4,
+    "boundary_frac": 0.5,
+    "delta_s": 0.05
+  },
+  "aggregate": {
+    "total_samples": 13092,
+    "admissible": 7285,
+    "boundary": 4333,
+    "violation": 1474,
+    "compression_ratio": 0.44355331500152767,
+    "max_residual_norm_sq": 430477.8497066939
+  }
+}

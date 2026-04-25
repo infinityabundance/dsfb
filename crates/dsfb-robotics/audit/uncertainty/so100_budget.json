@@ -1,0 +1,44 @@
+{
+  "$schema": "GUM-JCGM-100-2008",
+  "dataset": "so100",
+  "scope": "single-output residual norm uncertainty",
+  "components": [
+    {
+      "name": "u_meas",
+      "label": "SO-100 Dynamixel servo position",
+      "value": 0.01,
+      "type_per_GUM": "B (literature)",
+      "source": "huggingface:lerobot/so100"
+    },
+    {
+      "name": "u_model",
+      "label": "SO-100 servo amplitude characteristic (LeRobot 2024)",
+      "value": 0.3,
+      "type_per_GUM": "B (literature)",
+      "source": "huggingface:lerobot/so100"
+    },
+    {
+      "name": "u_cal",
+      "label": "calibration-window SEM (Stage III \u00a73)",
+      "value": 0.24233623606497393,
+      "type_per_GUM": "A (computed in-tree)",
+      "source": "data/processed/so100.csv"
+    }
+  ],
+  "combined_standard_uncertainty": 0.38578083325916906,
+  "expanded_uncertainty_k2": 0.7715616665183381,
+  "calibration_window": {
+    "available": true,
+    "n_calibration_samples": 3926,
+    "n_total_samples": 19631,
+    "mean": 43.096932744087376,
+    "stddev": 15.184255603868264,
+    "standard_error_of_mean": 0.24233623606497393
+  },
+  "notes": [
+    "Type-A component is the standard error of the calibration-window mean, computed in-tree.",
+    "Type-B components reflect publicly reported sensor / model residual standard deviations from the cited source.",
+    "Combined uncertainty is the root-sum-square per JCGM 100:2008 \u00a75.1, assuming uncorrelated components.",
+    "DSFB bounds claims to the residual-emergence grammar; this budget supports interpreting numerical magnitudes, not new performance claims."
+  ]
+}

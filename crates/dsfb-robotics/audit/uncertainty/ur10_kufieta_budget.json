@@ -1,0 +1,44 @@
+{
+  "$schema": "GUM-JCGM-100-2008",
+  "dataset": "ur10_kufieta",
+  "scope": "single-output residual norm uncertainty",
+  "components": [
+    {
+      "name": "u_meas",
+      "label": "UR10 motor-current torque estimate",
+      "value": 0.2,
+      "type_per_GUM": "B (literature)",
+      "source": "iros-2015"
+    },
+    {
+      "name": "u_model",
+      "label": "Polydoros 2015 ID residual stddev",
+      "value": 0.5,
+      "type_per_GUM": "B (literature)",
+      "source": "iros-2015"
+    },
+    {
+      "name": "u_cal",
+      "label": "calibration-window SEM (Stage III \u00a73)",
+      "value": 0.15038342247179057,
+      "type_per_GUM": "A (computed in-tree)",
+      "source": "data/processed/ur10_kufieta.csv"
+    }
+  ],
+  "combined_standard_uncertainty": 0.5591199994226007,
+  "expanded_uncertainty_k2": 1.1182399988452014,
+  "calibration_window": {
+    "available": true,
+    "n_calibration_samples": 2469,
+    "n_total_samples": 12349,
+    "mean": 12.533754096369996,
+    "stddev": 7.472406841134816,
+    "standard_error_of_mean": 0.15038342247179057
+  },
+  "notes": [
+    "Type-A component is the standard error of the calibration-window mean, computed in-tree.",
+    "Type-B components reflect publicly reported sensor / model residual standard deviations from the cited source.",
+    "Combined uncertainty is the root-sum-square per JCGM 100:2008 \u00a75.1, assuming uncorrelated components.",
+    "DSFB bounds claims to the residual-emergence grammar; this budget supports interpreting numerical magnitudes, not new performance claims."
+  ]
+}

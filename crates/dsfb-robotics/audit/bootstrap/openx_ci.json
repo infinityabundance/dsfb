@@ -1,0 +1,48 @@
+{
+  "dataset": "openx",
+  "residual_source": "early-window-nominal",
+  "n_replicates": 1000,
+  "block_length": 8,
+  "rng_seed": 20260425,
+  "engine": "rust paper-lock binary (subprocess, --csv-path)",
+  "point_estimate": {
+    "total_samples": 98,
+    "admissible": 84,
+    "boundary": 14,
+    "violation": 0,
+    "compression_ratio": 0.14285714285714285,
+    "max_residual_norm_sq": 1.0
+  },
+  "ci": {
+    "admissible": {
+      "mean": 86.23,
+      "stddev": 7.222968314430798,
+      "ci_lo_2_5": 71.975,
+      "ci_hi_97_5": 98.0
+    },
+    "boundary": {
+      "mean": 11.646,
+      "stddev": 7.32163166857568,
+      "ci_lo_2_5": 0.0,
+      "ci_hi_97_5": 26.024999999999977
+    },
+    "violation": {
+      "mean": 0.124,
+      "stddev": 1.206681432723683,
+      "ci_lo_2_5": 0.0,
+      "ci_hi_97_5": 0.0
+    },
+    "compression_ratio": {
+      "mean": 0.12010204081632654,
+      "stddev": 0.07370375831051834,
+      "ci_lo_2_5": 0.0,
+      "ci_hi_97_5": 0.2655612244897957
+    },
+    "max_residual_norm_sq": {
+      "mean": 1.0,
+      "stddev": 0.0,
+      "ci_lo_2_5": 1.0,
+      "ci_hi_97_5": 1.0
+    }
+  }
+}

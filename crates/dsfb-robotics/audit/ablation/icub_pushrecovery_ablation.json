@@ -1,0 +1,65 @@
+{
+  "dataset": "icub_pushrecovery",
+  "residual_source": "early-window-nominal",
+  "canonical": {
+    "total_samples": 13092,
+    "admissible": 7279,
+    "boundary": 4346,
+    "violation": 1467,
+    "compression_ratio": 0.44401161014359913,
+    "max_residual_norm_sq": 430477.8497066939
+  },
+  "ablations": {
+    "A1_drift_disabled": {
+      "census": {
+        "total_samples": 13092,
+        "admissible": 7291,
+        "boundary": 4334,
+        "violation": 1467,
+        "compression_ratio": 0.44309501985945615,
+        "max_residual_norm_sq": 430477.8497066939
+      },
+      "shift_vs_canonical": {
+        "admissible_delta": 12,
+        "boundary_delta": -12,
+        "violation_delta": 0,
+        "compression_delta": -0.0009165902841429818
+      },
+      "interpretation": "When drift is silenced, the SustainedOutwardDrift Boundary trigger is removed. The boundary_delta below quantifies how many Boundary episodes the canonical FSM credited specifically to outward drift."
+    },
+    "A2_slew_disabled": {
+      "census": {
+        "total_samples": 13092,
+        "admissible": 7502,
+        "boundary": 4118,
+        "violation": 1472,
+        "compression_ratio": 0.4269783073632753,
+        "max_residual_norm_sq": 430477.8497066939
+      },
+      "shift_vs_canonical": {
+        "admissible_delta": 223,
+        "boundary_delta": -228,
+        "violation_delta": 5,
+        "compression_delta": -0.017033302780323833
+      },
+      "interpretation": "When slew is silenced, the AbruptSlewViolation Boundary trigger is removed. The boundary_delta below quantifies the Boundary contribution of curvature-driven (abrupt onset) episodes."
+    },
+    "A3_hysteresis_disabled": {
+      "census": {
+        "total_samples": 13092,
+        "admissible": 7278,
+        "boundary": 4342,
+        "violation": 1472,
+        "compression_ratio": 0.4440879926672777,
+        "max_residual_norm_sq": 430477.8497066939
+      },
+      "shift_vs_canonical": {
+        "admissible_delta": -1,
+        "boundary_delta": -4,
+        "violation_delta": 5,
+        "compression_delta": 7.638252367858644e-05
+      },
+      "interpretation": "When hysteresis is removed, the FSM commits the raw state immediately. The deltas below quantify the volume of single-sample state flips that the canonical 2-confirmation hysteresis was suppressing."
+    }
+  }
+}

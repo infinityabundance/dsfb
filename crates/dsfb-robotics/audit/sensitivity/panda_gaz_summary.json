@@ -1,0 +1,62 @@
+{
+  "W": {
+    "grid": [
+      4,
+      6,
+      8,
+      12,
+      16
+    ],
+    "compression_spread": 0.001752336448598124,
+    "compression_min": 0.11794197819314642,
+    "compression_max": 0.11969431464174454,
+    "min_at": 16,
+    "max_at": 4
+  },
+  "K": {
+    "grid": [
+      2,
+      3,
+      4,
+      6
+    ],
+    "compression_spread": 0.03519275700934579,
+    "compression_min": 0.1173578660436137,
+    "compression_max": 0.1525506230529595,
+    "min_at": 6,
+    "max_at": 2
+  },
+  "beta": {
+    "grid": [
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7
+    ],
+    "compression_spread": 0.39150116822429903,
+    "compression_min": 0.027599299065420562,
+    "compression_max": 0.4191004672897196,
+    "min_at": 0.7,
+    "max_at": 0.3
+  },
+  "delta_s": {
+    "grid": [
+      0.02,
+      0.05,
+      0.1
+    ],
+    "compression_spread": 0.0008274922118380046,
+    "compression_min": 0.1191588785046729,
+    "compression_max": 0.1199863707165109,
+    "min_at": 0.1,
+    "max_at": 0.02
+  },
+  "canonical": {
+    "W": 8,
+    "K": 4,
+    "beta": 0.5,
+    "delta_s": 0.05,
+    "compression_ratio": 0.11959696261682243
+  }
+}

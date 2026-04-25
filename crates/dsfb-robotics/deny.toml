@@ -1,0 +1,13 @@
+# cargo-deny configuration — enforced in CI
+
+[licenses]
+allow = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unicode-DFS-2016"]
+deny = ["GPL-2.0", "GPL-3.0", "LGPL-2.0", "LGPL-2.1", "LGPL-3.0", "AGPL-3.0"]
+
+[bans]
+multiple-versions = "warn"
+# Explicitly ban crates that would pull in std or alloc unintentionally
+deny = []
+
+[advisories]
+ignore = []

@@ -1,0 +1,47 @@
+{
+  "manifest_version": "1",
+  "crate_name": "dsfb-robotics",
+  "crate_version": "0.1.0",
+  "documentation": "MIRI_AUDIT.md",
+  "configurations": [
+    {
+      "label": "no_std + strict provenance",
+      "report": "miri_nostd_strict.txt",
+      "feature_set": "--no-default-features",
+      "miri_flags": "-Zmiri-strict-provenance",
+      "alias_model": "stacked-borrows",
+      "tests_passed": 139,
+      "tests_failed": 0,
+      "status": "clean",
+      "sha256": "2a7e90e7f5e13060971fc024e28b8e163947bf9ac37c60288aa2a73848cbe214"
+    },
+    {
+      "label": "std+serde stacked borrows",
+      "report": "miri_std_stacked.txt",
+      "feature_set": "--features std,serde",
+      "miri_flags": "-Zmiri-strict-provenance -Zmiri-disable-isolation",
+      "alias_model": "stacked-borrows",
+      "tests_passed": 139,
+      "tests_failed": 0,
+      "status": "clean",
+      "sha256": "ef1bdc984f26cb102832ad25f6ad9ee7376e49f6aeb6fbe8df5bb144640b37f7"
+    },
+    {
+      "label": "std+serde tree borrows",
+      "report": "miri_std_tree.txt",
+      "feature_set": "--features std,serde",
+      "miri_flags": "-Zmiri-strict-provenance -Zmiri-disable-isolation -Zmiri-tree-borrows",
+      "alias_model": "tree-borrows",
+      "tests_passed": 139,
+      "tests_failed": 0,
+      "status": "clean",
+      "sha256": "76f10468777edcd39689e15035a5e6d153c89d3faab53f0d15eda7eef59030a0"
+    }
+  ],
+  "acceptance": {
+    "all_clean": "satisfied",
+    "no_undefined_behavior_lines": "satisfied",
+    "each_report_ends_with_test_result_ok": "satisfied"
+  },
+  "re_run_instructions": "See MIRI_AUDIT.md §Configurations or run scripts/run_audit.sh."
+}

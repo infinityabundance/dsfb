@@ -1,0 +1,44 @@
+{
+  "$schema": "GUM-JCGM-100-2008",
+  "dataset": "cheetah3",
+  "scope": "single-output residual norm uncertainty",
+  "components": [
+    {
+      "name": "u_meas",
+      "label": "Mini-Cheetah F/T contact estimate",
+      "value": 0.5,
+      "type_per_GUM": "B (literature)",
+      "source": "10.1109/ICRA.2019.8793865"
+    },
+    {
+      "name": "u_model",
+      "label": "MPC stance-tracking residual stddev (Katz 2019)",
+      "value": 1.0,
+      "type_per_GUM": "B (literature)",
+      "source": "10.1109/ICRA.2019.8793865"
+    },
+    {
+      "name": "u_cal",
+      "label": "calibration-window SEM (Stage III \u00a73)",
+      "value": 0.04806672185023429,
+      "type_per_GUM": "A (computed in-tree)",
+      "source": "data/processed/cheetah3.csv"
+    }
+  ],
+  "combined_standard_uncertainty": 1.1190667583971154,
+  "expanded_uncertainty_k2": 2.238133516794231,
+  "calibration_window": {
+    "available": true,
+    "n_calibration_samples": 9794,
+    "n_total_samples": 48972,
+    "mean": 6.158187104782966,
+    "stddev": 4.756905831093967,
+    "standard_error_of_mean": 0.04806672185023429
+  },
+  "notes": [
+    "Type-A component is the standard error of the calibration-window mean, computed in-tree.",
+    "Type-B components reflect publicly reported sensor / model residual standard deviations from the cited source.",
+    "Combined uncertainty is the root-sum-square per JCGM 100:2008 \u00a75.1, assuming uncorrelated components.",
+    "DSFB bounds claims to the residual-emergence grammar; this budget supports interpreting numerical magnitudes, not new performance claims."
+  ]
+}

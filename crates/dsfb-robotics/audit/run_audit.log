@@ -1,0 +1,97 @@
+
+==============================================================
+1. cargo check across feature matrix
+==============================================================
+-- cargo check --features no-default-features
+    Checking dsfb-robotics v0.1.0 (/home/one/dsfb/crates/dsfb-robotics)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+-- cargo check --features alloc
+    Checking dsfb-robotics v0.1.0 (/home/one/dsfb/crates/dsfb-robotics)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+-- cargo check --features std
+    Checking dsfb-robotics v0.1.0 (/home/one/dsfb/crates/dsfb-robotics)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.07s
+-- cargo check --features std,serde
+    Checking dsfb-robotics v0.1.0 (/home/one/dsfb/crates/dsfb-robotics)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.85s
+-- cargo check --features std,paper_lock
+    Checking dsfb-robotics v0.1.0 (/home/one/dsfb/crates/dsfb-robotics)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s
+-- cargo check --features std,serde,paper_lock,real_figures
+    Checking dsfb-robotics v0.1.0 (/home/one/dsfb/crates/dsfb-robotics)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s
+
+==============================================================
+2. cargo clippy --all-features -D warnings
+==============================================================
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+
+==============================================================
+3. cargo test --no-default-features --lib
+==============================================================
+test result: ok. 139 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+==============================================================
+4. cargo test --features std,paper_lock
+==============================================================
+test result: ok. 150 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 150 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+==============================================================
+5. cargo test --test proptest_invariants
+==============================================================
+test observe_is_deterministic ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+==============================================================
+6. Miri × 3 configurations
+==============================================================
+-- Miri 1/3: no_std + strict provenance
+test uncertainty::tests::single_component_passthrough ... ok
+
+test result: ok. 139 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.93s
+
+-- Miri 2/3: std+serde stacked borrows
+test uncertainty::tests::single_component_passthrough ... ok
+
+test result: ok. 139 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.56s
+
+-- Miri 3/3: std+serde tree borrows
+test uncertainty::tests::single_component_passthrough ... ok
+
+test result: ok. 139 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.67s
+
+
+==============================================================
+7. Kani
+==============================================================
+Kani Rust Verifier 0.67.0 (cargo plugin)
+   Compiling dsfb-robotics v0.1.0 (/home/one/dsfb/crates/dsfb-robotics)
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.71s
+error: target `paper-lock` in package `dsfb-robotics` requires the features: `std`, `paper_lock`
+Consider enabling them by passing, e.g., `--features="std paper_lock"`
+error: Failed to execute cargo (exit status: 101). Found 0 compilation errors.
+
+==============================================================
+8. cargo-fuzz (short runs — 30s each)
+==============================================================
+  (tool missing: cargo-fuzz (install via: cargo install cargo-fuzz)) — skipping
+
+==============================================================
+DONE — full log at /home/one/dsfb/crates/dsfb-robotics/audit/run_audit.log
+==============================================================

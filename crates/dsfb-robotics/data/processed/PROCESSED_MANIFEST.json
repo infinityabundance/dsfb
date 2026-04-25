@@ -1,0 +1,22 @@
+{
+  "aloha_static_pingpong_test": {
+    "csv_path": "data/processed/aloha_static_pingpong_test.csv",
+    "finite_fraction": 1.0,
+    "max": 1.480539157978464,
+    "mean": 1.0600917218997974,
+    "min": 0.46603730362060264,
+    "samples": 6000,
+    "sha256": "ea8c788a32c2b737f8b1bb54900187b938a31afd20100b2387c7bbb095378084",
+    "std": 0.2265852848598285
+  },
+  "aloha_static_screw_driver": {
+    "csv_path": "data/processed/aloha_static_screw_driver.csv",
+    "finite_fraction": 1.0,
+    "max": 1.5154725883515665,
+    "mean": 0.9327909128172287,
+    "min": 0.31837229268822514,
+    "samples": 20000,
+    "sha256": "6cc04becdc7d5863d6e063827629900d3ae251005a1f97faddd6809228b297ad",
+    "std": 0.1909834508436571
+  }
+}

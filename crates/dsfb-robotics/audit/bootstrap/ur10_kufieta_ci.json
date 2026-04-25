@@ -1,0 +1,48 @@
+{
+  "dataset": "ur10_kufieta",
+  "residual_source": "early-window-nominal",
+  "n_replicates": 1000,
+  "block_length": 8,
+  "rng_seed": 20260425,
+  "engine": "rust paper-lock binary (subprocess, --csv-path)",
+  "point_estimate": {
+    "total_samples": 12349,
+    "admissible": 4388,
+    "boundary": 5540,
+    "violation": 2421,
+    "compression_ratio": 0.6446675844197911,
+    "max_residual_norm_sq": 17797.365632255525
+  },
+  "ci": {
+    "admissible": {
+      "mean": 9933.797,
+      "stddev": 150.91117909212352,
+      "ci_lo_2_5": 9641.975,
+      "ci_hi_97_5": 10232.05
+    },
+    "boundary": {
+      "mean": 2336.636,
+      "stddev": 158.00377431155465,
+      "ci_lo_2_5": 2026.925,
+      "ci_hi_97_5": 2649.0
+    },
+    "violation": {
+      "mean": 78.567,
+      "stddev": 43.09213899823776,
+      "ci_lo_2_5": 12.975000000000001,
+      "ci_hi_97_5": 174.0
+    },
+    "compression_ratio": {
+      "mean": 0.19557883229411288,
+      "stddev": 0.012220518187069682,
+      "ci_lo_2_5": 0.1714268361810673,
+      "ci_hi_97_5": 0.21921005749453398
+    },
+    "max_residual_norm_sq": {
+      "mean": 17339.531286743222,
+      "stddev": 1014.288269640471,
+      "ci_lo_2_5": 14323.765638975556,
+      "ci_hi_97_5": 17797.365632255525
+    }
+  }
+}

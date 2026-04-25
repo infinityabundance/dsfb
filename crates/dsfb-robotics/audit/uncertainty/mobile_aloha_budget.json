@@ -1,0 +1,44 @@
+{
+  "$schema": "GUM-JCGM-100-2008",
+  "dataset": "mobile_aloha",
+  "scope": "single-output residual norm uncertainty",
+  "components": [
+    {
+      "name": "u_meas",
+      "label": "Mobile ALOHA arm + base encoder",
+      "value": 0.003,
+      "type_per_GUM": "B (literature)",
+      "source": "arXiv:2401.02117"
+    },
+    {
+      "name": "u_model",
+      "label": "Mobile-ALOHA wipe-wine residual stddev (Fu 2024)",
+      "value": 0.06,
+      "type_per_GUM": "B (literature)",
+      "source": "arXiv:2401.02117"
+    },
+    {
+      "name": "u_cal",
+      "label": "calibration-window SEM (Stage III \u00a73)",
+      "value": 0.0028357874949039175,
+      "type_per_GUM": "A (computed in-tree)",
+      "source": "data/processed/mobile_aloha.csv"
+    }
+  ],
+  "combined_standard_uncertainty": 0.06014184641924667,
+  "expanded_uncertainty_k2": 0.12028369283849334,
+  "calibration_window": {
+    "available": true,
+    "n_calibration_samples": 13000,
+    "n_total_samples": 65000,
+    "mean": 1.2988126289001358,
+    "stddev": 0.3233295212492894,
+    "standard_error_of_mean": 0.0028357874949039175
+  },
+  "notes": [
+    "Type-A component is the standard error of the calibration-window mean, computed in-tree.",
+    "Type-B components reflect publicly reported sensor / model residual standard deviations from the cited source.",
+    "Combined uncertainty is the root-sum-square per JCGM 100:2008 \u00a75.1, assuming uncorrelated components.",
+    "DSFB bounds claims to the residual-emergence grammar; this budget supports interpreting numerical magnitudes, not new performance claims."
+  ]
+}

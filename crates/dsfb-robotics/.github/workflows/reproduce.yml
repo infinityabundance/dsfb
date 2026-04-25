@@ -1,0 +1,79 @@
+name: reproduce-and-check-checksums
+
+on:
+  push:
+    paths:
+      - 'crates/dsfb-robotics/src/**'
+      - 'crates/dsfb-robotics/Cargo.toml'
+      - 'crates/dsfb-robotics/Cargo.lock'
+      - 'crates/dsfb-robotics/data/processed/**'
+      - 'crates/dsfb-robotics/audit/checksums.txt'
+      - '.github/workflows/reproduce.yml'
+  pull_request:
+    paths:
+      - 'crates/dsfb-robotics/src/**'
+      - 'crates/dsfb-robotics/Cargo.toml'
+      - 'crates/dsfb-robotics/data/processed/**'
+      - 'crates/dsfb-robotics/audit/checksums.txt'
+  workflow_dispatch:
+
+jobs:
+  checksum-regression:
+    name: paper-lock JSON checksum regression
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.85.1
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/dsfb-robotics
+
+      - name: Build paper-lock (release)
+        working-directory: crates/dsfb-robotics
+        run: cargo build --release --features std,paper_lock --bin paper-lock
+
+      - name: Run paper-lock on every dataset and emit fresh checksums
+        working-directory: crates/dsfb-robotics
+        run: |
+          mkdir -p audit/json_outputs
+          fresh_checksums="audit/checksums.fresh.txt"
+          : > "$fresh_checksums"
+          for slug in $(./target/release/paper-lock --list); do
+            out="audit/json_outputs/${slug}.json"
+            ./target/release/paper-lock "$slug" > "$out" 2>/dev/null
+            sha=$(sha256sum "$out" | awk '{print $1}')
+            echo "$sha  $out" >> "$fresh_checksums"
+          done
+
+      - name: Diff fresh checksums against committed audit/checksums.txt
+        working-directory: crates/dsfb-robotics
+        run: |
+          # Strip the DSSE attestation line and the processed-CSV checksum
+          # block (both cover different artefacts, not the per-dataset
+          # paper-lock JSON outputs we're regressing here).
+          grep -v '# dsfb-gray DSSE\|dsfb_robotics_scan.dsse.json\|# Reproduce: cargo run -p dsfb-gray\|# Processed-CSV checksums\|# Reproduce: for f in data/processed\|  data/processed/' \
+              audit/checksums.txt > audit/checksums.committed.txt || true
+          # Strip blank / comment lines in both
+          grep -vE '^#|^$' audit/checksums.committed.txt | sort > /tmp/committed.sorted.txt
+          grep -vE '^#|^$' audit/checksums.fresh.txt | sort > /tmp/fresh.sorted.txt
+          if ! diff -q /tmp/committed.sorted.txt /tmp/fresh.sorted.txt > /dev/null; then
+            echo "❌ paper-lock JSON checksum DRIFT detected"
+            echo
+            diff /tmp/committed.sorted.txt /tmp/fresh.sorted.txt
+            exit 1
+          fi
+          echo "✓ all per-dataset paper-lock JSON checksums match audit/checksums.txt"
+
+      - name: Upload fresh checksums on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-checksums
+          path: crates/dsfb-robotics/audit/checksums.fresh.txt

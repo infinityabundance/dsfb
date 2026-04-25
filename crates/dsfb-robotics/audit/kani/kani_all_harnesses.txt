@@ -1,0 +1,862 @@
+Kani Rust Verifier 0.67.0 (cargo plugin)
+   Compiling dsfb-robotics v0.1.0 (/home/one/dsfb/crates/dsfb-robotics)
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s
+Checking harness kani_proofs::proof_policy_from_grammar_is_total...
+CBMC 6.8.0 (cbmc-6.8.0)
+CBMC version 6.8.0 (cbmc-6.8.0) 64-bit x86_64 linux
+Reading GOTO program from file /home/one/dsfb/crates/dsfb-robotics/target/kani/x86_64-unknown-linux-gnu/debug/deps/dsfb_robotics-20829446113442c2__RNvNtCsgv5TrIuHZre_13dsfb_robotics11kani_proofs34proof_policy_from_grammar_is_total.out
+Generating GOTO Program
+Adding CPROVER library (x86_64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics11kani_proofs34proof_policy_from_grammar_is_total.0 iteration 1 file src/kani_proofs.rs line 101 column 5 function kani_proofs::proof_policy_from_grammar_is_total thread 0
+aborting path on assume(false) at file src/policy.rs line 49 column 15 function policy::PolicyDecision::from_grammar thread 0
+aborting path on assume(false) at file src/kani_proofs.rs line 101 column 18 function kani_proofs::proof_policy_from_grammar_is_total thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics11kani_proofs34proof_policy_from_grammar_is_total.0 iteration 2 file src/kani_proofs.rs line 101 column 5 function kani_proofs::proof_policy_from_grammar_is_total thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics11kani_proofs34proof_policy_from_grammar_is_total.0 iteration 3 file src/kani_proofs.rs line 101 column 5 function kani_proofs::proof_policy_from_grammar_is_total thread 0
+Runtime Symex: 0.0293289s
+size of program expression: 2344 steps
+slicing removed 1745 assignments
+Generated 159 VCC(s), 3 remaining after simplification
+Runtime Postprocess Equation: 0.000141353s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00192064s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 3.527e-06s
+Solving with CaDiCaL 2.0.0
+7458 variables, 8850 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 1.7192e-05s
+Runtime decision procedure: 0.0019746s
+
+RESULTS:
+Check 1: core::option::Option::<usize>::map::<grammar::GrammarState, {closure@core::array::iter::iter_inner::PolymorphicIter<[core::mem::MaybeUninit<grammar::GrammarState>]>::next::{closure#0}}>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs:1164:15 in function core::option::Option::<usize>::map::<grammar::GrammarState, {closure@core::array::iter::iter_inner::PolymorphicIter<[core::mem::MaybeUninit<grammar::GrammarState>]>::next::{closure#0}}>
+
+Check 2: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: ../../../../runner/work/kani/kani/library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 3: core::ptr::drop_in_place::<core::array::iter::iter_inner::PolymorphicIter<[core::mem::MaybeUninit<grammar::GrammarState>; 3]>>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:805:1 in function core::ptr::drop_in_place::<core::array::iter::iter_inner::PolymorphicIter<[core::mem::MaybeUninit<grammar::GrammarState>; 3]>>
+
+Check 4: core::ptr::drop_in_place::<core::array::iter::iter_inner::PolymorphicIter<[core::mem::MaybeUninit<grammar::GrammarState>; 3]>>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:805:1 in function core::ptr::drop_in_place::<core::array::iter::iter_inner::PolymorphicIter<[core::mem::MaybeUninit<grammar::GrammarState>; 3]>>
+
+Check 5: core::ptr::drop_in_place::<core::array::IntoIter<grammar::GrammarState, 3>>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:805:1 in function core::ptr::drop_in_place::<core::array::IntoIter<grammar::GrammarState, 3>>
+
+Check 6: core::ptr::drop_in_place::<core::array::IntoIter<grammar::GrammarState, 3>>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:805:1 in function core::ptr::drop_in_place::<core::array::IntoIter<grammar::GrammarState, 3>>
+
+Check 7: core::slice::<impl [core::mem::MaybeUninit<grammar::GrammarState>]>::get_unchecked::<usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/mod.rs:645:18 in function core::slice::<impl [core::mem::MaybeUninit<grammar::GrammarState>]>::get_unchecked::<usize>
+
+Check 8: core::slice::<impl [core::mem::MaybeUninit<grammar::GrammarState>]>::get_unchecked::<usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/mod.rs:645:18 in function core::slice::<impl [core::mem::MaybeUninit<grammar::GrammarState>]>::get_unchecked::<usize>
+
+Check 9: core::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function core::fmt::Arguments::<'_>::from_str
+
+Check 10: kani_proofs::proof_policy_from_grammar_is_total.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: src/kani_proofs.rs:101:18 in function kani_proofs::proof_policy_from_grammar_is_total
+
+Check 11: <usize as core::slice::SliceIndex<[core::mem::MaybeUninit<grammar::GrammarState>]>>::get_unchecked.assume.1
+	 - Status: SUCCESS
+	 - Description: "Rust intrinsic assumption failed"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/index.rs:252:13 in function <usize as core::slice::SliceIndex<[core::mem::MaybeUninit<grammar::GrammarState>]>>::get_unchecked
+
+Check 12: core::num::<impl usize>::unchecked_add.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_add` which would overflow"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:729:17 in function core::num::<impl usize>::unchecked_add
+
+Check 13: core::panicking::panic_nounwind_fmt::runtime.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "call to foreign "Rust" function `_RNvCs1hStedNDpZ2_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/panicking.rs:110:17 in function core::panicking::panic_nounwind_fmt::runtime
+
+Check 14: core::slice::<impl [core::mem::MaybeUninit<grammar::GrammarState>]>::get_unchecked_mut::<core::ops::index_range::IndexRange>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/mod.rs:690:18 in function core::slice::<impl [core::mem::MaybeUninit<grammar::GrammarState>]>::get_unchecked_mut::<core::ops::index_range::IndexRange>
+
+Check 15: core::slice::<impl [core::mem::MaybeUninit<grammar::GrammarState>]>::get_unchecked_mut::<core::ops::index_range::IndexRange>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/mod.rs:690:18 in function core::slice::<impl [core::mem::MaybeUninit<grammar::GrammarState>]>::get_unchecked_mut::<core::ops::index_range::IndexRange>
+
+Check 16: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../runner/work/kani/kani/library/kani_core/src/models.rs:176:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 17: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset value overflows isize"
+	 - Location: ../../../../runner/work/kani/kani/library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 18: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: SUCCESS
+	 - Description: "internal error: entered unreachable code"
+	 - Location: ../../../../runner/work/kani/kani/library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 19: policy::PolicyDecision::from_grammar.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: src/policy.rs:49:15 in function policy::PolicyDecision::from_grammar
+
+Check 20: core::ops::index_range::IndexRange::len.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:18 in function core::ops::index_range::IndexRange::len
+
+Check 21: kani::rustc_intrinsics::offset::<core::mem::MaybeUninit<grammar::GrammarState>, *mut core::mem::MaybeUninit<grammar::GrammarState>, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: ../../../../runner/work/kani/kani/library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<core::mem::MaybeUninit<grammar::GrammarState>, *mut core::mem::MaybeUninit<grammar::GrammarState>, usize>
+
+Check 22: kani::rustc_intrinsics::offset::<core::mem::MaybeUninit<grammar::GrammarState>, *mut core::mem::MaybeUninit<grammar::GrammarState>, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: ../../../../runner/work/kani/kani/library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<core::mem::MaybeUninit<grammar::GrammarState>, *mut core::mem::MaybeUninit<grammar::GrammarState>, usize>
+
+Check 23: core::panic::Location::<'_>::caller.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/panic/location.rs:147:9 in function core::panic::Location::<'_>::caller
+
+Check 24: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 25: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 26: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 27: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 28: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 29: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 30: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 31: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 32: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 33: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 34: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 35: core::ops::index_range::IndexRange::next_unchecked.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function core::ops::index_range::IndexRange::next_unchecked
+
+Check 36: <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len
+
+Check 37: <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len
+
+Check 38: <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len
+
+Check 39: <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len
+
+Check 40: <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len
+
+Check 41: <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut core::ops::index_range::IndexRange as core::iter::ExactSizeIterator>::len
+
+Check 42: policy::PolicyDecision::from_grammar.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: src/policy.rs:49:15 in function policy::PolicyDecision::from_grammar
+
+Check 43: policy::PolicyDecision::from_grammar.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: src/policy.rs:49:15 in function policy::PolicyDecision::from_grammar
+
+Check 44: core::ops::index_range::IndexRange::start.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function core::ops::index_range::IndexRange::start
+
+Check 45: core::ops::index_range::IndexRange::start.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function core::ops::index_range::IndexRange::start
+
+Check 46: core::ops::index_range::IndexRange::start.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function core::ops::index_range::IndexRange::start
+
+Check 47: core::ops::index_range::IndexRange::start.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function core::ops::index_range::IndexRange::start
+
+Check 48: core::ops::index_range::IndexRange::start.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function core::ops::index_range::IndexRange::start
+
+Check 49: core::ops::index_range::IndexRange::start.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function core::ops::index_range::IndexRange::start
+
+Check 50: kani_proofs::proof_policy_from_grammar_is_total.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: src/kani_proofs.rs:102:9 in function kani_proofs::proof_policy_from_grammar_is_total
+
+Check 51: kani_proofs::proof_policy_from_grammar_is_total.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: src/kani_proofs.rs:104:9 in function kani_proofs::proof_policy_from_grammar_is_total
+
+Check 52: kani_proofs::proof_policy_from_grammar_is_total.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: src/kani_proofs.rs:101:18 in function kani_proofs::proof_policy_from_grammar_is_total
+
+Check 53: core::ops::index_range::IndexRange::len.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function core::ops::index_range::IndexRange::len
+
+Check 54: core::ops::index_range::IndexRange::len.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function core::ops::index_range::IndexRange::len
+
+Check 55: core::ops::index_range::IndexRange::len.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function core::ops::index_range::IndexRange::len
+
+Check 56: core::ops::index_range::IndexRange::len.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function core::ops::index_range::IndexRange::len
+
+Check 57: core::ops::index_range::IndexRange::len.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function core::ops::index_range::IndexRange::len
+
+Check 58: core::ops::index_range::IndexRange::len.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function core::ops::index_range::IndexRange::len
+
+Check 59: core::ops::index_range::IndexRange::len.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function core::ops::index_range::IndexRange::len
+
+Check 60: core::ops::index_range::IndexRange::len.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function core::ops::index_range::IndexRange::len
+
+Check 61: core::ops::index_range::IndexRange::len.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function core::ops::index_range::IndexRange::len
+
+Check 62: core::ops::index_range::IndexRange::len.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function core::ops::index_range::IndexRange::len
+
+Check 63: core::ops::index_range::IndexRange::len.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function core::ops::index_range::IndexRange::len
+
+Check 64: core::ops::index_range::IndexRange::len.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function core::ops::index_range::IndexRange::len
+
+Check 65: core::ops::index_range::IndexRange::end.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function core::ops::index_range::IndexRange::end
+
+Check 66: core::ops::index_range::IndexRange::end.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function core::ops::index_range::IndexRange::end
+
+Check 67: core::ops::index_range::IndexRange::end.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function core::ops::index_range::IndexRange::end
+
+Check 68: core::ops::index_range::IndexRange::end.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function core::ops::index_range::IndexRange::end
+
+Check 69: core::ops::index_range::IndexRange::end.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function core::ops::index_range::IndexRange::end
+
+Check 70: core::ops::index_range::IndexRange::end.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function core::ops::index_range::IndexRange::end
+
+Check 71: core::option::Option::<usize>::map::<grammar::GrammarState, {closure@core::array::iter::iter_inner::PolymorphicIter<[core::mem::MaybeUninit<grammar::GrammarState>]>::next::{closure#0}}>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs:1166:21 in function core::option::Option::<usize>::map::<grammar::GrammarState, {closure@core::array::iter::iter_inner::PolymorphicIter<[core::mem::MaybeUninit<grammar::GrammarState>]>::next::{closure#0}}>
+
+Check 72: core::ptr::read::<grammar::GrammarState>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1708:9 in function core::ptr::read::<grammar::GrammarState>
+
+Check 73: core::ptr::read::<grammar::GrammarState>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1708:9 in function core::ptr::read::<grammar::GrammarState>
+
+Check 74: core::ptr::read::<grammar::GrammarState>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1708:9 in function core::ptr::read::<grammar::GrammarState>
+
+Check 75: core::ptr::read::<grammar::GrammarState>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1708:9 in function core::ptr::read::<grammar::GrammarState>
+
+Check 76: core::ptr::read::<grammar::GrammarState>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1708:9 in function core::ptr::read::<grammar::GrammarState>
+
+Check 77: core::ptr::read::<grammar::GrammarState>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1708:9 in function core::ptr::read::<grammar::GrammarState>
+
+Check 78: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 79: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 80: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 81: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 82: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 83: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 84: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 85: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 86: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 87: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 88: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+Check 89: <core::ops::index_range::IndexRange as core::clone::Clone>::clone.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <core::ops::index_range::IndexRange as core::clone::Clone>::clone
+
+
+SUMMARY:
+ ** 0 of 89 failed (1 unreachable)
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.047054s
+
+Checking harness kani_proofs::proof_grammar_severity_is_total_order...
+CBMC 6.8.0 (cbmc-6.8.0)
+CBMC version 6.8.0 (cbmc-6.8.0) 64-bit x86_64 linux
+Reading GOTO program from file /home/one/dsfb/crates/dsfb-robotics/target/kani/x86_64-unknown-linux-gnu/debug/deps/dsfb_robotics-20829446113442c2__RNvNtCsgv5TrIuHZre_13dsfb_robotics11kani_proofs37proof_grammar_severity_is_total_order.out
+Generating GOTO Program
+Adding CPROVER library (x86_64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file src/kani_proofs.rs line 86 column 5 function kani_proofs::proof_grammar_severity_is_total_order thread 0
+aborting path on assume(false) at file src/kani_proofs.rs line 85 column 5 function kani_proofs::proof_grammar_severity_is_total_order thread 0
+Runtime Symex: 0.00294829s
+size of program expression: 302 steps
+slicing removed 170 assignments
+Generated 38 VCC(s), 2 remaining after simplification
+Runtime Postprocess Equation: 2.2853e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.000162813s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 3.797e-06s
+Solving with CaDiCaL 2.0.0
+243 variables, 323 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 1.593e-05s
+Runtime decision procedure: 0.000195103s
+
+RESULTS:
+Check 1: kani_proofs::proof_grammar_severity_is_total_order.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: bnd < vio"
+	 - Location: src/kani_proofs.rs:86:5 in function kani_proofs::proof_grammar_severity_is_total_order
+
+Check 2: kani_proofs::proof_grammar_severity_is_total_order.assertion.2
+	 - Status: SUCCESS
+	 - Description: "assertion failed: adm < bnd"
+	 - Location: src/kani_proofs.rs:85:5 in function kani_proofs::proof_grammar_severity_is_total_order
+
+Check 3: grammar::GrammarState::severity.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 4: grammar::GrammarState::severity.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 5: grammar::GrammarState::severity.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 6: grammar::GrammarState::severity.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 7: grammar::GrammarState::severity.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 8: grammar::GrammarState::severity.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 9: grammar::GrammarState::severity.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 10: grammar::GrammarState::severity.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 11: grammar::GrammarState::severity.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 12: grammar::GrammarState::severity.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 13: grammar::GrammarState::severity.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+Check 14: grammar::GrammarState::severity.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: src/grammar.rs:119:15 in function grammar::GrammarState::severity
+
+
+SUMMARY:
+ ** 0 of 14 failed
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.010500337s
+
+Checking harness kani_proofs::proof_observe_is_pure...
+CBMC 6.8.0 (cbmc-6.8.0)
+CBMC version 6.8.0 (cbmc-6.8.0) 64-bit x86_64 linux
+Reading GOTO program from file /home/one/dsfb/crates/dsfb-robotics/target/kani/x86_64-unknown-linux-gnu/debug/deps/dsfb_robotics-20829446113442c2__RNvNtCsgv5TrIuHZre_13dsfb_robotics11kani_proofs21proof_observe_is_pure.out
+Generating GOTO Program
+Adding CPROVER library (x86_64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+Unwinding loop _RNvCsgv5TrIuHZre_13dsfb_robotics7observe.0 iteration 1 file src/lib.rs line 257 column 5 function observe thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/index.rs line 49 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2449 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/panic.rs line 178 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/index.rs line 68 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2449 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/panic.rs line 178 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/index.rs line 443 column 13 function <core::ops::Range<usize> as core::slice::SliceIndex<[f64]>>::index thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani_core/src/models.rs line 176 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 1 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 2 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 3 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Not unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 4 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file src/math.rs line 71 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 2666 column 15 function <core::option::Option<f64> as core::ops::Try>::branch thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani_core/src/models.rs line 176 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 1 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 2 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 3 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Not unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 4 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file src/math.rs line 71 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 2666 column 15 function <core::option::Option<f64> as core::ops::Try>::branch thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani_core/src/models.rs line 176 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function math::finite_variance thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math15finite_variance.0 iteration 1 file src/math.rs line 98 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function math::finite_variance thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math15finite_variance.0 iteration 2 file src/math.rs line 98 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function math::finite_variance thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math15finite_variance.0 iteration 3 file src/math.rs line 98 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function math::finite_variance thread 0
+Not unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math15finite_variance.0 iteration 4 file src/math.rs line 98 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file src/math.rs line 105 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 2666 column 15 function <core::option::Option<f64> as core::ops::Try>::branch thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math8sqrt_f64.0 iteration 1 file src/math.rs line 50 column 5 function math::sqrt_f64 thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math8sqrt_f64.0 iteration 2 file src/math.rs line 50 column 5 function math::sqrt_f64 thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math8sqrt_f64.0 iteration 3 file src/math.rs line 50 column 5 function math::sqrt_f64 thread 0
+Not unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math8sqrt_f64.0 iteration 4 file src/math.rs line 50 column 5 function math::sqrt_f64 thread 0
+aborting path on assume(false) at file src/math.rs line 60 column 5 function math::sqrt_f64 thread 0
+aborting path on assume(false) at file src/math.rs line 59 column 5 function math::sqrt_f64 thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 2666 column 15 function <core::option::Option<f64> as core::ops::Try>::branch thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function envelope::AdmissibilityEnvelope::calibrate_from_window thread 0
+aborting path on assume(false) at file src/envelope.rs line 95 column 9 function envelope::AdmissibilityEnvelope::calibrate_from_window thread 0
+aborting path on assume(false) at file src/envelope.rs line 94 column 9 function envelope::AdmissibilityEnvelope::calibrate_from_window thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 1065 column 15 function core::option::Option::<envelope::AdmissibilityEnvelope>::unwrap_or_else::<{closure@src/lib.rs:271:29: 271:31}> thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/sign.rs line 69 column 9 function sign::SignTuple::is_abrupt_slew thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+Unwinding loop _RNvMNtCsgv5TrIuHZre_13dsfb_robotics6engineINtB2_18DsfbRoboticsEngineKj8_Kj4_E7observeB4_.0 iteration 1 file src/engine.rs line 123 column 9 function engine::DsfbRoboticsEngine::<8, 4>::observe thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+Unwinding loop _RNvMs0_NtCsgv5TrIuHZre_13dsfb_robotics4signINtB5_10SignWindowKj8_E4pushB7_.0 iteration 1 file src/sign.rs line 133 column 9 function sign::SignWindow::<8>::push thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 69 column 9 function sign::SignTuple::is_abrupt_slew thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/policy.rs line 49 column 15 function policy::PolicyDecision::from_grammar thread 0
+aborting path on assume(false) at file src/grammar.rs line 130 column 15 function grammar::GrammarState::label thread 0
+aborting path on assume(false) at file src/policy.rs line 35 column 15 function policy::PolicyDecision::label thread 0
+Unwinding loop _RNvMNtCsgv5TrIuHZre_13dsfb_robotics6engineINtB2_18DsfbRoboticsEngineKj8_Kj4_E7observeB4_.0 iteration 2 file src/engine.rs line 123 column 9 function engine::DsfbRoboticsEngine::<8, 4>::observe thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+Unwinding loop _RNvMs0_NtCsgv5TrIuHZre_13dsfb_robotics4signINtB5_10SignWindowKj8_E4pushB7_.0 iteration 1 file src/sign.rs line 133 column 9 function sign::SignWindow::<8>::push thread 0
+Unwinding loop _RNvMs0_NtCsgv5TrIuHZre_13dsfb_robotics4signINtB5_10SignWindowKj8_E4pushB7_.0 iteration 2 file src/sign.rs line 133 column 9 function sign::SignWindow::<8>::push thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 69 column 9 function sign::SignTuple::is_abrupt_slew thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/policy.rs line 49 column 15 function policy::PolicyDecision::from_grammar thread 0
+aborting path on assume(false) at file src/grammar.rs line 130 column 15 function grammar::GrammarState::label thread 0
+aborting path on assume(false) at file src/policy.rs line 35 column 15 function policy::PolicyDecision::label thread 0
+Unwinding loop _RNvMNtCsgv5TrIuHZre_13dsfb_robotics6engineINtB2_18DsfbRoboticsEngineKj8_Kj4_E7observeB4_.0 iteration 3 file src/engine.rs line 123 column 9 function engine::DsfbRoboticsEngine::<8, 4>::observe thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+Unwinding loop _RNvCsgv5TrIuHZre_13dsfb_robotics7observe.0 iteration 1 file src/lib.rs line 257 column 5 function observe thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/index.rs line 49 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2449 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/panic.rs line 178 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/index.rs line 68 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2449 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/panic.rs line 178 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/slice/index.rs line 443 column 13 function <core::ops::Range<usize> as core::slice::SliceIndex<[f64]>>::index thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani_core/src/models.rs line 176 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 1 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 2 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 3 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Not unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 4 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file src/math.rs line 71 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 2666 column 15 function <core::option::Option<f64> as core::ops::Try>::branch thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani_core/src/models.rs line 176 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 1 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 2 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 3 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/math.rs line 74 column 15 function math::finite_mean thread 0
+Not unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math11finite_mean.0 iteration 4 file src/math.rs line 74 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file src/math.rs line 71 column 5 function math::finite_mean thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 2666 column 15 function <core::option::Option<f64> as core::ops::Try>::branch thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani_core/src/models.rs line 176 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function math::finite_variance thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math15finite_variance.0 iteration 1 file src/math.rs line 98 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function math::finite_variance thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math15finite_variance.0 iteration 2 file src/math.rs line 98 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function math::finite_variance thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math15finite_variance.0 iteration 3 file src/math.rs line 98 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file /home/runner/work/kani/kani/library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function math::finite_variance thread 0
+Not unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math15finite_variance.0 iteration 4 file src/math.rs line 98 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file src/math.rs line 105 column 5 function math::finite_variance thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 2666 column 15 function <core::option::Option<f64> as core::ops::Try>::branch thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math8sqrt_f64.0 iteration 1 file src/math.rs line 50 column 5 function math::sqrt_f64 thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math8sqrt_f64.0 iteration 2 file src/math.rs line 50 column 5 function math::sqrt_f64 thread 0
+Unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math8sqrt_f64.0 iteration 3 file src/math.rs line 50 column 5 function math::sqrt_f64 thread 0
+Not unwinding loop _RNvNtCsgv5TrIuHZre_13dsfb_robotics4math8sqrt_f64.0 iteration 4 file src/math.rs line 50 column 5 function math::sqrt_f64 thread 0
+aborting path on assume(false) at file src/math.rs line 60 column 5 function math::sqrt_f64 thread 0
+aborting path on assume(false) at file src/math.rs line 59 column 5 function math::sqrt_f64 thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 2666 column 15 function <core::option::Option<f64> as core::ops::Try>::branch thread 0
+aborting path on assume(false) at file src/lib.rs line 0 column 0 function envelope::AdmissibilityEnvelope::calibrate_from_window thread 0
+aborting path on assume(false) at file src/envelope.rs line 95 column 9 function envelope::AdmissibilityEnvelope::calibrate_from_window thread 0
+aborting path on assume(false) at file src/envelope.rs line 94 column 9 function envelope::AdmissibilityEnvelope::calibrate_from_window thread 0
+aborting path on assume(false) at file /home/runner/.rustup/toolchains/nightly-2025-11-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/option.rs line 1065 column 15 function core::option::Option::<envelope::AdmissibilityEnvelope>::unwrap_or_else::<{closure@src/lib.rs:271:29: 271:31}> thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/sign.rs line 69 column 9 function sign::SignTuple::is_abrupt_slew thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+Unwinding loop _RNvMNtCsgv5TrIuHZre_13dsfb_robotics6engineINtB2_18DsfbRoboticsEngineKj8_Kj4_E7observeB4_.0 iteration 1 file src/engine.rs line 123 column 9 function engine::DsfbRoboticsEngine::<8, 4>::observe thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+Unwinding loop _RNvMs0_NtCsgv5TrIuHZre_13dsfb_robotics4signINtB5_10SignWindowKj8_E4pushB7_.0 iteration 1 file src/sign.rs line 133 column 9 function sign::SignWindow::<8>::push thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 69 column 9 function sign::SignTuple::is_abrupt_slew thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/policy.rs line 49 column 15 function policy::PolicyDecision::from_grammar thread 0
+aborting path on assume(false) at file src/grammar.rs line 130 column 15 function grammar::GrammarState::label thread 0
+aborting path on assume(false) at file src/policy.rs line 35 column 15 function policy::PolicyDecision::label thread 0
+Unwinding loop _RNvMNtCsgv5TrIuHZre_13dsfb_robotics6engineINtB2_18DsfbRoboticsEngineKj8_Kj4_E7observeB4_.0 iteration 2 file src/engine.rs line 123 column 9 function engine::DsfbRoboticsEngine::<8, 4>::observe thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+Unwinding loop _RNvMs0_NtCsgv5TrIuHZre_13dsfb_robotics4signINtB5_10SignWindowKj8_E4pushB7_.0 iteration 1 file src/sign.rs line 133 column 9 function sign::SignWindow::<8>::push thread 0
+Unwinding loop _RNvMs0_NtCsgv5TrIuHZre_13dsfb_robotics4signINtB5_10SignWindowKj8_E4pushB7_.0 iteration 2 file src/sign.rs line 133 column 9 function sign::SignWindow::<8>::push thread 0
+aborting path on assume(false) at file src/sign.rs line 46 column 9 function sign::SignTuple::new thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/math.rs line 15 column 5 function math::abs_f64 thread 0
+aborting path on assume(false) at file src/sign.rs line 69 column 9 function sign::SignTuple::is_abrupt_slew thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/envelope.rs line 77 column 9 function envelope::AdmissibilityEnvelope::is_boundary_approach thread 0
+aborting path on assume(false) at file src/envelope.rs line 59 column 9 function envelope::AdmissibilityEnvelope::effective_rho thread 0
+aborting path on assume(false) at file src/policy.rs line 49 column 15 function policy::PolicyDecision::from_grammar thread 0
+aborting path on assume(false) at file src/grammar.rs line 130 column 15 function grammar::GrammarState::label thread 0
+aborting path on assume(false) at file src/policy.rs line 35 column 15 function policy::PolicyDecision::label thread 0
+Unwinding loop _RNvMNtCsgv5TrIuHZre_13dsfb_robotics6engineINtB2_18DsfbRoboticsEngineKj8_Kj4_E7observeB4_.0 iteration 3 file src/engine.rs line 123 column 9 function engine::DsfbRoboticsEngine::<8, 4>::observe thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file src/kani_proofs.rs line 67 column 9 function kani_proofs::proof_observe_is_pure thread 0
+Runtime Symex: 0.767074s
+size of program expression: 48521 steps
+slicing removed 31651 assignments
+Generated 5353 VCC(s), 734 remaining after simplification
+Runtime Postprocess Equation: 0.0158108s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.494835s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.0329663s
+Solving with CaDiCaL 2.0.0
+842069 variables, 3984011 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 6.63535s
+Runtime decision procedure: 7.137s
+Running propositional reduction
+Solving with CaDiCaL 2.0.0
+842070 variables, 3984012 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 10.3973s
+Runtime decision procedure: 10.4047s
+Running propositional reduction

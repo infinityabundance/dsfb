@@ -1,0 +1,21 @@
+{
+  "paper_lock_version": "0.1.0",
+  "crate_version": "0.1.0",
+  "dataset": "cheetah3",
+  "family": "Balancing",
+  "mode": "real-data",
+  "run_configuration": {
+    "W": 8,
+    "K": 4,
+    "boundary_frac": 0.5,
+    "delta_s": 0.05
+  },
+  "aggregate": {
+    "total_samples": 48972,
+    "admissible": 38304,
+    "boundary": 10103,
+    "violation": 565,
+    "compression_ratio": 0.21783876500857632,
+    "max_residual_norm_sq": 629.2699755924563
+  }
+}

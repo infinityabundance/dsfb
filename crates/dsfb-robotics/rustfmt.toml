@@ -1,0 +1,22 @@
+# rustfmt configuration for dsfb-robotics.
+#
+# Rustfmt's stable feature set is intentionally small; most useful
+# knobs live behind the unstable channel. The values below are the
+# stable subset — the crate uses idiomatic edition-2021 formatting
+# everywhere and any unstable preferences are documented here for
+# nightly contributors who can opt in.
+
+edition = "2021"
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+use_small_heuristics = "Default"
+reorder_imports = true
+reorder_modules = true
+remove_nested_parens = true
+match_arm_blocks = true
+match_arm_leading_pipes = "Never"
+force_explicit_abi = true
+use_field_init_shorthand = true
+use_try_shorthand = true

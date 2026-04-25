@@ -1,0 +1,107 @@
+[package]
+name = "dsfb-robotics"
+version = "0.1.0"
+edition = "2021"
+authors = ["Riaan de Beer <riaan@invariantforge.net>"]
+description = "DSFB Structural Semiotics Engine for Robotics Health Monitoring — a deterministic, non-intrusive observer layer that reads the residuals existing robot control, kinematic identification, and whole-body balance observers already compute, and structures them into a human-readable grammar of typed episodes. Read-only augmentation, not replacement, of incumbent PHM / FDD / MPC / observer pipelines."
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-robotics"
+documentation = "https://docs.rs/dsfb-robotics"
+homepage = "https://github.com/infinityabundance/dsfb"
+keywords = ["robotics", "kinematics", "balancing", "phm", "no-std"]
+categories = ["embedded", "science::robotics", "no-std"]
+rust-version = "1.83"
+# Explicit allowlist of paths shipped in the crates.io bundle. The companion
+# paper sources, generated figure/output directories, and the fuzzing corpus
+# stay in the GitHub tree but are omitted from `cargo package`.
+include = [
+    "src/**",
+    "tests/**",
+    "examples/**",
+    "benches/**",
+    "scripts/**",
+    "docs/**",
+    "audit/**",
+    "data/slices/**",
+    "colab/dsfb_robotics_reproduce.ipynb",
+    "colab/README.md",
+    "/Cargo.toml",
+    "/README.md",
+    "/LICENSE",
+    "/NOTICE",
+    "/CITATION.cff",
+    "/CHANGELOG.md",
+    "/ARCHITECTURE.md",
+    "/SECURITY.md",
+    "/SAFETY.md",
+    "/REPRODUCE.md",
+    "/rust-toolchain.toml",
+    "/deny.toml",
+]
+
+[lib]
+name = "dsfb_robotics"
+path = "src/lib.rs"
+
+[features]
+default = []
+alloc = []
+std = ["alloc"]
+serde = ["std", "dep:serde", "dep:serde_json"]
+paper_lock = ["std", "serde"]
+# Real-dataset figure bank generation for the companion paper. Adds CSV / JSON
+# readers for the ten public robotics datasets evaluated in §10. Gated so the
+# default build surface is the no_std + no_alloc + zero-unsafe core only.
+real_figures = ["std", "serde", "dep:csv"]
+# Exploratory extensions not validated in the companion paper. Excluded from
+# the paper-lock metric set and the Stage III fixed evaluation protocol.
+experimental = []
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+csv = { version = "1", optional = true }
+
+[dev-dependencies]
+approx = "0.5"
+serde_json = { version = "1" }
+proptest = "1"
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "paper_lock_throughput"
+harness = false
+required-features = ["std", "paper_lock"]
+
+[target.'cfg(loom)'.dev-dependencies]
+loom = "0.7"
+
+[[bin]]
+name = "paper-lock"
+path = "src/main.rs"
+required-features = ["std", "paper_lock"]
+
+# Named examples and benches are declared in Phase 3 / Phase 6 once their
+# source files land. Cargo auto-discovers files under examples/ and benches/
+# during normal `cargo check`; explicit declarations are only required to
+# attach `required-features` gating, which is added alongside each source
+# file in the phase that introduces it.
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(kani)", "cfg(loom)"] }
+
+# Opt out of the parent monorepo workspace so this crate can be compiled
+# and published as a stand-alone crate (see /home/one/dsfb/Cargo.toml,
+# whose workspace.members list does not include dsfb-robotics). Empty
+# [workspace] table is the documented Cargo escape hatch.
+[workspace]

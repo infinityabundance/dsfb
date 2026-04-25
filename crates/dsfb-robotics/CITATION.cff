@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this crate or reference its companion paper, please cite it as below."
+title: "DSFB Structural Semiotics Engine for Robotics Health Monitoring — A Deterministic, Non-Intrusive Observer Layer for Typed Structural Interpretation of Kinematic, Balance, and PHM Residual Streams in Industrial and Legged Robotics"
+authors:
+  - family-names: "de Beer"
+    given-names: "Riaan"
+    affiliation: "Invariant Forge LLC"
+version: "0.1.0"
+date-released: 2026-04-24
+license: Apache-2.0
+license-note: >-
+  Apache-2.0 for the reference implementation. Commercial deployment
+  requires a separate written license. Contact: licensing@invariantforge.net
+url: "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-robotics"
+repository-code: "https://github.com/infinityabundance/dsfb"
+type: software
+keywords:
+  - dsfb
+  - robotics
+  - kinematics
+  - balancing
+  - phm
+  - fdd
+  - inverse-dynamics
+  - whole-body-control
+  - no-std
+  - deterministic
+  - observer
+preferred-citation:
+  type: generic
+  title: "DSFB Structural Semiotics Engine for Robotics Health Monitoring — A Deterministic, Non-Intrusive Observer Layer for Typed Structural Interpretation of Kinematic, Balance, and PHM Residual Streams in Industrial and Legged Robotics"
+  authors:
+    - family-names: "de Beer"
+      given-names: "Riaan"
+      affiliation: "Invariant Forge LLC"
+  year: 2026
+  version: "v0.1"
+  publisher:
+    name: "Invariant Forge LLC"

@@ -1,0 +1,44 @@
+{
+  "$schema": "GUM-JCGM-100-2008",
+  "dataset": "aloha_static",
+  "scope": "single-output residual norm uncertainty",
+  "components": [
+    {
+      "name": "u_meas",
+      "label": "ALOHA ViperX joint encoder",
+      "value": 0.002,
+      "type_per_GUM": "B (literature)",
+      "source": "arXiv:2304.13705"
+    },
+    {
+      "name": "u_model",
+      "label": "ALOHA fine-bimanual residual stddev",
+      "value": 0.05,
+      "type_per_GUM": "B (literature)",
+      "source": "arXiv:2304.13705"
+    },
+    {
+      "name": "u_cal",
+      "label": "calibration-window SEM (Stage III \u00a73)",
+      "value": 0.0021995792018446488,
+      "type_per_GUM": "A (computed in-tree)",
+      "source": "data/processed/aloha_static.csv"
+    }
+  ],
+  "combined_standard_uncertainty": 0.05008830351155036,
+  "expanded_uncertainty_k2": 0.10017660702310072,
+  "calibration_window": {
+    "available": true,
+    "n_calibration_samples": 11000,
+    "n_total_samples": 55000,
+    "mean": 1.1309731081696133,
+    "stddev": 0.23069381291457075,
+    "standard_error_of_mean": 0.0021995792018446488
+  },
+  "notes": [
+    "Type-A component is the standard error of the calibration-window mean, computed in-tree.",
+    "Type-B components reflect publicly reported sensor / model residual standard deviations from the cited source.",
+    "Combined uncertainty is the root-sum-square per JCGM 100:2008 \u00a75.1, assuming uncorrelated components.",
+    "DSFB bounds claims to the residual-emergence grammar; this budget supports interpreting numerical magnitudes, not new performance claims."
+  ]
+}
