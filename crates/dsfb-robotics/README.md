@@ -156,7 +156,28 @@ Licensing enquiries: `licensing@invariantforge.net`
 
 ## Citation
 
-See [`CITATION.cff`](CITATION.cff). Formal bibliographic entries are maintained in the companion paper's bibliography.
+If you use this crate or reference its companion paper, please cite:
+
+> de Beer, R. (2026). *DSFB Structural Semiotics Engine for Robotics Health Monitoring: A Deterministic Augmentation Layer for Typed Residual Interpretation of Joint Degradation, Actuator Drift, and Kinematic Anomalies in Safety-Critical Robotic Systems* (v1.0). Zenodo. https://doi.org/10.5281/zenodo.19778382
+
+BibTeX:
+
+```bibtex
+@software{debeer_2026_dsfb_robotics,
+  author    = {de Beer, Riaan},
+  title     = {DSFB Structural Semiotics Engine for Robotics Health Monitoring:
+               A Deterministic Augmentation Layer for Typed Residual Interpretation
+               of Joint Degradation, Actuator Drift, and Kinematic Anomalies in
+               Safety-Critical Robotic Systems},
+  version   = {v1.0},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.19778382},
+  url       = {https://doi.org/10.5281/zenodo.19778382}
+}
+```
+
+Machine-readable metadata: see [`CITATION.cff`](CITATION.cff). Formal bibliographic entries are maintained in the companion paper's bibliography.
 
 ## Authorship & co-authorship policy
 

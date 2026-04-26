@@ -13,6 +13,14 @@ license-note: >-
   requires a separate written license. Contact: licensing@invariantforge.net
 url: "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-robotics"
 repository-code: "https://github.com/infinityabundance/dsfb"
+doi: 10.5281/zenodo.19778382
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.19778382
+    description: "Zenodo archive of the v1.0 release (crate + companion paper)."
+  - type: url
+    value: "https://doi.org/10.5281/zenodo.19778382"
+    description: "Resolvable DOI landing page for the v1.0 release."
 type: software
 keywords:
   - dsfb
@@ -28,12 +36,14 @@ keywords:
   - observer
 preferred-citation:
   type: generic
-  title: "DSFB Structural Semiotics Engine for Robotics Health Monitoring — A Deterministic, Non-Intrusive Observer Layer for Typed Structural Interpretation of Kinematic, Balance, and PHM Residual Streams in Industrial and Legged Robotics"
+  title: "DSFB Structural Semiotics Engine for Robotics Health Monitoring: A Deterministic Augmentation Layer for Typed Residual Interpretation of Joint Degradation, Actuator Drift, and Kinematic Anomalies in Safety-Critical Robotic Systems"
   authors:
     - family-names: "de Beer"
       given-names: "Riaan"
       affiliation: "Invariant Forge LLC"
   year: 2026
-  version: "v0.1"
+  version: "v1.0"
+  doi: 10.5281/zenodo.19778382
+  url: "https://doi.org/10.5281/zenodo.19778382"
   publisher:
-    name: "Invariant Forge LLC"
+    name: "Zenodo"
