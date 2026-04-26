@@ -136,6 +136,10 @@ Don’t believe a sensor all at once.
 > Zenodo. [https://doi.org/10.5281/zenodo.19656368]
 
 > **de Beer, R.** (2026). 
+> *DSFB-RF Structural Semiotics Engine for RF Signal Monitoring - A Deterministic, Non-Intrusive Observer Layer for Typed Structural Interpretation of IQ Residual Streams in Electronic Warfare, Spectrum Monitoring, and Cognitive Radio* (2.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19702330]
+
+> **de Beer, R.** (2026). 
 > *DSFB Structural Semiotics Engine for Robotics Health Monitoring: A Deterministic Augmentation Layer for Typed Residual Interpretation of Joint Degradation, Actuator Drift, and Kinematic Anomalies in Safety-Critical Robotic Systems* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.19778382]
 
