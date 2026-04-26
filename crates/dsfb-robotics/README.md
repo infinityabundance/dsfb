@@ -4,11 +4,12 @@
 [![Miri: clean](https://img.shields.io/badge/Miri-clean-brightgreen)](./audit/miri/MIRI_AUDIT.md)
 [![Kani: 6 harnesses](https://img.shields.io/badge/Kani-6%20harnesses-brightgreen)](./audit/kani/KANI_AUDIT.md)
 [![Tests: 191 passing](https://img.shields.io/badge/tests-191%20passing-brightgreen)](./tests/)
+[![paper-lock: reproduces 20/20 headline rows](https://img.shields.io/badge/paper--lock-reproduces%2020%2F20%20headline%20rows-brightgreen)](./audit/checksums.txt)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-robotics/colab/dsfb_robotics_reproduce.ipynb)
 
 **DSFB Structural Semiotics Engine for Robotics Health Monitoring** — a deterministic, `no_std` + `no_alloc` + zero-`unsafe` observer layer that reads the residual streams existing robot control and prognostics pipelines already compute, and structures them into a human-readable grammar of typed episodes.
 
-> **Status:** Phase 2 in progress (v0.1.0). The core DSFB pipeline (grammar FSM, envelope, engine, shared kinematics / balancing helpers) is live; the ten dataset adapters, paper-lock binary, figures, Colab notebook, and audit stack land across Phases 3–9. Phase roadmap and per-phase acceptance criteria are documented in [`CHANGELOG.md`](CHANGELOG.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
+> **Status:** Version 1.0 (April 2026). The full crate ships: core DSFB pipeline (grammar FSM, envelope, engine, kinematics / balancing helpers), 20 dataset adapters, `paper-lock` binary, figure pipeline, Colab notebook, audit stack, and 81-page companion paper. Per-revision history in [`CHANGELOG.md`](CHANGELOG.md); architectural notes in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 
@@ -72,41 +73,50 @@ for e in &out[..n] {
 | `real_figures` | Real-dataset figure bank for the companion paper (requires `std`) |
 | `experimental` | Exploratory extensions excluded from the paper-lock metric set |
 
-## Dataset evaluation (companion paper, ten real-world datasets)
+## Dataset evaluation (companion paper, twenty real-world datasets)
 
-The companion paper at `paper/dsfb_robotics.tex` evaluates DSFB on **ten public real-world datasets** across three families. No synthetic data is used; every headline number comes from measurements on the datasets below under their published licences.
+The companion paper at `paper/dsfb_robotics.tex` evaluates DSFB on **twenty public real-world datasets** across three families. Every dataset is a physical-hardware recording under a permissive licence (Apache-2.0 / MIT / CC-BY-4.0 / CC-BY-SA-4.0 / BSD-3-Clause / academic-fair-use). Zero synthetic or simulated data is admitted.
 
-| # | Dataset | Family | Provenance | Residual DSFB structures |
-|---|---|---|---|---|
-| 1 | CWRU Bearing | PHM | Case Western Reserve University Bearing Data Center | BPFI envelope-spectrum deviation |
-| 2 | IMS Run-to-Failure | PHM | NASA Prognostics Data Repository (Lee et al. 2007) | Health-index trajectory |
-| 3 | C-MAPSS FD001/FD003 | Regime drift | NASA PHM08 (Saxena et al. 2008) | Multi-regime structural residual |
-| 4 | KUKA LWR | **Kinematics** | Jubien–Gautier–Janot 2014 | Inverse-dynamics identification residual (link-side) |
-| 5 | FEMTO-ST PRONOSTIA | PHM | IEEE PHM 2012 Challenge (Nectoux et al. 2012) | Vibration-HI trajectory |
-| 6 | Franka Panda | **Kinematics** | Gaz, Cognetti, Oliva, Robuffo Giordano, De Luca, RA-L 2019 (DOI 10.1109/LRA.2019.2931248) | Inverse-dynamics identification residual (motor-side) |
-| 7 | DLR Rollin' Justin / LWR-III | **Kinematics** | DLR Institute of Robotics & Mechatronics (Albu-Schäffer et al.) | Inverse-dynamics identification residual (link-side) |
-| 8 | UR10 | **Kinematics** | Kufieta 2014 (NTNU); Kebria et al. 2016 | Inverse-dynamics identification residual (motor-side) |
-| 9 | MIT Cheetah 3 / Mini-Cheetah | **Balancing** | Katz–Di Carlo–Kim, ICRA 2019 (MIT Biomimetics; MIT licence) | MPC contact-force residual + centroidal-momentum observer residual |
-| 10 | IIT iCub push-recovery | **Balancing** | Nori, Traversaro et al. (IIT iCub Facility) | Contact-wrench residual + centroidal-momentum tracking residual |
+| # | Family | Dataset | Provenance |
+|---|---|---|---|
+| 1 | PHM | CWRU Bearing | Case Western Reserve University Bearing Data Center |
+| 2 | PHM | NASA / IMS Run-to-Failure | Lee et al. 2007, NASA Prognostics Data Repository |
+| 3 | PHM | FEMTO-ST PRONOSTIA | Nectoux et al. 2012, IEEE PHM 2012 Challenge |
+| 4 | Kinematics | KUKA LWR-IV+ (Simionato 7R) | Sapienza DIAG repository |
+| 5 | Kinematics | Franka Emika Panda | Gaz et al. 2019, IEEE RA-L 4(4):4147–4154 |
+| 6 | Kinematics | 7-DoF Panda DLR-class | Giacomuzzo et al. 2024, Zenodo 12516500 |
+| 7 | Kinematics | UR10 pick-and-place | Polydoros et al. 2015, IEEE/RSJ IROS |
+| 8 | Kinematics | DROID 100-episode slice | Khazatsky et al. 2024, Stanford / TRI |
+| 9 | Kinematics | Open X-Embodiment NYU-ROT | RT-X 2024, Open X-Embodiment Collaboration |
+| 10 | Kinematics | ALOHA bimanual static coffee | Zhao et al. 2023, RSS |
+| 11 | Kinematics | ALOHA static tape | Zhao 2023, HuggingFace LeRobot |
+| 12 | Kinematics | ALOHA static screw-driver | Zhao 2023, HuggingFace LeRobot |
+| 13 | Kinematics | ALOHA static ping-pong | Zhao 2023, HuggingFace LeRobot |
+| 14 | Kinematics | Mobile ALOHA wipe-wine | Fu, Zhao, Finn 2024, Stanford |
+| 15 | Kinematics | SO-ARM100 pick-and-place | The Robot Studio + HuggingFace LeRobot 2024 |
+| 16 | Balancing | MIT Mini-Cheetah / Cheetah 3 | Katz et al. 2019, IEEE ICRA; UMich-CURLY |
+| 17 | Balancing | ergoCub push-recovery | Romualdi, Viceconte et al. 2024, IEEE Humanoids |
+| 18 | Balancing | ergoCub Sorrentino balancing-torque | Sorrentino et al. 2025, IEEE RAL; ami-iit |
+| 19 | Balancing | ANYmal-C GrandTour outdoor locomotion | ETH-Zürich Legged Robotics 2024 |
+| 20 | Balancing | Unitree G1 humanoid teleoperation | `Makolon0321/unitree_g1_block_stack`, HuggingFace 2024–2025 |
 
-See [`data/slices/SLICE_MANIFEST.json`](data/slices/) for per-dataset provenance, SHA-256 checksums, licences, and fetch instructions. Redistributable slices ship in-tree; datasets under data-use agreements (DLR Justin, iCub) ship as manifest-only pointers with a hard-error fallback in `paper-lock`.
+Per-dataset provenance, SHA-256 checksums, and fetch instructions live at [`data/processed/PROCESSED_MANIFEST.json`](data/processed/PROCESSED_MANIFEST.json). All twenty processed-residual CSVs ship in-tree; raw upstream-source data is fetched on demand by [`scripts/preprocess_datasets.py`](scripts/preprocess_datasets.py).
 
 ## Dataset honesty disclosure
 
 - **Real data only.** No synthetic data is mixed with real results anywhere in this crate or its paper. The only micro-fixtures used in unit tests are clearly illustrative arrays of ≤10 values (e.g. `[0.1, 0.2, 0.5, 1.2, 2.1]`).
 - **No simulation frameworks.** MuJoCo, Isaac, Gazebo, RaiSim, Drake, Webots, and PyBullet are not used anywhere in this crate.
-- **C-MAPSS provenance note.** NASA's C-MAPSS is a published benchmark generated by the MAPSS simulation code; we include it because the companion paper commits to the five-dataset spec, and we frame it strictly as a *cross-domain structural analogue* to multi-regime drift, not as a primary real-world claim. See `docs/cmapss_oracle_protocol.md` for the full framing.
-- **Paper-lock fallback policy.** When invoked without the required real dataset at the documented path, `paper-lock <dataset>` exits with a clear error pointing to the relevant oracle-protocol doc. It never silently substitutes a synthetic fixture.
+- **Paper-lock fallback policy.** When invoked without the required real dataset at the documented path, `paper-lock <slug>` exits with a clear error pointing to the relevant oracle-protocol doc under [`docs/`](docs/). It never silently substitutes a synthetic fixture.
 
 ## Reproducibility
 
-End-to-end reproduction recipe lives in [`REPRODUCE.md`](REPRODUCE.md). One-command form (Phase 4+):
+End-to-end reproduction recipe lives in [`REPRODUCE.md`](REPRODUCE.md). One-command form:
 
 ```bash
-cargo run --release --bin paper-lock --features std,paper_lock -- <dataset>
+cargo run --release --bin paper-lock --features std,paper_lock -- <slug>
 ```
 
-A Colab notebook at [`colab/dsfb_robotics_reproduce.ipynb`](colab/) (Phase 5) bundles the in-tree slices and reproduces all paper figures end-to-end in under five minutes on free-tier Colab.
+A Colab notebook at [`colab/dsfb_robotics_reproduce.ipynb`](colab/) bundles the in-tree processed CSVs and reproduces every paper figure end-to-end. Free-tier Colab Run-All budget: ~30 min cold (LTO build dominates); ~4 min on a developer laptop with cached `target/`.
 
 ## Audit
 
@@ -136,13 +146,13 @@ The [`audit/README.md`](audit/README.md) indexes every artefact with reproductio
 
 - **Reference implementation:** Apache-2.0 (see [`LICENSE`](LICENSE)).
 - **Theoretical framework and supervisory methods:** proprietary Background IP of Invariant Forge LLC; commercial deployment requires a separate written licence. See [`NOTICE`](NOTICE).
-- **Datasets:** each dataset retains its upstream licence; see [`data/slices/SLICE_MANIFEST.json`](data/slices/).
+- **Datasets:** each dataset retains its upstream licence; see [`data/processed/PROCESSED_MANIFEST.json`](data/processed/PROCESSED_MANIFEST.json).
 
 Licensing enquiries: `licensing@invariantforge.net`
 
 ## Companion paper
 
-`paper/dsfb_robotics.tex` — 1185-line LaTeX specification of the DSFB framework applied to robotics health monitoring. The paper includes an explicit Non-Claims table (§11), a failure-modes section, a limitations section with reviewer-objection responses, and provenance for every dataset. Empirical results in §10 are populated from runs of this crate under `paper-lock`.
+`paper/dsfb_robotics.tex` — 81-page LaTeX specification of the DSFB framework applied to robotics health monitoring (Version 1.0, April 2026). The paper includes the augmentation-thesis hero figure (§1.4), the twenty-dataset evaluation (§10) with bootstrap CIs / sensitivity grid / ablation / Cohen's d effect size, the worked example on the Gaz 2019 Panda dataset (§11), an explicit Non-Claims table, a failure-modes section, a limitations section with the 50-point engineering-criticisms subsection, the Falsifiability statement, the Non-Intrusion Manifest appendix, and the Motif Gallery. Every empirical number in §10 is reproducible from this crate under `paper-lock`.
 
 ## Citation
 
