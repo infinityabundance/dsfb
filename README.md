@@ -135,6 +135,9 @@ Don’t believe a sensor all at once.
 > *DSFB-Database: A Deterministic, Read-Only Structural Observer for Residual Trajectories in SQL Database Telemetry: An Empirical Prior-Art Demonstration on Five Public Workloads* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.19656368]
 
+> **de Beer, R.** (2026). 
+> *DSFB Structural Semiotics Engine for Robotics Health Monitoring: A Deterministic Augmentation Layer for Typed Residual Interpretation of Joint Degradation, Actuator Drift, and Kinematic Anomalies in Safety-Critical Robotic Systems* (v1.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19778382]
 
 ---
 
