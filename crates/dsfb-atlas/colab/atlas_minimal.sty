@@ -1,0 +1,92 @@
+%% atlas_minimal.sty — standalone preamble for the Colab atlas-only PDF
+%%
+%% This stub defines just enough macros to typeset the auto-generated
+%% part_01..part_10.tex files (10,000 theorems) as a self-contained PDF.
+%% It is intentionally minimal: no marginal class tabs, no libertinus,
+%% no tcolorbox; the goal is a fast pdflatex compile that produces the
+%% atlas PDF artefact downstream consumers can read.
+%%
+%% The full paper's typesetting (memoir / libertinus / tcolorbox /
+%% biblatex / 4,846-page production) is on Zenodo at the DOI cited in
+%% the colab notebook closing cell.
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{atlas_minimal}[2026/04/27 v1.0 DSFB-ATLAS minimal Colab preamble]
+
+\RequirePackage[a4paper, margin=1in]{geometry}
+\RequirePackage{amsmath, amssymb, amsthm}
+\RequirePackage{hyperref}
+\RequirePackage{xcolor}
+\RequirePackage[shortlabels]{enumitem}
+\RequirePackage{framed}
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue, citecolor=blue}
+
+%% --- Build-time injection placeholders (overridden by colab if available)
+\providecommand{\dsfbgithash}{colab}
+\providecommand{\dsfbversion}{v2.0}
+\providecommand{\dsfbbuilddate}{\today}
+
+%% --- Math macros referenced by the generated proof sketches
+\newcommand{\DSFB}{\textsc{dsfb}}
+\newcommand{\DSCD}{\textsc{dscd}}
+\newcommand{\TMTR}{\textsc{tmtr}}
+\newcommand{\ADD}{\textsc{add}}
+\newcommand{\SRD}{\textsc{srd}}
+\newcommand{\HRET}{\textsc{hret}}
+\newcommand{\DET}{\mathbf{Det}}
+\newcommand{\DETOL}{\mathbf{Det}_{\mathsf{OL}}}
+\newcommand{\Res}{\mathcal{R}}
+\newcommand{\Drift}{\mathcal{D}}
+\newcommand{\Slew}{\mathcal{S}}
+\newcommand{\Env}{\mathcal{E}}
+\newcommand{\Gram}{\mathcal{G}}
+\newcommand{\Trust}{\mathcal{T}}
+\newcommand{\Cert}{\mathcal{C}}
+\newcommand{\piR}{\pi_{\Res}}
+\newcommand{\piD}{\pi_{\Drift}}
+\newcommand{\piS}{\pi_{\Slew}}
+\newcommand{\piE}{\pi_{\Env}}
+\newcommand{\piG}{\pi_{\Gram}}
+\newcommand{\piT}{\pi_{\Trust}}
+\newcommand{\piC}{\pi_{\Cert}}
+
+%% --- The generated parts call \dsfbpartlabel / \dsfbchapterlabel; treat
+%%     them as no-ops (they only set marginal-tab state in the full sty).
+\newcommand{\dsfbpartlabel}[3]{}
+\newcommand{\dsfbchapterlabel}[4]{}
+\newcommand{\dsfbsetclasstab}[3]{}
+
+%% --- \empiricalstatus{<text>} — render as a framed grey-tinted note.
+\definecolor{atlasGreen}{HTML}{2E7D5A}
+\newcommand{\empiricalstatus}[1]{%
+  \par\medskip
+  \noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{%
+    \footnotesize\textbf{Empirical Status:} #1}}%
+  \par\medskip
+}
+
+%% --- \reductionwitness{<text>} — inline italic note inside a theorem.
+\newcommand{\reductionwitness}[1]{%
+  \par\noindent\textit{Reduction:} \footnotesize #1\par
+}
+
+%% --- \tierseal{Tn} — small bold tag
+\newcommand{\tierseal}[1]{\textbf{[#1]}}
+
+%% --- atlastheorem environment: 2 args (title, label).
+%%     Generated as \begin{atlastheorem}{Title \hfill \tierseal{T4}}{label}
+\newcounter{atlastheorem}[chapter]
+\renewcommand\theatlastheorem{\thechapter.\arabic{atlastheorem}}
+\newenvironment{atlastheorem}[2]{%
+  \par\medskip\refstepcounter{atlastheorem}\label{#2}%
+  \noindent\textbf{Atlas Theorem~\theatlastheorem.}\quad\textit{#1}\par
+  \nopagebreak\smallskip\noindent\ignorespaces
+}{%
+  \par\medskip
+}
+
+%% --- Standard math envs the proofs use
+\theoremstyle{plain}
+\newtheorem*{remark*}{Remark}
+
+\endinput
