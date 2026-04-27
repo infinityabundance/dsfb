@@ -26,6 +26,15 @@
 \providecommand{\dsfbversion}{v2.0}
 \providecommand{\dsfbbuilddate}{\today}
 
+%% --- \cref / \Cref stubs.
+%% The full paper resolves these via cleveref against labels in the
+%% hand-authored chapters (which are NOT distributed via this notebook).
+%% In the standalone Colab build the targets are absent, so we render
+%% the label text in monospace instead — sufficient to keep the prior-art
+%% trace visible without breaking compilation.
+\providecommand{\cref}[1]{(\texttt{#1})}
+\providecommand{\Cref}[1]{(\texttt{#1})}
+
 %% --- Math macros referenced by the generated proof sketches
 \newcommand{\DSFB}{\textsc{dsfb}}
 \newcommand{\DSCD}{\textsc{dscd}}
