@@ -1,0 +1,115 @@
+part_id: P09
+part_name: Control-Theoretic
+lens: control_theoretic
+default_anchor_tier: T2
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: constructive
+default_class_color: partCTL
+
+chapters:
+  - chapter_id: P09-C01
+    chapter_name: State-Space Estimator Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [DSFB-01, DSFB-05]
+    paperstack_cite: "DSFB Core Deterministic Framework"
+    operation_phrase_template: "estimates state via a {modifier} {stem}"
+    output_type: state estimate
+    input_signal_class: linear or nonlinear plant
+    stems: [Kalman filter, extended Kalman filter, unscented Kalman filter, ensemble Kalman filter, square-root Kalman, information filter, particle filter, particle smoother, marginalised particle filter, Rao-Blackwellised filter]
+    modifiers: [continuous-time, discrete-time, hybrid, switched, linear-time-varying, linear-time-invariant, robust, adaptive, distributed, decentralised]
+
+  - chapter_id: P09-C02
+    chapter_name: Observer-Design Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [DSFB-05, CORE-02]
+    paperstack_cite: "Frank 1990; Patton 1994; Ding 2008"
+    operation_phrase_template: "constructs a {modifier} {stem} observer for residual generation"
+    output_type: observer state
+    input_signal_class: dynamical plant
+    stems: [Luenberger, sliding-mode, high-gain, finite-time, parity-space, geometric observer, fault-detection observer, unknown-input observer, residual-generator, decoupling observer]
+    modifiers: [linear, nonlinear, robust, adaptive, finite-time, fixed-time, prescribed-time, sampled-data, distributed, hierarchical]
+
+  - chapter_id: P09-C03
+    chapter_name: H-infinity and Robust Control Reductions
+    anchor_tier: T2
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "designs a {modifier} {stem} H-infinity controller / observer"
+    output_type: H-infinity gain
+    input_signal_class: uncertain plant
+    stems: [H-infinity filter, H-infinity controller, mu-synthesis, structured singular value, LFT, LMI, BMI, IQC, S-procedure, mixed mu]
+    modifiers: [structured, unstructured, parametric, dynamic, time-varying, time-invariant, sector-bounded, slope-restricted, polytopic, gridded]
+
+  - chapter_id: P09-C04
+    chapter_name: Set-Membership Estimation Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [SRD-01, SRD-03]
+    paperstack_cite: "Puig 2010; Deterministic Disturbance Modeling Framework"
+    operation_phrase_template: "applies a {modifier} {stem} set-membership estimator"
+    output_type: set-membership state
+    input_signal_class: bounded uncertainty plant
+    stems: [zonotope estimator, ellipsoidal estimator, polytopic estimator, interval observer, parallelotope estimator, support-function estimator, taylor-model estimator, polynomial-zonotope estimator, constrained-zonotope estimator, validated-arithmetic estimator]
+    modifiers: [outer-bounding, inner-bounding, exact, conservative, validated, symbolic, online, batch, distributed, decentralised]
+
+  - chapter_id: P09-C05
+    chapter_name: Model-Predictive Control Residual Reductions
+    anchor_tier: T2
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "monitors residuals via a {modifier} {stem} MPC framework"
+    output_type: MPC cost / constraint slack
+    input_signal_class: constrained predictive controller
+    stems: [linear MPC, nonlinear MPC, robust MPC, tube MPC, scenario MPC, economic MPC, distributed MPC, hierarchical MPC, learning MPC, adaptive MPC]
+    modifiers: [explicit, implicit, suboptimal, real-time-iterated, sequential-quadratic, interior-point, active-set, primal-dual, GPU-accelerated, embedded]
+
+  - chapter_id: P09-C06
+    chapter_name: Adaptive Control Residual Reductions
+    anchor_tier: T2
+    anchor_bank_ids: [TMTR-01]
+    operation_phrase_template: "adapts to residuals via a {modifier} {stem} adaptive controller"
+    output_type: adaptive parameter estimate
+    input_signal_class: parameter-varying plant
+    stems: [model-reference adaptive, self-tuning regulator, gain-scheduling, indirect adaptive, direct adaptive, L1 adaptive, projection-based adaptive, sigma-modification, e-modification, dead-zone adaptive]
+    modifiers: [robust, non-robust, learning-based, neural, fuzzy, sliding-mode-augmented, finite-time-stable, prescribed-performance, output-feedback, state-feedback]
+
+  - chapter_id: P09-C07
+    chapter_name: Disturbance Observer Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [SRD-01]
+    paperstack_cite: "Slew-Aware Trust-Adaptive Nonlinear State Estimation"
+    operation_phrase_template: "estimates disturbance via a {modifier} {stem} disturbance observer"
+    output_type: disturbance estimate
+    input_signal_class: disturbed plant
+    stems: [disturbance observer, ESO, GESO, NDOB, fuzzy disturbance observer, neural disturbance observer, sliding-mode disturbance observer, adaptive disturbance observer, finite-time disturbance observer, fixed-time disturbance observer]
+    modifiers: [linear, nonlinear, robust, adaptive, finite-time, fixed-time, prescribed-time, sampled-data, distributed, hierarchical]
+
+  - chapter_id: P09-C08
+    chapter_name: Sliding-Mode and Variable-Structure Reductions
+    anchor_tier: T2
+    anchor_bank_ids: [SRD-01]
+    operation_phrase_template: "designs a {modifier} {stem} sliding-mode component"
+    output_type: sliding-mode signal
+    input_signal_class: variable-structure plant
+    stems: [first-order sliding-mode, second-order sliding-mode, twisting algorithm, super-twisting algorithm, terminal sliding-mode, fast terminal sliding-mode, integral sliding-mode, adaptive sliding-mode, finite-time sliding-mode, fixed-time sliding-mode]
+    modifiers: [boundary-layer, chattering-free, high-order, smooth, robust, adaptive, distributed, output-feedback, state-feedback, integral-augmented]
+
+  - chapter_id: P09-C09
+    chapter_name: Multi-Sensor Fusion Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [HRET-01, HRET-10]
+    paperstack_cite: "Hierarchical Residual-Envelope Trust"
+    operation_phrase_template: "fuses sensors via a {modifier} {stem} fusion architecture"
+    output_type: fused state estimate
+    input_signal_class: heterogeneous sensor suite
+    stems: [centralised fusion, distributed fusion, hierarchical fusion, federated filter, covariance intersection, ellipsoidal intersection, generalised CI, MAGICC, MMSE-fusion, MAP-fusion]
+    modifiers: [synchronous, asynchronous, multi-rate, out-of-sequence, delayed, high-rate, low-rate, lossy-channel, faulty-channel, replay-attacked]
+
+  - chapter_id: P09-C10
+    chapter_name: Networked-Control and Cyber-Physical Reductions
+    anchor_tier: T2
+    anchor_bank_ids: [HRET-10]
+    paperstack_cite: "DSFB Database; DSFB Gray"
+    operation_phrase_template: "monitors networked control via a {modifier} {stem}"
+    output_type: networked-control residual
+    input_signal_class: cyber-physical system
+    stems: [event-triggered control, self-triggered control, sampled-data control, time-delay control, packet-loss-resilient control, bandwidth-constrained control, secure control, encrypted control, attack-resilient control, integrity-preserving control]
+    modifiers: [zero-trust, watermark-based, signature-based, redundancy-based, voting-based, consensus-based, blockchain-anchored, replicated, atomic, deterministic
+]

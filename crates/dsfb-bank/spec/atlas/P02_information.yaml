@@ -1,0 +1,110 @@
+part_id: P02
+part_name: Information-Theoretic
+lens: information_theoretic
+default_anchor_tier: T4
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: existential
+default_class_color: partINF
+
+chapters:
+  - chapter_id: P02-C01
+    chapter_name: Entropy Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01]
+    operation_phrase_template: "computes a {modifier} {stem} of the residual stream"
+    output_type: scalar entropy
+    input_signal_class: discrete or continuous source
+    stems: [Shannon entropy, Renyi entropy, Tsallis entropy, conditional entropy, joint entropy, relative entropy, cross entropy, differential entropy, free entropy, topological entropy]
+    modifiers: [empirical, plug-in, kernel-smoothed, NN-density, k-nearest-neighbor, plug-in-MLE, asymptotic, leave-one-out, jackknife, bootstrap]
+
+  - chapter_id: P02-C02
+    chapter_name: Mutual-Information Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01, DSFB-05]
+    operation_phrase_template: "estimates a {modifier} {stem} between residuals and predictions"
+    output_type: information measure
+    input_signal_class: paired streams
+    stems: [pointwise mutual information, total mutual information, conditional mutual information, multi-information, transfer entropy, directed information, partial information decomposition, synergy, redundancy, unique information]
+    modifiers: [Kraskov, MINE, KSG, INFOMAX, plug-in, k-NN, kernel, copula, normalising-flow, variational]
+
+  - chapter_id: P02-C03
+    chapter_name: Channel-Capacity Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01]
+    operation_phrase_template: "bounds the residual via a {modifier} {stem} channel"
+    output_type: capacity bound
+    input_signal_class: deterministic channel
+    stems: [Shannon capacity, Cover-Thomas capacity, AWGN capacity, Gaussian-MIMO capacity, BSC capacity, BEC capacity, finite-block-length capacity, second-order capacity, error-exponent capacity, dispersion]
+    modifiers: [achievable, converse, exact, asymptotic, finite-blocklength, feedback-augmented, side-informed, broadcast, multiple-access, interference-channel]
+
+  - chapter_id: P02-C04
+    chapter_name: Kolmogorov-Complexity Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "characterises residuals via a {modifier} {stem}"
+    output_type: descriptive complexity
+    input_signal_class: bit-string source
+    stems: [prefix complexity, plain complexity, conditional complexity, time-bounded complexity, randomness deficiency, mutual algorithmic information, algorithmic statistic, Solomonoff prior, universal probability, sufficient statistic]
+    modifiers: [Levin, Schnorr, Martin-Lof, Chaitin, exact, approximate, resource-bounded, computable, semicomputable, lower-semicomputable]
+
+  - chapter_id: P02-C05
+    chapter_name: Rate-Distortion Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01]
+    operation_phrase_template: "applies a {modifier} {stem} rate-distortion bound to the certificate alphabet"
+    output_type: distortion-rate function
+    input_signal_class: lossy quantiser
+    stems: [Shannon-RD function, Wyner-Ziv RD, source-side-information RD, Gaussian RD, binary RD, multiple-description RD, successive refinement, network RD, distributed RD, finite-blocklength RD]
+    modifiers: [Hamming, MSE, log-loss, Bregman, perceptual, perception-distortion, distortion-perception, semantic, structural, information-theoretic]
+
+  - chapter_id: P02-C06
+    chapter_name: Source-Coding Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-05]
+    operation_phrase_template: "encodes the certificate stream via {modifier} {stem}"
+    output_type: prefix code
+    input_signal_class: discrete source
+    stems: [Huffman coding, arithmetic coding, range coding, ANS coding, LZ77, LZ78, LZW, BWT, PPM, dictionary coding]
+    modifiers: [static, adaptive, context-mixed, finite-context, infinite-context, asymmetric, semi-adaptive, Markov, k-th-order, universal]
+
+  - chapter_id: P02-C07
+    chapter_name: Channel-Coding Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-05]
+    operation_phrase_template: "protects certificates with a {modifier} {stem}"
+    output_type: error-correcting code
+    input_signal_class: noisy channel
+    stems: [Hamming code, Reed-Solomon code, BCH code, LDPC code, polar code, turbo code, convolutional code, Reed-Muller code, repetition code, single-parity-check code]
+    modifiers: [systematic, non-systematic, punctured, shortened, extended, soft-decision, hard-decision, list-decoded, belief-propagation, max-likelihood]
+
+  - chapter_id: P02-C08
+    chapter_name: Hypothesis-Testing Reductions
+    anchor_tier: T3
+    anchor_bank_ids: [ADD-02]
+    paperstack_cite: "DSFB Disturbance Modeling Framework"
+    operation_phrase_template: "tests residuals against a baseline via {modifier} {stem}"
+    output_type: test statistic
+    input_signal_class: hypothesis-testing setup
+    stems: [Neyman-Pearson, Wald sequential, GLR, CUSUM, EWMA, Hotelling T-squared, chi-squared, KS test, Anderson-Darling, Wasserstein test]
+    modifiers: [one-sided, two-sided, sequential, group-sequential, exact, asymptotic, robust, semiparametric, nonparametric, permutation]
+
+  - chapter_id: P02-C09
+    chapter_name: Information-Bottleneck Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01, CORE-05]
+    operation_phrase_template: "compresses residual via a {modifier} {stem} information bottleneck"
+    output_type: bottleneck compression
+    input_signal_class: relevance-aware compressor
+    stems: [Tishby IB, deep IB, variational IB, deterministic IB, multivariate IB, distributed IB, Gaussian IB, kernel IB, agglomerative IB, sequential IB]
+    modifiers: [hard, soft, deterministic, stochastic, beta-annealed, Lagrangian, projected-gradient, alternating-projection, fixed-point, EM]
+
+  - chapter_id: P02-C10
+    chapter_name: Stochastic-Process Information Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [TMTR-01]
+    operation_phrase_template: "applies a {modifier} {stem} information rate to the residual process"
+    output_type: information rate
+    input_signal_class: stationary process
+    stems: [entropy rate, mutual-information rate, predictive information, excess entropy, statistical complexity, transfer entropy rate, persistent mutual information, semantic information, integrated information, causal density]
+    modifiers: [Markov, hidden-Markov, finite-state, finite-memory, stationary, ergodic, asymptotic, finite-window, sliding-window, online
+]

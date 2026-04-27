@@ -1,0 +1,113 @@
+part_id: P05
+part_name: Topological
+lens: topological
+default_anchor_tier: T4
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: existential
+default_class_color: partTOP
+
+chapters:
+  - chapter_id: P05-C01
+    chapter_name: Continuity and Connectedness Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [SRD-01]
+    operation_phrase_template: "checks {modifier} {stem} of the residual map"
+    output_type: connectedness predicate
+    input_signal_class: topological space residual
+    stems: [pointwise continuity, uniform continuity, Lipschitz continuity, Holder continuity, equicontinuity, Stone-Cech extension, one-point compactification, partitions of unity, Tietze extension, Urysohn lemma]
+    modifiers: [Hausdorff, normal, regular, locally-compact, second-countable, separable, metrisable, paracompact, Polish, Suslin]
+
+  - chapter_id: P05-C02
+    chapter_name: Compactness Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [SRD-01]
+    operation_phrase_template: "uses {modifier} {stem} to bound the residual orbit"
+    output_type: compactness witness
+    input_signal_class: residual orbit
+    stems: [sequential compactness, finite open subcover, Bolzano-Weierstrass, Heine-Borel, Tychonoff, Alexander subbase, Urysohn metrisation, Hausdorff metric, total boundedness, equicontinuity-based compactness]
+    modifiers: [pointwise, uniform, weak, weak-star, finite, sigma, locally, exhausting, sequential, generalised]
+
+  - chapter_id: P05-C03
+    chapter_name: Skorokhod and Path-Space Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [SRD-01]
+    paperstack_cite: "Slew-Aware Trust-Adaptive Nonlinear State Estimation"
+    operation_phrase_template: "embeds residual into {modifier} {stem} path space"
+    output_type: path-space element
+    input_signal_class: cadlag residual stream
+    stems: [Skorokhod J1, Skorokhod J2, Skorokhod M1, Skorokhod M2, uniform path topology, sup-norm topology, Wasserstein-p topology, Sobolev topology, Sobolev-Slobodeckij, Holder path]
+    modifiers: [Polish, separable, complete, metrisable, locally-compact, second-countable, Hausdorff, regular, normal, paracompact]
+
+  - chapter_id: P05-C04
+    chapter_name: Persistent-Homology Reductions
+    anchor_tier: T2
+    anchor_bank_ids: [CORE-05]
+    paperstack_cite: "DSFB Battery Health Monitoring; Three-Body Problem"
+    operation_phrase_template: "summarises residuals via {modifier} {stem} persistent homology"
+    output_type: persistence diagram
+    input_signal_class: filtered simplicial complex
+    stems: [Vietoris-Rips, Cech, Alpha, Witness, Sublevel-set, Superlevel-set, Mapper, Reeb, Morse, Morse-Smale]
+    modifiers: [zigzag, multi-parameter, multi-d, vineyard, persistence-image, persistence-landscape, kernel-PH, sliced-Wasserstein, bottleneck, Wasserstein]
+
+  - chapter_id: P05-C05
+    chapter_name: Manifold-Geometry Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [TMTR-01]
+    operation_phrase_template: "embeds residuals on a {modifier} {stem} manifold"
+    output_type: manifold coordinate
+    input_signal_class: smooth residual
+    stems: [Riemannian, Lorentzian, Kahler, symplectic, Poisson, contact, sub-Riemannian, Finsler, fibre bundle, principal bundle]
+    modifiers: [complete, geodesically-complete, simply-connected, compact, orientable, parallelisable, locally-trivial, flat, hyperbolic, conformal]
+
+  - chapter_id: P05-C06
+    chapter_name: Sheaf-Cohomological Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-05]
+    operation_phrase_template: "computes {modifier} {stem} sheaf cohomology of the residual sheaf"
+    output_type: cohomology class
+    input_signal_class: site-with-residual-sheaf
+    stems: [Cech cohomology, derived-functor cohomology, Hodge cohomology, Dolbeault cohomology, etale cohomology, crystalline cohomology, equivariant cohomology, intersection cohomology, motivic cohomology, K-theory]
+    modifiers: [trivial, vanishing, exact, finite-dimensional, infinite-dimensional, perfect, dualisable, smooth, proper, projective]
+
+  - chapter_id: P05-C07
+    chapter_name: Topological-Dynamics Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [SRD-01]
+    paperstack_cite: "Three-Body Problem"
+    operation_phrase_template: "characterises residual orbit via {modifier} {stem}"
+    output_type: orbit type
+    input_signal_class: dynamical system
+    stems: [omega-limit set, alpha-limit set, periodic orbit, recurrent point, minimal set, attractor, Smale horseshoe, Anosov diffeomorphism, hyperbolic set, Lyapunov exponent]
+    modifiers: [stable, unstable, hyperbolic, elliptic, parabolic, chaotic, integrable, KAM-stable, Nekhoroshev-stable, generic]
+
+  - chapter_id: P05-C08
+    chapter_name: Combinatorial-Topology Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [DSCD-01]
+    operation_phrase_template: "applies {modifier} {stem} on the residual nerve"
+    output_type: simplicial set
+    input_signal_class: residual cover
+    stems: [nerve, classifying space, mapping space, configuration space, Cayley graph, Coxeter complex, Hasse diagram, simplicial complex, CW complex, Delta complex]
+    modifiers: [finite, locally-finite, regular, simply-connected, polyhedral, geometric, abstract, combinatorial, semi-simplicial, ordered]
+
+  - chapter_id: P05-C09
+    chapter_name: Spectral-Graph and Tutte Reductions
+    anchor_tier: T2
+    anchor_bank_ids: [DSCD-01]
+    paperstack_cite: "Tutte Embedding; Spectral Residual Inference (Swarms)"
+    operation_phrase_template: "extracts {modifier} {stem} from the residual graph spectrum"
+    output_type: spectral signature
+    input_signal_class: graph residual
+    stems: [Laplacian spectrum, normalised Laplacian, signless Laplacian, adjacency spectrum, Tutte embedding, harmonic embedding, heat kernel, diffusion map, Cheeger constant, spectral gap]
+    modifiers: [unweighted, weighted, signed, directed, multigraph, hypergraph, simplicial, persistent, sparse, dense]
+
+  - chapter_id: P05-C10
+    chapter_name: Coarse-Geometry and Hyperbolic Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [TMTR-01]
+    operation_phrase_template: "applies {modifier} {stem} coarse-geometry on residual paths"
+    output_type: coarse equivalence class
+    input_signal_class: metric residual
+    stems: [coarse geodesic, asymptotic cone, large-scale geometry, Gromov boundary, Tits boundary, hyperbolic boundary, Roe algebra, uniform embedding, quasi-isometry, asymptotic dimension]
+    modifiers: [coarse, uniform, bornologous, proper, hyperbolic, mediated, large-scale, finite-asymptotic-dimension, polynomial-growth, exponential-growth
+]

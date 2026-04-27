@@ -1,0 +1,112 @@
+part_id: P04
+part_name: Algebraic
+lens: algebraic
+default_anchor_tier: T4
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: isomorphic
+default_class_color: partALG
+
+chapters:
+  - chapter_id: P04-C01
+    chapter_name: Group Action Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [DSFB-01]
+    operation_phrase_template: "applies a {modifier} {stem} group action to the residual space"
+    output_type: orbit-quotient label
+    input_signal_class: residual space with symmetry
+    stems: [translation, rotation, dilation, reflection, permutation, cyclic, dihedral, abelian, simple, linear-action]
+    modifiers: [free, transitive, faithful, irreducible, primitive, amenable, ergodic, mixing, weakly-mixing, rigid]
+
+  - chapter_id: P04-C02
+    chapter_name: Ring and Module Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "structures the residual algebra as a {modifier} {stem}"
+    output_type: ring/module structure
+    input_signal_class: residual algebra
+    stems: [polynomial ring, formal power series, Laurent series, group ring, quotient ring, localisation, completion, free module, projective module, injective module]
+    modifiers: [Noetherian, Artinian, regular, complete, local, semi-local, Henselian, integral, normal, factorial]
+
+  - chapter_id: P04-C03
+    chapter_name: Linear-Algebraic Decomposition Reductions
+    anchor_tier: T2
+    anchor_bank_ids: [DSFB-05]
+    paperstack_cite: "Residual Streams in Gradient Flows"
+    operation_phrase_template: "decomposes residuals via {modifier} {stem}"
+    output_type: matrix decomposition
+    input_signal_class: matrix-valued residual
+    stems: [SVD, eigendecomposition, QR, LU, Cholesky, polar decomposition, Schur decomposition, Jordan decomposition, Hessenberg, RRQR]
+    modifiers: [thin, full, randomised, blocked, pivoted, rank-revealing, online, incremental, distributed, communication-avoiding]
+
+  - chapter_id: P04-C04
+    chapter_name: Lie-Algebra and Geometric Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [TMTR-01]
+    operation_phrase_template: "encodes residuals via {modifier} {stem} in a Lie group / algebra"
+    output_type: Lie-algebra element
+    input_signal_class: smooth manifold residual
+    stems: [SO(3), SE(3), SU(2), SU(3), GL(n), SL(n), Sp(2n), exp map, log map, adjoint action]
+    modifiers: [matrix, faithful, real, complex, semisimple, solvable, nilpotent, simple, reductive, compact]
+
+  - chapter_id: P04-C05
+    chapter_name: Polynomial and Algebraic-Geometry Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "fits residuals to a {modifier} {stem} algebraic variety"
+    output_type: variety membership
+    input_signal_class: algebraic dataset
+    stems: [Groebner basis, Resultant, Buchberger, F4, F5, Wu's method, Ritt-Wu, parametric, real, projective]
+    modifiers: [monomial, lex, deglex, grevlex, elimination, weighted, signature-based, degree-bounded, sparse, dense]
+
+  - chapter_id: P04-C06
+    chapter_name: Word-Length and Combinatorial Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    paperstack_cite: "Algebraic Deterministic Dynamics (ADD)"
+    operation_phrase_template: "applies a {modifier} {stem} on words of motif transitions"
+    output_type: word-class label
+    input_signal_class: motif-transition trace
+    stems: [free-monoid word, word-length, edit distance, Levenshtein distance, Hamming distance, longest-common-substring, Burrows-Wheeler, suffix-array, suffix-tree, FM-index]
+    modifiers: [minimal, canonical, normal-form, Knuth-Bendix, lex, deglex, grevlex, weighted, ranked, sparse]
+
+  - chapter_id: P04-C07
+    chapter_name: Coalgebraic Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "exhibits residual-stream as a {modifier} {stem} coalgebra"
+    output_type: coalgebra
+    input_signal_class: stream
+    stems: [stream coalgebra, automaton coalgebra, weighted coalgebra, probabilistic coalgebra, infinite-tree coalgebra, infinite-list coalgebra, distributive law, comonad, cofree comonad, terminal coalgebra]
+    modifiers: [bisimilar, observational, functorial, polynomial, finitary, accessible, presentable, regular, exact, lex]
+
+  - chapter_id: P04-C08
+    chapter_name: Hopf-Algebra and Bialgebra Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "encodes residual composition via a {modifier} {stem} Hopf algebra"
+    output_type: Hopf-algebra element
+    input_signal_class: composable residual operations
+    stems: [universal enveloping, group algebra, function algebra, distributional Hopf, shuffle algebra, quasi-shuffle, MZV, Connes-Kreimer, Loday-Ronco, Malvenuto-Reutenauer]
+    modifiers: [commutative, cocommutative, graded, filtered, connected, finitely-generated, primitively-generated, group-like, antipode-existence, Hopf-ideal]
+
+  - chapter_id: P04-C09
+    chapter_name: Topological-Algebra Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "structures residual stream via a {modifier} {stem} topological algebra"
+    output_type: topological-algebra element
+    input_signal_class: topological residual algebra
+    stems: [Banach algebra, C-star algebra, von-Neumann algebra, locally-compact algebra, normed algebra, Frechet algebra, Lie group, Lie groupoid, profinite group, pro-p-group]
+    modifiers: [unital, non-unital, commutative, simple, semisimple, type-I, type-II, type-III, hyperfinite, factor]
+
+  - chapter_id: P04-C10
+    chapter_name: Numerical Linear-Algebra Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [DSFB-05, ADD-09]
+    paperstack_cite: "DSFB-RF; DSFB-Robotics"
+    operation_phrase_template: "applies a {modifier} {stem} numerical solve to residual systems"
+    output_type: numerical solution
+    input_signal_class: matrix-valued residual
+    stems: [LSQR, LSMR, GMRES, BiCGSTAB, MINRES, conjugate-gradient, randomised-Kaczmarz, sparse-direct, multifrontal, supernodal]
+    modifiers: [dense, sparse, structured, banded, symmetric, positive-definite, distributed, communication-avoiding, mixed-precision, iterative-refinement
+]

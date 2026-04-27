@@ -1,0 +1,110 @@
+part_id: P08
+part_name: Type-Theoretic
+lens: type_theoretic
+default_anchor_tier: T4
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: isomorphic
+default_class_color: partTYP
+
+chapters:
+  - chapter_id: P08-C01
+    chapter_name: Algebraic-Datatype Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01]
+    operation_phrase_template: "encodes the residual stream as a {modifier} {stem} algebraic datatype"
+    output_type: ADT
+    input_signal_class: typed signal
+    stems: [sum type, product type, recursive type, parameterised type, GADT, polymorphic type, dependent type, refinement type, indexed type, regular type]
+    modifiers: [strict, lazy, monomorphic, polymorphic, generic, generative, nominal, structural, opaque, abstract]
+
+  - chapter_id: P08-C02
+    chapter_name: Initial-Algebra Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01, CORE-10]
+    operation_phrase_template: "exhibits the residual pipeline as the {modifier} {stem} initial algebra"
+    output_type: initial algebra
+    input_signal_class: polynomial endofunctor
+    stems: [F-algebra, free monad, mu-recursion, fold-catamorphism, anamorphism, hylomorphism, paramorphism, apomorphism, histomorphism, futumorphism]
+    modifiers: [strict, lazy, finite, infinite, regular, GADT, dependent, polymorphic, indexed, mutual]
+
+  - chapter_id: P08-C03
+    chapter_name: Parametricity Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01]
+    operation_phrase_template: "applies {modifier} {stem} parametricity to the residual pipeline"
+    output_type: parametricity theorem
+    input_signal_class: parametrically polymorphic
+    stems: [Reynolds parametricity, Wadler free theorem, relational parametricity, identity-extension lemma, naturality, dinaturality, extranatural, propositional resizing, proof irrelevance, definitional equality]
+    modifiers: [strict, observational, relational, propositional, judgmental, computational, definitional, iso-parametric, full-abstraction-style, embedding]
+
+  - chapter_id: P08-C04
+    chapter_name: Refinement-Type Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "refines residual types via {modifier} {stem}"
+    output_type: refinement type
+    input_signal_class: refined signal
+    stems: [SMT-backed refinement, liquid type, Floyd-Hoare assertion, Boogie precondition, Why3 specification, Dafny contract, Coq invariant, Agda where-clause, Lean type-class, F-star pre-post]
+    modifiers: [SMT-decidable, SMT-undecidable, polymorphic, classical, intuitionistic, Boolean, linear, ordered, ground, parametric]
+
+  - chapter_id: P08-C05
+    chapter_name: Linear-Type Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-01]
+    operation_phrase_template: "tracks residual resources via {modifier} {stem} linear types"
+    output_type: linear type
+    input_signal_class: resource-aware residual
+    stems: [linear function, affine function, ordered function, region type, capability type, ownership type, borrow checker, lifetime, lent reference, mut reference]
+    modifiers: [strict, exclusive, shared, immutable, mutable, owned, borrowed, leaked, dropped, moved]
+
+  - chapter_id: P08-C06
+    chapter_name: Dependent-Type Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "encodes residual invariants via {modifier} {stem} dependent types"
+    output_type: dependent type
+    input_signal_class: indexed residual
+    stems: [Pi type, Sigma type, identity type, W-type, M-type, inductive type, coinductive type, indexed inductive, higher-inductive, recursive inductive]
+    modifiers: [intensional, extensional, observational, propositional, judgmental, decidable, computable, constructive, classical, omega-set]
+
+  - chapter_id: P08-C07
+    chapter_name: Effect-System Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "tracks residual side-effects via {modifier} {stem}"
+    output_type: effect annotation
+    input_signal_class: effectful function
+    stems: [region inference, capability typing, monadic effect, algebraic effect, handler-based effect, scoped effect, row-typed effect, indexed monad, graded monad, freer monad]
+    modifiers: [pure, total, partial, divergent, exceptional, asynchronous, synchronous, deterministic, non-deterministic, IO]
+
+  - chapter_id: P08-C08
+    chapter_name: Session-Type Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "encodes residual stream as a {modifier} {stem} session type"
+    output_type: session type
+    input_signal_class: communicating residual
+    stems: [binary session, multiparty session, choreography, contract automaton, recursive session, asynchronous session, mixed session, dyadic session, well-formed session, deadlock-free session]
+    modifiers: [linear, affine, recursive, deadlock-free, lock-free, fair, deterministic, type-safe, session-safe, progress-safe]
+
+  - chapter_id: P08-C09
+    chapter_name: Categorical-Programming Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "expresses pipeline via {modifier} {stem} categorical programming"
+    output_type: categorical combinator
+    input_signal_class: combinatory residual
+    stems: [arrow, applicative, monad, comonad, profunctor, optic, lens, prism, traversal, fold]
+    modifiers: [strong, commutative, distributive, idempotent, traversable, foldable, distributable, characteristic, polymorphic, deriving]
+
+  - chapter_id: P08-C10
+    chapter_name: Mechanised-Proof Reductions
+    anchor_tier: T2
+    anchor_bank_ids: [CORE-10]
+    paperstack_cite: "DSFB Structural Semiotics Calculus"
+    operation_phrase_template: "mechanises a residual property via {modifier} {stem}"
+    output_type: machine-checked proof
+    input_signal_class: formal specification
+    stems: [Coq tactic, Agda tactic, Lean tactic, Isabelle Isar, Idris elaborator, F-star Z3, Dafny verifier, Why3 transformation, Boogie checker, SMT-LIB hammer]
+    modifiers: [interactive, automated, hammer-based, decision-procedure-based, tactic-based, proof-search, type-class-driven, structural, induction, coinduction
+]

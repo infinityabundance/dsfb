@@ -1,0 +1,109 @@
+part_id: P06
+part_name: Order-Theoretic
+lens: order_theoretic
+default_anchor_tier: T4
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: existential
+default_class_color: partORD
+
+chapters:
+  - chapter_id: P06-C01
+    chapter_name: Lattice and Poset Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [TMTR-01, TMTR-04]
+    operation_phrase_template: "structures trust state via {modifier} {stem}"
+    output_type: lattice element
+    input_signal_class: trust ordering
+    stems: [bounded lattice, complete lattice, distributive lattice, modular lattice, Boolean algebra, Heyting algebra, frame, locale, complete Heyting algebra, residuated lattice]
+    modifiers: [finite, atomic, atomistic, complete, complemented, completely-distributive, algebraic, continuous, prime, coprime]
+
+  - chapter_id: P06-C02
+    chapter_name: Galois-Connection Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [TMTR-01, CORE-04]
+    operation_phrase_template: "exhibits {modifier} {stem} between trust and certificates"
+    output_type: Galois adjunction
+    input_signal_class: ordered residual algebra
+    stems: [order-reversing Galois, order-preserving Galois, formal-concept, Galois closure, Galois interior, Galois insertion, monotone Galois, antitone Galois, isotone Galois, antitone Galois]
+    modifiers: [perfect, surjective, injective, bijective, dense, faithful, conservative, separating, complete, idempotent]
+
+  - chapter_id: P06-C03
+    chapter_name: Fixed-Point Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [TMTR-04]
+    operation_phrase_template: "computes a {modifier} {stem} fixed point of the trust update"
+    output_type: fixed point
+    input_signal_class: monotone update operator
+    stems: [least fixed point, greatest fixed point, post-fixed point, pre-fixed point, Tarski fixed point, Banach fixed point, Brouwer fixed point, Schauder fixed point, Kakutani fixed point, Knaster-Tarski]
+    modifiers: [unique, isolated, attracting, repelling, hyperbolic, parabolic, elliptic, multi-valued, set-valued, finite-iteration]
+
+  - chapter_id: P06-C04
+    chapter_name: Domain-Theoretic Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [TMTR-01]
+    operation_phrase_template: "treats trust state as a {modifier} {stem} Scott domain"
+    output_type: Scott-continuous map
+    input_signal_class: domain-theoretic residual
+    stems: [Scott domain, Scott topology, Scott-continuous, omega-CPO, dcpo, algebraic dcpo, continuous dcpo, FS domain, RB domain, L-domain]
+    modifiers: [bounded, complete, pointed, finite-element, principal-ideal, prime, coprime, Lawson, Vietoris, upper-semicontinuous]
+
+  - chapter_id: P06-C05
+    chapter_name: Well-Founded Induction Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [TMTR-04]
+    operation_phrase_template: "applies {modifier} {stem} induction along trust orbits"
+    output_type: induction principle
+    input_signal_class: well-founded order
+    stems: [transfinite induction, structural induction, ordinal induction, Noetherian induction, well-founded induction, computational induction, fixpoint induction, Park induction, parameterised induction, mutual induction]
+    modifiers: [strong, weak, course-of-values, multi-step, simultaneous, mutual, single-step, accelerated, terminating, total]
+
+  - chapter_id: P06-C06
+    chapter_name: Modal-Logic Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "structures trust dynamics via {modifier} {stem} modality"
+    output_type: modal formula
+    input_signal_class: Kripke frame
+    stems: [necessity modality, possibility modality, knowledge modality, belief modality, S4 modal, S5 modal, K modal, T modal, KD45 modal, B modal]
+    modifiers: [reflexive, transitive, symmetric, Euclidean, serial, dense, atomic, finite, locally-finite, image-finite]
+
+  - chapter_id: P06-C07
+    chapter_name: Linear-Logic Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "encodes residual resources via a {modifier} {stem} linear-logic connective"
+    output_type: linear-logic formula
+    input_signal_class: resource-aware residual
+    stems: [tensor product, linear implication, additive disjunction, additive conjunction, exponential bang, exponential whynot, dual-of, par, with, plus]
+    modifiers: [classical, intuitionistic, multiplicative, additive, exponential, relevance, affine, strict, ordered, non-commutative]
+
+  - chapter_id: P06-C08
+    chapter_name: Substructural-Logic Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "encodes residual via {modifier} {stem} substructural logic"
+    output_type: substructural formula
+    input_signal_class: substructural residual algebra
+    stems: [linear logic, affine logic, relevance logic, BCK logic, Lambek calculus, Hilbert system, sequent calculus, natural deduction, Gentzen calculus, residuated logic]
+    modifiers: [classical, intuitionistic, modal, hybrid, ordered, commutative, contraction-free, weakening-free, exchange-free, fragment]
+
+  - chapter_id: P06-C09
+    chapter_name: Hyperdoctrine and Topos Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "structures the residual logic as a {modifier} {stem}"
+    output_type: hyperdoctrine
+    input_signal_class: typed predicate logic
+    stems: [Lawvere hyperdoctrine, regular hyperdoctrine, geometric hyperdoctrine, coherent hyperdoctrine, classifying topos, sheaf topos, presheaf topos, slice topos, classifying category, internal logic]
+    modifiers: [Boolean, Heyting, regular, geometric, coherent, locally-cartesian-closed, exact, Barr-exact, Grothendieck, elementary]
+
+  - chapter_id: P06-C10
+    chapter_name: Order-Embedded Numerical Reductions
+    anchor_tier: T1
+    anchor_bank_ids: [TMTR-04]
+    operation_phrase_template: "embeds the trust order via {modifier} {stem} numerical encoding"
+    output_type: order-embedding
+    input_signal_class: numerical trust
+    stems: [floating-point ordering, fixed-point ordering, posit ordering, interval-arithmetic ordering, sigma-encoding, ZIP encoding, Q-format encoding, Stern-Brocot encoding, hyperreal encoding, surreal encoding]
+    modifiers: [monotone, strictly-monotone, isotone, anti-tone, preserving-bottom, preserving-top, lex, deglex, grevlex, weighted
+]

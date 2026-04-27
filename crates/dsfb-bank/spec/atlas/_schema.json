@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://invariantforge.com/schema/dsfb-atlas.json",
+  "title": "DSFB Atlas Part Specification",
+  "description": "A single Part of the DSFB 10000-theorem atlas: 10 chapters, each with method stems x modifiers expansion to 100 method instances.",
+  "type": "object",
+  "required": ["part_id", "part_name", "lens", "default_anchor_tier", "missing_layers_default", "reduction_kind_default", "default_class_color", "chapters"],
+  "properties": {
+    "part_id": {
+      "type": "string",
+      "pattern": "^P(0[1-9]|10)$",
+      "description": "P01 through P10."
+    },
+    "part_name": { "type": "string" },
+    "lens": {
+      "type": "string",
+      "enum": ["categorical", "information_theoretic", "computational", "algebraic", "topological", "order_theoretic", "measure_theoretic", "type_theoretic", "control_theoretic", "domain_empirical"]
+    },
+    "default_anchor_tier": {
+      "type": "string",
+      "enum": ["T1", "T2", "T3", "T4"]
+    },
+    "missing_layers_default": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["drift", "slew", "envelope", "grammar", "trust", "certificate"]
+      }
+    },
+    "reduction_kind_default": {
+      "type": "string",
+      "enum": ["constructive", "existential", "isomorphic", "bisimilar"]
+    },
+    "default_class_color": {
+      "type": "string",
+      "description": "LaTeX color name from dsfbatlas.sty palette"
+    },
+    "chapters": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["chapter_id", "chapter_name", "stems", "modifiers"],
+        "properties": {
+          "chapter_id": {
+            "type": "string",
+            "pattern": "^P(0[1-9]|10)-C(0[1-9]|10)$"
+          },
+          "chapter_name": { "type": "string" },
+          "class_color": { "type": "string" },
+          "anchor_tier": {
+            "type": "string",
+            "enum": ["T1", "T2", "T3", "T4"]
+          },
+          "anchor_bank_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Bank IDs (CORE-XX, DSFB-XX, etc.) that anchor T1 theorems in this chapter."
+          },
+          "paperstack_cite": { "type": "string" },
+          "public_dataset": { "type": "string" },
+          "missing_layers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["drift", "slew", "envelope", "grammar", "trust", "certificate"]
+            }
+          },
+          "reduction_kind": {
+            "type": "string",
+            "enum": ["constructive", "existential", "isomorphic", "bisimilar"]
+          },
+          "stems": {
+            "type": "array",
+            "minItems": 10,
+            "maxItems": 10,
+            "items": { "type": "string" },
+            "description": "Method-name stems; combined with modifiers to produce 100 methods per chapter."
+          },
+          "modifiers": {
+            "type": "array",
+            "minItems": 10,
+            "maxItems": 10,
+            "items": { "type": "string" }
+          },
+          "operation_phrase_template": {
+            "type": "string",
+            "description": "Template with {stem} and {modifier} placeholders, e.g. 'applies a {modifier} {stem} to the residual stream'."
+          },
+          "output_type": { "type": "string" },
+          "input_signal_class": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,318 @@
+part_id: P01
+part_name: Categorical
+lens: categorical
+default_anchor_tier: T4
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: constructive
+default_class_color: partCAT
+
+chapters:
+  - chapter_id: P01-C01
+    chapter_name: Hom-Set Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01, CORE-02]
+    operation_phrase_template: "applies a {modifier} {stem} to morphisms in the residual hom-set"
+    output_type: morphism class
+    input_signal_class: typed deterministic
+    stems:
+      - hom-set partition
+      - hom-set quotient
+      - hom-set lift
+      - hom-set restriction
+      - hom-set extension
+      - hom-set product
+      - hom-set coproduct
+      - hom-set composition
+      - hom-set inversion
+      - hom-set localisation
+    modifiers:
+      - skeletal
+      - thin
+      - groupoid
+      - poset
+      - finite
+      - filtered
+      - cofiltered
+      - small
+      - locally-presentable
+      - accessible
+
+  - chapter_id: P01-C02
+    chapter_name: Functor-Based Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01, CORE-10]
+    operation_phrase_template: "applies a {modifier} {stem} as a functor on residual systems"
+    output_type: functor
+    input_signal_class: typed deterministic
+    stems:
+      - representable functor
+      - corepresentable functor
+      - left-Kan extension
+      - right-Kan extension
+      - homotopy colimit
+      - homotopy limit
+      - density comonad
+      - codensity monad
+      - profunctor lift
+      - profunctor restriction
+    modifiers:
+      - covariant
+      - contravariant
+      - adjoint
+      - faithful
+      - full
+      - essentially-surjective
+      - conservative
+      - flat
+      - left-exact
+      - right-exact
+
+  - chapter_id: P01-C03
+    chapter_name: Natural-Transformation Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01]
+    operation_phrase_template: "applies a {modifier} {stem} as a natural transformation on the residual functor"
+    output_type: natural transformation
+    input_signal_class: typed deterministic
+    stems:
+      - identity transformation
+      - whiskered transformation
+      - horizontal composition
+      - vertical composition
+      - mate correspondence
+      - 2-cell composition
+      - end calculus
+      - coend calculus
+      - dinatural transformation
+      - extranatural transformation
+    modifiers:
+      - epi
+      - mono
+      - iso
+      - cartesian
+      - cocartesian
+      - strict
+      - lax
+      - oplax
+      - pseudo
+      - strong
+
+  - chapter_id: P01-C04
+    chapter_name: Limit and Colimit Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01, CORE-10]
+    operation_phrase_template: "computes a {modifier} {stem} of residual subsystems"
+    output_type: universal cone
+    input_signal_class: typed deterministic
+    stems:
+      - product
+      - coproduct
+      - equaliser
+      - coequaliser
+      - pullback
+      - pushout
+      - inverse limit
+      - direct limit
+      - end
+      - coend
+    modifiers:
+      - finite
+      - filtered
+      - sifted
+      - connected
+      - small
+      - directed
+      - codirected
+      - reflexive
+      - absolute
+      - flexible
+
+  - chapter_id: P01-C05
+    chapter_name: Adjunction Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01, CORE-10]
+    operation_phrase_template: "exhibits a {modifier} {stem} between residual categories"
+    output_type: adjunction
+    input_signal_class: typed deterministic
+    stems:
+      - free-forgetful adjunction
+      - tensor-hom adjunction
+      - sheafification
+      - reflection
+      - coreflection
+      - localisation
+      - completion
+      - cocompletion
+      - profunctor adjunction
+      - lax adjunction
+    modifiers:
+      - monadic
+      - comonadic
+      - reflective
+      - coreflective
+      - lex
+      - rex
+      - cartesian
+      - closed
+      - enriched
+      - bicategorical
+
+  - chapter_id: P01-C06
+    chapter_name: Monad Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-01]
+    operation_phrase_template: "applies a {modifier} {stem} arising from a monad on residual systems"
+    output_type: monadic algebra
+    input_signal_class: typed deterministic
+    stems:
+      - free monad
+      - state monad
+      - reader monad
+      - writer monad
+      - continuation monad
+      - error monad
+      - non-determinism monad
+      - probability monad
+      - distribution monad
+      - codensity monad
+    modifiers:
+      - strong
+      - commutative
+      - cartesian
+      - filtered
+      - finitary
+      - accessible
+      - presentable
+      - regular
+      - eilenberg-moore
+      - kleisli
+
+  - chapter_id: P01-C07
+    chapter_name: Sheaf Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-05]
+    operation_phrase_template: "applies a {modifier} {stem} sheaf on the residual site"
+    output_type: sheaf
+    input_signal_class: typed deterministic
+    stems:
+      - structure sheaf
+      - skyscraper sheaf
+      - constant sheaf
+      - stalk
+      - germ
+      - direct image
+      - inverse image
+      - extension by zero
+      - sheafification
+      - cohomology sheaf
+    modifiers:
+      - flabby
+      - soft
+      - fine
+      - injective
+      - flasque
+      - acyclic
+      - constructible
+      - ind-coherent
+      - quasi-coherent
+      - dualisable
+
+  - chapter_id: P01-C08
+    chapter_name: 2-Categorical Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "exhibits a {modifier} {stem} in the 2-category of residual systems"
+    output_type: 2-cell
+    input_signal_class: typed deterministic
+    stems:
+      - mate
+      - icon
+      - lax-square
+      - oplax-square
+      - pseudo-square
+      - 2-pullback
+      - 2-pushout
+      - lax-limit
+      - colax-limit
+      - companion-pair
+    modifiers:
+      - strict
+      - weak
+      - bicategorical
+      - tricategorical
+      - lax
+      - oplax
+      - pseudo
+      - cartesian
+      - regular
+      - exact
+
+  - chapter_id: P01-C09
+    chapter_name: Operad and Multicategory Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "encodes residual operations as a {modifier} {stem} in an operad"
+    output_type: operad
+    input_signal_class: typed deterministic
+    stems:
+      - associative operad
+      - commutative operad
+      - little-disks operad
+      - lambda-operad
+      - linear operad
+      - Lie operad
+      - Poisson operad
+      - cyclic operad
+      - modular operad
+      - dendroidal operad
+    modifiers:
+      - symmetric
+      - planar
+      - coloured
+      - non-symmetric
+      - skew-symmetric
+      - cyclic
+      - modular
+      - properad
+      - props
+      - wheeled
+
+  - chapter_id: P01-C10
+    chapter_name: Higher-Categorical Reductions
+    class_color: partCAT
+    anchor_tier: T4
+    anchor_bank_ids: [CORE-10]
+    operation_phrase_template: "lifts the DSFB pipeline to a {modifier} {stem} in higher categories"
+    output_type: infinity-category
+    input_signal_class: typed deterministic
+    stems:
+      - simplicial set
+      - quasi-category
+      - complete-Segal-space
+      - n-fold-Segal-space
+      - Joyal-model
+      - Reedy-model
+      - infinity-1-category
+      - infinity-n-category
+      - omega-category
+      - chain-complex
+    modifiers:
+      - presentable
+      - stable
+      - symmetric-monoidal
+      - cartesian-closed
+      - locally-presentable
+      - accessible
+      - smooth
+      - proper
+      - dualisable
+      - rigid

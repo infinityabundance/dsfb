@@ -1,0 +1,22 @@
+[package]
+name = "dsfb-atlas-fuzz"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_yaml = "0.9"
+
+[dependencies.dsfb-atlas]
+path = "../.."
+
+[[bin]]
+name = "yaml_part"
+path = "fuzz_targets/yaml_part.rs"
+test = false
+doc = false
+bench = false

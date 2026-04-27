@@ -1,0 +1,46 @@
+{
+  "tool": "dsfb-gray (real scan via crates/dsfb-gray/src/bin/dsfb-scan-crate.rs)",
+  "scanner_version": "0.1.0",
+  "scoring_version": "dsfb-assurance-score-v1",
+  "crate": "dsfb-atlas",
+  "crate_version": "2.0.0",
+  "verdict": "PASS — developing but substantial assurance posture (advisory; not certification)",
+  "overall_score_pct": 84.4,
+  "subscores_pct": {
+    "correctness": 83.3,
+    "maintainability": 94.9,
+    "concurrency_async": 75.0,
+    "resource_discipline": 66.7,
+    "verification_reviewability": 81.1
+  },
+  "section_scores_pct": {
+    "safety_surface": 100.0,
+    "verification_evidence": 60.0,
+    "build_tooling_complexity": 100.0,
+    "lifecycle_governance": 84.6,
+    "nasa_jpl_power_of_ten": 70.0,
+    "advanced_structural_checks": 97.8
+  },
+  "matched_heuristics": ["H-SERDE-01", "H-ALLOC-01"],
+  "manifest_license": "Apache-2.0",
+  "contributing_md_references": 0,
+  "source_sha256": "81f0597c3db8c4b8975f4da48e0043ae6e26ab1abad638eb464fb81fabefc5e4",
+  "scan_timestamp_utc": "2026-04-26T23:05:25Z",
+  "report_dir": "audit/reports/dsfb-gray-runs/dsfb-gray-2026-04-26T23-05-25Z/",
+  "report_artifacts": [
+    "dsfb_atlas_scan.txt",
+    "dsfb_atlas_scan.sarif.json",
+    "dsfb_atlas_scan.intoto.json",
+    "dsfb_atlas_scan.dsse.json"
+  ],
+  "threat_surface": {
+    "unsafe_blocks": 0,
+    "ffi_imports": 0,
+    "network_imports": 0,
+    "thread_spawns": 0,
+    "shell_invocations": 0,
+    "sys_dependencies": 0,
+    "license_violations": []
+  },
+  "notes": "Refreshed scan after the post-build IP-language cleanup and the generator/dedup refactor. Overall 84.4% (was 68.7% on the first scan; +15.7-point lift). Manifest license is now Apache-2.0 only; zero CONTRIBUTING.md references. Largest remaining lift opportunity is Verification Evidence at 60.0% (would benefit from a proptest dependency and additional integration tests). Lifecycle/Governance now at 84.6% (SAFETY.md, SECURITY.md, CHANGELOG.md, NOTICE all present). Advanced Structural Checks at 97.8%. Threat surface remains empty. SARIF, in-toto, and DSSE attestations are emitted alongside the human-readable report; DSSE is unsigned (set DSFB_SCAN_SIGNING_KEY to sign)."
+}

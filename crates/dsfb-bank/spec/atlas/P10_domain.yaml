@@ -1,0 +1,129 @@
+part_id: P10
+part_name: Domain-Empirical
+lens: domain_empirical
+default_anchor_tier: T2
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: constructive
+default_class_color: partDOM
+
+chapters:
+  - chapter_id: P10-C01
+    chapter_name: Aerospace and Hypersonic Systems
+    anchor_tier: T2
+    anchor_bank_ids: [SRD-01, HRET-01]
+    paperstack_cite: "DSFB for Navigation During Plasma Blackout in Hypersonic Re-Entry Vehicles"
+    public_dataset: "OpenLoop NASA reentry simulation data"
+    operation_phrase_template: "monitors residuals from a {modifier} {stem} aerospace system"
+    output_type: aerospace residual
+    input_signal_class: aerospace telemetry
+    stems: [hypersonic re-entry, GPS-denied navigation, INS drift, plasma blackout, rocket engine combustion, gas-turbine compressor stall, aircraft autopilot, satellite attitude, attitude-control thruster, spacecraft docking]
+    modifiers: [continuous-time, sampled, multi-rate, redundant, voted, fault-tolerant, hardened, certified, qualified, deterministic]
+
+  - chapter_id: P10-C02
+    chapter_name: Energy Storage and Battery Health
+    anchor_tier: T2
+    anchor_bank_ids: [ADD-09, ADD-15]
+    paperstack_cite: "DSFB Battery Health Monitoring"
+    public_dataset: "NASA battery prognostics dataset"
+    operation_phrase_template: "monitors a {modifier} {stem} battery health residual"
+    output_type: battery health estimate
+    input_signal_class: battery telemetry
+    stems: [SoC residual, SoH residual, capacity-fade residual, internal-resistance drift, knee-onset detector, voltage-curve residual, temperature-coupled residual, coulomb-counting residual, OCV-residual, impedance-spectrum residual]
+    modifiers: [LiFePO4, NMC, LCO, LMO, LTO, sodium-ion, solid-state, lead-acid, NiMH, supercapacitor]
+
+  - chapter_id: P10-C03
+    chapter_name: Semiconductor Process Control
+    anchor_tier: T2
+    anchor_bank_ids: [ADD-15]
+    paperstack_cite: "DSFB Semiconductor Process Control"
+    public_dataset: "SECOM process telemetry dataset"
+    operation_phrase_template: "monitors a {modifier} {stem} semiconductor process residual"
+    output_type: process control residual
+    input_signal_class: semiconductor process telemetry
+    stems: [etch rate residual, deposition rate residual, photolithography overlay residual, plasma-density residual, chamber-pressure residual, gas-flow residual, RF-power residual, chuck-temperature residual, substrate-temperature residual, end-point detection residual]
+    modifiers: [PCM-tested, in-line, end-of-line, run-to-run, wafer-to-wafer, lot-to-lot, recipe-conditioned, equipment-conditioned, fab-wide, multi-tool]
+
+  - chapter_id: P10-C04
+    chapter_name: RF and Signal Processing
+    anchor_tier: T2
+    anchor_bank_ids: [DSFB-05]
+    paperstack_cite: "DSFB-RF v2"
+    public_dataset: "DARPA RFML dataset"
+    operation_phrase_template: "monitors a {modifier} {stem} RF residual stream"
+    output_type: RF residual
+    input_signal_class: IQ stream
+    stems: [IQ baseband residual, spectrum occupancy residual, modulation classifier residual, jamming residual, spoofing residual, multipath residual, Doppler residual, frequency offset residual, phase offset residual, sample-rate offset residual]
+    modifiers: [narrowband, wideband, ultra-wideband, OFDM, GFSK, GMSK, FH, DSSS, MIMO, beamformed]
+
+  - chapter_id: P10-C05
+    chapter_name: Robotics and Mechatronics
+    anchor_tier: T2
+    anchor_bank_ids: [HRET-01]
+    paperstack_cite: "DSFB Robotics"
+    public_dataset: "RoboCup robot logs; YCB benchmark dataset"
+    operation_phrase_template: "monitors a {modifier} {stem} robotics residual"
+    output_type: robotics residual
+    input_signal_class: robotic system telemetry
+    stems: [joint encoder residual, actuator current residual, end-effector force residual, torque residual, kinematic residual, dynamic residual, IMU residual, lidar residual, camera residual, gripper residual]
+    modifiers: [serial-arm, parallel-arm, mobile-base, humanoid, quadruped, manipulator, soft-robot, swarm, collaborative, autonomous]
+
+  - chapter_id: P10-C06
+    chapter_name: Database and Storage Telemetry
+    anchor_tier: T2
+    anchor_bank_ids: [HRET-10]
+    paperstack_cite: "DSFB Database"
+    public_dataset: "Snowset; TPC-DS; JOB; CEB; SQLShare"
+    operation_phrase_template: "monitors a {modifier} {stem} database residual"
+    output_type: database residual
+    input_signal_class: SQL telemetry
+    stems: [query latency residual, query plan residual, optimizer cardinality residual, IO residual, lock-wait residual, cache-hit residual, deadlock residual, replication lag residual, vacuum residual, transaction-rollback residual]
+    modifiers: [OLTP, OLAP, HTAP, columnar, row-store, distributed, replicated, sharded, multi-tenant, embedded]
+
+  - chapter_id: P10-C07
+    chapter_name: Computer Graphics and Rendering
+    anchor_tier: T2
+    anchor_bank_ids: [HRET-01]
+    paperstack_cite: "DSFB and Computer Graphics"
+    public_dataset: "Unreal Engine evidence reproducibility set"
+    operation_phrase_template: "monitors a {modifier} {stem} rendering residual"
+    output_type: rendering residual
+    input_signal_class: render-pipeline telemetry
+    stems: [temporal accumulation residual, ghosting residual, shimmer residual, frame-time residual, z-fighting residual, denoiser residual, raytracing residual, shadow residual, ambient-occlusion residual, post-process residual]
+    modifiers: [real-time, offline, deterministic, frame-locked, motion-vector-corrected, history-rejected, history-accepted, occlusion-aware, BRDF-aware, energy-conserving]
+
+  - chapter_id: P10-C08
+    chapter_name: Gas Turbines and Industrial Plants
+    anchor_tier: T2
+    anchor_bank_ids: [ADD-09, SRD-01]
+    paperstack_cite: "DSFB Gas Turbine; DSFB Oil & Gas"
+    public_dataset: "C-MAPSS turbofan engine degradation dataset"
+    operation_phrase_template: "monitors a {modifier} {stem} industrial-plant residual"
+    output_type: plant residual
+    input_signal_class: industrial telemetry
+    stems: [GPA residual, EHM residual, vibration residual, blade-tip clearance residual, bearing temperature residual, exhaust-gas temperature residual, fuel-flow residual, compressor-discharge residual, turbine-inlet residual, lube-oil residual]
+    modifiers: [steady-state, transient, start-up, shut-down, base-load, peak-load, cyclic, derate, off-design, on-design]
+
+  - chapter_id: P10-C09
+    chapter_name: Software, Code, and Audit
+    anchor_tier: T2
+    anchor_bank_ids: [HRET-10]
+    paperstack_cite: "DSFB Gray; DSFB Forensics"
+    public_dataset: "RustSec advisory database; CWE/CVE database"
+    operation_phrase_template: "audits {modifier} {stem} software residuals"
+    output_type: code-audit residual
+    input_signal_class: software / artefact telemetry
+    stems: [crate-quality residual, dependency-graph residual, vulnerability-scan residual, license-compliance residual, build-reproducibility residual, supply-chain residual, signature-verification residual, attestation residual, SBOM residual, provenance residual]
+    modifiers: [Rust, Cargo, Maven, npm, PyPI, Go-modules, NuGet, Debian, Alpine, container]
+
+  - chapter_id: P10-C10
+    chapter_name: Cross-Domain and Mathematical-Physics Residuals
+    anchor_tier: T2
+    anchor_bank_ids: [DSFB-07]
+    paperstack_cite: "Three-Body Problem; Tutte Embedding; Gradient Flows; Solid-State Lattice"
+    public_dataset: "MIT lattice phonon database; Wikipedia mathematical-physics residual benchmarks"
+    operation_phrase_template: "monitors a {modifier} {stem} mathematical-physics residual"
+    output_type: physics residual
+    input_signal_class: physics simulation
+    stems: [three-body integration residual, gradient-flow residual, Tutte-embedding residual, lattice-phonon residual, swarm-Laplacian residual, KAM-stability residual, Nekhoroshev-bound residual, Hessian-spectral residual, condition-number residual, spectral-gap collapse residual]
+    modifiers: [symplectic, KAM-stable, integrable, ergodic, mixing, weakly-mixing, deterministic, replayable, byte-deterministic, qualified
+]

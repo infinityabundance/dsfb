@@ -1,0 +1,47 @@
+[package]
+name = "dsfb-atlas"
+version = "2.0.0"
+edition = "2021"
+rust-version = "1.74"
+authors = ["Riaan de Beer <riaan@invariantforge.net>"]
+description = "Generator for the DSFB Atlas v2 — emits 10,000-theorem LaTeX from YAML specs with SHA-256 proof-uniqueness verification."
+license = "Apache-2.0"
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-atlas"
+homepage = "https://github.com/infinityabundance/dsfb"
+documentation = "https://docs.rs/dsfb-atlas"
+readme = "README.md"
+keywords = ["latex", "generator", "audit", "deterministic", "prior-art"]
+categories = ["command-line-utilities", "science"]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb-atlas"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+sha2 = "0.10"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+walkdir = "2"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unused_qualifications = "warn"
+unused_must_use = "deny"
+# Kani harness is gated behind `#[cfg(kani)]`; teach rustc to recognise it.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+needless_pass_by_value = "allow"
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

@@ -1,0 +1,109 @@
+part_id: P07
+part_name: Measure-Theoretic
+lens: measure_theoretic
+default_anchor_tier: T4
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: existential
+default_class_color: partMSR
+
+chapters:
+  - chapter_id: P07-C01
+    chapter_name: Sigma-Algebra Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "structures residuals via a {modifier} {stem} sigma-algebra"
+    output_type: sigma-algebra
+    input_signal_class: measurable residual
+    stems: [Borel sigma-algebra, Lebesgue sigma-algebra, product sigma-algebra, push-forward sigma-algebra, completion sigma-algebra, tail sigma-algebra, generated sigma-algebra, Dynkin sigma-algebra, monotone class, pi-system]
+    modifiers: [generated, complete, separable, countably-generated, atomic, atomless, finite, sigma-finite, locally-finite, Hausdorff]
+
+  - chapter_id: P07-C02
+    chapter_name: Measure Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [DSFB-07]
+    operation_phrase_template: "applies a {modifier} {stem} measure on residuals"
+    output_type: measure
+    input_signal_class: residual measurable space
+    stems: [Lebesgue measure, Hausdorff measure, Haar measure, counting measure, Dirac measure, push-forward measure, product measure, Wiener measure, Borel-Cantelli measure, Radon measure]
+    modifiers: [finite, sigma-finite, complete, regular, inner-regular, outer-regular, Borel, locally-finite, atomic, absolutely-continuous]
+
+  - chapter_id: P07-C03
+    chapter_name: Integration Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-01]
+    operation_phrase_template: "integrates residuals via {modifier} {stem}"
+    output_type: integral
+    input_signal_class: measurable function
+    stems: [Lebesgue integral, Bochner integral, Pettis integral, Stieltjes integral, Riemann integral, Henstock-Kurzweil integral, Daniell integral, Choquet integral, fuzzy integral, fractional integral]
+    modifiers: [pointwise, almost-everywhere, monotone, dominated, Fatou, uniform, exchanged, layered, Bernoulli, Markov]
+
+  - chapter_id: P07-C04
+    chapter_name: Probability and Markov Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [DSFB-07]
+    operation_phrase_template: "treats residual stream as a {modifier} {stem} probabilistic process"
+    output_type: probability law
+    input_signal_class: stochastic process
+    stems: [Markov chain, hidden Markov, Markov decision, partially-observable MDP, semi-Markov, renewal process, branching process, Levy process, Brownian motion, Poisson process]
+    modifiers: [time-homogeneous, time-inhomogeneous, stationary, ergodic, mixing, weak-mixing, strongly-mixing, exponential-mixing, polynomial-mixing, geometric-mixing]
+
+  - chapter_id: P07-C05
+    chapter_name: Ergodic-Theory Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [TMTR-04]
+    operation_phrase_template: "applies {modifier} {stem} ergodic argument to residual orbit"
+    output_type: time-averaged limit
+    input_signal_class: dynamical system with invariant measure
+    stems: [Birkhoff ergodic theorem, von-Neumann ergodic, Maker-Birkhoff, multi-recurrence, multi-correlation, Furstenberg, Szemeredi, Bourgain, Wiener-Wintner, mean ergodic]
+    modifiers: [pointwise, mean-square, stationary, ergodic, mixing, weakly-mixing, strongly-mixing, K-system, Bernoulli, isomorphic]
+
+  - chapter_id: P07-C06
+    chapter_name: Concentration-of-Measure Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [TMTR-01]
+    operation_phrase_template: "bounds residual deviation via {modifier} {stem} concentration"
+    output_type: concentration bound
+    input_signal_class: bounded random residual
+    stems: [Hoeffding, Bernstein, McDiarmid, Chernoff, Talagrand, log-Sobolev, transportation, Pinsker, BL-cross, Marton]
+    modifiers: [exponential, sub-Gaussian, sub-Exponential, polynomial, transportation-cost, T1, T2, BL, isoperimetric, hyperbolic]
+
+  - chapter_id: P07-C07
+    chapter_name: Optimal-Transport Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-01]
+    operation_phrase_template: "compares residual distributions via {modifier} {stem} optimal transport"
+    output_type: transport distance
+    input_signal_class: probability measure
+    stems: [Wasserstein-1, Wasserstein-2, Wasserstein-p, sliced-Wasserstein, Sinkhorn, entropic-OT, multimarginal-OT, partial-OT, unbalanced-OT, Hellinger-Kantorovich]
+    modifiers: [exact, regularised, computational, neural, Sinkhorn-stable, Knot-balanced, time-stable, marginal-stable, transportable, supported]
+
+  - chapter_id: P07-C08
+    chapter_name: Stochastic-Calculus Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [TMTR-04]
+    operation_phrase_template: "models residual via {modifier} {stem} stochastic calculus"
+    output_type: stochastic differential
+    input_signal_class: continuous-time stochastic residual
+    stems: [Ito SDE, Stratonovich SDE, Marcus SDE, BSDE, FBSDE, McKean SDE, Levy SDE, jump-diffusion SDE, mean-field SDE, controlled SDE]
+    modifiers: [Markov, semi-Markov, time-homogeneous, time-inhomogeneous, drift-diffusion, jump, Levy, fractional, rough, mild]
+
+  - chapter_id: P07-C09
+    chapter_name: Filtration and Conditioning Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "filters residuals via {modifier} {stem} sigma-filtration"
+    output_type: filtration-conditional
+    input_signal_class: filtered probability space
+    stems: [natural filtration, augmented filtration, completed filtration, Brownian filtration, Levy filtration, predictable sigma-algebra, optional sigma-algebra, well-measurable, progressive, copredictable]
+    modifiers: [right-continuous, left-continuous, augmented, completed, usual, Brownian, predictable, optional, progressive, accessible]
+
+  - chapter_id: P07-C10
+    chapter_name: Determinacy-Preserving Measure Reductions
+    anchor_tier: T4
+    anchor_bank_ids: [HRET-10]
+    operation_phrase_template: "preserves determinacy via {modifier} {stem} measure-theoretic argument"
+    output_type: determinacy witness
+    input_signal_class: deterministic-residual measurable space
+    stems: [Dirac-pushforward, deterministic-kernel, deterministic-coupling, deterministic-mass-transport, deterministic-conditioning, deterministic-disintegration, deterministic-projection, deterministic-marginalisation, deterministic-extension, deterministic-restriction]
+    modifiers: [byte-deterministic, replay-deterministic, pure, total, finite, sigma-finite, complete, regular, atomic, atomless
+]

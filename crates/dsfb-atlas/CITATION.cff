@@ -1,0 +1,53 @@
+cff-version: 1.2.0
+message: "If you use this software or the DSFB-ATLAS, please cite it as below."
+type: software
+title: "DSFB-ATLAS Alternative Deterministic Residual Theorem Atlas: A 10,000-Theorem Universality Framework for Operator-Legible Deterministic Residual Inference"
+abbreviation: "DSFB-ATLAS"
+version: 2.0.0
+date-released: 2026-04-26
+authors:
+  - family-names: "de Beer"
+    given-names: "Riaan"
+    email: "riaan@invariantforge.net"
+    affiliation: "Invariant Forge LLC"
+    orcid: "https://orcid.org/0009-0006-1155-027X"
+license: Apache-2.0
+repository-code: "https://github.com/infinityabundance/dsfb"
+repository-artifact: "https://crates.io/crates/dsfb-atlas"
+url: "https://doi.org/10.5281/zenodo.19798649"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.19798649"
+    description: "Zenodo deposit of the DSFB-ATLAS document and source archive (v2.0)"
+keywords:
+  - deterministic-residual-inference
+  - DSFB
+  - drift-slew
+  - prior-art
+  - defensive-disclosure
+  - fault-detection-and-isolation
+  - observer-based-residuals
+  - runtime-verification
+  - admissibility-envelopes
+  - trust-monotone-recursion
+  - structural-semiotics
+  - endoduction
+  - category-theory
+  - terminal-object
+  - operator-legibility
+  - reproducible-certificates
+preferred-citation:
+  type: generic
+  title: "DSFB-ATLAS Alternative Deterministic Residual Theorem Atlas: A 10,000-Theorem Universality Framework for Operator-Legible Deterministic Residual Inference - Drift-Slew, Envelope, Grammar, Trust, and Endoductive Structural Inference"
+  authors:
+    - family-names: "de Beer"
+      given-names: "Riaan"
+      email: "riaan@invariantforge.net"
+      affiliation: "Invariant Forge LLC"
+      orcid: "https://orcid.org/0009-0006-1155-027X"
+  year: 2026
+  publisher:
+    name: "Zenodo"
+  version: "v2.0"
+  doi: "10.5281/zenodo.19798649"
+  url: "https://doi.org/10.5281/zenodo.19798649"

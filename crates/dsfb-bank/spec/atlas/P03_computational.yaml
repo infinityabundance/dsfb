@@ -1,0 +1,114 @@
+part_id: P03
+part_name: Computational
+lens: computational
+default_anchor_tier: T1
+missing_layers_default: [grammar, trust, certificate]
+reduction_kind_default: constructive
+default_class_color: partCMP
+
+chapters:
+  - chapter_id: P03-C01
+    chapter_name: Threshold and Magnitude Methods
+    anchor_tier: T1
+    anchor_bank_ids: [ADD-01, ADD-02, ADD-03]
+    operation_phrase_template: "applies a {modifier} {stem} on residual magnitude"
+    output_type: scalar predicate
+    input_signal_class: scalar residual
+    stems: [fixed threshold, adaptive threshold, hysteretic threshold, dual threshold, multi-level threshold, percentile threshold, sigma threshold, peak threshold, RMS threshold, envelope threshold]
+    modifiers: [absolute, normalised, scaled, weighted, smoothed, robust, online, offline, recursive, sliding-window]
+
+  - chapter_id: P03-C02
+    chapter_name: Derivative and Slew Methods
+    anchor_tier: T1
+    anchor_bank_ids: [ADD-08, ADD-09]
+    operation_phrase_template: "applies a {modifier} {stem} to residual time derivatives"
+    output_type: derivative-based predicate
+    input_signal_class: time-series residual
+    stems: [first difference, second difference, Savitzky-Golay derivative, total-variation derivative, fractional derivative, Hilbert derivative, wavelet derivative, polynomial derivative, central difference, forward difference]
+    modifiers: [windowed, recursive, robust, smoothed, debiased, regularised, edge-aware, anti-aliased, oversampled, decimated]
+
+  - chapter_id: P03-C03
+    chapter_name: Filter and Observer Methods
+    anchor_tier: T1
+    anchor_bank_ids: [DSFB-01, DSFB-05, CORE-02]
+    operation_phrase_template: "estimates state via a {modifier} {stem}"
+    output_type: state estimate residual
+    input_signal_class: dynamical system
+    stems: [Luenberger observer, Kalman filter, extended Kalman filter, unscented Kalman filter, particle filter, sliding-mode observer, high-gain observer, H-infinity observer, parity-space residual, dead-beat observer]
+    modifiers: [linear, nonlinear, time-varying, time-invariant, robust, adaptive, distributed, decentralised, deterministic, stochastic]
+
+  - chapter_id: P03-C04
+    chapter_name: Set-Membership Methods
+    anchor_tier: T1
+    anchor_bank_ids: [SRD-01, SRD-03]
+    paperstack_cite: "Deterministic Disturbance Modeling Framework"
+    operation_phrase_template: "checks {modifier} {stem} consistency on residuals"
+    output_type: set-membership predicate
+    input_signal_class: bounded uncertainty model
+    stems: [box, zonotope, ellipsoid, polytope, interval, parallelotope, constrained zonotope, support function, taylor model, polynomial zonotope]
+    modifiers: [outer-bounding, inner-bounding, exact, conservative, validated, symbolic, numeric, validated-arithmetic, affine-arithmetic, interval-arithmetic]
+
+  - chapter_id: P03-C05
+    chapter_name: Statistical Process Control Methods
+    anchor_tier: T2
+    anchor_bank_ids: [ADD-15]
+    paperstack_cite: "DSFB Semiconductor Process Control"
+    operation_phrase_template: "monitors residuals via a {modifier} {stem} chart"
+    output_type: control chart violation
+    input_signal_class: process telemetry
+    stems: [Shewhart chart, CUSUM chart, EWMA chart, MEWMA chart, Hotelling T2 chart, MA chart, R chart, S chart, p chart, c chart]
+    modifiers: [Western-Electric, Nelson, AT&T, ANSI, robust, adaptive, recursive, sequential, multivariate, multi-stream]
+
+  - chapter_id: P03-C06
+    chapter_name: Change-Point and Sequential-Test Methods
+    anchor_tier: T2
+    anchor_bank_ids: [ADD-15]
+    operation_phrase_template: "detects change via a {modifier} {stem}"
+    output_type: change-point estimate
+    input_signal_class: time-series residual
+    stems: [Page CUSUM, GLR change-point, BOCPD, Shiryaev test, Bayesian change-point, kernel change-point, structural break test, segmentation, dynamic programming change-point, fused-Lasso change-point]
+    modifiers: [online, offline, sequential, group-sequential, exact, asymptotic, robust, nonparametric, permutation, plug-in]
+
+  - chapter_id: P03-C07
+    chapter_name: Forecast and Reconstruction Residual Methods
+    anchor_tier: T2
+    anchor_bank_ids: [DSFB-07]
+    paperstack_cite: "DSFB Battery Health Monitoring"
+    operation_phrase_template: "compares observation against {modifier} {stem} forecast"
+    output_type: forecast residual
+    input_signal_class: predictive model
+    stems: [ARIMA forecast, exponential smoothing, Holt-Winters, state-space forecast, regression forecast, neural-network forecast, Gaussian-process forecast, persistence forecast, naive forecast, ensemble forecast]
+    modifiers: [one-step, k-step, online, batch, recursive, rolling, adaptive, robust, regularised, calibrated]
+
+  - chapter_id: P03-C08
+    chapter_name: Runtime-Verification and Formal-Monitor Methods
+    anchor_tier: T2
+    anchor_bank_ids: [HRET-01, HRET-10]
+    paperstack_cite: "Pnueli temporal logic; Bartocci-Falcone RV survey"
+    operation_phrase_template: "checks trace conformance via a {modifier} {stem}"
+    output_type: monitor verdict
+    input_signal_class: event trace
+    stems: [LTL monitor, CTL monitor, MTL monitor, STL monitor, regular-expression monitor, automaton monitor, rule-based monitor, predicate monitor, timed-automaton monitor, hyperproperty monitor]
+    modifiers: [past-time, future-time, bounded-future, unbounded-future, online, offline, anticipatory, robust, quantitative, symbolic]
+
+  - chapter_id: P03-C09
+    chapter_name: Sliding-Window and Streaming Methods
+    anchor_tier: T1
+    anchor_bank_ids: [CORE-02]
+    operation_phrase_template: "computes a {modifier} {stem} on a sliding window of residuals"
+    output_type: window summary
+    input_signal_class: streaming source
+    stems: [moving average, sliding window variance, sketch, AMS sketch, count-min sketch, count sketch, histogram, quantile sketch, t-digest, KLL sketch]
+    modifiers: [exact, approximate, online, mergeable, distributed, federated, differentially-private, robust, adaptive, deterministic]
+
+  - chapter_id: P03-C10
+    chapter_name: Time-Sync and Numerical Residual Methods
+    anchor_tier: T2
+    anchor_bank_ids: [HRET-10]
+    paperstack_cite: "DSFB-RF; DSFB-Robotics"
+    operation_phrase_template: "monitors clock or numerics via a {modifier} {stem}"
+    output_type: drift estimate
+    input_signal_class: clock-disciplined or fixed-point system
+    stems: [PTP offset, NTP offset, GNSS-disciplined oscillator drift, fixed-point overflow detector, accumulated rounding-error estimator, deterministic-replay hash mismatch, ARINC-664 jitter monitor, TTEthernet schedule deviation, redundant-sensor TMR vote, redundant-sensor QMR vote]
+    modifiers: [hardware-timestamped, software-timestamped, GPS-disciplined, atomic-disciplined, sliding-window, sigma-clipped, robust, deterministic, byte-deterministic, replayable
+]
