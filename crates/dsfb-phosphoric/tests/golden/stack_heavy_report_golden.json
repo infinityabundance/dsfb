@@ -1,0 +1,90 @@
+{
+  "schema_version": "assurance-report-v1",
+  "module_name": "stack_demo",
+  "budget_name": "stack-heavy-fixture",
+  "budget_file": "tests/budgets/stack_heavy_fixture.toml",
+  "entrypoint_budget_classes": {
+    "root": "kernel_init"
+  },
+  "function_effects": {
+    "heavy": {
+      "declared_effects": [],
+      "direct_effects": [],
+      "required_effects": [],
+      "direct_call_targets": []
+    },
+    "light": {
+      "declared_effects": [],
+      "direct_effects": [],
+      "required_effects": [],
+      "direct_call_targets": []
+    },
+    "mid": {
+      "declared_effects": [],
+      "direct_effects": [],
+      "required_effects": [],
+      "direct_call_targets": [
+        "heavy"
+      ]
+    },
+    "root": {
+      "declared_effects": [],
+      "direct_effects": [],
+      "required_effects": [],
+      "direct_call_targets": [
+        "light",
+        "mid"
+      ]
+    }
+  },
+  "function_frames": {
+    "heavy": {
+      "frame_bytes": 80,
+      "abi_overhead_bytes": 16,
+      "param_bytes": 32,
+      "local_bytes": 32
+    },
+    "light": {
+      "frame_bytes": 16,
+      "abi_overhead_bytes": 16,
+      "param_bytes": 0,
+      "local_bytes": 0
+    },
+    "mid": {
+      "frame_bytes": 16,
+      "abi_overhead_bytes": 16,
+      "param_bytes": 0,
+      "local_bytes": 0
+    },
+    "root": {
+      "frame_bytes": 32,
+      "abi_overhead_bytes": 16,
+      "param_bytes": 0,
+      "local_bytes": 16
+    }
+  },
+  "function_stack_depths": {
+    "heavy": {
+      "worst_case_stack_bytes": 80
+    },
+    "light": {
+      "worst_case_stack_bytes": 16
+    },
+    "mid": {
+      "worst_case_stack_bytes": 96
+    },
+    "root": {
+      "worst_case_stack_bytes": 128
+    }
+  },
+  "type_layouts": {
+    "[u64; 4]": {
+      "size_bytes": 32,
+      "align_bytes": 8
+    },
+    "u64": {
+      "size_bytes": 8,
+      "align_bytes": 8
+    }
+  }
+}

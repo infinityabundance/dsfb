@@ -1,0 +1,20 @@
+module stack_demo;
+
+fn heavy(a: u64, b: u64, c: u64, d: u64) -> u64 {
+    let payload: [u64; 4] = [1, 2, 3, 4];
+    return a;
+}
+
+fn light() -> u64 {
+    return 0;
+}
+
+fn mid() -> u64 {
+    return heavy(1, 2, 3, 4);
+}
+
+fn root() -> u64 {
+    let first = mid();
+    let second = light();
+    return first;
+}

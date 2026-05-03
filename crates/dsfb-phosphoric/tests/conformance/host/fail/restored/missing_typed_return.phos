@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.missing_typed_return;
+profile host;
+
+// fail-expected: K-008
+// (restored from legacy_ui/fail/missing_typed_return; legacy code MISSING_RETURN_VALUE "does not return a value")
+
+module fail.missing_typed_return;
+
+fn missing(flag: bool) -> bool {
+    let value = flag;
+}

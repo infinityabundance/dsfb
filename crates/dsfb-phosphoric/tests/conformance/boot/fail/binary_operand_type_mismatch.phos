@@ -1,0 +1,14 @@
+module tests.conformance.boot.fail.binary_operand_type_mismatch;
+
+// fail-expected: K-014
+//
+// Binary operators require operands of compatible types. Mixing a
+// boolean literal with an integer literal is rejected with K-014
+// (binary operator operand types incompatible). The literal classes
+// (Bool, Int, Unit) are pinned at parse time; mixed-class operands
+// can never pass type checking.
+
+fn mismatched_op() -> u32 {
+    let result: u32 = true + 1;
+    result
+}

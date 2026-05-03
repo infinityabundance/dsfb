@@ -1,0 +1,9 @@
+module fixture.param_mul_let;
+profile boot;
+fn entry() -> i32 {
+    return scale(6);
+}
+fn scale(arg: i32) -> i32 {
+    let factor = 7;
+    return arg * factor;
+}

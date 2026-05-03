@@ -1,0 +1,11 @@
+# Pass A-6 fixture (ADD): param-arithmetic — `return arg + INTLIT;`.
+# Source:
+#   fn entry()  { return add5(7); }
+#   fn add5(arg) { return arg + 5; }
+# Lowering: 24-byte add5 block emits prologue + `mov eax, edi; add eax, 5;
+# pop rbp; ret; 11 nops`. Opcode byte 0x05 chosen at runtime (vs 0x2d
+# for SUB) based on captured op tag.
+# Verified: rc = 7 + 5 = 12 at runtime.
+size=1105
+sha=3ba2433d4f0874085c3999baf12bc286b850fa96209edff05323e51beefbd5d3
+rc=12

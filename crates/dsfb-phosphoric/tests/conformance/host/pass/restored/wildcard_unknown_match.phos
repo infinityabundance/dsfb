@@ -1,0 +1,13 @@
+module tests.conformance.host.pass.restored.wildcard_unknown_match;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/wildcard_unknown_match)
+
+module demo;
+fn choose(value: u32) -> u64 {
+    match value {
+        0 => 1,
+        _ => 2,
+    }
+}

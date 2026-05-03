@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.unsupported_generic_function;
+profile host;
+
+// fail-expected: P-003
+// (restored from legacy_ui/fail/unsupported_generic_function; legacy code UNSUPPORTED_SYNTAX "expected punctuation `(`")
+
+module fail.unsupported_generic_function;
+
+fn id[T](value: T) -> T {
+    return value;
+}

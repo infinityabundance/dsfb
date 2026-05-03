@@ -1,0 +1,6 @@
+module tests.conformance.host.pass.host_stdout_message;
+profile host;
+
+fn print_summary(line: Slice[u8, 4096], len: u32) -> bool effects(host-stdout) {
+    true
+}

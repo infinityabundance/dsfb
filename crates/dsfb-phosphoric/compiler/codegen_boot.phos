@@ -1,0 +1,1503 @@
+module pcc.codegen.boot;
+profile host;
+
+// Boot-profile codegen. HIR -> boot_ir_v1 -> boot_asm_v1.
+//
+// boot_ir_v1 is a small typed IR pinned in docs/BOOT_ABI_V1.md and
+// docs/ir.md. It is intentionally narrow: enough to express the boot
+// demo's render command construction, IPC routing, and state transitions.
+//
+// boot_asm_v1 is a narrow x86_64 assembly subset emitted as text. The PE
+// writer consumes it (today shell, after E6 Phosphoric host program).
+//
+// This module replaces the legacy shell emitter at
+// tools/phosphoric/emit_boot_demo_from_phos.sh. After E5 reaches byte parity
+// on the conformance corpus, the shell emitter is moved to archive/.
+
+struct BootIrV1 {
+    schema_version: u16,                // = 1
+    function_count: u16,
+    instructions_per_function: [BootIrInstr; 16384],
+    instruction_count: u32,
+}
+
+enum BootIrInstr {
+    LoadConst(u32, u32),                // dest_reg, value
+    LoadLocal(u32, u32),                // dest_reg, local_slot
+    StoreLocal(u32, u32),               // local_slot, source_reg
+    BinaryOp(u8, u32, u32, u32),        // op_tag, dest, lhs, rhs
+    Branch(u32),                        // target_label
+    BranchIfZero(u32, u32),             // condition_reg, target_label
+    Call(u32),                          // function_id
+    Return,
+    LabelDef(u32),
+    Halt,
+}
+
+// Count of HirItem::Function entries. Other item kinds are not lowered
+// to boot IR (capabilities are name-table only; structs/enums contribute
+// type-layout info consumed by lower_function but never emit IR themselves).
+fn count_functions(hir: pcc.hir.HirModule) -> u16 {
+    let mut count: u16 = 0;
+    #[bound = 1024]
+    for i in 0..(hir.item_count as u32) {
+        match hir.items[i] {
+            pcc.hir.HirItem::Function(_) => count = count + 1,
+            _ => (),
+        };
+    }
+    count
+}
+
+// Lower a single function body to a BootIrV1 instruction stream.
+//
+// Until typeck statement walks land (T3-1 remaining + parser part 2's
+// expression-tree pass), the body is a Halt-only stub. The function
+// shape — return type, parameter count, declared effects — is recorded
+// in the IR header for downstream consumers.
+fn lower_boot_function(
+    hir: pcc.hir.HirModule,
+    function_id: u16,
+) -> Result[BootIrV1, pcc.diagnostic.Diagnostic] {
+    let total_functions: u16 = count_functions(hir);
+    match (function_id as u32) >= (total_functions as u32) {
+        true => Err(pcc.diagnostic.Diagnostic {
+            code_prefix: 67,            // 'C' (codegen)
+            code_number: 1,             // C-001 unknown function id
+            span: None,
+            message_id: 0,
+        }),
+        false => {
+            // Until the per-statement walks land, every function lowers
+            // to a single Halt. The function_count in the returned IR
+            // is the module's full count so downstream consumers can
+            // size their per-function tables.
+            let mut instrs: [BootIrInstr; 16384] = [BootIrInstr::Halt; 16384];
+            instrs[0] = BootIrInstr::Return;
+            Ok(BootIrV1 {
+                schema_version: 1,
+                function_count: total_functions,
+                instructions_per_function: instrs,
+                instruction_count: 1,
+            })
+        },
+    }
+}
+
+// Lower a complete module: produce one BootIrV1 covering every function.
+// The instruction stream is concatenated; per-function entry indices are
+// derivable from the function ordering (HirModule.items walked in order).
+fn lower_boot_module(
+    hir: pcc.hir.HirModule,
+) -> Result[BootIrV1, pcc.diagnostic.Diagnostic] {
+    let total_functions: u16 = count_functions(hir);
+    // Until per-function bodies are real, the module stream is one
+    // Return per function (acts as an empty-body marker). Downstream
+    // emit_boot_asm walks each Return and emits the function prologue +
+    // bare ret epilogue.
+    let mut instrs: [BootIrInstr; 16384] = [BootIrInstr::Halt; 16384];
+    let count: u32 = total_functions as u32;
+    #[bound = 16384]
+    for i in 0..count {
+        match i < 16384 {
+            true => instrs[i] = BootIrInstr::Return,
+            false => i,
+        };
+    }
+    Ok(BootIrV1 {
+        schema_version: 1,
+        function_count: total_functions,
+        instructions_per_function: instrs,
+        instruction_count: count,
+    })
+}
+
+// Lower a HirExpr to a BootIR LoadConst instruction with the immediate
+// resolved from the expression. For literal forms this gives byte-exact
+// emission; for compound forms (Binary, Path, Call) the lowering returns
+// LoadConst(0, 0) as a placeholder until the full IR-construction pass
+// (constant folding, register allocation) lands.
+fn lower_hir_expr_to_loadconst(
+    expr: pcc.hir.HirExpr,
+    dest_reg: u32,
+) -> BootIrInstr {
+    match expr {
+        pcc.hir.HirExpr::IntLit(value)  => BootIrInstr::LoadConst(dest_reg, value as u32),
+        pcc.hir.HirExpr::BoolLit(b)     => BootIrInstr::LoadConst(dest_reg, match b {
+            true  => 1,
+            false => 0,
+        }),
+        pcc.hir.HirExpr::Unit           => BootIrInstr::LoadConst(dest_reg, 0),
+        pcc.hir.HirExpr::Path(_)        => BootIrInstr::LoadConst(dest_reg, 0),
+        pcc.hir.HirExpr::Binary(_, _, _) => BootIrInstr::LoadConst(dest_reg, 0),
+        pcc.hir.HirExpr::Call(_, _, _)  => BootIrInstr::LoadConst(dest_reg, 0),
+        pcc.hir.HirExpr::Field(_, _)    => BootIrInstr::LoadConst(dest_reg, 0),
+        pcc.hir.HirExpr::Index(_, _)    => BootIrInstr::LoadConst(dest_reg, 0),
+        pcc.hir.HirExpr::MatchE(_, _, _) => BootIrInstr::LoadConst(dest_reg, 0),
+        pcc.hir.HirExpr::BlockE(_)      => BootIrInstr::LoadConst(dest_reg, 0),
+        pcc.hir.HirExpr::RangeE(_, _)   => BootIrInstr::LoadConst(dest_reg, 0),
+    }
+}
+
+// True iff the expression is a literal form (IntLit / BoolLit / Unit).
+// Used by the binary lowering to decide whether to emit real per-operand
+// LoadConsts or fall back to placeholder.
+fn hir_expr_is_literal(expr: pcc.hir.HirExpr) -> bool {
+    match expr {
+        pcc.hir.HirExpr::IntLit(_)  => true,
+        pcc.hir.HirExpr::BoolLit(_) => true,
+        pcc.hir.HirExpr::Unit        => true,
+        _ => false,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Recursive expression-arena walker (R1)
+//
+// Phosphoric forbids recursion. The walker uses an explicit work stack
+// to perform iterative post-order traversal of the HIR expression DAG.
+//
+// For each visited expression:
+//   - Leaves (IntLit, BoolLit, Unit, Path, etc.) emit one LoadConst with
+//     dest_reg derived from the expression's arena id.
+//   - Compound forms (Binary, Call, Field, Index) emit their per-operand
+//     LoadConsts first (driven by the work stack), then emit the combiner
+//     instruction (BinaryOp, etc.) using register ids derived from operand ids.
+//
+// The register-numbering convention: dest_reg = expr_id mod 256. This is
+// deterministic, byte-stable, and avoids the need for a real allocator.
+// A future register-allocation pass can replace the modulus mapping.
+// ---------------------------------------------------------------------------
+
+struct ExprFrame {
+    expr_id: u16,
+    children_pushed: bool,
+}
+
+// Lower a complete HIR expression tree iteratively, emitting instructions
+// to `out` starting at `cursor`. Returns the new cursor.
+//
+// Algorithm: post-order traversal via explicit work stack. For each frame:
+//   - If !children_pushed: mark children_pushed, push self, push children.
+//   - If  children_pushed: pop self, emit instruction(s) for this expr.
+//
+// Each operand id in a Binary/Call/etc node corresponds to a unique
+// register slot via expr_id mod 256.
+fn lower_hir_expr_tree(
+    arenas: pcc.hir.HirArenas,
+    root_expr_id: u16,
+    out: Slice[BootIrInstr; 16384],
+    cursor: u32,
+) -> u32 {
+    let mut work_stack: [ExprFrame; 256] = [ExprFrame { expr_id: 0, children_pushed: false }; 256];
+    let mut top: u32 = 0;
+    let mut next: u32 = cursor;
+
+    work_stack[0] = ExprFrame { expr_id: root_expr_id, children_pushed: false };
+    top = 1;
+
+    #[bound = 4096]
+    for _ in 0..4096 {
+        match top == 0 {
+            true => return next,
+            false => {
+                let frame: ExprFrame = work_stack[top - 1];
+                match (frame.expr_id as u32) >= (arenas.expr_count as u32) {
+                    true  => top = top - 1,           // out-of-range: skip
+                    false => {
+                        let e: pcc.hir.HirExpr = arenas.exprs[frame.expr_id as u32];
+                        match frame.children_pushed {
+                            // Second visit: emit the combiner instruction.
+                            true => {
+                                let dest_reg: u32 = (frame.expr_id as u32) - ((frame.expr_id as u32) / 256) * 256;
+                                next = emit_combiner(e, dest_reg, frame.expr_id, out, next);
+                                top = top - 1;
+                            },
+                            // First visit: push children, then mark for revisit.
+                            false => {
+                                work_stack[top - 1].children_pushed = true;
+                                top = push_children(e, work_stack, top);
+                            },
+                        };
+                    },
+                };
+            },
+        };
+    }
+    next
+}
+
+// Push the children of an expression onto the work stack. Returns new top.
+// Leaves push nothing; compound forms push their operands.
+fn push_children(
+    e: pcc.hir.HirExpr,
+    stack: Slice[ExprFrame; 256],
+    top: u32,
+) -> u32 {
+    let mut t: u32 = top;
+    match e {
+        pcc.hir.HirExpr::Binary(_, lhs, rhs) => {
+            match t < 256 {
+                true => {
+                    stack[t] = ExprFrame { expr_id: lhs, children_pushed: false };
+                    t = t + 1;
+                },
+                false => (),
+            };
+            match t < 256 {
+                true => {
+                    stack[t] = ExprFrame { expr_id: rhs, children_pushed: false };
+                    t = t + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirExpr::Field(base, _) => {
+            match t < 256 {
+                true => {
+                    stack[t] = ExprFrame { expr_id: base, children_pushed: false };
+                    t = t + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirExpr::Index(base, idx) => {
+            match t < 256 {
+                true => {
+                    stack[t] = ExprFrame { expr_id: base, children_pushed: false };
+                    t = t + 1;
+                },
+                false => (),
+            };
+            match t < 256 {
+                true => {
+                    stack[t] = ExprFrame { expr_id: idx, children_pushed: false };
+                    t = t + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirExpr::RangeE(start, end) => {
+            match t < 256 {
+                true => {
+                    stack[t] = ExprFrame { expr_id: start, children_pushed: false };
+                    t = t + 1;
+                },
+                false => (),
+            };
+            match t < 256 {
+                true => {
+                    stack[t] = ExprFrame { expr_id: end, children_pushed: false };
+                    t = t + 1;
+                },
+                false => (),
+            };
+        },
+        // Leaves and forms whose operands are not stored as expr ids
+        // emit as a LoadConst directly with no children.
+        _ => (),
+    }
+    t
+}
+
+// Emit the combiner instruction for an expression. For leaves this is a
+// LoadConst; for Binary it's BinaryOp; for compound forms still in
+// development this is LoadConst placeholder.
+fn emit_combiner(
+    e: pcc.hir.HirExpr,
+    dest_reg: u32,
+    expr_id: u16,
+    out: Slice[BootIrInstr; 16384],
+    cursor: u32,
+) -> u32 {
+    let mut next: u32 = cursor;
+    match next < 16384 {
+        false => return next,
+        true => (),
+    };
+    match e {
+        pcc.hir.HirExpr::IntLit(value) => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, value as u32);
+            next + 1
+        },
+        pcc.hir.HirExpr::BoolLit(b) => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, match b {
+                true  => 1,
+                false => 0,
+            });
+            next + 1
+        },
+        pcc.hir.HirExpr::Unit => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, 0);
+            next + 1
+        },
+        pcc.hir.HirExpr::Binary(op, lhs, rhs) => {
+            let lhs_reg: u32 = (lhs as u32) - ((lhs as u32) / 256) * 256;
+            let rhs_reg: u32 = (rhs as u32) - ((rhs as u32) / 256) * 256;
+            out[next] = BootIrInstr::BinaryOp(op, dest_reg, lhs_reg, rhs_reg);
+            next + 1
+        },
+        pcc.hir.HirExpr::Path(_) => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, 0);
+            next + 1
+        },
+        pcc.hir.HirExpr::Field(_, _) => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, 0);
+            next + 1
+        },
+        pcc.hir.HirExpr::Index(_, _) => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, 0);
+            next + 1
+        },
+        pcc.hir.HirExpr::RangeE(_, _) => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, 0);
+            next + 1
+        },
+        pcc.hir.HirExpr::Call(_, _, _) => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, 0);
+            next + 1
+        },
+        pcc.hir.HirExpr::MatchE(_, _, _) => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, 0);
+            next + 1
+        },
+        pcc.hir.HirExpr::BlockE(_) => {
+            out[next] = BootIrInstr::LoadConst(dest_reg, 0);
+            next + 1
+        },
+    }
+}
+
+// Lower a Binary expression with literal operands to three IR instructions:
+//   LoadConst(dest_reg + 1, lhs_value)
+//   LoadConst(dest_reg + 2, rhs_value)
+//   BinaryOp(op_tag, dest_reg, dest_reg + 1, dest_reg + 2)
+//
+// Caller verifies both operands are literal via hir_expr_is_literal first.
+// For non-literal operands the caller should fall back to lower_hir_expr_to_loadconst
+// (which emits placeholder LoadConst(_, 0) and is the gate for the future
+// recursive arena walker that lands in a follow-up).
+//
+// Returns the new cursor; emits up to 3 instructions starting at `cursor`.
+fn lower_binary_with_literals(
+    op_tag: u8,
+    lhs: pcc.hir.HirExpr,
+    rhs: pcc.hir.HirExpr,
+    dest_reg: u32,
+    out: Slice[BootIrInstr; 16384],
+    cursor: u32,
+) -> u32 {
+    let mut next: u32 = cursor;
+    let lhs_reg: u32 = dest_reg + 1;
+    let rhs_reg: u32 = dest_reg + 2;
+    match next < 16384 {
+        true => {
+            out[next] = lower_hir_expr_to_loadconst(lhs, lhs_reg);
+            next = next + 1;
+        },
+        false => (),
+    };
+    match next < 16384 {
+        true => {
+            out[next] = lower_hir_expr_to_loadconst(rhs, rhs_reg);
+            next = next + 1;
+        },
+        false => (),
+    };
+    match next < 16384 {
+        true => {
+            out[next] = BootIrInstr::BinaryOp(op_tag, dest_reg, lhs_reg, rhs_reg);
+            next = next + 1;
+        },
+        false => (),
+    };
+    next
+}
+
+// Lower a HirStmt with HirArenas in scope, producing a sequence of
+// BootIrInstr emitted at `cursor`. Returns the new cursor. This is the
+// arena-aware form of lower_stmt_to_ir; it resolves rhs expression ids
+// against the arena to extract actual immediate values where possible.
+fn lower_hir_stmt_to_ir(
+    stmt: pcc.hir.HirStmt,
+    arenas: pcc.hir.HirArenas,
+    out: Slice[BootIrInstr; 16384],
+    cursor: u32,
+) -> u32 {
+    let mut next: u32 = cursor;
+    match stmt {
+        pcc.hir.HirStmt::Let(_, _, rhs_id) => {
+            match (rhs_id as u32) < (arenas.expr_count as u32) {
+                true => {
+                    let rhs: pcc.hir.HirExpr = arenas.exprs[rhs_id as u32];
+                    // If rhs is a Binary with literal operands, emit the
+                    // 3-instruction LoadConst+LoadConst+BinaryOp sequence;
+                    // otherwise emit a single LoadConst with the rhs
+                    // immediate (or placeholder for compound forms).
+                    next = match rhs {
+                        pcc.hir.HirExpr::Binary(op, lhs_id, rhs_inner_id) => {
+                            let both_literal: bool = match (lhs_id as u32) < (arenas.expr_count as u32) {
+                                false => false,
+                                true => match (rhs_inner_id as u32) < (arenas.expr_count as u32) {
+                                    false => false,
+                                    true => match hir_expr_is_literal(arenas.exprs[lhs_id as u32]) {
+                                        false => false,
+                                        true => hir_expr_is_literal(arenas.exprs[rhs_inner_id as u32]),
+                                    },
+                                },
+                            };
+                            match both_literal {
+                                true => lower_binary_with_literals(
+                                    op,
+                                    arenas.exprs[lhs_id as u32],
+                                    arenas.exprs[rhs_inner_id as u32],
+                                    0,
+                                    out,
+                                    next,
+                                ),
+                                false => match next < 16384 {
+                                    true => {
+                                        out[next] = lower_hir_expr_to_loadconst(rhs, 0);
+                                        next + 1
+                                    },
+                                    false => next,
+                                },
+                            }
+                        },
+                        _ => match next < 16384 {
+                            true => {
+                                out[next] = lower_hir_expr_to_loadconst(rhs, 0);
+                                next + 1
+                            },
+                            false => next,
+                        },
+                    };
+                    match next < 16384 {
+                        true => {
+                            out[next] = BootIrInstr::StoreLocal(0, 0);
+                            next = next + 1;
+                        },
+                        false => (),
+                    };
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::Assign(_, rhs_id) => {
+            match (rhs_id as u32) < (arenas.expr_count as u32) {
+                true => {
+                    let rhs: pcc.hir.HirExpr = arenas.exprs[rhs_id as u32];
+                    match next < 16384 {
+                        true => {
+                            out[next] = lower_hir_expr_to_loadconst(rhs, 0);
+                            next = next + 1;
+                        },
+                        false => (),
+                    };
+                    match next < 16384 {
+                        true => {
+                            out[next] = BootIrInstr::StoreLocal(0, 0);
+                            next = next + 1;
+                        },
+                        false => (),
+                    };
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::ExprS(expr_id) => {
+            match (expr_id as u32) < (arenas.expr_count as u32) {
+                true => match next < 16384 {
+                    true => {
+                        let e: pcc.hir.HirExpr = arenas.exprs[expr_id as u32];
+                        out[next] = lower_hir_expr_to_loadconst(e, 0);
+                        next = next + 1;
+                    },
+                    false => (),
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::For(_, _, _, _, _) => {
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::LabelDef(next);
+                    next = next + 1;
+                },
+                false => (),
+            };
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::BranchIfZero(0, next + 1);
+                    next = next + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::Return(expr_opt) => {
+            match expr_opt {
+                Some(expr_id) => match (expr_id as u32) < (arenas.expr_count as u32) {
+                    true => match next < 16384 {
+                        true => {
+                            let e: pcc.hir.HirExpr = arenas.exprs[expr_id as u32];
+                            out[next] = lower_hir_expr_to_loadconst(e, 0);
+                            next = next + 1;
+                        },
+                        false => (),
+                    },
+                    false => (),
+                },
+                None => (),
+            };
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::Return;
+                    next = next + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::Block(_) => (),
+    }
+    next
+}
+
+// Walk every interned HirStmt and emit instructions sequentially. Used by
+// the v2 codegen pipeline that consumes typeck-populated arenas. Returns
+// the final cursor (count of emitted instructions). Caller passes the
+// instruction buffer; the boot_asm encoder consumes this stream.
+fn lower_hir_arenas_to_ir(
+    arenas: pcc.hir.HirArenas,
+    out: Slice[BootIrInstr; 16384],
+) -> u32 {
+    let mut cursor: u32 = 0;
+    #[bound = 2048]
+    for i in 0..(arenas.stmt_count as u32) {
+        cursor = lower_hir_stmt_to_ir(arenas.stmts[i], arenas, out, cursor);
+    }
+    cursor
+}
+
+// Lower a single HIR statement to one or more BootIR instructions.
+// Returns the number of instructions emitted.
+//
+// Mapping:
+//   HirStmt::Let(_, _, rhs_id)    -> LoadConst (rhs evaluated) + StoreLocal
+//   HirStmt::Assign(_, rhs_id)    -> LoadConst + StoreLocal
+//   HirStmt::ExprS(expr_id)       -> evaluation drops result; emits LoadConst then no Store
+//   HirStmt::For(_,_,_,_,body)    -> LabelDef + body block + BranchIfZero + Branch
+//   HirStmt::Return(_)            -> Return
+//   HirStmt::Block(_)             -> recursive expansion of nested block
+//
+// Until typeck populates rhs_id → constant resolution, each LoadConst uses
+// dest_reg = stmt index and value = 0. Real values land with T3-1c
+// expression evaluation arena.
+fn lower_stmt_to_ir(
+    stmt: pcc.hir.HirStmt,
+    out: Slice[BootIrInstr; 16384],
+    cursor: u32,
+) -> u32 {
+    let mut next: u32 = cursor;
+    match stmt {
+        pcc.hir.HirStmt::Let(_, _, _) => {
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::LoadConst(0, 0);
+                    next = next + 1;
+                },
+                false => (),
+            };
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::StoreLocal(0, 0);
+                    next = next + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::Assign(_, _) => {
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::LoadConst(0, 0);
+                    next = next + 1;
+                },
+                false => (),
+            };
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::StoreLocal(0, 0);
+                    next = next + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::ExprS(_) => {
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::LoadConst(0, 0);
+                    next = next + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::For(_, _, _, _, _) => {
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::LabelDef(next);
+                    next = next + 1;
+                },
+                false => (),
+            };
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::BranchIfZero(0, next + 1);
+                    next = next + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::Return(_) => {
+            match next < 16384 {
+                true => {
+                    out[next] = BootIrInstr::Return;
+                    next = next + 1;
+                },
+                false => (),
+            };
+        },
+        pcc.hir.HirStmt::Block(_) => {
+            // Block expansion is delegated to caller, which has the block arena.
+            ()
+        },
+    }
+    next
+}
+
+// Encode a single instruction byte tag. The mapping is pinned in
+// docs/BOOT_ABI_V1.md. Each tag is followed by 0..N argument bytes whose
+// count is determined by the tag itself.
+fn instruction_tag_byte(instr: BootIrInstr) -> u8 {
+    match instr {
+        BootIrInstr::LoadConst(_, _)        => 1,
+        BootIrInstr::LoadLocal(_, _)        => 2,
+        BootIrInstr::StoreLocal(_, _)       => 3,
+        BootIrInstr::BinaryOp(_, _, _, _)   => 4,
+        BootIrInstr::Branch(_)              => 5,
+        BootIrInstr::BranchIfZero(_, _)     => 6,
+        BootIrInstr::Call(_)                => 7,
+        BootIrInstr::Return                 => 8,
+        BootIrInstr::LabelDef(_)            => 9,
+        BootIrInstr::Halt                   => 10,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ASM text emission helpers (R4 part 2)
+//
+// These produce the legacy boot-emitter's assembly text shape, per
+// docs/BOOT_ASM_V1_LEGACY_SPEC.md. They are byte-emission primitives;
+// the per-function lowering chains them with instruction-specific
+// emitters that land in a follow-up.
+//
+// All emitted bytes are 7-bit ASCII. Byte sequences are spelled as
+// integer literals (v0 has no string literals).
+// ---------------------------------------------------------------------------
+
+// Emit a single ASCII byte at cursor; advance.
+fn emit_ascii_byte(out: Slice[u8, 1048576], cursor: u32, b: u8) -> u32 {
+    out[cursor] = b;
+    cursor + 1
+}
+
+// Emit the literal byte sequence for ".text\n\n".
+fn emit_text_section_header(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    let mut c: u32 = cursor;
+    c = emit_ascii_byte(out, c, 46);     // '.'
+    c = emit_ascii_byte(out, c, 116);    // 't'
+    c = emit_ascii_byte(out, c, 101);    // 'e'
+    c = emit_ascii_byte(out, c, 120);    // 'x'
+    c = emit_ascii_byte(out, c, 116);    // 't'
+    c = emit_ascii_byte(out, c, 10);     // '\n'
+    c = emit_ascii_byte(out, c, 10);     // '\n'
+    c
+}
+
+// Emit ".p2align 4\n" — required prologue for every emitted function.
+fn emit_function_alignment(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    let mut c: u32 = cursor;
+    c = emit_ascii_byte(out, c, 46);     // '.'
+    c = emit_ascii_byte(out, c, 112);    // 'p'
+    c = emit_ascii_byte(out, c, 50);     // '2'
+    c = emit_ascii_byte(out, c, 97);     // 'a'
+    c = emit_ascii_byte(out, c, 108);    // 'l'
+    c = emit_ascii_byte(out, c, 105);    // 'i'
+    c = emit_ascii_byte(out, c, 103);    // 'g'
+    c = emit_ascii_byte(out, c, 110);    // 'n'
+    c = emit_ascii_byte(out, c, 32);     // ' '
+    c = emit_ascii_byte(out, c, 52);     // '4'
+    c = emit_ascii_byte(out, c, 10);     // '\n'
+    c
+}
+
+// Emit a function name followed by `:\n` — the label that introduces a
+// function body. Caller supplies the name as a fixed-capacity byte slice
+// plus its length.
+fn emit_function_label(
+    out: Slice[u8, 1048576],
+    cursor: u32,
+    name: Slice[u8, 64],
+    name_len: u32,
+) -> u32 {
+    let mut c: u32 = cursor;
+    #[bound = 64]
+    for i in 0..name_len {
+        c = emit_ascii_byte(out, c, name[i]);
+    }
+    c = emit_ascii_byte(out, c, 58);     // ':'
+    c = emit_ascii_byte(out, c, 10);     // '\n'
+    c
+}
+
+// Emit the standard function prologue:
+//     pushq %rbp
+//     movq %rsp, %rbp
+fn emit_function_prologue(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    let mut c: u32 = cursor;
+    // "    pushq %rbp\n"
+    c = emit_ascii_byte(out, c, 32);     // ' '
+    c = emit_ascii_byte(out, c, 32);     // ' '
+    c = emit_ascii_byte(out, c, 32);     // ' '
+    c = emit_ascii_byte(out, c, 32);     // ' '
+    c = emit_ascii_byte(out, c, 112);    // 'p'
+    c = emit_ascii_byte(out, c, 117);    // 'u'
+    c = emit_ascii_byte(out, c, 115);    // 's'
+    c = emit_ascii_byte(out, c, 104);    // 'h'
+    c = emit_ascii_byte(out, c, 113);    // 'q'
+    c = emit_ascii_byte(out, c, 32);     // ' '
+    c = emit_ascii_byte(out, c, 37);     // '%'
+    c = emit_ascii_byte(out, c, 114);    // 'r'
+    c = emit_ascii_byte(out, c, 98);     // 'b'
+    c = emit_ascii_byte(out, c, 112);    // 'p'
+    c = emit_ascii_byte(out, c, 10);     // '\n'
+    // "    movq %rsp, %rbp\n"
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 109);    // 'm'
+    c = emit_ascii_byte(out, c, 111);    // 'o'
+    c = emit_ascii_byte(out, c, 118);    // 'v'
+    c = emit_ascii_byte(out, c, 113);    // 'q'
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);    // 'r'
+    c = emit_ascii_byte(out, c, 115);    // 's'
+    c = emit_ascii_byte(out, c, 112);    // 'p'
+    c = emit_ascii_byte(out, c, 44);     // ','
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 98);
+    c = emit_ascii_byte(out, c, 112);
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+// Emit the standard function epilogue:
+//     leave
+//     retq
+fn emit_function_epilogue(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    let mut c: u32 = cursor;
+    // "    leave\n"
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 108);    // 'l'
+    c = emit_ascii_byte(out, c, 101);    // 'e'
+    c = emit_ascii_byte(out, c, 97);     // 'a'
+    c = emit_ascii_byte(out, c, 118);    // 'v'
+    c = emit_ascii_byte(out, c, 101);    // 'e'
+    c = emit_ascii_byte(out, c, 10);
+    // "    retq\n"
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 114);    // 'r'
+    c = emit_ascii_byte(out, c, 101);    // 'e'
+    c = emit_ascii_byte(out, c, 116);    // 't'
+    c = emit_ascii_byte(out, c, 113);    // 'q'
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+// Emit the shadow-space reservation instructions for a non-leaf function:
+//     subq $32, %rsp
+fn emit_shadow_space_reserve(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    let mut c: u32 = cursor;
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 115);    // 's'
+    c = emit_ascii_byte(out, c, 117);    // 'u'
+    c = emit_ascii_byte(out, c, 98);     // 'b'
+    c = emit_ascii_byte(out, c, 113);    // 'q'
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 36);     // '$'
+    c = emit_ascii_byte(out, c, 51);     // '3'
+    c = emit_ascii_byte(out, c, 50);     // '2'
+    c = emit_ascii_byte(out, c, 44);     // ','
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 115);
+    c = emit_ascii_byte(out, c, 112);
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+// Emit the shadow-space release instructions:
+//     addq $32, %rsp
+fn emit_shadow_space_release(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    let mut c: u32 = cursor;
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 97);     // 'a'
+    c = emit_ascii_byte(out, c, 100);    // 'd'
+    c = emit_ascii_byte(out, c, 100);    // 'd'
+    c = emit_ascii_byte(out, c, 113);    // 'q'
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 36);
+    c = emit_ascii_byte(out, c, 51);
+    c = emit_ascii_byte(out, c, 50);
+    c = emit_ascii_byte(out, c, 44);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 115);
+    c = emit_ascii_byte(out, c, 112);
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+// Emit a complete function shell: alignment + label + prologue + (caller's
+// body bytes are inserted between this call and emit_function_epilogue) +
+// epilogue. For non-leaf functions, the caller wraps the body in
+// emit_shadow_space_reserve / emit_shadow_space_release.
+//
+// Returns the cursor after prologue, ready for the caller to emit body.
+fn emit_function_open(
+    out: Slice[u8, 1048576],
+    cursor: u32,
+    name: Slice[u8, 64],
+    name_len: u32,
+) -> u32 {
+    let mut c: u32 = cursor;
+    c = emit_function_alignment(out, c);
+    c = emit_function_label(out, c, name, name_len);
+    c = emit_function_prologue(out, c);
+    c
+}
+
+// Emit one little-endian u32 at cursor; advance cursor by 4.
+fn emit_u32_le(out: Slice[u8, 1048576], cursor: u32, value: u32) -> u32 {
+    out[cursor]     = (value - (value / 256) * 256) as u8;
+    out[cursor + 1] = ((value / 256) - ((value / 65536) * 256)) as u8;
+    out[cursor + 2] = ((value / 65536) - ((value / 16777216) * 256)) as u8;
+    out[cursor + 3] = (value / 16777216) as u8;
+    cursor + 4
+}
+
+// Emit one little-endian u8 at cursor; advance by 1.
+fn emit_u8_at(out: Slice[u8, 1048576], cursor: u32, value: u8) -> u32 {
+    out[cursor] = value;
+    cursor + 1
+}
+
+// Emit a single boot_ir_v1 instruction with its full argument byte stream.
+//
+// Per-variant byte layout (pinned in docs/BOOT_ABI_V1.md):
+//   LoadConst(dest, value)        : 1 + 4 + 4 = 9 bytes
+//   LoadLocal(dest, slot)         : 1 + 4 + 4 = 9 bytes
+//   StoreLocal(slot, src)         : 1 + 4 + 4 = 9 bytes
+//   BinaryOp(op, dest, lhs, rhs)  : 1 + 1 + 4 + 4 + 4 = 14 bytes
+//   Branch(target)                : 1 + 4 = 5 bytes
+//   BranchIfZero(cond, target)    : 1 + 4 + 4 = 9 bytes
+//   Call(function_id)             : 1 + 4 = 5 bytes
+//   Return                        : 1 byte
+//   LabelDef(label)               : 1 + 4 = 5 bytes
+//   Halt                          : 1 byte
+fn emit_instruction(
+    instr: BootIrInstr,
+    out: Slice[u8, 1048576],
+    cursor: u32,
+) -> u32 {
+    let tag: u8 = instruction_tag_byte(instr);
+    let mut c: u32 = emit_u8_at(out, cursor, tag);
+    match instr {
+        BootIrInstr::LoadConst(dest, value) => {
+            c = emit_u32_le(out, c, dest);
+            c = emit_u32_le(out, c, value);
+        },
+        BootIrInstr::LoadLocal(dest, slot) => {
+            c = emit_u32_le(out, c, dest);
+            c = emit_u32_le(out, c, slot);
+        },
+        BootIrInstr::StoreLocal(slot, src) => {
+            c = emit_u32_le(out, c, slot);
+            c = emit_u32_le(out, c, src);
+        },
+        BootIrInstr::BinaryOp(op, dest, lhs, rhs) => {
+            c = emit_u8_at(out, c, op);
+            c = emit_u32_le(out, c, dest);
+            c = emit_u32_le(out, c, lhs);
+            c = emit_u32_le(out, c, rhs);
+        },
+        BootIrInstr::Branch(target) => {
+            c = emit_u32_le(out, c, target);
+        },
+        BootIrInstr::BranchIfZero(cond, target) => {
+            c = emit_u32_le(out, c, cond);
+            c = emit_u32_le(out, c, target);
+        },
+        BootIrInstr::Call(fn_id) => {
+            c = emit_u32_le(out, c, fn_id);
+        },
+        BootIrInstr::Return => (),
+        BootIrInstr::LabelDef(label) => {
+            c = emit_u32_le(out, c, label);
+        },
+        BootIrInstr::Halt => (),
+    }
+    c
+}
+
+// Compute the byte length of one instruction without emitting it. Used
+// for sizing buffers and validating that emit_boot_asm's running cursor
+// matches the expected total.
+fn instruction_byte_length(instr: BootIrInstr) -> u32 {
+    match instr {
+        BootIrInstr::LoadConst(_, _)        => 9,
+        BootIrInstr::LoadLocal(_, _)        => 9,
+        BootIrInstr::StoreLocal(_, _)       => 9,
+        BootIrInstr::BinaryOp(_, _, _, _)   => 14,
+        BootIrInstr::Branch(_)              => 5,
+        BootIrInstr::BranchIfZero(_, _)     => 9,
+        BootIrInstr::Call(_)                => 5,
+        BootIrInstr::Return                 => 1,
+        BootIrInstr::LabelDef(_)            => 5,
+        BootIrInstr::Halt                   => 1,
+    }
+}
+
+// Emit the boot_asm_v1 byte stream from boot_ir_v1.
+//
+// Header format (8 bytes):
+//   bytes 0..2: magic "BV"  (66, 86)
+//   bytes 2..4: schema_version (little-endian u16)
+//   bytes 4..6: function_count (little-endian u16)
+//   bytes 6..8: reserved (zero)
+//
+// Followed by per-instruction byte streams per docs/BOOT_ABI_V1.md.
+//
+// Byte equivalence with the legacy shell emitter is the gate for E5
+// retirement. This emitter now produces argument-byte-complete output;
+// matching the shell emitter on every conformance case requires the
+// typeck pass to populate type-layout info (register allocation,
+// constant-pool offsets) that the IR-construction pipeline consumes.
+// ---------------------------------------------------------------------------
+// .pmanifest section — proof-carrying artifact
+//
+// Per docs/TASK_SEAL_V0.md §6.1: every boot image carries a 268-byte
+// certificate bundle independently checkable by loader and dsfb-gray.
+// Each certificate is the SHA-256 of a deterministically-ordered
+// serialization of the corresponding manifest field plus the compiler's
+// computed witness. The certificates collectively reconstruct the full
+// authority graph; any single-byte change to manifest or witness
+// propagates to exactly one certificate, isolating which boundary moved.
+//
+// emit_manifest_section is in the *trusted* zone of the trust-zone
+// partition (see TASK_SEAL_V0.md §0.4). The certificates are computed
+// by the caller from manifest source + program; this function writes
+// the canonical byte format only. dsfb-gray independently re-derives.
+// ---------------------------------------------------------------------------
+
+struct ManifestCertificates {
+    manifest_self_hash: [u8; 32],
+    compiler_image_hash: [u8; 32],
+    effect_closure_certificate: [u8; 32],
+    capability_graph_certificate: [u8; 32],
+    mmio_range_certificate: [u8; 32],
+    ipc_route_certificate: [u8; 32],
+    stack_bound_certificate: [u8; 32],
+    loop_bound_certificate: [u8; 32],
+}
+
+fn empty_certificates() -> ManifestCertificates {
+    ManifestCertificates {
+        manifest_self_hash: [0; 32],
+        compiler_image_hash: [0; 32],
+        effect_closure_certificate: [0; 32],
+        capability_graph_certificate: [0; 32],
+        mmio_range_certificate: [0; 32],
+        ipc_route_certificate: [0; 32],
+        stack_bound_certificate: [0; 32],
+        loop_bound_certificate: [0; 32],
+    }
+}
+
+// compute_certificates — derives the 8 .pmanifest certificates from the
+// manifest + program inputs. Each certificate is the SHA-256 of a
+// deterministically-ordered serialization. The host-hash effect supplies
+// the SHA-256 primitive; the serialization rules are pinned per cert
+// in docs/TASK_SEAL_V0.md §6.1.
+//
+// Cert serialization rules (single source of truth for both the
+// codegen-side compute and the boot-loader side recompute):
+//   manifest_self_hash      = SHA-256(manifest.toml bytes with the
+//                              `manifest_self_hash` field zeroed)
+//   compiler_image_hash     = SHA-256(pcc binary bytes)
+//   effect_closure_cert     = SHA-256(LE u32 effects_bitset || 0xFF)
+//   capability_graph_cert   = SHA-256(sorted [(kind_id, slot)] entries)
+//   mmio_range_cert         = SHA-256(sorted [(base, length, mode)])
+//   ipc_route_cert          = SHA-256(sorted [(id_hash, capacity)])
+//   stack_bound_cert        = SHA-256(sorted [(entrypoint_id, WCSU)])
+//   loop_bound_cert         = SHA-256(sorted [(for_stmt_id, bound)])
+//
+// Determinism: every certificate is a pure function of its inputs;
+// running compute_certificates twice on the same inputs produces
+// byte-identical output. dsfb-gray re-derives these from the published
+// manifest and compares against the .pmanifest section in the image —
+// the load-bearing cross-check at the build/boot boundary.
+//
+// This function returns empty certificates today; the real SHA-256
+// computation lands when the host-hash primitive is wired into the
+// compiler driver. The byte-format emit_manifest_section below already
+// works against any populated ManifestCertificates value.
+fn compute_certificates(
+    manifest: pcc.manifest.Manifest,
+    image_hash: [u8; 32],
+) -> ManifestCertificates effects(host-hash) {
+    let mut c: ManifestCertificates = empty_certificates();
+    c.compiler_image_hash = image_hash;
+    c.manifest_self_hash = manifest.manifest_self_hash;
+    // Effect-closure cert: SHA-256 of the LE-u32 effects_bitset + 0xFF
+    // terminator. The serialization rule is the single source of truth
+    // shared with dsfb-gray's recomputation.
+    let mut effect_buf: [u8; 1024] = [0; 1024];
+    let bs: u32 = manifest.effects_bitset;
+    effect_buf[0] = (bs & 255) as u8;
+    effect_buf[1] = ((bs >> 8) & 255) as u8;
+    effect_buf[2] = ((bs >> 16) & 255) as u8;
+    effect_buf[3] = ((bs >> 24) & 255) as u8;
+    effect_buf[4] = 255;
+    c.effect_closure_certificate = pcc.sha256.sha256_hash(effect_buf, 5);
+    // The five remaining certs (capability_graph, mmio_range, ipc_route,
+    // stack_bound, loop_bound) follow the same shape: serialize the
+    // sorted manifest field deterministically into a byte buffer, hash.
+    // The remaining serializers are bounded and mechanical; they land
+    // alongside their respective manifest-field readers.
+    c
+}
+
+fn write_cert_bytes(out: Slice[u8, 1048576], cursor: u32, src: [u8; 32]) -> u32 {
+    let mut local: u32 = cursor;
+    #[bound = 32]
+    for i in 0..32 {
+        out[local] = src[i];
+        local = local + 1;
+    }
+    local
+}
+
+fn emit_manifest_section(
+    certs: ManifestCertificates,
+    out: Slice[u8, 1048576],
+    cursor: u32,
+) -> u32 {
+    let mut c: u32 = cursor;
+    // 12-byte header: magic "PMNFv1\0\0" + total_len u16 LE (268 = 0x010C) + reserved u16
+    out[c] = 80;  c = c + 1;     // 'P'
+    out[c] = 77;  c = c + 1;     // 'M'
+    out[c] = 78;  c = c + 1;     // 'N'
+    out[c] = 70;  c = c + 1;     // 'F'
+    out[c] = 118; c = c + 1;     // 'v'
+    out[c] = 49;  c = c + 1;     // '1'
+    out[c] = 0;   c = c + 1;
+    out[c] = 0;   c = c + 1;
+    out[c] = 12;  c = c + 1;     // total_len LE low
+    out[c] = 1;   c = c + 1;     // total_len LE high (0x010C = 268)
+    out[c] = 0;   c = c + 1;     // reserved
+    out[c] = 0;   c = c + 1;     // reserved
+    c = write_cert_bytes(out, c, certs.manifest_self_hash);
+    c = write_cert_bytes(out, c, certs.compiler_image_hash);
+    c = write_cert_bytes(out, c, certs.effect_closure_certificate);
+    c = write_cert_bytes(out, c, certs.capability_graph_certificate);
+    c = write_cert_bytes(out, c, certs.mmio_range_certificate);
+    c = write_cert_bytes(out, c, certs.ipc_route_certificate);
+    c = write_cert_bytes(out, c, certs.stack_bound_certificate);
+    c = write_cert_bytes(out, c, certs.loop_bound_certificate);
+    c
+}
+
+fn emit_boot_asm(
+    ir: BootIrV1,
+    out: Slice[u8, 1048576],
+) -> u32 {
+    // 8-byte header.
+    out[0] = 66;        // 'B'
+    out[1] = 86;        // 'V'
+    let sv: u16 = ir.schema_version;
+    out[2] = (sv - (sv / 256) * 256) as u8;
+    out[3] = (sv / 256) as u8;
+    let fc: u16 = ir.function_count;
+    out[4] = (fc - (fc / 256) * 256) as u8;
+    out[5] = (fc / 256) as u8;
+    out[6] = 0;
+    out[7] = 0;
+    let mut cursor: u32 = 8;
+    let count: u32 = ir.instruction_count;
+    #[bound = 16384]
+    for i in 0..count {
+        let instr: BootIrInstr = ir.instructions_per_function[i];
+        let needed: u32 = instruction_byte_length(instr);
+        match cursor + needed <= 1048576 {
+            true => cursor = emit_instruction(instr, out, cursor),
+            false => return cursor,        // out-of-buffer: caller can detect by short-write
+        };
+    }
+    cursor
+}
+
+// ---------------------------------------------------------------------------
+// emit_boot_asm_text — produces ASCII assembly text matching the legacy spec
+//
+// RECESS TARGET (Phase 7 Tranche A, endoduction-substrate plan).
+// The binary `.pmanifest` emit (emit_boot_asm + emit_manifest_section) is
+// the gate of record. The text emitter is retained as an off-tree
+// diagnostic for codegen review only — it is NOT exercised by `make
+// verify` and should NOT grow new functionality. Any new IR-instruction
+// support lands in the binary path; this text path is frozen.
+//
+// This is the alternative emitter that targets BOOT_ASM_V1_LEGACY_SPEC.md
+// rather than the binary tag-stream form. It composes the helper functions
+// above into a complete .text section + per-function shells + per-instruction
+// body lowering.
+//
+// Per-instruction text lowering (LoadConst → movq, BinaryOp → addq/subq/etc,
+// Return → ret) lives in emit_instruction_as_text.
+//
+// Returns the cursor (number of bytes written). Caller passes a bounded
+// 1 MiB output buffer.
+// ---------------------------------------------------------------------------
+
+fn emit_boot_asm_text(
+    ir: BootIrV1,
+    out: Slice[u8, 1048576],
+) -> u32 {
+    let mut cursor: u32 = 0;
+    cursor = emit_text_section_header(out, cursor);
+    // Walk the instruction stream. The current IR doesn't carry per-function
+    // boundaries (every function lowers to a single Return today), so the
+    // text emitter wraps the entire stream in one synthetic function shell
+    // named "phosphoric_demo_step" — matching the legacy spec's reserved
+    // export. When per-function IR boundaries land, this loop becomes one
+    // shell per function.
+    let mut name: [u8; 64] = [0; 64];
+    name[0] = 112;   // 'p'
+    name[1] = 104;   // 'h'
+    name[2] = 111;   // 'o'
+    name[3] = 115;   // 's'
+    name[4] = 112;   // 'p'
+    name[5] = 104;   // 'h'
+    name[6] = 111;   // 'o'
+    name[7] = 114;   // 'r'
+    name[8] = 105;   // 'i'
+    name[9] = 99;    // 'c'
+    name[10] = 95;   // '_'
+    name[11] = 100;  // 'd'
+    name[12] = 101;  // 'e'
+    name[13] = 109;  // 'm'
+    name[14] = 111;  // 'o'
+    name[15] = 95;   // '_'
+    name[16] = 115;  // 's'
+    name[17] = 116;  // 't'
+    name[18] = 101;  // 'e'
+    name[19] = 112;  // 'p'
+    cursor = emit_function_open(out, cursor, name, 20);
+    let count: u32 = ir.instruction_count;
+    #[bound = 16384]
+    for i in 0..count {
+        let instr: BootIrInstr = ir.instructions_per_function[i];
+        cursor = emit_instruction_as_text(instr, out, cursor);
+    }
+    cursor = emit_function_epilogue(out, cursor);
+    cursor
+}
+
+// Per-instruction ASCII assembly emitter. Each variant produces an indented
+// instruction line ending in '\n'. The encoding matches the legacy spec
+// patterns at a one-instruction granularity; full byte equivalence with the
+// shell emitter requires register allocation + constant-pool layout (R4 part 3).
+fn emit_instruction_as_text(
+    instr: BootIrInstr,
+    out: Slice[u8, 1048576],
+    cursor: u32,
+) -> u32 {
+    let mut c: u32 = cursor;
+    match instr {
+        BootIrInstr::LoadConst(_, _) => c = emit_movq_imm_rax(out, c),
+        BootIrInstr::LoadLocal(_, _) => c = emit_movq_local_rax(out, c),
+        BootIrInstr::StoreLocal(_, _) => c = emit_movq_rax_local(out, c),
+        BootIrInstr::BinaryOp(op_tag, _, _, _) => c = emit_binop_text(op_tag, out, c),
+        BootIrInstr::Branch(_) => c = emit_jmp_label(out, c),
+        BootIrInstr::BranchIfZero(_, _) => c = emit_je_label(out, c),
+        BootIrInstr::Call(_) => c = emit_callq_label(out, c),
+        BootIrInstr::Return => (),     // epilogue handles return
+        BootIrInstr::LabelDef(_) => c = emit_local_label(out, c),
+        BootIrInstr::Halt => c = emit_hlt(out, c),
+    }
+    c
+}
+
+// Helper text emitters — each produces one canonical instruction line.
+
+fn emit_movq_imm_rax(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    // "    movq $0, %rax\n"  (immediate value will be plumbed in R4 part 3)
+    let mut c: u32 = cursor;
+    c = emit_indent4(out, c);
+    c = emit_ascii_byte(out, c, 109);    // 'm'
+    c = emit_ascii_byte(out, c, 111);    // 'o'
+    c = emit_ascii_byte(out, c, 118);    // 'v'
+    c = emit_ascii_byte(out, c, 113);    // 'q'
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 36);     // '$'
+    c = emit_ascii_byte(out, c, 48);     // '0'
+    c = emit_ascii_byte(out, c, 44);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 97);
+    c = emit_ascii_byte(out, c, 120);
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+fn emit_movq_local_rax(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    // "    movq -8(%rbp), %rax\n"  (slot offset will be plumbed in R4 part 3)
+    let mut c: u32 = cursor;
+    c = emit_indent4(out, c);
+    c = emit_ascii_byte(out, c, 109);
+    c = emit_ascii_byte(out, c, 111);
+    c = emit_ascii_byte(out, c, 118);
+    c = emit_ascii_byte(out, c, 113);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 45);     // '-'
+    c = emit_ascii_byte(out, c, 56);     // '8'
+    c = emit_ascii_byte(out, c, 40);     // '('
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 98);
+    c = emit_ascii_byte(out, c, 112);
+    c = emit_ascii_byte(out, c, 41);     // ')'
+    c = emit_ascii_byte(out, c, 44);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 97);
+    c = emit_ascii_byte(out, c, 120);
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+fn emit_movq_rax_local(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    // "    movq %rax, -8(%rbp)\n"
+    let mut c: u32 = cursor;
+    c = emit_indent4(out, c);
+    c = emit_ascii_byte(out, c, 109);
+    c = emit_ascii_byte(out, c, 111);
+    c = emit_ascii_byte(out, c, 118);
+    c = emit_ascii_byte(out, c, 113);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 97);
+    c = emit_ascii_byte(out, c, 120);
+    c = emit_ascii_byte(out, c, 44);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 45);
+    c = emit_ascii_byte(out, c, 56);
+    c = emit_ascii_byte(out, c, 40);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 98);
+    c = emit_ascii_byte(out, c, 112);
+    c = emit_ascii_byte(out, c, 41);
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+fn emit_binop_text(op_tag: u8, out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    // Op tags per instruction_tag_byte mapping; emit the matching mnemonic.
+    let mut c: u32 = cursor;
+    c = emit_indent4(out, c);
+    match op_tag {
+        1 => {
+            // addq %rcx, %rax
+            c = emit_ascii_byte(out, c, 97);    // 'a'
+            c = emit_ascii_byte(out, c, 100);   // 'd'
+            c = emit_ascii_byte(out, c, 100);   // 'd'
+            c = emit_ascii_byte(out, c, 113);   // 'q'
+        },
+        2 => {
+            // subq %rcx, %rax
+            c = emit_ascii_byte(out, c, 115);   // 's'
+            c = emit_ascii_byte(out, c, 117);   // 'u'
+            c = emit_ascii_byte(out, c, 98);    // 'b'
+            c = emit_ascii_byte(out, c, 113);
+        },
+        3 => {
+            // imulq %rcx, %rax
+            c = emit_ascii_byte(out, c, 105);   // 'i'
+            c = emit_ascii_byte(out, c, 109);   // 'm'
+            c = emit_ascii_byte(out, c, 117);   // 'u'
+            c = emit_ascii_byte(out, c, 108);   // 'l'
+            c = emit_ascii_byte(out, c, 113);
+        },
+        11 => {
+            // shlq %cl, %rax (ShiftLeft, tag 11)
+            c = emit_ascii_byte(out, c, 115);   // 's'
+            c = emit_ascii_byte(out, c, 104);   // 'h'
+            c = emit_ascii_byte(out, c, 108);   // 'l'
+            c = emit_ascii_byte(out, c, 113);
+        },
+        12 => {
+            // shrq %cl, %rax (ShiftRight, tag 12)
+            c = emit_ascii_byte(out, c, 115);
+            c = emit_ascii_byte(out, c, 104);
+            c = emit_ascii_byte(out, c, 114);   // 'r'
+            c = emit_ascii_byte(out, c, 113);
+        },
+        13 => {
+            // andq %rcx, %rax (BitAnd, tag 13)
+            c = emit_ascii_byte(out, c, 97);    // 'a'
+            c = emit_ascii_byte(out, c, 110);   // 'n'
+            c = emit_ascii_byte(out, c, 100);   // 'd'
+            c = emit_ascii_byte(out, c, 113);
+        },
+        14 => {
+            // orq %rcx, %rax (BitOr, tag 14)
+            c = emit_ascii_byte(out, c, 111);   // 'o'
+            c = emit_ascii_byte(out, c, 114);   // 'r'
+            c = emit_ascii_byte(out, c, 113);
+        },
+        15 => {
+            // xorq %rcx, %rax (BitXor, tag 15)
+            c = emit_ascii_byte(out, c, 120);   // 'x'
+            c = emit_ascii_byte(out, c, 111);   // 'o'
+            c = emit_ascii_byte(out, c, 114);   // 'r'
+            c = emit_ascii_byte(out, c, 113);
+        },
+        _ => {
+            // cmpq %rcx, %rax  (==/!=/</<=/>/>= all lower to a compare)
+            c = emit_ascii_byte(out, c, 99);    // 'c'
+            c = emit_ascii_byte(out, c, 109);   // 'm'
+            c = emit_ascii_byte(out, c, 112);   // 'p'
+            c = emit_ascii_byte(out, c, 113);
+        },
+    }
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 99);
+    c = emit_ascii_byte(out, c, 120);
+    c = emit_ascii_byte(out, c, 44);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 37);
+    c = emit_ascii_byte(out, c, 114);
+    c = emit_ascii_byte(out, c, 97);
+    c = emit_ascii_byte(out, c, 120);
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+fn emit_jmp_label(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    // "    jmp .Llabel0\n"  (label resolution in R4 part 3)
+    let mut c: u32 = cursor;
+    c = emit_indent4(out, c);
+    c = emit_ascii_byte(out, c, 106);    // 'j'
+    c = emit_ascii_byte(out, c, 109);    // 'm'
+    c = emit_ascii_byte(out, c, 112);    // 'p'
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 46);     // '.'
+    c = emit_ascii_byte(out, c, 76);     // 'L'
+    c = emit_ascii_byte(out, c, 48);     // '0'
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+fn emit_je_label(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    // "    je .Llabel0\n"
+    let mut c: u32 = cursor;
+    c = emit_indent4(out, c);
+    c = emit_ascii_byte(out, c, 106);    // 'j'
+    c = emit_ascii_byte(out, c, 101);    // 'e'
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 46);
+    c = emit_ascii_byte(out, c, 76);
+    c = emit_ascii_byte(out, c, 48);
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+fn emit_callq_label(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    // "    callq label0\n"
+    let mut c: u32 = cursor;
+    c = emit_indent4(out, c);
+    c = emit_ascii_byte(out, c, 99);     // 'c'
+    c = emit_ascii_byte(out, c, 97);     // 'a'
+    c = emit_ascii_byte(out, c, 108);    // 'l'
+    c = emit_ascii_byte(out, c, 108);    // 'l'
+    c = emit_ascii_byte(out, c, 113);    // 'q'
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 102);    // 'f'
+    c = emit_ascii_byte(out, c, 110);    // 'n'
+    c = emit_ascii_byte(out, c, 48);     // '0'
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+fn emit_local_label(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    // ".Llabel0:\n"  (no indent — labels start at column 0)
+    let mut c: u32 = cursor;
+    c = emit_ascii_byte(out, c, 46);     // '.'
+    c = emit_ascii_byte(out, c, 76);     // 'L'
+    c = emit_ascii_byte(out, c, 48);     // '0'
+    c = emit_ascii_byte(out, c, 58);     // ':'
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+fn emit_hlt(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    // "    hlt\n"
+    let mut c: u32 = cursor;
+    c = emit_indent4(out, c);
+    c = emit_ascii_byte(out, c, 104);    // 'h'
+    c = emit_ascii_byte(out, c, 108);    // 'l'
+    c = emit_ascii_byte(out, c, 116);    // 't'
+    c = emit_ascii_byte(out, c, 10);
+    c
+}
+
+fn emit_indent4(out: Slice[u8, 1048576], cursor: u32) -> u32 {
+    let mut c: u32 = cursor;
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c = emit_ascii_byte(out, c, 32);
+    c
+}

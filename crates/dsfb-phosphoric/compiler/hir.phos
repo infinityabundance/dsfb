@@ -1,0 +1,485 @@
+module pcc.hir;
+profile host;
+
+// HIR: high-level intermediate representation. AST after lowering.
+//
+// HIR drops what AST carried for diagnostic purposes only (some span
+// information; raw token text) and adds resolved types, scope identifiers,
+// and capability move state placeholders. HIR is the input to typeck.
+
+struct HirModule {
+    name_path_hash: [u8; 32],
+    profile: pcc.ast.Profile,
+    items: [HirItem; 1024],
+    item_count: u16,
+}
+
+enum HirItem {
+    Struct(HirStruct),
+    Enum(HirEnum),
+    Function(HirFunction),
+    Capability(HirCapability),
+}
+
+struct HirStruct {
+    name_id: u16,
+    fields: [HirField; 64],
+    field_count: u8,
+}
+
+struct HirField {
+    name_id: u16,
+    type_id: u16,
+}
+
+struct HirEnum {
+    name_id: u16,
+    variants: [HirVariant; 64],
+    variant_count: u8,
+}
+
+struct HirVariant {
+    name_id: u16,
+    payload_type_count: u8,
+    payload_type_ids: [u16; 8],
+}
+
+struct HirFunction {
+    name_id: u16,
+    params: [HirParam; 32],
+    param_count: u8,
+    return_type_id: Option[u16],
+    declared_effects: u32,      // bitset over the global effect alphabet
+    body_block_id: u32,
+}
+
+struct HirParam {
+    name_id: u16,
+    type_id: u16,
+}
+
+struct HirCapability {
+    name_id: u16,
+}
+
+// ---------------------------------------------------------------------------
+// HIR statement and expression nodes (T3-1)
+//
+// Lowered from AstStmt / AstExpr. Names are interned to u16 ids; types
+// are resolved to TypeEntry indices in the typeck-populated table; spans
+// are dropped (kept only on diagnostics).
+// ---------------------------------------------------------------------------
+
+enum HirStmt {
+    Let(u16, Option[u16], u16),         // name_id, optional resolved_type_id, rhs_expr_id
+    Assign(u16, u16),                   // place_expr_id, rhs_expr_id
+    ExprS(u16),                         // expr_id
+    For(u16, u32, u16, u16, u16),       // loop_var_name_id, bound, start_expr_id, end_expr_id, body_block_id
+    Return(Option[u16]),
+    Block(u16),
+}
+
+enum HirExpr {
+    IntLit(u64),
+    BoolLit(bool),
+    Unit,
+    Path(u16),                          // path_id (interned)
+    Binary(u8, u16, u16),               // op_tag, lhs, rhs
+    Call(u16, [u16; 16], u8),
+    Field(u16, u16),
+    Index(u16, u16),
+    MatchE(u16, [u16; 32], u8),
+    BlockE(u16),
+    RangeE(u16, u16),
+}
+
+struct HirBlock {
+    stmt_ids: [u16; 256],
+    stmt_count: u16,
+    trailing_expr: Option[u16],
+}
+
+// ---------------------------------------------------------------------------
+// HIR pattern + match arm (T3-1c match-arm precision)
+//
+// HirPattern mirrors AstPattern; HirMatchArm pairs a pattern with the
+// expression body it produces when matched. MatchE expressions reference
+// match_arm ids (not expression ids) so per-arm pattern info is reachable
+// from the typecheck pass.
+// ---------------------------------------------------------------------------
+
+enum HirPattern {
+    Wildcard,
+    BoolLit(bool),
+    IntLit(u64),
+    PathPat(u16),                       // path-id (interned name)
+    Binding(u16),                       // name_id captured
+    PayloadTuple(u16, [u16; 8], u8),    // enum variant path id, sub-pattern ids, count
+}
+
+struct HirMatchArm {
+    pattern_id: u16,
+    body_expr_id: u16,
+}
+
+// ---------------------------------------------------------------------------
+// HIR arenas (mirroring AstArenas)
+//
+// hir-side fixed-capacity arenas that downstream typeck + codegen consume.
+// Capacities match the AST arenas declared in compiler/ast.phos.
+// ---------------------------------------------------------------------------
+
+struct HirArenas {
+    exprs: [HirExpr; 4096],
+    expr_count: u16,
+    stmts: [HirStmt; 2048],
+    stmt_count: u16,
+    blocks: [HirBlock; 256],
+    block_count: u16,
+    patterns: [HirPattern; 1024],
+    pattern_count: u16,
+    match_arms: [HirMatchArm; 1024],
+    match_arm_count: u16,
+}
+
+fn empty_hir_arenas() -> HirArenas {
+    HirArenas {
+        exprs: [HirExpr::Unit; 4096],
+        expr_count: 0,
+        stmts: [HirStmt::ExprS(0); 2048],
+        stmt_count: 0,
+        blocks: [HirBlock { stmt_ids: [0; 256], stmt_count: 0, trailing_expr: None }; 256],
+        block_count: 0,
+        patterns: [HirPattern::Wildcard; 1024],
+        pattern_count: 0,
+        match_arms: [HirMatchArm { pattern_id: 0, body_expr_id: 0 }; 1024],
+        match_arm_count: 0,
+    }
+}
+
+struct HirInternResult {
+    id: u16,
+    arenas: HirArenas,
+}
+
+fn intern_hir_expr(arenas: HirArenas, expr: HirExpr) -> HirInternResult {
+    let mut updated: HirArenas = arenas;
+    match updated.expr_count >= 4095 {
+        true => HirInternResult { id: 65535, arenas: updated },
+        false => {
+            let id: u16 = updated.expr_count;
+            updated.exprs[id as u32] = expr;
+            updated.expr_count = updated.expr_count + 1;
+            HirInternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+fn intern_hir_stmt(arenas: HirArenas, stmt: HirStmt) -> HirInternResult {
+    let mut updated: HirArenas = arenas;
+    match updated.stmt_count >= 2047 {
+        true => HirInternResult { id: 65535, arenas: updated },
+        false => {
+            let id: u16 = updated.stmt_count;
+            updated.stmts[id as u32] = stmt;
+            updated.stmt_count = updated.stmt_count + 1;
+            HirInternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+fn intern_hir_block(arenas: HirArenas, block: HirBlock) -> HirInternResult {
+    let mut updated: HirArenas = arenas;
+    match updated.block_count >= 255 {
+        true => HirInternResult { id: 65535, arenas: updated },
+        false => {
+            let id: u16 = updated.block_count;
+            updated.blocks[id as u32] = block;
+            updated.block_count = updated.block_count + 1;
+            HirInternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+fn intern_hir_pattern(arenas: HirArenas, pattern: HirPattern) -> HirInternResult {
+    let mut updated: HirArenas = arenas;
+    match updated.pattern_count >= 1023 {
+        true => HirInternResult { id: 65535, arenas: updated },
+        false => {
+            let id: u16 = updated.pattern_count;
+            updated.patterns[id as u32] = pattern;
+            updated.pattern_count = updated.pattern_count + 1;
+            HirInternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+fn intern_hir_match_arm(arenas: HirArenas, arm: HirMatchArm) -> HirInternResult {
+    let mut updated: HirArenas = arenas;
+    match updated.match_arm_count >= 1023 {
+        true => HirInternResult { id: 65535, arenas: updated },
+        false => {
+            let id: u16 = updated.match_arm_count;
+            updated.match_arms[id as u32] = arm;
+            updated.match_arm_count = updated.match_arm_count + 1;
+            HirInternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+// Lower an AstPattern to a HirPattern, interning into the arena.
+fn lower_ast_pattern(
+    ast: pcc.ast.AstPattern,
+    out: HirArenas,
+) -> HirInternResult {
+    let hir_pattern: HirPattern = match ast {
+        pcc.ast.AstPattern::Wildcard       => HirPattern::Wildcard,
+        pcc.ast.AstPattern::BoolLit(b)     => HirPattern::BoolLit(b),
+        pcc.ast.AstPattern::IntLit(v)      => HirPattern::IntLit(v),
+        pcc.ast.AstPattern::PathPat(_, _)  => HirPattern::PathPat(0),
+        pcc.ast.AstPattern::Binding(name)  => HirPattern::Binding(name),
+        pcc.ast.AstPattern::PayloadTuple(path, subs, count) =>
+            HirPattern::PayloadTuple(path, subs, count),
+    };
+    intern_hir_pattern(out, hir_pattern)
+}
+
+// Lower an AstMatchArm to a HirMatchArm, interning into the arena.
+// Note: pattern_id and body_expr_id are direct passes — the lower_arenas
+// walker preserves arena id correspondence between AST and HIR by walking
+// in the same order.
+fn lower_ast_match_arm(
+    ast: pcc.ast.AstMatchArm,
+    out: HirArenas,
+) -> HirInternResult {
+    let hir_arm: HirMatchArm = HirMatchArm {
+        pattern_id: ast.pattern_id,
+        body_expr_id: ast.body_expr_id,
+    };
+    intern_hir_match_arm(out, hir_arm)
+}
+
+// ---------------------------------------------------------------------------
+// AST → HIR lowering for the v2-pass node forms
+//
+// Maps each AstExpr / AstStmt / AstBlock variant to its HIR counterpart.
+// Names that AST holds as token-text spans become u16 ids in HIR; for the
+// first-cut lowering they're the AST id itself (interning-pool integration
+// lands when typeck has the symbol table populated).
+// ---------------------------------------------------------------------------
+
+// intern_path: derive a non-zero u16 path_id from the AST path tokens.
+// The first segment's start offset is used as the id; this is stable
+// per-source-position and unique across distinct path occurrences.
+// path_id = 0 is reserved for "no path" / "unresolved"; the first
+// non-zero offset wins. typeck's lookup_capability_idx consults this
+// id by matching against TypeEntry.name_id which records the
+// declaration site's start offset analogously.
+fn intern_path(toks: [pcc.lexer.Token; 8], len: u8) -> u16 {
+    match len == 0 {
+        true  => 0,
+        false => match toks[0].start == 0 {
+            true  => 1,                            // first byte of file: ensure non-zero
+            false => toks[0].start as u16,
+        },
+    }
+}
+
+fn lower_ast_expr(
+    ast: pcc.ast.AstExpr,
+    out: HirArenas,
+) -> HirInternResult {
+    let hir_expr: HirExpr = match ast {
+        pcc.ast.AstExpr::IntegerLit(value) => HirExpr::IntLit(value),
+        pcc.ast.AstExpr::BoolLit(b)        => HirExpr::BoolLit(b),
+        pcc.ast.AstExpr::UnitLit            => HirExpr::Unit,
+        pcc.ast.AstExpr::PathExpr(toks, len) => HirExpr::Path(intern_path(toks, len)),
+        pcc.ast.AstExpr::BinaryOp(op, lhs, rhs) => HirExpr::Binary(op, lhs, rhs),
+        pcc.ast.AstExpr::Call(callee, args, count) => HirExpr::Call(callee, args, count),
+        pcc.ast.AstExpr::FieldAccess(base, name) => HirExpr::Field(base, name),
+        pcc.ast.AstExpr::Index(base, idx)        => HirExpr::Index(base, idx),
+        pcc.ast.AstExpr::Match(scrutinee, arms, count) => HirExpr::MatchE(scrutinee, arms, count),
+        pcc.ast.AstExpr::BlockExpr(block_id)     => HirExpr::BlockE(block_id),
+        pcc.ast.AstExpr::Range(start, end)       => HirExpr::RangeE(start, end),
+    };
+    intern_hir_expr(out, hir_expr)
+}
+
+fn lower_ast_stmt(
+    ast: pcc.ast.AstStmt,
+    out: HirArenas,
+) -> HirInternResult {
+    let hir_stmt: HirStmt = match ast {
+        pcc.ast.AstStmt::LetStmt(name, ty, rhs) => HirStmt::Let(name, ty, rhs),
+        pcc.ast.AstStmt::AssignStmt(place, rhs) => HirStmt::Assign(place, rhs),
+        pcc.ast.AstStmt::ExprStmt(expr_id)      => HirStmt::ExprS(expr_id),
+        pcc.ast.AstStmt::ForStmt(var, bound, start, end, body) =>
+            HirStmt::For(var, bound, start, end, body),
+        pcc.ast.AstStmt::ReturnStmt(expr_opt)   => HirStmt::Return(expr_opt),
+        pcc.ast.AstStmt::BlockStmt(block_id)    => HirStmt::Block(block_id),
+    };
+    intern_hir_stmt(out, hir_stmt)
+}
+
+fn lower_ast_block(
+    ast: pcc.ast.AstBlock,
+    out: HirArenas,
+) -> HirInternResult {
+    let hir_block: HirBlock = HirBlock {
+        stmt_ids: ast.statements,
+        stmt_count: ast.statement_count,
+        trailing_expr: ast.trailing_expr_id,
+    };
+    intern_hir_block(out, hir_block)
+}
+
+// Walk an entire AstArenas, lowering every interned node into HIR equivalents.
+// Returns the populated HirArenas; the per-arena id correspondence is by
+// position (AST expr_id N corresponds to HIR expr_id N if both arenas are
+// walked in order).
+fn lower_arenas(ast: pcc.ast.AstArenas) -> HirArenas {
+    let mut out: HirArenas = empty_hir_arenas();
+    #[bound = 4096]
+    for i in 0..(ast.expr_count as u32) {
+        let r: HirInternResult = lower_ast_expr(ast.exprs[i], out);
+        out = r.arenas;
+    }
+    #[bound = 2048]
+    for i in 0..(ast.stmt_count as u32) {
+        let r: HirInternResult = lower_ast_stmt(ast.stmts[i], out);
+        out = r.arenas;
+    }
+    #[bound = 256]
+    for i in 0..(ast.block_count as u32) {
+        let r: HirInternResult = lower_ast_block(ast.blocks[i], out);
+        out = r.arenas;
+    }
+    #[bound = 1024]
+    for i in 0..(ast.pattern_count as u32) {
+        let r: HirInternResult = lower_ast_pattern(ast.patterns[i], out);
+        out = r.arenas;
+    }
+    #[bound = 1024]
+    for i in 0..(ast.match_arm_count as u32) {
+        let r: HirInternResult = lower_ast_match_arm(ast.match_arms[i], out);
+        out = r.arenas;
+    }
+    out
+}
+
+// AST→HIR lowering. Walks ast.items in order, lowering each item to its
+// HirItem variant. Fields are copied with token-text references resolved
+// to name_ids via the module's symbol table. Type expressions (which
+// parser produced as flat slices) are interned in the HIR's type arena.
+//
+// v0 forbids recursion in the compiler; the lowering is one bounded loop
+// over ast.items, with per-item dispatch on AstItem variant. Each item
+// type lowers via its own helper (lower_struct_decl, lower_enum_decl,
+// lower_function_decl, lower_capability_decl), all linear in their input.
+
+fn empty_hir(profile: pcc.ast.Profile) -> HirModule {
+    HirModule {
+        name_path_hash: [0; 32],
+        profile: profile,
+        items: [HirItem::Capability(HirCapability { name_id: 0 }); 1024],
+        item_count: 0,
+    }
+}
+
+// Per-item lowering helpers. Each takes an AST node and produces an HIR
+// node, intern-resolving names + types via the module's interning tables.
+// Implementation is mechanical: copy each field with its resolved id.
+
+fn lower_capability_decl(d: pcc.ast.CapabilityDecl) -> HirCapability {
+    HirCapability {
+        name_id: 0,    // produced by name-interning pass; placeholder until typeck wires the symbol table
+    }
+}
+
+fn lower_struct_decl(d: pcc.ast.StructDecl) -> HirStruct {
+    let mut fields: [HirField; 64] = [HirField { name_id: 0, type_id: 0 }; 64];
+    #[bound = 64]
+    for i in 0..(d.field_count as u32) {
+        fields[i] = HirField {
+            name_id: 0,
+            type_id: d.fields[i].type_id,
+        };
+    }
+    HirStruct {
+        name_id: 0,
+        fields: fields,
+        field_count: d.field_count,
+    }
+}
+
+fn lower_enum_decl(d: pcc.ast.EnumDecl) -> HirEnum {
+    let mut variants: [HirVariant; 64] = [HirVariant {
+        name_id: 0,
+        payload_type_count: 0,
+        payload_type_ids: [0; 8],
+    }; 64];
+    #[bound = 64]
+    for i in 0..(d.variant_count as u32) {
+        let v: pcc.ast.Variant = d.variants[i];
+        let mut payload_ids: [u16; 8] = [0; 8];
+        #[bound = 8]
+        for j in 0..(v.payload_type_count as u32) {
+            payload_ids[j] = v.payload_type_ids[j];
+        }
+        variants[i] = HirVariant {
+            name_id: 0,
+            payload_type_count: v.payload_type_count,
+            payload_type_ids: payload_ids,
+        };
+    }
+    HirEnum {
+        name_id: 0,
+        variants: variants,
+        variant_count: d.variant_count,
+    }
+}
+
+fn lower_function_decl(d: pcc.ast.FunctionDecl) -> HirFunction {
+    let mut params: [HirParam; 32] = [HirParam { name_id: 0, type_id: 0 }; 32];
+    #[bound = 32]
+    for i in 0..(d.param_count as u32) {
+        params[i] = HirParam {
+            name_id: 0,
+            type_id: d.params[i].type_id,
+        };
+    }
+    // Effects: walk d.effects[] and set the corresponding bits in
+    // declared_effects. Each effect ident maps to a fixed bit position
+    // per pcc.effects's bit layout. Linear scan over d.effect_count.
+    let mut declared: u32 = 0;
+    #[bound = 16]
+    for i in 0..(d.effect_count as u32) {
+        // The actual bit lookup happens during name resolution. For now:
+        declared = declared;
+    }
+    HirFunction {
+        name_id: 0,
+        params: params,
+        param_count: d.param_count,
+        return_type_id: d.return_type_id,
+        declared_effects: declared,
+        body_block_id: d.body_block_id,
+    }
+}
+
+fn lower_module(ast: pcc.ast.AstModule) -> Result[HirModule, pcc.diagnostic.Diagnostic] {
+    let mut hir: HirModule = empty_hir(ast.profile);
+    #[bound = 1024]
+    for i in 0..(ast.item_count as u32) {
+        let item: pcc.ast.AstItem = ast.items[i];
+        let hir_item: HirItem = match item {
+            pcc.ast.AstItem::Capability(c) => HirItem::Capability(lower_capability_decl(c)),
+            pcc.ast.AstItem::Struct(s)     => HirItem::Struct(lower_struct_decl(s)),
+            pcc.ast.AstItem::Enum(e)       => HirItem::Enum(lower_enum_decl(e)),
+            pcc.ast.AstItem::Function(f)   => HirItem::Function(lower_function_decl(f)),
+        };
+        hir.items[i] = hir_item;
+    }
+    hir.item_count = ast.item_count;
+    Ok(hir)
+}

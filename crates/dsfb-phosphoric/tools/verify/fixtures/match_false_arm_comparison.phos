@@ -1,0 +1,8 @@
+module fixture.match_false_arm_comparison;
+profile boot;
+fn entry() -> i32 {
+    return helper(50);
+}
+fn helper(b: i32) -> i32 {
+    match b == 7 { true => true, false => b <= 99 }
+}

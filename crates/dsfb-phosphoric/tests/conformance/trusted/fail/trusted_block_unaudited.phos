@@ -1,0 +1,15 @@
+module tests.conformance.trusted.fail.trusted_block_unaudited;
+profile trusted;
+
+// fail-expected: T-007
+//
+// The `// trust-audit:` comment names a section that does not exist in
+// EMBER_TRUST_AUDIT.md. The check_trusted_blocks.phos host program
+// verifies the named section is present and rejects with T-007 if not.
+
+fn missing_section() {
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#section-that-does-not-exist
+    trusted! {
+        cpu_op(CpuOp::Cli);
+    }
+}

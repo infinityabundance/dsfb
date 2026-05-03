@@ -1,0 +1,15 @@
+module tests.conformance.host.fail.restored.wrong_argument_type;
+profile host;
+
+// fail-expected: K-011
+// (restored from legacy_ui/fail/wrong_argument_type; legacy code WRONG_ARGUMENT_TYPE "argument 1 has type `bool`, expected `u32`")
+
+module fail.wrong_argument_type;
+
+fn id(value: u32) -> u32 {
+    return value;
+}
+
+fn caller(flag: bool) -> u32 {
+    return id(flag);
+}

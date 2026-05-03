@@ -1,0 +1,9 @@
+name = "tiny-stack"
+
+[stack]
+task_stack_limit = 64
+kernel_init_limit = 96
+
+[entrypoints]
+kernel_init = ["root"]
+task = []

@@ -1,0 +1,11 @@
+module fixture.call_one_arg;
+profile boot;
+fn entry() -> i32 {
+    return 0;
+}
+fn helper() -> i32 {
+    return 7;
+}
+fn caller() -> i32 {
+    return helper(42);
+}

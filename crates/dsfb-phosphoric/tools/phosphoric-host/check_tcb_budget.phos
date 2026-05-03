@@ -1,0 +1,108 @@
+module pcc.host_tools.check_tcb_budget;
+profile host;
+
+// Read docs/tcb_budget.toml, count LOC per component, fail if any component
+// exceeds its ceiling or if the aggregate exceeds total_active_ceiling.
+
+struct ComponentReport {
+    name_id: u16,           // index into a fixed table of component names
+    measured: u32,
+    ceiling: u32,
+    over: bool,
+}
+
+struct BudgetReport {
+    components: [ComponentReport; 32],
+    component_count: u16,
+    aggregate_measured: u32,
+    aggregate_ceiling: u32,
+    aggregate_over: bool,
+}
+
+// Count non-blank, non-comment-only lines in `path_buf[0..len]`.
+//
+// State machine: we scan the buffer line-by-line. Within each line, we
+// classify it after walking once: a line is "code" if it contains at
+// least one non-whitespace byte that is *not* part of a `//` comment.
+// `#[bound = ...]` annotations count as code lines (they affect semantics).
+fn count_phos_loc(path_buf: Slice[u8, 1048576], len: u32) -> u32 {
+    let mut count: u32 = 0;
+    let mut line_has_code: bool = false;
+    let mut in_comment: bool = false;
+    let mut i: u32 = 0;
+    #[bound = 1048576]
+    for step in 0..len {
+        match i >= len {
+            true => step,
+            false => {
+                let b: u8 = path_buf[i];
+                match b == 10 {    // '\n'
+                    true => {
+                        match line_has_code {
+                            true  => count = count + 1,
+                            false => (),
+                        }
+                        line_has_code = false;
+                        in_comment = false;
+                    },
+                    false => match in_comment {
+                        true => (),
+                        false => match b == 47 {    // '/'
+                            true => match i + 1 < len {
+                                true => match path_buf[i + 1] == 47 {
+                                    true => in_comment = true,
+                                    false => match is_code_byte(b) {
+                                        true  => line_has_code = true,
+                                        false => (),
+                                    },
+                                },
+                                false => match is_code_byte(b) {
+                                    true  => line_has_code = true,
+                                    false => (),
+                                },
+                            },
+                            false => match is_code_byte(b) {
+                                true  => line_has_code = true,
+                                false => (),
+                            },
+                        },
+                    },
+                }
+                i = i + 1;
+                step
+            },
+        };
+    }
+    // Count any final line without trailing newline.
+    match line_has_code {
+        true  => count + 1,
+        false => count,
+    }
+}
+
+// A "code byte" is any non-whitespace byte. Whitespace is space, tab, CR.
+fn is_code_byte(b: u8) -> bool {
+    match b == 32 {
+        true  => false,
+        false => match b == 9 {
+            true  => false,
+            false => match b == 13 {
+                true  => false,
+                false => true,
+            },
+        },
+    }
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr) {
+    // TODO(E12):
+    //   1. Read docs/tcb_budget.toml.
+    //   2. For each [component.<name>], walk the path, count LOC.
+    //   3. Compare against ceiling; mark over.
+    //   4. Sum measured into aggregate; compare against total_active_ceiling.
+    //   5. Write report to stdout; exit non-zero if any over.
+    0
+}

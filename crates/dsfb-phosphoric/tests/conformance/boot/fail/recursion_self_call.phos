@@ -1,0 +1,13 @@
+module tests.conformance.boot.fail.recursion_self_call;
+
+// fail-expected: G-001
+//
+// Self-recursion (and any cyclic call graph) is rejected by the call-graph
+// pass. v0 forbids recursion to keep stack-budget analysis tractable.
+
+fn fact(n: u32) -> u32 {
+    match n == 0 {
+        true  => 1,
+        false => n * fact(n - 1),
+    }
+}

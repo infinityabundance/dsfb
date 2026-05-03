@@ -1,0 +1,12 @@
+module tests.conformance.host.fail.restored.typed_let_initializer_mismatch;
+profile host;
+
+// fail-expected: K-013
+// (restored from legacy_ui/fail/typed_let_initializer_mismatch; legacy code TYPE_MISMATCH "binding `value` has type `u32`")
+
+module fail.typed_let_initializer_mismatch;
+
+fn bad(flag: bool) -> u32 {
+    let value: u32 = flag;
+    return value;
+}

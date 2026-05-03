@@ -1,0 +1,11 @@
+module tests.conformance.boot.fail.trailing_block_expr_type_mismatch;
+
+// fail-expected: K-012
+//
+// Fail case for extension 2026-04-27c. The trailing block expression has
+// type `bool` but the function declares return type `u32`. Diagnostic
+// K-012 ("return type mismatch") fires.
+
+fn bad() -> u32 {
+    true
+}

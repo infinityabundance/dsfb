@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.unknown_effect_label;
+profile host;
+
+// fail-expected: E-001
+// (restored from legacy_ui/fail/unknown_effect_label; legacy code UNKNOWN_EFFECT "unknown effect `fs`")
+
+module fail.unknown_effect_label;
+
+fn bad() effects(fs) {
+    return;
+}

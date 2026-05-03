@@ -1,0 +1,109 @@
+module court.pnp1_r5_source;
+profile boot;
+
+// Court PNP-1 (R5 narrow): the first Phosphoric-source byte producer for
+// the canonical 32-byte R5 mmio_touch record.
+//
+// Mechanism: each of the 32 R5 record bytes is encoded as an i32 IMM
+// inside a bare-INT-return helper function. The 51-shape compiler's
+// existing STACK_FRAME helper layout emits each helper as exactly
+// 24 bytes:
+//
+//   55              push rbp                         offset  0
+//   48 89 e5        mov rbp, rsp                     offset  1
+//   48 83 ec 10     sub rsp, 16                      offset  4
+//   c7 45 fc IMM32  mov DWORD [rbp-4], IMM32         offset  8 (IMM at +11..+14)
+//   8b 45 fc        mov eax, DWORD [rbp-4]           offset 15
+//   48 89 ec        mov rsp, rbp                     offset 18
+//   5d              pop rbp                          offset 21
+//   c3              ret                              offset 22
+//   90              nop                              offset 23
+//
+// Each IMM is little-endian; byte 0 (the source's INT value mod 256) is
+// at helper offset 11. R5 byte N is therefore at file offset
+// 1081 + 24*N + 11 in the compiled ELF.
+//
+// The first function (entry) compiles to the canned 1081-byte boot
+// shell; helpers h00..h31 append after at offset 1081 as 24-byte
+// blocks. Total compiled size: 1081 + 24*32 = 1849 bytes.
+//
+// Canonical R5 mmio_touch vector (declared_lo=0x1000, declared_hi=0x10FF,
+// observed=0x1100). Byte values from
+// tools/court/emit_r5_record.sh 4096 4351 4352:
+//
+//   off  byte  field
+//   00   0x05  kind = 5 (mmio_touch)
+//   01   0x00  arch_id = 0
+//   02   0x01  seq lo = 1
+//   03   0x00  seq hi = 0
+//   04   0x00  cycle byte 0
+//   05   0x00  cycle byte 1
+//   06   0x00  cycle byte 2
+//   07   0x00  cycle byte 3
+//   08   0x00  cycle byte 4
+//   09   0x00  cycle byte 5
+//   10   0x00  cycle byte 6
+//   11   0x00  cycle byte 7
+//   12   0x00  declared_lo lo (0x1000 & 0xFF)
+//   13   0x10  declared_lo hi (0x1000 >> 8)
+//   14   0xFF  declared_hi lo (0x10FF & 0xFF)
+//   15   0x10  declared_hi hi (0x10FF >> 8)
+//   16   0x00  observed b0 (0x1100 & 0xFF)
+//   17   0x11  observed b1 ((0x1100 >> 8) & 0xFF)
+//   18   0x00  observed b2
+//   19   0x00  observed b3
+//   20   0x00  reserved (payload[8])
+//   21   0x00  reserved (payload[9])
+//   22   0x00  reserved (payload[10])
+//   23   0x00  reserved (payload[11])
+//   24   0x00  reserved (payload[12])
+//   25   0x00  reserved (payload[13])
+//   26   0x8a  chain_hash[0] (chain_step output)
+//   27   0xa2  chain_hash[1]
+//   28   0xca  chain_hash[2]
+//   29   0x5e  chain_hash[3]
+//   30   0x00  pad
+//   31   0x00  pad
+//
+// Doctrine anchors: kernel/residual.phos (R5 spec + chain_step),
+// tools/court/emit_r5_record.sh (host-reference witness),
+// docs/ASM_AUTHORITY_CUTOVER.md (cutover policy; this artifact is
+// manufactured ONCE via the historical scaffold and verified by byte
+// extraction with no phase0_stub invocation in the active path).
+
+fn entry() -> i32 {
+    return 0;
+}
+
+fn h00() -> i32 { return 5; }
+fn h01() -> i32 { return 0; }
+fn h02() -> i32 { return 1; }
+fn h03() -> i32 { return 0; }
+fn h04() -> i32 { return 0; }
+fn h05() -> i32 { return 0; }
+fn h06() -> i32 { return 0; }
+fn h07() -> i32 { return 0; }
+fn h08() -> i32 { return 0; }
+fn h09() -> i32 { return 0; }
+fn h10() -> i32 { return 0; }
+fn h11() -> i32 { return 0; }
+fn h12() -> i32 { return 0; }
+fn h13() -> i32 { return 16; }
+fn h14() -> i32 { return 255; }
+fn h15() -> i32 { return 16; }
+fn h16() -> i32 { return 0; }
+fn h17() -> i32 { return 17; }
+fn h18() -> i32 { return 0; }
+fn h19() -> i32 { return 0; }
+fn h20() -> i32 { return 0; }
+fn h21() -> i32 { return 0; }
+fn h22() -> i32 { return 0; }
+fn h23() -> i32 { return 0; }
+fn h24() -> i32 { return 0; }
+fn h25() -> i32 { return 0; }
+fn h26() -> i32 { return 138; }
+fn h27() -> i32 { return 162; }
+fn h28() -> i32 { return 202; }
+fn h29() -> i32 { return 94; }
+fn h30() -> i32 { return 0; }
+fn h31() -> i32 { return 0; }

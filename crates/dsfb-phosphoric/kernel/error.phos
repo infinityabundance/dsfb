@@ -1,0 +1,40 @@
+module pcc.kernel.error;
+profile runtime;
+
+// Kernel error codes. Stable status integers: any change is a wire-protocol
+// change that breaks runtime ABI consumers. The integer sequence is dense
+// from 1..13 with status 10 reserved (retired variant; preserved for ABI
+// stability). Status 12 (UndeclaredChannel) and 13 (ManifestMismatch) are
+// the runtime forensic-boundary errors per docs/TASK_SEAL_V0.md §5.1.
+
+enum KernelError {
+    TableFull,                  // status = 1
+    InvalidHandle,              // status = 2
+    StaleHandle,                // status = 3
+    QueueFull,                  // status = 4
+    QueueEmpty,                 // status = 5
+    Revoked,                    // status = 6
+    UnsupportedFramebuffer,     // status = 7
+    NoFocusedWindow,            // status = 8
+    OutputOverflow,             // status = 9
+    PayloadTooLarge,            // status = 11
+    UndeclaredChannel,          // status = 12 (M-006-equivalent at runtime)
+    ManifestMismatch,           // status = 13 (M-002 at runtime; fatal)
+}
+
+fn error_status(err: KernelError) -> u32 {
+    match err {
+        KernelError::TableFull              => 1,
+        KernelError::InvalidHandle          => 2,
+        KernelError::StaleHandle            => 3,
+        KernelError::QueueFull              => 4,
+        KernelError::QueueEmpty             => 5,
+        KernelError::Revoked                => 6,
+        KernelError::UnsupportedFramebuffer => 7,
+        KernelError::NoFocusedWindow        => 8,
+        KernelError::OutputOverflow         => 9,
+        KernelError::PayloadTooLarge        => 11,
+        KernelError::UndeclaredChannel      => 12,
+        KernelError::ManifestMismatch       => 13,
+    }
+}

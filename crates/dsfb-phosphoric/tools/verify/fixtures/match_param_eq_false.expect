@@ -1,0 +1,10 @@
+# Pass A-12 fixture (FALSE arm fires).
+# Source:
+#   fn entry()  { return classify(99); }
+#   fn classify(arg) { match arg == 7 { true => 100, false => 42 } }
+# Same emit shape as TRUE fixture, different runtime path: arg=99 makes
+# ZF=0, je not taken, falls into mov eax, 42.
+# Verified: rc = 42 at runtime.
+size=1105
+sha=efad8a94e167286c92bc80fbe3df51cd2f5e0fb7f3aa08787789f50022931021
+rc=42

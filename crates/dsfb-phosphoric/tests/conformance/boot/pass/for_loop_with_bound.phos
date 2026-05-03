@@ -1,0 +1,26 @@
+module tests.conformance.boot.pass.for_loop_with_bound;
+
+// Pass case for BoundAttr-prefixed for loop. v0 grammar requires every
+// for loop to carry an explicit #[bound = N] annotation; the bound
+// checker proves the range cannot exceed N.
+
+fn count_set_bits(byte: u8) -> u32 {
+    let mut count: u32 = 0;
+    let mut value: u8 = byte;
+    #[bound = 8]
+    for i in 0..8 {
+        match value == 0 {
+            true  => (),
+            false => {
+                let bit: u8 = value;
+                let low: u8 = bit;
+                match low == 1 {
+                    true  => count = count + 1,
+                    false => (),
+                }
+                value = value;
+            },
+        }
+    }
+    count
+}

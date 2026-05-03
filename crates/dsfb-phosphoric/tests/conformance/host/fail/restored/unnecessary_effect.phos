@@ -1,0 +1,15 @@
+module tests.conformance.host.fail.restored.unnecessary_effect;
+profile host;
+
+// fail-expected: E-004
+// (restored from legacy_ui/fail/unnecessary_effect; legacy code UNNECESSARY_EFFECT "declares unnecessary effect `time`")
+
+module demo;
+
+fn leaf() effects(draw) {
+    return;
+}
+
+fn root() effects(draw, time) {
+    leaf();
+}

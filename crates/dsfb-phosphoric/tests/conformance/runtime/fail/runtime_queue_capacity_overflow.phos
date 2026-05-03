@@ -1,0 +1,14 @@
+module tests.conformance.runtime.fail.runtime_queue_capacity_overflow;
+profile runtime;
+
+// fail-expected: R-004
+//
+// runtime_profile.toml's [queue_capacity] language_max = 65 536. A queue
+// declared with greater capacity is rejected at the declaration site.
+
+struct OversizedQueue {
+    items: [u32; 100000],
+    head: u16,
+    tail: u16,
+    count: u32,
+}

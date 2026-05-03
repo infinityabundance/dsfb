@@ -1,0 +1,14 @@
+module tests.conformance.host.fail.restored.loop_move_after_for;
+profile host;
+
+// fail-expected: K-007
+// (restored from legacy_ui/fail/loop_move_after_for; legacy code MOVE_AFTER_MOVE "used after move")
+
+module demo;
+fn move_after_for(value: u32) -> u64 {
+    for index in 0..1 {
+        let first = value;
+    }
+    let second = value;
+    return 1;
+}

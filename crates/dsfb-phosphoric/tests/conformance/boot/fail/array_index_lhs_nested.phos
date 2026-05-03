@@ -1,0 +1,16 @@
+module tests.conformance.boot.fail.array_index_lhs_nested;
+
+// fail-expected: P-021
+//
+// Fail case for extension 2026-04-27b. Multi-level indexed assignment
+// (`arr[i][j] = v;`) is not supported in v0. Single-level only.
+
+struct Frame {
+    rows: [[u8; 4]; 4],
+}
+
+fn paint(f: Frame) -> Frame {
+    let mut out: Frame = f;
+    out.rows[0][0] = 255;
+    out
+}

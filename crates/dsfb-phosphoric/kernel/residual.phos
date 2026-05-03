@@ -1,0 +1,209 @@
+module pcc.kernel.residual;
+profile runtime;
+
+// DSFB-native residual primitive — the load-bearing kernel addition that
+// makes Phosphoric an execution substrate dsfb-gray reads as grammar
+// rather than infers from noise.
+//
+// Each event in the ring is a typed delta between *declared* and
+// *observed* at one authority boundary. Closed taxonomy:
+//
+//   1  cap_graph_delta     declared_cap_graph - observed_cap_graph
+//   2  ipc_route_delta     declared_ipc_routes - observed_ipc_routes
+//   3  budget_pressure     budget_limit - measured_budget_use
+//   4  effect_trace        allowed_effect_closure - actual_effect_trace
+//   5  mmio_touch          declared_mmio_ranges - observed_mmio_touches
+//   6  task_transition     expected_task_transition - observed_task_transition
+//   7  boot_check          manifest_hash - image_hash (and 7 derived certs)
+//   0xFF tail_marker       emitted on any KernelError; eager write
+//
+// Adding an eighth kind is a doctrine change (see docs/TASK_SEAL_V0.md §0.4).
+//
+// Performance discipline. Chain hashing is a *budgeted determinism check*,
+// not a cryptographic ceremony. Cryptographic strength lives host-side
+// (full SHA-256 re-derived from raw events). On-device, the chain step
+// runs every `chain_freq` events; intermediate events fold into
+// `batch_acc` via the same mixer in O(1) per event. The chain commits
+// the batch at the boundary. If chain_freq causes a deadline miss, that
+// surfaces as STACK_BUDGET_PRESSURE — the system reveals its own perf
+// cost rather than hiding it.
+
+struct Residual {
+    kind: u8,
+    arch_id: u8,
+    seq: u16,
+    cycle: u64,
+    payload: [u8; 14],
+    chain_hash: [u8; 4],
+}
+
+struct ResidualRing {
+    entries: [Residual; 1024],
+    head: u16,
+    full: bool,
+    chain_freq: u16,        // 1=x86_64, 16=M33, 64=M0+ default
+    active_size: u16,       // 1024=standard; 256=ultra-razor (low-memory MCU)
+    batch_acc: [u8; 4],     // accumulator between chain_step calls
+    batch_count: u16,       // events folded since last chain commit
+}
+
+fn empty_residual() -> Residual {
+    Residual {
+        kind: 0,
+        arch_id: 0,
+        seq: 0,
+        cycle: 0,
+        payload: [0; 14],
+        chain_hash: [0; 4],
+    }
+}
+
+fn empty_residual_ring(chain_freq: u16, active_size: u16) -> ResidualRing {
+    ResidualRing {
+        entries: [empty_residual(); 1024],
+        head: 0,
+        full: false,
+        chain_freq: chain_freq,
+        active_size: active_size,
+        batch_acc: [0; 4],
+        batch_count: 0,
+    }
+}
+
+// chain_step: deterministic 4-byte mixer. Each output byte folds prev
+// with all 28 event bytes via different prime multipliers, masked to a
+// byte. Not crypto-strong; full SHA-256 chain is re-derived host-side
+// from raw event bytes. Uses bitwise & (V0_GRAMMAR_EXTENSIONS, 2026-04-28)
+// to avoid pulling division intrinsics on M0+ targets.
+fn chain_step(prev: [u8; 4], event: [u8; 28]) -> [u8; 4] {
+    let mut s0: u32 = prev[0] as u32;
+    let mut s1: u32 = prev[1] as u32;
+    let mut s2: u32 = prev[2] as u32;
+    let mut s3: u32 = prev[3] as u32;
+    #[bound = 28]
+    for i in 0..28 {
+        let e: u32 = event[i] as u32;
+        s0 = s0 + e * 31;
+        s1 = s1 + e * 131;
+        s2 = s2 + e * 524287;
+        s3 = s3 + e * 16777213;
+    }
+    [
+        (s0 & 255) as u8,
+        (s1 & 255) as u8,
+        (s2 & 255) as u8,
+        (s3 & 255) as u8,
+    ]
+}
+
+// fold_into_batch: O(1) accumulator update. Mixes one event's first 28
+// bytes into batch_acc using the same prime-multiplier scheme as
+// chain_step but over a single byte stripe. Cheap; no SHA work.
+// Bitwise mask via the V0 grammar extension (no division intrinsic).
+fn fold_into_batch(acc: [u8; 4], event_bytes: [u8; 28]) -> [u8; 4] {
+    let mut a0: u32 = acc[0] as u32;
+    let mut a1: u32 = acc[1] as u32;
+    let mut a2: u32 = acc[2] as u32;
+    let mut a3: u32 = acc[3] as u32;
+    #[bound = 28]
+    for i in 0..28 {
+        let e: u32 = event_bytes[i] as u32;
+        a0 = a0 + e;
+        a1 = a1 + e * 7;
+        a2 = a2 + e * 251;
+        a3 = a3 + e * 65521;
+    }
+    [
+        (a0 & 255) as u8,
+        (a1 & 255) as u8,
+        (a2 & 255) as u8,
+        (a3 & 255) as u8,
+    ]
+}
+
+// record: append one residual to the ring. Saturating-wrap; oldest
+// events are overwritten so the failing transition is preserved.
+//
+// Chain commit policy:
+//   - every event folds into batch_acc (O(1))
+//   - every chain_freq events, run chain_step over the prior chain
+//     and the current event's first 28 bytes; reset batch state
+//   - the resulting chain_hash is written into the residual being
+//     committed at this step
+fn record(
+    ring: ResidualRing,
+    kind: u8,
+    arch_id: u8,
+    cycle: u64,
+    payload: [u8; 14],
+) -> ResidualRing {
+    let mut updated: ResidualRing = ring;
+    let next_seq: u16 = updated.head + 1;
+    // Compose the 28 bytes that participate in folding/chain (kind +
+    // arch_id + seq + cycle + payload = 1 + 1 + 2 + 8 + 14 = 26 + 2 pad).
+    let mut event_bytes: [u8; 28] = [0; 28];
+    event_bytes[0] = kind;
+    event_bytes[1] = arch_id;
+    event_bytes[2] = (next_seq - (next_seq / 256) * 256) as u8;
+    event_bytes[3] = (next_seq / 256) as u8;
+    let c: u64 = cycle;
+    event_bytes[4]  = (c - (c / 256) * 256) as u8;
+    event_bytes[5]  = ((c / 256) - (c / 65536) * 256) as u8;
+    event_bytes[6]  = ((c / 65536) - (c / 16777216) * 256) as u8;
+    event_bytes[7]  = ((c / 16777216) - (c / 4294967296) * 256) as u8;
+    event_bytes[8]  = ((c / 4294967296) - (c / 1099511627776) * 256) as u8;
+    event_bytes[9]  = ((c / 1099511627776) - (c / 281474976710656) * 256) as u8;
+    event_bytes[10] = ((c / 281474976710656) - (c / 72057594037927936) * 256) as u8;
+    event_bytes[11] = (c / 72057594037927936) as u8;
+    #[bound = 14]
+    for i in 0..14 {
+        event_bytes[12 + i] = payload[i];
+    }
+    // Fold into batch in all cases.
+    updated.batch_acc = fold_into_batch(updated.batch_acc, event_bytes);
+    updated.batch_count = updated.batch_count + 1;
+    // Commit the chain every chain_freq events.
+    let mut new_chain: [u8; 4] = [0; 4];
+    let active: u32 = updated.active_size as u32;
+    let prev: [u8; 4] = match updated.head == 0 {
+        true => [0; 4],
+        false => match updated.full {
+            true  => updated.entries[(updated.head - 1) as u32 - ((updated.head - 1) as u32 / active) * active].chain_hash,
+            false => updated.entries[(updated.head - 1) as u32].chain_hash,
+        },
+    };
+    let commit: bool = match updated.chain_freq <= 1 {
+        true  => true,
+        false => match updated.batch_count >= updated.chain_freq {
+            true  => true,
+            false => false,
+        },
+    };
+    new_chain = match commit {
+        true  => chain_step(prev, event_bytes),
+        false => prev,
+    };
+    match commit {
+        true  => {
+            updated.batch_acc = [0; 4];
+            updated.batch_count = 0;
+        },
+        false => (),
+    };
+    let entry: Residual = Residual {
+        kind: kind,
+        arch_id: arch_id,
+        seq: next_seq,
+        cycle: cycle,
+        payload: payload,
+        chain_hash: new_chain,
+    };
+    let slot: u32 = updated.head as u32 - (updated.head as u32 / active) * active;
+    updated.entries[slot] = entry;
+    updated.head = next_seq;
+    match updated.head as u32 >= active {
+        true  => updated.full = true,
+        false => (),
+    };
+    updated
+}

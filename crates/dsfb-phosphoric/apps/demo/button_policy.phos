@@ -1,0 +1,13 @@
+module demo.button_policy;
+
+fn button_next_pressed(pressed: bool, unicode_char: u16, scan_code: u16) -> bool {
+    if unicode_char == 32 {
+        if pressed { false } else { true }
+    } else {
+        pressed
+    }
+}
+
+fn button_redraw_requested(unicode_char: u16, scan_code: u16) -> bool {
+    unicode_char == 32
+}

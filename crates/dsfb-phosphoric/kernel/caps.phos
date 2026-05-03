@@ -1,0 +1,198 @@
+module pcc.kernel.caps;
+profile runtime;
+
+// Capability table — generation-tagged handles for all kernel objects.
+//
+// A handle carries (slot, generation, kind). On revocation, generation
+// increments; subsequent lookups with the old generation return StaleHandle.
+//
+// Capacities pinned in docs/language/runtime_profile.toml:
+//   Task=64, Channel=128, Window=16, Framebuffer=4, Capability=256
+
+enum CapabilityKind {
+    Vacant,
+    Task,
+    Channel,
+    Window,
+    Framebuffer,
+}
+
+// Public handle types. Each carries the same shape but different `kind` tag,
+// making cross-kind misuse a typed error rather than a runtime panic.
+
+struct TaskHandle {
+    slot: u16,
+    generation: u16,
+    kind: CapabilityKind,
+}
+
+struct ChannelHandle {
+    slot: u16,
+    generation: u16,
+    kind: CapabilityKind,
+}
+
+struct WindowHandle {
+    slot: u16,
+    generation: u16,
+    kind: CapabilityKind,
+}
+
+struct FramebufferHandle {
+    slot: u16,
+    generation: u16,
+    kind: CapabilityKind,
+}
+
+// Internal capability table entry.
+struct CapabilityEntry {
+    active: bool,
+    generation: u16,
+    kind: CapabilityKind,
+    resource_slot: u16,
+}
+
+// Total capability table — sized as TASK_MAX + WINDOW_MAX + CHANNEL_MAX + FRAMEBUFFER_MAX.
+struct CapabilityTable {
+    entries: [CapabilityEntry; 449],
+    // 449 = 64 + 256 + 128 + 1 (TASK_MAX + WINDOW_MAX + CHANNEL_MAX + FRAMEBUFFER_MAX).
+    // The runtime_profile.toml capacity total is the single source of truth
+    // and the compiler cross-checks this literal against it.
+}
+
+fn empty_capability_entry() -> CapabilityEntry {
+    CapabilityEntry {
+        active: false,
+        generation: 1,
+        kind: CapabilityKind::Vacant,
+        resource_slot: 0,
+    }
+}
+
+// Generation 0 is reserved for "no handle has ever lived here" sentinels.
+// Wrap-around skips 0 so a stale handle never matches a freshly-allocated slot.
+fn bump_generation(generation: u16) -> u16 {
+    let next: u16 = generation + 1;
+    match next == 0 {
+        true  => 1,
+        false => next,
+    }
+}
+
+// Find the first vacant slot in the table, scanning linearly. Returns
+// Some(slot_index) on hit; None when the table is full (caller maps to
+// KernelError::TableFull).
+fn find_vacant_slot(table: CapabilityTable) -> Option[u16] {
+    #[bound = 449]
+    for i in 0..449 {
+        match table.entries[i].active {
+            false => return Some(i as u16),
+            true  => (),
+        };
+    }
+    None
+}
+
+// Allocate a fresh capability for a resource slot of the given kind.
+// Returns the populated entry plus its index; caller wraps these into
+// the appropriate handle type (TaskHandle, ChannelHandle, ...).
+//
+// Manifest cross-check (the runtime forensic-boundary check at the cap
+// layer): the (kind, resource_slot) pair MUST be in the manifest table.
+// On miss, returns ManifestMismatch — runtime status 13. This is the
+// runtime mirror of compile-time M-011.
+fn allocate_entry(
+    table: CapabilityTable,
+    manifest: pcc.kernel.manifest.ManifestTable,
+    kind: CapabilityKind,
+    resource_slot: u16,
+) -> Result[CapabilityEntry, pcc.kernel.error.KernelError] {
+    let kind_id: u8 = match kind {
+        CapabilityKind::Task        => 1,
+        CapabilityKind::Channel     => 2,
+        CapabilityKind::Window      => 3,
+        CapabilityKind::Framebuffer => 4,
+        CapabilityKind::Vacant      => 0,
+    };
+    match pcc.kernel.manifest.cap_in_manifest(manifest, kind_id, resource_slot) {
+        Err(e) => Err(e),
+        Ok(_)  => match find_vacant_slot(table) {
+            None => Err(pcc.kernel.error.KernelError::TableFull),
+            Some(idx) => {
+                let prev_gen: u16 = table.entries[idx].generation;
+                let new_gen: u16 = bump_generation(prev_gen);
+                Ok(CapabilityEntry {
+                    active: true,
+                    generation: new_gen,
+                    kind: kind,
+                    resource_slot: resource_slot,
+                })
+            },
+        },
+    }
+}
+
+// Validate a (slot, generation) pair against the table. The handle's `kind`
+// must match the entry's `kind` exactly; cross-kind misuse returns
+// InvalidHandle (a Task handle pointed at a Window slot is never valid).
+//
+// Returns:
+//   Ok(())                          — handle live and matches kind
+//   Err(InvalidHandle)              — slot out of range or kind mismatch
+//   Err(StaleHandle)                — generation differs from current entry
+fn validate_slot(
+    table: CapabilityTable,
+    slot: u16,
+    generation: u16,
+    expected_kind: CapabilityKind,
+) -> Result[u32, pcc.kernel.error.KernelError] {
+    match (slot as u32) >= 449 {
+        true => Err(pcc.kernel.error.KernelError::InvalidHandle),
+        false => {
+            let entry: CapabilityEntry = table.entries[slot as u32];
+            match entry.active {
+                false => Err(pcc.kernel.error.KernelError::InvalidHandle),
+                true => match kinds_equal(entry.kind, expected_kind) {
+                    false => Err(pcc.kernel.error.KernelError::InvalidHandle),
+                    true => match entry.generation == generation {
+                        false => Err(pcc.kernel.error.KernelError::StaleHandle),
+                        true  => Ok(0),
+                    },
+                },
+            }
+        },
+    }
+}
+
+fn kinds_equal(a: CapabilityKind, b: CapabilityKind) -> bool {
+    match a {
+        CapabilityKind::Vacant      => match b { CapabilityKind::Vacant      => true, _ => false },
+        CapabilityKind::Task        => match b { CapabilityKind::Task        => true, _ => false },
+        CapabilityKind::Channel     => match b { CapabilityKind::Channel     => true, _ => false },
+        CapabilityKind::Window      => match b { CapabilityKind::Window      => true, _ => false },
+        CapabilityKind::Framebuffer => match b { CapabilityKind::Framebuffer => true, _ => false },
+    }
+}
+
+// Revoke a capability slot. Bumps its generation so any stale handle returns
+// StaleHandle on the next validate. The slot is then available for re-allocation.
+fn revoke_slot(
+    table: CapabilityTable,
+    slot: u16,
+) -> Result[CapabilityEntry, pcc.kernel.error.KernelError] {
+    match (slot as u32) >= 449 {
+        true => Err(pcc.kernel.error.KernelError::InvalidHandle),
+        false => {
+            let entry: CapabilityEntry = table.entries[slot as u32];
+            match entry.active {
+                false => Err(pcc.kernel.error.KernelError::Revoked),
+                true => Ok(CapabilityEntry {
+                    active: false,
+                    generation: bump_generation(entry.generation),
+                    kind: CapabilityKind::Vacant,
+                    resource_slot: 0,
+                }),
+            }
+        },
+    }
+}

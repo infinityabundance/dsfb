@@ -1,0 +1,10 @@
+module tests.conformance.host.fail.restored.invalid_array_bound_identifier;
+profile host;
+
+// fail-expected: P-003
+// (restored from legacy_ui/fail/invalid_array_bound_identifier; legacy code UNSUPPORTED_SYNTAX "expected integer literal")
+
+module demo;
+fn bad() -> [u32; len] {
+    return [1];
+}

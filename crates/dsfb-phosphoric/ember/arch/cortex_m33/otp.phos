@@ -1,0 +1,82 @@
+module ember.arch.cortex_m33.otp;
+profile trusted;
+
+// One-time-programmable (OTP) memory access on RP2350.
+//
+// OTP holds the bootstrap-trust-root: the SHA-256 hash of the signed-boot
+// public key + a board-ID nonce + lock bits. Once burned, these bits are
+// physically unmodifiable — closing part of the "trust in stage 0" gap
+// noted in bootstrap/STAGE0.md by hardware-burning the trust root.
+
+enum OtpRow {
+    SignBootKeyHash0,        // first 32 bits of the SHA-256
+    SignBootKeyHash1,
+    SignBootKeyHash2,
+    SignBootKeyHash3,
+    SignBootKeyHash4,
+    SignBootKeyHash5,
+    SignBootKeyHash6,
+    SignBootKeyHash7,        // last 32 bits = full 256-bit hash
+    BoardIdNonce,
+    LockBits,
+}
+
+// Map an OtpRow enum constant to its 32-bit MMIO offset within the OTP
+// controller's memory window. Each row is 4 bytes wide; row N lives at
+// offset N*4 from the controller base.
+fn otp_row_offset(row: OtpRow) -> u32 {
+    match row {
+        OtpRow::SignBootKeyHash0 => 0,
+        OtpRow::SignBootKeyHash1 => 4,
+        OtpRow::SignBootKeyHash2 => 8,
+        OtpRow::SignBootKeyHash3 => 12,
+        OtpRow::SignBootKeyHash4 => 16,
+        OtpRow::SignBootKeyHash5 => 20,
+        OtpRow::SignBootKeyHash6 => 24,
+        OtpRow::SignBootKeyHash7 => 28,
+        OtpRow::BoardIdNonce     => 32,
+        OtpRow::LockBits         => 36,
+    }
+}
+
+// RP2350 OTP controller base address. Pinned per the RP2350 datasheet's
+// peripheral memory map. v0 grammar permits unsigned base-10 integers only.
+fn otp_controller_base() -> u32 {
+    1124073472          // 0x40130000
+}
+
+// Read one 32-bit OTP row.
+//
+// razor-rationale: irreducible-hw — OTP is a hardware peripheral; the
+// controller's MMIO is the only path to physical-bit values. No software
+// abstraction can produce these reads.
+fn otp_read_row(row: OtpRow) -> u32 {
+    let address: u32 = otp_controller_base() + otp_row_offset(row);
+    // trust-audit: row "OTP read" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_read_u32(address)
+    }
+}
+
+// Compose the full 256-bit signed-boot key hash by reading all 8 rows.
+fn read_signed_boot_key_hash() -> [u32; 8] {
+    let mut out: [u32; 8] = [0; 8];
+    out[0] = otp_read_row(OtpRow::SignBootKeyHash0);
+    out[1] = otp_read_row(OtpRow::SignBootKeyHash1);
+    out[2] = otp_read_row(OtpRow::SignBootKeyHash2);
+    out[3] = otp_read_row(OtpRow::SignBootKeyHash3);
+    out[4] = otp_read_row(OtpRow::SignBootKeyHash4);
+    out[5] = otp_read_row(OtpRow::SignBootKeyHash5);
+    out[6] = otp_read_row(OtpRow::SignBootKeyHash6);
+    out[7] = otp_read_row(OtpRow::SignBootKeyHash7);
+    out
+}
+
+// Read the lock-bits row to determine whether the OTP has been finalized.
+// A non-zero lock-bits value indicates the trust-root rows are sealed
+// against further programming.
+fn otp_locked() -> bool {
+    let bits: u32 = otp_read_row(OtpRow::LockBits);
+    bits != 0
+}

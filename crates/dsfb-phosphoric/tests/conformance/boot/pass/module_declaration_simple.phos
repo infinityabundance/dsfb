@@ -1,0 +1,4 @@
+module tests.conformance.boot.pass.module_declaration_simple;
+
+// Pass case for grammar production: Module ::= "module" ModulePath ";" Item*
+// A simple multi-segment dotted module path with no other items must parse.

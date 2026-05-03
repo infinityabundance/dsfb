@@ -1,0 +1,109 @@
+module pcc.kernel.framebuffer;
+profile runtime;
+
+// Framebuffer registry — single-framebuffer demo. Capacity: FRAMEBUFFER_MAX=4.
+//
+// RECESSED (Phase 7 Tranche B, endoduction-substrate plan).
+// PixelFormat is now Rgba8888-only. validate_format, encode_pixel_rgba,
+// validate_framebuffer, and Bgra/Rgb888 variants have been cut. The
+// substrate's boot path emits Rgba8888; the format-negotiation and
+// per-channel encoder were substrate for cut features.
+
+enum PixelFormat {
+    Rgba8888,
+}
+
+struct FramebufferEntry {
+    active: bool,
+    generation: u16,
+    capability_slot: u16,
+    width: u32,
+    height: u32,
+    stride: u32,
+    bytes_per_pixel: u8,
+    format: PixelFormat,
+}
+
+struct FramebufferTable {
+    entries: [FramebufferEntry; 4],
+}
+
+fn empty_framebuffer_entry() -> FramebufferEntry {
+    FramebufferEntry {
+        active: false,
+        generation: 1,
+        capability_slot: 0,
+        width: 0,
+        height: 0,
+        stride: 0,
+        bytes_per_pixel: 0,
+        format: PixelFormat::Rgba8888,
+    }
+}
+
+fn bump_framebuffer_generation(generation: u16) -> u16 {
+    let next: u16 = generation + 1;
+    match next == 0 {
+        true  => 1,
+        false => next,
+    }
+}
+
+fn validate_dimensions(width: u32, height: u32) -> Result[u32, pcc.kernel.error.KernelError] {
+    match width == 0 {
+        true => Err(pcc.kernel.error.KernelError::UnsupportedFramebuffer),
+        false => match height == 0 {
+            true => Err(pcc.kernel.error.KernelError::UnsupportedFramebuffer),
+            false => match width > 4096 {
+                true => Err(pcc.kernel.error.KernelError::UnsupportedFramebuffer),
+                false => match height > 4096 {
+                    true => Err(pcc.kernel.error.KernelError::UnsupportedFramebuffer),
+                    false => Ok(0),
+                },
+            },
+        },
+    }
+}
+
+fn find_vacant_framebuffer(table: FramebufferTable) -> Option[u16] {
+    #[bound = 4]
+    for i in 0..4 {
+        match table.entries[i].active {
+            false => return Some(i as u16),
+            true  => (),
+        };
+    }
+    None
+}
+
+// register_framebuffer — Rgba8888-only. Stride = width * 4. The
+// hardware-required stride may be larger; caller adjusts after this
+// returns. Format is fixed; the parameter is retained for ABI
+// compatibility with callers that pass a PixelFormat through BootInfo.
+fn register_framebuffer(
+    table: FramebufferTable,
+    capability_slot: u16,
+    width: u32,
+    height: u32,
+    format: PixelFormat,
+) -> Result[FramebufferEntry, pcc.kernel.error.KernelError] {
+    match validate_dimensions(width, height) {
+        Err(e) => Err(e),
+        Ok(_) => match find_vacant_framebuffer(table) {
+            None => Err(pcc.kernel.error.KernelError::TableFull),
+            Some(idx) => {
+                let prev_gen: u16 = table.entries[idx as u32].generation;
+                Ok(FramebufferEntry {
+                    active: true,
+                    generation: bump_framebuffer_generation(prev_gen),
+                    capability_slot: capability_slot,
+                    width: width,
+                    height: height,
+                    stride: width * 4,
+                    bytes_per_pixel: 4,
+                    format: format,
+                })
+            },
+        },
+    }
+}

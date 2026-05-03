@@ -1,0 +1,17 @@
+module tests.conformance.runtime.fail.m006_send_undeclared_channel;
+profile runtime;
+
+// fail-expected: M-006
+//
+// IPC send/recv on a channel id not in the manifest's [[ipc.channel]]
+// list is a compile-time M-006. The sibling manifest declares only
+// "input_event_route"; this source attempts to send on
+// "unauthorized_route" and is rejected at parse-into-HIR.
+//
+// Forensic role: every channel a Phosphoric image can touch must be
+// pre-declared. Send to an undeclared id is structurally impossible at
+// the language layer, not a runtime authorization failure.
+
+fn marker() -> u32 {
+    0
+}

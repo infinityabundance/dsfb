@@ -1,0 +1,9 @@
+# Pass A-14 fixture: IMM_32 form of cmp lifts the previous IMM_8
+# (-128..127) constraint on match-comparison. IMM=500 here is well
+# outside that range; the new 6-byte `81 ff IMM_32` cmp encoding
+# handles it. Block stays 24 B (no nops needed).
+# Source: classify(1000) with `match arg > 500 { true => 77, false => 99 }`.
+# Verified: rc = 77 (1000 > 500 is TRUE).
+size=1105
+sha=da4cb09f1674f1d6c0dcab05a589dddf29681693bbb6a0bb6f4819afb5791d9e
+rc=77

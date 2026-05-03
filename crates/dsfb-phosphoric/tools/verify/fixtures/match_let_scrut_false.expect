@@ -1,0 +1,10 @@
+# Pass A-19 fixture (FALSE arm picked at scan time): scan-time match fold.
+# Source: `entry { let x = 5; match x == 7 { true => 100, false => 42 } }`.
+# Producer evaluates 5 == 7 = FALSE at scan time, captures 42 as the
+# entry's exit code IMM. The 7-token match expression compiles to the
+# same canned exit-42 emit as let_fold_sub.phos and let_chain.phos
+# (byte-identical sha) — different source forms reducing to the same
+# scan-time-folded literal.
+size=1081
+sha=9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de
+rc=42

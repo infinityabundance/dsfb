@@ -1,0 +1,9 @@
+module fixture.producer_gap_let_plus_arg;
+profile boot;
+fn entry() -> i32 {
+    return shifted(30);
+}
+fn shifted(arg: i32) -> i32 {
+    let bias = 12;
+    return bias + arg;
+}

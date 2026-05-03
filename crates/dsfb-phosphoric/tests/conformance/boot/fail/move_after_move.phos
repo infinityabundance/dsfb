@@ -1,0 +1,18 @@
+module tests.conformance.boot.fail.move_after_move;
+
+// fail-expected: K-007
+//
+// Move-after-move on an affine capability. The first call consumes `w`;
+// the second use is rejected by the type checker.
+
+capability Window;
+
+fn consume(w: Window) -> bool effects(draw) {
+    true
+}
+
+fn double_use(w: Window) -> bool effects(draw) {
+    let _a: bool = consume(w);
+    let _b: bool = consume(w);
+    true
+}

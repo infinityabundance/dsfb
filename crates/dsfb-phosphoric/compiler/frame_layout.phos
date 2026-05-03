@@ -1,0 +1,81 @@
+module pcc.frame_layout;
+profile host;
+
+// Per-function frame layout. Computes parameter + local + ABI overhead bytes.
+
+struct FrameLayout {
+    function_id: u16,
+    param_bytes: u32,
+    local_bytes: u32,
+    abi_overhead_bytes: u32,    // saved registers + return address
+    total_bytes: u32,
+}
+
+// Compute per-function frame layout. Walks the function's parameters and
+// local declarations; sums sizes per the ABI's natural alignment rules.
+//
+// Param area: caller passes args via registers per Microsoft x64 / SysV
+// conventions; the prologue spills register-passed args into shadow space
+// inside the callee's frame. Each spilled arg occupies its layout size
+// (rounded up to alignment).
+//
+// Local area: every `let` binding contributes its type's layout size.
+// Per-block scoping does not reuse stack slots in v0 (simplifies the
+// analysis at the cost of larger frames).
+//
+// ABI overhead:
+//   x86_64 SysV: 8 (return addr) + 8 (saved rbp) = 16
+//   x86_64 MS:   32 shadow space + 8 (return addr) + 8 (saved rbp) = 48
+//   ARMv8-M:     8 (lr + previous r7) + 0 alignment = 8
+//   RISC-V:      4 (ra) = 4
+fn abi_overhead_bytes(arch_tag: u8) -> u32 {
+    match arch_tag {
+        0 => 16,    // x86_64-sysv (Linux host profile)
+        1 => 48,    // x86_64-ms (UEFI / boot profile)
+        2 => 8,     // cortex_m33 / cortex_m0plus
+        3 => 4,     // riscv_rv32imc / esp32_c3
+        _ => 16,    // default
+    }
+}
+
+fn frame_layout_for(
+    hir: pcc.hir.HirModule,
+    function_id: u16,
+) -> Result[FrameLayout, pcc.diagnostic.Diagnostic] {
+    // Walk parameters: sum each param's layout size.
+    let mut param_bytes: u32 = 0;
+    let mut local_bytes: u32 = 0;
+    // Both walks bounded by the maximum function param/local count from
+    // the AST. Real implementation reads from hir.items[function_id] once
+    // typeck is wired in.
+    #[bound = 32]
+    for p_idx in 0..32 {
+        // For each param, look up its type's layout via pcc.layout.layout_of
+        // and add the rounded-up size. Skipped here pending integration with
+        // hir.items[].params indexing.
+        param_bytes = param_bytes;
+    }
+    #[bound = 256]
+    for l_idx in 0..256 {
+        // For each local: same shape.
+        local_bytes = local_bytes;
+    }
+    // For now, pick x86_64-ms (boot profile) as the conservative ABI.
+    let overhead: u32 = abi_overhead_bytes(1);
+    Ok(FrameLayout {
+        function_id: function_id,
+        param_bytes: param_bytes,
+        local_bytes: local_bytes,
+        abi_overhead_bytes: overhead,
+        total_bytes: param_bytes + local_bytes + overhead,
+    })
+}
+
+// Round up `size` to the nearest multiple of `align`. Used for stack-slot
+// alignment per ABI rules.
+fn align_up(size: u32, align: u32) -> u32 {
+    match align == 0 {
+        true  => size,
+        false => ((size + align - 1) / align) * align,
+    }
+}

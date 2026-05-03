@@ -1,0 +1,19 @@
+module tests.conformance.boot.fail.fail_unsupported_demo_match_expr;
+profile boot;
+
+// fail-expected: P-003
+// (restored from legacy_backend/fail/unsupported_demo_match_expr; legacy UNSUPPORTED_C_BACKEND_FEATURE "does not support `match` expressions")
+
+// expect: UNSUPPORTED_C_BACKEND_FEATURE does not support `match` expressions
+module demo.button_policy;
+
+fn button_next_pressed(pressed: bool, unicode_char: u16, scan_code: u16) -> bool {
+    match unicode_char {
+        32 => true,
+        _ => pressed,
+    }
+}
+
+fn button_redraw_requested(unicode_char: u16, scan_code: u16) -> bool {
+    false
+}

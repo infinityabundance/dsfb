@@ -1,0 +1,9 @@
+module fixture.match_let_arm;
+profile boot;
+fn entry() -> i32 {
+    return classify(7);
+}
+fn classify(arg: i32) -> i32 {
+    let success = 88;
+    match arg == 7 { true => success, false => 0 }
+}

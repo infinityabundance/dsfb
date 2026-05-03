@@ -1,0 +1,12 @@
+module tests.conformance.boot.fail.fail_missing_demo_entrypoint;
+profile boot;
+
+// fail-expected: H-008
+// (restored from legacy_backend/fail/missing_demo_entrypoint; legacy INVALID_DEMO_PROFILE_ENTRYPOINT "requires a function named `button_redraw_requested`")
+
+// expect: INVALID_DEMO_PROFILE_ENTRYPOINT requires a function named `button_redraw_requested`
+module demo.button_policy;
+
+fn button_next_pressed(pressed: bool, unicode_char: u16, scan_code: u16) -> bool {
+    pressed
+}

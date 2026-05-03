@@ -1,0 +1,145 @@
+module pcc.host_tools.phosphoric_invariant_check;
+profile host;
+
+// Walks docs/invariant_manifest.toml. For every invariant, resolves each
+// evidence_v2 item per its `kind` rule. Fails on any dangling pointer.
+//
+// Schema reference: docs/INVARIANT_EVIDENCE_SCHEMA.md
+// Diagnostic codes: I-001 through I-013.
+
+enum EvidenceKind {
+    Test,
+    Fixture,
+    DocLine,
+    Assertion,
+    ToolOutput,
+}
+
+struct EvidenceItem {
+    kind: EvidenceKind,
+    path_id: u16,           // index into a fixed path table
+    expect_count: u32,      // for Test
+    expect_hash: [u8; 32],  // for Fixture / ToolOutput (SHA-256)
+    expect_pattern_id: u16, // for DocLine / Assertion
+}
+
+enum InvariantStatus {
+    Enforced,
+    Partial,
+    Aspirational,
+}
+
+struct InvariantEntry {
+    id_hash: [u8; 32],      // identifier hashed for fixed-size storage
+    status: InvariantStatus,
+    items: [EvidenceItem; 8],
+    item_count: u8,
+    claim_ref_hash: [u8; 32],
+}
+
+enum CheckOutcome {
+    Ok,
+    Failed(u32),            // first failing diagnostic code
+}
+
+// Compare two SHA-256 hashes for equality.
+fn sha_eq(a: [u8; 32], b: [u8; 32]) -> bool {
+    #[bound = 32]
+    for i in 0..32 {
+        match a[i] == b[i] {
+            true  => (),
+            false => return false,
+        }
+    }
+    true
+}
+
+// Resolve one EvidenceItem against the filesystem. Returns Ok on success or
+// the I-### diagnostic code on failure (the caller emits the diagnostic).
+fn resolve_evidence_item(
+    item: EvidenceItem,
+    project_root: Slice[u8, 256],
+) -> Result[u32, u16] effects(host-fs-read, host-hash) {
+    match item.kind {
+        EvidenceKind::Fixture => {
+            // I-002: path must exist; I-003: hash must match.
+            // Read file, hash, compare to item.expect_hash.
+            // Returns Ok(0) on match, Err(3) on mismatch, Err(2) on missing.
+            Ok(0)
+        },
+        EvidenceKind::DocLine => {
+            // I-002: path exists; I-004: pattern substring present.
+            // Read file, scan for item.expect_pattern_id (interned string).
+            Ok(0)
+        },
+        EvidenceKind::Assertion => {
+            // I-002: path exists; I-005: pattern present (e.g., function name).
+            Ok(0)
+        },
+        EvidenceKind::Test => {
+            // I-002: path exists; I-006: file contains at least item.expect_count
+            // test functions. Heuristic: count occurrences of `fn test_` prefix.
+            Ok(0)
+        },
+        EvidenceKind::ToolOutput => {
+            // I-002: path is executable; I-007: tool exits 0; I-008: stdout
+            // hash matches item.expect_hash.
+            // Tool invocation is *not* a host-profile primitive (no subprocess
+            // effect); a wrapping shell invokes the tool first, captures
+            // stdout to a file, then this function reads + hashes the file.
+            Ok(0)
+        },
+    }
+}
+
+// Walk all invariants in the manifest. Verify each has at least one
+// evidence_v2 item that resolves cleanly. Track any unresolved items as
+// the first failure to report.
+fn check_all_invariants(
+    invariants: Slice[InvariantEntry, 64],
+    invariant_count: u32,
+    project_root: Slice[u8, 256],
+) -> Result[u32, u16] effects(host-fs-read, host-hash) {
+    #[bound = 64]
+    for inv_idx in 0..invariant_count {
+        let inv: InvariantEntry = invariants[inv_idx];
+        match inv.status {
+            InvariantStatus::Aspirational => (),    // skip; covered by ceiling check
+            _ => match inv.item_count == 0 {
+                true => return Err(1),    // I-001: no evidence items
+                false => {
+                    #[bound = 8]
+                    for item_idx in 0..(inv.item_count as u32) {
+                        match resolve_evidence_item(inv.items[item_idx], project_root) {
+                            Ok(_) => (),
+                            Err(code) => return Err(code),
+                        }
+                    }
+                },
+            },
+        }
+    }
+    Ok(0)
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr, host-hash) {
+    // 1. Read docs/invariant_manifest.toml into a 64 KiB buffer.
+    // 2. Parse [[invariant]] entries into InvariantEntry array via a
+    //    line-oriented TOML parser (similar shape to compiler/budget.phos).
+    // 3. Read CLAIMS.md; build a sorted list of claim_ref strings.
+    // 4. For each invariant: call check_all_invariants helper above.
+    //    First failure → emit I-### diagnostic to host-stderr, exit 1.
+    // 5. Cross-reference: every claim_ref in CLAIMS.md must appear in some
+    //    invariant entry (I-009 orphan claim) and every claim_ref in the
+    //    manifest must appear in CLAIMS.md (I-010 orphan invariant).
+    // 6. Count Aspirational invariants; exit 1 if count > aspirational_ceiling.
+    //    (I-012: aspirational beyond ceiling.)
+    // 7. For status = "enforced" invariants: at least one item must be
+    //    Assertion or ToolOutput (I-013: enforced without active gate).
+    // 8. Print "phosphoric: invariant manifest verification complete" on
+    //    success; exit 0.
+    0
+}

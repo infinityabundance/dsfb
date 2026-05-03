@@ -1,0 +1,45 @@
+module ics_terminal.boot_entry;
+profile boot;
+
+// RP2350 industrial control terminal — pinout and boot-time constants.
+//
+// The four pins this image touches are each pinned in the manifest's
+// [[mmio.range]] list. Compile-time M-005 if any trusted! mmio touches
+// an address outside this set; runtime AUTHORITY_EXPANSION classification
+// if a touch escapes the declared ranges (which the compile-time check
+// makes impossible for well-typed images, but the runtime guards the
+// untyped Ember-side primitives).
+//
+// Manifest at apps/ics_terminal/task.manifest.toml is the source of
+// truth for the four ranges; these constants are kept in sync with it
+// and audit-checked at build time.
+
+fn pin_button() -> u8 { 15 }            // GP15: input button (IRQ-driven)
+fn pin_sensor() -> u8 { 26 }            // GP26: ADC0 sensor read
+fn pin_i2c_sda() -> u8 { 6 }            // GP6:  I2C0 SDA -> SSD1306
+fn pin_i2c_scl() -> u8 { 7 }            // GP7:  I2C0 SCL -> SSD1306
+fn pin_actuator() -> u8 { 18 }          // GP18: PWM actuator
+
+// MMIO range bases (must match manifest's [[mmio.range]] entries).
+fn io_bank0_gp15_base() -> u64 { 0x40028078 }
+fn adc0_gp26_base()     -> u64 { 0x4004C000 }
+fn i2c0_display_base()  -> u64 { 0x40090000 }
+fn pwm_gp18_base()      -> u64 { 0x40050000 }
+
+// Display geometry. SSD1306 is 128x64 monochrome.
+fn display_width()  -> u16 { 128 }
+fn display_height() -> u16 { 64 }
+
+// IRQ assignments. Single ARM Cortex-M33 vector entry per source;
+// numbers map to the RP2350 NVIC table.
+fn irq_button_edge()    -> u8 { 13 }    // IO_IRQ_BANK0
+fn irq_adc_sample_done() -> u8 { 22 }   // ADC_IRQ_FIFO
+
+// Debounce window in cycle counter ticks. RP2350 runs at 150 MHz;
+// 30000 cycles = 200 microseconds (typical mechanical button bounce).
+fn debounce_cycles() -> u64 { 30000 }
+
+// PWM duty cycle for the actuator on a button-confirmed event.
+// 16-bit duty value; 0x8000 = 50% duty for visible relay activation.
+fn actuator_duty_on()  -> u16 { 0x8000 }
+fn actuator_duty_off() -> u16 { 0x0000 }

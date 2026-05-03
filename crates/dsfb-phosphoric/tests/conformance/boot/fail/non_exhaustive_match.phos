@@ -1,0 +1,12 @@
+module tests.conformance.boot.fail.non_exhaustive_match;
+
+// fail-expected: K-006
+//
+// Matches over finite known domains must be exhaustive. Missing the
+// `false` arm here is rejected by the type checker.
+
+fn first_only(x: bool) -> u32 {
+    match x {
+        true => 1,
+    }
+}

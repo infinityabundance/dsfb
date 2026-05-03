@@ -1,0 +1,17 @@
+module tests.conformance.host.pass.restored.minimal_gui_effect_flow;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/minimal_gui_effect_flow)
+
+module gui.button;
+capability Window;
+capability Framebuffer;
+
+fn draw_button(fb: Framebuffer) effects(draw) {
+    return;
+}
+
+fn handle(win: Window, fb: Framebuffer) effects(draw) {
+    draw_button(fb);
+}

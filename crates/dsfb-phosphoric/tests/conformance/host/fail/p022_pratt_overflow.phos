@@ -1,0 +1,17 @@
+module tests.conformance.host.fail.p022_pratt_overflow;
+profile host;
+
+// fail-expected: P-022
+//
+// Grammar Complexity Limit. The Pratt parser maintains operand and
+// operator stacks of fixed depth 32. Expressions whose nesting exceeds
+// either bound are rejected with P-022 rather than triggering undefined
+// behavior. Diagnostic registered in compiler/diagnostic.phos and
+// emitted in compiler/parser.phos.
+//
+// The expression below nests 33 binary operations, exceeding the 32-deep
+// operator stack. The parser MUST emit P-022 at the 33rd operator.
+
+fn over_nested() -> u32 {
+    1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 + 13 + 14 + 15 + 16 + 17 + 18 + 19 + 20 + 21 + 22 + 23 + 24 + 25 + 26 + 27 + 28 + 29 + 30 + 31 + 32 + 33 + 34
+}

@@ -1,0 +1,12 @@
+module tests.conformance.host.fail.host_capacity_exceeds_maximum;
+profile host;
+
+// fail-expected: H-004
+//
+// host_profile.toml declares program_working_set language max = 256 MiB
+// (268,435,456 bytes). A buffer declared larger is rejected at the
+// declaration site.
+
+struct Oversized {
+    payload: [u8; 268435457],
+}

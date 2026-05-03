@@ -1,0 +1,11 @@
+module tests.conformance.boot.fail.float_literal_rejected;
+
+// fail-expected: L-007
+//
+// Floating-point literals are forbidden in v0. The lexer rejects
+// `digit.digit` sequences with L-007 ("FloatLiteralRejected").
+
+fn ratio() -> u32 {
+    let r: u32 = 3.14;
+    r
+}

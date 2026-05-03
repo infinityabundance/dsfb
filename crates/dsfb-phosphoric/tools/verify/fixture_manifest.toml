@@ -1,0 +1,1341 @@
+# Phosphoric fixture manifest — razor-gated metadata.
+#
+# Every entry must satisfy the doctrine in docs/FIXTURE_RAZOR.md:
+#   - behavior_class    (what producer path / behavior is being pinned)
+#   - ambiguity_removed (the specific ambiguity this fixture eliminates)
+#   - at least one of the four required_for_* doctrine flags = true
+#
+# A fixture exists only if it eliminates one of:
+#   1. compiler closure          → required_for_self_host
+#   2. task-seal closure          → required_for_task_seal
+#   3. residual truth             → required_for_residual_truth
+#   4. forensic classification   → required_for_forensic_classification
+#
+# Duplicate behavior_class values must carry a justified_duplicate
+# field explaining why both fixtures earn their place.
+#
+# This file is authoritative. tools/verify/fixture_corpus.sh reads it
+# instead of scanning the fixtures dir; tools/verify/check_fixture_razor.sh
+# enforces the doctrine on every entry.
+
+# ===========================================================================
+# Compiler / bootstrap fixtures (doctrine goal #1: compiler closure).
+#
+# Each pins a specific producer lowering path. A regression in the
+# producer's emit changes the locked sha and trips the corpus gate.
+# Different fixtures may share an emitted-byte sha when distinct
+# scan-time paths converge on the same final emit; the behavior_class
+# field disambiguates.
+# ===========================================================================
+
+[[fixture]]
+name = "exit42"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/exit42.phos"
+expect_size = 1081
+expect_sha256 = "9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de"
+expect_rc = 42
+behavior_class = "return_intlit_lowering"
+ambiguity_removed = "Pass H entry block exits with the captured INTLIT, no surprise patch-site drift"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "let_return"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/let_return.phos"
+expect_size = 1081
+expect_sha256 = "f0cd30a9a90f6c1629d99a1f73d33c0e089b8098023207cd5ecb2f20b287014e"
+expect_rc = 7
+behavior_class = "let_then_return"
+ambiguity_removed = "Pass K let-tracker correctly captures INTLIT and feeds matched-let return path"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "binop_fold"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/binop_fold.phos"
+expect_size = 1081
+expect_sha256 = "9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de"
+expect_rc = 42
+behavior_class = "constant_fold_return"
+ambiguity_removed = "Pass L constant-folds INT op INT at producer time, byte-identical with exit42 by design"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares final emit sha with exit42 and other rc=42 fixtures because the producer's scan-time evaluator converges different source paths to the same canonical exit-42 binary; this fixture proves Pass L's specific path, not the shared emit."
+
+[[fixture]]
+name = "bounded_loop"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/bounded_loop.phos"
+expect_size = 1105
+expect_sha256 = "1975fea6e3a0a4750705903ad286f3729557e8dbbcb9d4333ff8cfd6afd5b0b0"
+expect_rc = 0
+behavior_class = "bounded_for_then_return"
+ambiguity_removed = "Pass M.3.G-narrow emits a real bounded for-loop with cl counter and the loop body actually runs N times"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_true"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_true.phos"
+expect_size = 1105
+expect_sha256 = "1a0886e54cc0add08d919e88383e1e47211c63ad4acc2e24bb819694639b8e8b"
+expect_rc = 0
+behavior_class = "match_literal_bool"
+ambiguity_removed = "Pass M.3.H-mini selects arm based on KW true/false scrutinee at producer time"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_false"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_false.phos"
+expect_size = 1105
+expect_sha256 = "f25139c755f33fd1777c9911417a3d5ee2b4b733ddffda44915fb187a3ca6440"
+expect_rc = 0
+behavior_class = "match_literal_bool_false_arm"
+ambiguity_removed = "Pass M.3.H-mini's false-arm path (rsi=9 selector branch in phase0_stub.S) emits the rcx+9 INTLIT, not the rcx+5 INTLIT — distinct byte sequence from match_true confirms the false-side dispatch fires"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "sys1_exit42"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/sys1_exit42.phos"
+expect_size = 1105
+expect_sha256 = "3d1d0c0b06cc8d255530de9c624818e3d64de815f991e9ac90e06c0d5fb41200"
+expect_rc = 0
+behavior_class = "syscall_1arg_lowering"
+ambiguity_removed = "__sys1(NR, ARG) lowers to real `mov eax,NR; mov edi,ARG; syscall; ret` byte sequence"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "sys3_write"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/sys3_write.phos"
+expect_size = 1105
+expect_sha256 = "a6cee0ac8db70d1a6136e1a7b0b1e4fe044e5db14dfa2dcf731e772319d3981f"
+expect_rc = 0
+behavior_class = "syscall_4arg_lowering"
+ambiguity_removed = "__sys3(NR, A, B, C) lowers to 4-register-arg syscall; produces a real write(stdout, ADDR, LEN) at runtime"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "load32_filesz"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/load32_filesz.phos"
+expect_size = 1105
+expect_sha256 = "04237eaa26f8f43c4bb2efa4404aca90cfff4ba61af9a5a20653280939812916"
+expect_rc = 0
+behavior_class = "load_u32_from_vma"
+ambiguity_removed = "__load32(ADDR) lowers to mov edi,ADDR; mov eax,[rdi]; reads kernel-mapped ELF p_filesz at 0x400060"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "call_one_arg"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/call_one_arg.phos"
+expect_size = 1129
+expect_sha256 = "cbb098786ff40790aff5cf001e2a5a320bb20ec54c2caa24722b2725973e8282"
+expect_rc = 0
+behavior_class = "one_arg_call_emit"
+ambiguity_removed = "return helper(INTLIT) emits 24-byte mov edi, IMM; call rel32 caller block; rel32 adjusted for +5B mov-edi prefix"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "call_entry_one_arg"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/call_entry_one_arg.phos"
+expect_size = 1105
+expect_sha256 = "7c446018e45c69a8fa90739afe9a9b860887d59d841cf4541056fd3e94e8333d"
+expect_rc = 21
+behavior_class = "entry_call_runtime"
+ambiguity_removed = "Pass A-3 stage0_call_entry: entry passes IMM in edi to helper, helper executes, entry exits with helper's return value as SYS_EXIT code"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "call_param_name"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/call_param_name.phos"
+expect_size = 1105
+expect_sha256 = "67538675db578b19b19f278115e0f0edfc29a68120d825a0b6ac813d8ff574d2"
+expect_rc = 13
+behavior_class = "param_identity_from_signature"
+ambiguity_removed = "Pass A-4 captures param0 name from fn signature into fn_param0_table; body return PARAM_NAME resolves without the magic __a0 IDENT"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "call_let_arg"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/call_let_arg.phos"
+expect_size = 1105
+expect_sha256 = "09ae952427b5aee4a2f9f1faea98422668ae5e45e51dfa584f73ae87daa804a1"
+expect_rc = 17
+behavior_class = "let_bound_as_call_arg"
+ambiguity_removed = "Pass A-5 substitutes let_value as the IMM_32 of mov edi, IMM in caller block; let-tracker survives across return-IDENT path"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "param_add"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/param_add.phos"
+expect_size = 1105
+expect_sha256 = "3ba2433d4f0874085c3999baf12bc286b850fa96209edff05323e51beefbd5d3"
+expect_rc = 12
+behavior_class = "param_arith_add"
+ambiguity_removed = "Pass A-6 emits mov eax, edi; add eax, IMM (opcode 0x05) for return arg + INT"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "param_sub"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/param_sub.phos"
+expect_size = 1105
+expect_sha256 = "d4bd0bc3606f76a209d1d7c55cac0dd598b47263b2f791514dce0e3441dbcbd3"
+expect_rc = 42
+behavior_class = "param_arith_sub"
+ambiguity_removed = "Pass A-6 emits mov eax, edi; sub eax, IMM (opcode 0x2d) for return arg - INT"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "param_mul"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/param_mul.phos"
+expect_size = 1105
+expect_sha256 = "2c24b2aa107db165795de2e9b61e3b53448f0b30ffee936fc09e220ea72abd9f"
+expect_rc = 42
+behavior_class = "param_arith_mul"
+ambiguity_removed = "Pass A-7 emits mov eax, edi; imul eax, eax, IMM (6-byte 0x69 0xc0 form) for return arg * INT — different layout from add/sub"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "param_add_let"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/param_add_let.phos"
+expect_size = 1105
+expect_sha256 = "7ec573af70efec981d7143de03e285fc7ef7572885cef811d9cb5a1fe12c0b6c"
+expect_rc = 42
+behavior_class = "param_arith_let_rhs"
+ambiguity_removed = "Pass A-10 substitutes let_value as the IMM second operand of param-arith"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "param_sub_let"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/param_sub_let.phos"
+expect_size = 1105
+expect_sha256 = "d4bd0bc3606f76a209d1d7c55cac0dd598b47263b2f791514dce0e3441dbcbd3"
+expect_rc = 42
+behavior_class = "param_arith_let_rhs_sub"
+ambiguity_removed = "Pass A-10's op-tag dispatch correctly emits `sub eax, IMM` (not add) when let_value is the RHS of a subtraction"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "param_mul_let"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/param_mul_let.phos"
+expect_size = 1105
+expect_sha256 = "2c24b2aa107db165795de2e9b61e3b53448f0b30ffee936fc09e220ea72abd9f"
+expect_rc = 42
+behavior_class = "param_arith_let_rhs_mul"
+ambiguity_removed = "Pass A-10's op-tag dispatch correctly emits `imul eax, eax, IMM` (not add or sub) when let_value is the RHS of a multiplication"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+# ---------------------------------------------------------------------------
+# Pass L-IDENT-RHS (2026-04-30): closes the let_plus_arg / int_plus_arg /
+# let_times_arg producer soundness gaps. Pass L's `.Lefc_l_op_ok` now
+# accepts TK_IDENT at +3 in addition to TK_INT. IDENT matching the
+# per-fn param0 synthesizes an op tag (+100) so emit-time chooses the
+# reg-RHS block shape (operand_b from edi at runtime). IDENT matching
+# the let-tracker name resolves to let_value as IMM and joins the
+# existing fold path. Each fixture below pins a distinct path through
+# the new dispatch.
+# ---------------------------------------------------------------------------
+
+[[fixture]]
+name = "let_plus_arg"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/let_plus_arg.phos"
+expect_size = 1105
+expect_sha256 = "e3c60d2a2d6905854891284a2ae6d363a8d1fda11cc07b12f9d7d0b58d073cf2"
+expect_rc = 42
+behavior_class = "pass_l_ident_rhs_arg_add_let_first"
+ambiguity_removed = "Pass L-IDENT-RHS recognizes IDENT(arg) at +3 with let-cache operand_a entry (.Lefc_l_have_let_cache); emits `mov eax, IMM_let; add eax, edi` reg-form block. Symmetric to A-7+A-10's `arg + let` lowering."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "int_plus_arg"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/int_plus_arg.phos"
+expect_size = 1105
+expect_sha256 = "c9c30419ef72fe2d16e7e707586eb7afb9c4e11343f8bf22bd948e9f46b738bf"
+expect_rc = 43
+behavior_class = "pass_l_ident_rhs_arg_add_int_first"
+ambiguity_removed = "Pass L-IDENT-RHS recognizes IDENT(arg) at +3 with INT operand_a entry (.Lefc_l_a_from_int); distinct first-operand entry path from let_plus_arg, same reg-RHS emit shape."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "let_times_arg"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/let_times_arg.phos"
+expect_size = 1105
+expect_sha256 = "69a46e3c6070cb000948d98f098e3983cb710fbb93f8ae0460f5344ff8c40df6"
+expect_rc = 60
+behavior_class = "pass_l_ident_rhs_arg_mul"
+ambiguity_removed = "Pass L-IDENT-RHS with op tag 24 (MUL) takes the imul-reg emit shape (`0f af c7` = imul eax, edi) — distinct opcode bytes from add-reg (`01 f8`) and sub-reg (`29 f8`); 3-byte op encoding vs 2-byte for add/sub means a different tail-pad layout."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "let_minus_arg"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/let_minus_arg.phos"
+expect_size = 1105
+expect_sha256 = "af62b0ddf0da24048467ff274ef2f4370420e5aa283ee53c6b59bc5901aaf6ee"
+expect_rc = 20
+behavior_class = "pass_l_ident_rhs_arg_sub"
+ambiguity_removed = "Pass L-IDENT-RHS with op tag 23 (SUB) takes the sub-reg emit shape (`29 f8` = sub eax, edi) — distinct opcode bytes from add-reg (`01 f8`) and mul-reg (`0f af c7`); completes the ADD/SUB/MUL reg-RHS trio with byte-distinguishable opcodes."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "return_bool_true"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/return_bool_true.phos"
+expect_size = 1105
+expect_sha256 = "91507555c0f13bf73ae0c7b5b6f2372e130e20c21a43a020cdaec25c2c60a95c"
+expect_rc = 1
+behavior_class = "m3q_return_bool_lit"
+ambiguity_removed = "Pass M.3.Q-return-bool: `return true ;` and `return false ;` lower via Pass H's TK_KEYWORD dispatch (KW tag 14 = true → IMM 1, KW tag 15 = false → IMM 0). Distinct from TK_INT and TK_IDENT branches in Pass H's +1 peek."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "bare_bool_true"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/bare_bool_true.phos"
+expect_size = 1105
+expect_sha256 = "91507555c0f13bf73ae0c7b5b6f2372e130e20c21a43a020cdaec25c2c60a95c"
+expect_rc = 1
+behavior_class = "m3q_bare_bool_lit"
+ambiguity_removed = "Pass M.3.Q-bare-bool: `fn helper() -> bool { true }` (no `return` keyword, no trailing `;`) lowers via the bare-form scan path that branches on KW tag at depth=1 with peek+1 = `}`. Distinct scan-time entry from return_bool_true (return-form path)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares emit sha (91507555…) with return_bool_true because both ultimately commit edx=1 and dispatch to the same M.3.D-narrow `mov eax, 1; ret` block. Distinct producer scan paths (Pass H +1 KW peek vs bare-form depth-1 KW peek); this fixture proves the bare-form path."
+
+[[fixture]]
+name = "bare_arg_return"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/bare_arg_return.phos"
+expect_size = 1105
+expect_sha256 = "7e4144d43f5e5c623f935d73b42adb65329aab0bde424a985919d4cbcd785f82"
+expect_rc = 7
+behavior_class = "m3q_bare_arg_passthrough"
+ambiguity_removed = "Pass M.3.Q-bare-ident: `fn helper(arg) { arg }` (bare-IDENT matching param0) sets [rbp-96]=1 (param-identity flag) at scan time. Emit-time takes the existing arg-passthrough shape (`mov eax, edi; ret`) instead of M.3.D-narrow's IMM-load shape. Distinct emit shape from all prior fixtures."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "bare_let_return"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/bare_let_return.phos"
+expect_size = 1105
+expect_sha256 = "764c00a2eb56f46a07579bac55e40477200495afc317488134863c869b14cd03"
+expect_rc = 42
+behavior_class = "m3q_bare_let_name"
+ambiguity_removed = "Pass M.3.Q-bare-ident: `fn helper { let bias = 42; bias }` resolves bare-IDENT against let-tracker name and captures let_value as IMM (edx ← [rbp-28]). Distinct from m3q_bare_arg_passthrough (which sets the arg-flag instead of capturing IMM)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "bare_constructor_int"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/bare_constructor_int.phos"
+expect_size = 1105
+expect_sha256 = "3c681480fa4faa14aef9d114c8d1041a481c5526618a31b6384cd3aa034dd930"
+expect_rc = 42
+behavior_class = "m3s_bare_constructor"
+ambiguity_removed = "Pass M.3.S: bare-expression return of the form `IDENT ( INT ) }` at depth=1 — Phosphoric's Result/Option constructors `Ok(N)` / `Err(N)` / `Some(N)`. The constructor IDENT is treated transparently (Result/Option are u32-equivalent at phase 0); the inner INT becomes the return IMM. Distinct scan-time path from M.3.P (TK_INT alone) and M.3.Q (bare-bool/bare-arg/bare-let): peeks 4 tokens (`( INT ) }`) instead of 1 (`}`)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares emit sha (3c681480…) with bare_int_return because both ultimately commit edx=42 and emit M.3.D-narrow `mov eax, 42; ret`. Distinct scan-time entry: M.3.S recognizes a 5-token constructor pattern at depth 1; M.3.P recognizes a 2-token bare-INT pattern. This fixture proves the constructor path."
+
+[[fixture]]
+name = "return_constructor_int"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/return_constructor_int.phos"
+expect_size = 1105
+expect_sha256 = "764c00a2eb56f46a07579bac55e40477200495afc317488134863c869b14cd03"
+expect_rc = 42
+behavior_class = "m3t_return_constructor"
+ambiguity_removed = "Pass M.3.T-safe-return-constructor: `return IDENT ( INNER ) ;` lowers via the post-fn-table-lookup-fail fallback. Critical safety: fires AFTER the fn_offset_table lookup confirms the IDENT is NOT a known fn — this distinguishes `return Ok(N);` (constructor → captures inner) from `return helper(N);` (fn call → existing call dispatch). Without this gating, a token-shape ambiguity miscompiles all fn calls. INNER may be TK_INT, TK_IDENT-matching-param0, or TK_IDENT-matching-let_name. Doctrine-distinct from M.3.S (bare-form constructor with `}` terminator)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares emit sha (764c00a2…) with bare_let_return because both ultimately commit edx=42 and emit M.3.D-narrow `mov eax, 42; ret`. Distinct scan paths: M.3.T-safe gates on fn_offset_table lookup failure (only fires for non-fn IDENTs) AND requires the 5-token shape `IDENT ( INNER ) ;`; bare_let_return is a 2-token bare-IDENT pattern. This fixture proves the post-fn-table-lookup-fail constructor path."
+
+[[fixture]]
+name = "bare_constructor_arg"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/bare_constructor_arg.phos"
+expect_size = 1105
+expect_sha256 = "7e4144d43f5e5c623f935d73b42adb65329aab0bde424a985919d4cbcd785f82"
+expect_rc = 7
+behavior_class = "m3s_constructor_with_ident_arg"
+ambiguity_removed = "Pass M.3.S extension: bare-constructor `IDENT ( IDENT ) }` where the inner IDENT is param0 — captured via the existing arg-passthrough flag, emitting `mov eax, edi; ret`. Distinct scan-time path from M.3.S (TK_INT inside) and from M.3.Q-bare-arg (no constructor wrapper). Lights up phase0_compiler.phos's `Ok(s)` / `Ok(cursor)` / `Some(arg)` patterns when the inner IDENT is a fn param."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares emit sha (7e4144d4…) with bare_arg_return because both ultimately set the param-identity flag and emit `mov eax, edi; ret`. Distinct scan paths: M.3.S extension peeks `IDENT ( IDENT ) }` (5 tokens) at depth 1; M.3.Q-bare-arg peeks just `IDENT }` (2 tokens). This fixture proves the constructor-wrapped IDENT path."
+
+[[fixture]]
+name = "match_fn_call_both_arms"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_fn_call_both_arms.phos"
+expect_size = 1177
+expect_sha256 = "87eca12a6dc35ffa62ef46ff499b9f2295ffa9ad7c3507ae69226f4fb0a31b59"
+expect_rc = 1
+behavior_class = "m3aab_match_fn_call_both_arms"
+ambiguity_removed = "Pass M.3.AA-β: match scrutinee is fn1 call AND FALSE arm is fn2 call. Source `match fn1(arg) { true => true, false => fn2(arg) }` lowers to a 24-byte LEAF-style block with **two `call rel32` instructions**: call fn1 (offsets 0-4), test+je for branch, ret if TRUE arm, call fn2 (offsets 10-14) for FALSE arm, ret. Two distinct rel32 offsets computed from caller_offset. Closes `is_ident_cont { match is_ident_start(b) { true => true, false => is_digit(b) } }` in phase0_compiler.phos. Assumes fn1 preserves edi (so arg is still valid for call fn2) — true for simple leaf-style callees but technically ABI-fragile. Frame at 224 with new slot [rbp-220] for fn2 target_offset."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_fn_call_scrutinee"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_fn_call_scrutinee.phos"
+expect_size = 1129
+expect_sha256 = "f35165fdcfb00bd5b6cd076dfa7ff8796ecc24172887acbf13f715b48481d0fb"
+expect_rc = 1
+behavior_class = "m3aa_match_fn_call_scrutinee"
+ambiguity_removed = "Pass M.3.AA-α: match scrutinee is a fn call. Source `match fn(arg) { true => true, false => SCRUT op2 IMM_Y }` lowers to a 24-byte LEAF-style block with **call rel32** as the first instruction. Layout: call (5) / test eax,eax (2) / je +1 (2) / ret TRUE arm (1) / cmp edi,IMM_Y (6) / setcc al (3) / movzx eax,al (3) / ret (1) / nop (1). Closes `is_ident_start { match is_alpha(b) { true => true, false => b == 95 } }` in phase0_compiler.phos. The size is 1129 instead of 1105 because the fixture has 3 fns (entry + 2 helpers), so the file-size formula gives 120 + 195 + 24*N + canned bytes."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_false_arm_comparison"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_false_arm_comparison.phos"
+expect_size = 1105
+expect_sha256 = "82cd0033c1931a0b05c6ca976ed7736a6f124a6d6f4f83d266db99b8939391b6"
+expect_rc = 1
+behavior_class = "m3x_match_false_arm_comparison"
+ambiguity_removed = "Pass M.3.X: mirror of M.3.V — `match SCRUT op1 IMM_X { true => true, false => SCRUT op2 IMM_Y }` lowers to a 24-byte LEAF-style block with **xor-init + inc trick** to fit `eax=1` semantics in 4 bytes (xor eax,eax + inc eax) instead of a 5-byte mov. Distinct emit shape: starts with `31 c0` (xor eax, eax) at offset 0, then `81 ff IM×4` cmp, jcc-inverse, inc eax, ret, second cmp, setcc, ret. Depth-gated to fire only at top-level match in fn body (r8 == 1) — soundness fix added 2026-04-30 after discovering nested matches were miscompiled."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_comparison_arm"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_comparison_arm.phos"
+expect_size = 1105
+expect_sha256 = "4e2e3a0685bd2242a64b52345ad8eb6b050c7326ba7337068a445938655c2d8b"
+expect_rc = 1
+behavior_class = "m3v_match_comparison_arm"
+ambiguity_removed = "Pass M.3.V: comparison-arm — `match SCRUT op1 IMM_X { true => SCRUT op2 IMM_Y, false => false }` lowers to a 24-byte LEAF-style block (no prologue, no epilogue) with two cmp instructions plus setcc + movzx. **Distinct emit shape**: prior fixtures all use 24-byte blocks with `push rbp / mov rbp,rsp / ... / pop rbp / ret`; M.3.V skips the frame entirely (eax is the result, ret returns directly). Outer cmp + jcc-INVERSE selects the FALSE branch (`xor eax, eax; ret`); inner cmp + setcc + movzx computes the TRUE branch. **Distinct opcode signature**: starts with `81 ff` (cmp edi, IMM32) at byte 0 instead of `55` (push rbp). Closes `is_digit` in phase0_compiler.phos and other range-check fns."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_trailing_comma"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_trailing_comma.phos"
+expect_size = 1105
+expect_sha256 = "ceac7d07b0f053e6d2e9a105eb4c8a1bb83b95c609f69cbcbe7efe740d45f983"
+expect_rc = 100
+behavior_class = "m3w_match_trailing_comma"
+ambiguity_removed = "Pass M.3.W: optional trailing comma after FALSE arm in match-cmp expressions. Source `match SCRUT cmp INT { true => N, false => N, }` (trailing `,` after the FALSE arm value) now lowers identically to the no-trailing-comma form. Scan-time check at +12: accept either `}` (no trailing comma, existing path) or `,` followed by `}` at +13. Phase0_compiler.phos uses trailing commas extensively in match arms; M.3.W enables those patterns to lower (when their other constraints are also met)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_arm_arg"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_arm_arg.phos"
+expect_size = 1105
+expect_sha256 = "d4ed1dc9f03b0b36110d4b484cdd4bf6e3a22b6585fff8b0be9f12b0d6d95f0b"
+expect_rc = 7
+behavior_class = "m3u_match_arm_param0"
+ambiguity_removed = "Pass M.3.U: A-17's match-arm dispatch now accepts TK_IDENT-matching-param0 in addition to TK_IDENT-matching-let, TK_INT, and TK_KEYWORD true/false. When set, the corresponding 5-byte `mov eax, IMM` slot in the A-12/13 emit block becomes `89 f8 90 90 90` (`mov eax, edi; nop nop nop`) — block size invariant preserved. Distinct emit shape from all prior match-cmp fixtures: `89 f8` opcode bytes at the arm slot instead of `b8 NN NN NN NN`. Both arm-A and arm-B paths support param0 IDENT independently."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_bool_arm"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_bool_arm.phos"
+expect_size = 1105
+expect_sha256 = "282e47d955ce91822cbbdd4fe68903caa644ee6b0d2ce6307753b10ed859449f"
+expect_rc = 1
+behavior_class = "m3r_match_arm_kw_true_false"
+ambiguity_removed = "Pass M.3.R: A-17's match arm dispatch now accepts TK_KEYWORD true/false in addition to TK_INT and TK_IDENT-matching-let. KW true (tag 14) → IMM 1; KW false (tag 15) → IMM 0. Both arm-A (TRUE branch at +7) and arm-B (FALSE branch at +11) dispatchers extended. Reuses the existing 24-byte A-12/13 emit shape with the IMM values 1/0."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "bare_int_return"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/bare_int_return.phos"
+expect_size = 1105
+expect_sha256 = "3c681480fa4faa14aef9d114c8d1041a481c5526618a31b6384cd3aa034dd930"
+expect_rc = 42
+behavior_class = "m3p_bare_int_return"
+ambiguity_removed = "Pass M.3.P: bare-expression return at end of fn body. Source `fn helper() -> u32 { N }` (no `return` keyword, no trailing `;`) lowers to the same M.3.D-narrow `mov eax, N; ret` block as `return N;` would. Distinct scan-time path: TK_INT at depth 1 with peek+1 = TK_PUNCT `}`. Closes the marker_bare_int producer soundness gap (was rc=name_pool_idx fallback, now rc=N). Lights up `marker() { 0 }` in phase0_compiler.phos."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "bounded_loop_imm32"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/bounded_loop_imm32.phos"
+expect_size = 1105
+expect_sha256 = "3e8ddce18cdb5e30bede3b2ccad204e3554aa5ad16c82c6ac4995ad4b8d00d4a"
+expect_rc = 0
+behavior_class = "m3g_mid_imm32_loop_emit"
+ambiguity_removed = "M.3.G-mid: bounds > 127 take a distinct 24-byte emit shape using `mov ecx, IMM32` + `loop` instruction self-jump (`e2 fe`) instead of M.3.G-narrow's `cmp ecx, IMM8` + manual inc/jmp loop. Distinct opcode signature at block offsets 4-14: M.3.G-mid uses `b9 NN NN NN NN 85 c9 74 02 e2 fe` while M.3.G-narrow uses `31 c9 83 f9 NN 7d 04 ff c1 eb f9`. Test+jz guards N=0 (LOOP starting with ecx=0 would otherwise underflow to 0xFFFFFFFF and run ~4B iterations)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "let_plus_let2"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/let_plus_let2.phos"
+expect_size = 1081
+expect_sha256 = "9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de"
+expect_rc = 42
+behavior_class = "pass_l_ident_rhs_let_join_fold"
+ambiguity_removed = "Pass L-IDENT-RHS's `.Lefc_l_b_is_let` resolves a let-name as operand_b at scan time and joins the existing INT-fold path. Distinct from `.Lefc_l_b_is_arg` which synthesizes a +100 op tag and skips fold; here the let_value is treated as IMM and folded with operand_a, yielding a single mov eax IMM emit at runtime."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares emit sha (9a0d0ca0…) with exit42 / let_fold_sub / let_chain / param_add_let_fold variants because the producer's scan-time evaluator collapses any path that folds to integer 42 in entry position to the same canonical entry-block bytes; this fixture proves the let-RHS-via-fold path specifically (`.Lefc_l_b_is_let` + Pass L's add fold), not the shared emit."
+
+[[fixture]]
+name = "call_arg_fold_int"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/call_arg_fold_int.phos"
+expect_size = 1105
+expect_sha256 = "fbabc4fcc224feb85a71f5d544bfa76e6a39587685ced5e0ad8145d043ac19d4"
+expect_rc = 42
+behavior_class = "call_arg_int_op_int_fold"
+ambiguity_removed = "Pass A-11 folds (INT op INT) at producer time and uses the result as the call IMM"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "call_arg_fold_let"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/call_arg_fold_let.phos"
+expect_size = 1105
+expect_sha256 = "963030cf7ad3a58fed65c481d2d4fe67ed67df9240fb442e245b7244942c9c56"
+expect_rc = 40
+behavior_class = "call_arg_let_op_int_fold"
+ambiguity_removed = "Pass A-11 folds (LET op INT) at producer time using let-tracker"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_param_eq_true"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_param_eq_true.phos"
+expect_size = 1105
+expect_sha256 = "ceac7d07b0f053e6d2e9a105eb4c8a1bb83b95c609f69cbcbe7efe740d45f983"
+expect_rc = 100
+behavior_class = "match_runtime_cmp_eq_true"
+ambiguity_removed = "Pass A-12/A-14 emits real cmp + je + mov runtime conditional; TRUE arm fires when arg == IMM"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_param_eq_false"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_param_eq_false.phos"
+expect_size = 1105
+expect_sha256 = "efad8a94e167286c92bc80fbe3df51cd2f5e0fb7f3aa08787789f50022931021"
+expect_rc = 42
+behavior_class = "match_runtime_cmp_eq_false"
+ambiguity_removed = "Same emit shape as match_param_eq_true; FALSE arm fires when arg != IMM (different runtime path through same instruction layout)"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_param_lt"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_param_lt.phos"
+expect_size = 1105
+expect_sha256 = "c800f52aeab9f83b70a835801bdb1a9c048827b195910c7da74fac078f7dbc07"
+expect_rc = 111
+behavior_class = "match_runtime_cmp_lt"
+ambiguity_removed = "Pass A-13 chooses jl opcode 0x7c at emit time for `<` comparison"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_param_gt"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_param_gt.phos"
+expect_size = 1105
+expect_sha256 = "eff346d586b0ba4b6f70cf55f682079fb23723dba7c818efe6db8bd3b47eeacb"
+expect_rc = 33
+behavior_class = "match_runtime_cmp_gt"
+ambiguity_removed = "Pass A-13 chooses jg opcode 0x7f at emit time for `>` comparison"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_param_ne"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_param_ne.phos"
+expect_size = 1105
+expect_sha256 = "a24b163c29ebbeee442cc8a01c9e04464d3c40b3fc9170478adb08db80858ec9"
+expect_rc = 55
+behavior_class = "match_runtime_cmp_ne"
+ambiguity_removed = "Pass A-13 chooses jne opcode 0x75 at emit time for `!=` comparison"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_param_le"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_param_le.phos"
+expect_size = 1105
+expect_sha256 = "f6e03e4f57909d825ba35b33a752777cd3cb9bea64eaaca433286905d5163787"
+expect_rc = 88
+behavior_class = "match_runtime_cmp_le"
+ambiguity_removed = "Pass A-13 chooses jg opcode 0x7F at emit time for `<=` (jump-if-greater past the true arm) — distinct opcode from `<`'s jge"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_param_ge"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_param_ge.phos"
+expect_size = 1105
+expect_sha256 = "32df56ac6fb614a3c50433884e487d3c52df6dc1843d6ac1de0f7c1a222d5137"
+expect_rc = 99
+behavior_class = "match_runtime_cmp_ge"
+ambiguity_removed = "Pass A-13 chooses jl opcode 0x7C at emit time for `>=` (jump-if-less past the true arm) — distinct opcode from `>`'s jle"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_imm32"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_imm32.phos"
+expect_size = 1105
+expect_sha256 = "da4cb09f1674f1d6c0dcab05a589dddf29681693bbb6a0bb6f4819afb5791d9e"
+expect_rc = 77
+behavior_class = "match_cmp_imm32"
+ambiguity_removed = "Pass A-14 lifts IMM_8 (-128..127) constraint by switching cmp encoding from `83 ff IMM_8` to `81 ff IMM_32`; IMM=500 fixture proves the wide form"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_let_cmp"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_cmp.phos"
+expect_size = 1105
+expect_sha256 = "4638c3f35a38002a1e3bea810857d6cc7ccbe1047f7318123811aeb85841bddd"
+expect_rc = 11
+behavior_class = "match_cmp_let_rhs"
+ambiguity_removed = "Pass A-15 sources the cmp IMM_32 from let-tracker when match RHS is a let-bound IDENT"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_let_arm"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_arm.phos"
+expect_size = 1105
+expect_sha256 = "74cb673d240e07acf49183701ed00f6236ef49f2a4dd19002c516c7e1a667daa"
+expect_rc = 88
+behavior_class = "match_arm_let"
+ambiguity_removed = "Pass A-17 substitutes let_value as the TRUE-arm or FALSE-arm result of a runtime match"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_compose"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_compose.phos"
+expect_size = 1105
+expect_sha256 = "ceac7d07b0f053e6d2e9a105eb4c8a1bb83b95c609f69cbcbe7efe740d45f983"
+expect_rc = 100
+behavior_class = "match_compose_let_fold_arm"
+ambiguity_removed = "End-to-end composition of A-8 let-fold + A-17 match-arm-let; producer's compositional evaluator chains correctly"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares final emit sha with match_param_eq_true because both reduce to byte-identical cmp+je+mov 100/mov 0; this fixture proves the multi-pass composition path, not the shared emit."
+
+[[fixture]]
+name = "let_fold_sub"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/let_fold_sub.phos"
+expect_size = 1081
+expect_sha256 = "9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de"
+expect_rc = 42
+behavior_class = "let_rhs_fold_sub"
+ambiguity_removed = "Pass A-8 folds INT_A op INT_B at let-RHS at producer time"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares final emit sha with exit42 because both produce byte-identical exit-42 binary; this fixture proves the let-fold path."
+
+[[fixture]]
+name = "let_chain"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/let_chain.phos"
+expect_size = 1081
+expect_sha256 = "9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de"
+expect_rc = 42
+behavior_class = "let_chain_prev"
+ambiguity_removed = "Pass A-18 reads prior let_value when let-RHS is `LET op INT`; sequential chains compose"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares final emit sha with exit42; this fixture proves the chained-let path."
+
+[[fixture]]
+name = "match_let_scrut_false"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_scrut_false.phos"
+expect_size = 1081
+expect_sha256 = "9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de"
+expect_rc = 42
+behavior_class = "match_scrut_let_fold_false"
+ambiguity_removed = "Pass A-19 folds match-comparison at producer time when scrutinee is let-bound; FALSE arm picked"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares final emit sha with exit42; this fixture proves the let-scrutinee scan-time fold path with FALSE outcome."
+
+[[fixture]]
+name = "match_let_cmp_imm32"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_cmp_imm32.phos"
+expect_size = 1105
+expect_sha256 = "84f69cfe4234604305b7c4ad6520276c21fb726971868f9b846e5ecee71a1ce2"
+expect_rc = 44
+behavior_class = "match_cmp_let_rhs_imm32"
+ambiguity_removed = "Pass A-15 substitutes a let_value > 127 into Pass A-14's IMM32 cmp encoding (composition) — proves let-substitution feeds the IMM32 emission path correctly, not just the IMM8 path tested by match_let_cmp"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_let_arm_false"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_arm_false.phos"
+expect_size = 1105
+expect_sha256 = "efb33f3b794ef237dd9fe798bb16e41ef76aa117cd481f295cd5c55929dea8ec"
+expect_rc = 77
+behavior_class = "match_arm_b_let"
+ambiguity_removed = "Pass A-17's arm-B let path (.Lefc_a17_arm_b_let in producer) substitutes let_value when the FALSE arm is the let-bound IDENT — distinct code path from arm A's substitution which is exercised by match_let_arm"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_let_scrut_true"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_scrut_true.phos"
+expect_size = 1081
+expect_sha256 = "bf0e151e541e8287470d6e04014f80af84ba6c451b5d2789e34988ff0af673b6"
+expect_rc = 99
+behavior_class = "match_scrut_let_fold_true"
+ambiguity_removed = "Pass A-19 scan-time fold with TRUE outcome — exercises the take-A path of the fold"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_let_scrut_ne"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_scrut_ne.phos"
+expect_size = 1081
+expect_sha256 = "f41337cae31f4b43e7307abbe4607eeac521f07c0bb7c7d5b4911bc5ecd10ed7"
+expect_rc = 13
+behavior_class = "match_scrut_let_fold_ne"
+ambiguity_removed = "Pass A-19's op-tag dispatch wires `setne` for `!=` (not setl/setg/sete) — fold of (7 != 7) correctly yields false and selects arm B"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_let_scrut_lt"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_scrut_lt.phos"
+expect_size = 1081
+expect_sha256 = "18a17cc11ce8936666d870c58223bcfe4893cce41db3f9271e1005057e763790"
+expect_rc = 21
+behavior_class = "match_scrut_let_fold_lt"
+ambiguity_removed = "Pass A-19's op-tag dispatch wires `setl` for `<` — fold of (5 < 7) correctly yields true and selects arm A"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_let_scrut_le"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_scrut_le.phos"
+expect_size = 1081
+expect_sha256 = "c48a0a704355bdeabad188f39b08744672d1ed6a047f6e74424c3316bc90c52b"
+expect_rc = 23
+behavior_class = "match_scrut_let_fold_le"
+ambiguity_removed = "Pass A-19's op-tag dispatch wires `setle` for `<=` (boundary case: 7 <= 7) — fold yields true on equality, distinct from `<` path"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_let_scrut_gt"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_scrut_gt.phos"
+expect_size = 1081
+expect_sha256 = "b59faa52cec067dcf1aedb906b1a3e7da15159cfa1fec30f9259022084057970"
+expect_rc = 25
+behavior_class = "match_scrut_let_fold_gt"
+ambiguity_removed = "Pass A-19's op-tag dispatch wires `setg` for `>` — fold of (9 > 7) correctly yields true and selects arm A"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "match_let_scrut_ge"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/match_let_scrut_ge.phos"
+expect_size = 1081
+expect_sha256 = "9879230aedccd2e6f5a7263092d2bffc18b7c14ed67ea532ed7e8fbc0b5d3792"
+expect_rc = 27
+behavior_class = "match_scrut_let_fold_ge"
+ambiguity_removed = "Pass A-19's op-tag dispatch wires `setge` for `>=` (boundary case: 7 >= 7) — fold yields true on equality, distinct from `>` path"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "let_multi_concurrent"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/let_multi_concurrent.phos"
+expect_size = 1081
+expect_sha256 = "25b5487e343001b124f8d0129092eb663bcfbae81472bb0720e18a0e5fe5a324"
+expect_rc = 5
+behavior_class = "multi_let_concurrent_visible"
+ambiguity_removed = "Second `let` does NOT evict the first; the multi-let table preserves all bindings, walked on cache miss in the return-IDENT path. Without this, lookup of an earlier let after a later one is bound silently fails to the M.3.D-narrow fallback emitting a name_pool_idx as the exit code (garbage)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "nested_call_chain"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/nested_call_chain.phos"
+expect_size = 1129
+expect_sha256 = "5a3ac14b7c986bb87cbf29149fb6a0eef1ffac89cd84a91ca336e71c2129a6fd"
+expect_rc = 42
+behavior_class = "three_fn_call_chain"
+ambiguity_removed = "Three-fn chain (entry → middle → leaf) exercises stage0_call_entry + 24B M.3.E-full CALL block + 24B M.3.D-narrow leaf return in one binary"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3y_alpha_isalpha"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3y_alpha_isalpha.phos"
+expect_size = 1113
+expect_sha256 = "e60f229dcd61ba2fe17c3afc3bf25a7ae144bc0f2c49bbea7c0b2f0844dad405"
+expect_rc = 1
+behavior_class = "m3y_alpha_isalpha_lowering"
+ambiguity_removed = "is_alpha-shape fn (3-level nested match returning bool) lowers to a 32-byte M.3.Y-α LEAF block instead of the 24-byte M.3.D-narrow stub. Pins both the variable-size emit foundation (file size 1113 = 1081 + 32) and the M.3.Y-α byte sequence."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3y_beta_isws"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3y_beta_isws.phos"
+expect_size = 1121
+expect_sha256 = "7be774545fb24b2bdf1009676b69b5928c4df558fd8ee02c3e690344f6b12dd4"
+expect_rc = 1
+behavior_class = "m3y_beta_isws_lowering"
+ambiguity_removed = "is_ws-shape fn (3-level nested match returning bool, chain-of-equalities `b == 32 / 9 / 10 / 13`) lowers to a 40-byte M.3.Y-β LEAF block. Distinct emit shape from M.3.Y-α (range-check), distinguished by first scrutinee op (== vs >=) and first IMM (32 vs 65). Pins the second variable-size emit cluster (file size 1121 = 1081 + 40)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3ac_narrow_classify_punct"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3ac_narrow_classify_punct.phos"
+expect_size = 1313
+expect_sha256 = "931e22d8e04a13039f4867937b2579a3dd11bd3836b0d4b00488ab0724677771"
+expect_rc = 1
+behavior_class = "m3ac_narrow_classify_punct_lowering"
+ambiguity_removed = "classify_single_punct-shape fn (single 20-arm `match IDENT { INT => INT, ... _ => 0 }`) lowers to a 232-byte cmp-cascade block. First non-LEAF variable-size emit family. Each arm is a fixed 11-byte cmp+jne+mov+ret unit; arms are pre-built in .data and emitted via a single SYS_WRITE. Pins both the third variable-size emit cluster (file size 1313 = 1081 + 232) and the M.3.AC-narrow byte sequence."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3z_empty_zeros"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3z_empty_zeros.phos"
+expect_size = 1105
+expect_sha256 = "4bf1164cdaec1310fc03a636b1e896b902210d9013166a17c000706ce9331112"
+expect_rc = 0
+behavior_class = "m3z_empty_zeros_lowering"
+ambiguity_removed = "Fns whose body initializes a return value entirely from zero literals (e.g. `marker { 0 }`, `check_acyclicity { Ok(0) }`, `empty_token { Phase0Token { kind: 0, payload: 0, start: 0, end: 0 } }`) lower to a 24-byte LEAF block `xor eax,eax; xor edx,edx; ret; nop×19`. Discriminator: match-count == 0 AND let-count == 0 AND body has at least one TK_INT(0) AND no nonzero TK_INT AND body has no IDENT-(`(`)-then-known-fn pattern (the fn-table-walk safety gate distinguishes constructors `Ok(0)` from bare fn calls `helper(0)` — same approach as M.3.S/T-safe). The xor-rdx makes this ABI-correct for both u32/i32 returns AND for aggregate returns ≤16 bytes (System V x86_64 returns the second 8 bytes in rdx). Same 24-byte size as M.3.D-narrow stub — no offset shift; pure byte-level correction."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3g_let_mut_fold"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3g_let_mut_fold.phos"
+expect_size = 1105
+expect_sha256 = "320f3d340036bd4b110215d55add8170ff00dbcc333616872dd2df6ed74152e8"
+expect_rc = 11
+behavior_class = "m3g_let_mut_fold_lowering"
+ambiguity_removed = "Fns whose body matches `let mut V : T = INIT ; [V = INT ;]* (return V ; | V)` lower to a 24-byte LEAF block `mov eax, FINAL_INT; xor edx, edx; ret; nop×16`. Discriminator: match-count == 0 AND let-count == 1 AND no fn call AND a 2nd-pass scan recognizes the strict pattern, captures the IDENT-V's name_pool_idx, and tracks the LATEST INT assigned across `[V = INT ;]*` reassignments. Both bare-V terminal (`V }`) and return-form terminal (`return V ; }`) accepted. The captured FINAL_INT is stored per-fn in a new `fn_let_int_table` (1024 × 4 bytes) and read at emit time to patch the IMM32 of `mov eax, IMM`. First shape that allows let_count > 0; first emit shape with per-fn metadata beyond shape ID and size."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3g_let_mut_arg_passthrough"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3g_let_mut_arg_passthrough.phos"
+expect_size = 1105
+expect_sha256 = "1d7259d552ced2198d2d29411cea893b5f54b47f9774a1504cb69964d3379127"
+expect_rc = 77
+behavior_class = "m3g_let_mut_arg_passthrough_lowering"
+ambiguity_removed = "Session 6b M.3.G-let-mut-arg-passthrough: bodies matching `let mut V : T = arg ; (return V ; | V)` (init from param0, no reassignments) lower to a 24-byte LEAF block `mov eax, edi; xor edx, edx; ret; nop×19`. Distinct emit shape from M.3.G-let-mut-fold (shape=5) which has `mov eax, IMM` instead of `mov eax, edi`. Discriminator (Session 6b) extends Session 6a's: at rsi[6] of the 8-token init pattern, branch on TK_INT (→ shape=5 fold path) vs TK_IDENT-matching-param0 (→ shape=6 arg-passthrough path). Param0 is derived inline from the fn signature (r11+3) since Pass A-4 hasn't run yet at shape-detection time. The arg-passthrough path forbids reassignments — any `V = ...` rejects → falls back to M.3.D-narrow."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3e_2arg_int_call"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3e_2arg_int_call.phos"
+expect_size = 1129
+expect_sha256 = "5e95b20c7403bd21a8308fce23b3b3a1c31ac4ef218283a1ffc787fcf2864fe6"
+expect_rc = 13
+behavior_class = "m3e_2arg_int_call_lowering"
+ambiguity_removed = "Session 7-narrow M.3.E-2arg-int-call: bodies matching `return IDENT(INT, INT) ;` (where IDENT resolves via fn_offset_table) lower to a 24-byte LEAF block `mov edi, ARG1; mov esi, ARG2; call rel32; xor edx, edx; ret; nop×6`. First multi-arg call shape — extends the existing one-arg A-1 path with rsi setup. Discriminator pre-conditions: match=0, let=0, r13=3 (saw fn call). 9-token state machine: `return IDENT ( INT , INT ) ; }`. Per-fn metadata in new `fn_call_meta` (12 bytes/fn: target_offset + arg1 + arg2). The xor-edx after call makes return ABI-correct for ≤16-byte aggregate returns. **Bug caught and fixed during landing**: the int_handler in classify_fn_shape's main scan was overwriting r13=3 (saw-fn-call sentinel) with r13=2 (has-nonzero-INT) when it saw the IMM args. Made the saw-fn-call state sticky (r13==3 short-circuits the int_handler)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3i_load_start"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3i_load_start.phos"
+expect_size = 1105
+expect_sha256 = "73a8dbdb558694182ca931dd21bcfa6a45933a82928e21ce8c7f04d806bb2223"
+expect_rc = 0
+behavior_class = "m3i_load_start_lowering"
+ambiguity_removed = "Session 8 M.3.I-load-narrow: bodies matching `param0 . start }` (4 tokens, bare-form, where param0 is the fn's first param IDENT and the field IDENT is verified to be exactly the string `start` via ident_table walk against name_pool bytes) lower to a 24-byte LEAF block `mov eax, esi; ret; nop×21`. **First struct-field accessor shape**. Soundness: the field-name verification walks ident_table looking for a length==5 entry whose name_pool bytes match `s/t/a/r/t` literally; only when the field IDENT's name_pool offset equals that walk's result does the shape fire. Other fields (`kind`, `payload`, `end`) are correctly rejected → fall back to M.3.D-narrow (verified: `s.kind` produces M.3.D-narrow stub bytes, not M.3.I-load bytes). ABI assumption: ≤16-byte struct passed in (rdi, rsi); s.start (u32 at struct offset 8 with `{u8, u32, u32, u32}` Phase0Token-shape layout) is the low 32 bits of rsi. Per-fn metadata: none — emit is field-fixed for `start` only. Future sessions extend with kind/payload/end via additional shapes."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3g_let_mut_call_reassign"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3g_let_mut_call_reassign.phos"
+expect_size = 1137
+expect_sha256 = "52220576848236ca2d09aacccf6cb55178e0aa34fe687f894f487bb8d67c5ea3"
+expect_rc = 77
+behavior_class = "m3g_let_mut_call_reassign_lowering"
+ambiguity_removed = "Session 6c M.3.G-let-mut-call-reassign: bodies matching exactly `let mut V : T = INT_INIT ; V = FN() ; V }` (16 tokens, where FN resolves via fn_offset_table) lower to a 32-byte non-LEAF block with REAL per-fn `sub rsp, 16` frame. **First 32-byte non-LEAF block** in the producer; **first per-fn variable frame_size > 0 outside the M.3.D-narrow stub family**. Emit: `push rbp; mov rbp,rsp; sub rsp,16; mov [rbp-4], INT_INIT; call rel32; mov [rbp-4], eax; mov eax, [rbp-4]; mov rsp,rbp; pop rbp; ret; nop` (32 B). The `mov [rbp-4], INT_INIT` IS observable as a real stack write even though the value is overwritten by the call return — preserves source-level let-mut semantics step-by-step. rel32 = target_offset - caller_offset - 20 (call inst at byte 15, end at byte 20). Per-fn metadata: target_offset (fn_call_meta+0) + INT_INIT (fn_call_meta+4). Pre-conditions: match=0, let=1, r13=3 (saw fn call). Strict 16-token state machine; any deviation → fall back to M.3.D-narrow. New emit-size cluster: 1137 = 1081 + 24 (target M.3.D-narrow) + 32 (caller M.3.G-call-reassign)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3i_store_kind_imm"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3i_store_kind_imm.phos"
+expect_size = 1105
+expect_sha256 = "c7147d3ca88ae1837225242bb732514ab143781b2d3e610280c49576dca7b770"
+expect_rc = 0
+behavior_class = "m3i_store_kind_imm_lowering"
+ambiguity_removed = "Session 10 M.3.I-store-narrow-kind-imm: bodies matching `param0 . kind = IMM ; param0 }` (8 tokens, where the field IDENT is verified to be exactly the literal `kind` via ident_table walk against name_pool bytes, and IDENT[0] == IDENT[6] == param0) lower to a 24-byte LEAF block `mov rax, rdi; mov al, IMM; mov rdx, rsi; ret; nop×15`. **First struct-field STORE shape**. ABI assumption: ≤16-byte struct passed in (rdi, rsi); kind is byte 0 of struct = low byte of rdi. The emit copies rdi → rax (low 8 of struct), overwrites rax's low byte with IMM, copies rsi → rdx (high 8), returns modified struct in (rax, rdx). Per-fn metadata: fn_field_store_imm (4B/fn). Sound discriminator rejects other field names — `t.start = X; t` and `t.payload = X; t` correctly fall back to existing default emit (which has its own pre-existing handling of `t}` bare-arg-return)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3k_empty_ast_node"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3k_empty_ast_node.phos"
+expect_size = 1105
+expect_sha256 = "8cd7f2a69705d6401653a5220d1d2c131a62ddf3a9cc7346160f99ae07eaac35"
+expect_rc = 0
+behavior_class = "m3k_empty_ast_node_lowering"
+ambiguity_removed = "Session 19 M.3.K extension to a second hidden-pointer struct-return target. Bodies opening with `Phase0AstNode { kind: ..., payload: [0;4], name_pool_idx: 0, }` (the all-zero AST-node constructor, where 'Phase0AstNode' is verified literally via ident_table walk — sound discriminator analogous to Session 11) lower to a 24-byte LEAF block: `mov r8, rdi; xor eax, eax; mov ecx, 0x18; rep stosb; mov rax, r8; ret; nop×8`. Same hidden-pointer ABI primitive as Session 11's Phase0LexState path; size 0x18 (24 bytes = u8 kind + 3 pad + [u32;4] payload + u32 name_pool_idx) read from new per-fn `fn_huge_struct_size` table populated by the discriminator. Pre-conditions for the dispatch: r13=2 (has nonzero INT, no fn call) — the `4` literal in `payload: [0; 4]` triggers it. **Phase-0 chain unlock**: lowers phase0_compiler.phos's `empty_ast_node` (line 634) correctly. Existing m3k_empty_huge_struct (Phase0LexState path) byte-equally preserved — the extension is additive."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3k_empty_huge_struct"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3k_empty_huge_struct.phos"
+expect_size = 1129
+expect_sha256 = "900079ee312dafd311e0ae3b7347918e59b83bf7e0b876c4a66909ae27dbcd1a"
+expect_rc = 0
+behavior_class = "m3k_empty_huge_struct_lowering"
+ambiguity_removed = "Session 11 M.3.K-empty-huge-struct: bodies opening with `Phase0LexState { ... }` (the all-zero huge-struct constructor pattern, where 'Phase0LexState' is verified literally via ident_table walk against name_pool bytes — sound discriminator) lower to a 24-byte LEAF block implementing System V ABI's hidden-pointer struct return: `mov r8, rdi; xor eax, eax; mov ecx, 0x5000D; rep stosb; mov rax, r8; ret; nop×8`. **First hidden-pointer struct-return ABI emit** in the producer. Phase0LexState size 0x5000D = 327693 bytes (16384 tokens × 16 + token_count + name_pool[65536] + name_pool_used + cursor + failed). The `rep stosb` zeros the caller-provided slot, returning the original hidden ptr (saved in r8). **Phase-0 chain unlock**: this shape lowers `phase0_compiler.phos`'s `empty_lex_state` correctly for the first time — phase-0 hash advances from `e7b32c63…` to `2d56eca3…` (first chain advance in 6 sessions). The hidden-ptr ABI primitive established here is the foundation for Sessions 12+ which will lower additional huge-struct constructors (`empty_ast_node`, `empty_ast`) and the receiving caller-side ABI for `let mut s = empty_lex_state()`."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "m3z_safety_rejects_fn_call"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/m3z_safety_rejects_fn_call.phos"
+expect_size = 1129
+expect_sha256 = "06a8b6bba5b77610ed968b53d6a8f7ca569c25463200636840a88f174b03e3f4"
+expect_rc = 41
+behavior_class = "m3z_safety_gate_rejects_bare_fn_call"
+ambiguity_removed = "Locks M.3.Z's fn-table-walk safety gate behavior. Source `caller { helper(0) }` (where helper is a real fn) MUST fall back to M.3.D-narrow (rc = caller's name_pool_idx fold = 41) instead of misfiring as M.3.Z (which would have returned 0 because body has TK_INT(0)). If the safety gate ever weakens — i.e., if the fn-table-walk inside classify_fn_shape stops detecting bare fn calls — caller would lower to `xor eax,eax; xor edx,edx; ret` and entry's `return caller()` would return 0, breaking this fixture's expect_rc = 41. Companion to `m3z_empty_zeros`: the pair locks the M.3.Z discriminator on both sides — what fires (literal-zero bodies) and what doesn't (bare fn calls)."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "multi_seg_type"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/multi_seg_type.phos"
+expect_size = 1081
+expect_sha256 = "60ec0538fb8e8642f2576bc74576f6f33ff90d4aa247066bb760b338da8f374b"
+expect_rc = 0
+behavior_class = "multi_seg_type_annotation_erased"
+ambiguity_removed = "Locks shape 52a empirical finding: a multi-segment type annotation `let x: a.b.c = INT;` on an unused binding is erased at emit time on both stage0 (phase0_stub.S) and stage1 (pcc-stage1.bin). Both compilers produce the same 1081-byte ELF that returns 0 — byte-identical to a `return 0;` body. The fixture pins this convergent erasure: if either compiler ever lowers the type-annotation IDENT path differently (allocates a slot, walks segments at runtime, etc.), the byte-equal sha changes and the gate flags it. Establishes that pcc.phos's hot path can use multi-segment type annotations without expanding the closed-shape inventory beyond the 51 already lowered."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares emit sha with several other rc=0 stub-shaped fixtures because phase0_stub.S's lowering of `let _:_ = 0; return 0;` and similar trivial-zero-return bodies converges to the same canonical 1081-byte ELF. This fixture's purpose is to pin shape 52a's stage0 == stage1 convergence specifically."
+
+[[fixture]]
+name = "array_let_fixed_cap"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/array_let_fixed_cap.phos"
+expect_size = 1081
+expect_sha256 = "60ec0538fb8e8642f2576bc74576f6f33ff90d4aa247066bb760b338da8f374b"
+expect_rc = 0
+behavior_class = "fixed_capacity_array_let_erased"
+ambiguity_removed = "Locks shape 53 empirical finding: a fixed-capacity array let binding `let mut x: [u8; N] = [0; N];` on an unused binding is erased at emit time on both stage0 (phase0_stub.S) and stage1 (pcc-stage1.bin). Both compilers produce the same 1081-byte ELF that returns 0 — byte-identical to a `return 0;` body. The fixture pins this convergent erasure for the specific [u8; 65536] shape used by pcc.phos's hot path (e.g. the 65536-byte src/asm buffers at compiler/pcc.phos:513,576). If either compiler ever lowers the array-typed let differently (allocates a runtime buffer, walks the [0; N] expression as an actual fill loop, etc.), the byte-equal sha changes and the gate flags it. Establishes that pcc.phos's hot path can use fixed-capacity array bindings on local frame slots without expanding the closed-shape inventory beyond the 51 already lowered."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares emit sha with multi_seg_type and other rc=0 stub-shaped fixtures because phase0_stub.S erases unused bindings to the same canonical 1081-byte ELF regardless of declared type complexity. This fixture's purpose is to pin shape 53's stage0 == stage1 convergence specifically for the array-typed binding form."
+
+[[fixture]]
+name = "multi_seg_call"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/multi_seg_call.phos"
+expect_size = 1081
+expect_sha256 = "60ec0538fb8e8642f2576bc74576f6f33ff90d4aa247066bb760b338da8f374b"
+expect_rc = 0
+behavior_class = "multi_seg_call_site_stubbed"
+ambiguity_removed = "Locks shape 52b panel-authorized closure (option (i), 2026-05-03): a multi-segment call site `return some.module.func();` in return position is detected by the .Lsy_ret_ident_done recognizer in phase0_stub.S's stage0_synth_entry — when the first return-IDENT is followed by '.', the recognizer routes to .Lsy_digit_done with r11=0, producing the canonical 1081-byte ELF that returns 0. This is the canned-stub semantics, NOT real call-site lowering. The shape closure unblocks pcc.phos's hot path from using multi-segment calls during the bootstrap phase; semantic correctness for those calls (option (ii) — wire stage0_entry to phase0_compile + extend emit_elf to produce real return-value semantics) is the separately-authorized next session's scope. The fixture pins this stubbing behavior: if the stub-route ever changes (e.g., real call-site lowering replaces the route, or the recognizer misfires for a future fixture), the byte-equal sha changes and the gate flags it."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares emit sha 60ec0538fb8e with multi_seg_type, array_let_fixed_cap, and other rc=0 stub-shaped fixtures because phase0_stub.S's .Lsy_digit_done synth path produces the same canonical 1081-byte ELF when r11=0 regardless of which body shape routed there. This fixture's purpose is to pin shape 52b's stage0 == stage1 convergence specifically for the multi-segment call-site case in return position."
+
+[[fixture]]
+name = "boot_entry"
+category = "compiler-bootstrap"
+source = "apps/demo/boot_entry.phos"
+expect_size = 1297
+expect_sha256 = "426ce0d91f4add0e61131bb3c8d92a480a5007c6fbd70d096156f8f02e635168"
+expect_rc = 0
+behavior_class = "multi_fn_bare_int_body"
+ambiguity_removed = "Locks Stage 4 of α (2026-05-03) Pass T closure for the multi-fn-bare-INT-body shape: source containing only `module IDENT(.IDENT)* ;` + optional `profile IDENT ;` + N × `fn IDENT() -> IDENT { INT }` (1 ≤ N ≤ 64; whitespace tolerated). The new Pass T outer recognizer at .Lsy_no_match (last-chance position; fires only when no prior pass matches) walks the strict shape, captures each fn's INT into a 64-entry stack-local table, and routes to .Lsy_synth_multi_fn — a dynamic-N synth path that emits 1081 + (N-1)×24 bytes: header(120) + program-header(56) + boot stage0_entry template(195, IMM32 patched to fn[0]'s INT at offset 290) + canned_minimal_elf(766) + (N-1) helper blocks at 1081+. Each helper branches on IMM: STACK_FRAME shape for IMM != 0 (Session I default); M.3.Z LEAF shape for IMM = 0 (Session O ABI-correct return-register zeroing). For boot_entry.phos (10 fns), the canonical 1297-byte output has STACK_FRAME helpers at indices 0,1,2,3,5,7,8 and M.3.Z LEAF helpers at indices 4 and 6 (corresponding to demo_key_event_kind and demo_key_scan_code, both `{ 0 }`). This is the first apps/demo source compilable byte-equal by pcc-stage1.bin via Pass T."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "struct_const_fns"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/struct_const_fns.phos"
+expect_size = 1105
+expect_sha256 = "7e38deec31cc3761fa62cef32201a9ad5fa85afd2daf1dd83491b30c91ebdf14"
+expect_rc = 0
+behavior_class = "multi_fn_bare_int_body_with_struct_decls"
+ambiguity_removed = "Locks Stage 5 of α (2026-05-03) Pass T struct-skip closure: source containing `module IDENT(.IDENT)* ;` + zero-or-more `struct IDENT { ... }` definitions interleaved with N × `fn IDENT() -> IDENT { INT }`. Struct definitions are skipped via brace-depth-balanced walker (.Lpt_match_struct_kw -> .Lpt_struct_body_loop) — they contribute zero entries to the fn INT table and zero bytes to emit output. Pass T's per-iter dispatch at .Lpt_skip_ws_pre_fn now branches on first non-whitespace char: 'f' -> .Lpt_match_fn_kw, 's' -> .Lpt_match_struct_kw, else bail to .Lsy_exit_zero_restore. The fixture canonicalizes a minimal struct-bearing source: 1 struct (Point with two u32 fields) + 2 fns => 1081 + 1*24 = 1105 bytes. This unblocks apps/demo/demo_state.phos (2 structs + 9 fns) and any other source that interleaves flat struct decls between top-level fns. Struct fields with non-u32 types (u8/u16/array/nested struct) are NOT exercised by this fixture — those gaps remain open."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "struct_u8_array_field"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/struct_u8_array_field.phos"
+expect_size = 1105
+expect_sha256 = "20a0d0cd2cf7f8d341bd58e60ef30b08b60a0115a656c769368bffdbf40bd029"
+expect_rc = 0
+behavior_class = "multi_fn_bare_int_body_with_struct_decls_diverse_fields"
+ambiguity_removed = "Locks Stage 6 of α (2026-05-03) gap 6+7 closure: struct definitions whose fields include u8 (gap 6) and array types `[T; N]` (gap 7) compile byte-equal. The Stage 5 brace-depth walker is type-agnostic — only `{` and `}` increment/decrement depth; field type tokens (u8, u16, [T; N], dotted paths) are eaten character-by-character with no special handling. The fixture canonicalizes 1 struct (Color with four u8 fields) + 1 struct (Palette with u32 + array field `[Color; 8]`) + 2 fns (palette_max=8, palette_default_r=16) => 1105 bytes (1081 + 1*24). Empirically gap 6+7 were already free under Stage 5's brace walker — no Pass T edits were required to close them; the fixture pins the behavior. Gap 8 (nested type `a.b.C` in field) is also free for the same reason; not exercised here."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "multi_param_u16"
+category = "compiler-bootstrap"
+source = "tools/verify/fixtures/multi_param_u16.phos"
+expect_size = 1105
+expect_sha256 = "63892fadbdec48b52fcbc74ebf4cb9b14f16afb668576e884c5fa913b1f8f377"
+expect_rc = 0
+behavior_class = "multi_fn_bare_int_body_with_multi_param_signatures"
+ambiguity_removed = "Locks Stage 6 of α (2026-05-03) gap 4 closure: fn signatures with multiple parameters parse cleanly. Pass T's `.Lpt_skip_ws3` (between `(` and `)`) previously accepted only whitespace and `)` — any param char caused bail to `.Lsy_exit_zero_restore`. The Stage 6 edit replaces this with a walk that accepts any non-`)` byte (param names, `:`, type tokens including dotted paths, `,` separators, whitespace); first `)` terminates. Phosphoric has no nested-paren type syntax in current sources, so paren-depth tracking is unnecessary. The fixture canonicalizes a fn with two u16 params (unicode_char, scan_code) + a no-param fn => 1105 bytes (1081 + 1*24). Param contents contribute nothing to the INT table or emit output — the fn body's bare INT is what flows to IMM in the helper/entry block, exactly as for empty-param fns."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "render_commands"
+category = "compiler-bootstrap"
+source = "apps/demo/render_commands.phos"
+expect_size = 1177
+expect_sha256 = "a1b1ef0ca8437f9454d1c5717c4bfc4fd9639038dabf0fc57b22ecf32756915b"
+expect_rc = 0
+behavior_class = "multi_fn_bare_int_body"
+ambiguity_removed = "Locks Stage 6 of α (2026-05-03) third apps/demo source byte-equal: `apps/demo/render_commands.phos` (2 structs + 5 fns). Structs RenderCommand (4 u32 + 4 u8) and RenderOutput (2 u32 + array `[RenderCommand; 16]`) exercise gap 6 (u8 field type) and gap 7 (array field type). Both closed for free by Stage 5's type-agnostic brace walker — no Pass T edits required for byte-equal. The 5 fns are all bare-INT-body shape (gap 4 / gap 9 / gap 11 not exercised here): render_command_max=16, boot_render_command_count=1, background_r=16, background_g=36, background_b=58. Output: 1177 bytes (1081 + 4*24, all helpers STACK_FRAME since all IMMs ≠ 0). Confirms gaps 6+7 closure on a real apps/demo source, not just synthetic micro-fixture (struct_u8_array_field). Third of six apps/demo sources compilable byte-equal by pcc-stage1.bin via stage0_synth_entry (after boot_entry, demo_state). Remaining three sources (input_event, route_outcome, button_policy) require gap 9 (comparison body) + gap 11 (if/else); both out of scope."
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+justified_duplicate = "Shares behavior_class with boot_entry because both sources reduce to the same Pass T multi-fn bare-INT-body emit shape. render_commands remains a separate fixture because it pins the real apps/demo render source and exercises struct skip coverage for u8 fields and array fields; those declarations are intentionally erased before the same bare-INT fn table is emitted."
+
+# ===========================================================================
+# Fixpoint / quine fixtures (doctrine goal #1, deepest tier).
+# ===========================================================================
+
+[[fixture]]
+name = "quine_self"
+category = "fixpoint-quine"
+source = "tools/verify/fixtures/quine_self.phos"
+expect_size = 1081
+expect_sha256 = "ea55ecd78d1820faf17ab21c380b1471b3672fcc8d46428741cbb64065ca9973"
+expect_rc = 0
+behavior_class = "byte_equal_self_emit"
+ambiguity_removed = "__quine() primitive produces a binary whose runtime output is byte-identical to itself; stage0 == stage1 == stage2 == stage3 verified by quine_fixpoint.sh"
+required_for_self_host = true
+required_for_task_seal = false
+required_for_residual_truth = false
+required_for_forensic_classification = false
+
+# ===========================================================================
+# Task-seal fixtures (doctrine goal #2)
+#   STATUS: not yet implemented. Producer lacks manifest-aware checks.
+#   See docs/FIXTURE_RAZOR.md "Missing fixture classes" for the gap list.
+# ===========================================================================
+
+# (no entries — entire category pending architectural work)
+
+# ===========================================================================
+# Residual / incident fixtures (doctrine goal #3)
+#   STATUS: Session 12 (2026-04-30) — first byte-layout fixture landed.
+#   Pins R1 record ABI shape + chain_hash determinism per FORENSIC_PRIMACY.md
+#   §1 + §2. Producer-side runtime emission is Session 13+; this entry
+#   asserts the spec the producer must satisfy.
+# ===========================================================================
+
+[[fixture]]
+name = "residual_r1_byte_layout"
+category = "residual-byte-layout"
+source = "tools/verify/fixtures/residual_r1_byte_layout.phos"
+expect_size = 1081
+expect_sha256 = "60ec0538fb8e8642f2576bc74576f6f33ff90d4aa247066bb760b338da8f374b"
+expect_rc = 0
+behavior_class = "residual_r1_record_byte_stable"
+ambiguity_removed = "32-byte R1 record field declaration order/widths and chain_step prime constants are pinned via tools/verify/check_residual_byte_layout.sh; on a fixed cap_issue test vector (kind=1, arch_id=0, seq=1, cycle=0, payload=[1,5,0,..0], prev=[0;4]) the chain_hash output is byte-locked to [0xF8, 0x18, 0xF8, 0xE8]. Future R1..R7 runtime-emission fixtures depend on this spec pin."
+required_for_self_host = false
+required_for_task_seal = false
+required_for_residual_truth = true
+required_for_forensic_classification = false
+
+[[fixture]]
+name = "residual_r5_mmio_byte_layout"
+category = "residual-byte-layout"
+source = "tools/verify/fixtures/residual_r5_mmio_byte_layout.phos"
+expect_size = 1081
+expect_sha256 = "60ec0538fb8e8642f2576bc74576f6f33ff90d4aa247066bb760b338da8f374b"
+expect_rc = 0
+behavior_class = "residual_r5_mmio_record_byte_stable"
+ambiguity_removed = "32-byte R5 mmio_touch record's payload schema (declared_lo u16 LE @0..2, declared_hi u16 LE @2..4, observed u32 LE @4..8, reserved 0 @8..14) is pinned via tools/verify/check_residual_r5_byte_layout.sh on the canonical MMIO boundary test vector (declared 0x1000..0x10FF, observed 0x1100); chain_hash byte-locked to [0x8A, 0xA2, 0xCA, 0x5E]. Couples to mmio_boundary_violation.pfi (Session 13 Milestone A) by asserting the .pfi's record bytes literally match this schema. Note: fixture .phos source compiles to the same emitted sha as residual_r1_byte_layout (both declare the Residual struct + entry fn; producer convergent emit). The behavior_class differs because the gate pins R5 chain_hash and payload schema, distinct from R1's spec pin."
+required_for_self_host = false
+required_for_task_seal = false
+required_for_residual_truth = true
+required_for_forensic_classification = false
+
+# ===========================================================================
+# Forensic-classification fixtures (doctrine goal #4)
+#   STATUS: not yet implemented. Classifier (phosphoric_drift.phos) is a stub.
+# ===========================================================================
+
+# (no entries — entire category pending architectural work)

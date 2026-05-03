@@ -1,0 +1,146 @@
+module pcc.layout;
+profile host;
+
+// Type layout. ABI-backed sizes/alignments for every HIR type.
+//
+// Diagnostic codes (X- prefix):
+//   X-001 size overflow (type larger than 2^32 bytes)
+//   X-002 alignment requirement exceeds platform max
+//   X-003 unsized type used in size-required context
+
+struct LayoutInfo {
+    size: u32,
+    align: u32,
+    field_offsets: [u32; 64],   // for struct types
+}
+
+// Tag for type-classification dispatch. The HIR's type table holds these
+// in a parallel array; layout_of dispatches on the tag.
+enum LayoutTypeTag {
+    PrimU8, PrimU16, PrimU32, PrimU64,
+    PrimI8, PrimI16, PrimI32, PrimI64,
+    PrimBool,
+    PrimUnit,
+    StructTy,
+    EnumTy,
+    ArrayTy,
+    SliceTy,
+    ResultTy,
+    OptionTy,
+}
+
+// Primitive layouts. v0's primitive types have fixed sizes per the ABI.
+fn layout_primitive(tag: LayoutTypeTag) -> LayoutInfo {
+    match tag {
+        LayoutTypeTag::PrimU8   => LayoutInfo { size: 1, align: 1, field_offsets: [0; 64] },
+        LayoutTypeTag::PrimU16  => LayoutInfo { size: 2, align: 2, field_offsets: [0; 64] },
+        LayoutTypeTag::PrimU32  => LayoutInfo { size: 4, align: 4, field_offsets: [0; 64] },
+        LayoutTypeTag::PrimU64  => LayoutInfo { size: 8, align: 8, field_offsets: [0; 64] },
+        LayoutTypeTag::PrimI8   => LayoutInfo { size: 1, align: 1, field_offsets: [0; 64] },
+        LayoutTypeTag::PrimI16  => LayoutInfo { size: 2, align: 2, field_offsets: [0; 64] },
+        LayoutTypeTag::PrimI32  => LayoutInfo { size: 4, align: 4, field_offsets: [0; 64] },
+        LayoutTypeTag::PrimI64  => LayoutInfo { size: 8, align: 8, field_offsets: [0; 64] },
+        LayoutTypeTag::PrimBool => LayoutInfo { size: 1, align: 1, field_offsets: [0; 64] },
+        LayoutTypeTag::PrimUnit => LayoutInfo { size: 0, align: 1, field_offsets: [0; 64] },
+        _ => LayoutInfo { size: 0, align: 1, field_offsets: [0; 64] },
+    }
+}
+
+// Round up `n` to the next multiple of `align`. Used for field padding.
+fn align_up(n: u32, align: u32) -> u32 {
+    match align == 0 {
+        true  => n,
+        false => ((n + align - 1) / align) * align,
+    }
+}
+
+// max(a, b) without a built-in.
+fn max_u32(a: u32, b: u32) -> u32 {
+    match a > b {
+        true  => a,
+        false => b,
+    }
+}
+
+// Layout of a struct: sum field sizes with alignment-respecting padding.
+// field_offsets[i] records the byte offset of field i within the struct.
+// total size is rounded up to the struct's max alignment so contiguous
+// arrays of structs satisfy each element's alignment.
+fn layout_struct(field_layouts: [LayoutInfo; 64], field_count: u8) -> LayoutInfo {
+    let mut offset: u32 = 0;
+    let mut max_align: u32 = 1;
+    let mut offsets: [u32; 64] = [0; 64];
+    #[bound = 64]
+    for i in 0..(field_count as u32) {
+        let f: LayoutInfo = field_layouts[i];
+        let aligned: u32 = align_up(offset, f.align);
+        offsets[i] = aligned;
+        offset = aligned + f.size;
+        max_align = max_u32(max_align, f.align);
+    }
+    let total: u32 = align_up(offset, max_align);
+    LayoutInfo { size: total, align: max_align, field_offsets: offsets }
+}
+
+// Layout of an enum: 1-byte discriminant + max payload size, aligned.
+// v0 enums use a u8 tag (since v0 limits enums to ≤ 256 variants).
+fn layout_enum(variant_payload_layouts: [LayoutInfo; 64], variant_count: u8) -> LayoutInfo {
+    let mut max_size: u32 = 0;
+    let mut max_align: u32 = 1;
+    #[bound = 64]
+    for i in 0..(variant_count as u32) {
+        let v: LayoutInfo = variant_payload_layouts[i];
+        max_size = max_u32(max_size, v.size);
+        max_align = max_u32(max_align, v.align);
+    }
+    // Tag is u8 (1 byte, 1-aligned). Then payload at max_align.
+    let payload_offset: u32 = align_up(1, max_align);
+    let total: u32 = align_up(payload_offset + max_size, max_align);
+    LayoutInfo { size: total, align: max_align, field_offsets: [0; 64] }
+}
+
+// Layout of an array [T; N]: size = N * size(T), align = align(T).
+// Phosphoric arrays are inline (not pointer-to-heap); fixed N at compile time.
+fn layout_array(elem: LayoutInfo, n: u32) -> LayoutInfo {
+    LayoutInfo {
+        size: elem.size * n,
+        align: elem.align,
+        field_offsets: [0; 64],
+    }
+}
+
+// Layout of Slice[T, N]: same as array. Phosphoric's Slice is bounded
+// (not a fat pointer); the N is a static capacity.
+fn layout_slice(elem: LayoutInfo, n: u32) -> LayoutInfo {
+    layout_array(elem, n)
+}
+
+// Layout of Result[T, E]: tag + max(size(T), size(E)) with appropriate alignment.
+fn layout_result(t: LayoutInfo, e: LayoutInfo) -> LayoutInfo {
+    let max_align: u32 = max_u32(t.align, e.align);
+    let payload_offset: u32 = align_up(1, max_align);
+    let payload_size: u32 = max_u32(t.size, e.size);
+    let total: u32 = align_up(payload_offset + payload_size, max_align);
+    LayoutInfo { size: total, align: max_align, field_offsets: [0; 64] }
+}
+
+// Layout of Option[T]: tag + size(T).
+fn layout_option(t: LayoutInfo) -> LayoutInfo {
+    let payload_offset: u32 = align_up(1, t.align);
+    let total: u32 = align_up(payload_offset + t.size, t.align);
+    LayoutInfo { size: total, align: t.align, field_offsets: [0; 64] }
+}
+
+// Top-level dispatch. Real implementation indexes hir.types[type_id] to
+// extract tag + child type ids; recursion-free via explicit work stack
+// in a depth-bounded loop. For now, primitive lookup only — composite
+// types' bodies wire in once the HIR type arena is real.
+fn layout_of(
+    hir: pcc.hir.HirModule,
+    type_id: u16,
+) -> Result[LayoutInfo, pcc.diagnostic.Diagnostic] {
+    // The HIR type arena will provide a tag + child references for each
+    // type_id. Until that's wired, return a neutral default that signals
+    // "not yet computed" — typeck will short-circuit on this.
+    Ok(LayoutInfo { size: 0, align: 1, field_offsets: [0; 64] })
+}

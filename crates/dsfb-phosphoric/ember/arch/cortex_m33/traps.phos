@@ -1,0 +1,39 @@
+module ember.arch.cortex_m33.traps;
+profile trusted;
+
+// Cortex-M33 (RP2350) trap / exception scaffold.
+//
+// ARMv8-M's NVIC-driven exception model is fundamentally different from
+// x86's IDT: vector table at fixed address, priorities via NVIC registers,
+// PendSV used for context switch. Per-vector handlers are referenced from
+// a typed VectorTable struct emitted into a fixed flash address.
+//
+// Future trusted! blocks here will:
+//   - install the vector table at SCB.VTOR
+//   - configure NVIC priorities for each interrupt source the runtime uses
+//   - enable PendSV at lowest priority for context switch
+//
+// Razor-rationale for each future block: irreducible-hw (vector-table install
+// and NVIC priority configuration are mandated by ARMv8-M architecture).
+
+enum NvicPriority {
+    Highest,    // 0
+    System,     // 1
+    Default,    // 2
+    Lowest,     // 3 (PendSV / SVC)
+}
+
+struct VectorTable {
+    initial_sp: u32,
+    reset_handler: u32,
+    nmi_handler: u32,
+    hardfault_handler: u32,
+    memmanage_handler: u32,
+    busfault_handler: u32,
+    usagefault_handler: u32,
+    securefault_handler: u32,
+    svcall_handler: u32,
+    debugmon_handler: u32,
+    pendsv_handler: u32,
+    systick_handler: u32,
+}

@@ -1,0 +1,19 @@
+module tests.conformance.runtime.pass.runtime_cap_issue;
+profile runtime;
+
+// Pass case: minting a new capability requires the cap-issue effect.
+
+struct CapabilityHandle {
+    slot: u16,
+    generation: u16,
+    kind: u8,
+    reserved: u8,
+}
+
+enum RuntimeError {
+    TableFull,
+}
+
+fn mint() -> Result[CapabilityHandle, RuntimeError] effects(cap-issue) {
+    Ok(CapabilityHandle { slot: 0, generation: 1, kind: 1, reserved: 0 })
+}

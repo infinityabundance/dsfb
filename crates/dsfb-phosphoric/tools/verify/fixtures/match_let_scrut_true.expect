@@ -1,0 +1,8 @@
+# Pass A-19 fixture (TRUE arm picked at scan time): scan-time match fold.
+# Source: `entry { let x = 7; match x == 7 { true => 99, false => 0 } }`.
+# Producer evaluates 7 == 7 = TRUE at scan time, captures 99 as the
+# entry's exit code IMM. Distinct from match_param_eq_true (which fires
+# the runtime cmp+jcc path because scrutinee is param, not let).
+size=1081
+sha=bf0e151e541e8287470d6e04014f80af84ba6c451b5d2789e34988ff0af673b6
+rc=99

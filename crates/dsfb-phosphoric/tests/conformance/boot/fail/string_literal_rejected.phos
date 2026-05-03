@@ -1,0 +1,11 @@
+module tests.conformance.boot.fail.string_literal_rejected;
+
+// fail-expected: L-006
+//
+// String literals are forbidden in v0. Byte sequences are written as
+// integer literal arrays (e.g. [104, 101, 108, 108, 111] for "hello").
+
+fn greet() -> u32 {
+    let s = "hello";
+    0
+}

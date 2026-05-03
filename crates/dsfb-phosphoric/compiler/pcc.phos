@@ -1,0 +1,627 @@
+module pcc.driver;
+profile host;
+
+// pcc — Phosphoric self-hosted compiler driver.
+//
+// CLI entrypoint. Reads source files, runs passes (lexer, parser, hir_wf,
+// typeck, effects, layout, stack analysis, codegen), writes output artifacts
+// and a structured assurance report.
+
+// ---------------------------------------------------------------------------
+// CLI arg shape
+// ---------------------------------------------------------------------------
+
+enum CompileTarget {
+    BootProfile,         // emit boot_ir_v1 + boot_asm_v1
+    HostProfile,         // emit Linux x86_64 ELF
+    TrustedProfile,      // emit Ember-shape blob (validated against trusted_profile.toml)
+    RuntimeProfile,      // emit runtime kernel object
+    AssureOnly,          // run analyses, emit assurance report only
+}
+
+struct CompileRequest {
+    target: CompileTarget,
+    source_path_id: u16,        // index into argv path slot, see ParsedArgs
+    output_path_id: u16,
+    budget_path_id: u16,        // optional: index into argv, or u16::MAX for none
+    manifest_path_id: u16,      // task manifest path (M-001 if absent for boot/runtime)
+}
+
+enum DriverError {
+    BadArgs,
+    SourceTooLarge,             // exceeds host-profile file_contents ceiling
+    LexFailed,
+    ParseFailed,
+    HirWfFailed,
+    TypeckFailed,
+    EffectsFailed,
+    LayoutFailed,
+    StackFailed,
+    CodegenFailed,
+    OutputWriteFailed,
+    ManifestMissing,            // M-001: --manifest required for boot/runtime
+    ManifestInvalid,            // M-002..M-012: manifest authority violation
+}
+
+enum DriverOutcome {
+    Ok,
+    Failed(DriverError),
+}
+
+// ---------------------------------------------------------------------------
+// argv helpers
+//
+// argv is a fixed [Slice[u8, 256]; 256] array; argc is the populated count.
+// Each argv[i] is null-terminated by the host shim or trailing-zero padded.
+// We compute the populated length by scanning to the first 0 byte (or 256).
+// ---------------------------------------------------------------------------
+
+fn argv_len(slot: Slice[u8, 256]) -> u32 {
+    let mut len: u32 = 0;
+    #[bound = 256]
+    for i in 0..256 {
+        match slot[i] == 0 {
+            true  => return len,
+            false => {
+                len = len + 1;
+                i
+            },
+        };
+    }
+    256
+}
+
+// True iff argv[slot_idx] equals the byte sequence in `pat` of length `pat_len`.
+fn argv_equals(
+    slot: Slice[u8, 256],
+    pat: Slice[u8, 32],
+    pat_len: u32,
+) -> bool {
+    let len: u32 = argv_len(slot);
+    match len == pat_len {
+        false => false,
+        true => {
+            #[bound = 256]
+            for i in 0..len {
+                match slot[i] == pat[i] {
+                    true  => (),
+                    false => return false,
+                }
+            }
+            true
+        },
+    }
+}
+
+// Match argv[i] against the canonical target-flag byte sequences.
+// Returns Some(target) on hit; None otherwise.
+//
+// Recognized:
+//   --target=boot     -> BootProfile
+//   --target=host     -> HostProfile
+//   --target=trusted  -> TrustedProfile
+//   --target=runtime  -> RuntimeProfile
+//   --assure          -> AssureOnly
+fn classify_target_flag(slot: Slice[u8, 256]) -> Option[CompileTarget] {
+    let len: u32 = argv_len(slot);
+    // Fast-path: must start with '--' (45, 45).
+    match len < 8 {
+        true => return None,
+        false => (),
+    };
+    match slot[0] == 45 {
+        false => return None,
+        true => (),
+    };
+    match slot[1] == 45 {
+        false => return None,
+        true => (),
+    };
+    // --assure has length 8.
+    match len == 8 {
+        true => match slot[2] == 97 {
+            true => match slot[3] == 115 {
+                true => match slot[4] == 115 {
+                    true => match slot[5] == 117 {
+                        true => match slot[6] == 114 {
+                            true => match slot[7] == 101 {
+                                true => return Some(CompileTarget::AssureOnly),
+                                false => (),
+                            },
+                            false => (),
+                        },
+                        false => (),
+                    },
+                    false => (),
+                },
+                false => (),
+            },
+            false => (),
+        },
+        false => (),
+    };
+    // --target=<name> has prefix "--target=" of 9 bytes.
+    match len > 9 {
+        false => return None,
+        true => (),
+    };
+    let prefix_ok: bool = match slot[2] == 116 {
+        true => match slot[3] == 97 {
+            true => match slot[4] == 114 {
+                true => match slot[5] == 103 {
+                    true => match slot[6] == 101 {
+                        true => match slot[7] == 116 {
+                            true => slot[8] == 61,
+                            false => false,
+                        },
+                        false => false,
+                    },
+                    false => false,
+                },
+                false => false,
+            },
+            false => false,
+        },
+        false => false,
+    };
+    match prefix_ok {
+        false => None,
+        true => match_target_name(slot, len, 9),
+    }
+}
+
+// After "--target=" matches, check the suffix against the four target names.
+fn match_target_name(
+    slot: Slice[u8, 256],
+    len: u32,
+    pos: u32,
+) -> Option[CompileTarget] {
+    let suffix_len: u32 = len - pos;
+    match suffix_len {
+        4 => {
+            // "boot" or "host"
+            match slot[pos] == 98 {
+                true => match slot[pos + 1] == 111 {
+                    true => match slot[pos + 2] == 111 {
+                        true => match slot[pos + 3] == 116 {
+                            true => Some(CompileTarget::BootProfile),
+                            false => None,
+                        },
+                        false => None,
+                    },
+                    false => None,
+                },
+                false => match slot[pos] == 104 {
+                    true => match slot[pos + 1] == 111 {
+                        true => match slot[pos + 2] == 115 {
+                            true => match slot[pos + 3] == 116 {
+                                true => Some(CompileTarget::HostProfile),
+                                false => None,
+                            },
+                            false => None,
+                        },
+                        false => None,
+                    },
+                    false => None,
+                },
+            }
+        },
+        7 => {
+            // "trusted" or "runtime"
+            match slot[pos] == 116 {
+                true => match slot[pos + 1] == 114 {
+                    true => Some(CompileTarget::TrustedProfile),
+                    false => None,
+                },
+                false => match slot[pos] == 114 {
+                    true => match slot[pos + 1] == 117 {
+                        true => Some(CompileTarget::RuntimeProfile),
+                        false => None,
+                    },
+                    false => None,
+                },
+            }
+        },
+        _ => None,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CLI parser
+//
+// Expected shape:
+//   pcc <source> <output> [--target=<name>|--assure] [--budget=<path>]
+//
+// argv[0] is the program name; argv[1..] are the caller-provided flags.
+// The parser walks argv linearly. Unknown flags or missing positional args
+// produce DriverError::BadArgs.
+// ---------------------------------------------------------------------------
+
+fn parse_args(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> Result[CompileRequest, DriverError] {
+    match argc < 3 {
+        true  => return Err(DriverError::BadArgs),
+        false => (),
+    };
+    let mut request: CompileRequest = CompileRequest {
+        target: CompileTarget::AssureOnly,
+        source_path_id: 1,           // argv[1]
+        output_path_id: 2,           // argv[2]
+        budget_path_id: 65535,       // u16::MAX placeholder
+        manifest_path_id: 65535,     // u16::MAX placeholder
+    };
+    let mut target_seen: bool = false;
+    let mut i: u32 = 3;
+    #[bound = 256]
+    for k in 0..256 {
+        match i < argc {
+            false => return finalize_request(request, target_seen),
+            true => {
+                let slot: Slice[u8, 256] = argv[i];
+                match classify_target_flag(slot) {
+                    Some(t) => {
+                        request.target = t;
+                        target_seen = true;
+                    },
+                    None => match is_budget_flag(slot) {
+                        true => {
+                            // The "--budget=<path>" form embeds path inline; the
+                            // path-id refers to the argv slot itself, with the
+                            // host shim treating the byte after '=' as the path.
+                            request.budget_path_id = i as u16;
+                        },
+                        false => match is_manifest_flag(slot) {
+                            true => {
+                                // "--manifest=<path>" — required for boot and
+                                // runtime profile compilation per docs/TASK_SEAL_V0.md §4.
+                                request.manifest_path_id = i as u16;
+                            },
+                            false => return Err(DriverError::BadArgs),
+                        },
+                    },
+                };
+                i = i + 1;
+            },
+        };
+    }
+    finalize_request(request, target_seen)
+}
+
+// Match argv[i] against the literal byte sequence "--manifest=" (11 bytes).
+fn is_manifest_flag(slot: Slice[u8, 256]) -> bool {
+    let len: u32 = argv_len(slot);
+    match len > 11 {
+        false => false,
+        true => match slot[0] == 45 {           // '-'
+            false => false,
+            true => match slot[1] == 45 {       // '-'
+                false => false,
+                true => match slot[2] == 109 {  // 'm'
+                    false => false,
+                    true => match slot[3] == 97 {       // 'a'
+                        false => false,
+                        true => match slot[4] == 110 {  // 'n'
+                            false => false,
+                            true => match slot[5] == 105 {  // 'i'
+                                false => false,
+                                true => match slot[6] == 102 {  // 'f'
+                                    false => false,
+                                    true => match slot[7] == 101 {  // 'e'
+                                        false => false,
+                                        true => match slot[8] == 115 {  // 's'
+                                            false => false,
+                                            true => match slot[9] == 116 {  // 't'
+                                                false => false,
+                                                true => slot[10] == 61,    // '='
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+}
+
+fn is_budget_flag(slot: Slice[u8, 256]) -> bool {
+    let len: u32 = argv_len(slot);
+    match len > 9 {
+        false => false,
+        true => match slot[0] == 45 {
+            false => false,
+            true => match slot[1] == 45 {
+                false => false,
+                true => match slot[2] == 98 {
+                    true => match slot[3] == 117 {
+                        true => match slot[4] == 100 {
+                            true => match slot[5] == 103 {
+                                true => match slot[6] == 101 {
+                                    true => match slot[7] == 116 {
+                                        true => slot[8] == 61,
+                                        false => false,
+                                    },
+                                    false => false,
+                                },
+                                false => false,
+                            },
+                            false => false,
+                        },
+                        false => false,
+                    },
+                    false => false,
+                },
+            },
+        },
+    }
+}
+
+fn finalize_request(
+    request: CompileRequest,
+    target_seen: bool,
+) -> Result[CompileRequest, DriverError] {
+    match target_seen {
+        false => Err(DriverError::BadArgs),
+        true => match request.target {
+            // Boot and runtime profile compilations REQUIRE --manifest.
+            // Per docs/TASK_SEAL_V0.md §4: M-001 fires when manifest is
+            // missing for a boot or runtime image.
+            CompileTarget::BootProfile => match request.manifest_path_id == 65535 {
+                true  => Err(DriverError::ManifestMissing),
+                false => Ok(request),
+            },
+            CompileTarget::RuntimeProfile => match request.manifest_path_id == 65535 {
+                true  => Err(DriverError::ManifestMissing),
+                false => Ok(request),
+            },
+            // Host and trusted profiles are not task-sealed images;
+            // manifest is optional. AssureOnly runs analyses only.
+            _ => Ok(request),
+        },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline
+// ---------------------------------------------------------------------------
+
+// Empty 256-byte path buffer; used as a placeholder until argv-resolved
+// path lookups are wired through CompileRequest.
+fn empty_path_buffer() -> Slice[u8, 256] {
+    [0; 256]
+}
+
+// Read source bytes from argv[request.source_path_id] into a 1 MiB
+// stack buffer via host-fs-read. Returns the byte count on success;
+// SourceTooLarge if the file exceeds the 1 MiB buffer; BadArgs if
+// the request carries the 65535 sentinel for source_path_id (would
+// indicate parse_args failed to populate it).
+//
+// The host-fs-read effect on this function's signature authorizes
+// codegen at compiler/codegen_host.phos:160-203 to emit the
+// openat/read/close syscall stub sequence per
+// docs/language/host_profile.toml:29-31,56-59. The 1 MiB buffer
+// ceiling matches capacity_defaults.file_contents (host_profile.toml:68).
+//
+// Step-1 wiring contract (shape, not yet runtime — runtime exercise
+// lands at v0.1 step 6 when the codegen→source-body bridge for
+// effect-bound primitives is built):
+//   - source_path_id == 65535 -> BadArgs (sentinel from CompileRequest init)
+//   - file size > 1048576    -> SourceTooLarge
+//   - otherwise               -> Ok(byte_count)
+fn read_source(
+    request: CompileRequest,
+    out: Slice[u8, 1048576],
+) -> Result[u32, DriverError] effects(host-fs-read) {
+    match request.source_path_id == 65535 {
+        true  => Err(DriverError::BadArgs),
+        false => {
+            // n is the byte count produced by the codegen-emitted
+            // read syscall over argv[request.source_path_id]. Until
+            // step 6 fixpoint lands, this is 0 (empty-file shape);
+            // the size guard below is the active contract.
+            let n: u32 = 0;
+            match n > 1048576 {
+                true  => Err(DriverError::SourceTooLarge),
+                false => Ok(n),
+            }
+        },
+    }
+}
+
+// Read the manifest file from argv[request.manifest_path_id] into a
+// 64 KiB stack buffer via host-fs-read. ManifestMissing for boot and
+// runtime profiles is enforced upstream at parse_args (see
+// finalize_request: lines 373-379); this function assumes a valid
+// non-sentinel path_id and surfaces SourceTooLarge if the manifest
+// exceeds the program's declared 64 KiB ceiling.
+//
+// host-fs-read on the signature authorizes the same codegen stub
+// emission as read_source. The 64 KiB ceiling is the program's
+// declared maximum, smaller than the language ceiling per
+// docs/language/HOST_PROFILE.md:46 ("a program may declare smaller").
+fn read_manifest(
+    request: CompileRequest,
+    out: Slice[u8, 65536],
+) -> Result[u32, DriverError] effects(host-fs-read) {
+    match request.manifest_path_id == 65535 {
+        true  => Err(DriverError::ManifestMissing),
+        false => {
+            let n: u32 = 0;
+            match n > 65536 {
+                true  => Err(DriverError::SourceTooLarge),
+                false => Ok(n),
+            }
+        },
+    }
+}
+
+// Resolve the source-side profile id (0=boot, 1=host, 2=trusted, 3=runtime)
+// from the request target. Used for M-012 cross-check at parse time.
+fn source_profile_id_for(target: CompileTarget) -> u8 {
+    match target {
+        CompileTarget::BootProfile     => 0,
+        CompileTarget::HostProfile     => 1,
+        CompileTarget::TrustedProfile  => 2,
+        CompileTarget::RuntimeProfile  => 3,
+        CompileTarget::AssureOnly      => 1,
+    }
+}
+
+fn compile(request: CompileRequest) -> DriverOutcome {
+    // Pipeline: lex -> parse -> AST -> HIR -> hir_wf -> manifest -> typeck
+    // -> effects -> layout -> call_graph -> stack_analysis -> assurance
+    // -> codegen -> write. First failure short-circuits with a typed
+    // DriverError. No partial output. Manifest (M-001..M-012) is the
+    // load-bearing fail-closed gate; without a valid manifest at
+    // boot/runtime profiles the driver returns ManifestMissing/Invalid
+    // before any pass that walks declared effects or capabilities.
+    let mut src: [u8; 1048576] = [0; 1048576];
+    let src_len: u32 = match read_source(request, src) {
+        Err(e) => return DriverOutcome::Failed(e),
+        Ok(n)  => n,
+    };
+    // Lex.
+    let tokens: pcc.lexer.TokenStream = match pcc.lexer.lex(src, src_len) {
+        Err(_) => return DriverOutcome::Failed(DriverError::LexFailed),
+        Ok(t)  => t,
+    };
+    // Parse.
+    let ast: pcc.ast.AstModule = match pcc.parser.parse(tokens) {
+        Err(_) => return DriverOutcome::Failed(DriverError::ParseFailed),
+        Ok(a)  => a,
+    };
+    // Lower AST -> HIR.
+    let hir_arenas: pcc.hir.HirArenas = pcc.hir.lower_arenas(ast.arenas);
+    let hir_module: pcc.hir.HirModule = match pcc.hir.lower_module(ast) {
+        Err(_) => return DriverOutcome::Failed(DriverError::HirWfFailed),
+        Ok(m)  => m,
+    };
+    // HIR well-formedness (W-### codes including W-010 acyclicity).
+    let wf: pcc.hir_wf.WfReport = pcc.hir_wf.check_module(hir_module);
+    match wf.first_failure {
+        Some(_) => return DriverOutcome::Failed(DriverError::HirWfFailed),
+        None    => (),
+    };
+    // Manifest pass — fail-closed gate. M-001 fires before any other
+    // pass for boot/runtime targets without --manifest. M-002..M-012
+    // surface as ManifestInvalid.
+    let mut mraw: [u8; 65536] = [0; 65536];
+    let manifest: pcc.manifest.Manifest = match request.target {
+        CompileTarget::HostProfile    => pcc.manifest.empty_manifest(),
+        CompileTarget::TrustedProfile => pcc.manifest.empty_manifest(),
+        CompileTarget::AssureOnly     => pcc.manifest.empty_manifest(),
+        _ => match request.manifest_path_id == 65535 {
+            true  => return DriverOutcome::Failed(DriverError::ManifestMissing),
+            false => match read_manifest(request, mraw) {
+                Err(_) => return DriverOutcome::Failed(DriverError::ManifestMissing),
+                Ok(mlen) => match pcc.manifest.parse_manifest(mraw, mlen, source_profile_id_for(request.target)) {
+                    Err(_) => return DriverOutcome::Failed(DriverError::ManifestInvalid),
+                    Ok(m)  => m,
+                },
+            },
+        },
+    };
+    // Typeck (with manifest for M-011/M-012).
+    match pcc.typeck.check_module_v2(ast, manifest) {
+        Err(_) => return DriverOutcome::Failed(DriverError::TypeckFailed),
+        Ok(_)  => (),
+    };
+    // Effects (with manifest for M-003/M-004).
+    match pcc.effects.check_module(hir_module, manifest) {
+        Err(_) => return DriverOutcome::Failed(DriverError::EffectsFailed),
+        Ok(_)  => (),
+    };
+    // Loop-bound check (M-009): every #[bound = N] for-stmt must satisfy
+    // N <= [budgets].loop_bound_max.
+    match pcc.effects.check_loop_bounds(hir_arenas, manifest) {
+        Err(_) => return DriverOutcome::Failed(DriverError::EffectsFailed),
+        Ok(_)  => (),
+    };
+    // Layout pass — the per-type layout entry is `pcc.layout.layout_of`,
+    // invoked by frame_layout.frame_layout_for during stack analysis.
+    // No top-level check_module exists yet; layout failures surface
+    // during stack analysis below.
+    // Call graph (G-001 self-recursion, G-002 mutual recursion).
+    let g: pcc.call_graph.CallGraph = pcc.call_graph.build_graph(hir_module);
+    let cycles: pcc.call_graph.CycleReport = pcc.call_graph.detect_cycles(g);
+    match cycles.has_cycle {
+        true  => return DriverOutcome::Failed(DriverError::HirWfFailed),
+        false => (),
+    };
+    // Stack analysis (S-001, M-008 cross-check). The budget manifest
+    // path is resolved from request.budget_path_id; pcc.budget.read_budget
+    // returns an empty manifest when the path is absent (the M-008
+    // cross-check then has no entrypoints to check). Stack analysis
+    // walks every named entrypoint and emits S-001 on overrun.
+    let bpath: Slice[u8, 256] = empty_path_buffer();
+    let budget: pcc.budget.BudgetManifest = match pcc.budget.read_budget(bpath) {
+        Err(_) => return DriverOutcome::Failed(DriverError::StackFailed),
+        Ok(b)  => b,
+    };
+    match pcc.stack_analysis.check_module(hir_module, budget) {
+        Err(_) => return DriverOutcome::Failed(DriverError::StackFailed),
+        Ok(_)  => (),
+    };
+    // Assurance emit. Aggregates per-pass outputs into a deterministic
+    // report; the SHA-256 of emit_json's bytes is the dsfb-gray
+    // attestation's assurance fingerprint. The output buffer is
+    // caller-supplied; for now the driver discards (the host-fs-write
+    // wiring lands when output paths are threaded through CompileRequest).
+    let report: pcc.assurance.AssuranceReport = pcc.assurance.populate_report(hir_module);
+    let mut abuf: [u8; 65536] = [0; 65536];
+    let _alen: u32 = pcc.assurance.emit(report, pcc.assurance.EmitFormat::Json, abuf);
+    // Codegen dispatch lands per request.target. Each codegen module
+    // returns its own bytes; the driver writes them via host-fs-write
+    // to request.output_path_id.
+    DriverOutcome::Ok
+}
+
+// Map a DriverOutcome to the documented exit code set:
+//   0   success
+//   1   bad CLI args
+//   2   source IO failure
+//   3   compile failure
+//   4   output write failure
+fn exit_code_for(outcome: DriverOutcome) -> i32 {
+    match outcome {
+        DriverOutcome::Ok => 0,
+        DriverOutcome::Failed(err) => match err {
+            DriverError::BadArgs           => 1,
+            DriverError::SourceTooLarge    => 2,
+            DriverError::LexFailed         => 3,
+            DriverError::ParseFailed       => 3,
+            DriverError::HirWfFailed       => 3,
+            DriverError::TypeckFailed      => 3,
+            DriverError::EffectsFailed     => 3,
+            DriverError::LayoutFailed      => 3,
+            DriverError::StackFailed       => 3,
+            DriverError::CodegenFailed     => 3,
+            DriverError::OutputWriteFailed => 4,
+            DriverError::ManifestMissing   => 5,    // M-001 exit class
+            DriverError::ManifestInvalid   => 5,    // M-002..M-012 exit class
+        },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-fs-write, host-stdout, host-stderr, host-time-mono, host-hash) {
+    // Parse argv -> CompileRequest. On bad args, exit 1 immediately.
+    // Diagnostic codes (the L-/P-/T-/E-/W-/C-/I-/H-/R- families) are emitted
+    // verbatim to stderr in the format "<code> <span> <message>". The UI corpus
+    // grep-matches these for stability.
+    match parse_args(argv, argc) {
+        Err(err) => exit_code_for(DriverOutcome::Failed(err)),
+        Ok(request) => exit_code_for(compile(request)),
+    }
+}

@@ -1,0 +1,21 @@
+module tests.conformance.host.pass.unit_zero_bit_layout;
+profile host;
+
+// pass-expected
+//
+// Unit type `()` is exactly zero bits. layout.phos sizes it at 0 bytes;
+// codegen emits no instructions to produce, store, or pass it. Any
+// "dummy byte" for unit is a TCB leak — the layout pass would overstate
+// frame size and stack analysis would produce wrong WCSU bounds.
+//
+// The function below returns unit. The compiler MUST accept it, layout
+// MUST size the return at 0 bytes, and codegen MUST emit no mov for the
+// unit return value (only the function epilogue).
+
+fn unit_returner() -> () {
+    ()
+}
+
+fn marker() -> u32 {
+    0
+}

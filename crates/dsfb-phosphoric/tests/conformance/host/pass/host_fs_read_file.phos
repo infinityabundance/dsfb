@@ -1,0 +1,9 @@
+module tests.conformance.host.pass.host_fs_read_file;
+profile host;
+
+// Pass case: host-fs-read effect declared, file content read into a
+// caller-supplied stack buffer of declared capacity.
+
+fn read_manifest(buf: Slice[u8, 65536], path: Slice[u8, 256]) -> u32 effects(host-fs-read) {
+    0
+}

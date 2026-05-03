@@ -1,0 +1,7 @@
+# Pass A-13 fixture (`!=`): match-comparison with jne opcode.
+# Source: classify(5) with `match arg != 7 { true => 55, false => 66 }`.
+# 5 != 7 is TRUE → eax stays 55.
+# Verified: rc = 55 at runtime.
+size=1105
+sha=a24b163c29ebbeee442cc8a01c9e04464d3c40b3fc9170478adb08db80858ec9
+rc=55

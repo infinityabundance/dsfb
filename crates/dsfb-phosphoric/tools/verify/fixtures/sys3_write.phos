@@ -1,0 +1,9 @@
+module fixture.sys3_write;
+profile boot;
+fn entry() -> i32 {
+    return 0;
+}
+fn helper() -> i32 {
+    __sys3(1, 1, 4194304, 16);
+    return 0;
+}

@@ -1,0 +1,23 @@
+module tests.conformance.runtime.pass.runtime_queue_drop_oldest_overflow_evicts;
+profile runtime;
+
+// Pass case: the QueueDropOldest family evicts the oldest entry and
+// always succeeds. Used for telemetry where stale data is acceptable.
+
+struct QueueDropOldest {
+    head: u16,
+    tail: u16,
+    items: [u32; 8],
+    count: u16,
+}
+
+fn enqueue(q: QueueDropOldest, item: u32) -> QueueDropOldest {
+    let mut updated: QueueDropOldest = q;
+    match updated.count == 8 {
+        true  => updated.head = updated.head + 1,
+        false => updated.count = updated.count + 1,
+    }
+    updated.items[updated.tail] = item;
+    updated.tail = updated.tail + 1;
+    updated
+}

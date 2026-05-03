@@ -1,0 +1,10 @@
+module tests.conformance.host.fail.restored.lexer_error_string;
+profile host;
+
+// fail-expected: L-001
+// (restored from legacy_ui/fail/lexer_error_string; legacy code LEXER_ERROR "unsupported character")
+
+module demo;
+fn bad() {
+    let value = "heap";
+}

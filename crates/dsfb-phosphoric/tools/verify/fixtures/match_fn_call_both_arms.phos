@@ -1,0 +1,17 @@
+module fixture.match_fn_call_both_arms;
+profile boot;
+fn entry() -> i32 {
+    return is_ident_cont(48);
+}
+fn is_alpha(b: i32) -> i32 {
+    match b == 70 { true => true, false => false }
+}
+fn is_digit(b: i32) -> i32 {
+    match b == 48 { true => true, false => false }
+}
+fn is_ident_start(b: i32) -> i32 {
+    match is_alpha(b) { true => true, false => b == 95 }
+}
+fn is_ident_cont(b: i32) -> i32 {
+    match is_ident_start(b) { true => true, false => is_digit(b) }
+}

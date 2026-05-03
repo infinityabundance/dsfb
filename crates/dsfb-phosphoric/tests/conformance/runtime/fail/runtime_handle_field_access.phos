@@ -1,0 +1,18 @@
+module tests.conformance.runtime.fail.runtime_handle_field_access;
+profile runtime;
+
+// fail-expected: R-002
+//
+// Handle fields are accessed only through the typed lookup function.
+// Direct field access from outside that function is rejected.
+
+struct TaskHandle {
+    slot: u16,
+    generation: u16,
+    kind: u8,
+    reserved: u8,
+}
+
+fn poke(h: TaskHandle) -> u16 {
+    h.slot
+}

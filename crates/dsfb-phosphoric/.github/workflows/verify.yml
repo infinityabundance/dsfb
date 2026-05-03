@@ -1,0 +1,22 @@
+name: verify
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install demo dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dosfstools mtools qemu-system-x86 ovmf
+
+      - name: Run full verification
+        env:
+          PHOSPHORIC_OVMF_CODE: /usr/share/OVMF/OVMF_CODE_4M.fd
+          PHOSPHORIC_OVMF_VARS: /usr/share/OVMF/OVMF_VARS_4M.fd
+        run: make verify

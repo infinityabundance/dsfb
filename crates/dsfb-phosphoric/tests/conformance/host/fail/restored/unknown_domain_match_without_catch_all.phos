@@ -1,0 +1,13 @@
+module tests.conformance.host.fail.restored.unknown_domain_match_without_catch_all;
+profile host;
+
+// fail-expected: K-016
+// (restored from legacy_ui/fail/unknown_domain_match_without_catch_all; legacy code NON_EXHAUSTIVE_MATCH "requires a wildcard or binding catch-all")
+
+module demo;
+fn choose(value: u32) -> u64 {
+    match value {
+        0 => 1,
+        1 => 2,
+    }
+}

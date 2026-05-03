@@ -1,0 +1,14 @@
+module fixture.m3i_load_start;
+profile boot;
+struct Tok {
+    kind: u8,
+    payload: u32,
+    start: u32,
+    end: u32,
+}
+fn entry() -> i32 {
+    return 0;
+}
+fn read_start(s: Tok) -> u32 {
+    s.start
+}

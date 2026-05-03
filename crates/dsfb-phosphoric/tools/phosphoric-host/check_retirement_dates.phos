@@ -1,0 +1,143 @@
+module pcc.host_tools.check_retirement_dates;
+profile host;
+
+// Read docs/RETIREMENT.md, parse each section's review_date, compare against
+// today. Fail if any date passed without renewal.
+
+enum DateOutcome {
+    Future,         // > 30 days away: pass
+    Approaching,    // <= 30 days away: pass with warning
+    Passed,         // date passed: fail
+}
+
+struct ArchiveContract {
+    path_id: u16,           // index into archive paths table
+    review_date_y: u16,
+    review_date_m: u8,
+    review_date_d: u8,
+    status: DateOutcome,
+}
+
+// Proleptic-Gregorian day-difference computation. Returns positive number
+// of days when `other` is after `today`; negative when before; zero when
+// the same date.
+//
+// Algorithm: convert each (y, m, d) to a "Rata Die" day number (days since
+// 0001-01-01), then subtract. The Howard Hinnant 2013 formulation is
+// O(1) with no division by zero or special cases for negative years.
+//
+// Days in each month, with February=28 (leap-year correction added separately).
+fn days_in_month_default(month: u8) -> u32 {
+    match month {
+        1  => 31,
+        2  => 28,
+        3  => 31,
+        4  => 30,
+        5  => 31,
+        6  => 30,
+        7  => 31,
+        8  => 31,
+        9  => 30,
+        10 => 31,
+        11 => 30,
+        12 => 31,
+        _  => 0,
+    }
+}
+
+fn is_leap_year(y: u16) -> bool {
+    let y32: u32 = y as u32;
+    let div_4: bool = y32 - (y32 / 4) * 4 == 0;
+    let div_100: bool = y32 - (y32 / 100) * 100 == 0;
+    let div_400: bool = y32 - (y32 / 400) * 400 == 0;
+    match div_400 {
+        true  => true,
+        false => match div_100 {
+            true  => false,
+            false => div_4,
+        },
+    }
+}
+
+// Convert (y, m, d) to absolute day count using the proleptic Gregorian
+// calendar. Day 0 = year 0000, January 1.
+fn date_to_days(y: u16, m: u8, d: u8) -> u32 {
+    let y32: u32 = y as u32;
+    // Total days from years 0..y exclusive: y * 365 + leap days.
+    // Leap days = floor(y/4) - floor(y/100) + floor(y/400).
+    let leap_days: u32 = (y32 / 4) - (y32 / 100) + (y32 / 400);
+    let mut days: u32 = y32 * 365 + leap_days;
+    // Add days for months before m in year y.
+    #[bound = 12]
+    for month in 1..(m as u32) {
+        days = days + days_in_month_default(month as u8);
+        match month == 2 {
+            true => match is_leap_year(y) {
+                true  => days = days + 1,
+                false => (),
+            },
+            false => (),
+        }
+    }
+    // Add d - 1 (so Jan 1 = day count for prior years).
+    days + (d as u32) - 1
+}
+
+fn days_between(
+    today_y: u16, today_m: u8, today_d: u8,
+    other_y: u16, other_m: u8, other_d: u8,
+) -> i32 {
+    let today_days: u32 = date_to_days(today_y, today_m, today_d);
+    let other_days: u32 = date_to_days(other_y, other_m, other_d);
+    match other_days >= today_days {
+        true  => (other_days - today_days) as i32,
+        false => 0 - ((today_days - other_days) as i32),
+    }
+}
+
+// Per-outcome exit policy. The panel directive says: do not let this be
+// "nag-ware". The discipline is binary:
+//
+//   * If a date is approaching: the project either DELETES the archive
+//     contract entry (the named code is gone; remove the contract) or
+//     EXTENDS the date with a Residual Risk Acknowledgment paragraph
+//     in the contract section explaining why the entry stays past its
+//     original review date. The acknowledgment is mandatory; without it
+//     the date check fails.
+//
+//   * If a date has passed without an acknowledgment: this gate fails
+//     CI. The project does not ship with stale retirement contracts.
+//
+// The "approaching" warning is informational at 30 days out; CI does
+// not fail until the date actually passes. Approaching status is the
+// signal to either prune or extend, not a perpetual nag.
+fn outcome_to_exit(outcome: DateOutcome) -> i32 {
+    match outcome {
+        DateOutcome::Future       => 0,
+        DateOutcome::Approaching  => 0,    // informational; not a failure
+        DateOutcome::Passed       => 1,    // fail CI; force prune-or-extend
+    }
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr, host-time-mono) {
+    // Sequence:
+    //   1. Read RETIREMENT.md (path passed via argv[1]; defaults to
+    //      untracked/internaldocs/docs/RETIREMENT.md when contracts have
+    //      been moved to internal storage).
+    //   2. Parse each ## section header + review_date field.
+    //   3. For each contract, classify via DateOutcome.
+    //   4. For Passed contracts, verify the section contains an explicit
+    //      "Residual Risk Acknowledgment:" paragraph. Missing → fail.
+    //   5. Emit one-line-per-contract report on host-stdout.
+    //   6. Exit non-zero on any Passed without acknowledgment, or on any
+    //      malformed contract.
+    //
+    // The two-step (Passed + acknowledgment-required) discipline prevents
+    // the gate from becoming nag-ware: the gate is silent on Future and
+    // Approaching contracts; it fails loudly on Passed ones; it accepts
+    // Passed ones that carry an explicit acknowledgment paragraph.
+    0
+}

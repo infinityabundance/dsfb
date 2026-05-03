@@ -1,0 +1,5 @@
+# Locked-in expectation for tools/verify/fixtures/match_false.phos
+# size, sha, rc captured at producer hash 8ada5b21... (M.3.M-recursion-1)
+size=1105
+sha=f25139c755f33fd1777c9911417a3d5ee2b4b733ddffda44915fb187a3ca6440
+rc=0

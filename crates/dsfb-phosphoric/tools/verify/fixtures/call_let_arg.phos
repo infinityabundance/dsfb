@@ -1,0 +1,9 @@
+module fixture.call_let_arg;
+profile boot;
+fn entry() -> i32 {
+    let n = 17;
+    return passthrough(n);
+}
+fn passthrough(arg: i32) -> i32 {
+    return arg;
+}

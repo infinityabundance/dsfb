@@ -1,0 +1,9 @@
+module fixture.param_add_let;
+profile boot;
+fn entry() -> i32 {
+    return shifted(36);
+}
+fn shifted(arg: i32) -> i32 {
+    let bias = 6;
+    return arg + bias;
+}

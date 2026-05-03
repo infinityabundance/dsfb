@@ -1,0 +1,11 @@
+module tests.conformance.boot.pass.match_with_option;
+
+// Pass case for match on Option[T]. Both Some and None arms must be
+// present for exhaustiveness.
+
+fn unwrap_or(opt: Option[u32], fallback: u32) -> u32 {
+    match opt {
+        Some(v) => v,
+        None    => fallback,
+    }
+}

@@ -1,0 +1,78 @@
+# Policy manifest for check_phosphoric_only.
+#
+# Lists the source-file extensions that are not permitted in the active repo.
+# Files matching these patterns outside the allowed paths fail the gate.
+#
+# This file is data, not code. Edit it to update the policy.
+
+manifest_version = "phosphoric-only-policy-v1"
+
+[forbidden]
+extensions = [
+    ".rs",
+    ".c",
+    ".cc",
+    ".cpp",
+    ".cxx",
+    ".h",
+    ".hh",
+    ".hpp",
+    ".hxx",
+    ".m",
+    ".mm",
+    ".go",
+    ".java",
+    ".kt",
+    ".swift",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".py",
+    ".rb",
+    ".pl",
+    ".lua",
+    ".zig",
+    ".d",
+    ".cr",
+    ".nim",
+    ".v",
+    ".sv",
+]
+
+# Manifest filenames also forbidden. These are package-manager metadata for
+# non-Phosphoric build systems and have no place in the active repo.
+filenames = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "go.mod",
+    "go.sum",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "tsconfig.json",
+    "Gemfile",
+    "Gemfile.lock",
+    "Pipfile",
+    "Pipfile.lock",
+    "pyproject.toml",
+    "build.gradle",
+    "pom.xml",
+    "BUILD",
+    "BUILD.bazel",
+    "WORKSPACE",
+    "Makefile.in",
+    "configure.ac",
+    "CMakeLists.txt",
+]
+
+# Paths permitted to contain otherwise-forbidden material. archive/ is the
+# canonical historical-reference directory. The bootstrap narrative names a
+# binary that originated from a pre-Phosphoric toolchain; the narrative lives
+# in this allowlist so the gate does not flag it.
+[allowed_paths]
+paths = [
+    "archive/",
+    "bootstrap/STAGE0.md",
+]

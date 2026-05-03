@@ -1,0 +1,6 @@
+module tests.conformance.host.pass.host_time_mono_read;
+profile host;
+
+fn now_ns() -> u64 effects(host-time-mono) {
+    0
+}

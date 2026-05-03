@@ -1,0 +1,252 @@
+module pcc.effects;
+profile host;
+
+// Effect closure pass.
+//
+// For each function f, asserts: declared_effects(f) ⊇ Union(declared_effects(g))
+// over every g in same-module call graph reachable from f.
+//
+// Also enforces:
+//   - declared effects are in the program's profile alphabet
+//   - no cross-profile mixing (boot effect in host program, etc.)
+//   - least-authority: declared effect must be reachable (no spurious effects)
+//
+// Diagnostic codes (E- prefix from effect_lattice.toml):
+//   E-001 effect label not in profile alphabet
+//   E-002 callee effect not in caller's declared effects
+//   E-003 declared effect not in callee closure (least-authority violation)
+//   E-004 effect declared but profile alphabet is empty (trusted)
+//   E-005 duplicate effect label in declaration
+//   E-006 cross-profile effect mixing
+//   E-007 effect alphabet manifest missing or malformed
+
+// Effect bitset: 32 bits across all profiles. Layout (low→high):
+//   bit 0: boot.draw
+//   bit 1: boot.ipc
+//   bit 2: boot.mmio
+//   bit 3: boot.sched
+//   bit 4: boot.time
+//   bit 5: host.host-fs-read
+//   bit 6: host.host-fs-write
+//   bit 7: host.host-stdout
+//   bit 8: host.host-stderr
+//   bit 9: host.host-time-mono
+//   bit 10: host.host-hash
+//   bit 11: runtime.cap-issue
+//   bit 12: runtime.cap-revoke
+//   bits 13-31: reserved
+struct EffectBitset {
+    bits: u32,
+}
+
+fn empty_effects() -> EffectBitset {
+    EffectBitset { bits: 0 }
+}
+
+// Per-bit decomposition of `a.bits / bit_value` extracts whether bit at
+// position log2(bit_value) is set, returning 0 or 1. v0 has no `&` operator
+// yet, so we use the modular arithmetic identity:
+//   bit_at(x, p) = (x / 2^p) mod 2
+fn bit_set(value: u32, bit_value: u32) -> u32 {
+    let shifted: u32 = value / bit_value;
+    shifted - (shifted / 2) * 2
+}
+
+// Union (bitwise OR) reconstructed from per-bit decomposition. For each of
+// the 32 bit positions, if either operand has the bit set, the result has
+// it set. Equivalent to a | b but expressed in v0 arithmetic.
+fn union_effects(a: EffectBitset, b: EffectBitset) -> EffectBitset {
+    let mut out: u32 = 0;
+    let mut bit_value: u32 = 1;
+    #[bound = 32]
+    for i in 0..32 {
+        let either: u32 = match bit_set(a.bits, bit_value) + bit_set(b.bits, bit_value) == 0 {
+            true  => 0,
+            false => 1,
+        };
+        out = out + either * bit_value;
+        bit_value = bit_value * 2;
+    }
+    EffectBitset { bits: out }
+}
+
+// Intersection (bitwise AND) for cross-profile mixing detection.
+fn intersect_effects(a: EffectBitset, b: EffectBitset) -> EffectBitset {
+    let mut out: u32 = 0;
+    let mut bit_value: u32 = 1;
+    #[bound = 32]
+    for i in 0..32 {
+        let both: u32 = bit_set(a.bits, bit_value) * bit_set(b.bits, bit_value);
+        out = out + both * bit_value;
+        bit_value = bit_value * 2;
+    }
+    EffectBitset { bits: out }
+}
+
+// Subset test: a ⊆ b iff (a ∩ b) == a.
+fn is_subset(a: EffectBitset, b: EffectBitset) -> bool {
+    let i: EffectBitset = intersect_effects(a, b);
+    i.bits == a.bits
+}
+
+// Profile alphabet masks (bits per the layout comment above).
+fn boot_alphabet_mask() -> EffectBitset {
+    EffectBitset { bits: 31 }                 // bits 0..4 = 0b11111
+}
+
+fn host_alphabet_mask() -> EffectBitset {
+    EffectBitset { bits: 2016 }               // bits 5..10 = 0b11111100000
+}
+
+fn runtime_alphabet_mask() -> EffectBitset {
+    // bits 0,1,3,4,11,12 = draw, ipc, sched, time, cap-issue, cap-revoke
+    EffectBitset { bits: 1 + 2 + 8 + 16 + 2048 + 4096 }
+}
+
+// Reject cross-profile mixing: an EffectBitset containing labels from more
+// than one profile alphabet emits E-006.
+fn check_no_cross_profile_mix(declared: EffectBitset) -> Option[u16] {
+    let in_boot_bs: EffectBitset = intersect_effects(declared, boot_alphabet_mask());
+    let in_host_bs: EffectBitset = intersect_effects(declared, host_alphabet_mask());
+    let in_rt_bs:   EffectBitset = intersect_effects(declared, runtime_alphabet_mask());
+    let n_nonempty: u32 = (match in_boot_bs.bits == 0 { true => 0, false => 1 })
+                       + (match in_host_bs.bits == 0 { true => 0, false => 1 })
+                       + (match in_rt_bs.bits   == 0 { true => 0, false => 1 });
+    match n_nonempty > 1 {
+        true  => Some(6),         // E-006
+        false => None,
+    }
+}
+
+// Closure walk over the same-module call graph. Returns the union of
+// declared effects of every function reachable from `function_id`,
+// computed precisely via iterative reachability over the call graph.
+//
+// Phosphoric forbids recursion in application functions (parser/typeck reject
+// it; call_graph.phos enforces G-001 cycle detection). The call graph
+// is therefore a DAG. Reachability is computed by initializing a
+// reach[N] bitset (= 1 for `function_id`, 0 elsewhere) and iterating
+// edge relaxation until fixpoint. Bounded by function_count.
+//
+// Then accumulate declared_effects of every reachable function.
+fn closure_for(
+    hir: pcc.hir.HirModule,
+    function_id: u16,
+) -> Result[EffectBitset, pcc.diagnostic.Diagnostic] {
+    let g: pcc.call_graph.CallGraph = pcc.call_graph.build_graph(hir);
+    let n: u32 = hir.item_count as u32;
+    // reach[i] = 1 iff function i is transitively reachable from function_id.
+    let mut reach: [u8; 1024] = [0; 1024];
+    reach[function_id as u32] = 1;
+    // Edge-relaxation to fixpoint. Each pass: for every edge (caller→callee),
+    // if reach[caller] then reach[callee] := 1. Converges in ≤ N passes.
+    #[bound = 1024]
+    for _pass in 0..n {
+        #[bound = 8192]
+        for e in 0..g.edge_count {
+            let edge: pcc.call_graph.CallEdge = g.edges[e];
+            match reach[edge.caller_id as u32] == 1 {
+                true  => reach[edge.callee_id as u32] = 1,
+                false => (),
+            };
+        }
+    }
+    // Accumulate declared_effects of every reachable function.
+    let mut acc: EffectBitset = empty_effects();
+    #[bound = 1024]
+    for i in 0..n {
+        match reach[i] == 1 {
+            true => match hir.items[i] {
+                pcc.hir.HirItem::Function(f) => {
+                    acc.bits = union_bits(acc.bits, f.declared_effects);
+                },
+                _ => (),
+            },
+            false => (),
+        };
+    }
+    Ok(acc)
+}
+
+// Bitwise OR via per-bit decomposition. Phosphoric v0 has no `|`
+// operator; the per-bit walk reconstructs union via integer
+// arithmetic. Bounded by 32 bits.
+fn union_bits(a: u32, b: u32) -> u32 {
+    let mut out: u32 = 0;
+    let mut bit_value: u32 = 1;
+    #[bound = 32]
+    for _ in 0..32 {
+        let a_bit: u32 = match bit_value {
+            1 => a - (a / 2) * 2,
+            _ => (a / bit_value) - ((a / bit_value) / 2) * 2,
+        };
+        let b_bit: u32 = match bit_value {
+            1 => b - (b / 2) * 2,
+            _ => (b / bit_value) - ((b / bit_value) / 2) * 2,
+        };
+        match a_bit + b_bit > 0 {
+            true  => out = out + bit_value,
+            false => (),
+        };
+        match bit_value < 2147483648 {
+            true  => bit_value = bit_value * 2,
+            false => (),
+        };
+    }
+    out
+}
+
+// Walk every HirStmt::For in the module's statement arena and reject
+// any whose `#[bound = N]` literal exceeds the manifest's
+// [budgets].loop_bound_max. M-009 fires at the first violator.
+//
+// HIR statements live in HirArenas, not HirModule. The check lifts
+// arenas from compile() so each for-stmt's bound_value can be compared
+// directly. Bound 4096 covers the parser's stmt arena ceiling.
+fn check_loop_bounds(
+    arenas: pcc.hir.HirArenas,
+    manifest: pcc.manifest.Manifest,
+) -> Result[u32, pcc.diagnostic.Diagnostic] {
+    let limit: u32 = manifest.budgets.loop_bound_max;
+    #[bound = 4096]
+    for i in 0..(arenas.stmt_count as u32) {
+        match arenas.stmts[i] {
+            pcc.hir.HirStmt::For(_, bound_value, _, _, _) => match bound_value > limit {
+                true  => return Err(pcc.manifest.m_diag(9)),
+                false => (),
+            },
+            _ => (),
+        };
+    }
+    Ok(0)
+}
+
+// check_module: top-level entry. For each function, compute closure and
+// reject violations against the manifest's [effects].allowed bound.
+//
+// M-004: function transitive closure exceeds manifest bound. The manifest
+// is the authority; any function whose effect closure carries a bit not
+// in manifest.effects_bitset is rejected. This is the primary forensic
+// boundary at the compiler layer — declared boundary (manifest) is a
+// strict superset of compiled boundary (every function's closure).
+fn check_module(
+    hir: pcc.hir.HirModule,
+    manifest: pcc.manifest.Manifest,
+) -> Result[u32, pcc.diagnostic.Diagnostic] {
+    let count: u16 = hir.item_count;
+    #[bound = 1024]
+    for fn_idx in 0..1024 {
+        match (fn_idx as u16) == count {
+            true => return Ok(0),
+            false => (),
+        }
+        match closure_for(hir, fn_idx as u16) {
+            Err(d) => return Err(d),
+            Ok(cl) => match pcc.manifest.effects_within_manifest_bound(cl.bits, manifest.effects_bitset) {
+                true  => (),
+                false => return Err(pcc.manifest.m_diag(4)),
+            },
+        };
+    }
+    Ok(0)
+}

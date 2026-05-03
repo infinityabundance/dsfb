@@ -1,0 +1,16 @@
+module tests.conformance.host.fail.restored.missing_declared_effect;
+profile host;
+
+// fail-expected: E-002
+// (restored from legacy_ui/fail/missing_declared_effect; legacy code MISSING_EFFECT "must declare effect `draw`")
+
+module gui.button;
+capability Framebuffer;
+
+fn draw_button(fb: Framebuffer) effects(draw) {
+    return;
+}
+
+fn handle(fb: Framebuffer) {
+    draw_button(fb);
+}

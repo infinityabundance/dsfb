@@ -1,0 +1,187 @@
+# Phosphoric hardware-features manifest.
+#
+# Per-arch capability matrix. Each [arch.<name>] block declares which
+# hardware features the arch exposes and which Phosphoric primitives use
+# them. The compiler reads this manifest and refuses to emit a `trusted!`
+# primitive for a feature unavailable on the target arch (diagnostic Z-002).
+#
+# Companion: docs/language/trusted_profile.toml (per-arch primitive tables)
+#
+# Adding a new arch is a coordinated breaking change to this file plus
+# trusted_profile.toml plus tcb_budget.toml plus the conformance corpus.
+
+manifest_version = "phosphoric-hardware-features-v1"
+schema_doc       = "docs/language/TRUSTED_PROFILE.md"
+
+# ---------------------------------------------------------------------------
+# Closed set of supported architectures.
+# Adding a sixth arch requires re-opening the E21 contract.
+# ---------------------------------------------------------------------------
+
+[arches]
+supported = [
+    "x86_64",
+    "cortex_m33",
+    "cortex_m0plus",
+    "riscv_rv32imc",
+    "esp32_c3",
+]
+
+# ---------------------------------------------------------------------------
+# x86_64 (development / test target only — not a deployment target)
+# ---------------------------------------------------------------------------
+[arch.x86_64]
+purpose      = "development and reproducible smoke test (UEFI + QEMU)"
+deployment   = false
+example_chip = "any x86_64 with UEFI"
+notes        = "QEMU + OVMF is the make-verify gate. Not deployed on real silicon."
+
+[arch.x86_64.features]
+mpu              = false   # full MMU; not used by razor
+pmp              = false
+trustzone        = false
+sau              = false
+otp              = false
+signed_boot      = false   # available via UEFI Secure Boot but not used
+glitch_detection = false
+sha256_accel     = false   # CPU has SHA-NI on some parts; not used in trusted profile
+aes_accel        = false
+trng             = false   # rdrand exists; not used in trusted profile
+watchdog         = false
+rtc              = false
+dual_core        = true    # SMP not used (single-core only)
+
+# ---------------------------------------------------------------------------
+# cortex_m33 (RP2350) — primary embedded target; most security primitives
+# ---------------------------------------------------------------------------
+[arch.cortex_m33]
+purpose      = "primary embedded deployment target; richest security primitives"
+deployment   = true
+example_chip = "Raspberry Pi RP2350 (~$1)"
+notes        = "TrustZone-M makes the trusted!/non-trusted split hardware-enforced."
+
+[arch.cortex_m33.features]
+mpu              = true    # ARMv8-M MPU (8 regions)
+pmp              = false
+trustzone        = true    # ARMv8-M TrustZone (SAU + IDAU)
+sau              = true
+otp              = true    # 8 KiB OTP
+signed_boot      = true    # bootrom verifies signature against OTP-burned key
+glitch_detection = true    # voltage/clock/electromagnetic anomaly detectors
+sha256_accel     = true    # PL110 SHA-256 engine
+aes_accel        = false
+trng             = true    # hardware TRNG
+watchdog         = true
+rtc              = true
+dual_core        = true    # dual M33; second core not used in razor v0.1
+
+[arch.cortex_m33.uses]
+otp              = ["bootstrap-trust-root", "stage0-binary-hash"]
+signed_boot      = ["reset-handler", "image-verification"]
+sha256_accel     = ["host-hash-effect", "golden-fixture-verify", "attestation"]
+trng             = ["fuzz-seed-init", "cookie-generation"]
+mpu              = ["stack-guard-pages", "fixed-capacity-buffer-bounds"]
+trustzone        = ["secure-non-secure-split"]
+
+# ---------------------------------------------------------------------------
+# cortex_m0plus (RP2040) — proves razor scales down to minimal-protection chip
+# ---------------------------------------------------------------------------
+[arch.cortex_m0plus]
+purpose      = "portability proof for the canonical $5 MCU with minimal hw protection"
+deployment   = true
+example_chip = "Raspberry Pi RP2040 (~$5)"
+notes        = "No TrustZone, no OTP. Language enforces what hardware cannot."
+
+[arch.cortex_m0plus.features]
+mpu              = true    # ARMv6-M MPU (8 regions)
+pmp              = false
+trustzone        = false   # not on M0+
+sau              = false
+otp              = false
+signed_boot      = false
+glitch_detection = false
+sha256_accel     = false
+aes_accel        = false
+trng             = false
+watchdog         = true
+rtc              = true
+dual_core        = true    # dual M0+
+
+[arch.cortex_m0plus.uses]
+mpu = ["stack-guard-pages", "fixed-capacity-buffer-bounds"]
+
+# ---------------------------------------------------------------------------
+# riscv_rv32imc (low-end RV32 with PMP) — open ISA target
+# ---------------------------------------------------------------------------
+[arch.riscv_rv32imc]
+purpose      = "open ISA target; PMP is the simplest possible protection surface"
+deployment   = true
+example_chip = "FE310 / GD32V / SiFive E21 class"
+notes        = "PMP regions provide the protection-unit pattern equivalent to MPU."
+
+[arch.riscv_rv32imc.features]
+mpu              = false
+pmp              = true    # 8 or 16 PMP regions depending on part
+trustzone        = false
+sau              = false
+otp              = false   # part-dependent; not assumed
+signed_boot      = false   # part-dependent
+glitch_detection = false
+sha256_accel     = false
+aes_accel        = false
+trng             = false   # part-dependent
+watchdog         = true
+rtc              = true
+dual_core        = false   # most parts in this class are single-core
+
+[arch.riscv_rv32imc.uses]
+pmp = ["stack-guard-pages", "fixed-capacity-buffer-bounds"]
+
+# ---------------------------------------------------------------------------
+# esp32_c3 (RISC-V variant) — high-volume hobbyist; weakest protection
+# ---------------------------------------------------------------------------
+[arch.esp32_c3]
+purpose      = "high-volume hobbyist target; exposes which guarantees are language-only"
+deployment   = true
+example_chip = "Espressif ESP32-C3 (~$2)"
+notes        = "No MPU, no PMP. Pure language-enforcement test case for the razor."
+
+[arch.esp32_c3.features]
+mpu              = false
+pmp              = false   # ESP32-C3 RISC-V variant lacks PMP
+trustzone        = false
+sau              = false
+otp              = true    # eFuses
+signed_boot      = true    # secure boot v2 available; optional
+glitch_detection = false
+sha256_accel     = true    # Espressif crypto peripheral
+aes_accel        = true
+trng             = true    # hardware RNG
+watchdog         = true
+rtc              = true
+dual_core        = false
+
+[arch.esp32_c3.uses]
+sha256_accel = ["host-hash-effect"]
+trng         = ["fuzz-seed-init"]
+otp          = ["bootstrap-trust-root"]
+# Note: stack-guard-pages and buffer-bounds rely on language enforcement
+# alone on this target. Belt without suspenders. Honest framing in
+# docs/PHOSPHOROS_DESIGN.md and per-arch trust audits.
+
+# ---------------------------------------------------------------------------
+# Diagnostic codes for hardware-features manifest violations.
+# Razor diagnostics use the Z- prefix.
+# ---------------------------------------------------------------------------
+[diagnostics]
+Z-001 = "trusted! block missing razor-rationale annotation"
+Z-002 = "primitive uses a hardware feature not available on the target arch"
+Z-003 = "arch declared in source but not in [arches.supported]"
+Z-004 = "feature declared in [arch.<name>.uses] but [arch.<name>.features] says false"
+
+# ---------------------------------------------------------------------------
+# Cross-checks (verified by phosphoric_effect_check.phos extension).
+# ---------------------------------------------------------------------------
+[cross_checks]
+must_match  = "[arch.<name>.uses].* features must be true in [arch.<name>.features].*"
+must_supply = "every primitive declared in trusted_profile.toml's per-arch table must appear in some [arch.<name>.uses] block"

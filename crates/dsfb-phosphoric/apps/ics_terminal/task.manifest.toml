@@ -1,0 +1,142 @@
+# Phosphoric task manifest — industrial control terminal (RP2350).
+#
+# The unforgettable demo: a deterministic, sealed device with a single
+# physical button + sensor input, and a small display + actuator output.
+# Each of the four pins is a manifest-declared MMIO range; each authority
+# transition emits a residual; classification by `phosphoric drift` maps
+# any drift to one of the eight named DSFB classes.
+#
+# Pinout:
+#   GP15  input button (IRQ-driven)
+#   GP26  ADC0 sensor read
+#   GP6/GP7  I2C0 -> SSD1306 OLED display (128x64, monochrome)
+#   GP18  PWM actuator (relay, motor, or LED indicator)
+
+manifest_version = "phosphoric-task-seal-v0"
+task_id          = "ics_terminal"
+task_image_hash  = "TBD"
+profile          = "boot"
+
+# ---------------------------------------------------------------------------
+# Effects allowed in any function this image compiles. Closed subset of
+# the boot-profile alphabet; M-004 on closure exceeding this set.
+# ---------------------------------------------------------------------------
+
+[effects]
+allowed = ["draw", "ipc", "sched", "time", "mmio"]
+
+# ---------------------------------------------------------------------------
+# Capability handles the terminal may issue. (kind, slot) pairs cross-
+# checked at runtime by kernel/caps.phos `allocate_entry`.
+# ---------------------------------------------------------------------------
+
+[capabilities]
+
+[[capabilities.entry]]
+kind     = "Task"
+slot     = 0
+purpose  = "ics_terminal root task"
+
+[[capabilities.entry]]
+kind     = "Channel"
+slot     = 0
+purpose  = "button_event_route"
+
+[[capabilities.entry]]
+kind     = "Channel"
+slot     = 1
+purpose  = "sensor_read_route"
+
+[[capabilities.entry]]
+kind     = "Window"
+slot     = 0
+purpose  = "ssd1306 display backbuffer"
+
+# ---------------------------------------------------------------------------
+# MMIO ranges. Each pin/peripheral has a typed range; trusted! mmio_*
+# touching an address outside these ranges is M-005 at compile, and
+# AUTHORITY_EXPANSION at runtime classification.
+# RP2350 IO_BANK0 base = 0x40028000; PADS_BANK0 = 0x40038000;
+# ADC = 0x4004C000; I2C0 = 0x40090000; PWM = 0x40050000.
+# ---------------------------------------------------------------------------
+
+[mmio]
+
+[[mmio.range]]
+name   = "io_bank0_gp15"
+base   = 0x40028078        # SIO control for GP15
+length = 0x00000010
+mode   = "rw"
+
+[[mmio.range]]
+name   = "adc0_gp26"
+base   = 0x4004C000
+length = 0x00000020
+mode   = "r"
+
+[[mmio.range]]
+name   = "i2c0_display"
+base   = 0x40090000
+length = 0x00000100
+mode   = "rw"
+
+[[mmio.range]]
+name   = "pwm_gp18"
+base   = 0x40050000
+length = 0x00000040
+mode   = "rw"
+
+# ---------------------------------------------------------------------------
+# IPC channels. Each is a typed route with payload schema. Send/recv on
+# undeclared channels is M-006 at compile, IPC_ROUTE_DIVERGENCE at runtime.
+# ---------------------------------------------------------------------------
+
+[ipc]
+
+[[ipc.channel]]
+id       = "button_event_route"
+sender   = "ics_terminal.boot_entry"
+receiver = "ics_terminal.main"
+payload  = "button_event"
+capacity = 8
+
+[[ipc.channel]]
+id       = "sensor_read_route"
+sender   = "ics_terminal.boot_entry"
+receiver = "ics_terminal.main"
+payload  = "sensor_read"
+capacity = 4
+
+# ---------------------------------------------------------------------------
+# Static budgets. Compile-time WCSU and loop-bound checks reject closure
+# that exceeds these. residual_chain_every_n_events sets the on-device
+# chain frequency; 16 is the M33 default per the performance discipline
+# in docs/TASK_SEAL_V0.md §0.4.
+# ---------------------------------------------------------------------------
+
+[budgets]
+task_stack_limit  = 4096
+kernel_init_limit = 4096
+loop_bound_max    = 1024
+residual_chain_every_n_events = 16
+
+# ---------------------------------------------------------------------------
+# Forbidden-by-default flags. All ten must be explicitly false; any
+# missing or non-false flag is M-007.
+# ---------------------------------------------------------------------------
+
+[forbidden]
+heap                = false
+filesystem          = false
+network             = false
+dynamic_loading     = false
+ambient_mmio        = false
+reflection          = false
+pointer_types       = false
+hidden_syscalls     = false
+undeclared_ipc      = false
+undeclared_effects  = false
+
+[bootstrap]
+compiler_image_hash = "TBD"
+manifest_self_hash  = "TBD"

@@ -1,0 +1,290 @@
+module pcc.call_graph;
+profile host;
+
+// Same-module call graph + cycle rejection. v0 forbids recursion (G-001
+// self-recursion and G-002 mutual recursion).
+//
+// Phosphoric forbids recursion in the compiler itself, so cycle detection
+// uses the iterative form of Tarjan's strongly-connected-components
+// algorithm with an explicit work stack.
+//
+// Diagnostic codes (G- prefix):
+//   G-001 self-recursion (function calls itself directly)
+//   G-002 mutual recursion (SCC of size ≥ 2)
+
+struct CallEdge {
+    caller_id: u16,
+    callee_id: u16,
+}
+
+struct CallGraph {
+    edges: [CallEdge; 8192],
+    edge_count: u32,
+    function_count: u16,
+}
+
+struct CycleReport {
+    has_cycle: bool,
+    cycle_function_ids: [u16; 16],
+    cycle_length: u8,
+}
+
+fn empty_graph() -> CallGraph {
+    CallGraph {
+        edges: [CallEdge { caller_id: 0, callee_id: 0 }; 8192],
+        edge_count: 0,
+        function_count: 0,
+    }
+}
+
+fn empty_cycle_report() -> CycleReport {
+    CycleReport {
+        has_cycle: false,
+        cycle_function_ids: [0; 16],
+        cycle_length: 0,
+    }
+}
+
+// Walk every function body in the module and record (caller, callee) edges
+// for each direct same-module call. Cross-module calls are forbidden by v0
+// (only same-module function names are valid call targets), so the graph
+// is closed.
+fn build_graph(hir: pcc.hir.HirModule) -> CallGraph {
+    let mut g: CallGraph = empty_graph();
+    g.function_count = hir.item_count;
+    // Real implementation walks hir.items[i].body and records edges. For
+    // the contract scaffold, we leave the edge list empty; the typeck pass
+    // populates it once the AST→HIR lowering is real.
+    g
+}
+
+// Iterative Tarjan SCC. Standard recursive Tarjan uses DFS with discovery
+// numbers, low-link values, and an "on-stack" set; the iterative form
+// uses an explicit stack of (node, iterator-state) frames.
+//
+// Each Tarjan frame holds:
+//   - node being processed
+//   - index into that node's outgoing-edge list (so we can resume after
+//     yielding to a child node)
+//   - the node's discovery index and current low-link
+
+struct TarjanFrame {
+    node_id: u16,
+    next_edge_idx: u32,
+    low: u32,
+    on_stack: bool,
+}
+
+struct TarjanState {
+    disc: [u32; 4096],         // discovery time per node; 0 = unvisited
+    low:  [u32; 4096],
+    on_stack_set: [bool; 4096],
+    component_stack: [u16; 4096],
+    component_top: u32,
+    work_stack: [TarjanFrame; 4096],
+    work_top: u32,
+    next_index: u32,
+    found_cycle: bool,
+    cycle_nodes: [u16; 16],
+    cycle_len: u8,
+}
+
+fn empty_tarjan_state(function_count: u16) -> TarjanState {
+    TarjanState {
+        disc: [0; 4096],
+        low:  [0; 4096],
+        on_stack_set: [false; 4096],
+        component_stack: [0; 4096],
+        component_top: 0,
+        work_stack: [TarjanFrame { node_id: 0, next_edge_idx: 0, low: 0, on_stack: false }; 4096],
+        work_top: 0,
+        next_index: 1,
+        found_cycle: false,
+        cycle_nodes: [0; 16],
+        cycle_len: 0,
+    }
+}
+
+// First-edge-from-node lookup. Returns the edge index where edges[i].caller_id
+// first equals `node`, or g.edge_count if not found. Edges are kept in
+// caller-id order by build_graph (a future invariant of build_graph).
+fn first_edge_from(g: CallGraph, node: u16) -> u32 {
+    #[bound = 8192]
+    for i in 0..g.edge_count {
+        match g.edges[i].caller_id == node {
+            true  => return i,
+            false => (),
+        }
+    }
+    g.edge_count
+}
+
+// Test whether edge index `i` starts an outgoing edge from `node`. Used by
+// the iterator-state advance.
+fn edge_belongs_to(g: CallGraph, i: u32, node: u16) -> bool {
+    match i >= g.edge_count {
+        true  => false,
+        false => g.edges[i].caller_id == node,
+    }
+}
+
+// Detect a self-loop: an edge whose caller equals its callee. Pure linear scan.
+fn detect_self_loops(g: CallGraph) -> Option[u16] {
+    #[bound = 8192]
+    for i in 0..g.edge_count {
+        match g.edges[i].caller_id == g.edges[i].callee_id {
+            true  => return Some(g.edges[i].caller_id),
+            false => (),
+        }
+    }
+    None
+}
+
+// Top-level cycle detection. First a linear scan for self-loops (fast
+// fail for G-001), then iterative Tarjan for G-002 mutual recursion.
+fn detect_cycles(g: CallGraph) -> CycleReport {
+    let mut report: CycleReport = empty_cycle_report();
+    // G-001: self-recursion
+    match detect_self_loops(g) {
+        Some(node) => {
+            report.has_cycle = true;
+            report.cycle_function_ids[0] = node;
+            report.cycle_length = 1;
+            return report;
+        },
+        None => (),
+    }
+    // G-002: SCC of size ≥ 2 via iterative Tarjan.
+    let mut state: TarjanState = empty_tarjan_state(g.function_count);
+    #[bound = 4096]
+    for start_node in 0..(g.function_count as u32) {
+        match state.disc[start_node] == 0 {
+            true => {
+                // Push initial frame for this unvisited node.
+                let frame: TarjanFrame = TarjanFrame {
+                    node_id: start_node as u16,
+                    next_edge_idx: first_edge_from(g, start_node as u16),
+                    low: state.next_index,
+                    on_stack: false,
+                };
+                state.work_stack[state.work_top] = frame;
+                state.work_top = state.work_top + 1;
+                state.disc[start_node] = state.next_index;
+                state.low[start_node]  = state.next_index;
+                state.next_index = state.next_index + 1;
+                state.component_stack[state.component_top] = start_node as u16;
+                state.component_top = state.component_top + 1;
+                state.on_stack_set[start_node] = true;
+
+                #[bound = 65536]
+                for step in 0..65536 {
+                    match state.work_top == 0 {
+                        true => return report,
+                        false => (),
+                    }
+                    // Inspect top frame; advance or pop.
+                    let top_idx: u32 = state.work_top - 1;
+                    let top: TarjanFrame = state.work_stack[top_idx];
+                    match edge_belongs_to(g, top.next_edge_idx, top.node_id) {
+                        true => {
+                            // Process this outgoing edge.
+                            let callee: u16 = g.edges[top.next_edge_idx].callee_id;
+                            // Advance the iterator on the parent frame.
+                            let mut updated_top: TarjanFrame = top;
+                            updated_top.next_edge_idx = top.next_edge_idx + 1;
+                            state.work_stack[top_idx] = updated_top;
+                            match state.disc[callee as u32] == 0 {
+                                true => {
+                                    // Unvisited — push a new frame.
+                                    let cf: TarjanFrame = TarjanFrame {
+                                        node_id: callee,
+                                        next_edge_idx: first_edge_from(g, callee),
+                                        low: state.next_index,
+                                        on_stack: false,
+                                    };
+                                    state.work_stack[state.work_top] = cf;
+                                    state.work_top = state.work_top + 1;
+                                    state.disc[callee as u32] = state.next_index;
+                                    state.low[callee as u32]  = state.next_index;
+                                    state.next_index = state.next_index + 1;
+                                    state.component_stack[state.component_top] = callee;
+                                    state.component_top = state.component_top + 1;
+                                    state.on_stack_set[callee as u32] = true;
+                                },
+                                false => match state.on_stack_set[callee as u32] {
+                                    true => {
+                                        // Back edge; update parent's low-link.
+                                        let parent_node: u16 = updated_top.node_id;
+                                        let parent_low: u32 = state.low[parent_node as u32];
+                                        let callee_disc: u32 = state.disc[callee as u32];
+                                        match callee_disc < parent_low {
+                                            true  => state.low[parent_node as u32] = callee_disc,
+                                            false => (),
+                                        }
+                                    },
+                                    false => (),
+                                },
+                            }
+                        },
+                        false => {
+                            // No more outgoing edges; pop this frame and
+                            // close out its SCC if it's an SCC root.
+                            let parent_node: u16 = top.node_id;
+                            match state.disc[parent_node as u32] == state.low[parent_node as u32] {
+                                true => {
+                                    // SCC root — count component size.
+                                    let mut scc_size: u32 = 0;
+                                    let mut tmp_top: u32 = state.component_top;
+                                    #[bound = 4096]
+                                    for k in 0..4096 {
+                                        match tmp_top == 0 {
+                                            true => k,
+                                            false => {
+                                                let popped: u16 = state.component_stack[tmp_top - 1];
+                                                tmp_top = tmp_top - 1;
+                                                state.on_stack_set[popped as u32] = false;
+                                                scc_size = scc_size + 1;
+                                                match popped == parent_node {
+                                                    true  => k,
+                                                    false => k,
+                                                }
+                                            },
+                                        };
+                                    }
+                                    state.component_top = tmp_top;
+                                    match scc_size >= 2 {
+                                        true => {
+                                            report.has_cycle = true;
+                                            report.cycle_function_ids[0] = parent_node;
+                                            report.cycle_length = scc_size as u8;
+                                            return report;
+                                        },
+                                        false => (),
+                                    }
+                                },
+                                false => (),
+                            }
+                            state.work_top = state.work_top - 1;
+                            // Propagate parent's low-link to grand-parent if any.
+                            match state.work_top > 0 {
+                                true => {
+                                    let gp_idx: u32 = state.work_top - 1;
+                                    let gp: TarjanFrame = state.work_stack[gp_idx];
+                                    let parent_low: u32 = state.low[parent_node as u32];
+                                    let gp_low: u32 = state.low[gp.node_id as u32];
+                                    match parent_low < gp_low {
+                                        true  => state.low[gp.node_id as u32] = parent_low,
+                                        false => (),
+                                    }
+                                },
+                                false => (),
+                            }
+                        },
+                    }
+                }
+            },
+            false => (),
+        }
+    }
+    report
+}

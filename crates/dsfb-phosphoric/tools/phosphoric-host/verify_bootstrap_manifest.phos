@@ -1,0 +1,61 @@
+module pcc.host_tools.verify_bootstrap_manifest;
+profile host;
+
+// Validates bootstrap/bootstrap.toml against its schema.
+//
+// Required fields per [[stage0]]: id, status, target, purpose, created_on,
+// created_by, binary_url, binary_sha256, binary_size, source_provenance,
+// build_environment, attestation. URL must be HTTPS and host must be in
+// [fetch].allowed_hosts.
+
+enum SchemaError {
+    MissingField,
+    MalformedHash,
+    NonHttpsUrl,
+    DisallowedHost,
+    EmptyAttestation,
+    DuplicateId,
+}
+
+// Validate that `s[0..len]` is exactly 64 lowercase hex characters
+// ([0-9a-f]). A single non-hex byte fails the check.
+fn validate_sha256_hex(s: Slice[u8, 64], len: u32) -> bool {
+    match len == 64 {
+        true => {
+            #[bound = 64]
+            for i in 0..64 {
+                let b: u8 = s[i];
+                let is_digit: bool = match b >= 48 {
+                    true  => b <= 57,
+                    false => false,
+                };
+                let is_lower_hex: bool = match b >= 97 {
+                    true  => b <= 102,
+                    false => false,
+                };
+                match is_digit {
+                    true  => (),
+                    false => match is_lower_hex {
+                        true  => (),
+                        false => return false,
+                    },
+                }
+            }
+            true
+        },
+        false => false,
+    }
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr) {
+    // TODO(E0c):
+    //   1. Read bootstrap/bootstrap.toml.
+    //   2. Parse [[stage0]] entries.
+    //   3. For each: assert all required fields present and well-formed.
+    //   4. Verify [fetch].allowed_hosts non-empty (the gate fails-closed).
+    //   5. Emit report; exit non-zero on first schema violation.
+    0
+}

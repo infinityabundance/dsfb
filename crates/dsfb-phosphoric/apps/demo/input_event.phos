@@ -1,0 +1,23 @@
+module demo.input_event;
+
+struct BootInputEvent {
+    kind: u32,
+    unicode_char: u16,
+    scan_code: u16,
+    x: u32,
+    y: u32,
+    button: u8,
+    reserved0: u8,
+    reserved1: u8,
+    reserved2: u8,
+}
+
+fn input_kind_key() -> u32 { 0 }
+
+fn input_kind_mouse_move() -> u32 { 1 }
+
+fn input_kind_mouse_click() -> u32 { 2 }
+
+fn keyboard_activate(unicode_char: u16, scan_code: u16) -> bool {
+    if unicode_char == 13 { true } else { scan_code == 28 }
+}

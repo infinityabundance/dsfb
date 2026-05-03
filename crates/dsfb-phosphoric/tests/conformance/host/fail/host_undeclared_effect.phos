@@ -1,0 +1,16 @@
+module tests.conformance.host.fail.host_undeclared_effect;
+profile host;
+
+// fail-expected: H-001
+//
+// Function uses host-fs-read but does not declare the effect. The
+// effect-closure pass rejects with H-001.
+
+fn open_file(path: Slice[u8, 256]) -> u32 {
+    let buf: Slice[u8, 65536] = Slice[u8, 65536]::empty();
+    read_into(buf, path)
+}
+
+fn read_into(buf: Slice[u8, 65536], path: Slice[u8, 256]) -> u32 effects(host-fs-read) {
+    0
+}

@@ -1,0 +1,16 @@
+module tests.conformance.host.fail.restored.branch_move_after_if;
+profile host;
+
+// fail-expected: K-007
+// (restored from legacy_ui/fail/branch_move_after_if; legacy code MOVE_AFTER_MOVE "used after move")
+
+module demo;
+fn use_after_if(flag: bool, value: u32) -> u64 {
+    if flag {
+        let first = value;
+    } else {
+        return 0;
+    };
+    let second = value;
+    return 1;
+}

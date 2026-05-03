@@ -1,0 +1,8 @@
+module fixture.param_mul;
+profile boot;
+fn entry() -> i32 {
+    return mul7(6);
+}
+fn mul7(arg: i32) -> i32 {
+    return arg * 7;
+}

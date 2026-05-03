@@ -1,0 +1,18 @@
+module tests.conformance.boot.pass.enum_declaration_unit_and_tuple;
+
+// Pass case for EnumDecl with both Variant forms:
+//   Variant ::= Ident | Ident "(" TypeList? ")"
+
+enum Direction {
+    North,
+    South,
+    East,
+    West,
+}
+
+enum Event {
+    Press(u8),
+    Release(u8),
+    Heartbeat,
+    Resize(u32, u32),
+}

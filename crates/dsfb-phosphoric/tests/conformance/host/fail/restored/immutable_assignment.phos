@@ -1,0 +1,13 @@
+module tests.conformance.host.fail.restored.immutable_assignment;
+profile host;
+
+// fail-expected: K-009
+// (restored from legacy_ui/fail/immutable_assignment; legacy code IMMUTABLE_ASSIGNMENT "cannot assign to immutable binding")
+
+module fail.immutable_assignment;
+
+fn bad(flag: bool) -> bool {
+    let value = flag;
+    value = true;
+    return value;
+}

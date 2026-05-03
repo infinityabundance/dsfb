@@ -1,0 +1,6 @@
+module fixture.match_let_scrut_le;
+profile boot;
+fn entry() -> i32 {
+    let x = 7;
+    match x <= 7 { true => 23, false => 95 }
+}

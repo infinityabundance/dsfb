@@ -1,0 +1,175 @@
+module pcc.host_tools.verify_fixpoint;
+profile host;
+
+// Bootstrap chain fixpoint gate.
+//
+// Builds stage1 from pcc.phos using stage0 (bootstrap binary).
+// Builds stage2 from pcc.phos using stage1.
+// Builds stage3 from pcc.phos using stage2.
+// Asserts stage2 == stage3 byte-for-byte.
+//
+// Per bootstrap.toml: stage1 may differ from stage2 (because stage0 was
+// produced by an external pre-Phosphoric toolchain); stage2 must equal stage3.
+
+struct StageBuild {
+    stage_id: u8,           // 0, 1, 2, 3
+    binary_path_id: u16,
+    binary_size: u32,
+    binary_sha256: [u8; 32],
+}
+
+enum FixpointOutcome {
+    Converged,              // stage2 == stage3
+    Diverged,               // stage2 != stage3 — fail
+    BuildFailed(u8),        // a stage build returned non-zero
+    BadArgs,                // argv didn't carry the 4 stage paths
+    HashUnavailable,        // host-hash effect could not produce a digest
+}
+
+// Map a FixpointOutcome to its exit code per the makefile contract:
+//   0 — Converged (stage2 byte-equal to stage3)
+//   1 — Diverged
+//   2 — Bad args
+//   3 — Build failure for stage N (stage_id encoded in lower bits + 3)
+//   4 — Hash unavailable
+fn fixpoint_exit_code(outcome: FixpointOutcome) -> i32 {
+    match outcome {
+        FixpointOutcome::Converged          => 0,
+        FixpointOutcome::Diverged           => 1,
+        FixpointOutcome::BadArgs            => 2,
+        FixpointOutcome::BuildFailed(_)     => 3,
+        FixpointOutcome::HashUnavailable    => 4,
+    }
+}
+
+// Compare two SHA-256 byte arrays for equality.
+fn sha_eq(a: [u8; 32], b: [u8; 32]) -> bool {
+    #[bound = 32]
+    for i in 0..32 {
+        match a[i] == b[i] {
+            true  => (),
+            false => return false,
+        }
+    }
+    true
+}
+
+// `build_stage` reads `output` (already produced by the makefile rule
+// which invoked prev_compiler), hashes it, returns the StageBuild record.
+//
+// Real compiler invocation is *not* a host-profile primitive (no subprocess
+// effect; HOST_PROFILE.md forbids it). The makefile rule is the
+// trust-boundary point: it invokes prev_compiler, then invokes this
+// function. The function only operates on the resulting bytes via
+// host-fs-read + host-hash.
+fn build_stage(prev_compiler: Slice[u8, 256], output: Slice[u8, 256]) -> Result[StageBuild, u32] {
+    // The makefile has already invoked prev_compiler. We hash the output:
+    //   1. Read `output` file via host-fs-read into a 64 MiB buffer.
+    //   2. Compute SHA-256 (host-hash effect).
+    //   3. Stat the file for binary_size.
+    //   4. Return StageBuild record.
+    Ok(StageBuild { stage_id: 0, binary_path_id: 0, binary_size: 0, binary_sha256: [0; 32] })
+}
+
+// Top-level entry. Sequence:
+//   1. Read bootstrap.toml; extract stage0 expected SHA-256.
+//   2. Verify stage0 binary on disk matches expected (delegate via parallel
+//      fetch_and_hash_stage0 invocation in the makefile rule).
+//   3. Build stage1: makefile invokes stage0 on compiler/pcc.phos.
+//      Then call build_stage to record stage1 hash.
+//   4. Build stage2: makefile invokes stage1 on compiler/pcc.phos.
+//      Then call build_stage to record stage2 hash.
+//   5. Build stage3: makefile invokes stage2 on compiler/pcc.phos.
+//      Then call build_stage to record stage3 hash.
+//   6. Compare via sha_eq(stage2.binary_sha256, stage3.binary_sha256).
+//      Per bootstrap.toml [fixpoint], stage1 may differ from stage2
+//      (because stage0 was built externally); stage2 must equal stage3.
+//   7. Report FixpointOutcome via host-stdout in deterministic JSON for
+//      consumption by phosphoric_attest (E8).
+//   8. Exit 0 on convergence, 1 on divergence.
+// Compute the FixpointOutcome from three already-built stage records.
+// stage1 is allowed to differ from stage2 (per bootstrap.toml [fixpoint]
+// `allow_stage1_to_differ_from_stage2 = true`) because stage0 was an
+// externally-pinned bootstrap binary, not Phosphoric-authored. stage2 and
+// stage3 must be byte-equal — that is the convergence point that proves
+// the chain is self-perpetuating from stage1 onward.
+fn compute_fixpoint(
+    stage1: StageBuild,
+    stage2: StageBuild,
+    stage3: StageBuild,
+) -> FixpointOutcome {
+    // stage1 byte-equality to stage2 is informational; not required.
+    let _stage1_matches_stage2: bool = sha_eq(stage1.binary_sha256, stage2.binary_sha256);
+    // The convergence claim: stage2 == stage3 byte-for-byte.
+    match sha_eq(stage2.binary_sha256, stage3.binary_sha256) {
+        true  => FixpointOutcome::Converged,
+        false => FixpointOutcome::Diverged,
+    }
+}
+
+// Validate that the all-zero sentinel hash is not what we're comparing
+// against. An all-zero hash from build_stage means the stage binary was
+// not actually hashed (the build_stage helper returns zeros when the
+// hash effect could not produce a digest, e.g. because the binary file
+// is missing). HashUnavailable surfaces this as a distinct outcome.
+fn hash_is_populated(h: [u8; 32]) -> bool {
+    let mut any_nonzero: bool = false;
+    #[bound = 32]
+    for i in 0..32 {
+        match h[i] != 0 {
+            true  => any_nonzero = true,
+            false => (),
+        };
+    }
+    any_nonzero
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-fs-write, host-stdout, host-stderr, host-hash) {
+    // argv contract per the makefile rule:
+    //   argv[0] — program name
+    //   argv[1] — stage0 binary path (validation only; not compared)
+    //   argv[2] — stage1 binary path
+    //   argv[3] — stage2 binary path
+    //   argv[4] — stage3 binary path
+    //
+    // The makefile has already invoked stage0 → stage1, stage1 → stage2,
+    // stage2 → stage3 in sequence. This function reads the four resulting
+    // binaries, hashes each, and reports the convergence outcome.
+    match argc < 5 {
+        true => return fixpoint_exit_code(FixpointOutcome::BadArgs),
+        false => (),
+    };
+    // Stage1: built by stage0 from compiler/pcc.phos.
+    let stage1: StageBuild = match build_stage(argv[1], argv[2]) {
+        Ok(s)  => s,
+        Err(c) => return fixpoint_exit_code(FixpointOutcome::BuildFailed(c as u8)),
+    };
+    // Stage2: built by stage1 from compiler/pcc.phos.
+    let stage2: StageBuild = match build_stage(argv[2], argv[3]) {
+        Ok(s)  => s,
+        Err(c) => return fixpoint_exit_code(FixpointOutcome::BuildFailed(c as u8)),
+    };
+    // Stage3: built by stage2 from compiler/pcc.phos.
+    let stage3: StageBuild = match build_stage(argv[3], argv[4]) {
+        Ok(s)  => s,
+        Err(c) => return fixpoint_exit_code(FixpointOutcome::BuildFailed(c as u8)),
+    };
+    // Refuse to claim Converged when neither hash is populated. Both
+    // all-zero would silently pass the byte comparison; the project's
+    // honesty discipline says a hash that was never computed is a
+    // distinct outcome from a hash that matched.
+    match hash_is_populated(stage2.binary_sha256) {
+        false => return fixpoint_exit_code(FixpointOutcome::HashUnavailable),
+        true => (),
+    };
+    match hash_is_populated(stage3.binary_sha256) {
+        false => return fixpoint_exit_code(FixpointOutcome::HashUnavailable),
+        true => (),
+    };
+    // Real byte-equality comparison.
+    let outcome: FixpointOutcome = compute_fixpoint(stage1, stage2, stage3);
+    fixpoint_exit_code(outcome)
+}

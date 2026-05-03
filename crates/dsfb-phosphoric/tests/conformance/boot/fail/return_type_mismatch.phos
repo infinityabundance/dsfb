@@ -1,0 +1,12 @@
+module tests.conformance.boot.fail.return_type_mismatch;
+
+// fail-expected: K-012
+//
+// A function with a non-unit declared return type must produce a value
+// of that type. When the trailing block expression is `()` (unit),
+// K-012 (return type mismatch) is emitted.
+
+fn declared_returns_u32() -> u32 {
+    let _x: u32 = 42;
+    ()
+}

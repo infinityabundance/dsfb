@@ -1,0 +1,8 @@
+module fixture.call_param_name;
+profile boot;
+fn entry() -> i32 {
+    return passthrough(13);
+}
+fn passthrough(arg: i32) -> i32 {
+    return arg;
+}

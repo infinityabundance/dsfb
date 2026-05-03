@@ -1,0 +1,16 @@
+module tests.conformance.runtime.fail.runtime_direct_mmio_attempt;
+profile runtime;
+
+// fail-expected: R-003
+//
+// Direct MMIO is forbidden in runtime profile; only Ember (trusted
+// profile) may issue mmio_*. Runtime code calls through the typed Ember
+// ABI declared in pcc.kernel.abi.
+
+fn bad() -> u32 {
+    let mut value: u32 = 0;
+    trusted! {
+        value = mmio_read32(MmioRegion::ApicBase, 0);
+    }
+    value
+}

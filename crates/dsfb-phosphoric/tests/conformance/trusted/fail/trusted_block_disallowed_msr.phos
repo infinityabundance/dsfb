@@ -1,0 +1,17 @@
+module tests.conformance.trusted.fail.trusted_block_disallowed_msr;
+profile trusted;
+
+// fail-expected: T-005
+//
+// MSR index 0x10 (TSC) is not in trusted_profile.toml's [msr]
+// permitted_indices set. wrmsr/rdmsr against a disallowed index is
+// rejected.
+
+fn read_tsc() -> u64 {
+    let mut value: u64 = 0;
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#nope
+    trusted! {
+        value = cpu_op(CpuOp::Rdmsr(16));
+    }
+    value
+}

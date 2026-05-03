@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.return_type_mismatch;
+profile host;
+
+// fail-expected: K-008
+// (restored from legacy_ui/fail/return_type_mismatch; legacy code RETURN_TYPE_MISMATCH "returns `bool`, expected `u32`")
+
+module fail.return_type_mismatch;
+
+fn wrong() -> u32 {
+    return true;
+}

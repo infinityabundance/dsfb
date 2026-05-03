@@ -1,0 +1,11 @@
+module fixture.bounded_loop_imm32;
+profile boot;
+fn entry() -> i32 {
+    return 0;
+}
+fn helper() -> i32 {
+    #[bound = 200]
+    for i in 0..200 {
+    }
+    return 42;
+}

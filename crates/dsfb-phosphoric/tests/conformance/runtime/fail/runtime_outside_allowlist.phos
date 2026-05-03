@@ -1,0 +1,8 @@
+module tests.conformance.runtime.fail.runtime_outside_allowlist;
+profile runtime;
+
+// fail-expected: R-001
+//
+// runtime_profile.toml's [allowlist] permits profile=runtime only under
+// kernel/. This file lives elsewhere and is rejected at the
+// front-end before any other check runs.

@@ -1,0 +1,14 @@
+module tests.conformance.boot.fail.while_loop_rejected;
+
+// fail-expected: P-013
+//
+// `while` is forbidden in v0. All loops are bounded `for` with explicit
+// #[bound = N] annotation.
+
+fn drain(buf: [u8; 16]) -> u32 {
+    let mut i: u32 = 0;
+    while i < 16 {
+        i = i + 1;
+    }
+    i
+}

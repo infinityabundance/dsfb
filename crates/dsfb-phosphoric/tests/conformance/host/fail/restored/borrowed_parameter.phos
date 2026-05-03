@@ -1,0 +1,10 @@
+module tests.conformance.host.fail.restored.borrowed_parameter;
+profile host;
+
+// fail-expected: L-001
+// (restored from legacy_ui/fail/borrowed_parameter; legacy code LEXER_ERROR "unsupported character `&`")
+
+module demo;
+fn borrow(value: &u32) -> u32 {
+    return 1;
+}

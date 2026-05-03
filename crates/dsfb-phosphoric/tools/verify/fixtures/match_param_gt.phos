@@ -1,0 +1,8 @@
+module fixture.match_param_gt;
+profile boot;
+fn entry() -> i32 {
+    return classify(10);
+}
+fn classify(arg: i32) -> i32 {
+    match arg > 7 { true => 33, false => 44 }
+}

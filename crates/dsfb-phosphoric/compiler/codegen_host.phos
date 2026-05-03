@@ -1,0 +1,239 @@
+module pcc.codegen.host;
+profile host;
+
+// Host-profile codegen. HIR -> Linux x86_64 ELF.
+//
+// Emits a statically-linked ELF binary that uses only the 6 named Linux
+// syscalls authorized by host_profile.toml. No libc, no dynamic linker,
+// no runtime startup beyond the entrypoint.
+
+struct ElfHeader {
+    machine: u16,           // = 0x3E (EM_X86_64)
+    entry: u64,
+    flags: u32,
+}
+
+struct ElfImage {
+    header: ElfHeader,
+    text: Slice[u8, 1048576],
+    text_len: u32,
+    rodata: Slice[u8, 524288],
+    rodata_len: u32,
+    syscalls_used: u8,      // bitset of 6 host effects
+}
+
+// Map the 6 host effect bits onto the syscall whitelist:
+//   bit 0  host-fs-read       -> sys_read
+//   bit 1  host-fs-write      -> sys_write
+//   bit 2  host-stdout        -> sys_write (stdout fd)
+//   bit 3  host-stderr        -> sys_write (stderr fd)
+//   bit 4  host-time-mono     -> sys_clock_gettime
+//   bit 5  host-hash          -> arch-dispatch: software SHA-256 on x86_64 ELF;
+//                                hardware SHA-256 engine on cortex_m33 (RP2350)
+//                                via ember.arch.cortex_m33.sha256.sha256_hash_buffer
+//                                — same API surface, dispatch chosen by target arch.
+//
+// The bit layout above mirrors the global effect-alphabet bit assignment
+// pinned in docs/language/effect_lattice.toml. The compiler walks every
+// function's declared_effects field; for any host bit set, the emitter
+// records it in syscalls_used so the linker stage knows which syscall
+// stub to include.
+fn host_syscall_bitset_from_effects(declared: u32) -> u8 {
+    let mut bits: u8 = 0;
+    let host_mask: u32 = 63;     // low 6 bits of the host alphabet
+    let masked: u32 = declared - (declared / 64) * 64;
+    bits = bits + ((masked - (masked / 64) * 64) as u8);
+    bits
+}
+
+// Walk every HIR function and OR together its declared_effects host bits.
+fn collect_host_syscalls(hir: pcc.hir.HirModule) -> u8 {
+    let mut acc: u32 = 0;
+    #[bound = 1024]
+    for i in 0..(hir.item_count as u32) {
+        match hir.items[i] {
+            pcc.hir.HirItem::Function(f) => acc = acc + f.declared_effects,
+            _ => (),
+        };
+    }
+    host_syscall_bitset_from_effects(acc)
+}
+
+fn lower_host_program(
+    hir: pcc.hir.HirModule,
+) -> Result[ElfImage, pcc.diagnostic.Diagnostic] {
+    let syscalls: u8 = collect_host_syscalls(hir);
+    // Per-function machine-code generation lands with T3-1 typeck statement
+    // walks + parser part 2 expression-tree pass. The current shape returns
+    // a structurally-valid empty image so downstream consumers can size
+    // their buffers and exercise the verify-pipeline plumbing.
+    Ok(ElfImage {
+        header: ElfHeader {
+            machine: 62,            // EM_X86_64 = 0x3E = 62
+            entry: 4194304,         // 0x400000 — standard static base
+            flags: 0,
+        },
+        text: [0; 1048576],
+        text_len: 0,
+        rodata: [0; 524288],
+        rodata_len: 0,
+        syscalls_used: syscalls,
+    })
+}
+
+// Emit a minimal ELF64 header for an x86_64 static executable. The 64-byte
+// header layout is fixed per the System V ABI; numeric values are pinned
+// here for reproducibility.
+//
+// e_ident layout (16 bytes):
+//   [0..4]  = 0x7F, 'E', 'L', 'F'
+//   [4]     = ELFCLASS64 = 2
+//   [5]     = ELFDATA2LSB = 1   (little-endian)
+//   [6]     = EV_CURRENT = 1
+//   [7]     = ELFOSABI_NONE = 0 (System V)
+//   [8]     = ABI version 0
+//   [9..16] = padding 0
+//
+// Followed by:
+//   e_type      = ET_EXEC (2)              [u16 LE]
+//   e_machine   = image.header.machine     [u16 LE]
+//   e_version   = 1                        [u32 LE]
+//   e_entry     = image.header.entry       [u64 LE]
+//   e_phoff     = 64                       [u64 LE]
+//   e_shoff     = 0                        [u64 LE]
+//   e_flags     = image.header.flags       [u32 LE]
+//   e_ehsize    = 64                       [u16 LE]
+//   e_phentsize = 56                       [u16 LE]
+//   e_phnum     = 1                        [u16 LE]
+//   e_shentsize = 0                        [u16 LE]
+//   e_shnum     = 0                        [u16 LE]
+//   e_shstrndx  = 0                        [u16 LE]
+
+fn write_u16_le(out: Slice[u8, 4194304], pos: u32, value: u16) -> u32 {
+    out[pos]     = (value - (value / 256) * 256) as u8;
+    out[pos + 1] = (value / 256) as u8;
+    pos + 2
+}
+
+fn write_u32_le(out: Slice[u8, 4194304], pos: u32, value: u32) -> u32 {
+    out[pos]     = (value - (value / 256) * 256) as u8;
+    out[pos + 1] = ((value / 256) - ((value / 65536) * 256)) as u8;
+    out[pos + 2] = ((value / 65536) - ((value / 16777216) * 256)) as u8;
+    out[pos + 3] = (value / 16777216) as u8;
+    pos + 4
+}
+
+fn write_u64_le(out: Slice[u8, 4194304], pos: u32, value: u64) -> u32 {
+    let mut v: u64 = value;
+    let mut p: u32 = pos;
+    #[bound = 8]
+    for i in 0..8 {
+        let lo: u64 = v - (v / 256) * 256;
+        out[p] = lo as u8;
+        v = v / 256;
+        p = p + 1;
+    }
+    p
+}
+
+// Emit a single Linux x86_64 syscall stub. Each stub is the canonical
+// 7-byte sequence:
+//   mov rax, <syscall_no>      (5 bytes: B8 imm32) — actually mov eax, imm32
+//   syscall                    (2 bytes: 0F 05)
+//
+// The syscall number table is pinned per host_profile.toml's effect-bit
+// mapping; the table below is the Linux x86_64 ABI assignment.
+fn syscall_number_for_bit(bit_pos: u8) -> u32 {
+    match bit_pos {
+        0 => 0,         // sys_read
+        1 => 1,         // sys_write (host-fs-write)
+        2 => 1,         // sys_write (host-stdout, fd=1)
+        3 => 1,         // sys_write (host-stderr, fd=2)
+        4 => 228,       // sys_clock_gettime (host-time-mono)
+        5 => 0,         // host-hash: no syscall (in-process SHA-256)
+        _ => 0,
+    }
+}
+
+// Emit the 7-byte syscall stub for one bit position.
+// Returns the new cursor.
+fn emit_syscall_stub(
+    out: Slice[u8, 4194304],
+    cursor: u32,
+    bit_pos: u8,
+) -> u32 {
+    let n: u32 = syscall_number_for_bit(bit_pos);
+    out[cursor]     = 184;          // mov eax, imm32 (B8)
+    out[cursor + 1] = (n - (n / 256) * 256) as u8;
+    out[cursor + 2] = ((n / 256) - ((n / 65536) * 256)) as u8;
+    out[cursor + 3] = ((n / 65536) - ((n / 16777216) * 256)) as u8;
+    out[cursor + 4] = (n / 16777216) as u8;
+    out[cursor + 5] = 15;           // 0F
+    out[cursor + 6] = 5;            // 05
+    cursor + 7
+}
+
+// Walk the syscalls_used bitset and emit one stub per set bit. Stubs land
+// at the start of .text in stable order (bit 0 first, bit 5 last).
+fn emit_all_syscall_stubs(
+    out: Slice[u8, 4194304],
+    cursor: u32,
+    syscalls_used: u8,
+) -> u32 {
+    let mut c: u32 = cursor;
+    let mut bit: u8 = 1;
+    let mut pos: u8 = 0;
+    #[bound = 8]
+    for _ in 0..6 {
+        let bit_set: bool = match bit {
+            1 => syscalls_used - (syscalls_used / 2) * 2 == 1,
+            _ => (syscalls_used / bit) - ((syscalls_used / bit) / 2) * 2 == 1,
+        };
+        match bit_set {
+            true  => c = emit_syscall_stub(out, c, pos),
+            false => (),
+        };
+        match bit < 32 {
+            true  => bit = bit * 2,
+            false => bit,
+        };
+        pos = pos + 1;
+    }
+    c
+}
+
+fn write_elf(image: ElfImage, out: Slice[u8, 4194304]) -> u32 {
+    // e_ident (16 bytes)
+    out[0]  = 127;              // 0x7F
+    out[1]  = 69;               // 'E'
+    out[2]  = 76;               // 'L'
+    out[3]  = 70;               // 'F'
+    out[4]  = 2;                // ELFCLASS64
+    out[5]  = 1;                // ELFDATA2LSB
+    out[6]  = 1;                // EV_CURRENT
+    out[7]  = 0;                // ELFOSABI_NONE
+    out[8]  = 0;
+    out[9]  = 0;
+    out[10] = 0;
+    out[11] = 0;
+    out[12] = 0;
+    out[13] = 0;
+    out[14] = 0;
+    out[15] = 0;
+    let mut cursor: u32 = 16;
+    cursor = write_u16_le(out, cursor, 2);                          // e_type = ET_EXEC
+    cursor = write_u16_le(out, cursor, image.header.machine);       // e_machine
+    cursor = write_u32_le(out, cursor, 1);                          // e_version
+    cursor = write_u64_le(out, cursor, image.header.entry);         // e_entry
+    cursor = write_u64_le(out, cursor, 64);                         // e_phoff
+    cursor = write_u64_le(out, cursor, 0);                          // e_shoff
+    cursor = write_u32_le(out, cursor, image.header.flags);         // e_flags
+    cursor = write_u16_le(out, cursor, 64);                         // e_ehsize
+    cursor = write_u16_le(out, cursor, 56);                         // e_phentsize
+    cursor = write_u16_le(out, cursor, 1);                          // e_phnum
+    cursor = write_u16_le(out, cursor, 0);                          // e_shentsize
+    cursor = write_u16_le(out, cursor, 0);                          // e_shnum
+    cursor = write_u16_le(out, cursor, 0);                          // e_shstrndx
+    // Header is exactly 64 bytes when correct.
+    cursor
+}

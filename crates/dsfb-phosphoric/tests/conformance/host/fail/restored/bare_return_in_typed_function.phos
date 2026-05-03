@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.bare_return_in_typed_function;
+profile host;
+
+// fail-expected: K-008
+// (restored from legacy_ui/fail/bare_return_in_typed_function; legacy code MISSING_RETURN_VALUE "found bare return")
+
+module fail.bare_return_in_typed_function;
+
+fn bad() -> u32 {
+    return;
+}

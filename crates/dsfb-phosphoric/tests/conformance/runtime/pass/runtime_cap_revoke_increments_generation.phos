@@ -1,0 +1,22 @@
+module tests.conformance.runtime.pass.runtime_cap_revoke_increments_generation;
+profile runtime;
+
+// Pass case: revoking a capability requires the cap-revoke effect; the
+// runtime increments the slot's generation so subsequent lookups with
+// the old generation return StaleHandle.
+
+struct CapabilityHandle {
+    slot: u16,
+    generation: u16,
+    kind: u8,
+    reserved: u8,
+}
+
+enum RuntimeError {
+    InvalidHandle,
+    Revoked,
+}
+
+fn revoke(h: CapabilityHandle) -> Result[u32, RuntimeError] effects(cap-revoke) {
+    Ok(0)
+}

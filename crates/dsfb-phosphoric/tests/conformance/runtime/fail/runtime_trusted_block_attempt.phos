@@ -1,0 +1,14 @@
+module tests.conformance.runtime.fail.runtime_trusted_block_attempt;
+profile runtime;
+
+// fail-expected: R-006
+//
+// trusted! blocks are only legal in trusted-profile source under ember/.
+// Using one in a runtime-profile program is rejected.
+
+fn bad() {
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#nope
+    trusted! {
+        cpu_op(CpuOp::Cli);
+    }
+}

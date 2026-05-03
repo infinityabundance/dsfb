@@ -1,0 +1,19 @@
+module tests.conformance.boot.fail.backend_asm_fail_unsupported_match_expr;
+profile boot;
+
+// fail-expected: P-003
+// (restored from legacy_backend/backend_asm_fail/unsupported_match_expr; legacy UNSUPPORTED_ASM_BACKEND_FEATURE "does not support `match` expressions")
+
+// expect: UNSUPPORTED_ASM_BACKEND_FEATURE does not support `match` expressions
+module demo.button_policy;
+
+fn button_next_pressed(pressed: bool, unicode_char: u16, scan_code: u16) -> bool {
+    match unicode_char {
+        32 => true,
+        _ => pressed,
+    }
+}
+
+fn button_redraw_requested(unicode_char: u16, scan_code: u16) -> bool {
+    false
+}

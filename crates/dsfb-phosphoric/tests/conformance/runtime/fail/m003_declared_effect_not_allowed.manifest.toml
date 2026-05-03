@@ -1,0 +1,42 @@
+manifest_version = "phosphoric-task-seal-v0"
+task_id          = "m003_fail"
+task_image_hash  = "TBD"
+profile          = "runtime"
+
+# Manifest excludes "mmio"; the source declares mmio. M-003 fires.
+
+[effects]
+allowed = ["draw", "ipc", "sched", "time"]
+
+[capabilities]
+[[capabilities.entry]]
+kind = "Task"
+slot = 0
+purpose = "test task"
+
+[mmio]
+
+[ipc]
+
+[budgets]
+task_stack_limit  = 4096
+kernel_init_limit = 4096
+loop_bound_max    = 4096
+residual_chain_every_n_events = 1
+residual_ring_size = 1024
+
+[forbidden]
+heap                = false
+filesystem          = false
+network             = false
+dynamic_loading     = false
+ambient_mmio        = false
+reflection          = false
+pointer_types       = false
+hidden_syscalls     = false
+undeclared_ipc      = false
+undeclared_effects  = false
+
+[bootstrap]
+compiler_image_hash = "TBD"
+manifest_self_hash  = "TBD"

@@ -1,0 +1,24 @@
+module tests.conformance.host.fail.w010_struct_cycle;
+profile host;
+
+// fail-expected: W-010
+//
+// Type Acyclicity (apex gate). Direct struct cycles cause non-terminating
+// stack analysis (S-001 would loop forever). W-010 fires BEFORE layout,
+// stack analysis, or codegen run. This is not a hygiene check — it is
+// a compiler-termination proof: any cycle in the type-dependency graph
+// must be rejected at HIR-WF time so subsequent passes cannot diverge.
+//
+// struct A contains struct B contains struct A — direct cycle.
+
+struct A {
+    b: B,
+}
+
+struct B {
+    a: A,
+}
+
+fn marker() -> u32 {
+    0
+}

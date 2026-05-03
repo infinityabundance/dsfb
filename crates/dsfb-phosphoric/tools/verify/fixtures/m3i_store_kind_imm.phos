@@ -1,0 +1,15 @@
+module fixture.m3i_store_kind_imm;
+profile boot;
+struct Tok {
+    kind: u8,
+    payload: u32,
+    start: u32,
+    end: u32,
+}
+fn entry() -> i32 {
+    return 0;
+}
+fn set_kind(t: Tok) -> Tok {
+    t.kind = 1;
+    t
+}

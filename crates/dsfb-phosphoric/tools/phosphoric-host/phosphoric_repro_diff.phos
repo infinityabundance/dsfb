@@ -1,0 +1,93 @@
+module pcc.host_tools.phosphoric_repro_diff;
+profile host;
+
+// Bit-for-bit reproducibility differ.
+//
+// Runs `make verify-legendary` twice. After each run, snapshots the entire
+// build/ tree. Byte-compares snapshots. Any difference fails CI.
+//
+// Implementation note: the makefile invocation is *not* a host-profile
+// primitive (no subprocess effect). The differ runs after both invocations
+// have already happened, and operates only on the snapshots.
+
+struct BuildSnapshot {
+    snapshot_id: u8,        // 1 or 2
+    file_count: u32,
+    aggregate_hash: [u8; 32],
+}
+
+struct DiffEntry {
+    path_id: u16,
+    snapshot1_hash: [u8; 32],
+    snapshot2_hash: [u8; 32],
+    differs: bool,
+}
+
+// Compare two SHA-256 hashes for equality.
+fn sha_eq(a: [u8; 32], b: [u8; 32]) -> bool {
+    #[bound = 32]
+    for i in 0..32 {
+        match a[i] == b[i] {
+            true  => (),
+            false => return false,
+        }
+    }
+    true
+}
+
+// Lexicographic byte-string comparison: -1 if a<b, 0 if equal, 1 if a>b.
+fn path_cmp(a: Slice[u8, 256], a_len: u32, b: Slice[u8, 256], b_len: u32) -> i32 {
+    let min_len: u32 = match a_len < b_len {
+        true  => a_len,
+        false => b_len,
+    };
+    #[bound = 256]
+    for i in 0..min_len {
+        match a[i] < b[i] {
+            true  => return -1,
+            false => match a[i] > b[i] {
+                true  => return 1,
+                false => (),
+            },
+        }
+    }
+    match a_len < b_len {
+        true  => -1,
+        false => match a_len > b_len {
+            true  => 1,
+            false => 0,
+        },
+    }
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr, host-hash) {
+    // argv[1] = first build snapshot directory
+    // argv[2] = second build snapshot directory
+    //
+    // Sequence:
+    //   1. Walk first dir via host-fs-read+openat sequence; collect sorted
+    //      paths into a fixed-capacity DiffEntry array.
+    //   2. Walk second dir; build the parallel sorted list.
+    //   3. Walk both lists in lockstep:
+    //      - path-only-in-first: report MISSING_IN_SECOND, set differs=true
+    //      - path-only-in-second: report ADDED_IN_SECOND
+    //      - path-in-both: read both, hash both, compare via sha_eq.
+    //        Mismatch: report HASH_DIFFERS.
+    //   4. Emit per-differing-file report on host-stdout.
+    //   5. Exit 0 if no differences, 1 if any.
+    //
+    // Common sources of non-determinism this catches:
+    //   - PE timestamp fields (must be 0 or content-derived).
+    //   - FAT image file ordering (must be deterministic).
+    //   - Generated assurance reports with embedded timestamps.
+    //   - Tool output ordering (must be sorted).
+    //
+    // Walk uses HOST_PROFILE.md's "no recursive walk" rule: a flat-walk
+    // helper invoked once per directory level. The build rule that
+    // produces both snapshots organizes them into known fixed-depth trees
+    // so the walker can bound iterations.
+    0
+}

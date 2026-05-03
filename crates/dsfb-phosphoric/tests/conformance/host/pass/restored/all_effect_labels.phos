@@ -1,0 +1,11 @@
+module tests.conformance.host.pass.restored.all_effect_labels;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/all_effect_labels)
+
+module pass.all_effect_labels;
+
+fn boundary() effects(draw, ipc, mmio, sched, time) {
+    return;
+}

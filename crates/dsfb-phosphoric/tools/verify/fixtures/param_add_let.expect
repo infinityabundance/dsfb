@@ -1,0 +1,11 @@
+# Pass A-10 fixture: param-arith with let-bound second operand.
+# Source:
+#   fn entry()  { return shifted(36); }
+#   fn shifted(arg) { let bias = 6; return arg + bias; }
+# Producer's A-6/A-7 +3-operand peek now accepts TK_IDENT-matching-let
+# (Pass A-10) in addition to TK_INT, looking up let_value and using it
+# as the IMM. shifted's emitted block: `mov eax, edi; add eax, 6; ret`.
+# Verified: rc = 36 + 6 = 42 at runtime.
+size=1105
+sha=7ec573af70efec981d7143de03e285fc7ef7572885cef811d9cb5a1fe12c0b6c
+rc=42

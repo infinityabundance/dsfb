@@ -1,0 +1,102 @@
+module pcc.kernel.windows;
+profile runtime;
+
+// Window registry — fixed-capacity. Capacity: WINDOW_MAX=16.
+//
+// RECESSED (Phase 7 Tranche B, endoduction-substrate plan).
+// The damage-rect tracking, focus-set helper, and rect-union math have
+// been removed. The substrate's render pipeline now redraws each active
+// window's full bounds per tick — simpler, deterministic, residual-
+// observable. Damage tracking was substrate for incremental re-render
+// (a feature the doctrine forecloses); the new shape exists only to
+// pin a window's identity (slot + generation) to a backbuffer region.
+
+struct WindowEntry {
+    active: bool,
+    generation: u16,
+    capability_slot: u16,
+    owner_task_slot: u16,
+    width: u32,
+    height: u32,
+    has_focus: bool,
+}
+
+struct WindowTable {
+    entries: [WindowEntry; 16],
+    focused_slot: Option[u16],
+}
+
+fn empty_window_entry() -> WindowEntry {
+    WindowEntry {
+        active: false,
+        generation: 1,
+        capability_slot: 0,
+        owner_task_slot: 0,
+        width: 0,
+        height: 0,
+        has_focus: false,
+    }
+}
+
+fn bump_window_generation(generation: u16) -> u16 {
+    let next: u16 = generation + 1;
+    match next == 0 {
+        true  => 1,
+        false => next,
+    }
+}
+
+fn find_vacant_window(table: WindowTable) -> Option[u16] {
+    #[bound = 16]
+    for i in 0..16 {
+        match table.entries[i].active {
+            false => return Some(i as u16),
+            true  => (),
+        };
+    }
+    None
+}
+
+fn validate_window(
+    table: WindowTable,
+    slot: u16,
+    generation: u16,
+) -> Result[u32, pcc.kernel.error.KernelError] {
+    match (slot as u32) >= 16 {
+        true => Err(pcc.kernel.error.KernelError::InvalidHandle),
+        false => {
+            let entry: WindowEntry = table.entries[slot as u32];
+            match entry.active {
+                false => Err(pcc.kernel.error.KernelError::InvalidHandle),
+                true  => match entry.generation == generation {
+                    false => Err(pcc.kernel.error.KernelError::StaleHandle),
+                    true  => Ok(0),
+                },
+            }
+        },
+    }
+}
+
+fn allocate_window(
+    table: WindowTable,
+    capability_slot: u16,
+    owner_task_slot: u16,
+    width: u32,
+    height: u32,
+) -> Result[WindowEntry, pcc.kernel.error.KernelError] {
+    match find_vacant_window(table) {
+        None => Err(pcc.kernel.error.KernelError::TableFull),
+        Some(idx) => {
+            let prev_gen: u16 = table.entries[idx as u32].generation;
+            Ok(WindowEntry {
+                active: true,
+                generation: bump_window_generation(prev_gen),
+                capability_slot: capability_slot,
+                owner_task_slot: owner_task_slot,
+                width: width,
+                height: height,
+                has_focus: false,
+            })
+        },
+    }
+}

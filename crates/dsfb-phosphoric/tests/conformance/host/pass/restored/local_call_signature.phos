@@ -1,0 +1,15 @@
+module tests.conformance.host.pass.restored.local_call_signature;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/local_call_signature)
+
+module pass.local_call_signature;
+
+fn id(value: u32) -> u32 {
+    return value;
+}
+
+fn caller(value: u32) -> u32 {
+    return id(value);
+}

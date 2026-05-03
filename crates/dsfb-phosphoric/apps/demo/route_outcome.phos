@@ -1,0 +1,19 @@
+module demo.route_outcome;
+
+struct RouteOutcome {
+    routed: u32,
+    redraw_requested: u32,
+}
+
+struct DemoStepResult {
+    next_state: demo.demo_state.DemoState,
+    route_outcome: RouteOutcome,
+    redraw_requested: u32,
+    reserved0: u32,
+}
+
+fn route_key_event(kind: u32) -> bool { kind == 0 }
+
+fn route_mouse_move_event(kind: u32) -> bool { kind == 1 }
+
+fn route_mouse_click_event(kind: u32) -> bool { kind == 2 }

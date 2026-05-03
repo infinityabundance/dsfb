@@ -1,0 +1,14 @@
+module tests.conformance.runtime.fail.m010_module_path_not_in_source;
+profile runtime;
+
+// fail-expected: M-010
+//
+// Manifest references a module path not present in the source set. The
+// sibling manifest's [[ipc.channel]] entry names sender =
+// "tests.nonexistent.module"; that module is not in the source set
+// pcc compiled. M-010 fires at the manifest validate step before the
+// effect/cap passes run.
+
+fn marker() -> u32 {
+    0
+}

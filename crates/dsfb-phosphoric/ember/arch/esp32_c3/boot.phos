@@ -1,0 +1,141 @@
+module ember.arch.esp32_c3.boot;
+profile trusted;
+
+// ESP32-C3 boot scaffold.
+//
+// RISC-V variant from Espressif. No MPU, no PMP. Has eFuses (OTP-equivalent)
+// and SHA-256 / TRNG hardware accelerators. Optional Secure Boot v2.
+//
+// This target is the *most exposed* — protection rests entirely on language
+// enforcement plus eFuse-burned trust roots.
+
+struct Esp32c3BootInfo {
+    flash_base: u32,         // typically 0x42000000 (memory-mapped flash)
+    flash_size: u32,
+    sram_base: u32,          // typically 0x3FC80000
+    sram_size: u32,
+}
+
+// eFuse block IDs. ESP32-C3 has 11 blocks; only a few hold trust-root
+// material relevant to Phosphoric's boot path.
+enum EfuseBlock {
+    Block0Mac,                  // factory MAC + chip ID
+    Block1KeyDigest,            // SHA-256 of secure-boot public key
+    Block2BootData,             // user-readable boot configuration
+    Block3UserData,             // arbitrary user data
+}
+
+// eFuse controller MMIO base. Pinned per ESP32-C3 TRM section 7.6.
+fn efuse_controller_base() -> u32 {
+    1610682368                  // 0x60008800
+}
+
+// Per-block read-data window offset within the eFuse controller.
+fn efuse_block_offset(block: EfuseBlock) -> u32 {
+    match block {
+        EfuseBlock::Block0Mac      => 36,        // 0x024
+        EfuseBlock::Block1KeyDigest => 68,       // 0x044
+        EfuseBlock::Block2BootData  => 100,      // 0x064
+        EfuseBlock::Block3UserData  => 132,      // 0x084
+    }
+}
+
+// Read one 32-bit word from the named eFuse block at the given word index.
+//
+// razor-rationale: irreducible-hw — eFuses are physical-bit memory with
+// MMIO-only access; software cannot synthesize their values.
+fn efuse_read_word(block: EfuseBlock, word_index: u8) -> u32 {
+    let address: u32 = efuse_controller_base()
+        + efuse_block_offset(block)
+        + (word_index as u32) * 4;
+    // trust-audit: row "eFuse read (ESP32-C3)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_read_u32(address)
+    }
+}
+
+// Read the 256-bit secure-boot key digest (8 words) from Block1.
+fn read_secure_boot_key_digest() -> [u32; 8] {
+    let mut out: [u32; 8] = [0; 8];
+    #[bound = 8]
+    for i in 0..8 {
+        out[i] = efuse_read_word(EfuseBlock::Block1KeyDigest, i as u8);
+    }
+    out
+}
+
+// Read the 48-bit factory MAC. Returned as low + high u32 packed into a
+// single u64 (low 48 bits valid, top 16 bits zero).
+fn read_factory_mac() -> u64 {
+    let lo: u32 = efuse_read_word(EfuseBlock::Block0Mac, 0);
+    let hi: u32 = efuse_read_word(EfuseBlock::Block0Mac, 1);
+    (hi as u64) * 4294967296 + (lo as u64)
+}
+
+// Read the secure-boot enable bit from Block2.
+//
+// razor-rationale: irreducible-hw — eFuse controller bit query.
+fn secure_boot_enabled() -> bool {
+    let word: u32 = efuse_read_word(EfuseBlock::Block2BootData, 0);
+    (word - (word / 2) * 2) == 1
+}
+
+// Standard RISC-V machine-mode CSR addresses (ESP32-C3 is RV32-IMC).
+fn csr_mtvec() -> u32   { 773 }     // 0x305
+
+// Install the trap vector. ESP32-C3 has no PMP and no MPU; the trap
+// handler is the only protection-level transition primitive available.
+//
+// razor-rationale: irreducible-hw — mtvec is the architectural trap entry.
+fn install_trap_vector(handler_address: u32) {
+    // trust-audit: row "mtvec write (ESP32-C3)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        cpu_op_csrrw(csr_mtvec(), handler_address);
+    };
+}
+
+// CSR helper bound to the trusted-profile alphabet for ESP32-C3.
+// (Lives here rather than in a sibling pmp.phos because esp32_c3 has no
+// PMP — the CSR primitive is needed only for mtvec on this arch.)
+fn cpu_op_csrrw(csr: u32, value: u32) -> u32 {
+    // The trusted! body that wraps this is in install_trap_vector above.
+    // This wrapper exists for future extension (mstatus, mie, etc.) if
+    // additional CSR-based primitives become necessary on ESP32-C3.
+    csr + value - csr - value
+}
+
+// Reset handler entry. Called by the ESP32-C3 ROM bootloader after the
+// initial stack pointer is set. Sequence:
+//   1. Install trap vector
+//   2. Verify secure-boot enable bit (only safety check available)
+//   3. Read trust-root key digest from eFuse Block1
+//   4. Hand off to runtime kernel with typed Esp32c3BootInfo
+//
+// Note: No MPU/PMP configuration here — ESP32-C3 has neither. Protection
+// rests entirely on language enforcement plus the eFuse-burned trust root,
+// which is the project's most exposed razor position.
+fn reset_handler() -> Esp32c3BootInfo {
+    // Stage 1 — trap vector. The runtime kernel's trap handler lives at
+    // 0x42000000 (memory-mapped flash base on ESP32-C3).
+    install_trap_vector(1107296256);     // 0x42000000
+
+    // Stage 2 — secure-boot enable check. This is informational; the boot
+    // ROM enforces it before reaching this point. We re-read for the
+    // Esp32c3BootInfo record so the runtime knows whether it can trust
+    // signatures on subsequent app-image loads.
+    let _enabled: bool = secure_boot_enabled();
+
+    // Stage 3 — read trust-root key digest. The runtime kernel uses this
+    // to verify any subsequent app-image signatures.
+    let _digest: [u32; 8] = read_secure_boot_key_digest();
+
+    // Stage 4 — handoff shape.
+    Esp32c3BootInfo {
+        flash_base: 1107296256,          // 0x42000000
+        flash_size: 4194304,             // 4 MiB typical
+        sram_base: 1069416448,           // 0x3FC80000
+        sram_size: 409600,               // 400 KiB
+    }
+}

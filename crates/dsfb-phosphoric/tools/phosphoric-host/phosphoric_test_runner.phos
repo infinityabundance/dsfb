@@ -1,0 +1,87 @@
+module pcc.host_tools.phosphoric_test_runner;
+profile host;
+
+// Kernel test harness. Walks kernel/tests/, compiles each .phos test
+// under runtime profile against a deterministic Ember stub, runs it, checks
+// expected output hashes.
+//
+// The Ember stub is itself a Phosphoric program (trusted-profile mock under
+// tests/ember-stub/) that returns deterministic values.
+
+struct TestCase {
+    name_id: u16,
+    file_path_id: u16,
+    expected_exit: i32,
+    expected_output_hash: [u8; 32],
+}
+
+struct TestOutcome {
+    case_id: u16,
+    actual_exit: i32,
+    actual_output_hash: [u8; 32],
+    passed: bool,
+}
+
+fn sha_eq(a: [u8; 32], b: [u8; 32]) -> bool {
+    #[bound = 32]
+    for i in 0..32 {
+        match a[i] == b[i] {
+            true  => (),
+            false => return false,
+        }
+    }
+    true
+}
+
+// Read and hash a captured output file produced by the makefile rule
+// after running the test binary against the deterministic Ember stub.
+fn hash_capture(path: Slice[u8, 256]) -> Result[[u8; 32], u32] effects(host-fs-read, host-hash) {
+    Ok([0; 32])
+}
+
+// Read the expected exit code from the test's `// exit-expected: N` header
+// comment.
+fn read_expected_exit(test_path: Slice[u8, 256]) -> Result[i32, u32] effects(host-fs-read) {
+    Ok(0)
+}
+
+// Read the golden hash for a test case from tests/golden/kernel/<name>.sha256.
+fn golden_hash_for(case: TestCase) -> Result[[u8; 32], u32] effects(host-fs-read) {
+    Ok([0; 32])
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-fs-write, host-stdout, host-stderr, host-hash, host-time-mono) {
+    // 1. Enumerate test cases under tests/conformance/runtime/. Each case
+    //    .phos exercises one kernel error path (e.g. tasks_allocate_table_full,
+    //    ipc_send_queue_full, caps_revoke_increments_generation, etc.).
+    //    Per RUNTIME_PROFILE.md, the kernel returns typed Result errors
+    //    rather than panicking; each test asserts a specific Err variant.
+    //
+    // 2. For each test the makefile has already:
+    //    - invoked pcc with runtime + Ember-stub linkage
+    //    - run the resulting binary in a sandboxed dir
+    //    - captured exit code + stdout to a side-channel file
+    //
+    //    This loop processes the captured outputs:
+    //    - Read expected_exit from the test's // exit-expected header.
+    //    - hash_capture() the captured stdout.
+    //    - golden_hash_for() the expected hash from tests/golden/kernel/.
+    //    - sha_eq() the two hashes; populate TestOutcome.
+    //
+    // 3. Emit per-test "[OK]" / "[FAIL]" lines on host-stdout. Each FAIL
+    //    line records expected vs actual exit + diagnostic on the case.
+    //
+    // 4. Record total run time (host-time-mono delta) for the attestation
+    //    record (E8 phosphoric_attest pipes this output into its DSSE).
+    //
+    // 5. Exit 0 if all pass; 1 on first failure.
+    //
+    // Subprocess invocation is *not* a host-profile primitive (no
+    // subprocess effect). Following the same trust-boundary pattern as
+    // verify_fixpoint and phosphoric_conform: the makefile rule does the
+    // running; this function reads the captured output.
+    0
+}

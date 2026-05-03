@@ -1,0 +1,11 @@
+module fixture.m3z_safety_rejects_fn_call;
+profile boot;
+fn entry() -> i32 {
+    return caller();
+}
+fn helper(x: i32) -> i32 {
+    99
+}
+fn caller() -> i32 {
+    helper(0)
+}

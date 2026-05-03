@@ -1,0 +1,24 @@
+module tests.conformance.boot.pass.integer_arithmetic;
+
+// Pass case for binary arithmetic and comparison on primitive integer types.
+// v0 binary operators: + - * /  ==  !=  <  <=  >  >=
+
+fn arith(a: u32, b: u32) -> u32 {
+    let sum: u32 = a + b;
+    let diff: u32 = sum - a;
+    let prod: u32 = diff * 2;
+    prod / 2
+}
+
+fn compares(a: u32, b: u32) -> bool {
+    match a == b {
+        true  => true,
+        false => match a < b {
+            true  => false,
+            false => match a > b {
+                true  => true,
+                false => false,
+            },
+        },
+    }
+}

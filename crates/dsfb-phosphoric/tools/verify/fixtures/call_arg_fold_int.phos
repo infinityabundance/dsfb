@@ -1,0 +1,8 @@
+module fixture.call_arg_fold_int;
+profile boot;
+fn entry() -> i32 {
+    return ident(20 + 22);
+}
+fn ident(arg: i32) -> i32 {
+    return arg;
+}

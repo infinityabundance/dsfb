@@ -1,0 +1,85 @@
+module ember.arch.cortex_m0plus.boot;
+profile trusted;
+
+// Cortex-M0+ (RP2040) boot reset handler.
+//
+// ASPIRATIONAL NOTE (Phase 7 Tranche A, endoduction-substrate plan).
+// cortex_m0plus, riscv_rv32imc, esp32_c3, and x86_64-deployment are
+// aspirational. RP2350 (cortex_m33) is the first-class target because
+// its hardware SHA-256, MPU+SAU, and OTP carry the trusted-zone
+// substrate. No new code lands here unless a residual axis or forensic
+// gate cannot be demonstrated on M33 first.
+//
+// Contrast with cortex_m33: no TrustZone, no OTP, no signed boot, no
+// SHA-256 accel, no TRNG. The razor's "language enforces what hardware
+// cannot" claim is most exposed here — RP2040 trust rests almost entirely
+// on language discipline, with only the basic MPU as belt-and-suspenders.
+
+struct Rp2040BootInfo {
+    flash_base: u32,         // typically 0x10000000
+    flash_size: u32,
+    sram_base: u32,          // typically 0x20000000
+    sram_size: u32,
+}
+
+// Vector table base register. ARM Cortex-M0+ places this at 0xE000ED08.
+fn vtor_addr() -> u32 {
+    3758104328               // 0xE000ED08
+}
+
+// Install the vector table at the given flash address.
+//
+// razor-rationale: irreducible-hw — VTOR is a CPU control register; the
+// only path to redirect the trap vectors is the MMIO write below.
+fn install_vector_table(table_address: u32) {
+    // trust-audit: row "VTOR install (ARMv6-M)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(vtor_addr(), table_address);
+    };
+}
+
+// Reset handler entry. Called by the RP2040 ROM bootloader after the
+// initial stack pointer is set. Sequence:
+//   1. install vector table
+//   2. configure MPU regions: stack guards + flash RO post-boot
+//   3. enable MPU
+//   4. hand off to runtime kernel with typed BootInfo
+fn reset_handler() -> Rp2040BootInfo {
+    // Stage 1 — vector table install. The runtime kernel's per-trap
+    // handlers live alongside Ember in flash; redirecting VTOR pins them.
+    install_vector_table(268435456);     // 0x10000000 = flash base
+
+    // Stage 2 — MPU regions. RP2040 has 8 MPU regions (ARMv6-M).
+    // Region 0 = low stack guard (32 bytes, no-access); detects underflow.
+    let stack_guard_low: ember.arch.cortex_m0plus.mpu.MpuRegion =
+        ember.arch.cortex_m0plus.mpu.MpuRegion {
+            purpose: ember.arch.cortex_m0plus.mpu.MpuRegionPurpose::StackGuardLow,
+            base: 536870912,             // 0x20000000 (SRAM base)
+            size_log2: 4,                // 2^(4+1) = 32 bytes
+            permissions: 0,              // no-access
+        };
+    ember.arch.cortex_m0plus.mpu.configure_mpu_region(0, stack_guard_low);
+
+    // Region 1 = flash RO. Once installed, the boot image cannot be
+    // overwritten by accidental kernel writes.
+    let flash_ro: ember.arch.cortex_m0plus.mpu.MpuRegion =
+        ember.arch.cortex_m0plus.mpu.MpuRegion {
+            purpose: ember.arch.cortex_m0plus.mpu.MpuRegionPurpose::FlashRO,
+            base: 268435456,             // 0x10000000
+            size_log2: 20,               // 2^(20+1) = 2 MiB
+            permissions: 6,              // RO for privileged + unprivileged
+        };
+    ember.arch.cortex_m0plus.mpu.configure_mpu_region(1, flash_ro);
+
+    // Stage 3 — enable.
+    ember.arch.cortex_m0plus.mpu.enable_mpu();
+
+    // Stage 4 — handoff shape.
+    Rp2040BootInfo {
+        flash_base: 268435456,           // 0x10000000
+        flash_size: 2097152,             // 2 MiB
+        sram_base: 536870912,            // 0x20000000
+        sram_size: 270336,               // 264 KiB (264*1024)
+    }
+}

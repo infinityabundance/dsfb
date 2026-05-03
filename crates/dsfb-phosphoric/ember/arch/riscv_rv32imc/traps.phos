@@ -1,0 +1,33 @@
+module ember.arch.riscv_rv32imc.traps;
+profile trusted;
+
+// RISC-V trap / exception scaffold.
+// Single trap entry point at mtvec; dispatch on mcause inside.
+// Synchronous and asynchronous causes share the same vector by default
+// (direct mode); vectored mode is optional and not used in v0.
+
+enum McauseSync {
+    InstructionAddressMisaligned,
+    InstructionAccessFault,
+    IllegalInstruction,
+    Breakpoint,
+    LoadAddressMisaligned,
+    LoadAccessFault,
+    StoreAddressMisaligned,
+    StoreAccessFault,
+    EnvironmentCallFromMmode,
+}
+
+enum McauseAsync {
+    MachineSoftwareInterrupt,
+    MachineTimerInterrupt,
+    MachineExternalInterrupt,
+}
+
+struct TrapFrame {
+    pc: u32,
+    mstatus: u32,
+    cause: u32,
+    tval: u32,
+    saved_regs: [u32; 32],   // x0..x31 saved on entry
+}

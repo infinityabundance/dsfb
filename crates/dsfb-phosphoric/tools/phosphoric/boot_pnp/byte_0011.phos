@@ -1,0 +1,5 @@
+module fixture.bootx64.byte_0011;
+profile boot;
+fn main() -> i32 {
+    return 0;
+}

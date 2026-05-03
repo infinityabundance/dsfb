@@ -1,0 +1,132 @@
+module pcc.host_tools.phosphoric_effect_check;
+profile host;
+
+// Reads docs/language/effect_lattice.toml. Asserts the lattice properties hold:
+// idempotence, commutativity, associativity, monotonicity, alphabet closure,
+// cross-profile rejection. Runs every fixture as a positive or negative test.
+
+enum LatticeProperty {
+    Idempotent,
+    Commutative,
+    Associative,
+    Monotone,
+    AlphabetClosed,
+    CrossProfileRejected,
+}
+
+struct PropertyOutcome {
+    property: LatticeProperty,
+    held: bool,
+    fixture_id: u16,
+    failing_diagnostic: u32,
+}
+
+// Bitset representation: [u8; 16] = 128 bits, one per effect label
+// position in the global alphabet (more than enough for the 13 currently-
+// defined labels). Each bit set = that label is present in the set.
+
+fn bit_set_in(set: [u8; 16], pos: u32) -> bool {
+    let byte_idx: u32 = pos / 8;
+    let bit_idx: u32 = pos - byte_idx * 8;
+    let mask: u8 = match bit_idx {
+        0 => 1, 1 => 2, 2 => 4, 3 => 8,
+        4 => 16, 5 => 32, 6 => 64, 7 => 128,
+        _ => 0,
+    };
+    let byte: u8 = set[byte_idx];
+    // bitwise AND via per-bit decomposition; same trick as compiler/effects.
+    let shifted: u8 = match mask {
+        1 => byte,
+        _ => byte / mask,
+    };
+    let low_bit: u8 = shifted - (shifted / 2) * 2;
+    low_bit == 1
+}
+
+fn bitset_eq(a: [u8; 16], b: [u8; 16]) -> bool {
+    #[bound = 16]
+    for i in 0..16 {
+        match a[i] == b[i] {
+            true  => (),
+            false => return false,
+        }
+    }
+    true
+}
+
+fn bitset_union(a: [u8; 16], b: [u8; 16]) -> [u8; 16] {
+    let mut out: [u8; 16] = [0; 16];
+    #[bound = 16]
+    for i in 0..16 {
+        // Per-bit OR: byte_or = max-of-bits at each position.
+        let mut combined: u8 = 0;
+        let mut bit_value: u8 = 1;
+        #[bound = 8]
+        for j in 0..8 {
+            let a_bit: u8 = match bit_value {
+                1 => a[i] - (a[i] / 2) * 2,
+                _ => (a[i] / bit_value) - ((a[i] / bit_value) / 2) * 2,
+            };
+            let b_bit: u8 = match bit_value {
+                1 => b[i] - (b[i] / 2) * 2,
+                _ => (b[i] / bit_value) - ((b[i] / bit_value) / 2) * 2,
+            };
+            let either: u8 = match a_bit + b_bit == 0 {
+                true  => 0,
+                false => 1,
+            };
+            combined = combined + either * bit_value;
+            match bit_value < 128 {
+                true  => bit_value = bit_value * 2,
+                false => j,
+            };
+        }
+        out[i] = combined;
+    }
+    out
+}
+
+// Property: join(A, A) == A.
+fn check_idempotent(label_set: [u8; 16]) -> bool {
+    let joined: [u8; 16] = bitset_union(label_set, label_set);
+    bitset_eq(joined, label_set)
+}
+
+// Property: join(A, B) == join(B, A). Trivially true for set-union but
+// the test guards against future implementation drift.
+fn check_commutative(a: [u8; 16], b: [u8; 16]) -> bool {
+    let ab: [u8; 16] = bitset_union(a, b);
+    let ba: [u8; 16] = bitset_union(b, a);
+    bitset_eq(ab, ba)
+}
+
+// Property: join(join(A, B), C) == join(A, join(B, C)).
+fn check_associative(
+    a: [u8; 16],
+    b: [u8; 16],
+    c: [u8; 16],
+) -> bool {
+    let left: [u8; 16] = bitset_union(bitset_union(a, b), c);
+    let right: [u8; 16] = bitset_union(a, bitset_union(b, c));
+    bitset_eq(left, right)
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr) {
+    // TODO(E9):
+    //   1. Read effect_lattice.toml.
+    //   2. For each profile alphabet:
+    //      - Verify idempotence on every label (A union A == A).
+    //      - Verify commutativity on every pair.
+    //      - Verify associativity on every triple.
+    //      - Verify monotonicity on subset relationships.
+    //      - Verify alphabet closure (no join produces out-of-alphabet labels).
+    //   3. For every fixture in [[fixtures]]:
+    //      - Compute the operation; assert expected outcome.
+    //      - For expected_diagnostic fixtures: assert the corresponding E-### code.
+    //   4. Cross-profile rejection: any join across profiles rejected with E-006.
+    //   5. Emit report; exit non-zero on first failed property.
+    0
+}

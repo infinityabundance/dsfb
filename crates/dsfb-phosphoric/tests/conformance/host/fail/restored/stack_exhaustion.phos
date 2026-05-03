@@ -1,0 +1,17 @@
+module tests.conformance.host.fail.restored.stack_exhaustion;
+profile host;
+
+// fail-expected: S-001
+// (restored from legacy_ui/fail/stack_exhaustion; legacy code STACK_EXHAUSTION "exceeds")
+
+// expect: STACK_EXHAUSTION exceeds
+module demo;
+
+fn leaf(a: u64, b: u64, c: u64, d: u64) -> u64 {
+    let payload: [u64; 4] = [1, 2, 3, 4];
+    return a;
+}
+
+fn root(a: u64, b: u64, c: u64, d: u64) -> u64 {
+    return leaf(a, b, c, d);
+}

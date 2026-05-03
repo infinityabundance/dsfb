@@ -1,0 +1,88 @@
+module ics_terminal.main;
+profile boot;
+
+// Industrial control terminal — main loop.
+//
+// One physical button + one sensor read → one display update + one
+// actuator dispatch. The full button-tick cycle is the canonical
+// NO_DRIFT incident; injected failures produce exactly one of the
+// other seven drift classes when classified by `phosphoric drift`.
+//
+// Loop shape:
+//   1. block on button_event_route (IRQ-fed by the GP15 edge handler)
+//   2. on press edge, sample the ADC0 sensor (blocking; deterministic)
+//   3. compose a 5-line display update (button-press + sensor mV + state)
+//   4. drive PWM actuator high for `actuator_pulse_cycles` cycles
+//   5. drop actuator low
+//   6. emit one residual per authority transition (R1/R2/R5/R6)
+//
+// The loop is bounded; no while/loop in v0. Outer #[bound = N] caps
+// total ticks per execution; inner steps are statically straight-line.
+
+// Maximum ticks per device session. Real deployments boot, run, fault.
+// 65536 ticks at one tick per button press = ~18 hours of continuous
+// pressing at 1 Hz before the bound forces a clean exit.
+fn max_ticks() -> u32 { 65536 }
+
+// Actuator pulse width in cycle counter ticks. 150 MHz × 50 ms = 7.5M
+// cycles. Pulse is wide enough to be visible / mechanically audible.
+fn actuator_pulse_cycles() -> u64 { 7500000 }
+
+// Display lines. The terminal renders five lines; each is at most 16
+// chars on the SSD1306 16×8 bitmap font. Pre-allocated; no heap.
+fn display_line_count() -> u32 { 5 }
+fn display_line_width() -> u32 { 16 }
+
+// Engineering-units thresholds for the actuator policy. The terminal
+// only fires the actuator when the sensor reads above a configurable
+// threshold AND the button has been pressed in the same tick.
+fn sensor_actuate_threshold_mv() -> u16 { 1650 }    // 50% of 3.3V
+
+// Outcome of one tick. The main loop returns one of these per cycle
+// to the boot supervisor; classification on tick exit determines
+// whether the substrate is still NO_DRIFT.
+enum TickOutcome {
+    Idle,                           // no button press this tick; no actuation
+    Actuated(u16),                  // button + sensor above threshold; mV reported
+    BelowThreshold(u16),            // button pressed but sensor below threshold
+    SensorSaturated,                // sensor saturated; no actuation
+}
+
+// Decide actuation policy from the inputs of one tick. Pure function;
+// no MMIO, no IPC. The actuation MMIO write happens in the caller, so
+// this function is the audit-friendly policy core.
+fn classify_tick(button_pressed: bool, sensor_mv: u16, sensor_saturated: bool) -> TickOutcome {
+    match button_pressed {
+        false => TickOutcome::Idle,
+        true  => match sensor_saturated {
+            true  => TickOutcome::SensorSaturated,
+            false => match sensor_mv >= sensor_actuate_threshold_mv() {
+                true  => TickOutcome::Actuated(sensor_mv),
+                false => TickOutcome::BelowThreshold(sensor_mv),
+            },
+        },
+    }
+}
+
+// Display line composition. Returns the line count actually used; the
+// caller writes the bytes out via I2C0. The composition is deterministic
+// (same inputs → same bytes), which is what makes the display path
+// part of the forensic-replay claim.
+fn compose_display(outcome: TickOutcome, tick: u32) -> u32 {
+    match outcome {
+        TickOutcome::Idle              => 1,
+        TickOutcome::Actuated(_)       => 5,
+        TickOutcome::BelowThreshold(_) => 4,
+        TickOutcome::SensorSaturated   => 3,
+    }
+}
+
+// Actuator decision derived from the tick outcome. Returns the PWM
+// duty cycle to write to the GP18 PWM channel. `0` for off; `0x8000`
+// for the on pulse. Pure function; the caller writes to MMIO.
+fn actuator_duty_for(outcome: TickOutcome) -> u16 {
+    match outcome {
+        TickOutcome::Actuated(_) => 0x8000,
+        _                        => 0x0000,
+    }
+}

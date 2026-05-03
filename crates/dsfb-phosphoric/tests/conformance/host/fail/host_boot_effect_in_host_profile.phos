@@ -1,0 +1,12 @@
+module tests.conformance.host.fail.host_boot_effect_in_host_profile;
+profile host;
+
+// fail-expected: H-003
+//
+// `mmio` is a boot-profile effect. Declaring it from a host-profile
+// program is the cross-profile contamination case in the opposite
+// direction from H-002.
+
+fn fake_mmio() -> u32 effects(mmio) {
+    0
+}

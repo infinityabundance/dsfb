@@ -1,0 +1,8 @@
+module fixture.bare_bool_true;
+profile boot;
+fn entry() -> i32 {
+    return helper(7);
+}
+fn helper(arg: i32) -> i32 {
+    true
+}

@@ -1,0 +1,13 @@
+module tests.conformance.host.pass.restored.for_bounded_range;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/for_bounded_range)
+
+module pass.for_bounded_range;
+
+fn walk() {
+    for index in 0..4 {
+        let value = index;
+    }
+}

@@ -1,0 +1,169 @@
+module pcc.host_tools.check_trusted_blocks;
+profile host;
+
+// For every `trusted!` block in trusted-profile source, assert there is a
+// matching audit entry in ember/docs/EMBER_TRUST_AUDIT.md.
+//
+// Diagnostic: T-007 ("trusted! block not cross-referenced").
+
+struct TrustedBlock {
+    file_path_id: u16,
+    line_start: u32,
+    line_end: u32,
+    has_audit_match: bool,
+}
+
+// Find every `trusted!` block in a Phosphoric source file. A block is
+// identified by the byte sequence `trusted!` followed by `{`. Capture the
+// file-path id (interned by the caller) and start/end line numbers.
+//
+// For each block, the preceding line should be a `// trust-audit:` comment.
+// Both pieces are captured here; cross-reference to EMBER_*_TRUST_AUDIT.md
+// happens in the caller.
+//
+// Buffer interpretation: `file_buf[0..len]` is the file contents; line
+// numbers are 1-based.
+fn scan_trusted_blocks(
+    file_buf: Slice[u8, 1048576],
+    len: u32,
+    file_path_id: u16,
+    out: Slice[TrustedBlock, 64],
+) -> u32 {
+    let mut count: u32 = 0;
+    let mut cursor: u32 = 0;
+    let mut line: u32 = 1;
+    #[bound = 1048576]
+    for step in 0..len {
+        match cursor >= len {
+            true => return count,
+            false => (),
+        }
+        match file_buf[cursor] == 10 {
+            true  => line = line + 1,
+            false => (),
+        }
+        // Look for "trusted!" sequence: t-r-u-s-t-e-d-!
+        match cursor + 8 < len {
+            true => match matches_keyword(file_buf, cursor) {
+                true => {
+                    // Find the matching closing brace.
+                    let block_start_line: u32 = line;
+                    let mut depth: u32 = 0;
+                    let mut p: u32 = cursor + 8;
+                    let mut block_end_line: u32 = line;
+                    let mut found_open: bool = false;
+                    #[bound = 65536]
+                    for _ in 0..65536 {
+                        match p >= len {
+                            true => _,
+                            false => {
+                                match file_buf[p] == 10 {
+                                    true  => block_end_line = block_end_line + 1,
+                                    false => (),
+                                }
+                                match file_buf[p] == 123 {    // '{'
+                                    true  => { depth = depth + 1; found_open = true; },
+                                    false => match file_buf[p] == 125 && found_open {    // '}'
+                                        true  => depth = depth - 1,
+                                        false => (),
+                                    },
+                                }
+                                p = p + 1;
+                                match found_open && depth == 0 {
+                                    true => _,
+                                    false => _,
+                                };
+                                _
+                            },
+                        };
+                        match found_open && depth == 0 {
+                            true => _,
+                            false => _,
+                        };
+                    }
+                    match count < 64 {
+                        true => {
+                            out[count] = TrustedBlock {
+                                file_path_id: file_path_id,
+                                line_start: block_start_line,
+                                line_end: block_end_line,
+                                has_audit_match: false,
+                            };
+                            count = count + 1;
+                        },
+                        false => (),
+                    }
+                    cursor = p;
+                },
+                false => cursor = cursor + 1,
+            },
+            false => cursor = cursor + 1,
+        }
+    }
+    count
+}
+
+// Match the literal byte sequence "trusted!" at file_buf[cursor..cursor+8].
+fn matches_keyword(buf: Slice[u8, 1048576], cursor: u32) -> bool {
+    match buf[cursor] == 116 {            // 't'
+        true => match buf[cursor + 1] == 114 {   // 'r'
+            true => match buf[cursor + 2] == 117 {   // 'u'
+                true => match buf[cursor + 3] == 115 {   // 's'
+                    true => match buf[cursor + 4] == 116 {   // 't'
+                        true => match buf[cursor + 5] == 101 {   // 'e'
+                            true => match buf[cursor + 6] == 100 {   // 'd'
+                                true => buf[cursor + 7] == 33,   // '!'
+                                false => false,
+                            },
+                            false => false,
+                        },
+                        false => false,
+                    },
+                    false => false,
+                },
+                false => false,
+            },
+            false => false,
+        },
+        false => false,
+    }
+}
+
+// Match `// trust-audit:` at the start of a line.
+fn line_has_audit_comment(buf: Slice[u8, 1048576], line_start: u32, line_end: u32) -> bool {
+    let needed: u32 = 15;    // "// trust-audit:"
+    match line_start + needed > line_end {
+        true  => false,
+        false => {
+            let pattern: [u8; 16] = [47, 47, 32, 116, 114, 117, 115, 116, 45, 97, 117, 100, 105, 116, 58, 0];
+            #[bound = 16]
+            for i in 0..needed {
+                match buf[line_start + i] == pattern[i] {
+                    true  => (),
+                    false => return false,
+                }
+            }
+            true
+        },
+    }
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr) {
+    // 1. Walk ember/arch/<arch>/ for every supported arch (x86_64,
+    //    cortex_m33, cortex_m0plus, riscv_rv32imc, esp32_c3).
+    // 2. For each .phos file with `profile trusted;`:
+    //    a. scan_trusted_blocks() into a TrustedBlock array.
+    //    b. For each block: check the line immediately before line_start
+    //       has `// trust-audit: ember/docs/EMBER_<ARCH>_TRUST_AUDIT.md#<anchor>`.
+    //    c. Read the named audit doc; assert the anchor section exists.
+    // 3. Set exit code 1 if any block is missing its audit cross-reference
+    //    (T-007 diagnostic). Otherwise exit 0.
+    //
+    // Walk via host-fs-read; recursion forbidden. The walker is invoked
+    // once per directory level by the build script, with the explicit
+    // arch enumeration in argv.
+    0
+}

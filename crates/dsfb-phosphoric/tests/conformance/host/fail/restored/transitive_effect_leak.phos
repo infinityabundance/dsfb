@@ -1,0 +1,19 @@
+module tests.conformance.host.fail.restored.transitive_effect_leak;
+profile host;
+
+// fail-expected: E-002
+// (restored from legacy_ui/fail/transitive_effect_leak; legacy code MISSING_EFFECT "must declare effect `draw` to call `mid`")
+
+module demo;
+
+fn leaf() effects(draw) {
+    return;
+}
+
+fn mid() effects(draw) {
+    leaf();
+}
+
+fn root() {
+    mid();
+}

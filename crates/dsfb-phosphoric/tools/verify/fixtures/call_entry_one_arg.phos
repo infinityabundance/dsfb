@@ -1,0 +1,8 @@
+module fixture.call_entry_one_arg;
+profile boot;
+fn entry() -> i32 {
+    return double(21);
+}
+fn double(arg: i32) -> i32 {
+    return __a0;
+}

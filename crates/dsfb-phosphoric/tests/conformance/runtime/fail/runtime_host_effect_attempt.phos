@@ -1,0 +1,11 @@
+module tests.conformance.runtime.fail.runtime_host_effect_attempt;
+profile runtime;
+
+// fail-expected: R-005
+//
+// host-fs-read is a host-profile effect. A runtime program declaring it
+// is the cross-profile contamination case.
+
+fn bad() -> bool effects(host-fs-read) {
+    true
+}

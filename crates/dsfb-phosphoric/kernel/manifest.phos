@@ -1,0 +1,118 @@
+module pcc.kernel.manifest;
+profile runtime;
+
+// Runtime-profile mirror of the manifest authority graph. The boot loader
+// parses task.manifest.toml (host-profile work in compiler/manifest.phos)
+// and serializes a fixed binary layout into the .pmanifest PE section; at
+// kernel_init the table is materialized from those bytes into this struct
+// and consulted thereafter by caps.allocate_entry, ipc.send_message, and
+// ipc.recv_message.
+//
+// Per the trust-zone partition (docs/TASK_SEAL_V0.md §0.4), the producer
+// of these bytes (compiler/manifest.phos + codegen_boot.phos) sits in the
+// "trusted" zone; this module is the runtime-side consumer, deliberately
+// minimal so the runtime surface is small and audit-cheap.
+//
+// The compiler-side (host) parser is the single source of truth for
+// schema interpretation; this module only checks containment.
+
+struct ManifestEntry {
+    kind_id: u8,                     // 1=Task, 2=Channel, 3=Window, 4=Framebuffer
+    slot: u16,
+}
+
+struct ChannelDecl {
+    id_hash: [u8; 32],
+    capacity: u16,
+}
+
+struct ManifestBudgets {
+    task_stack_limit: u32,
+    kernel_init_limit: u32,
+    loop_bound_max: u32,
+    residual_chain_every_n_events: u16,
+    residual_ring_size: u16,
+}
+
+struct ManifestTable {
+    capabilities: [ManifestEntry; 64],
+    capability_count: u16,
+    channels: [ChannelDecl; 16],
+    channel_count: u16,
+    effects_bitset: u32,
+    budgets: ManifestBudgets,
+    manifest_hash: [u8; 32],
+}
+
+fn empty_manifest_table() -> ManifestTable {
+    ManifestTable {
+        capabilities: [ManifestEntry { kind_id: 0, slot: 0 }; 64],
+        capability_count: 0,
+        channels: [ChannelDecl { id_hash: [0; 32], capacity: 0 }; 16],
+        channel_count: 0,
+        effects_bitset: 0,
+        budgets: ManifestBudgets {
+            task_stack_limit: 0,
+            kernel_init_limit: 0,
+            loop_bound_max: 0,
+            residual_chain_every_n_events: 1,
+            residual_ring_size: 1024,
+        },
+        manifest_hash: [0; 32],
+    }
+}
+
+// Containment check: every issued capability (kind_id, slot) must match
+// a manifest entry. Returns Ok on hit, Err(ManifestMismatch) on miss.
+fn cap_in_manifest(
+    table: ManifestTable,
+    kind_id: u8,
+    slot: u16,
+) -> Result[u32, pcc.kernel.error.KernelError] {
+    let mut hit: bool = false;
+    #[bound = 64]
+    for i in 0..(table.capability_count as u32) {
+        let e: ManifestEntry = table.capabilities[i];
+        match e.kind_id == kind_id {
+            false => (),
+            true  => match e.slot == slot {
+                false => (),
+                true  => hit = true,
+            },
+        };
+    }
+    match hit {
+        true  => Ok(0),
+        false => Err(pcc.kernel.error.KernelError::ManifestMismatch),
+    }
+}
+
+// Containment check: an IPC send/recv on a channel must hit a manifest
+// entry, matched by SHA-256 of the channel id string. Returns Ok on hit,
+// Err(UndeclaredChannel) on miss.
+fn channel_in_manifest(
+    table: ManifestTable,
+    id_hash: [u8; 32],
+) -> Result[u32, pcc.kernel.error.KernelError] {
+    let mut hit: bool = false;
+    #[bound = 16]
+    for i in 0..(table.channel_count as u32) {
+        let c: ChannelDecl = table.channels[i];
+        let mut equal: bool = true;
+        #[bound = 32]
+        for j in 0..32 {
+            match c.id_hash[j] == id_hash[j] {
+                true  => (),
+                false => equal = false,
+            };
+        }
+        match equal {
+            true  => hit = true,
+            false => (),
+        };
+    }
+    match hit {
+        true  => Ok(0),
+        false => Err(pcc.kernel.error.KernelError::UndeclaredChannel),
+    }
+}

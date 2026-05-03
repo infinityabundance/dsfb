@@ -1,0 +1,18 @@
+module tests.conformance.boot.pass.match_with_result;
+
+// Pass case for match on Result[T, E]. Both Ok and Err arms must be present.
+
+enum DemoError {
+    OutOfRange,
+    Empty,
+}
+
+fn classify(r: Result[u32, DemoError]) -> u32 {
+    match r {
+        Ok(v)  => v,
+        Err(e) => match e {
+            DemoError::OutOfRange => 1,
+            DemoError::Empty      => 2,
+        },
+    }
+}

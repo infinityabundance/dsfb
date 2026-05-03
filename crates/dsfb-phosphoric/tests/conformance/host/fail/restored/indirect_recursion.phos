@@ -1,0 +1,15 @@
+module tests.conformance.host.fail.restored.indirect_recursion;
+profile host;
+
+// fail-expected: G-001
+// (restored from legacy_ui/fail/indirect_recursion; legacy code RECURSIVE_CALL_CYCLE "recursive call cycle")
+
+module fail.indirect_recursion;
+
+fn first(value: u32) -> u32 {
+    return second(value);
+}
+
+fn second(value: u32) -> u32 {
+    return first(value);
+}

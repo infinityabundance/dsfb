@@ -1,0 +1,29 @@
+module tests.conformance.runtime.pass.runtime_queue_drop_newest_overflow_returns_err;
+profile runtime;
+
+// Pass case: the QueueDropNewest family returns Err(QueueFull) on
+// overflow; the queue's existing contents are preserved.
+
+struct QueueDropNewest {
+    head: u16,
+    tail: u16,
+    items: [u32; 8],
+    count: u16,
+}
+
+enum RuntimeError {
+    QueueFull,
+}
+
+fn enqueue(q: QueueDropNewest, item: u32) -> Result[QueueDropNewest, RuntimeError] {
+    match q.count == 8 {
+        true  => Err(RuntimeError::QueueFull),
+        false => {
+            let mut updated: QueueDropNewest = q;
+            updated.items[updated.tail] = item;
+            updated.tail = updated.tail + 1;
+            updated.count = updated.count + 1;
+            Ok(updated)
+        },
+    }
+}

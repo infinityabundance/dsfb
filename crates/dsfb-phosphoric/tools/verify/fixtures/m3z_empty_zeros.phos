@@ -1,0 +1,8 @@
+module fixture.m3z_empty_zeros;
+profile boot;
+fn entry() -> i32 {
+    return marker();
+}
+fn marker() -> u32 {
+    0
+}

@@ -1,0 +1,16 @@
+module tests.conformance.boot.pass.capability_declaration;
+
+// Pass case for CapabilityDecl ::= "capability" Ident ";"
+// Capabilities are affine — moved at most once per path.
+
+capability Window;
+capability Channel;
+capability Framebuffer;
+
+fn consume(w: Window) -> bool effects(draw) {
+    true
+}
+
+fn route(c: Channel) -> bool effects(ipc) {
+    true
+}

@@ -1,0 +1,12 @@
+# Composition regression test: A-8 (let-fold) + A-17 (match-arm-let).
+# Source: classify(7) with `let success = 50 + 50; match arg == 7 { true => success, false => 0 }`.
+# Producer chain:
+#   - Pass A-8 folds `50 + 50` at scan time into success=100.
+#   - Pass A-17 resolves the TRUE arm `success` via let-tracker → 100.
+#   - Pass A-12/A-14 emits cmp+je+mov 100 / mov 0 block.
+# Result is byte-identical to match_param_eq_true.phos (same INT_A=100,
+# INT_B=0). This fixture documents that the producer's compositional
+# scan-time evaluator chains correctly.
+size=1105
+sha=ceac7d07b0f053e6d2e9a105eb4c8a1bb83b95c609f69cbcbe7efe740d45f983
+rc=100

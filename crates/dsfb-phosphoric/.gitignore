@@ -1,0 +1,13 @@
+/build/
+/target/
+/untracked/
+.codex
+*.log
+*.efi
+*.img
+*.zip
+*.tar
+*.tgz
+*.tar.gz
+*.7z
+*.rar

@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.duplicate_effect_label;
+profile host;
+
+// fail-expected: E-003
+// (restored from legacy_ui/fail/duplicate_effect_label; legacy code DUPLICATE_EFFECT "duplicate effect `time`")
+
+module fail.duplicate_effect_label;
+
+fn bad() effects(time, time) {
+    return;
+}

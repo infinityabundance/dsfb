@@ -1,0 +1,32 @@
+module fixture.m3k_empty_huge_struct;
+profile boot;
+struct Phase0Token {
+    kind: u8,
+    payload: u32,
+    start: u32,
+    end: u32,
+}
+struct Phase0LexState {
+    tokens: [Phase0Token; 16384],
+    token_count: u32,
+    name_pool: [u8; 65536],
+    name_pool_used: u32,
+    cursor: u32,
+    failed: bool,
+}
+fn entry() -> i32 {
+    return 0;
+}
+fn empty_token() -> Phase0Token {
+    Phase0Token { kind: 0, payload: 0, start: 0, end: 0 }
+}
+fn empty_lex_state() -> Phase0LexState {
+    Phase0LexState {
+        tokens: [empty_token(); 16384],
+        token_count: 0,
+        name_pool: [0; 65536],
+        name_pool_used: 0,
+        cursor: 0,
+        failed: false,
+    }
+}

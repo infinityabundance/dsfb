@@ -1,0 +1,8 @@
+module fixture.param_sub;
+profile boot;
+fn entry() -> i32 {
+    return sub8(50);
+}
+fn sub8(arg: i32) -> i32 {
+    return arg - 8;
+}

@@ -1,0 +1,9 @@
+module fixture.param_sub_let;
+profile boot;
+fn entry() -> i32 {
+    return diff(50);
+}
+fn diff(arg: i32) -> i32 {
+    let bias = 8;
+    return arg - bias;
+}

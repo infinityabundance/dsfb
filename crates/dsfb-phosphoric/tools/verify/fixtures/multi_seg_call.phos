@@ -1,0 +1,5 @@
+module fixture.multi_seg_call;
+profile boot;
+fn main() -> i32 {
+    return some.module.func();
+}

@@ -1,0 +1,14 @@
+module tests.conformance.host.fail.restored.incompatible_match_arms;
+profile host;
+
+// fail-expected: K-014
+// (restored from legacy_ui/fail/incompatible_match_arms; legacy code BRANCH_TYPE_MISMATCH "match arms have incompatible types")
+
+module fail.incompatible_match_arms;
+
+fn choose(flag: bool, value: u32) -> u32 {
+    match flag {
+        true => value,
+        false => false,
+    }
+}

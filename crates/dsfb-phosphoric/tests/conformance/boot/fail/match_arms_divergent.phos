@@ -1,0 +1,14 @@
+module tests.conformance.boot.fail.match_arms_divergent;
+
+// fail-expected: K-016
+//
+// All arms of a match expression must produce the same type. When the
+// arm bodies have divergent literal classes (Int vs Bool, etc.),
+// K-016 (match arms with divergent value types) is emitted.
+
+fn divergent_match(x: bool) -> u32 {
+    match x {
+        true  => 1,
+        false => false,
+    }
+}

@@ -1,0 +1,8 @@
+module fixture.match_param_le;
+profile boot;
+fn entry() -> i32 {
+    return classify(7);
+}
+fn classify(arg: i32) -> i32 {
+    match arg <= 7 { true => 88, false => 22 }
+}

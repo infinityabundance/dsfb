@@ -1,0 +1,8 @@
+module fixture.load32_filesz;
+profile boot;
+fn entry() -> i32 {
+    return 0;
+}
+fn read_filesz() -> i32 {
+    return __load32(4194400);
+}

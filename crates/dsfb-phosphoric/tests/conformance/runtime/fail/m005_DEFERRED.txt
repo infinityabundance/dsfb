@@ -1,0 +1,9 @@
+M-005 (trusted! mmio_* address outside [[mmio.range]]) is deferred.
+
+The codegen_trusted.phos hook for trusted! mmio_read/mmio_write
+lowering is staged with a marker comment in compiler/codegen_trusted.phos.
+A real M-005 negative test fixture lands when the trusted! block
+lowering pass arrives. The forensic-substrate plan documents this hook.
+
+This file is a placeholder so the conformance corpus surfaces M-005 in
+the M-### enumeration without a runnable fixture today.

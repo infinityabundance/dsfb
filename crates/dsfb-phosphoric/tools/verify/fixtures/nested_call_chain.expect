@@ -1,0 +1,7 @@
+# Compiler-bootstrap fixture: nested call chain through 3 fns.
+# Source: entry() -> middle() -> leaf() -> 42.
+# Tests stage0_call_entry (Pass A-3) → 24B CALL block (M.3.E-full)
+# → 24B M.3.D-narrow leaf return. End-to-end runtime: rc = 42.
+size=1129
+sha=5a3ac14b7c986bb87cbf29149fb6a0eef1ffac89cd84a91ca336e71c2129a6fd
+rc=42

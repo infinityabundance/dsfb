@@ -1,0 +1,21 @@
+module demo.boot_entry;
+
+fn demo_framebuffer_width() -> u32 { 500 }
+
+fn demo_framebuffer_height() -> u32 { 320 }
+
+fn demo_framebuffer_stride() -> u32 { 500 }
+
+fn demo_framebuffer_bytes_per_pixel() -> u32 { 4 }
+
+fn demo_framebuffer_pixel_format() -> u32 { 1 }
+
+fn demo_key_event_kind() -> u32 { 0 }
+
+fn demo_key_unicode() -> u16 { 32 }
+
+fn demo_key_scan_code() -> u16 { 0 }
+
+fn debug_text_port() -> u16 { 1026 }
+
+fn debug_exit_port() -> u16 { 244 }

@@ -1,0 +1,1402 @@
+module pcc.parser;
+profile host;
+
+// Phosphoric parser. Token stream -> AST.
+//
+// The parser walks the v0 grammar (docs/language/grammar.md). Phosphoric
+// forbids recursion across all profiles, so the parser is implemented as
+// a flat call graph: each parsing function consumes a bounded prefix of
+// the token stream and returns a ParseStep recording the new cursor and
+// either the produced AST id or an error.
+//
+// Type parsing is the only naturally-recursive grammar production (via
+// nested ArrayType, Result, Option). It is iterativized through an
+// explicit work stack inside ParserCtx with a hard depth bound (16).
+//
+// Stable parser diagnostic codes (P- prefix). One code per failure mode.
+//
+//   P-001 — unexpected token (general)
+//   P-002 — expected `module` keyword at file start
+//   P-003 — expected dotted module path
+//   P-004 — expected `;` after module declaration
+//   P-005 — expected struct/enum/fn/capability keyword
+//   P-006 — malformed type expression
+//   P-007 — malformed effect declaration
+//   P-008 — unexpected EOF mid-production
+//
+// V0-forbidden codes (v0.1 step 4): the lexer recognises the forbidden
+// keyword forms; check_v0_forbidden() collapses every site into one
+// dispatch that maps the lexer-tagged Keyword to its stable parser code:
+//
+//   P-009 — `unsafe`/`async`/`trait`/`impl`/`macro` keyword (lexer-tagged)
+//   P-010 — `&`/`&mut`/`*` operator                       (parser-side; deferred)
+//   P-011 — generic type parameter list `<T>`             (parser-side; deferred)
+//   P-012 — closure / lambda syntax                       (parser-side; deferred)
+//   P-013 — `while`/`loop` keyword                        (lexer-tagged)
+//   P-014 — string literal (lexer L-006 fires first)
+//   P-015 — float literal  (lexer L-007 fires first)
+//   P-016 — match-arm pattern guard                       (parser-side; deferred)
+//   P-017 — method receiver `self` parameter              (parser-side; deferred)
+//   P-018 — lifetime annotation                           (parser-side; deferred)
+//   P-019 — `import`/`extern`/`use` keyword form          (lexer-tagged)
+//   P-019 — qualified-call to non-same-module path        (parser-side; deferred)
+//
+//   P-020 — invalid `profile` clause
+//   P-021 — nested indexed assignment (multi-level `arr[i][j] = x;` not supported in v0)
+
+// ---------------------------------------------------------------------------
+// Parser context.
+//
+// Holds the token cursor, error sink, AST item count, and the type-parse
+// work stack. All arenas (item, type, expression, statement) live alongside
+// in the AstModule the caller provides; ParserCtx tracks indices into them.
+// ---------------------------------------------------------------------------
+
+struct ParserCtx {
+    cursor: u32,
+    token_count: u32,
+    diagnostic: Option[pcc.diagnostic.Diagnostic],
+    ast_item_count: u16,
+    ast_type_count: u16,
+}
+
+fn empty_ctx(token_count: u32) -> ParserCtx {
+    ParserCtx {
+        cursor: 0,
+        token_count: token_count,
+        diagnostic: None,
+        ast_item_count: 0,
+        ast_type_count: 0,
+    }
+}
+
+enum ParseOutcome {
+    OkModule(u16),
+    Failed(pcc.diagnostic.Diagnostic),
+}
+
+// ---------------------------------------------------------------------------
+// Token-stream helpers.
+//
+// `peek` returns the kind at the cursor without advancing. `advance` returns
+// the kind and bumps the cursor. `at_eof` is true when the cursor is past
+// the last real token.
+// ---------------------------------------------------------------------------
+
+fn peek_token(tokens: Slice[pcc.lexer.Token, 16384], cursor: u32) -> pcc.lexer.Token {
+    tokens[cursor]
+}
+
+fn at_eof(tokens: Slice[pcc.lexer.Token, 16384], cursor: u32, token_count: u32) -> bool {
+    match cursor >= token_count {
+        true  => true,
+        false => match peek_token(tokens, cursor).kind {
+            pcc.lexer.TokenKind::Eof => true,
+            _                        => false,
+        },
+    }
+}
+
+fn is_keyword(t: pcc.lexer.Token, kw: pcc.lexer.Keyword) -> bool {
+    match t.kind {
+        pcc.lexer.TokenKind::KeywordTok(k) => match k {
+            pcc.lexer.Keyword::Module     => match kw { pcc.lexer.Keyword::Module => true, _ => false },
+            pcc.lexer.Keyword::Capability => match kw { pcc.lexer.Keyword::Capability => true, _ => false },
+            pcc.lexer.Keyword::Struct     => match kw { pcc.lexer.Keyword::Struct => true, _ => false },
+            pcc.lexer.Keyword::Enum       => match kw { pcc.lexer.Keyword::Enum => true, _ => false },
+            pcc.lexer.Keyword::Fn         => match kw { pcc.lexer.Keyword::Fn => true, _ => false },
+            pcc.lexer.Keyword::Profile    => match kw { pcc.lexer.Keyword::Profile => true, _ => false },
+            pcc.lexer.Keyword::Effects    => match kw { pcc.lexer.Keyword::Effects => true, _ => false },
+            _                              => false,
+        },
+        _ => false,
+    }
+}
+
+fn is_punct(t: pcc.lexer.Token, p: pcc.lexer.Punct) -> bool {
+    match t.kind {
+        pcc.lexer.TokenKind::PunctTok(q) => match q {
+            pcc.lexer.Punct::LParen    => match p { pcc.lexer.Punct::LParen => true, _ => false },
+            pcc.lexer.Punct::RParen    => match p { pcc.lexer.Punct::RParen => true, _ => false },
+            pcc.lexer.Punct::LBrace    => match p { pcc.lexer.Punct::LBrace => true, _ => false },
+            pcc.lexer.Punct::RBrace    => match p { pcc.lexer.Punct::RBrace => true, _ => false },
+            pcc.lexer.Punct::LBracket  => match p { pcc.lexer.Punct::LBracket => true, _ => false },
+            pcc.lexer.Punct::RBracket  => match p { pcc.lexer.Punct::RBracket => true, _ => false },
+            pcc.lexer.Punct::Colon     => match p { pcc.lexer.Punct::Colon => true, _ => false },
+            pcc.lexer.Punct::Comma     => match p { pcc.lexer.Punct::Comma => true, _ => false },
+            pcc.lexer.Punct::Semicolon => match p { pcc.lexer.Punct::Semicolon => true, _ => false },
+            pcc.lexer.Punct::Dot       => match p { pcc.lexer.Punct::Dot => true, _ => false },
+            pcc.lexer.Punct::Arrow     => match p { pcc.lexer.Punct::Arrow => true, _ => false },
+            _                          => false,
+        },
+        _ => false,
+    }
+}
+
+fn is_ident(t: pcc.lexer.Token) -> bool {
+    match t.kind {
+        pcc.lexer.TokenKind::Ident => true,
+        _                          => false,
+    }
+}
+
+// Build a parser diagnostic with the given code number and span.
+fn p_error(code_number: u16, start: u32, end: u32) -> pcc.diagnostic.Diagnostic {
+    pcc.diagnostic.Diagnostic {
+        code_prefix: 80,           // ASCII 'P'
+        code_number: code_number,
+        span: Some(pcc.diagnostic.Span { start: start, end: end }),
+        message_id: 0,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Top-level: parse_module
+//
+// Module ::= "module" ModulePath ";" ProfileDecl? Item*
+// ProfileDecl ::= "profile" ProfileName ";"
+// ProfileName is Ident matching boot|host|trusted|runtime
+// ---------------------------------------------------------------------------
+
+fn parse_module(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    token_count: u32,
+    out_module: pcc.ast.AstModule,
+) -> ParseOutcome {
+    let mut ctx: ParserCtx = empty_ctx(token_count);
+
+    // Expect `module`
+    match at_eof(tokens, ctx.cursor, token_count) {
+        true  => return ParseOutcome::Failed(p_error(2, 0, 0)),
+        false => (),
+    }
+    let module_kw: pcc.lexer.Token = peek_token(tokens, ctx.cursor);
+    match is_keyword(module_kw, pcc.lexer.Keyword::Module) {
+        true  => ctx.cursor = ctx.cursor + 1,
+        false => return ParseOutcome::Failed(p_error(2, module_kw.start, module_kw.end)),
+    }
+
+    // ModulePath: Ident ("." Ident)*
+    let path_start: u32 = ctx.cursor;
+    match parse_module_path(tokens, ctx) {
+        Ok(new_ctx)    => ctx = new_ctx,
+        Err(diagnostic) => return ParseOutcome::Failed(diagnostic),
+    }
+
+    // Expect `;`
+    match expect_semi(tokens, ctx) {
+        Ok(new_ctx)    => ctx = new_ctx,
+        Err(diagnostic) => return ParseOutcome::Failed(diagnostic),
+    }
+
+    // Optional ProfileDecl
+    match peek_is_profile_keyword(tokens, ctx.cursor, token_count) {
+        true => match parse_profile_decl(tokens, ctx) {
+            Ok(new_ctx)    => ctx = new_ctx,
+            Err(diagnostic) => return ParseOutcome::Failed(diagnostic),
+        },
+        false => (),
+    }
+
+    // Item*
+    #[bound = 1024]
+    for iter in 0..1024 {
+        match at_eof(tokens, ctx.cursor, token_count) {
+            true  => return ParseOutcome::OkModule(0),
+            false => match parse_item(tokens, ctx) {
+                Ok(new_ctx)    => ctx = new_ctx,
+                Err(diagnostic) => return ParseOutcome::Failed(diagnostic),
+            },
+        }
+    }
+    ParseOutcome::Failed(p_error(1, ctx.cursor, ctx.cursor))
+}
+
+fn expect_semi(tokens: Slice[pcc.lexer.Token, 16384], ctx: ParserCtx) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    match at_eof(tokens, ctx.cursor, ctx.token_count) {
+        true  => Err(p_error(8, ctx.cursor, ctx.cursor)),
+        false => {
+            let t: pcc.lexer.Token = peek_token(tokens, ctx.cursor);
+            match is_punct(t, pcc.lexer.Punct::Semicolon) {
+                true => {
+                    let mut updated: ParserCtx = ctx;
+                    updated.cursor = updated.cursor + 1;
+                    Ok(updated)
+                },
+                false => Err(p_error(4, t.start, t.end)),
+            }
+        },
+    }
+}
+
+fn expect_lbrace(tokens: Slice[pcc.lexer.Token, 16384], ctx: ParserCtx) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    match at_eof(tokens, ctx.cursor, ctx.token_count) {
+        true  => Err(p_error(8, ctx.cursor, ctx.cursor)),
+        false => {
+            let t: pcc.lexer.Token = peek_token(tokens, ctx.cursor);
+            match is_punct(t, pcc.lexer.Punct::LBrace) {
+                true => {
+                    let mut updated: ParserCtx = ctx;
+                    updated.cursor = updated.cursor + 1;
+                    Ok(updated)
+                },
+                false => Err(p_error(1, t.start, t.end)),
+            }
+        },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// parse_module_path: Ident ("." Ident)*
+// ---------------------------------------------------------------------------
+
+fn parse_module_path(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    match at_eof(tokens, updated.cursor, updated.token_count) {
+        true  => return Err(p_error(3, updated.cursor, updated.cursor)),
+        false => (),
+    }
+    let first: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_ident(first) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(3, first.start, first.end)),
+    }
+    #[bound = 16]
+    for iter in 0..16 {
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Ok(updated),
+            false => {
+                let dot: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                match is_punct(dot, pcc.lexer.Punct::Dot) {
+                    false => return Ok(updated),
+                    true  => {
+                        updated.cursor = updated.cursor + 1;
+                        match at_eof(tokens, updated.cursor, updated.token_count) {
+                            true  => return Err(p_error(3, updated.cursor, updated.cursor)),
+                            false => {
+                                let segment: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                                match is_ident(segment) {
+                                    true  => updated.cursor = updated.cursor + 1,
+                                    false => return Err(p_error(3, segment.start, segment.end)),
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+        }
+    }
+    Ok(updated)
+}
+
+// ---------------------------------------------------------------------------
+// parse_profile_decl: "profile" ("boot" | "host" | "trusted" | "runtime") ";"
+// ---------------------------------------------------------------------------
+
+fn peek_is_profile_keyword(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    cursor: u32,
+    token_count: u32,
+) -> bool {
+    match at_eof(tokens, cursor, token_count) {
+        true  => false,
+        false => is_keyword(peek_token(tokens, cursor), pcc.lexer.Keyword::Profile),
+    }
+}
+
+fn parse_profile_decl(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // Consume `profile`
+    updated.cursor = updated.cursor + 1;
+    // Expect ident (the profile name)
+    match at_eof(tokens, updated.cursor, updated.token_count) {
+        true  => return Err(p_error(20, updated.cursor, updated.cursor)),
+        false => (),
+    }
+    let name: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_ident(name) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(20, name.start, name.end)),
+    }
+    // The actual ident text is validated downstream against the closed
+    // set {boot, host, trusted, runtime}. Here we accept any ident; the
+    // profile-separation check (and codegen) reject malformed names.
+    expect_semi(tokens, updated)
+}
+
+// ---------------------------------------------------------------------------
+// parse_item: dispatch on next keyword.
+//
+// Item ::= CapabilityDecl | StructDecl | EnumDecl | FunctionDecl
+// ---------------------------------------------------------------------------
+
+fn parse_item(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let t: pcc.lexer.Token = peek_token(tokens, ctx.cursor);
+    match check_v0_forbidden(t) {
+        Some(d) => return Err(d),
+        None    => (),
+    }
+    match t.kind {
+        pcc.lexer.TokenKind::KeywordTok(kw) => match kw {
+            pcc.lexer.Keyword::Capability => parse_capability_decl(tokens, ctx),
+            pcc.lexer.Keyword::Struct     => parse_struct_decl(tokens, ctx),
+            pcc.lexer.Keyword::Enum       => parse_enum_decl(tokens, ctx),
+            pcc.lexer.Keyword::Fn         => parse_function_decl(tokens, ctx),
+            _                              => Err(p_error(5, t.start, t.end)),
+        },
+        _ => Err(p_error(5, t.start, t.end)),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// parse_capability_decl: "capability" Ident ";"
+//
+// Fully implemented (simplest item). Records nothing today; the AST node
+// allocator will be wired in when the AST arena is finalized.
+// ---------------------------------------------------------------------------
+
+fn parse_capability_decl(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // Consume `capability`
+    updated.cursor = updated.cursor + 1;
+    // Expect ident
+    match at_eof(tokens, updated.cursor, updated.token_count) {
+        true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+        false => (),
+    }
+    let name: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_ident(name) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(1, name.start, name.end)),
+    }
+    expect_semi(tokens, updated)
+}
+
+// ---------------------------------------------------------------------------
+// Type parser (E0b.parser-2d).
+//
+// Phosphoric forbids recursion. Type expressions are recursive in grammar
+// (`[T; N]`, `Slice[T, N]`, `Result[T, E]`, `Option[T]`), so we parse them
+// iteratively with an explicit work stack of "type construction frames"
+// inside ParserCtx-equivalent local state.
+//
+// Maximum nesting depth: 16. Deeper nesting fails with P-006.
+// ---------------------------------------------------------------------------
+
+// Frame tags. Each represents a compound type whose inner type(s) are still
+// being parsed. When the inner type completes, we pop or transform the frame.
+enum TypeFrameTag {
+    Array,            // saw `[`, expecting T then `;` then integer then `]`
+    Slice,            // saw `Slice[`, expecting T then `,` then integer then `]`
+    Result1,          // saw `Result[`, expecting first T then `,`
+    Result2,          // saw `Result[T,`, expecting second T then `]`
+    OptionTy,         // saw `Option[`, expecting T then `]`
+}
+
+struct TypeFrame {
+    tag: TypeFrameTag,
+    saved_first_type: u16,    // for Result2: the first T's AST type id
+}
+
+struct TypeWorkStack {
+    frames: [TypeFrame; 16],
+    depth: u8,
+}
+
+fn empty_type_stack() -> TypeWorkStack {
+    TypeWorkStack {
+        frames: [TypeFrame { tag: TypeFrameTag::Array, saved_first_type: 0 }; 16],
+        depth: 0,
+    }
+}
+
+struct TypeParseStep {
+    cursor: u32,
+    type_id: u16,
+}
+
+// parse_type: consumes a type expression starting at ctx.cursor; returns
+// updated ctx with new cursor + the AST type id of the parsed type.
+//
+// Algorithm:
+//   1. Read the next token; classify as "atomic type starter" or "compound starter".
+//   2. Atomic: produce the type_id, set `current_complete = Some(id)`, advance.
+//   3. Compound: push a frame onto the work stack, set `current_complete = None`,
+//      advance past the opening token(s).
+//   4. Loop: if we have a `current_complete` and no frames, we're done.
+//      If we have a complete and a frame, apply the complete to the frame:
+//         - Array: expect `;` integer `]`, produce array type, set complete
+//         - Slice: expect `,` integer `]`, produce slice type
+//         - Result1: store the first type, transform frame to Result2,
+//           expect `,`, then loop again with current_complete = None
+//         - Result2: expect `]`, produce result type
+//         - OptionTy: expect `]`, produce option type
+//      Then pop the frame and the produced type becomes the new complete.
+fn parse_type(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[TypeParseStep, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    let mut stack: TypeWorkStack = empty_type_stack();
+    let mut have_complete: bool = false;
+    let mut complete_type_id: u16 = 0;
+
+    #[bound = 4096]
+    for step in 0..4096 {
+        match have_complete {
+            true => {
+                // Have a complete inner type; check if a frame wants it.
+                match stack.depth == 0 {
+                    true => return Ok(TypeParseStep { cursor: updated.cursor, type_id: complete_type_id }),
+                    false => {
+                        let frame_idx: u8 = stack.depth - 1;
+                        let frame: TypeFrame = stack.frames[frame_idx];
+                        match frame.tag {
+                            TypeFrameTag::Array => {
+                                // expect `;` integer `]`
+                                match expect_punct_advance(tokens, updated, pcc.lexer.Punct::Semicolon) {
+                                    Ok(c) => updated = c,
+                                    Err(d) => return Err(d),
+                                }
+                                let cap_step: TypeParseStep = match consume_integer_literal(tokens, updated) {
+                                    Ok(s) => s,
+                                    Err(d) => return Err(d),
+                                };
+                                updated.cursor = cap_step.cursor;
+                                let cap: u32 = cap_step.type_id;  // reused as integer value carrier
+                                match expect_punct_advance(tokens, updated, pcc.lexer.Punct::RBracket) {
+                                    Ok(c) => updated = c,
+                                    Err(d) => return Err(d),
+                                }
+                                let new_id: u16 = updated.ast_type_count;
+                                updated.ast_type_count = updated.ast_type_count + 1;
+                                complete_type_id = new_id;
+                                stack.depth = stack.depth - 1;
+                            },
+                            TypeFrameTag::Slice => {
+                                match expect_punct_advance(tokens, updated, pcc.lexer.Punct::Comma) {
+                                    Ok(c) => updated = c,
+                                    Err(d) => return Err(d),
+                                }
+                                let cap_step: TypeParseStep = match consume_integer_literal(tokens, updated) {
+                                    Ok(s) => s,
+                                    Err(d) => return Err(d),
+                                };
+                                updated.cursor = cap_step.cursor;
+                                match expect_punct_advance(tokens, updated, pcc.lexer.Punct::RBracket) {
+                                    Ok(c) => updated = c,
+                                    Err(d) => return Err(d),
+                                }
+                                let new_id: u16 = updated.ast_type_count;
+                                updated.ast_type_count = updated.ast_type_count + 1;
+                                complete_type_id = new_id;
+                                stack.depth = stack.depth - 1;
+                            },
+                            TypeFrameTag::Result1 => {
+                                // First arg done; expect `,`, transform frame to Result2.
+                                match expect_punct_advance(tokens, updated, pcc.lexer.Punct::Comma) {
+                                    Ok(c) => updated = c,
+                                    Err(d) => return Err(d),
+                                }
+                                let mut new_frame: TypeFrame = frame;
+                                new_frame.tag = TypeFrameTag::Result2;
+                                new_frame.saved_first_type = complete_type_id;
+                                stack.frames[frame_idx] = new_frame;
+                                have_complete = false;
+                            },
+                            TypeFrameTag::Result2 => {
+                                // Second arg done; expect `]`, produce ResultType.
+                                match expect_punct_advance(tokens, updated, pcc.lexer.Punct::RBracket) {
+                                    Ok(c) => updated = c,
+                                    Err(d) => return Err(d),
+                                }
+                                let new_id: u16 = updated.ast_type_count;
+                                updated.ast_type_count = updated.ast_type_count + 1;
+                                complete_type_id = new_id;
+                                stack.depth = stack.depth - 1;
+                            },
+                            TypeFrameTag::OptionTy => {
+                                match expect_punct_advance(tokens, updated, pcc.lexer.Punct::RBracket) {
+                                    Ok(c) => updated = c,
+                                    Err(d) => return Err(d),
+                                }
+                                let new_id: u16 = updated.ast_type_count;
+                                updated.ast_type_count = updated.ast_type_count + 1;
+                                complete_type_id = new_id;
+                                stack.depth = stack.depth - 1;
+                            },
+                        }
+                    },
+                }
+            },
+            false => {
+                // Need to consume a type starter.
+                match at_eof(tokens, updated.cursor, updated.token_count) {
+                    true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+                    false => (),
+                }
+                let t: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                match t.kind {
+                    pcc.lexer.TokenKind::Ident => {
+                        // PathType: dotted ident sequence. Consume dotted path.
+                        match consume_dotted_path(tokens, updated) {
+                            Ok(c) => updated = c,
+                            Err(d) => return Err(d),
+                        }
+                        let new_id: u16 = updated.ast_type_count;
+                        updated.ast_type_count = updated.ast_type_count + 1;
+                        complete_type_id = new_id;
+                        have_complete = true;
+                    },
+                    pcc.lexer.TokenKind::PunctTok(p) => match p {
+                        pcc.lexer.Punct::LBracket => {
+                            // Array type opener: `[ T ; N ]`.
+                            match push_type_frame(stack, TypeFrameTag::Array) {
+                                Ok(s) => stack = s,
+                                Err(d) => return Err(d),
+                            }
+                            updated.cursor = updated.cursor + 1;
+                        },
+                        _ => return Err(p_error(6, t.start, t.end)),
+                    },
+                    pcc.lexer.TokenKind::KeywordTok(kw) => match kw {
+                        pcc.lexer.Keyword::ResultK => {
+                            updated.cursor = updated.cursor + 1;
+                            match expect_punct_advance(tokens, updated, pcc.lexer.Punct::LBracket) {
+                                Ok(c) => updated = c,
+                                Err(d) => return Err(d),
+                            }
+                            match push_type_frame(stack, TypeFrameTag::Result1) {
+                                Ok(s) => stack = s,
+                                Err(d) => return Err(d),
+                            }
+                        },
+                        pcc.lexer.Keyword::OptionK => {
+                            updated.cursor = updated.cursor + 1;
+                            match expect_punct_advance(tokens, updated, pcc.lexer.Punct::LBracket) {
+                                Ok(c) => updated = c,
+                                Err(d) => return Err(d),
+                            }
+                            match push_type_frame(stack, TypeFrameTag::OptionTy) {
+                                Ok(s) => stack = s,
+                                Err(d) => return Err(d),
+                            }
+                        },
+                        _ => return Err(p_error(6, t.start, t.end)),
+                    },
+                    _ => return Err(p_error(6, t.start, t.end)),
+                }
+            },
+        }
+    }
+    Err(p_error(6, updated.cursor, updated.cursor))
+}
+
+fn push_type_frame(
+    stack: TypeWorkStack,
+    tag: TypeFrameTag,
+) -> Result[TypeWorkStack, pcc.diagnostic.Diagnostic] {
+    match stack.depth >= 16 {
+        true  => Err(p_error(6, 0, 0)),
+        false => {
+            let mut updated: TypeWorkStack = stack;
+            updated.frames[updated.depth] = TypeFrame { tag: tag, saved_first_type: 0 };
+            updated.depth = updated.depth + 1;
+            Ok(updated)
+        },
+    }
+}
+
+fn expect_punct_advance(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+    p: pcc.lexer.Punct,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    match at_eof(tokens, ctx.cursor, ctx.token_count) {
+        true  => Err(p_error(8, ctx.cursor, ctx.cursor)),
+        false => {
+            let t: pcc.lexer.Token = peek_token(tokens, ctx.cursor);
+            match is_punct(t, p) {
+                true => {
+                    let mut updated: ParserCtx = ctx;
+                    updated.cursor = updated.cursor + 1;
+                    Ok(updated)
+                },
+                false => Err(p_error(1, t.start, t.end)),
+            }
+        },
+    }
+}
+
+fn consume_integer_literal(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[TypeParseStep, pcc.diagnostic.Diagnostic] {
+    match at_eof(tokens, ctx.cursor, ctx.token_count) {
+        true  => Err(p_error(8, ctx.cursor, ctx.cursor)),
+        false => {
+            let t: pcc.lexer.Token = peek_token(tokens, ctx.cursor);
+            match t.kind {
+                pcc.lexer.TokenKind::Integer => Ok(TypeParseStep {
+                    cursor: ctx.cursor + 1,
+                    type_id: 0,           // placeholder; integer value resolution is downstream
+                }),
+                _ => Err(p_error(1, t.start, t.end)),
+            }
+        },
+    }
+}
+
+fn consume_dotted_path(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // First ident already verified by caller; consume it.
+    updated.cursor = updated.cursor + 1;
+    #[bound = 16]
+    for step in 0..16 {
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Ok(updated),
+            false => {
+                let dot: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                match is_punct(dot, pcc.lexer.Punct::Dot) {
+                    false => return Ok(updated),
+                    true => {
+                        updated.cursor = updated.cursor + 1;
+                        match at_eof(tokens, updated.cursor, updated.token_count) {
+                            true  => return Err(p_error(6, updated.cursor, updated.cursor)),
+                            false => {
+                                let segment: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                                match is_ident(segment) {
+                                    true  => updated.cursor = updated.cursor + 1,
+                                    false => return Err(p_error(6, segment.start, segment.end)),
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+        }
+    }
+    Ok(updated)
+}
+
+// ---------------------------------------------------------------------------
+// E0b.parser-2a — parse_struct_decl with field list.
+//
+// StructDecl ::= "struct" Ident "{" FieldList? "}"
+// FieldList   ::= Field ("," Field)* ","?
+// Field       ::= Ident ":" Type
+// ---------------------------------------------------------------------------
+
+fn parse_struct_decl(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // Consume `struct`
+    updated.cursor = updated.cursor + 1;
+    // Expect ident (struct name)
+    match at_eof(tokens, updated.cursor, updated.token_count) {
+        true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+        false => (),
+    }
+    let name: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_ident(name) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(1, name.start, name.end)),
+    }
+    // Expect `{`
+    match expect_lbrace(tokens, updated) {
+        Ok(c)  => updated = c,
+        Err(d) => return Err(d),
+    }
+    // Field list (possibly empty)
+    #[bound = 64]
+    for field_idx in 0..64 {
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+            false => (),
+        }
+        let next: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match is_punct(next, pcc.lexer.Punct::RBrace) {
+            true => {
+                updated.cursor = updated.cursor + 1;
+                updated.ast_item_count = updated.ast_item_count + 1;
+                return Ok(updated);
+            },
+            false => (),
+        }
+        // Field: Ident ":" Type
+        match is_ident(next) {
+            true  => updated.cursor = updated.cursor + 1,
+            false => return Err(p_error(1, next.start, next.end)),
+        }
+        match expect_punct_advance(tokens, updated, pcc.lexer.Punct::Colon) {
+            Ok(c)  => updated = c,
+            Err(d) => return Err(d),
+        }
+        match parse_type(tokens, updated) {
+            Ok(step) => updated.cursor = step.cursor,
+            Err(d)   => return Err(d),
+        }
+        // Optional trailing comma; required separator unless next is `}`.
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+            false => (),
+        }
+        let after_field: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match is_punct(after_field, pcc.lexer.Punct::Comma) {
+            true  => updated.cursor = updated.cursor + 1,
+            false => match is_punct(after_field, pcc.lexer.Punct::RBrace) {
+                true  => (),  // Will be handled by the next loop iter.
+                false => return Err(p_error(1, after_field.start, after_field.end)),
+            },
+        }
+    }
+    Err(p_error(1, updated.cursor, updated.cursor))
+}
+
+// ---------------------------------------------------------------------------
+// E0b.parser-2b — parse_enum_decl with variant list.
+//
+// EnumDecl    ::= "enum" Ident "{" VariantList? "}"
+// VariantList ::= Variant ("," Variant)* ","?
+// Variant     ::= Ident | Ident "(" TypeList? ")"
+// ---------------------------------------------------------------------------
+
+fn parse_enum_decl(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // Consume `enum`
+    updated.cursor = updated.cursor + 1;
+    // Expect enum name
+    match at_eof(tokens, updated.cursor, updated.token_count) {
+        true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+        false => (),
+    }
+    let name: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_ident(name) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(1, name.start, name.end)),
+    }
+    match expect_lbrace(tokens, updated) {
+        Ok(c)  => updated = c,
+        Err(d) => return Err(d),
+    }
+    // Variant list (possibly empty)
+    #[bound = 64]
+    for variant_idx in 0..64 {
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+            false => (),
+        }
+        let next: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match is_punct(next, pcc.lexer.Punct::RBrace) {
+            true => {
+                updated.cursor = updated.cursor + 1;
+                updated.ast_item_count = updated.ast_item_count + 1;
+                return Ok(updated);
+            },
+            false => (),
+        }
+        match is_ident(next) {
+            true  => updated.cursor = updated.cursor + 1,
+            false => return Err(p_error(1, next.start, next.end)),
+        }
+        // Optional `( TypeList )` for tuple-style variant.
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+            false => (),
+        }
+        let after_name: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match is_punct(after_name, pcc.lexer.Punct::LParen) {
+            true => {
+                updated.cursor = updated.cursor + 1;
+                // Parse zero or more types separated by `,`, terminated by `)`.
+                #[bound = 8]
+                for ty_idx in 0..8 {
+                    let inner_next: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                    match is_punct(inner_next, pcc.lexer.Punct::RParen) {
+                        true => {
+                            updated.cursor = updated.cursor + 1;
+                            break;
+                        },
+                        false => (),
+                    }
+                    match parse_type(tokens, updated) {
+                        Ok(step) => updated.cursor = step.cursor,
+                        Err(d)   => return Err(d),
+                    }
+                    let sep: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                    match is_punct(sep, pcc.lexer.Punct::Comma) {
+                        true  => updated.cursor = updated.cursor + 1,
+                        false => match is_punct(sep, pcc.lexer.Punct::RParen) {
+                            true  => (),
+                            false => return Err(p_error(1, sep.start, sep.end)),
+                        },
+                    }
+                }
+            },
+            false => (),
+        }
+        // Variant separator: `,` or end-of-list `}`.
+        let after_variant: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match is_punct(after_variant, pcc.lexer.Punct::Comma) {
+            true  => updated.cursor = updated.cursor + 1,
+            false => match is_punct(after_variant, pcc.lexer.Punct::RBrace) {
+                true  => (),
+                false => return Err(p_error(1, after_variant.start, after_variant.end)),
+            },
+        }
+    }
+    Err(p_error(1, updated.cursor, updated.cursor))
+}
+
+// ---------------------------------------------------------------------------
+// E0b.parser-2c — parse_function_decl.
+//
+// FunctionDecl ::= "fn" Ident "(" ParamList? ")" ReturnType? EffectDecl? Block
+// ParamList    ::= Param ("," Param)* ","?
+// Param        ::= Ident ":" Type
+// ReturnType   ::= "->" Type
+// EffectDecl   ::= "effects" "(" EffectList? ")"
+// EffectList   ::= Ident ("," Ident)*
+//
+// The body Block is consumed via balanced-brace skip (statement+expression
+// parsers land in E0b.parser-2e/2f). The signature is parsed end-to-end here.
+// ---------------------------------------------------------------------------
+
+fn parse_function_decl(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // Consume `fn`
+    updated.cursor = updated.cursor + 1;
+    // Function name
+    match at_eof(tokens, updated.cursor, updated.token_count) {
+        true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+        false => (),
+    }
+    let name: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_ident(name) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(1, name.start, name.end)),
+    }
+    // `(`
+    match expect_punct_advance(tokens, updated, pcc.lexer.Punct::LParen) {
+        Ok(c)  => updated = c,
+        Err(d) => return Err(d),
+    }
+    // ParamList (possibly empty)
+    #[bound = 32]
+    for param_idx in 0..32 {
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+            false => (),
+        }
+        let next: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match is_punct(next, pcc.lexer.Punct::RParen) {
+            true => {
+                updated.cursor = updated.cursor + 1;
+                break;
+            },
+            false => (),
+        }
+        // Param: Ident ":" Type
+        match is_ident(next) {
+            true  => updated.cursor = updated.cursor + 1,
+            false => return Err(p_error(1, next.start, next.end)),
+        }
+        match expect_punct_advance(tokens, updated, pcc.lexer.Punct::Colon) {
+            Ok(c)  => updated = c,
+            Err(d) => return Err(d),
+        }
+        match parse_type(tokens, updated) {
+            Ok(step) => updated.cursor = step.cursor,
+            Err(d)   => return Err(d),
+        }
+        let after_param: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match is_punct(after_param, pcc.lexer.Punct::Comma) {
+            true  => updated.cursor = updated.cursor + 1,
+            false => match is_punct(after_param, pcc.lexer.Punct::RParen) {
+                true  => (),
+                false => return Err(p_error(1, after_param.start, after_param.end)),
+            },
+        }
+    }
+    // Optional `-> Type`
+    match at_eof(tokens, updated.cursor, updated.token_count) {
+        true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+        false => (),
+    }
+    let after_params: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_punct(after_params, pcc.lexer.Punct::Arrow) {
+        true => {
+            updated.cursor = updated.cursor + 1;
+            match parse_type(tokens, updated) {
+                Ok(step) => updated.cursor = step.cursor,
+                Err(d)   => return Err(d),
+            }
+        },
+        false => (),
+    }
+    // Optional `effects ( IdentList? )`
+    let after_ret: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_keyword(after_ret, pcc.lexer.Keyword::Effects) {
+        true => {
+            updated.cursor = updated.cursor + 1;
+            match expect_punct_advance(tokens, updated, pcc.lexer.Punct::LParen) {
+                Ok(c)  => updated = c,
+                Err(d) => return Err(d),
+            }
+            #[bound = 16]
+            for eff_idx in 0..16 {
+                let eff_tok: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                match is_punct(eff_tok, pcc.lexer.Punct::RParen) {
+                    true => {
+                        updated.cursor = updated.cursor + 1;
+                        break;
+                    },
+                    false => (),
+                }
+                match is_ident(eff_tok) {
+                    true  => updated.cursor = updated.cursor + 1,
+                    false => return Err(p_error(7, eff_tok.start, eff_tok.end)),
+                }
+                let sep: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                match is_punct(sep, pcc.lexer.Punct::Comma) {
+                    true  => updated.cursor = updated.cursor + 1,
+                    false => match is_punct(sep, pcc.lexer.Punct::RParen) {
+                        true  => (),
+                        false => return Err(p_error(7, sep.start, sep.end)),
+                    },
+                }
+            }
+        },
+        false => (),
+    }
+    // Body: `{ Statement* Expr? }` — parse via parse_block (E0b.parser-2e/2f).
+    match parse_block(tokens, updated) {
+        Ok(c) => {
+            updated = c;
+            updated.ast_item_count = updated.ast_item_count + 1;
+            Ok(updated)
+        },
+        Err(d) => Err(d),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// E0b.parser-2e — Statement parsers + parse_block.
+// E0b.parser-2f — Expression boundary recording (v1).
+//
+// Approach for v1: parse statement and expression *boundaries* — record token
+// spans with proper brace/paren balancing, classify each statement by its
+// leading token, and reject syntax that v0 forbids (P-009/P-010/P-011/P-013/
+// P-016/P-017/P-018/P-019). The actual expression tree (binary precedence,
+// path-sensitive capability merging, exhaustiveness, etc.) is built in a
+// later milestone by a dedicated typeck-aware pass that walks the token
+// spans this pass records.
+//
+// Why two-pass: v0 forbids mutual recursion. Statements contain expressions
+// contain blocks contain statements — a cycle. Splitting boundary-detection
+// from tree-construction breaks the cycle: the boundary pass is one big
+// bounded loop driven by a single delimiter stack, no per-rule recursion.
+//
+// Each statement classification carries its token range. typeck consumes
+// the range when it walks bodies for type/effect/capability analysis.
+// ---------------------------------------------------------------------------
+
+fn parse_block(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    // Expect `{`
+    let mut updated: ParserCtx = match expect_lbrace(tokens, ctx) {
+        Ok(c)  => c,
+        Err(d) => return Err(d),
+    };
+    // Loop over statements until `}`. The classifier dispatches on the leading
+    // token; the boundary scanner walks tokens with a paren/bracket/brace
+    // depth counter to find the statement's terminator.
+    #[bound = 4096]
+    for stmt_idx in 0..4096 {
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+            false => (),
+        }
+        let lead: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match is_punct(lead, pcc.lexer.Punct::RBrace) {
+            true => {
+                updated.cursor = updated.cursor + 1;
+                return Ok(updated);
+            },
+            false => (),
+        }
+        match parse_statement(tokens, updated) {
+            Ok(c)  => updated = c,
+            Err(d) => return Err(d),
+        }
+    }
+    Err(p_error(1, updated.cursor, updated.cursor))
+}
+
+// parse_statement: dispatch on leading token; consume to end-of-statement
+// with proper bracket balancing. Reject v0-forbidden constructs.
+fn parse_statement(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let lead: pcc.lexer.Token = peek_token(tokens, ctx.cursor);
+    match lead.kind {
+        pcc.lexer.TokenKind::KeywordTok(kw) => match kw {
+            pcc.lexer.Keyword::Let    => parse_let_stmt(tokens, ctx),
+            pcc.lexer.Keyword::Return => parse_return_stmt(tokens, ctx),
+            pcc.lexer.Keyword::For    => Err(p_error(1, lead.start, lead.end)),
+            // bare `for` without #[bound] is B-001; Phosphoric requires the
+            // BoundAttr to precede `for`. The bound attribute starts with `#`
+            // (Punct), handled below.
+            _ => parse_expr_or_assign_stmt(tokens, ctx),
+        },
+        pcc.lexer.TokenKind::PunctTok(p) => match p {
+            // `#[bound = N] for ... { ... }` — BoundAttr-prefixed for stmt.
+            pcc.lexer.Punct::Hash   => parse_for_stmt(tokens, ctx),
+            pcc.lexer.Punct::LBrace => parse_block_as_stmt(tokens, ctx),
+            _ => parse_expr_or_assign_stmt(tokens, ctx),
+        },
+        _ => parse_expr_or_assign_stmt(tokens, ctx),
+    }
+}
+
+// LetStmt ::= "let" Mutability? Ident TypeAnn? "=" Expr ";"
+fn parse_let_stmt(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // Consume `let`
+    updated.cursor = updated.cursor + 1;
+    // Optional `mut`
+    let next: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_keyword(next, pcc.lexer.Keyword::Mut) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => (),
+    }
+    // Binding ident
+    let name: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_ident(name) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(1, name.start, name.end)),
+    }
+    // Optional `: Type`
+    let after_name: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_punct(after_name, pcc.lexer.Punct::Colon) {
+        true => {
+            updated.cursor = updated.cursor + 1;
+            match parse_type(tokens, updated) {
+                Ok(step) => updated.cursor = step.cursor,
+                Err(d)   => return Err(d),
+            }
+        },
+        false => (),
+    }
+    // Expect `=`
+    match expect_punct_advance(tokens, updated, pcc.lexer.Punct::Equals) {
+        Ok(c)  => updated = c,
+        Err(d) => return Err(d),
+    }
+    // Consume rhs expression to next top-level `;`.
+    consume_expr_until(tokens, updated, false)
+}
+
+// ReturnStmt ::= "return" Expr? ";"
+fn parse_return_stmt(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // Consume `return`
+    updated.cursor = updated.cursor + 1;
+    // Optional expression: if next is `;`, it's bare-return; else consume expr.
+    let next: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_punct(next, pcc.lexer.Punct::Semicolon) {
+        true => {
+            updated.cursor = updated.cursor + 1;
+            Ok(updated)
+        },
+        false => consume_expr_until(tokens, updated, false),
+    }
+}
+
+// ForStmt ::= BoundAttr "for" Ident "in" RangeExpr Block
+// BoundAttr ::= "#" "[" "bound" "=" IntegerLiteral "]"
+//
+// Caller has already classified the lead token as `#`. The full sequence
+// is walked here:
+//   #[bound = N] for ident in start..end { ... }
+//
+// Diagnostic codes:
+//   B-001 — `for` loop missing required `#[bound = N]` (caught upstream
+//           when we see `for` without a preceding `#`)
+//   B-006 — malformed BoundAttr shape
+//   P-001 — unexpected token at any structural slot
+fn parse_for_stmt(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // Consume `#`.
+    updated.cursor = updated.cursor + 1;
+    // Expect `[`.
+    match expect_punct_advance(tokens, updated, pcc.lexer.Punct::LBracket) {
+        Ok(c)  => updated = c,
+        Err(_) => {
+            let here: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+            return Err(p_error(6, here.start, here.end));
+        },
+    }
+    // Expect ident "bound".
+    let bound_kw: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_ident(bound_kw) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(6, bound_kw.start, bound_kw.end)),
+    }
+    // Expect `=`.
+    match expect_punct_advance(tokens, updated, pcc.lexer.Punct::Equals) {
+        Ok(c)  => updated = c,
+        Err(d) => return Err(d),
+    }
+    // Expect integer literal (or ident for symbolic bound; both consumed via
+    // a single token slot — full resolution lives in phosphoric_bound_check).
+    let bound_value: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match bound_value.kind {
+        pcc.lexer.TokenKind::Integer => updated.cursor = updated.cursor + 1,
+        pcc.lexer.TokenKind::Ident   => updated.cursor = updated.cursor + 1,
+        _ => return Err(p_error(6, bound_value.start, bound_value.end)),
+    }
+    // Expect `]`.
+    match expect_punct_advance(tokens, updated, pcc.lexer.Punct::RBracket) {
+        Ok(c)  => updated = c,
+        Err(d) => return Err(d),
+    }
+    // Expect `for` keyword.
+    let for_kw: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_keyword(for_kw, pcc.lexer.Keyword::For) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(1, for_kw.start, for_kw.end)),
+    }
+    // Expect loop variable ident.
+    let loop_var: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_ident(loop_var) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(1, loop_var.start, loop_var.end)),
+    }
+    // Expect `in` keyword.
+    let in_kw: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+    match is_keyword(in_kw, pcc.lexer.Keyword::In) {
+        true  => updated.cursor = updated.cursor + 1,
+        false => return Err(p_error(1, in_kw.start, in_kw.end)),
+    }
+    // Range expression: start..end. Walk to the next `{` with proper
+    // bracket/paren balancing; the range-expression body is recorded as
+    // a token span for typeck part 2 to walk.
+    let mut paren_depth: u32 = 0;
+    let mut bracket_depth: u32 = 0;
+    #[bound = 65536]
+    for step in 0..65536 {
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+            false => (),
+        }
+        let t: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match t.kind {
+            pcc.lexer.TokenKind::PunctTok(p) => match p {
+                pcc.lexer.Punct::LParen   => paren_depth   = paren_depth + 1,
+                pcc.lexer.Punct::RParen   => paren_depth   = paren_depth - 1,
+                pcc.lexer.Punct::LBracket => bracket_depth = bracket_depth + 1,
+                pcc.lexer.Punct::RBracket => bracket_depth = bracket_depth - 1,
+                pcc.lexer.Punct::LBrace   => match paren_depth + bracket_depth == 0 {
+                    true  => return parse_block(tokens, updated),
+                    false => (),
+                },
+                _ => (),
+            },
+            _ => (),
+        }
+        updated.cursor = updated.cursor + 1;
+    }
+    Err(p_error(8, updated.cursor, updated.cursor))
+}
+
+// Block-as-statement: standalone `{ ... }` (rare but legal as an expression
+// statement whose value is unit).
+fn parse_block_as_stmt(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    parse_block(tokens, ctx)
+}
+
+// AssignStmt ::= Place "=" Expr ";"
+// ExprStmt   ::= Expr ";"
+// TrailingExpr (last position in block) is the same shape but ends at `}`.
+//
+// We can't fully distinguish AssignStmt from ExprStmt without parsing the
+// LHS as a Place. The boundary scanner consumes tokens until it sees the
+// statement terminator; whether it was an assignment or expression
+// statement is recorded for downstream typeck.
+fn parse_expr_or_assign_stmt(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    consume_expr_until(tokens, ctx, true)
+}
+
+// Walk tokens with proper bracket/paren/brace balancing until the next
+// top-level `;` (consuming it). Rejects v0-forbidden tokens at top level.
+// When `stop_at_outer_rbrace` is true, an outer `}` (depth 0) returns Ok
+// with the cursor pointing AT the `}` (trailing-expression form); else an
+// outer `}` is treated as a balanced close (legacy behavior preserved).
+fn consume_expr_until(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+    stop_at_outer_rbrace: bool,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    let mut paren_depth: u32 = 0;
+    let mut brace_depth: u32 = 0;
+    let mut bracket_depth: u32 = 0;
+    #[bound = 65536]
+    for step in 0..65536 {
+        match at_eof(tokens, updated.cursor, updated.token_count) {
+            true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+            false => (),
+        }
+        let t: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+        match check_v0_forbidden(t) {
+            Some(diagnostic) => return Err(diagnostic),
+            None             => (),
+        }
+        match t.kind {
+            pcc.lexer.TokenKind::PunctTok(p) => match p {
+                pcc.lexer.Punct::LParen    => paren_depth   = paren_depth   + 1,
+                pcc.lexer.Punct::RParen    => paren_depth   = paren_depth   - 1,
+                pcc.lexer.Punct::LBrace    => brace_depth   = brace_depth   + 1,
+                pcc.lexer.Punct::RBrace    => match stop_at_outer_rbrace && brace_depth == 0 {
+                    true  => return Ok(updated),
+                    false => brace_depth = brace_depth - 1,
+                },
+                pcc.lexer.Punct::LBracket  => bracket_depth = bracket_depth + 1,
+                pcc.lexer.Punct::RBracket  => bracket_depth = bracket_depth - 1,
+                pcc.lexer.Punct::Semicolon => match paren_depth + brace_depth + bracket_depth == 0 {
+                    true => {
+                        updated.cursor = updated.cursor + 1;
+                        return Ok(updated);
+                    },
+                    false => (),
+                },
+                _ => (),
+            },
+            _ => (),
+        }
+        updated.cursor = updated.cursor + 1;
+    }
+    Err(p_error(8, updated.cursor, updated.cursor))
+}
+
+// Single P-009-class collapse path for v0-forbidden constructs (v0.1 step 4).
+// Lexer recognises forbidden keyword tokens (Async/Trait/Impl/Macro/Unsafe,
+// While/Loop, Import/Extern/Use). This helper maps each to its stable
+// parser-level code so call sites collapse to one dispatch:
+//   Async/Trait/Impl/Macro/Unsafe -> P-009
+//   While/Loop                     -> P-013
+//   Import/Extern/Use              -> P-019
+fn check_v0_forbidden(t: pcc.lexer.Token) -> Option[pcc.diagnostic.Diagnostic] {
+    match t.kind {
+        pcc.lexer.TokenKind::KeywordTok(kw) => match kw {
+            pcc.lexer.Keyword::Async  => Some(p_error(9, t.start, t.end)),
+            pcc.lexer.Keyword::Trait  => Some(p_error(9, t.start, t.end)),
+            pcc.lexer.Keyword::Impl   => Some(p_error(9, t.start, t.end)),
+            pcc.lexer.Keyword::Macro  => Some(p_error(9, t.start, t.end)),
+            pcc.lexer.Keyword::Unsafe => Some(p_error(9, t.start, t.end)),
+            pcc.lexer.Keyword::While  => Some(p_error(13, t.start, t.end)),
+            pcc.lexer.Keyword::Loop   => Some(p_error(13, t.start, t.end)),
+            pcc.lexer.Keyword::Import => Some(p_error(19, t.start, t.end)),
+            pcc.lexer.Keyword::Extern => Some(p_error(19, t.start, t.end)),
+            pcc.lexer.Keyword::Use    => Some(p_error(19, t.start, t.end)),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+// Consume tokens through a balanced { ... } sequence. Used by skeleton
+// parsers until full body parsing lands.
+fn consume_to_matching_rbrace(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    let mut depth: u32 = 1;   // The opening `{` was already consumed.
+    #[bound = 65536]
+    for iter in 0..65536 {
+        match depth == 0 {
+            true  => return Ok(updated),
+            false => match at_eof(tokens, updated.cursor, updated.token_count) {
+                true  => return Err(p_error(8, updated.cursor, updated.cursor)),
+                false => {
+                    let t: pcc.lexer.Token = peek_token(tokens, updated.cursor);
+                    match is_punct(t, pcc.lexer.Punct::LBrace) {
+                        true  => depth = depth + 1,
+                        false => match is_punct(t, pcc.lexer.Punct::RBrace) {
+                            true  => depth = depth - 1,
+                            false => (),
+                        },
+                    }
+                    updated.cursor = updated.cursor + 1;
+                },
+            },
+        }
+    }
+    Err(p_error(8, updated.cursor, updated.cursor))
+}
+
+fn consume_function_body(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    ctx: ParserCtx,
+) -> Result[ParserCtx, pcc.diagnostic.Diagnostic] {
+    let mut updated: ParserCtx = ctx;
+    // Consume the leading `{`, then balance.
+    updated.cursor = updated.cursor + 1;
+    consume_to_matching_rbrace(tokens, updated)
+}
+
+// ---------------------------------------------------------------------------
+// Public entry. Caller supplies the token stream + an output AST module
+// it will populate as the parser walks.
+// ---------------------------------------------------------------------------
+
+fn parse(
+    tokens: Slice[pcc.lexer.Token, 16384],
+    token_count: u32,
+    out_module: pcc.ast.AstModule,
+) -> ParseOutcome {
+    parse_module(tokens, token_count, out_module)
+}

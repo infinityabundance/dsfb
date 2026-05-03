@@ -1,0 +1,12 @@
+module tests.conformance.boot.fail.macro_rejected;
+
+// fail-expected: P-009
+//
+// Macros are forbidden in v0. Phosphoric source is read directly; no
+// expansion phase.
+
+macro_rules! redraw {
+    ($win:expr) => {
+        $win
+    };
+}

@@ -1,0 +1,83 @@
+module pcc.kernel.abi;
+profile runtime;
+
+// Kernel <-> Ember ABI. The shape of every call across the trust boundary.
+//
+// Every function pcc.kernel.* invokes on Ember (and vice versa) is declared
+// here as a typed signature. The actual call is statically resolved at link
+// time -- there is no dynamic dispatch, no FFI, no runtime symbol lookup.
+
+enum MouseButton {
+    Left,
+    Right,
+    Middle,
+}
+
+struct KeyEvent {
+    unicode_char: u32,
+    scan_code: u16,
+}
+
+struct MouseClickEvent {
+    button: MouseButton,
+    x: u32,
+    y: u32,
+}
+
+struct MouseMoveEvent {
+    x: u32,
+    y: u32,
+}
+
+enum InputEvent {
+    Key(KeyEvent),
+    MouseClick(MouseClickEvent),
+    MouseMove(MouseMoveEvent),
+}
+
+// Render commands. Ember's surface module consumes a bounded list of these
+// per frame. Per E19 (Kernel Capability Typing), every render command
+// carries a TargetWindow handle naming the window the command applies to;
+// dispatch through Ember validates the handle before the operation hits
+// the framebuffer. Until the typecker can fully verify handle paths
+// across cross-module call sites, the compiler emits diagnostic K-W-001
+// (capability-typing not yet enforced; see [docs/COMPILER.md]).
+enum RenderCommand {
+    FillRect(pcc.kernel.caps.WindowHandle, u32, u32, u32, u32, u32),   // window, x, y, w, h, rgba
+    WritePixel(pcc.kernel.caps.WindowHandle, u32, u32, u32),           // window, x, y, rgba
+    Present(pcc.kernel.caps.WindowHandle),                              // commit current frame for window
+}
+
+struct RenderCommandList {
+    count: u16,
+    commands: [RenderCommand; 64],   // bounded per frame
+}
+
+// Input events route to a channel; per E19 the routing target is named
+// in the typed envelope. dispatch_input takes (event, channel_handle)
+// rather than discovering the channel ambiently from the focused window.
+struct InputDispatch {
+    target: pcc.kernel.caps.ChannelHandle,
+    event: InputEvent,
+}
+
+// Boot handoff -- the typed contract Ember presents to the runtime.
+//
+// manifest is the runtime-profile materialization of the .pmanifest section
+// the compiler embedded in the boot image. Ember parses the section bytes
+// (host-side compiler/manifest.phos is the schema source of truth) and
+// hands the kernel an already-typed table. Per docs/TASK_SEAL_V0.md §0.4
+// the parser is in the "trusted" zone; the kernel only reads the table.
+struct BootInfo {
+    framebuffer_width: u32,
+    framebuffer_height: u32,
+    framebuffer_stride: u32,
+    framebuffer_format: pcc.kernel.framebuffer.PixelFormat,
+    serial_present: bool,
+    manifest: pcc.kernel.manifest.ManifestTable,
+}
+
+// The single entrypoint Ember calls into the runtime kernel after boot.
+// (Signature only; body lives in kernel.phos.)
+//
+// fn kernel_main(boot: BootInfo) -> i32 effects(draw, ipc, sched, time)

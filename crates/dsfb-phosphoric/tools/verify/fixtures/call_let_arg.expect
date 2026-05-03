@@ -1,0 +1,12 @@
+# Pass A-5 fixture: let-bound IDENT used as call argument.
+# Source:
+#   fn entry() { let n = 17; return passthrough(n); }
+#   fn passthrough(arg) { return arg; }
+# A-5 extends A-1's `return IDENT(INTLIT);` recognition to accept
+# `return IDENT(LET_NAME);` where LET_NAME was bound via Pass K's
+# `let LET_NAME = INTLIT;`. The producer captures let_value at scan
+# time and substitutes it as the IMM for the call arg.
+# Verified: rc=17 at runtime (let_value flows through to helper's eax).
+size=1105
+sha=09ae952427b5aee4a2f9f1faea98422668ae5e45e51dfa584f73ae87daa804a1
+rc=17

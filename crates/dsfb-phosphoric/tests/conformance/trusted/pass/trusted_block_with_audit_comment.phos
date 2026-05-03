@@ -1,0 +1,14 @@
+module tests.conformance.trusted.pass.trusted_block_with_audit_comment;
+profile trusted;
+
+// Pass case: every `trusted!` block must be preceded by a
+// `// trust-audit:` comment that names the audit-doc section. The
+// check_trusted_blocks.phos host program parses this comment and
+// asserts the named section exists.
+
+fn enable_paging() {
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#cr0-paging-enable
+    trusted! {
+        cpu_op(CpuOp::WriteCr0(2147483648));
+    }
+}

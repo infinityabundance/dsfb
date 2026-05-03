@@ -1,0 +1,7 @@
+module fixture.let_chain;
+profile boot;
+fn entry() -> i32 {
+    let a = 20;
+    let b = a + 22;
+    return b;
+}

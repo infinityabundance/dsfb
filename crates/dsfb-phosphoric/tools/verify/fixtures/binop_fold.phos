@@ -1,0 +1,5 @@
+module fixture.binop_fold;
+profile boot;
+fn main() -> i32 {
+    return 6 * 7;
+}

@@ -1,0 +1,16 @@
+module tests.conformance.boot.fail.match_arm_pattern_type_mismatch;
+
+// fail-expected: K-005
+//
+// Match arm patterns must be type-compatible with the scrutinee. Matching
+// an integer scrutinee against boolean patterns is K-005 (match arm
+// pattern type mismatch). The literal class of each non-wildcard,
+// non-binding arm pattern must equal the literal class of the scrutinee.
+
+fn classify(n: u32) -> u32 {
+    let value: u32 = 42;
+    match value {
+        true  => 1,
+        false => 0,
+    }
+}

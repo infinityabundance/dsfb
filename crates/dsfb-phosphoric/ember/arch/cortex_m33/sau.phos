@@ -1,0 +1,76 @@
+module ember.arch.cortex_m33.sau;
+profile trusted;
+
+// Security Attribution Unit — ARMv8-M TrustZone-M region configuration.
+// This is the *hardware* enforcement of the trusted/non-trusted split.
+// Phosphoric language enforces what's *inside* the secure region; the SAU
+// enforces the boundary itself.
+
+enum SauAttribute {
+    Secure,                  // S
+    NonSecureCallable,       // NSC (entry points for cross-domain calls)
+    NonSecure,               // NS
+}
+
+struct SauRegion {
+    base: u32,               // 32-byte aligned
+    end_inclusive: u32,      // 32-byte aligned (last byte of region)
+    attribute: SauAttribute,
+    enabled: bool,
+}
+
+fn sau_ctrl_addr() -> u32   { 3758106384 }       // 0xE000EDD0 (SAU_CTRL)
+fn sau_rnr_addr() -> u32    { 3758106392 }       // 0xE000EDD8 (SAU_RNR  — region number)
+fn sau_rbar_addr() -> u32   { 3758106396 }       // 0xE000EDDC (SAU_RBAR — region base)
+fn sau_rlar_addr() -> u32   { 3758106400 }       // 0xE000EDE0 (SAU_RLAR — region limit)
+
+// Encode the attribute into the lower bits of the RLAR write value.
+// RLAR layout (relevant bits):
+//   [0]    ENABLE
+//   [1]    NSC (1 = non-secure callable)
+fn sau_rlar_encoding(region: SauRegion) -> u32 {
+    let mut v: u32 = region.end_inclusive;
+    match region.enabled {
+        true  => v = v + 1,
+        false => (),
+    };
+    match region.attribute {
+        SauAttribute::NonSecureCallable => v = v + 2,
+        _ => (),
+    };
+    v
+}
+
+// Configure one SAU region. The ARMv8-M write sequence is fixed:
+//   1. select region via SAU_RNR
+//   2. write base via SAU_RBAR
+//   3. write limit + attribute via SAU_RLAR
+// Each step is a separate trusted! block with its own annotation per E24.
+fn configure_sau_region(index: u8, region: SauRegion) {
+    // trust-audit: row "SAU region select (RNR)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(sau_rnr_addr(), index as u32);
+    };
+    // trust-audit: row "SAU region base (RBAR)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(sau_rbar_addr(), region.base);
+    };
+    // trust-audit: row "SAU region limit + attr (RLAR)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(sau_rlar_addr(), sau_rlar_encoding(region));
+    };
+}
+
+// Enable the SAU (ALLNS=0, ENABLE=1).
+//
+// razor-rationale: irreducible-hw — SAU master enable.
+fn enable_sau() {
+    // trust-audit: row "SAU enable" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(sau_ctrl_addr(), 1);
+    };
+}

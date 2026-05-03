@@ -1,0 +1,15 @@
+module tests.conformance.runtime.pass.m011_declared_caps_ok;
+profile runtime;
+
+// pass-expected
+//
+// Companion to runtime/fail/m011_undeclared_cap.phos. The sibling
+// manifest declares Task slot 0 + Window slot 0; this source declares
+// exactly that pair, so the M-011 check passes (compiled cap graph ==
+// declared cap graph).
+//
+// The strongest forensic check: equality, not subset.
+
+fn marker() -> u32 {
+    0
+}

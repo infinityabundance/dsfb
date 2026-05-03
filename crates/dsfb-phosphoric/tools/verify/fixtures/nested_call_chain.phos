@@ -1,0 +1,11 @@
+module fixture.nested_call_chain;
+profile boot;
+fn entry() -> i32 {
+    return middle();
+}
+fn middle() -> i32 {
+    return leaf();
+}
+fn leaf() -> i32 {
+    return 42;
+}

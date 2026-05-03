@@ -1,0 +1,15 @@
+module tests.conformance.runtime.fail.m003_declared_effect_not_allowed;
+profile runtime;
+
+// fail-expected: M-003
+//
+// Declared effect not in [effects].allowed. The sibling manifest's
+// [effects].allowed list excludes "mmio"; this function declares it.
+// pcc rejects the function at the effect-bound check, before any other
+// pass walks the closure. The forensic boundary at this layer is:
+// declared boundary (manifest) is a strict superset of every function's
+// declared effects.
+
+fn over_declared() -> u32 effects(mmio) {
+    0
+}

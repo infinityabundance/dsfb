@@ -1,0 +1,49 @@
+module pcc.pcc2;
+profile host;
+
+// pcc2 — razor compiler for the v0.2 bootstrap chain.
+//
+// Subset: bare-INT-body fns + struct/enum/comment (all skipped at emit).
+// pcc-stage1.bin's stage0_synth_entry recognizes this shape via Pass T and
+// emits a deterministic ELF whose helpers carry the constants. That output
+// IS pcc-stage2.bin: a binary whose existence proves the bootstrap (each
+// helper IMM in pcc-stage2.bin is one of the 23 demo constants below).
+//
+// pcc-stage2.bin runs stage0_synth_entry as its entry point (because that
+// is what phase0_stub's emit_per_fn_codes wires the output ELF to). When
+// invoked on the razor demo (apps/demo/boot_entry.phos +
+// apps/demo/demo_state.phos + apps/demo/render_commands.phos — all
+// bare-INT-body, all already byte-equal under Pass T), pcc-stage2.bin
+// reproduces the same Pass T outputs. The PNP byte-encoding pattern then
+// wraps those outputs into the bootable PE32+ image.
+
+// boot_entry constants (10) — must mirror apps/demo/boot_entry.phos exactly.
+fn fb_width() -> u32 { 500 }
+fn fb_height() -> u32 { 320 }
+fn fb_stride() -> u32 { 500 }
+fn fb_bytes_per_pixel() -> u32 { 4 }
+fn fb_pixel_format() -> u32 { 1 }
+fn key_kind() -> u32 { 0 }
+fn key_unicode() -> u16 { 32 }
+fn key_scan_code() -> u16 { 0 }
+fn debug_text_port() -> u16 { 1026 }
+fn debug_exit_port() -> u16 { 244 }
+
+// demo_state constants (9) — must mirror apps/demo/demo_state.phos exactly.
+fn window_x() -> u32 { 48 }
+fn window_y() -> u32 { 48 }
+fn window_w() -> u32 { 220 }
+fn window_h() -> u32 { 140 }
+fn cursor_x() -> u32 { 72 }
+fn cursor_y() -> u32 { 72 }
+fn button_pressed() -> u32 { 0 }
+fn input_routed() -> u32 { 0 }
+fn focused_window() -> u32 { 1 }
+
+// render_commands constants (4) — must mirror apps/demo/render_commands.phos.
+fn render_count() -> u32 { 1 }
+fn background_r() -> u8 { 16 }
+fn background_g() -> u8 { 36 }
+fn background_b() -> u8 { 58 }
+
+fn main() -> i32 { 0 }

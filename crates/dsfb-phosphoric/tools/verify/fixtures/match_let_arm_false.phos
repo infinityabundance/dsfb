@@ -1,0 +1,9 @@
+module fixture.match_let_arm_false;
+profile boot;
+fn entry() -> i32 {
+    return classify(99);
+}
+fn classify(arg: i32) -> i32 {
+    let backup = 77;
+    match arg == 7 { true => 0, false => backup }
+}

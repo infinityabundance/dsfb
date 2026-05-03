@@ -1,0 +1,14 @@
+# Pass M-let fixture: concurrent let bindings — second let does NOT
+# evict the first. Source:
+#   fn entry { let a = 5; let b = 10; return a; }
+# Producer's single-slot cache holds (b, 10) after the second commit;
+# the multi-let table holds [(a, 5), (b, 10)]. `return a;` cache-misses
+# (cache name = b), then walks the table and finds a → 5.
+# Verified: rc = 5 at runtime.
+#
+# Without the table walk, `return a;` would fall to A-2/A-4/M.3.D
+# fallback and emit a wrong exit code (the cache miss observed before
+# the fix exhibited rc=128 / 240 — garbage from clobbered registers).
+size=1081
+sha=25b5487e343001b124f8d0129092eb663bcfbae81472bb0720e18a0e5fe5a324
+rc=5

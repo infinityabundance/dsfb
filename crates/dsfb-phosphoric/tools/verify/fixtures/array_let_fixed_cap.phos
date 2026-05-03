@@ -1,0 +1,6 @@
+module fixture.array_let_fixed_cap;
+profile boot;
+fn main() -> i32 {
+    let mut src: [u8; 65536] = [0; 65536];
+    return 0;
+}

@@ -1,0 +1,9 @@
+name = "stack-heavy-fixture"
+
+[stack]
+task_stack_limit = 256
+kernel_init_limit = 256
+
+[entrypoints]
+kernel_init = ["root"]
+task = []

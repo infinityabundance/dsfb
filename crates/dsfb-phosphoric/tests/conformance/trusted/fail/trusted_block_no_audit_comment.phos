@@ -1,0 +1,13 @@
+module tests.conformance.trusted.fail.trusted_block_no_audit_comment;
+profile trusted;
+
+// fail-expected: T-006
+//
+// A `trusted!` block must be preceded by a `// trust-audit:` comment.
+// Missing the comment is a compile error before any other check runs.
+
+fn unaudited() {
+    trusted! {
+        cpu_op(CpuOp::Cli);
+    }
+}

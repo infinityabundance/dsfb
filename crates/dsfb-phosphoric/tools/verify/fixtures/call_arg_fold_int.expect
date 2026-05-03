@@ -1,0 +1,8 @@
+# Pass A-11 fixture (INT op INT): producer-time fold of call arg expression.
+# Source: fn entry { return ident(20 + 22); } fn ident(arg) { return arg; }
+# Producer folds 20 + 22 = 42 at scan time, emits stage0_call_entry with
+# IMM=42; helper returns it via A-2/A-4 path (mov eax, edi).
+# Verified: rc = 42 at runtime.
+size=1105
+sha=fbabc4fcc224feb85a71f5d544bfa76e6a39587685ced5e0ad8145d043ac19d4
+rc=42

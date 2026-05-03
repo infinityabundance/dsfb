@@ -1,0 +1,8 @@
+module fixture.bare_constructor_int;
+profile boot;
+fn entry() -> i32 {
+    return helper();
+}
+fn helper() -> u32 {
+    Ok(42)
+}

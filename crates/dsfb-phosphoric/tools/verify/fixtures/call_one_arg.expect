@@ -1,0 +1,17 @@
+# Pass A-1 fixture: argument passing for fn calls. The body
+# `return helper(42);` lowers to a 24-byte caller block:
+#   push rbp; mov rbp,rsp; sub rsp,16
+#   mov edi, 0x2a            ; pass arg=42 in arg0 register
+#   call rel32               ; rel32 = target - call_inst_end (-42 here)
+#   mov rsp,rbp; pop rbp; ret; nop
+# Caller at file offset 1105; helper at 1081; call_inst_end = 1123;
+# rel32 = 1081 - 1123 = -42 = 0xFFFFFFD6.
+#
+# The fixture has 3 fns (entry + helper + caller) so file size is
+# 120 + 195 + 766 + 2*24 = 1129. Entry stays canned exit-0 (rc=0).
+# Helper and caller are unreachable from entry — the byte-level lock
+# is what verifies the call+arg encoding; future passes will make
+# entry call into the chain so end-to-end runtime verification fires.
+size=1129
+sha=cbb098786ff40790aff5cf001e2a5a320bb20ec54c2caa24722b2725973e8282
+rc=0

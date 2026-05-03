@@ -1,0 +1,37 @@
+# Phosphoric producer soundness gaps — registry of known producer
+# bugs where source is accepted but lowered to bytes that do not match
+# the source's semantic meaning. Each entry pins the current buggy
+# behavior so it cannot silently shift; when the producer is later
+# extended to close a gap, the gate trips and forces removal of the
+# entry from this registry.
+#
+# Distinct from tools/verify/fixture_manifest.toml:
+#   - fixture_manifest.toml locks correct producer paths byte-equally
+#   - this registry locks INCORRECT producer paths semantically (rc),
+#     to keep them visible and gated rather than silent
+#
+# Doctrine: docs/PHASE0_SURFACE.md "Producer soundness gaps" section.
+# Gate:     tools/verify/check_producer_gaps_doctrine.sh
+#
+# Required fields per entry:
+#   name                  short identifier
+#   source                path to a minimal .phos repro
+#   current_rc_buggy      rc the producer emits today (the gap's
+#                         frozen wrong-bytes outcome)
+#   correct_rc_expected   rc the source semantically means
+#   producer_label        the .Lefc_* label / pass marker that owns
+#                         the path that mis-lowers
+#   gap_description       what the producer accepts but lowers wrong
+#   closing_pass          which planned producer extension would close
+#                         it (so the gate failure points at remediation)
+#
+# History:
+#   2026-04-30: registry created; let_plus_arg / int_plus_arg /
+#               let_times_arg registered (Pass L flag-leak family).
+#   2026-04-30: all three closed by Pass L-IDENT-RHS extension;
+#               sources promoted to fixtures (let_plus_arg /
+#               int_plus_arg / let_times_arg in fixture_manifest.toml).
+#               Registry now intentionally empty — producer has no
+#               tracked soundness gaps. Gate handles this state
+#               (passes with "registry is empty; producer has no
+#               tracked soundness gaps").

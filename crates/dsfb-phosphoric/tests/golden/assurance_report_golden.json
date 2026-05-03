@@ -1,0 +1,87 @@
+{
+  "schema_version": "assurance-report-v1",
+  "module_name": "demo",
+  "budget_name": "assurance-fixture",
+  "budget_file": "tests/budgets/assurance_fixture.toml",
+  "entrypoint_budget_classes": {
+    "render": "kernel_init"
+  },
+  "function_effects": {
+    "leaf": {
+      "declared_effects": [
+        "draw"
+      ],
+      "direct_effects": [
+        "draw"
+      ],
+      "required_effects": [
+        "draw"
+      ],
+      "direct_call_targets": []
+    },
+    "render": {
+      "declared_effects": [
+        "draw"
+      ],
+      "direct_effects": [],
+      "required_effects": [
+        "draw"
+      ],
+      "direct_call_targets": [
+        "leaf"
+      ]
+    }
+  },
+  "function_frames": {
+    "leaf": {
+      "frame_bytes": 64,
+      "abi_overhead_bytes": 16,
+      "param_bytes": 8,
+      "local_bytes": 32
+    },
+    "render": {
+      "frame_bytes": 32,
+      "abi_overhead_bytes": 16,
+      "param_bytes": 8,
+      "local_bytes": 0
+    }
+  },
+  "function_stack_depths": {
+    "leaf": {
+      "worst_case_stack_bytes": 64
+    },
+    "render": {
+      "worst_case_stack_bytes": 96
+    }
+  },
+  "type_layouts": {
+    "Event": {
+      "size_bytes": 16,
+      "align_bytes": 8
+    },
+    "Pair": {
+      "size_bytes": 8,
+      "align_bytes": 4
+    },
+    "Window": {
+      "size_bytes": 8,
+      "align_bytes": 8
+    },
+    "[u64; 4]": {
+      "size_bytes": 32,
+      "align_bytes": 8
+    },
+    "bool": {
+      "size_bytes": 1,
+      "align_bytes": 1
+    },
+    "u32": {
+      "size_bytes": 4,
+      "align_bytes": 4
+    },
+    "u64": {
+      "size_bytes": 8,
+      "align_bytes": 8
+    }
+  }
+}

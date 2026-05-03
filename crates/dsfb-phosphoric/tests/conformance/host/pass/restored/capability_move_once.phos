@@ -1,0 +1,12 @@
+module tests.conformance.host.pass.restored.capability_move_once;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/capability_move_once)
+
+module pass.capability_move_once;
+capability Window;
+
+fn pass_once(win: Window) -> Window {
+    return win;
+}

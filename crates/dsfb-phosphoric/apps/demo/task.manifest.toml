@@ -1,0 +1,130 @@
+# Phosphoric task manifest for the demo.
+#
+# This file is the root of allowed existence for the demo image. The
+# compiler reads it before any pass that walks declared effects or
+# capabilities; source declaring more than this manifest permits is
+# rejected with M-### diagnostics.
+
+manifest_version = "phosphoric-task-seal-v0"
+task_id          = "demo"
+task_image_hash  = "7fe4f8bc40a51f1d2c2b2f89a6507eada6267b0928417166d7f5d140d12d55c4"
+profile          = "boot"
+
+# ---------------------------------------------------------------------------
+# Effects allowed in any function the demo compiles.
+# Subset of the boot-profile alphabet declared in
+# docs/language/effect_lattice.toml. Any function whose transitive closure
+# exceeds this list is rejected with M-003 / M-004.
+# ---------------------------------------------------------------------------
+
+[effects]
+allowed = ["draw", "ipc", "sched", "time", "mmio"]
+
+# ---------------------------------------------------------------------------
+# Capability handles the demo may issue. Each handle is a typed
+# (kind, slot) pair; cap-issue at runtime cross-checks against this list.
+# Drawn from kernel/caps.phos CapabilityKind.
+# ---------------------------------------------------------------------------
+
+[capabilities]
+
+[[capabilities.entry]]
+kind     = "Task"
+slot     = 0
+purpose  = "demo task root"
+
+[[capabilities.entry]]
+kind     = "Channel"
+slot     = 0
+purpose  = "demo input event channel"
+
+[[capabilities.entry]]
+kind     = "Window"
+slot     = 0
+purpose  = "demo window"
+
+[[capabilities.entry]]
+kind     = "Framebuffer"
+slot     = 0
+purpose  = "demo framebuffer"
+
+# ---------------------------------------------------------------------------
+# MMIO ranges the trusted profile may touch. Compiler emits a compile-time
+# range assertion against this list for every mmio_* primitive call;
+# out-of-range addresses are M-005.
+# ---------------------------------------------------------------------------
+
+[mmio]
+
+[[mmio.range]]
+name   = "framebuffer"
+base   = 2684354560      # 0xA0000000 — typical UEFI GOP linear framebuffer base
+length = 2097152         # 0x00200000 — 2 MiB; covers 1024x768 at 4 bpp
+mode   = "rw"
+
+[[mmio.range]]
+name   = "qemu_debug_port"
+base   = 1026            # 0x402 — QEMU debug-port byte sink
+length = 1
+mode   = "w"
+
+# ---------------------------------------------------------------------------
+# IPC channels. Each channel is pre-declared with payload schema. The
+# runtime kernel refuses send/recv on any channel id not in this list
+# (M-006 at compile time; UndeclaredChannel = 12 at runtime).
+# ---------------------------------------------------------------------------
+
+[ipc]
+
+[[ipc.channel]]
+id       = "input_event_route"
+sender   = "demo.boot_entry"
+receiver = "demo.button_policy"
+payload  = "input_event"
+capacity = 8
+
+# ---------------------------------------------------------------------------
+# Worst-case execution budgets. The compiler rejects source whose computed
+# WCSU exceeds task_stack_limit (M-008) or whose for-loop bound exceeds
+# loop_bound_max (M-009). The boot loader cross-checks the measured budget
+# table embedded in the image against these values.
+# ---------------------------------------------------------------------------
+
+[budgets]
+task_stack_limit  = 8192
+kernel_init_limit = 4096
+loop_bound_max    = 65536
+# Chain hashing frequency for the residual primitive. x86_64 QEMU
+# target has headroom; default 1 (chain every event). RP2350 (M33)
+# uses 16; RP2040 (M0+) uses 64. Per docs/TASK_SEAL_V0.md §0.4
+# chain-hashing performance discipline.
+residual_chain_every_n_events = 1
+
+# ---------------------------------------------------------------------------
+# Forbidden-by-default closed list. Every key MUST be present and MUST
+# be `false`. The compiler's manifest reader rejects any manifest where
+# a forbidden key is absent or non-falsy (M-007).
+# ---------------------------------------------------------------------------
+
+[forbidden]
+heap                = false
+filesystem          = false
+network             = false
+dynamic_loading     = false
+ambient_mmio        = false
+reflection          = false
+pointer_types       = false
+hidden_syscalls     = false
+undeclared_ipc      = false
+undeclared_effects  = false
+
+# ---------------------------------------------------------------------------
+# Bootstrap chain linkage. The boot loader refuses to launch if the
+# recorded compiler hash differs from the manifest's. manifest_self_hash
+# is the SHA-256 of this file with that field zeroed; compiler_image_hash
+# is the SHA-256 of pcc-stage1.bin used to build this image.
+# ---------------------------------------------------------------------------
+
+[bootstrap]
+compiler_image_hash = "87a7ce772ac1b2e2a0018675d24d88eebe4be431717ad23be9b5722303739a12"
+manifest_self_hash  = "ea9fcebec7f6b4c6103de9c90b8ddfd909023d5d4e2fc4285befc9ba1f75f727"

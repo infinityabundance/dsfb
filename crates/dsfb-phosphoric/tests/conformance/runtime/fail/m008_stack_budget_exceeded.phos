@@ -1,0 +1,16 @@
+module tests.conformance.runtime.fail.m008_stack_budget_exceeded;
+profile runtime;
+
+// fail-expected: M-008
+//
+// Computed WCSU exceeds [budgets].task_stack_limit. The sibling
+// manifest sets task_stack_limit = 1024 (small). This function
+// allocates a [u8; 8192] buffer plus call-graph descent that pushes
+// the worst-case stack-usage above 1024 bytes. stack_analysis.phos
+// emits S-001 internally; manifest.phos translates over-budget to
+// M-008 at the cross-check boundary.
+
+fn over_budget() -> u32 {
+    let big: [u8; 8192] = [0; 8192];
+    big[0] as u32
+}

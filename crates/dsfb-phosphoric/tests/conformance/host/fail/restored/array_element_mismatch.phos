@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.array_element_mismatch;
+profile host;
+
+// fail-expected: K-001
+// (restored from legacy_ui/fail/array_element_mismatch; legacy code ARRAY_ELEMENT_MISMATCH "array element has type")
+
+module fail.array_element_mismatch;
+
+fn bad() {
+    let values = [1, true];
+}

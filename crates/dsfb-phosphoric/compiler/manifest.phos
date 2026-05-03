@@ -1,0 +1,676 @@
+module pcc.manifest;
+profile host;
+
+// Manifest reader. Consumes apps/<task>/task.manifest.toml per the
+// schema in docs/TASK_SEAL_V0.md. The reader is specialized for the v0
+// schema; it is not a general-purpose TOML parser. v0 has no general
+// string handling, so every key is matched by byte-by-byte comparison
+// and every value is parsed by a fixed shape per key.
+//
+// Diagnostic codes (M-prefix):
+//   M-001 manifest file missing for the named task
+//   M-002 manifest schema invalid (missing required key, malformed value)
+//   M-003 reserved (effect-level; emitted by effects pass)
+//   M-004 reserved (effect closure; emitted by effects pass)
+//   M-005 reserved (mmio range; emitted by codegen_trusted)
+//   M-006 reserved (channel id; emitted by typeck)
+//   M-007 [forbidden] key absent or set non-false (this pass)
+//   M-008 reserved (stack budget; emitted by stack_analysis)
+//   M-009 reserved (loop bound; emitted by budget pass)
+//   M-010 reserved (module path; emitted by call_graph)
+//   M-011 reserved (capability slot collision; emitted by typeck)
+//   M-012 profile mismatch (manifest profile != source `profile` clause)
+
+// ---------------------------------------------------------------------------
+// In-memory shapes
+// ---------------------------------------------------------------------------
+
+enum ManifestProfile {
+    Boot,
+    Host,
+    Trusted,
+    Runtime,
+}
+
+struct ManifestCapEntry {
+    kind_id: u8,                // 1=Task, 2=Channel, 3=Window, 4=Framebuffer
+    slot: u16,
+    purpose_hash: [u8; 32],     // SHA-256 of the purpose string
+}
+
+struct ManifestMmioRange {
+    name_hash: [u8; 32],
+    base: u64,
+    length: u64,
+    mode: u8,                   // 1=r, 2=w, 3=rw
+}
+
+struct ManifestChannel {
+    id_hash: [u8; 32],
+    sender_hash: [u8; 32],
+    receiver_hash: [u8; 32],
+    payload_hash: [u8; 32],
+    capacity: u16,
+}
+
+struct ManifestBudgets {
+    task_stack_limit: u32,
+    kernel_init_limit: u32,
+    loop_bound_max: u32,
+    // Performance discipline knobs for the residual primitive. Per
+    // docs/TASK_SEAL_V0.md §0.4 chain-hashing performance discipline.
+    // Defaults: chain_every_n=1 (x86_64), 16 (M33), 64 (M0+);
+    // ring_size=1024 (standard, 32 KiB), 256 (ultra-razor, 8 KiB).
+    residual_chain_every_n_events: u16,
+    residual_ring_size: u16,
+}
+
+// Forbidden keys must all be present and all be false. The reader sets
+// each of these booleans true once it has observed the literal `false`
+// for the corresponding key. After parsing, if any of the ten flags is
+// false, the manifest is invalid.
+struct ManifestForbiddenSeen {
+    heap: bool,
+    filesystem: bool,
+    network: bool,
+    dynamic_loading: bool,
+    ambient_mmio: bool,
+    reflection: bool,
+    pointer_types: bool,
+    hidden_syscalls: bool,
+    undeclared_ipc: bool,
+    undeclared_effects: bool,
+}
+
+struct Manifest {
+    profile: ManifestProfile,
+    task_id_hash: [u8; 32],
+    effects_bitset: u32,        // bit-per-label per effect_lattice.toml
+    capabilities: [ManifestCapEntry; 64],
+    capability_count: u16,
+    mmio_ranges: [ManifestMmioRange; 16],
+    mmio_range_count: u16,
+    channels: [ManifestChannel; 16],
+    channel_count: u16,
+    budgets: ManifestBudgets,
+    forbidden_seen: ManifestForbiddenSeen,
+    manifest_self_hash: [u8; 32],
+    compiler_image_hash: [u8; 32],
+}
+
+fn empty_manifest() -> Manifest {
+    Manifest {
+        profile: ManifestProfile::Boot,
+        task_id_hash: [0; 32],
+        effects_bitset: 0,
+        capabilities: [ManifestCapEntry { kind_id: 0, slot: 0, purpose_hash: [0; 32] }; 64],
+        capability_count: 0,
+        mmio_ranges: [ManifestMmioRange { name_hash: [0; 32], base: 0, length: 0, mode: 0 }; 16],
+        mmio_range_count: 0,
+        channels: [ManifestChannel {
+            id_hash: [0; 32],
+            sender_hash: [0; 32],
+            receiver_hash: [0; 32],
+            payload_hash: [0; 32],
+            capacity: 0,
+        }; 16],
+        channel_count: 0,
+        budgets: ManifestBudgets {
+            task_stack_limit: 0,
+            kernel_init_limit: 0,
+            loop_bound_max: 0,
+            residual_chain_every_n_events: 1,
+            residual_ring_size: 1024,
+        },
+        forbidden_seen: ManifestForbiddenSeen {
+            heap: false,
+            filesystem: false,
+            network: false,
+            dynamic_loading: false,
+            ambient_mmio: false,
+            reflection: false,
+            pointer_types: false,
+            hidden_syscalls: false,
+            undeclared_ipc: false,
+            undeclared_effects: false,
+        },
+        manifest_self_hash: [0; 32],
+        compiler_image_hash: [0; 32],
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostic helpers
+// ---------------------------------------------------------------------------
+
+fn m_diag(code_number: u16) -> pcc.diagnostic.Diagnostic {
+    pcc.diagnostic.Diagnostic {
+        code_prefix: 77,        // 'M'
+        code_number: code_number,
+        span: None,
+        message_id: 0,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Forbidden-key completeness check
+//
+// Every key in `[forbidden]` must be present and set to `false`. After
+// parsing, if any flag in `forbidden_seen` is still false, the manifest
+// is invalid (M-007). The check is a single bounded loop over the ten
+// flags; missing keys are detected by their flag never being set.
+// ---------------------------------------------------------------------------
+
+fn forbidden_keys_complete(seen: ManifestForbiddenSeen) -> bool {
+    match seen.heap {
+        false => false,
+        true => match seen.filesystem {
+            false => false,
+            true => match seen.network {
+                false => false,
+                true => match seen.dynamic_loading {
+                    false => false,
+                    true => match seen.ambient_mmio {
+                        false => false,
+                        true => match seen.reflection {
+                            false => false,
+                            true => match seen.pointer_types {
+                                false => false,
+                                true => match seen.hidden_syscalls {
+                                    false => false,
+                                    true => match seen.undeclared_ipc {
+                                        false => false,
+                                        true => seen.undeclared_effects,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Profile lookup
+//
+// Manifest's `profile` value must match one of the four named profiles.
+// M-002 on unknown value; M-012 on mismatch with source profile clause.
+// ---------------------------------------------------------------------------
+
+fn classify_profile_byte_seq(bytes: Slice[u8, 16], len: u8) -> Result[ManifestProfile, pcc.diagnostic.Diagnostic] {
+    match len {
+        4 => {
+            // "boot" or "host"
+            match bytes[0] {
+                98 => match bytes[1] {     // 'b'
+                    111 => match bytes[2] {     // 'o'
+                        111 => match bytes[3] {     // 'o'
+                            116 => Ok(ManifestProfile::Boot),
+                            _ => Err(m_diag(2)),
+                        },
+                        _ => Err(m_diag(2)),
+                    },
+                    _ => Err(m_diag(2)),
+                },
+                104 => match bytes[1] {    // 'h'
+                    111 => match bytes[2] {     // 'o'
+                        115 => match bytes[3] {     // 's'
+                            116 => Ok(ManifestProfile::Host),
+                            _ => Err(m_diag(2)),
+                        },
+                        _ => Err(m_diag(2)),
+                    },
+                    _ => Err(m_diag(2)),
+                },
+                _ => Err(m_diag(2)),
+            }
+        },
+        7 => {
+            // "trusted" or "runtime"
+            match bytes[0] {
+                116 => Ok(ManifestProfile::Trusted),    // 't'
+                114 => Ok(ManifestProfile::Runtime),    // 'r'
+                _   => Err(m_diag(2)),
+            }
+        },
+        _ => Err(m_diag(2)),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Capability kind lookup
+//
+// Strings "Task", "Channel", "Window", "Framebuffer" → numeric kind_id.
+// M-002 on unknown value.
+// ---------------------------------------------------------------------------
+
+fn classify_cap_kind(bytes: Slice[u8, 16], len: u8) -> Result[u8, pcc.diagnostic.Diagnostic] {
+    match len {
+        4 => match bytes[0] {
+            84 => Ok(1),       // "Task" → 1
+            _  => Err(m_diag(2)),
+        },
+        6 => match bytes[0] {
+            87 => Ok(3),       // "Window" → 3
+            _  => Err(m_diag(2)),
+        },
+        7 => match bytes[0] {
+            67 => Ok(2),       // "Channel" → 2
+            _  => Err(m_diag(2)),
+        },
+        11 => match bytes[0] {
+            70 => Ok(4),       // "Framebuffer" → 4
+            _  => Err(m_diag(2)),
+        },
+        _ => Err(m_diag(2)),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Capability slot collision check (M-011)
+//
+// Two entries with the same kind+slot collide. Linear scan is fine at
+// capacity 64. M-011 on first collision found.
+// ---------------------------------------------------------------------------
+
+fn check_cap_slot_collisions(
+    entries: [ManifestCapEntry; 64],
+    count: u16,
+) -> Result[u32, pcc.diagnostic.Diagnostic] {
+    #[bound = 64]
+    for i in 0..(count as u32) {
+        #[bound = 64]
+        for j in 0..(count as u32) {
+            match i < j {
+                false => (),
+                true => match entries[i].kind_id == entries[j].kind_id {
+                    false => (),
+                    true => match entries[i].slot == entries[j].slot {
+                        true  => return Err(m_diag(11)),
+                        false => (),
+                    },
+                },
+            };
+        }
+    }
+    Ok(0)
+}
+
+// ---------------------------------------------------------------------------
+// Final manifest validation
+//
+// After parsing, run the cross-cutting checks:
+//   - forbidden_keys_complete (M-007)
+//   - check_cap_slot_collisions (M-011)
+//   - profile match against source declaration (M-012; caller passes
+//     source_profile)
+//
+// Returns Ok(manifest) on success, Err on first failure.
+// ---------------------------------------------------------------------------
+
+fn validate_manifest(
+    manifest: Manifest,
+    source_profile_id: u8,
+) -> Result[Manifest, pcc.diagnostic.Diagnostic] {
+    match forbidden_keys_complete(manifest.forbidden_seen) {
+        false => return Err(m_diag(7)),
+        true => (),
+    };
+    match check_cap_slot_collisions(manifest.capabilities, manifest.capability_count) {
+        Err(d) => return Err(d),
+        Ok(_)  => (),
+    };
+    let manifest_profile_id: u8 = match manifest.profile {
+        ManifestProfile::Boot    => 0,
+        ManifestProfile::Host    => 1,
+        ManifestProfile::Trusted => 2,
+        ManifestProfile::Runtime => 3,
+    };
+    match manifest_profile_id == source_profile_id {
+        false => return Err(m_diag(12)),
+        true  => (),
+    };
+    Ok(manifest)
+}
+
+// ---------------------------------------------------------------------------
+// Cross-check: function effects ⊆ manifest [effects].allowed (M-003 / M-004)
+//
+// Caller passes the function's transitive effect bitset; the check is a
+// single bitwise-subset test using the per-bit decomposition idiom (v0
+// has no & operator). Returns Ok(0) on subset, Err(M-003) when a bit
+// outside the manifest's allowed set is present.
+// ---------------------------------------------------------------------------
+
+fn effects_within_manifest_bound(
+    function_effects: u32,
+    manifest_effects: u32,
+) -> bool {
+    // function_effects ⊆ manifest_effects iff function_effects & ~manifest_effects == 0
+    // v0 has no AND/NOT; per-bit check via division/modulo decomposition.
+    let mut bit_value: u32 = 1;
+    let mut all_subset: bool = true;
+    #[bound = 32]
+    for _ in 0..32 {
+        let f_bit: u32 = match bit_value {
+            1 => function_effects - (function_effects / 2) * 2,
+            _ => (function_effects / bit_value) - ((function_effects / bit_value) / 2) * 2,
+        };
+        let m_bit: u32 = match bit_value {
+            1 => manifest_effects - (manifest_effects / 2) * 2,
+            _ => (manifest_effects / bit_value) - ((manifest_effects / bit_value) / 2) * 2,
+        };
+        match f_bit == 1 {
+            false => (),
+            true => match m_bit == 0 {
+                true  => all_subset = false,
+                false => (),
+            },
+        };
+        match bit_value < 2147483648 {
+            true  => bit_value = bit_value * 2,
+            false => (),
+        };
+    }
+    all_subset
+}
+
+// ---------------------------------------------------------------------------
+// Cross-check: trusted! mmio_* address ∈ manifest mmio range (M-005)
+//
+// Compiler's codegen_trusted pass calls this for every emitted mmio_*
+// primitive. Walks the manifest's range list; returns Ok(0) on hit,
+// Err(M-005) on miss.
+// ---------------------------------------------------------------------------
+
+fn mmio_address_in_manifest_range(
+    address: u64,
+    ranges: [ManifestMmioRange; 16],
+    range_count: u16,
+) -> Result[u32, pcc.diagnostic.Diagnostic] {
+    #[bound = 16]
+    for i in 0..(range_count as u32) {
+        let r: ManifestMmioRange = ranges[i];
+        let upper: u64 = r.base + r.length;
+        match address >= r.base {
+            false => (),
+            true => match address < upper {
+                true  => return Ok(0),
+                false => (),
+            },
+        };
+    }
+    Err(m_diag(5))
+}
+
+// ---------------------------------------------------------------------------
+// Cross-check: ipc.send/recv channel id ∈ manifest [[ipc.channel]] (M-006)
+//
+// Compiler's typeck pass calls this when an ipc primitive resolves a
+// channel id. Linear scan over the manifest's channel list; returns Ok
+// on hit, Err(M-006) on miss.
+// ---------------------------------------------------------------------------
+
+fn channel_id_in_manifest(
+    id_hash: [u8; 32],
+    channels: [ManifestChannel; 16],
+    channel_count: u16,
+) -> Result[u32, pcc.diagnostic.Diagnostic] {
+    #[bound = 16]
+    for i in 0..(channel_count as u32) {
+        let c: ManifestChannel = channels[i];
+        let mut all_match: bool = true;
+        #[bound = 32]
+        for j in 0..32 {
+            match c.id_hash[j] == id_hash[j] {
+                true  => (),
+                false => all_match = false,
+            };
+        }
+        match all_match {
+            true  => return Ok(0),
+            false => (),
+        };
+    }
+    Err(m_diag(6))
+}
+
+// ---------------------------------------------------------------------------
+// Cross-check: capability (kind, slot) declared in manifest (M-011 reuse)
+//
+// typeck calls this when emitting a cap-issue. Linear scan; returns Ok
+// on hit, Err(M-011) on miss.
+// ---------------------------------------------------------------------------
+
+fn cap_in_manifest(
+    kind_id: u8,
+    slot: u16,
+    entries: [ManifestCapEntry; 64],
+    count: u16,
+) -> Result[u32, pcc.diagnostic.Diagnostic] {
+    #[bound = 64]
+    for i in 0..(count as u32) {
+        let e: ManifestCapEntry = entries[i];
+        match e.kind_id == kind_id {
+            false => (),
+            true => match e.slot == slot {
+                true  => return Ok(0),
+                false => (),
+            },
+        };
+    }
+    Err(m_diag(11))
+}
+
+// ---------------------------------------------------------------------------
+// Top-level entry: read + parse + validate
+//
+// `read_manifest_file(path) -> Result[Manifest, Diagnostic]` is invoked
+// by the driver before typeck/effects. Real file I/O lives in the
+// makefile rule (host-fs-read effect); this function consumes a
+// pre-loaded buffer + length and parses.
+// ---------------------------------------------------------------------------
+
+// Bytes-equal helper: do two byte sequences match exactly? Used by the
+// TOML walker for keyword detection. v0 has no string library; the
+// caller passes start offset + length on each side.
+fn buf_eq_at(buf: Slice[u8, 65536], offset: u32, needle: [u8; 32], needle_len: u8) -> bool {
+    let mut equal: bool = true;
+    #[bound = 32]
+    for i in 0..(needle_len as u32) {
+        match buf[offset + i] == needle[i] {
+            true  => (),
+            false => equal = false,
+        };
+    }
+    equal
+}
+
+// Skip whitespace forward in buf starting at cursor; return the new
+// cursor pointing at the first non-whitespace byte (or len if EOF).
+fn skip_ws(buf: Slice[u8, 65536], cursor: u32, len: u32) -> u32 {
+    let mut c: u32 = cursor;
+    #[bound = 65536]
+    for _ in 0..len {
+        match c >= len {
+            true  => return c,
+            false => match buf[c] == 32 {
+                true  => c = c + 1,
+                false => match buf[c] == 9 {
+                    true  => c = c + 1,
+                    false => return c,
+                },
+            },
+        };
+    }
+    c
+}
+
+// Parse a base-10 unsigned integer starting at cursor; return (value,
+// new_cursor). Stops on first non-digit.
+struct UintParse {
+    value: u32,
+    cursor: u32,
+}
+
+fn parse_uint_at(buf: Slice[u8, 65536], cursor: u32, len: u32) -> UintParse {
+    let mut v: u32 = 0;
+    let mut c: u32 = cursor;
+    #[bound = 16]
+    for _ in 0..16 {
+        match c >= len {
+            true  => return UintParse { value: v, cursor: c },
+            false => {
+                let b: u8 = buf[c];
+                match b >= 48 {
+                    true => match b <= 57 {
+                        true => {
+                            v = v * 10 + ((b - 48) as u32);
+                            c = c + 1;
+                        },
+                        false => return UintParse { value: v, cursor: c },
+                    },
+                    false => return UintParse { value: v, cursor: c },
+                };
+            },
+        };
+    }
+    UintParse { value: v, cursor: c }
+}
+
+// Parse the [budgets] section's numeric keys. Walks the buffer until
+// the next `[` (section header) or EOF; for each `key = N` line where
+// the key matches one of our five recognized names, set the
+// corresponding field on `b`.
+//
+// Recognized keys:
+//   task_stack_limit, kernel_init_limit, loop_bound_max,
+//   residual_chain_every_n_events, residual_ring_size
+fn parse_budgets_section(
+    buf: Slice[u8, 65536],
+    start: u32,
+    len: u32,
+    b: ManifestBudgets,
+) -> ManifestBudgets {
+    let mut out: ManifestBudgets = b;
+    let mut c: u32 = start;
+    let key_tsl: [u8; 32] = [116, 97, 115, 107, 95, 115, 116, 97, 99, 107, 95, 108, 105, 109, 105, 116, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    let key_kil: [u8; 32] = [107, 101, 114, 110, 101, 108, 95, 105, 110, 105, 116, 95, 108, 105, 109, 105, 116, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    let key_lbm: [u8; 32] = [108, 111, 111, 112, 95, 98, 111, 117, 110, 100, 95, 109, 97, 120, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    let key_rcf: [u8; 32] = [114, 101, 115, 105, 100, 117, 97, 108, 95, 99, 104, 97, 105, 110, 95, 101, 118, 101, 114, 121, 95, 110, 95, 101, 118, 101, 110, 116, 115, 0,0,0];
+    let key_rrs: [u8; 32] = [114, 101, 115, 105, 100, 117, 97, 108, 95, 114, 105, 110, 103, 95, 115, 105, 122, 101, 0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    #[bound = 1024]
+    for _ in 0..1024 {
+        c = skip_ws(buf, c, len);
+        match c >= len {
+            true  => return out,
+            false => match buf[c] == 91 {     // '['
+                true  => return out,
+                false => match buf_eq_at(buf, c, key_tsl, 16) {
+                    true  => {
+                        c = skip_ws(buf, c + 16, len);
+                        match buf[c] == 61 {  // '='
+                            true => {
+                                c = skip_ws(buf, c + 1, len);
+                                let p: UintParse = parse_uint_at(buf, c, len);
+                                out.task_stack_limit = p.value;
+                                c = p.cursor;
+                            },
+                            false => (),
+                        };
+                    },
+                    false => match buf_eq_at(buf, c, key_kil, 17) {
+                        true => {
+                            c = skip_ws(buf, c + 17, len);
+                            match buf[c] == 61 {
+                                true => {
+                                    c = skip_ws(buf, c + 1, len);
+                                    let p: UintParse = parse_uint_at(buf, c, len);
+                                    out.kernel_init_limit = p.value;
+                                    c = p.cursor;
+                                },
+                                false => (),
+                            };
+                        },
+                        false => match buf_eq_at(buf, c, key_lbm, 14) {
+                            true => {
+                                c = skip_ws(buf, c + 14, len);
+                                match buf[c] == 61 {
+                                    true => {
+                                        c = skip_ws(buf, c + 1, len);
+                                        let p: UintParse = parse_uint_at(buf, c, len);
+                                        out.loop_bound_max = p.value;
+                                        c = p.cursor;
+                                    },
+                                    false => (),
+                                };
+                            },
+                            false => match buf_eq_at(buf, c, key_rcf, 29) {
+                                true => {
+                                    c = skip_ws(buf, c + 29, len);
+                                    match buf[c] == 61 {
+                                        true => {
+                                            c = skip_ws(buf, c + 1, len);
+                                            let p: UintParse = parse_uint_at(buf, c, len);
+                                            out.residual_chain_every_n_events = p.value as u16;
+                                            c = p.cursor;
+                                        },
+                                        false => (),
+                                    };
+                                },
+                                false => match buf_eq_at(buf, c, key_rrs, 18) {
+                                    true => {
+                                        c = skip_ws(buf, c + 18, len);
+                                        match buf[c] == 61 {
+                                            true => {
+                                                c = skip_ws(buf, c + 1, len);
+                                                let p: UintParse = parse_uint_at(buf, c, len);
+                                                out.residual_ring_size = p.value as u16;
+                                                c = p.cursor;
+                                            },
+                                            false => (),
+                                        };
+                                    },
+                                    false => c = c + 1,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+    }
+    out
+}
+
+fn parse_manifest(
+    buf: Slice[u8, 65536],
+    len: u32,
+    source_profile_id: u8,
+) -> Result[Manifest, pcc.diagnostic.Diagnostic] {
+    // Walks the manifest buffer, recognizing `[section]` headers and
+    // dispatching to per-section parsers. Currently `[budgets]` is
+    // fully parsed; other sections (effects, capabilities, mmio, ipc,
+    // forbidden, bootstrap) will populate as their per-section parsers
+    // land. Forbidden-keys completeness check via
+    // forbidden_keys_complete predicate runs at the end.
+    let mut m: Manifest = empty_manifest();
+    let header_budgets: [u8; 32] = [91, 98, 117, 100, 103, 101, 116, 115, 93, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    let mut c: u32 = 0;
+    #[bound = 1024]
+    for _ in 0..1024 {
+        match c >= len {
+            true  => c = c,
+            false => match buf_eq_at(buf, c, header_budgets, 9) {
+                true  => {
+                    m.budgets = parse_budgets_section(buf, c + 9, len, m.budgets);
+                    c = c + 9;
+                },
+                false => c = c + 1,
+            },
+        };
+    }
+    validate_manifest(m, source_profile_id)
+}

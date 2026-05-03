@@ -1,0 +1,14 @@
+module tests.conformance.boot.pass.unit_literal_in_match;
+
+// Pass case for V0_GRAMMAR_EXTENSIONS.md extension 2026-04-27a.
+// Match arms producing the unit value `()` are legal where the match's
+// value type is unit.
+
+fn classify(b: u8) -> bool {
+    let mut found: bool = false;
+    match b == 65 {
+        true  => found = true,
+        false => (),
+    }
+    found
+}

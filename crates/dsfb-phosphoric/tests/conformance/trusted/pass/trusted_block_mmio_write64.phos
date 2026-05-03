@@ -1,0 +1,11 @@
+module tests.conformance.trusted.pass.trusted_block_mmio_write64;
+profile trusted;
+
+// Pass case: a `trusted!` block performing a 64-bit MMIO write.
+
+fn set_apic_eoi() {
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#apic-eoi-write
+    trusted! {
+        mmio_write64(MmioRegion::ApicBase, 176, 0);
+    }
+}

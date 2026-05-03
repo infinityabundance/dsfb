@@ -1,0 +1,9 @@
+module fixture.match_let_cmp;
+profile boot;
+fn entry() -> i32 {
+    return classify(80);
+}
+fn classify(arg: i32) -> i32 {
+    let limit = 100;
+    match arg < limit { true => 11, false => 22 }
+}

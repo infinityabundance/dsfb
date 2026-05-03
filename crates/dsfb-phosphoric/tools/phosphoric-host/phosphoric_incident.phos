@@ -1,0 +1,157 @@
+module pcc.host_tools.phosphoric_incident;
+profile host;
+
+// .pfi incident container — the closed format taxonomy's first member.
+//
+// One incident = one tarless concatenated container with a 32-byte IHDR
+// and four sections. Per docs/TASK_SEAL_V0.md and the endoduction-substrate
+// plan, this is the on-disk form of "what just happened" that
+// phosphoric_drift consumes for classification.
+//
+//   0x000  IHDR  magic "PFI1\0\0\0\0" | section_count u8 | flags u8 |
+//                reserved u16 | total_len u32 | sha256_of_following [u8;32]
+//   0x040  S_MAN section: raw bytes of task.manifest.toml as built
+//          (length-prefixed u32)
+//          S_IMG section: SHA-256 of boot image + the 268-byte .pmanifest
+//          section verbatim (300 bytes total, length-prefixed u32)
+//          S_RES section: residual ring dump (length-prefixed u32; ≤ 32 KiB)
+//          S_GRY section: optional dsfb-gray report (length-prefixed; 0 if
+//          absent)
+//
+// Total ≤ 64 KiB worst-case (manifest 4 KiB + image-section 300 B +
+// residuals 32 KiB + gray 8 KiB ≈ 44 KiB; 20 KiB headroom for header
+// + section framing).
+//
+// Closed taxonomy: only .pfi and .pfa exist. No .pfx / .pfd / .pfv / etc.
+
+struct IncidentHeader {
+    magic: [u8; 8],             // "PFI1\0\0\0\0"
+    section_count: u8,          // 4 (always; absent S_GRY = zero-len section, still counted)
+    flags: u8,                  // bit 0: S_GRY present
+    reserved: u16,
+    total_len: u32,             // bytes following the IHDR
+    sha256_of_body: [u8; 32],   // SHA-256 of bytes after IHDR
+}
+
+enum SectionKind {
+    Manifest,                   // S_MAN
+    ImageSection,               // S_IMG
+    ResidualRing,               // S_RES
+    GrayReport,                 // S_GRY (may be zero-length)
+}
+
+struct SectionFrame {
+    kind: SectionKind,
+    length: u32,                // bytes in `data`, excluding this 5-byte frame
+    // data follows in the on-disk layout (variable length)
+}
+
+struct IncidentLayout {
+    header: IncidentHeader,
+    manifest_offset: u32,
+    manifest_len: u32,
+    image_offset: u32,
+    image_len: u32,
+    residuals_offset: u32,
+    residuals_len: u32,
+    gray_offset: u32,
+    gray_len: u32,
+}
+
+fn empty_incident_header() -> IncidentHeader {
+    IncidentHeader {
+        magic: [80, 70, 73, 49, 0, 0, 0, 0],    // "PFI1\0\0\0\0"
+        section_count: 4,
+        flags: 0,
+        reserved: 0,
+        total_len: 0,
+        sha256_of_body: [0; 32],
+    }
+}
+
+fn write_le_u32(out: Slice[u8, 65536], cursor: u32, value: u32) -> u32 {
+    out[cursor]     = (value - (value / 256) * 256) as u8;
+    out[cursor + 1] = ((value / 256) - (value / 65536) * 256) as u8;
+    out[cursor + 2] = ((value / 65536) - (value / 16777216) * 256) as u8;
+    out[cursor + 3] = (value / 16777216) as u8;
+    cursor + 4
+}
+
+fn write_section_frame(
+    out: Slice[u8, 65536],
+    cursor: u32,
+    kind_id: u8,
+    length: u32,
+) -> u32 {
+    out[cursor] = kind_id;
+    write_le_u32(out, cursor + 1, length)
+}
+
+// pack_incident: write the container layout into a 64 KiB output buffer.
+// Returns the cursor (byte count written). Caller computes the final
+// SHA-256 over bytes [40..cursor) and patches it into the IHDR at [8..40).
+fn pack_incident(
+    manifest_bytes: Slice[u8, 8192],
+    manifest_len: u32,
+    image_section_bytes: Slice[u8, 512],
+    image_section_len: u32,
+    residual_bytes: Slice[u8, 32768],
+    residual_len: u32,
+    gray_bytes: Slice[u8, 8192],
+    gray_len: u32,
+    out: Slice[u8, 65536],
+) -> u32 {
+    // 32-byte IHDR placeholder (filled in by caller after body SHA-256).
+    let mut cursor: u32 = 0;
+    #[bound = 8]
+    for i in 0..8 {
+        out[cursor + i as u32] = 0;
+    }
+    cursor = cursor + 8;        // magic placeholder
+    out[cursor] = 4;            // section_count
+    cursor = cursor + 1;
+    out[cursor] = match gray_len > 0 {
+        true  => 1,
+        false => 0,
+    };                          // flags
+    cursor = cursor + 1;
+    out[cursor] = 0;
+    cursor = cursor + 1;
+    out[cursor] = 0;
+    cursor = cursor + 1;
+    cursor = write_le_u32(out, cursor, 0);  // total_len placeholder
+    #[bound = 32]
+    for i in 0..32 {
+        out[cursor + i as u32] = 0;
+    }
+    cursor = cursor + 32;       // sha256_of_body placeholder
+    // S_MAN
+    cursor = write_section_frame(out, cursor, 1, manifest_len);
+    #[bound = 8192]
+    for i in 0..manifest_len {
+        out[cursor + i] = manifest_bytes[i];
+    }
+    cursor = cursor + manifest_len;
+    // S_IMG
+    cursor = write_section_frame(out, cursor, 2, image_section_len);
+    #[bound = 512]
+    for i in 0..image_section_len {
+        out[cursor + i] = image_section_bytes[i];
+    }
+    cursor = cursor + image_section_len;
+    // S_RES
+    cursor = write_section_frame(out, cursor, 3, residual_len);
+    #[bound = 32768]
+    for i in 0..residual_len {
+        out[cursor + i] = residual_bytes[i];
+    }
+    cursor = cursor + residual_len;
+    // S_GRY (always written; zero-length when absent)
+    cursor = write_section_frame(out, cursor, 4, gray_len);
+    #[bound = 8192]
+    for i in 0..gray_len {
+        out[cursor + i] = gray_bytes[i];
+    }
+    cursor = cursor + gray_len;
+    cursor
+}

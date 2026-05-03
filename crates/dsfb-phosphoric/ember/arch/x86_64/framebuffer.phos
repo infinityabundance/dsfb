@@ -1,0 +1,52 @@
+module ember.arch.x86_64.framebuffer;
+profile trusted;
+
+// Linear-framebuffer primitives. Writes go through trusted! mmio_write
+// against MmioRegion::Framebuffer (declared in trusted_profile.toml's
+// [arch.x86_64.mmio_region] table).
+
+enum FramebufferPath {
+    UefiGopLinear,
+}
+
+fn boot_framebuffer_path() -> FramebufferPath {
+    FramebufferPath::UefiGopLinear
+}
+
+// Write a single 32-bit pixel at (x, y) to a linear framebuffer.
+// `base` is the framebuffer's physical base address (queried from UEFI
+// at boot); `stride` is bytes per row.
+//
+// razor-rationale: irreducible-hw — direct framebuffer pixel writes are
+// memory-mapped I/O; there is no software-level alternative for the
+// UEFI GOP linear framebuffer.
+fn write_pixel32(
+    base: u64,
+    stride: u32,
+    x: u32,
+    y: u32,
+    pixel: u32,
+) {
+    let offset: u64 = (y as u64) * (stride as u64) + (x as u64) * 4;
+    let address: u64 = base + offset;
+    // trust-audit: row "framebuffer pixel write" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(address, pixel);
+    };
+}
+
+// Fill a horizontal span of identical 32-bit pixels.
+fn fill_span32(
+    base: u64,
+    stride: u32,
+    x: u32,
+    y: u32,
+    width: u32,
+    pixel: u32,
+) {
+    #[bound = 4096]
+    for i in 0..width {
+        write_pixel32(base, stride, x + i, y, pixel);
+    }
+}

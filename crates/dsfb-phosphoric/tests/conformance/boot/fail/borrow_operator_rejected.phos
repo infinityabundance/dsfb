@@ -1,0 +1,16 @@
+module tests.conformance.boot.fail.borrow_operator_rejected;
+
+// fail-expected: P-010
+//
+// The borrow operators `&` and `&mut` are forbidden in v0. Phosphoric is
+// move-oriented: every value is owned by exactly one place at a time, and
+// transfers are explicit.
+
+struct Buffer {
+    data: [u8; 16],
+}
+
+fn observe(b: Buffer) -> u32 {
+    let r = &b;
+    0
+}

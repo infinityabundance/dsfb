@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.illegal_external_call_field;
+profile host;
+
+// fail-expected: P-019
+// (restored from legacy_ui/fail/illegal_external_call_field; legacy code ILLEGAL_EXTERNAL_CALL "qualified call target `widget.child`")
+
+module demo;
+struct Widget { child: u32 }
+fn bad(widget: Widget) -> u32 {
+    return widget.child();
+}

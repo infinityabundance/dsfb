@@ -1,0 +1,150 @@
+module pcc.kernel.tasks;
+profile runtime;
+
+// Task table — fixed-capacity slot table with generation-tagged handles.
+
+enum TaskState {
+    Vacant,
+    Ready,
+    Running,
+    Blocked,
+    Faulted,
+}
+
+struct TaskEntry {
+    active: bool,
+    generation: u16,
+    capability_slot: u16,
+    state: TaskState,
+}
+
+struct TaskTable {
+    entries: [TaskEntry; 64],   // TASK_MAX from runtime_profile.toml
+}
+
+fn empty_task_entry() -> TaskEntry {
+    TaskEntry {
+        active: false,
+        generation: 1,
+        capability_slot: 0,
+        state: TaskState::Vacant,
+    }
+}
+
+// Generation 0 is reserved; wrap-around skips 0.
+fn bump_task_generation(generation: u16) -> u16 {
+    let next: u16 = generation + 1;
+    match next == 0 {
+        true  => 1,
+        false => next,
+    }
+}
+
+// Linear scan for the first vacant slot.
+fn find_vacant_task(table: TaskTable) -> Option[u16] {
+    #[bound = 64]
+    for i in 0..64 {
+        match table.entries[i].active {
+            false => return Some(i as u16),
+            true  => (),
+        };
+    }
+    None
+}
+
+// allocate(): produce a fresh task entry for the given capability slot.
+// Returns Err(TableFull) when no slot is available. Caller writes the
+// entry back into table.entries[slot] and constructs a TaskHandle.
+fn allocate_task(
+    table: TaskTable,
+    capability_slot: u16,
+) -> Result[TaskEntry, pcc.kernel.error.KernelError] {
+    match find_vacant_task(table) {
+        None => Err(pcc.kernel.error.KernelError::TableFull),
+        Some(idx) => {
+            let prev_gen: u16 = table.entries[idx as u32].generation;
+            Ok(TaskEntry {
+                active: true,
+                generation: bump_task_generation(prev_gen),
+                capability_slot: capability_slot,
+                state: TaskState::Ready,
+            })
+        },
+    }
+}
+
+// validate(): verify (slot, generation) refers to a live task entry.
+fn validate_task(
+    table: TaskTable,
+    slot: u16,
+    generation: u16,
+) -> Result[u32, pcc.kernel.error.KernelError] {
+    match (slot as u32) >= 64 {
+        true => Err(pcc.kernel.error.KernelError::InvalidHandle),
+        false => {
+            let entry: TaskEntry = table.entries[slot as u32];
+            match entry.active {
+                false => Err(pcc.kernel.error.KernelError::InvalidHandle),
+                true  => match entry.generation == generation {
+                    false => Err(pcc.kernel.error.KernelError::StaleHandle),
+                    true  => Ok(0),
+                },
+            }
+        },
+    }
+}
+
+// state(): read current TaskState.
+fn task_state(
+    table: TaskTable,
+    slot: u16,
+    generation: u16,
+) -> Result[TaskState, pcc.kernel.error.KernelError] {
+    match validate_task(table, slot, generation) {
+        Err(e) => Err(e),
+        Ok(_)  => Ok(table.entries[slot as u32].state),
+    }
+}
+
+// set_state(): mutate state via copy-then-replace; the caller writes the
+// returned entry back into the table. Phosphoric has no in-place
+// mutation through borrows, so the entry is returned by value.
+fn set_task_state(
+    table: TaskTable,
+    slot: u16,
+    generation: u16,
+    new_state: TaskState,
+) -> Result[TaskEntry, pcc.kernel.error.KernelError] {
+    match validate_task(table, slot, generation) {
+        Err(e) => Err(e),
+        Ok(_)  => {
+            let entry: TaskEntry = table.entries[slot as u32];
+            Ok(TaskEntry {
+                active: entry.active,
+                generation: entry.generation,
+                capability_slot: entry.capability_slot,
+                state: new_state,
+            })
+        },
+    }
+}
+
+// clear(): release a task slot. Bumps generation so any stale handle
+// returns StaleHandle on the next validate.
+fn clear_task(
+    table: TaskTable,
+    slot: u16,
+) -> Result[TaskEntry, pcc.kernel.error.KernelError] {
+    match (slot as u32) >= 64 {
+        true => Err(pcc.kernel.error.KernelError::InvalidHandle),
+        false => {
+            let entry: TaskEntry = table.entries[slot as u32];
+            Ok(TaskEntry {
+                active: false,
+                generation: bump_task_generation(entry.generation),
+                capability_slot: 0,
+                state: TaskState::Vacant,
+            })
+        },
+    }
+}

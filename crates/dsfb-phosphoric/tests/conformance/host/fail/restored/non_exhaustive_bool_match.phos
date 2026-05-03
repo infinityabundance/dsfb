@@ -1,0 +1,12 @@
+module tests.conformance.host.fail.restored.non_exhaustive_bool_match;
+profile host;
+
+// fail-expected: K-016
+// (restored from legacy_ui/fail/non_exhaustive_bool_match; legacy code NON_EXHAUSTIVE_MATCH "missing branches: false")
+
+module demo;
+fn choose(flag: bool) -> u32 {
+    match flag {
+        true => 1,
+    }
+}

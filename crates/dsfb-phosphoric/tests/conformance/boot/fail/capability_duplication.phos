@@ -1,0 +1,17 @@
+module tests.conformance.boot.fail.capability_duplication;
+
+// fail-expected: K-009
+//
+// Capabilities are affine: passing the same capability handle to two
+// distinct argument slots of the same call duplicates the capability,
+// which is forbidden. K-009 (capability duplication) is emitted.
+
+capability gpio;
+
+fn merge_capabilities(a: gpio, b: gpio) -> gpio {
+    a
+}
+
+fn caller(g: gpio) -> gpio {
+    merge_capabilities(g, g)
+}

@@ -1,0 +1,76 @@
+module ember.arch.cortex_m33.trng;
+profile trusted;
+
+// RP2350 hardware True Random Number Generator wrapper.
+//
+// The only entropy source legal in trusted profile on this arch. Software
+// PRNG is forbidden — would defeat the whole point of having dedicated
+// hardware entropy. Software-PRNG attempts in trusted-profile source emit
+// Z-002 (feature absent / not used).
+
+struct TrngOutput {
+    word: u32,
+    health_bits: u8,         // engine health-self-test result
+}
+
+fn empty_trng_output() -> TrngOutput {
+    TrngOutput { word: 0, health_bits: 0 }
+}
+
+fn trng_base() -> u32 {
+    1124302848          // 0x40168000
+}
+
+fn trng_reg_status() -> u32 { 0 }
+fn trng_reg_output() -> u32 { 4 }
+
+// Read the engine's status register (bit 0 = output ready, bit 1 = health-OK).
+//
+// razor-rationale: irreducible-hw — engine state lives only in MMIO.
+fn trng_status() -> u32 {
+    let addr: u32 = trng_base() + trng_reg_status();
+    // trust-audit: row "TRNG status read" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_read_u32(addr)
+    }
+}
+
+// Read one 32-bit random word.
+//
+// razor-rationale: irreducible-hw — entropy must come from a physical
+// source; software cannot generate truly random bits.
+fn trng_read_word() -> u32 {
+    let addr: u32 = trng_base() + trng_reg_output();
+    // trust-audit: row "TRNG output read" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_read_u32(addr)
+    }
+}
+
+// Block until the engine reports a fresh ready word, then read it.
+// Bounded poll: hardware always produces a word within microseconds; we
+// cap at 65536 spins to satisfy the bounded-loop discipline.
+fn trng_blocking_read() -> Result[TrngOutput, u32] {
+    #[bound = 65536]
+    for _ in 0..65536 {
+        let st: u32 = trng_status();
+        let ready: bool = (st - (st / 2) * 2) == 1;
+        let healthy: bool = ((st / 2) - ((st / 4) * 2)) == 1;
+        match ready {
+            false => (),
+            true => match healthy {
+                false => return Err(1),     // health failure
+                true => {
+                    let word: u32 = trng_read_word();
+                    return Ok(TrngOutput {
+                        word: word,
+                        health_bits: (st - (st / 4) * 4) as u8,
+                    });
+                },
+            },
+        };
+    }
+    Err(2)      // timeout
+}

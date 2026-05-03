@@ -1,0 +1,5 @@
+module fixture.struct_u8_array_field;
+struct Color { r: u8, g: u8, b: u8, reserved: u8, }
+struct Palette { count: u32, entries: [Color; 8], }
+fn palette_max() -> u32 { 8 }
+fn palette_default_r() -> u8 { 16 }

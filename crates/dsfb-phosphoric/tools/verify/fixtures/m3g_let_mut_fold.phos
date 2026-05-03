@@ -1,0 +1,11 @@
+module fixture.m3g_let_mut_fold;
+profile boot;
+fn entry() -> i32 {
+    return helper();
+}
+fn helper() -> u32 {
+    let mut x: u32 = 5;
+    x = 7;
+    x = 11;
+    x
+}

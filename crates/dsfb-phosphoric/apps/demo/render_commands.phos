@@ -1,0 +1,28 @@
+module demo.render_commands;
+
+struct RenderCommand {
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    r: u8,
+    g: u8,
+    b: u8,
+    reserved: u8,
+}
+
+struct RenderOutput {
+    command_count: u32,
+    reserved: u32,
+    commands: [RenderCommand; 16],
+}
+
+fn render_command_max() -> u32 { 16 }
+
+fn boot_render_command_count() -> u32 { 1 }
+
+fn background_r() -> u8 { 16 }
+
+fn background_g() -> u8 { 36 }
+
+fn background_b() -> u8 { 58 }

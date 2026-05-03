@@ -1,0 +1,303 @@
+module pcc.ast;
+profile host;
+
+// AST data shapes.
+//
+// The AST is the parser's output. The HIR is the typechecker's input. AST
+// carries source spans for diagnostic provenance; HIR drops spans where they
+// are no longer load-bearing.
+
+enum Profile {
+    Boot,
+    Host,
+    Trusted,
+    Runtime,
+}
+
+struct AstModule {
+    name_path: [pcc.lexer.Token; 16],     // dotted module path tokens
+    name_path_len: u8,
+    profile: Profile,
+    items: [AstItem; 1024],
+    item_count: u16,
+    arenas: AstArenas,
+}
+
+// ---------------------------------------------------------------------------
+// AST arena infrastructure (T3-1 prerequisite)
+//
+// v0 forbids recursive struct definitions, so AST trees flatten into
+// fixed-capacity arenas indexed by u16. Each parser sub-pass interns its
+// nodes via the helpers below. Capacities pinned per host_profile.toml.
+// ---------------------------------------------------------------------------
+
+struct AstArenas {
+    exprs: [AstExpr; 4096],
+    expr_count: u16,
+    stmts: [AstStmt; 2048],
+    stmt_count: u16,
+    blocks: [AstBlock; 256],
+    block_count: u16,
+    patterns: [AstPattern; 1024],
+    pattern_count: u16,
+    match_arms: [AstMatchArm; 1024],
+    match_arm_count: u16,
+    types: [AstType; 1024],
+    type_count: u16,
+}
+
+fn empty_arenas() -> AstArenas {
+    AstArenas {
+        exprs: [AstExpr::UnitLit; 4096],
+        expr_count: 0,
+        stmts: [AstStmt::ExprStmt(0); 2048],
+        stmt_count: 0,
+        blocks: [AstBlock { statements: [0; 256], statement_count: 0, trailing_expr_id: None }; 256],
+        block_count: 0,
+        patterns: [AstPattern::Wildcard; 1024],
+        pattern_count: 0,
+        match_arms: [AstMatchArm { pattern_id: 0, body_expr_id: 0 }; 1024],
+        match_arm_count: 0,
+        types: [AstType::Primitive(0); 1024],
+        type_count: 0,
+    }
+}
+
+// Intern helpers. Each appends a node to its arena and returns the id +
+// the updated arenas struct. Phosphoric has no pointer mutation; the
+// caller writes the returned arenas back to its own state. id == 65535
+// signals capacity overflow (caller maps to a P-### diagnostic).
+
+struct InternResult {
+    id: u16,
+    arenas: AstArenas,
+}
+
+fn overflow_intern_result(arenas: AstArenas) -> InternResult {
+    InternResult { id: 65535, arenas: arenas }
+}
+
+fn intern_expr(arenas: AstArenas, expr: AstExpr) -> InternResult {
+    let mut updated: AstArenas = arenas;
+    match updated.expr_count >= 4095 {
+        true => overflow_intern_result(updated),
+        false => {
+            let id: u16 = updated.expr_count;
+            updated.exprs[id as u32] = expr;
+            updated.expr_count = updated.expr_count + 1;
+            InternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+fn intern_stmt(arenas: AstArenas, stmt: AstStmt) -> InternResult {
+    let mut updated: AstArenas = arenas;
+    match updated.stmt_count >= 2047 {
+        true => overflow_intern_result(updated),
+        false => {
+            let id: u16 = updated.stmt_count;
+            updated.stmts[id as u32] = stmt;
+            updated.stmt_count = updated.stmt_count + 1;
+            InternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+fn intern_block(arenas: AstArenas, block: AstBlock) -> InternResult {
+    let mut updated: AstArenas = arenas;
+    match updated.block_count >= 255 {
+        true => overflow_intern_result(updated),
+        false => {
+            let id: u16 = updated.block_count;
+            updated.blocks[id as u32] = block;
+            updated.block_count = updated.block_count + 1;
+            InternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+fn intern_pattern(arenas: AstArenas, pattern: AstPattern) -> InternResult {
+    let mut updated: AstArenas = arenas;
+    match updated.pattern_count >= 1023 {
+        true => overflow_intern_result(updated),
+        false => {
+            let id: u16 = updated.pattern_count;
+            updated.patterns[id as u32] = pattern;
+            updated.pattern_count = updated.pattern_count + 1;
+            InternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+fn intern_match_arm(arenas: AstArenas, arm: AstMatchArm) -> InternResult {
+    let mut updated: AstArenas = arenas;
+    match updated.match_arm_count >= 1023 {
+        true => overflow_intern_result(updated),
+        false => {
+            let id: u16 = updated.match_arm_count;
+            updated.match_arms[id as u32] = arm;
+            updated.match_arm_count = updated.match_arm_count + 1;
+            InternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+fn intern_type(arenas: AstArenas, ty: AstType) -> InternResult {
+    let mut updated: AstArenas = arenas;
+    match updated.type_count >= 1023 {
+        true => overflow_intern_result(updated),
+        false => {
+            let id: u16 = updated.type_count;
+            updated.types[id as u32] = ty;
+            updated.type_count = updated.type_count + 1;
+            InternResult { id: id, arenas: updated }
+        },
+    }
+}
+
+// Lookup helpers — return the node by id. Out-of-range ids return a sentinel
+// (UnitLit / ExprStmt(0) / etc.) so consumers can short-circuit without a
+// panic path; calling code validates ids upstream via a separate range check.
+
+fn lookup_expr(arenas: AstArenas, id: u16) -> AstExpr {
+    match (id as u32) >= (arenas.expr_count as u32) {
+        true  => AstExpr::UnitLit,
+        false => arenas.exprs[id as u32],
+    }
+}
+
+fn lookup_stmt(arenas: AstArenas, id: u16) -> AstStmt {
+    match (id as u32) >= (arenas.stmt_count as u32) {
+        true  => AstStmt::ExprStmt(0),
+        false => arenas.stmts[id as u32],
+    }
+}
+
+fn lookup_block(arenas: AstArenas, id: u16) -> AstBlock {
+    match (id as u32) >= (arenas.block_count as u32) {
+        true  => AstBlock {
+            statements: [0; 256],
+            statement_count: 0,
+            trailing_expr_id: None,
+        },
+        false => arenas.blocks[id as u32],
+    }
+}
+
+enum AstItem {
+    Capability(CapabilityDecl),
+    Struct(StructDecl),
+    Enum(EnumDecl),
+    Function(FunctionDecl),
+}
+
+struct CapabilityDecl {
+    name_token: pcc.lexer.Token,
+}
+
+struct StructDecl {
+    name_token: pcc.lexer.Token,
+    fields: [Field; 64],
+    field_count: u8,
+}
+
+struct Field {
+    name_token: pcc.lexer.Token,
+    type_id: u16,           // index into AstType arena
+}
+
+struct EnumDecl {
+    name_token: pcc.lexer.Token,
+    variants: [Variant; 64],
+    variant_count: u8,
+}
+
+struct Variant {
+    name_token: pcc.lexer.Token,
+    payload_type_count: u8,
+    payload_type_ids: [u16; 8],
+}
+
+struct FunctionDecl {
+    name_token: pcc.lexer.Token,
+    params: [Param; 32],
+    param_count: u8,
+    return_type_id: Option[u16],
+    effects: [pcc.lexer.Token; 16],
+    effect_count: u8,
+    body_block_id: u32,     // index into AstBlock arena
+}
+
+struct Param {
+    name_token: pcc.lexer.Token,
+    type_id: u16,
+}
+
+// AstType, AstBlock, AstStmt, AstExpr, AstPattern arenas live alongside
+// AstModule. They are indexed by id rather than nested-pointer because v0
+// has no pointer types and recursion in struct definitions is forbidden.
+//
+// Arena types defined in subsequent fields of this file (TBD). For E0b first
+// cut, the public surface above is enough to declare the parser's output
+// type.
+
+enum AstType {
+    Primitive(u8),                  // u8/u16/.../i64/bool tag
+    Path([pcc.lexer.Token; 8], u8), // dotted path
+    Array(u16, u32),                // element type id, length
+    SliceTy(u16, u32),              // element type id, capacity
+    ResultTy(u16, u16),
+    OptionTy(u16),
+}
+
+// ---------------------------------------------------------------------------
+// Statement and expression nodes (T3-1)
+//
+// Both arenas are id-indexed: AstStmt nodes reference AstExpr ids, AstExpr
+// nodes reference each other by id (no nested allocation). v0 forbids
+// recursion in struct definitions, so the trees are flattened into arenas
+// indexed by u16.
+// ---------------------------------------------------------------------------
+
+enum AstStmt {
+    LetStmt(u16, Option[u16], u16),     // name_id, optional type_id, rhs_expr_id
+    AssignStmt(u16, u16),               // place_expr_id, rhs_expr_id
+    ExprStmt(u16),                      // expr_id (value discarded)
+    ForStmt(u16, u32, u16, u16, u16),   // loop_var_name_id, bound_value, range_start_expr_id, range_end_expr_id, body_block_id
+    ReturnStmt(Option[u16]),            // optional expr_id
+    BlockStmt(u16),                     // block_id
+}
+
+enum AstExpr {
+    IntegerLit(u64),                                // value
+    BoolLit(bool),
+    UnitLit,                                        // ()
+    PathExpr([pcc.lexer.Token; 8], u8),             // dotted ident path; u8 = len
+    BinaryOp(u8, u16, u16),                         // op_tag, lhs_id, rhs_id
+    Call(u16, [u16; 16], u8),                       // callee_path_expr_id, arg_ids[16], arg_count
+    FieldAccess(u16, u16),                          // base_expr_id, field_name_id
+    Index(u16, u16),                                // base_expr_id, index_expr_id
+    Match(u16, [u16; 32], u8),                      // scrutinee_expr_id, arm_ids[32], arm_count
+    BlockExpr(u16),                                 // block_id
+    Range(u16, u16),                                // start_expr_id, end_expr_id
+}
+
+struct AstBlock {
+    statements: [u16; 256],         // stmt arena ids
+    statement_count: u16,
+    trailing_expr_id: Option[u16],  // expression-as-tail (no `;`)
+}
+
+struct AstMatchArm {
+    pattern_id: u16,        // index into AstPattern arena
+    body_expr_id: u16,
+}
+
+enum AstPattern {
+    Wildcard,                                       // `_`
+    BoolLit(bool),                                  // `true` / `false`
+    IntLit(u64),
+    PathPat([pcc.lexer.Token; 8], u8),              // enum variant or constant path
+    Binding(u16),                                   // name_id (catch-all by name)
+    PayloadTuple(u16, [u16; 8], u8),                // enum_variant_path_id, sub-pattern ids, count
+}

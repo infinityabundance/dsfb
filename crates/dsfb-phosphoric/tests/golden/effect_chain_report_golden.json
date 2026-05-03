@@ -1,0 +1,84 @@
+{
+  "schema_version": "assurance-report-v1",
+  "module_name": "effect_chain",
+  "budget_name": "effect-chain-fixture",
+  "budget_file": "tests/budgets/effect_chain_fixture.toml",
+  "entrypoint_budget_classes": {
+    "root": "kernel_init"
+  },
+  "function_effects": {
+    "leaf": {
+      "declared_effects": [
+        "draw"
+      ],
+      "direct_effects": [
+        "draw"
+      ],
+      "required_effects": [
+        "draw"
+      ],
+      "direct_call_targets": []
+    },
+    "mid": {
+      "declared_effects": [
+        "draw"
+      ],
+      "direct_effects": [],
+      "required_effects": [
+        "draw"
+      ],
+      "direct_call_targets": [
+        "leaf"
+      ]
+    },
+    "root": {
+      "declared_effects": [
+        "draw"
+      ],
+      "direct_effects": [],
+      "required_effects": [
+        "draw"
+      ],
+      "direct_call_targets": [
+        "mid"
+      ]
+    }
+  },
+  "function_frames": {
+    "leaf": {
+      "frame_bytes": 16,
+      "abi_overhead_bytes": 16,
+      "param_bytes": 0,
+      "local_bytes": 0
+    },
+    "mid": {
+      "frame_bytes": 16,
+      "abi_overhead_bytes": 16,
+      "param_bytes": 0,
+      "local_bytes": 0
+    },
+    "root": {
+      "frame_bytes": 16,
+      "abi_overhead_bytes": 16,
+      "param_bytes": 0,
+      "local_bytes": 0
+    }
+  },
+  "function_stack_depths": {
+    "leaf": {
+      "worst_case_stack_bytes": 16
+    },
+    "mid": {
+      "worst_case_stack_bytes": 32
+    },
+    "root": {
+      "worst_case_stack_bytes": 48
+    }
+  },
+  "type_layouts": {
+    "u64": {
+      "size_bytes": 8,
+      "align_bytes": 8
+    }
+  }
+}

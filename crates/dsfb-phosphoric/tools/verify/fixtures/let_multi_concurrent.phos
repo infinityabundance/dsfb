@@ -1,0 +1,7 @@
+module fixture.let_multi_concurrent;
+profile boot;
+fn entry() -> i32 {
+    let a = 5;
+    let b = 10;
+    return a;
+}

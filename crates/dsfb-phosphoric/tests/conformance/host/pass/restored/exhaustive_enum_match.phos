@@ -1,0 +1,14 @@
+module tests.conformance.host.pass.restored.exhaustive_enum_match;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/exhaustive_enum_match)
+
+module demo;
+enum State { Ready, Waiting }
+fn choose(state: State) -> u64 {
+    match state {
+        Ready => 1,
+        Waiting => 0,
+    }
+}

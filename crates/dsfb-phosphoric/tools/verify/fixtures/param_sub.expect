@@ -1,0 +1,10 @@
+# Pass A-6 fixture (SUB): param-arithmetic — `return arg - INTLIT;`.
+# Source:
+#   fn entry()  { return sub8(50); }
+#   fn sub8(arg) { return arg - 8; }
+# Lowering: 24-byte sub8 block emits prologue + `mov eax, edi; sub eax, 8;
+# pop rbp; ret; 11 nops`. Opcode byte 0x2d for SUB.
+# Verified: rc = 50 - 8 = 42 at runtime.
+size=1105
+sha=d4bd0bc3606f76a209d1d7c55cac0dd598b47263b2f791514dce0e3441dbcbd3
+rc=42

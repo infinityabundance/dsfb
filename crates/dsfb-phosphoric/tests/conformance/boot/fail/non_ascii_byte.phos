@@ -1,0 +1,12 @@
+module tests.conformance.boot.fail.non_ascii_byte;
+
+// fail-expected: L-005
+//
+// Phosphoric source is ASCII-only. A byte > 0x7F outside a comment is
+// rejected by the lexer with L-005 ("NonAsciiByte"). The é below is
+// 0xC3 0xA9 in UTF-8; either byte is non-ASCII.
+
+fn cafe() -> u32 {
+    let café: u32 = 0;
+    café
+}

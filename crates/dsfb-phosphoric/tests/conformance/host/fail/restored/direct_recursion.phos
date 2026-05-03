@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.direct_recursion;
+profile host;
+
+// fail-expected: G-001
+// (restored from legacy_ui/fail/direct_recursion; legacy code RECURSIVE_CALL_CYCLE "recursive call cycle")
+
+module fail.direct_recursion;
+
+fn recurse(value: u32) -> u32 {
+    return recurse(value);
+}

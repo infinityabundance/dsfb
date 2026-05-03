@@ -1,0 +1,59 @@
+module ember.arch.x86_64.serial;
+profile trusted;
+
+// Serial console primitives (UART 16550 on legacy I/O ports).
+
+struct Uart16550Config {
+    base_port: u16,
+}
+
+enum SerialPath {
+    Uart16550IoPort(Uart16550Config),
+}
+
+fn boot_serial_path() -> SerialPath {
+    SerialPath::Uart16550IoPort(Uart16550Config { base_port: 1016 })
+    // 1016 == 0x3F8 (COM1). v0 grammar permits unsigned integer literals in base 10 only.
+}
+
+// Write one byte to a UART data register.
+//
+// razor-rationale: irreducible-hw — port-mapped I/O has no software-level
+// equivalent on x86_64 legacy serial; OUT is the only path.
+fn uart_write_byte(config: Uart16550Config, b: u8) {
+    // trust-audit: row "UART data write" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        port_write_u8(config.base_port, b);
+    };
+}
+
+// Read the UART line status register (LSR is at base+5; bit 5 = TX empty).
+//
+// razor-rationale: irreducible-hw — symmetric IN instruction.
+fn uart_line_status(config: Uart16550Config) -> u8 {
+    // trust-audit: row "UART LSR read" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        port_read_u8(config.base_port + 5)
+    }
+}
+
+// Block until the transmit holding register is empty, then write `b`.
+// Bounded poll: hardware always drains within a few thousand cycles at
+// 115200 baud; we cap at 65536 spins.
+fn uart_blocking_write(config: Uart16550Config, b: u8) {
+    #[bound = 65536]
+    for _ in 0..65536 {
+        let lsr: u8 = uart_line_status(config);
+        let tx_empty: bool = (lsr / 32) - ((lsr / 64) * 2) == 1;
+        match tx_empty {
+            true  => {
+                uart_write_byte(config, b);
+                return ();
+            },
+            false => (),
+        };
+    }
+    ()
+}

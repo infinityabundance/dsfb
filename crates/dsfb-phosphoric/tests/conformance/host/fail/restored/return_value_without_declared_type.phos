@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.return_value_without_declared_type;
+profile host;
+
+// fail-expected: K-008
+// (restored from legacy_ui/fail/return_value_without_declared_type; legacy code RETURN_TYPE_MISMATCH "cannot return a value without a declared return type")
+
+module fail.return_value_without_declared_type;
+
+fn bad(flag: bool) {
+    return flag;
+}

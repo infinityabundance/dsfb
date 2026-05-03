@@ -1,0 +1,16 @@
+module tests.conformance.trusted.fail.trusted_block_unknown_region;
+profile trusted;
+
+// fail-expected: T-004
+//
+// MmioRegion::SecretBus is not in trusted_profile.toml's [mmio_region]
+// table. The compiler refuses to emit MMIO against an unknown region.
+
+fn bad() -> u32 {
+    let mut value: u32 = 0;
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#nope
+    trusted! {
+        value = mmio_read32(MmioRegion::SecretBus, 0);
+    }
+    value
+}

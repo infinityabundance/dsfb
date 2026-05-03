@@ -1,0 +1,31 @@
+module ember.arch.esp32_c3.traps;
+profile trusted;
+
+// ESP32-C3 RISC-V trap scaffold. Subset of riscv_rv32imc since ESP32-C3 lacks
+// some standard CSRs (no PMP CSRs).
+
+enum McauseSync {
+    InstructionAddressMisaligned,
+    InstructionAccessFault,
+    IllegalInstruction,
+    Breakpoint,
+    LoadAddressMisaligned,
+    LoadAccessFault,
+    StoreAddressMisaligned,
+    StoreAccessFault,
+    EnvironmentCallFromMmode,
+}
+
+enum McauseAsync {
+    MachineSoftwareInterrupt,
+    MachineTimerInterrupt,
+    MachineExternalInterrupt,
+}
+
+struct TrapFrame {
+    pc: u32,
+    mstatus: u32,
+    cause: u32,
+    tval: u32,
+    saved_regs: [u32; 32],
+}

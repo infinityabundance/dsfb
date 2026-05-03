@@ -1,0 +1,11 @@
+module fixture.bounded_loop;
+profile boot;
+fn entry() -> i32 {
+    return 0;
+}
+fn helper() -> i32 {
+    #[bound = 10]
+    for i in 0..10 {
+    }
+    return 42;
+}

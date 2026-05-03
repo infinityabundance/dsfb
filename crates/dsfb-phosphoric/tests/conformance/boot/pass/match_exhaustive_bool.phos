@@ -1,0 +1,11 @@
+module tests.conformance.boot.pass.match_exhaustive_bool;
+
+// Pass case for exhaustive match on bool. Both arms are present; no
+// catch-all needed.
+
+fn negate(x: bool) -> bool {
+    match x {
+        true  => false,
+        false => true,
+    }
+}

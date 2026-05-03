@@ -1,0 +1,13 @@
+module effect_chain;
+
+fn leaf() -> u64 effects(draw) {
+    return 1;
+}
+
+fn mid() -> u64 effects(draw) {
+    return leaf();
+}
+
+fn root() -> u64 effects(draw) {
+    return mid();
+}

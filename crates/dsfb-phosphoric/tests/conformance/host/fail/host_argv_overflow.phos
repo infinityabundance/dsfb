@@ -1,0 +1,16 @@
+module tests.conformance.host.fail.host_argv_overflow;
+profile host;
+
+// fail-expected: H-007
+//
+// argv access beyond the declared capacity (256). The bound annotation
+// permits up to 1024 iterations but the buffer is only 256 entries.
+
+fn over_iterate(argv: [Slice[u8, 256]; 256], argc: u32) -> u32 {
+    let mut count: u32 = 0;
+    #[bound = 1024]
+    for i in 0..1024 {
+        count = count + 1;
+    }
+    count
+}

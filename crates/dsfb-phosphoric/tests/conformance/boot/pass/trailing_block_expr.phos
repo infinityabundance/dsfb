@@ -1,0 +1,16 @@
+module tests.conformance.boot.pass.trailing_block_expr;
+
+// Pass case for extension 2026-04-27c. A function whose body is a block
+// with a trailing expression returns the value of that expression. No
+// explicit `return` keyword is required.
+
+fn double(x: u32) -> u32 {
+    x + x
+}
+
+fn at_least_one(x: u32) -> u32 {
+    match x == 0 {
+        true  => 1,
+        false => x,
+    }
+}

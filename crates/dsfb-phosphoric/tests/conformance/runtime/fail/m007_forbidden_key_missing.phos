@@ -1,0 +1,14 @@
+module tests.conformance.runtime.fail.m007_forbidden_key_missing;
+profile runtime;
+
+// fail-expected: M-007
+//
+// [forbidden] key absent or set non-false. The sibling manifest omits
+// the `heap = false` line entirely; manifest.phos's
+// `forbidden_keys_complete` predicate fails because not all 10 flags
+// are explicitly false. M-007 fires at parse time, before any other
+// pass runs.
+
+fn marker() -> u32 {
+    0
+}

@@ -1,0 +1,12 @@
+module tests.conformance.trusted.pass.trusted_block_cpu_op_cli;
+profile trusted;
+
+// Pass case: a `trusted!` block containing one whitelisted cpu_op.
+// The preceding `// trust-audit:` comment cross-references EMBER_TRUST_AUDIT.md.
+
+fn disable_interrupts() {
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#cli-disable
+    trusted! {
+        cpu_op(CpuOp::Cli);
+    }
+}

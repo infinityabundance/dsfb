@@ -1,0 +1,20 @@
+# Pass B-4 fixture: pure-Phosphoric quine. The source `__quine();` body
+# triggers a custom 195-byte stage0_quine_entry block in the producer
+# that writes [0x400000 .. 0x400000+p_filesz) from the kernel-mapped
+# self-image to argv[2], closes fd, exits 0. p_filesz is loaded from
+# absolute VMA 0x400060 inside the entry block (no producer-time patch
+# site — the block is fully position-independent).
+#
+# This closes the byte-equal fixpoint:
+#   stage0 := producer(quine_self.phos)
+#   stage1 := stage0(any-input, out)   ⇒ stage1 byte-equal stage0
+#   stage2 := stage1(any-input, out)   ⇒ stage2 byte-equal stage1
+# Verified: stage0 == stage1 == stage2, all sha ea55ecd7…0973.
+#
+# Note: rc=0 here is the rc of the PRODUCER (which always exits 0 after
+# emitting); the produced binary's rc when invoked with args is also 0
+# (write succeeds + exit 0). The fixture corpus harness invokes the
+# produced binary with no args, hitting the .skip path → exit 0.
+size=1081
+sha=ea55ecd78d1820faf17ab21c380b1471b3672fcc8d46428741cbb64065ca9973
+rc=0

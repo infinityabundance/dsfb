@@ -1,0 +1,15 @@
+module tests.conformance.host.fail.restored.wrong_argument_count;
+profile host;
+
+// fail-expected: K-011
+// (restored from legacy_ui/fail/wrong_argument_count; legacy code WRONG_ARGUMENT_COUNT "passes 0 arguments, expected 1")
+
+module fail.wrong_argument_count;
+
+fn id(value: u32) -> u32 {
+    return value;
+}
+
+fn caller() -> u32 {
+    return id();
+}

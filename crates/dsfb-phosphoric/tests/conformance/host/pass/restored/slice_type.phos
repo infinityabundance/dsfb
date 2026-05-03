@@ -1,0 +1,11 @@
+module tests.conformance.host.pass.restored.slice_type;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/slice_type)
+
+module pass.slice_type;
+
+fn pass_slice(value: Slice[u32, 8]) -> Slice[u32, 8] {
+    return value;
+}

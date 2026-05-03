@@ -1,0 +1,11 @@
+module fixture.match_false;
+profile boot;
+fn entry() -> i32 {
+    return 0;
+}
+fn helper() -> i32 {
+    match false {
+        true => 33,
+        false => 77,
+    }
+}

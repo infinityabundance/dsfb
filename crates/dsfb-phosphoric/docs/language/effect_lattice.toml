@@ -1,0 +1,158 @@
+# Phosphoric effect lattice — machine-readable manifest.
+#
+# This file declares the complete set of effect labels across all profiles,
+# their join rules, and the cross-profile compatibility matrix.
+# phosphoric-effect-check.phos (host program; elevation item E9) reads this
+# file and runs property checks: idempotence of join, transitive closure
+# soundness, monotonicity, profile separation.
+#
+# Narrative: docs/language/effects.md
+# Per-profile alphabets:
+#   - boot:    docs/language/effects.md (the v0 set)
+#   - host:    docs/language/host_profile.toml
+#   - trusted: docs/language/trusted_profile.toml
+#   - runtime: docs/language/runtime_profile.toml
+
+manifest_version = "phosphoric-effect-lattice-v1"
+schema_doc       = "docs/language/effects.md"
+
+# ---------------------------------------------------------------------------
+# Per-profile alphabets.
+# ---------------------------------------------------------------------------
+
+[alphabet.boot]
+labels = ["draw", "ipc", "mmio", "sched", "time"]
+
+[alphabet.host]
+labels = ["host-fs-read", "host-fs-write", "host-stdout", "host-stderr", "host-time-mono", "host-hash"]
+
+[alphabet.trusted]
+# Trusted profile uses primitive operations rather than effect labels.
+# A trusted! block does not declare effects in the function signature.
+# This entry exists for completeness; the property check skips trusted-profile
+# alphabet emptiness rather than treating it as a violation.
+labels = []
+note   = "trusted profile uses cpu_op / mmio_* / port_* primitives; no effect labels"
+
+[alphabet.runtime]
+labels = ["draw", "ipc", "sched", "time", "cap-issue", "cap-revoke"]
+
+# ---------------------------------------------------------------------------
+# Cross-profile compatibility.
+#
+# Each cell answers: can a function in profile P declare effect label E?
+# A "yes" requires both:
+#   (a) E is in alphabet[P]
+#   (b) the cross-profile rule below permits the declaration
+#
+# These rules are the source of truth; the effect checker rejects any
+# declaration that would violate them.
+# ---------------------------------------------------------------------------
+
+[cross_profile_rules]
+boot_may_declare    = ["draw", "ipc", "mmio", "sched", "time"]
+host_may_declare    = ["host-fs-read", "host-fs-write", "host-stdout", "host-stderr", "host-time-mono", "host-hash"]
+trusted_may_declare = []  # trusted uses primitives, not effect labels
+runtime_may_declare = ["draw", "ipc", "sched", "time", "cap-issue", "cap-revoke"]
+
+# A function declaring any label NOT in <profile>_may_declare is rejected
+# with the corresponding diagnostic (E-001 boot, H-002/H-003 host,
+# R-005/R-006 runtime).
+
+# ---------------------------------------------------------------------------
+# Join semantics.
+#
+# join(A, B) is the smallest effect set containing both A and B.
+# For any A, B subsets of the same alphabet:
+#   join(A, B) = A union B
+# The join is idempotent, commutative, associative, and monotone — the
+# property checker proves these.
+# ---------------------------------------------------------------------------
+
+[join]
+operator = "set_union"
+properties_to_check = [
+    "idempotent",            # join(A, A) == A
+    "commutative",           # join(A, B) == join(B, A)
+    "associative",           # join(join(A, B), C) == join(A, join(B, C))
+    "monotone",              # A subset of B implies join(A, C) subset of join(B, C)
+    "alphabet_closed",       # join(A, B) subset of alphabet[profile]
+    "cross_profile_rejected", # if A from profile P and B from profile Q with P != Q, join is undefined
+]
+
+# ---------------------------------------------------------------------------
+# Transitive closure soundness.
+#
+# A function f calls function g; f's declared effects must be a superset of
+# the closure { g's declared effects } unioned over all callees.
+# Property: closure(f) computed by the compiler equals union of declared
+# effects on every reachable callee, including f itself.
+# ---------------------------------------------------------------------------
+
+[closure]
+property = "callee_subset"
+formula  = "for all f, g where f calls g: declared_effects(g) subset of declared_effects(f)"
+checker_pass = "compiler/effects.phos"
+
+# ---------------------------------------------------------------------------
+# Diagnostics emitted by the effect checker.
+# ---------------------------------------------------------------------------
+
+[diagnostics]
+E-001 = "effect label not in profile alphabet"
+E-002 = "callee effect not in caller's declared effects"
+E-003 = "declared effect not in callee closure (least-authority violation)"
+E-004 = "effect declared but profile alphabet is empty (e.g. trusted profile)"
+E-005 = "duplicate effect label in declaration"
+E-006 = "cross-profile effect mixing"
+E-007 = "effect alphabet manifest missing or malformed"
+
+# ---------------------------------------------------------------------------
+# Property-check fixtures.
+#
+# phosphoric-effect-check.phos enumerates these and asserts each holds.
+# A fixture is a tiny abstract scenario: an effect set, a join, a closure,
+# an expected outcome.
+# ---------------------------------------------------------------------------
+
+[[fixtures]]
+name = "boot_idempotent_draw"
+profile = "boot"
+sets = [["draw"]]
+operation = "join"
+expected = ["draw"]
+
+[[fixtures]]
+name = "boot_join_draw_ipc"
+profile = "boot"
+sets = [["draw"], ["ipc"]]
+operation = "join"
+expected = ["draw", "ipc"]
+
+[[fixtures]]
+name = "boot_associative_three_way"
+profile = "boot"
+sets = [["draw"], ["ipc"], ["mmio"]]
+operation = "join_assoc"
+expected = ["draw", "ipc", "mmio"]
+
+[[fixtures]]
+name = "host_no_boot_label"
+profile = "host"
+sets = [["host-fs-read"], ["draw"]]
+operation = "join"
+expected_diagnostic = "E-006"
+
+[[fixtures]]
+name = "runtime_cap_issue_revoke_disjoint_from_host"
+profile = "runtime"
+sets = [["cap-issue"], ["host-fs-read"]]
+operation = "join"
+expected_diagnostic = "E-006"
+
+[[fixtures]]
+name = "trusted_alphabet_empty"
+profile = "trusted"
+sets = [["mmio"]]
+operation = "declare"
+expected_diagnostic = "E-004"

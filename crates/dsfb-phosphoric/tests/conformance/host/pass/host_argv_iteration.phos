@@ -1,0 +1,14 @@
+module tests.conformance.host.pass.host_argv_iteration;
+profile host;
+
+// Argv access stays within the declared bounds: argc <= 256 and each
+// entry is at most 256 bytes. Bound annotation is required.
+
+fn count_args(argv: [Slice[u8, 256]; 256], argc: u32) -> u32 {
+    let mut visited: u32 = 0;
+    #[bound = 256]
+    for i in 0..argc {
+        visited = visited + 1;
+    }
+    visited
+}

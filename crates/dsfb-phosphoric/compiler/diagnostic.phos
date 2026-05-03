@@ -1,0 +1,169 @@
+module pcc.diagnostic;
+profile host;
+
+// Diagnostic codes + spans.
+//
+// Every diagnostic emitted by pcc carries a stable code from one of the
+// reserved prefix ranges:
+//   L-   lexer (host: defined in lexer.phos)
+//   P-   parser
+//   H-   host-profile-specific (defined in host_profile.toml)
+//   T-   trusted-profile-specific (defined in trusted_profile.toml)
+//   R-   runtime-profile-specific (defined in runtime_profile.toml)
+//   E-   effects (defined in effect_lattice.toml)
+//   B-   bounded loops (defined in BOUNDED_LOOPS.md)
+//   C-   capability prover (defined in CAPABILITY_PROVER.md)
+//   I-   invariant-manifest verifier (defined in INVARIANT_EVIDENCE_SCHEMA.md)
+//   W-   well-formedness
+//   K-   typeck (kind/type errors)
+//   S-   stack analysis
+//   X-   layout
+//   M-   manifest authority (defined in TASK_SEAL_V0.md)
+//   G-   call-graph (cycle / recursion detection)
+//
+// Codes are assigned per-pass and never reused. Diagnostic stability is
+// asserted by the UI corpus.
+//
+// P-prefix code reservations (parser):
+//   P-001..P-018  forbidden constructs (extern/use/import/while/loop/async/trait/impl/box/...)
+//   P-019         no external calls / qualified call to non-same-module path
+//   P-020         declared effect not in alphabet (parser-level)
+//   P-021         malformed item header
+//   P-022         grammar complexity limit (Pratt operand/operator stack > 32)
+//
+// G-prefix code reservations (call graph):
+//   G-001         recursive call cycle detected
+//
+// M-prefix code reservations (per docs/TASK_SEAL_V0.md §4):
+//   M-001 manifest file missing for the named task
+//   M-002 manifest schema invalid
+//   M-003 declared effect not in [effects].allowed
+//   M-004 function transitive closure exceeds manifest bound
+//   M-005 trusted! mmio_* address outside [[mmio.range]]
+//   M-006 IPC send/recv on channel id not in [[ipc.channel]]
+//   M-007 [forbidden] key absent or set non-false
+//   M-008 worst-case stack usage exceeds [budgets].task_stack_limit
+//   M-009 loop bound exceeds [budgets].loop_bound_max
+//   M-010 manifest references module path not present in source set
+//   M-011 capability slot collides / cap not in manifest
+//   M-012 profile mismatch (manifest vs source)
+
+struct Span {
+    start: u32,             // byte offset into source
+    end: u32,
+}
+
+struct Diagnostic {
+    code_prefix: u8,        // 'L', 'P', 'H', etc. as ASCII byte
+    code_number: u16,       // 1, 2, 3, ...
+    span: Option[Span],
+    message_id: u16,        // index into a fixed message catalog
+}
+
+// Format: "<PREFIX>-<NNN> <start>..<end> <message_id>\n"
+// Example: "L-001 12..15 0\n"
+//
+// Output buffer is caller-supplied; this function returns the number of
+// bytes written. Determinism: same input always produces same bytes.
+fn fmt_diagnostic(d: Diagnostic, out: Slice[u8, 4096]) -> u32 {
+    let mut cursor: u32 = 0;
+    // Prefix byte (single ASCII letter)
+    out[cursor] = d.code_prefix;
+    cursor = cursor + 1;
+    // '-'
+    out[cursor] = 45;
+    cursor = cursor + 1;
+    // 3-digit zero-padded code number
+    let n: u16 = d.code_number;
+    let h: u16 = n / 100;
+    let t: u16 = (n / 10) - h * 10;
+    let u: u16 = n - (n / 10) * 10;
+    out[cursor] = (h as u8) + 48;
+    cursor = cursor + 1;
+    out[cursor] = (t as u8) + 48;
+    cursor = cursor + 1;
+    out[cursor] = (u as u8) + 48;
+    cursor = cursor + 1;
+    // ' '
+    out[cursor] = 32;
+    cursor = cursor + 1;
+    // span (or "?" if absent)
+    match d.span {
+        Some(s) => {
+            cursor = write_u32(out, cursor, s.start);
+            // ".."
+            out[cursor] = 46; cursor = cursor + 1;
+            out[cursor] = 46; cursor = cursor + 1;
+            cursor = write_u32(out, cursor, s.end);
+        },
+        None => {
+            out[cursor] = 63;    // '?'
+            cursor = cursor + 1;
+        },
+    }
+    // ' '
+    out[cursor] = 32;
+    cursor = cursor + 1;
+    // message_id (decimal)
+    cursor = write_u32(out, cursor, d.message_id as u32);
+    // '\n'
+    out[cursor] = 10;
+    cursor = cursor + 1;
+    cursor
+}
+
+// write_u32: emit a base-10 representation of `value` into `out` starting
+// at `cursor`. Returns the new cursor. Bounded by 10 digits (max u32 is
+// 4_294_967_295, ten digits).
+fn write_u32(out: Slice[u8, 4096], cursor: u32, value: u32) -> u32 {
+    match value == 0 {
+        true => {
+            out[cursor] = 48;
+            cursor + 1
+        },
+        false => {
+            let mut digits: [u8; 10] = [0; 10];
+            let mut n: u32 = value;
+            let mut count: u32 = 0;
+            #[bound = 10]
+            for i in 0..10 {
+                match n == 0 {
+                    true => i,
+                    false => {
+                        digits[count] = ((n - (n / 10) * 10) as u8) + 48;
+                        count = count + 1;
+                        n = n / 10;
+                        i
+                    },
+                };
+            }
+            // Reverse-emit
+            let mut local_cursor: u32 = cursor;
+            #[bound = 10]
+            for j in 0..count {
+                out[local_cursor] = digits[count - j - 1];
+                local_cursor = local_cursor + 1;
+            }
+            local_cursor
+        },
+    }
+}
+
+// Diagnostic catalog. The catalog is a fixed table indexed by message_id.
+// Adding a message requires a coordinated PR with the UI corpus.
+struct CatalogEntry {
+    message_id: u16,
+    text_offset: u16,        // offset into a fixed byte-array catalog
+    text_length: u16,
+}
+
+// Catalog text storage is a fixed byte array; entries point into it by
+// (offset, length). The actual catalog content is loaded from
+// docs/language/diagnostic_catalog.toml at compile time (a future
+// coordinated change). For now this is a 256-byte placeholder.
+struct DiagnosticCatalog {
+    entries: [CatalogEntry; 128],
+    text_storage: [u8; 4096],
+    entry_count: u16,
+    text_used: u16,
+}

@@ -1,0 +1,6 @@
+module tests.conformance.host.pass.host_fs_write_file;
+profile host;
+
+fn emit_report(buf: Slice[u8, 65536], len: u32, path: Slice[u8, 256]) -> bool effects(host-fs-write) {
+    true
+}

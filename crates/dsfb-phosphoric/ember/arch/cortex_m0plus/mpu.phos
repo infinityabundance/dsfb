@@ -1,0 +1,76 @@
+module ember.arch.cortex_m0plus.mpu;
+profile trusted;
+
+// ARMv6-M MPU configuration on RP2040.
+// Same purposes as cortex_m33 MPU but no SAU companion (no TrustZone).
+// 8 region-based memory permissions.
+
+enum MpuRegionPurpose {
+    StackGuardLow,
+    StackGuardHigh,
+    FlashRO,
+    SramRW,
+    PeripheralRO,
+    Reserved,
+}
+
+struct MpuRegion {
+    purpose: MpuRegionPurpose,
+    base: u32,
+    size_log2: u8,           // size = 2^(size_log2 + 1) per ARMv6-M; min 32 bytes
+    permissions: u8,
+}
+
+// ARMv6-M MPU MMIO base addresses are identical to ARMv8-M; the register
+// layout differs in the ENABLE/SIZE bit packing and the absence of MAIR.
+fn mpu_ctrl_addr() -> u32   { 3758104468 }       // 0xE000ED94 (MPU_CTRL)
+fn mpu_rnr_addr() -> u32    { 3758104472 }       // 0xE000ED98 (MPU_RNR)
+fn mpu_rbar_addr() -> u32   { 3758104476 }       // 0xE000ED9C (MPU_RBAR)
+fn mpu_rasr_addr() -> u32   { 3758104480 }       // 0xE000EDA0 (MPU_RASR — ARMv6-M-specific)
+
+// ARMv6-M RASR layout (relevant bits):
+//   [0]    ENABLE
+//   [5:1]  SIZE = size_log2 (region_size = 2^(size_log2 + 1))
+//   [23:16] AP (access permissions)
+//   [28]   XN (execute-never)
+fn mpu_rasr_encoding(region: MpuRegion) -> u32 {
+    let mut v: u32 = 1;                                  // ENABLE
+    v = v + ((region.size_log2 as u32) * 2);             // SIZE field at bit 1
+    v = v + ((region.permissions as u32) * 65536);       // AP at bit 16
+    v
+}
+
+// Configure one MPU region. The ARMv6-M write sequence:
+//   1. select region via MPU_RNR
+//   2. write base via MPU_RBAR (with VALID=0 since RNR already selected)
+//   3. write size + attributes + ENABLE via MPU_RASR
+// Each step is a separate trusted! block per E24.
+fn configure_mpu_region(index: u8, region: MpuRegion) {
+    // trust-audit: row "MPU region select (RNR, ARMv6-M)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(mpu_rnr_addr(), index as u32);
+    };
+    // trust-audit: row "MPU region base (RBAR, ARMv6-M)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(mpu_rbar_addr(), region.base);
+    };
+    // trust-audit: row "MPU region attr (RASR, ARMv6-M)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(mpu_rasr_addr(), mpu_rasr_encoding(region));
+    };
+}
+
+// Enable the MPU. PRIVDEFENA=1 keeps default memory map for unmapped
+// privileged accesses; ENABLE=1 turns the unit on.
+//
+// razor-rationale: irreducible-hw — MPU master enable.
+fn enable_mpu() {
+    // trust-audit: row "MPU enable (ARMv6-M)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(mpu_ctrl_addr(), 5);     // ENABLE | PRIVDEFENA
+    };
+}

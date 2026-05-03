@@ -1,0 +1,8 @@
+module fixture.return_constructor_int;
+profile boot;
+fn entry() -> i32 {
+    return helper(7);
+}
+fn helper(arg: i32) -> i32 {
+    return Ok(42);
+}

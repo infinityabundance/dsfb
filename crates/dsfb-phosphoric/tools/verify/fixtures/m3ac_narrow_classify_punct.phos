@@ -1,0 +1,30 @@
+module fixture.m3ac_narrow_classify_punct;
+profile boot;
+fn entry() -> i32 {
+    return classify_single_punct(40);
+}
+fn classify_single_punct(b: i32) -> i32 {
+    match b {
+        40  => 1,
+        41  => 2,
+        123 => 3,
+        125 => 4,
+        91  => 5,
+        93  => 6,
+        44  => 7,
+        59  => 8,
+        58  => 9,
+        46  => 11,
+        61  => 15,
+        60  => 18,
+        62  => 20,
+        43  => 22,
+        45  => 23,
+        42  => 24,
+        47  => 25,
+        35  => 28,
+        95  => 29,
+        33  => 30,
+        _   => 0,
+    }
+}

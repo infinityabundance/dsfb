@@ -1,0 +1,8 @@
+# Pass A-15 fixture: match-comparison with let-bound comparison value.
+# Source: classify(80) with `let limit = 100; match arg < limit { true => 11, false => 22 }`.
+# Producer's +3 dispatch now accepts TK_IDENT-matching-let in addition
+# to TK_INT, looking up let_value (100) and using it as the cmp IMM_32.
+# Verified: rc = 11 (80 < 100 fires TRUE arm).
+size=1105
+sha=4638c3f35a38002a1e3bea810857d6cc7ccbe1047f7318123811aeb85841bddd
+rc=11

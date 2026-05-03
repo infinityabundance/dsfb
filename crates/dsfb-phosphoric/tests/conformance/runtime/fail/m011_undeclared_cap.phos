@@ -1,0 +1,16 @@
+module tests.conformance.runtime.fail.m011_undeclared_cap;
+profile runtime;
+
+// fail-expected: M-011
+//
+// Capability declaration at a (kind, slot) pair not in the manifest's
+// [[capabilities.entry]] is a compile-time M-011. The sibling manifest
+// declares only Task slot 0; this source declares Window slot 7.
+//
+// Forensic role: the cap graph at compile time is exactly the cap graph
+// the manifest declared. Extras OR missing are both rejected. This is
+// the strongest of the manifest checks (declared == compiled equality).
+
+fn marker() -> u32 {
+    0
+}

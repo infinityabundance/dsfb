@@ -1,0 +1,244 @@
+module pcc.host_tools.check_host_profile_separation;
+profile host;
+
+// Cross-profile contamination rejection.
+//
+// For every .phos file under tools/phosphoric-host/: assert profile = host.
+// For every .phos file under apps/demo/: assert profile != host (boot default).
+// For every .phos file under ember/: assert profile = trusted.
+// For every .phos file under kernel/: assert profile = runtime.
+// For every .phos file under compiler/: assert profile = host (the
+//   self-hosted compiler runs on the developer machine).
+
+enum ProfileMismatch {
+    ExpectedHostFoundOther,         // diagnostic H-008
+    ExpectedTrustedFoundOther,      // diagnostic T-001
+    ExpectedRuntimeFoundOther,      // diagnostic R-005 / R-006
+    ExpectedBootFoundHost,          // diagnostic H-002
+}
+
+// Scan the first ~16 lines of a .phos file looking for `profile <ident>;`.
+// Recognized idents: boot, host, trusted, runtime. Return values:
+//   0 = boot (or no clause; default is boot for v0)
+//   1 = host
+//   2 = trusted
+//   3 = runtime
+//   255 = malformed
+fn read_profile_clause(file_buf: Slice[u8, 1048576], len: u32) -> u8 {
+    let mut cursor: u32 = 0;
+    let mut line_no: u32 = 0;
+    #[bound = 16]
+    for line in 0..16 {
+        match cursor >= len {
+            true => return 0,
+            false => (),
+        }
+        let line_start: u32 = cursor;
+        // Find end of line.
+        let mut line_end: u32 = cursor;
+        #[bound = 4096]
+        for i in 0..4096 {
+            match line_end >= len {
+                true => i,
+                false => match file_buf[line_end] == 10 {
+                    true  => i,
+                    false => {
+                        line_end = line_end + 1;
+                        i
+                    },
+                },
+            };
+        }
+        // Skip whitespace at line start.
+        let mut p: u32 = line_start;
+        #[bound = 64]
+        for _ws in 0..64 {
+            match p >= line_end {
+                true => _ws,
+                false => match file_buf[p] == 32 {
+                    true  => { p = p + 1; _ws },
+                    false => match file_buf[p] == 9 {
+                        true  => { p = p + 1; _ws },
+                        false => _ws,
+                    },
+                },
+            };
+        }
+        // Match "profile " (7 bytes + space).
+        match p + 8 <= line_end {
+            true => match file_buf[p] == 112 {     // 'p'
+                true => match file_buf[p + 1] == 114 {  // 'r'
+                    true => match file_buf[p + 2] == 111 {  // 'o'
+                        true => match file_buf[p + 3] == 102 {  // 'f'
+                            true => match file_buf[p + 4] == 105 {  // 'i'
+                                true => match file_buf[p + 5] == 108 {  // 'l'
+                                    true => match file_buf[p + 6] == 101 {  // 'e'
+                                        true => match file_buf[p + 7] == 32 {  // ' '
+                                            true => return classify_profile_ident(file_buf, p + 8, line_end),
+                                            false => (),
+                                        },
+                                        false => (),
+                                    },
+                                    false => (),
+                                },
+                                false => (),
+                            },
+                            false => (),
+                        },
+                        false => (),
+                    },
+                    false => (),
+                },
+                false => (),
+            },
+            false => (),
+        }
+        // Advance to next line.
+        match line_end < len {
+            true  => cursor = line_end + 1,
+            false => return 0,
+        }
+        line_no = line_no + 1;
+    }
+    0    // No profile clause found; default boot
+}
+
+fn classify_profile_ident(buf: Slice[u8, 1048576], start: u32, line_end: u32) -> u8 {
+    let mut p: u32 = start;
+    // Skip whitespace.
+    #[bound = 32]
+    for _ in 0..32 {
+        match p >= line_end {
+            true => _,
+            false => match buf[p] == 32 {
+                true  => { p = p + 1; _ },
+                false => _,
+            },
+        };
+    }
+    let len: u32 = line_end - p;
+    // "boot" = 4 bytes
+    match len >= 4 {
+        true => match buf[p] == 98 {
+            true => match buf[p + 1] == 111 {
+                true => match buf[p + 2] == 111 {
+                    true => match buf[p + 3] == 116 {
+                        true  => return 0,
+                        false => (),
+                    },
+                    false => (),
+                },
+                false => (),
+            },
+            false => (),
+        },
+        false => (),
+    }
+    // "host" = 4 bytes
+    match len >= 4 {
+        true => match buf[p] == 104 {
+            true => match buf[p + 1] == 111 {
+                true => match buf[p + 2] == 115 {
+                    true => match buf[p + 3] == 116 {
+                        true  => return 1,
+                        false => (),
+                    },
+                    false => (),
+                },
+                false => (),
+            },
+            false => (),
+        },
+        false => (),
+    }
+    // "trusted" = 7 bytes
+    match len >= 7 {
+        true => match buf[p] == 116 {
+            true => match buf[p + 1] == 114 {
+                true => match buf[p + 6] == 100 {
+                    true  => return 2,
+                    false => (),
+                },
+                false => (),
+            },
+            false => (),
+        },
+        false => (),
+    }
+    // "runtime" = 7 bytes
+    match len >= 7 {
+        true => match buf[p] == 114 {
+            true => match buf[p + 1] == 117 {
+                true  => return 3,
+                false => (),
+            },
+            false => (),
+        },
+        false => (),
+    }
+    255
+}
+
+// expected_profile_for_dir: maps a directory prefix to its expected profile id.
+// Returns 254 for unknown dirs (no constraint).
+fn expected_profile_for_dir(path: Slice[u8, 256], path_len: u32) -> u8 {
+    // "apps/demo/" → boot (0)
+    match path_starts_with(path, path_len, [97, 112, 112, 115, 47, 100, 101, 109, 111, 47, 0,0,0,0,0,0], 10) {
+        true  => return 0,
+        false => (),
+    }
+    // "ember/" → trusted (2)
+    match path_starts_with(path, path_len, [101, 109, 98, 101, 114, 47, 0,0,0,0,0,0,0,0,0,0], 6) {
+        true  => return 2,
+        false => (),
+    }
+    // "kernel/" → runtime (3)
+    match path_starts_with(path, path_len, [107, 101, 114, 110, 101, 108, 47, 0,0,0,0,0,0,0,0,0], 7) {
+        true  => return 3,
+        false => (),
+    }
+    // "compiler/" → host (1)
+    match path_starts_with(path, path_len, [99, 111, 109, 112, 105, 108, 101, 114, 47, 0,0,0,0,0,0,0], 9) {
+        true  => return 1,
+        false => (),
+    }
+    // "tools/phosphoric-host/" → host (1)
+    match path_starts_with(path, path_len, [116, 111, 111, 108, 115, 47, 112, 104, 111, 115, 112, 104, 111, 114, 105, 99], 16) {
+        true  => return 1,
+        false => (),
+    }
+    254    // unknown dir
+}
+
+fn path_starts_with(path: Slice[u8, 256], path_len: u32, prefix: [u8; 16], prefix_len: u32) -> bool {
+    match path_len < prefix_len {
+        true  => false,
+        false => {
+            #[bound = 16]
+            for i in 0..prefix_len {
+                match path[i] == prefix[i] {
+                    true  => (),
+                    false => return false,
+                }
+            }
+            true
+        },
+    }
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr) {
+    // 1. Walk active directories: apps/demo, ember, kernel, compiler,
+    //    tools/phosphoric-host. Walk happens via host-profile syscall
+    //    surface (openat + readdir) once codegen_host is real.
+    // 2. For each .phos: read first 16 lines via host-fs-read, parse
+    //    profile clause via read_profile_clause.
+    // 3. Compare to expected_profile_for_dir(path).
+    //    - Match: continue.
+    //    - Mismatch: emit diagnostic via host-stderr with the offending
+    //      path + expected/actual profile ids; set exit code 1.
+    // 4. Exit 0 if all files OK; 1 on any mismatch.
+    0
+}

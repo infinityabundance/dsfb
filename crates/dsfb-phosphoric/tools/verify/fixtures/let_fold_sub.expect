@@ -1,0 +1,10 @@
+# Pass A-8 fixture: let-RHS constant fold (`let X = INT_A op INT_B;`).
+# Source:
+#   fn entry() { let n = 100 - 58; return n; }
+# Producer's Pass K extension folds INT_A op INT_B at scan time so n is
+# captured as 42 in [rbp - 28], and `return n;` then routes through the
+# matched-let path → captured value 42 → entry's exit code.
+# Verified: rc = 100 - 58 = 42 at runtime.
+size=1081
+sha=9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de
+rc=42

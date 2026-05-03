@@ -1,0 +1,15 @@
+module tests.conformance.runtime.pass.m006_send_declared_channel;
+profile runtime;
+
+// pass-expected
+//
+// Companion to runtime/fail/m006_send_undeclared_channel.phos. The
+// sibling manifest declares "input_event_route"; this source sends on
+// it, so the M-006 check passes (compiled boundary ⊆ declared boundary).
+//
+// The two cases together demonstrate the forensic-boundary check at
+// the IPC channel axis.
+
+fn marker() -> u32 {
+    0
+}

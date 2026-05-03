@@ -1,0 +1,146 @@
+{
+  "schema_version": "boot-ir-v1",
+  "abi_version": "boot-abi-v2",
+  "profile": "demo-runtime-v2",
+  "module_name": "demo.button_policy",
+  "exports": [
+    {
+      "kind": "demo_init",
+      "symbol": "phosphoric_demo_init"
+    },
+    {
+      "kind": "demo_step",
+      "symbol": "phosphoric_demo_step"
+    },
+    {
+      "kind": "demo_render",
+      "symbol": "phosphoric_demo_render"
+    }
+  ],
+  "functions": [
+    {
+      "source_name": "button_next_pressed",
+      "emitted_name": "phosphoric_demo_v1__button_next_pressed",
+      "params": [
+        {
+          "name": "pressed",
+          "ty": "bool"
+        },
+        {
+          "name": "unicode_char",
+          "ty": "u16"
+        },
+        {
+          "name": "scan_code",
+          "ty": "u16"
+        }
+      ],
+      "return_type": "bool",
+      "body": {
+        "statements": [],
+        "tail": {
+          "ty": "bool",
+          "kind": {
+            "kind": "if",
+            "condition": {
+              "ty": "bool",
+              "kind": {
+                "kind": "binary",
+                "lhs": {
+                  "ty": "u16",
+                  "kind": {
+                    "kind": "local",
+                    "name": "unicode_char"
+                  }
+                },
+                "op": "eq_eq",
+                "rhs": {
+                  "ty": "u64",
+                  "kind": {
+                    "kind": "integer",
+                    "value": 32
+                  }
+                },
+                "operand_type": "u16"
+              }
+            },
+            "then_expr": {
+              "ty": "bool",
+              "kind": {
+                "kind": "if",
+                "condition": {
+                  "ty": "bool",
+                  "kind": {
+                    "kind": "local",
+                    "name": "pressed"
+                  }
+                },
+                "then_expr": {
+                  "ty": "bool",
+                  "kind": {
+                    "kind": "bool",
+                    "value": false
+                  }
+                },
+                "else_expr": {
+                  "ty": "bool",
+                  "kind": {
+                    "kind": "bool",
+                    "value": true
+                  }
+                }
+              }
+            },
+            "else_expr": {
+              "ty": "bool",
+              "kind": {
+                "kind": "local",
+                "name": "pressed"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "source_name": "button_redraw_requested",
+      "emitted_name": "phosphoric_demo_v1__button_redraw_requested",
+      "params": [
+        {
+          "name": "unicode_char",
+          "ty": "u16"
+        },
+        {
+          "name": "scan_code",
+          "ty": "u16"
+        }
+      ],
+      "return_type": "bool",
+      "body": {
+        "statements": [],
+        "tail": {
+          "ty": "bool",
+          "kind": {
+            "kind": "binary",
+            "lhs": {
+              "ty": "u16",
+              "kind": {
+                "kind": "local",
+                "name": "unicode_char"
+              }
+            },
+            "op": "eq_eq",
+            "rhs": {
+              "ty": "u64",
+              "kind": {
+                "kind": "integer",
+                "value": 32
+              }
+            },
+            "operand_type": "u16"
+          }
+        }
+      }
+    }
+  ]
+}

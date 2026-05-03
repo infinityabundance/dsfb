@@ -1,0 +1,13 @@
+# Pass A-4 fixture: param name captured from fn signature (no __a0 magic).
+# Source uses plain `arg` as the parameter name; producer reads it from
+# the signature into fn_param0_table[fn_idx] during the pre-pass and,
+# at body scan, recognises `return arg;` by name_pool_idx-equality
+# against the captured value. Same emit as A-2 (`mov eax, edi; ret`).
+#
+# Source:
+#   fn entry()       { return passthrough(13); }    // A-3 entry call
+#   fn passthrough(arg) { return arg; }             // A-4 generalises A-2
+# Verified: rc=13 at runtime.
+size=1105
+sha=67538675db578b19b19f278115e0f0edfc29a68120d825a0b6ac813d8ff574d2
+rc=13

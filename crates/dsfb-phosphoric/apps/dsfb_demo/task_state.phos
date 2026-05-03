@@ -1,0 +1,24 @@
+module dsfb_demo.task_state;
+
+struct RazorTaskState {
+    boot_seq: u32,
+    task_enter_seq: u32,
+    task_exit_seq: u32,
+    residual_count: u32,
+    theorem_printed: u32,
+    halt_code: u32,
+    reserved0: u32,
+    reserved1: u32,
+}
+
+fn initial_boot_seq() -> u32 { 1 }
+fn initial_task_enter_seq() -> u32 { 2 }
+fn initial_task_exit_seq() -> u32 { 3 }
+fn initial_residual_count() -> u32 { 3 }
+fn initial_theorem_printed() -> u32 { 1 }
+fn initial_halt_code() -> u32 { 0 }
+
+// v0.3 razor demo single-task state shape. The kernel runs exactly
+// one task. RazorTaskState records the three authority transitions
+// the court observes: kernel-init (R7 boot_check, seq=1), task-enter
+// (R6 task_transition, seq=2), task-exit (R6 task_transition, seq=3).

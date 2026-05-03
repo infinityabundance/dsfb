@@ -1,0 +1,19 @@
+module tests.conformance.runtime.fail.m004_closure_exceeds_bound;
+profile runtime;
+
+// fail-expected: M-004
+//
+// Function transitive closure exceeds manifest bound. The sibling
+// manifest's [effects].allowed = ["draw"] only. This function declares
+// "draw", so its direct effects are within bound; but it calls
+// `helper`, which declares "ipc" — and since the closure pass unions
+// declared effects across called functions, the closure carries
+// {draw, ipc} which exceeds the manifest's {draw}.
+
+fn caller() -> u32 effects(draw) {
+    helper()
+}
+
+fn helper() -> u32 effects(ipc) {
+    0
+}

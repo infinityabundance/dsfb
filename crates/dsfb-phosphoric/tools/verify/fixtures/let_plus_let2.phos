@@ -1,0 +1,7 @@
+module fixture.let_plus_let2;
+profile boot;
+fn entry() -> i32 {
+    let a = 12;
+    let b = 30;
+    return a + b;
+}

@@ -1,0 +1,19 @@
+module tests.conformance.runtime.fail.runtime_recursive_schedule;
+profile runtime;
+
+// fail-expected: R-007
+//
+// A task cannot synchronously wait on its own continuation. RUNTIME_PROFILE.md
+// forbids the recursive-scheduling pattern; the call-graph pass detects it
+// and the runtime profile names it explicitly with R-007.
+
+struct TaskHandle {
+    slot: u16,
+    generation: u16,
+    kind: u8,
+    reserved: u8,
+}
+
+fn await_self(h: TaskHandle) -> u32 effects(sched) {
+    await_self(h)
+}

@@ -1,0 +1,9 @@
+module fixture.sys1_exit42;
+profile boot;
+fn entry() -> i32 {
+    return 0;
+}
+fn helper() -> i32 {
+    __sys1(60, 42);
+    return 0;
+}

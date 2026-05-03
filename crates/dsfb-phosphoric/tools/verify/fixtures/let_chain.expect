@@ -1,0 +1,10 @@
+# Pass A-18 fixture: chained let — second `let` references first's value.
+# Source: `let a = 20; let b = a + 22; return b;` → b = 20 + 22 = 42.
+# Producer's Pass K +3 dispatch now accepts TK_IDENT-matching-let in
+# addition to TK_INT, looking up the prior let_value as INT_A and
+# folding through Pass A-8's existing op path. Single-slot tracker, so
+# `a` is overwritten by `b`'s commit — but sequential chains compose.
+# Verified: rc = 42 at runtime.
+size=1081
+sha=9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de
+rc=42

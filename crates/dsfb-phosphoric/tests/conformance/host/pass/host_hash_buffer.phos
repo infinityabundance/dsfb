@@ -1,0 +1,6 @@
+module tests.conformance.host.pass.host_hash_buffer;
+profile host;
+
+fn fingerprint(buf: Slice[u8, 65536], len: u32) -> [u8; 32] effects(host-hash) {
+    [0; 32]
+}

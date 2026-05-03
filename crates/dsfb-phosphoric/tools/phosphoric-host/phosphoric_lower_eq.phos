@@ -1,0 +1,68 @@
+module pcc.host_tools.phosphoric_lower_eq;
+profile host;
+
+// Backend equivalence harness.
+//
+// For each .phos in apps/demo/ and tests/conformance/boot/pass/:
+//   1. Run pcc.phos's boot codegen (HIR -> boot_ir_v1 -> boot_asm_v1).
+//   2. Run the legacy shell emitter (until E5 retires it).
+//   3. Byte-compare both outputs.
+//   4. Fail on any divergence.
+//
+// Once the shell emitter is retired, this tool still serves: it compares
+// stage{N} and stage{N+1} on identical inputs, which is a separate property
+// from the bootstrap fixpoint (this is per-program, not per-compiler).
+
+struct LoweringPair {
+    source_path_id: u16,
+    pcc_ir_hash: [u8; 32],
+    pcc_asm_hash: [u8; 32],
+    legacy_ir_hash: [u8; 32],
+    legacy_asm_hash: [u8; 32],
+    matches: bool,
+}
+
+fn sha_eq(a: [u8; 32], b: [u8; 32]) -> bool {
+    #[bound = 32]
+    for i in 0..32 {
+        match a[i] == b[i] {
+            true  => (),
+            false => return false,
+        }
+    }
+    true
+}
+
+// Read a file and compute its SHA-256.
+fn hash_file(path: Slice[u8, 256]) -> Result[[u8; 32], u32] effects(host-fs-read, host-hash) {
+    Ok([0; 32])
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-fs-write, host-stdout, host-stderr, host-hash) {
+    // Backend equivalence harness (E5).
+    //
+    // Sequence:
+    //   1. Enumerate input sources: apps/demo/*.phos +
+    //      tests/conformance/boot/pass/*.phos.
+    //   2. The makefile rule has already invoked both backends:
+    //      a. pcc.codegen.boot (Phosphoric backend; output to
+    //         build/lower-eq/<name>/pcc.{ir,asm})
+    //      b. tools/phosphoric/emit_boot_demo_from_phos.sh (legacy shell
+    //         backend; output to build/lower-eq/<name>/legacy.{ir,asm})
+    //   3. For each .phos input, hash both backend outputs.
+    //   4. Compare via sha_eq. Differing hashes → emit a LoweringPair
+    //      record with `matches=false` to host-stdout.
+    //   5. Exit 0 if every pair matches; 1 on first divergence.
+    //
+    // The harness is read-only over already-produced backend outputs.
+    // Subprocess invocation of the two backends happens in the makefile
+    // rule (subprocess is not a host-profile primitive).
+    //
+    // When the legacy shell emitter retires (per E5 sequencing), this
+    // harness instead compares pcc.codegen.boot outputs across two
+    // builds (stage{N+1} vs stage{N+2}) — same shape, different inputs.
+    0
+}

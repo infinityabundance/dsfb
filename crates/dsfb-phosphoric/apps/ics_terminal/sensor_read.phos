@@ -1,0 +1,47 @@
+module ics_terminal.sensor_read;
+profile boot;
+
+// Typed payload for the sensor_read_route IPC channel.
+//
+// One sample from ADC0 on GP26. The reading is a 12-bit ADC value
+// (RP2350 ADC), zero-extended to u16. cycle pins when the conversion
+// completed; saturation flags an out-of-range condition the actuator
+// policy may reject.
+
+struct SensorRead {
+    pin: u8,                        // GP26 = 26
+    raw: u16,                       // 12-bit ADC value, 0..4095
+    cycle: u64,                     // RP2350 cycle counter at conversion done
+    saturated: bool,                // raw == 0 or raw == 4095
+}
+
+fn empty_sensor_read() -> SensorRead {
+    SensorRead {
+        pin: 0,
+        raw: 0,
+        cycle: 0,
+        saturated: false,
+    }
+}
+
+// Apply the saturated flag based on the raw value. Pure function,
+// no manifest cross-check needed; used by the boot_entry sample path
+// to set the flag before sending on sensor_read_route.
+fn classify_saturation(raw: u16) -> bool {
+    match raw == 0 {
+        true  => true,
+        false => match raw == 4095 {
+            true  => true,
+            false => false,
+        },
+    }
+}
+
+// Engineering-units conversion. 3.3V reference, 12-bit. Returned as
+// millivolts (u16, 0..3300). Caller handles display formatting.
+fn raw_to_millivolts(raw: u16) -> u16 {
+    // mv = raw * 3300 / 4095. Phosphoric v0 has no float; integer
+    // arithmetic suffices for display-grade precision.
+    let scaled: u32 = (raw as u32) * 3300;
+    (scaled / 4095) as u16
+}

@@ -1,0 +1,128 @@
+module pcc.stack_analysis;
+profile host;
+
+// Worst-case stack analysis per entrypoint.
+//
+// Computes max stack depth over the same-module call graph from each
+// declared entrypoint. Compares against budget configured in
+// config/<target>_budget.toml (referenced via budget.phos).
+//
+// Diagnostic codes (S- prefix):
+//   S-001 stack budget exceeded
+//   S-002 entrypoint not present in budget manifest
+//   S-003 unbounded recursion detected (defense in depth; call_graph rejects first)
+
+struct StackReport {
+    entrypoint_name_id: u16,
+    measured_bytes: u32,
+    budget_bytes: u32,
+    over: bool,
+}
+
+fn s_diagnostic(code: u16) -> pcc.diagnostic.Diagnostic {
+    pcc.diagnostic.Diagnostic {
+        code_prefix: 83,    // 'S'
+        code_number: code,
+        span: None,
+        message_id: 0,
+    }
+}
+
+// Top-level pass entry. Walks every entrypoint in the module, runs
+// analyze_entrypoint, and emits S-001 if the worst-case stack usage
+// exceeds the per-entrypoint budget. The manifest cross-check (M-008)
+// uses the same `over` flag — manifest.phos translates it at the
+// authority boundary.
+//
+// Per-entrypoint discovery: scan `hir.items` for `HirItem::Function`
+// whose name_id appears in the budget manifest's entrypoint list. Each
+// matching function is an entrypoint.
+fn check_module(
+    hir: pcc.hir.HirModule,
+    budget: pcc.budget.BudgetManifest,
+) -> Result[u32, pcc.diagnostic.Diagnostic] {
+    #[bound = 32]
+    for i in 0..(budget.entrypoint_count as u32) {
+        let entry: pcc.budget.BudgetEntry = budget.entrypoints[i];
+        match analyze_entrypoint(hir, entry.entrypoint_name_id, budget) {
+            Err(d) => return Err(d),
+            Ok(report) => match report.over {
+                true  => return Err(s_diagnostic(1)),
+                false => (),
+            },
+        };
+    }
+    Ok(0)
+}
+
+// Look up the budget for an entrypoint by name_id.
+fn lookup_budget(budget: pcc.budget.BudgetManifest, name_id: u16) -> Option[u32] {
+    #[bound = 32]
+    for i in 0..(budget.entrypoint_count as u32) {
+        let entry: pcc.budget.BudgetEntry = budget.entrypoints[i];
+        match entry.entrypoint_name_id == name_id {
+            true  => return Some(entry.stack_budget_bytes),
+            false => (),
+        }
+    }
+    None
+}
+
+// Worst-case stack analysis: deepest_descent[f] = frames[f] + max over
+// callees of deepest_descent[callee]. v0 forbids recursion in the
+// compiler. The acyclic call graph (cycles already rejected by
+// call_graph.detect_cycles) lets us iterate to fixpoint: each pass
+// propagates deeper values along edges until nothing changes. Bounded
+// by graph depth (≤ function_count).
+fn analyze_entrypoint(
+    hir: pcc.hir.HirModule,
+    entrypoint_id: u16,
+    budget: pcc.budget.BudgetManifest,
+) -> Result[StackReport, pcc.diagnostic.Diagnostic] {
+    let budget_bytes: u32 = match lookup_budget(budget, entrypoint_id) {
+        Some(b) => b,
+        None    => return Err(s_diagnostic(2)),
+    };
+    // Per-function frame sizes via frame_layout pass.
+    let mut frames: [u32; 1024] = [0; 1024];
+    #[bound = 1024]
+    for i in 0..(hir.item_count as u32) {
+        match pcc.frame_layout.frame_layout_for(hir, i as u16) {
+            Ok(layout) => frames[i] = layout.total_bytes,
+            Err(d)     => return Err(d),
+        }
+    }
+    // Acyclicity check.
+    let g: pcc.call_graph.CallGraph = pcc.call_graph.build_graph(hir);
+    let cycles: pcc.call_graph.CycleReport = pcc.call_graph.detect_cycles(g);
+    match cycles.has_cycle {
+        true  => return Err(s_diagnostic(3)),
+        false => (),
+    }
+    // Initialize deepest = frames; iterate edge-relaxation to fixpoint.
+    let mut deepest: [u32; 1024] = [0; 1024];
+    #[bound = 1024]
+    for i in 0..(hir.item_count as u32) {
+        deepest[i] = frames[i];
+    }
+    #[bound = 1024]
+    for pass in 0..(hir.item_count as u32) {
+        #[bound = 8192]
+        for e in 0..g.edge_count {
+            let edge: pcc.call_graph.CallEdge = g.edges[e];
+            let proposed: u32 = frames[edge.caller_id as u32] + deepest[edge.callee_id as u32];
+            match proposed > deepest[edge.caller_id as u32] {
+                true  => deepest[edge.caller_id as u32] = proposed,
+                false => (),
+            }
+        }
+    }
+    let measured: u32 = deepest[entrypoint_id as u32];
+    let over: bool = measured > budget_bytes;
+    Ok(StackReport {
+        entrypoint_name_id: entrypoint_id,
+        measured_bytes: measured,
+        budget_bytes: budget_bytes,
+        over: over,
+    })
+}

@@ -1,0 +1,13 @@
+module tests.conformance.host.fail.restored.assignment_type_mismatch;
+profile host;
+
+// fail-expected: K-013
+// (restored from legacy_ui/fail/assignment_type_mismatch; legacy code TYPE_MISMATCH "cannot assign value of type")
+
+module fail.assignment_type_mismatch;
+
+fn bad(value: u32, flag: bool) -> u32 {
+    let mut slot = value;
+    slot = flag;
+    return slot;
+}

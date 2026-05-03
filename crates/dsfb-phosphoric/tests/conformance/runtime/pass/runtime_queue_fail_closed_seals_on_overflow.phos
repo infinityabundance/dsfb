@@ -1,0 +1,38 @@
+module tests.conformance.runtime.pass.runtime_queue_fail_closed_seals_on_overflow;
+profile runtime;
+
+// Pass case: the QueueFailClosed family seals on overflow. After the
+// first overflow the queue rejects further writes until explicit drain.
+
+struct QueueFailClosed {
+    head: u16,
+    tail: u16,
+    items: [u32; 8],
+    count: u16,
+    sealed: bool,
+}
+
+enum RuntimeError {
+    QueueFull,
+    QueueSealed,
+}
+
+fn enqueue(q: QueueFailClosed, item: u32) -> Result[QueueFailClosed, RuntimeError] {
+    match q.sealed {
+        true  => Err(RuntimeError::QueueSealed),
+        false => match q.count == 8 {
+            true => {
+                let mut sealed: QueueFailClosed = q;
+                sealed.sealed = true;
+                Err(RuntimeError::QueueFull)
+            },
+            false => {
+                let mut updated: QueueFailClosed = q;
+                updated.items[updated.tail] = item;
+                updated.tail = updated.tail + 1;
+                updated.count = updated.count + 1;
+                Ok(updated)
+            },
+        },
+    }
+}

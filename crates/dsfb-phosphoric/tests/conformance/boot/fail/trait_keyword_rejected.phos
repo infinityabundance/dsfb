@@ -1,0 +1,10 @@
+module tests.conformance.boot.fail.trait_keyword_rejected;
+
+// fail-expected: P-009
+//
+// `trait` is forbidden in v0. Phosphoric has no trait abstraction;
+// dispatch is concrete and statically resolved.
+
+trait Drawable {
+    fn draw(self) -> bool;
+}

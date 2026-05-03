@@ -1,0 +1,9 @@
+# Pass A-17 fixture: match arms accept let-bound IDENT in addition to INT.
+# Source: classify(7) with `let success = 88; match arg == 7 { true => success, false => 0 }`.
+# Producer's +7 (TRUE arm) and +11 (FALSE arm) dispatches now accept
+# TK_IDENT-matching-let as well as TK_INT — let_value substituted as
+# the arm result. arg=7 makes ZF=1, je takes, eax stays 88.
+# Verified: rc = 88 at runtime.
+size=1105
+sha=74cb673d240e07acf49183701ed00f6236ef49f2a4dd19002c516c7e1a667daa
+rc=88

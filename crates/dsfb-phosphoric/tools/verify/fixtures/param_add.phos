@@ -1,0 +1,8 @@
+module fixture.param_add;
+profile boot;
+fn entry() -> i32 {
+    return add5(7);
+}
+fn add5(arg: i32) -> i32 {
+    return arg + 5;
+}

@@ -1,0 +1,11 @@
+# Pass A-7 fixture (MUL): param-arithmetic — `return arg * INTLIT;`.
+# Source:
+#   fn entry()  { return mul7(6); }
+#   fn mul7(arg) { return arg * 7; }
+# Lowering: 24-byte mul7 block emits prologue + `mov eax, edi;
+# imul eax, eax, 7; pop rbp; ret; 10 nops`. Note 6-byte imul opcode
+# (0x69 0xc0) requires a different layout vs A-6's 5-byte add/sub.
+# Verified: rc = 6 * 7 = 42 at runtime.
+size=1105
+sha=2c24b2aa107db165795de2e9b61e3b53448f0b30ffee936fc09e220ea72abd9f
+rc=42

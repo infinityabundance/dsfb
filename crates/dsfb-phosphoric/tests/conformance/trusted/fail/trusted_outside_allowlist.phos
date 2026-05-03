@@ -1,0 +1,15 @@
+module tests.conformance.trusted.fail.trusted_outside_allowlist;
+profile trusted;
+
+// fail-expected: T-001
+//
+// trusted_profile.toml's [allowlist] permits profile=trusted only under
+// ember/. This file lives under tests/conformance/trusted/fail/, so the
+// front-end pass that checks the allowlist rejects it.
+
+fn forbidden() {
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#nope
+    trusted! {
+        cpu_op(CpuOp::Sti);
+    }
+}

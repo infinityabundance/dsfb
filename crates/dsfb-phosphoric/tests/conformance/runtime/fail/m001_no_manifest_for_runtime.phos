@@ -1,0 +1,15 @@
+module tests.conformance.runtime.fail.m001_no_manifest_for_runtime;
+profile runtime;
+
+// fail-expected: M-001
+//
+// Runtime-profile compilation requires --manifest. pcc rejects this file
+// when invoked without one. See docs/TASK_SEAL_V0.md §4: M-001 fires when
+// the manifest file is missing for the named task. The forensic-boundary
+// rationale: a runtime-profile image is sealed against a manifest, and
+// without one there is no declared boundary for the compiler, kernel,
+// or auditor to check against.
+
+fn marker() -> u32 {
+    0
+}

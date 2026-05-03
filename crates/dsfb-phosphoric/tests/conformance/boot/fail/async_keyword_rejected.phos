@@ -1,0 +1,10 @@
+module tests.conformance.boot.fail.async_keyword_rejected;
+
+// fail-expected: P-009
+//
+// `async` is forbidden in v0. Phosphoric is single-threaded, single-CPU,
+// no coroutines, no event loops.
+
+async fn poll() -> u32 {
+    0
+}

@@ -1,0 +1,504 @@
+module pcc.kernel.kernel;
+profile runtime;
+
+// Top-level runtime kernel. Owns the global tables, runs the boot loop,
+// drives input -> ipc -> render dispatch.
+//
+// Every fallible operation returns a typed Result by Phosphoric's language
+// rule -- there is no unwrap construct.
+
+struct GlobalTables {
+    caps: pcc.kernel.caps.CapabilityTable,
+    tasks: pcc.kernel.tasks.TaskTable,
+    ipc: pcc.kernel.ipc.ChannelTable,
+    windows: pcc.kernel.windows.WindowTable,
+    framebuffers: pcc.kernel.framebuffer.FramebufferTable,
+    manifest: pcc.kernel.manifest.ManifestTable,
+    residuals: pcc.kernel.residual.ResidualRing,
+    initialized: bool,
+}
+
+// Validate the boot info shape: framebuffer dimensions within demo bounds,
+// stride at least width * bytes-per-pixel, format supported by the demo
+// path. Each check returns a typed KernelError on failure.
+fn validate_boot_info(
+    boot: pcc.kernel.abi.BootInfo,
+) -> Result[u32, pcc.kernel.error.KernelError] {
+    pcc.kernel.framebuffer.validate_dimensions(
+        boot.framebuffer_width,
+        boot.framebuffer_height,
+    )
+}
+
+// Empty-table builder. Each table starts with every slot vacant; first
+// allocations bump generations and produce live handles. The manifest
+// table is materialized from the boot handoff (see kernel_main).
+fn empty_global_tables(manifest: pcc.kernel.manifest.ManifestTable) -> GlobalTables {
+    GlobalTables {
+        caps: pcc.kernel.caps.CapabilityTable {
+            entries: [pcc.kernel.caps.empty_capability_entry(); 449],
+        },
+        tasks: pcc.kernel.tasks.TaskTable {
+            entries: [pcc.kernel.tasks.empty_task_entry(); 64],
+        },
+        ipc: pcc.kernel.ipc.ChannelTable {
+            entries: [pcc.kernel.ipc.empty_channel_entry(); 128],
+        },
+        windows: pcc.kernel.windows.WindowTable {
+            entries: [pcc.kernel.windows.empty_window_entry(); 16],
+            focused_slot: None,
+        },
+        framebuffers: pcc.kernel.framebuffer.FramebufferTable {
+            entries: [pcc.kernel.framebuffer.empty_framebuffer_entry(); 4],
+        },
+        manifest: manifest,
+        // Both residual ring knobs flow from the manifest's [budgets]
+        // table via the runtime mirror. Defaults: chain_every_n=1
+        // (x86_64), 16 (M33), 64 (M0+); ring_size=1024 (standard,
+        // 32 KiB), 256 (ultra-razor, 8 KiB).
+        residuals: pcc.kernel.residual.empty_residual_ring(
+            manifest.budgets.residual_chain_every_n_events,
+            manifest.budgets.residual_ring_size,
+        ),
+        initialized: true,
+    }
+}
+
+// Per-frame outcome. Captures whether the loop should continue, the
+// number of render commands produced this frame (informational; the
+// commands are passed to ember_present_frame separately), and any
+// kernel error that arose mid-frame.
+enum FrameOutcome {
+    Continue,
+    DemoComplete,
+    Faulted(pcc.kernel.error.KernelError),
+}
+
+// Encode an InputEvent as a 10-byte fixed-shape MessagePayload per
+// the ABI in docs/abi.md. The discriminant byte arrangement is golden-
+// fixture-tested.
+//
+// Layout (bytes 0..10, remaining 0..256 padded with 0):
+//   [0]    discriminant (0=Key, 1=MouseClick, 2=MouseMove)
+//   [1..5] u32 LE field A (unicode_char / x)
+//   [5..9] u32 LE field B (scan_code padded / y)
+//   [9]    additional byte (mouse button id, 0 for non-mouse)
+fn encode_input_event(
+    event: pcc.kernel.abi.InputEvent,
+) -> pcc.kernel.ipc.MessagePayload {
+    let mut payload: pcc.kernel.ipc.MessagePayload = pcc.kernel.ipc.empty_message_payload();
+    payload.len = 10;
+    match event {
+        pcc.kernel.abi.InputEvent::Key(k) => {
+            payload.bytes[0] = 0;
+            // unicode_char as little-endian u32
+            payload.bytes[1] = (k.unicode_char - (k.unicode_char / 256) * 256) as u8;
+            payload.bytes[2] = ((k.unicode_char / 256) - ((k.unicode_char / 65536) * 256)) as u8;
+            payload.bytes[3] = ((k.unicode_char / 65536) - ((k.unicode_char / 16777216) * 256)) as u8;
+            payload.bytes[4] = (k.unicode_char / 16777216) as u8;
+            // scan_code as little-endian u16, then pad
+            payload.bytes[5] = (k.scan_code - (k.scan_code / 256) * 256) as u8;
+            payload.bytes[6] = (k.scan_code / 256) as u8;
+            payload.bytes[7] = 0;
+            payload.bytes[8] = 0;
+            payload.bytes[9] = 0;
+        },
+        pcc.kernel.abi.InputEvent::MouseClick(m) => {
+            payload.bytes[0] = 1;
+            payload.bytes[1] = (m.x - (m.x / 256) * 256) as u8;
+            payload.bytes[2] = ((m.x / 256) - ((m.x / 65536) * 256)) as u8;
+            payload.bytes[3] = ((m.x / 65536) - ((m.x / 16777216) * 256)) as u8;
+            payload.bytes[4] = (m.x / 16777216) as u8;
+            payload.bytes[5] = (m.y - (m.y / 256) * 256) as u8;
+            payload.bytes[6] = ((m.y / 256) - ((m.y / 65536) * 256)) as u8;
+            payload.bytes[7] = ((m.y / 65536) - ((m.y / 16777216) * 256)) as u8;
+            payload.bytes[8] = (m.y / 16777216) as u8;
+            payload.bytes[9] = match m.button {
+                pcc.kernel.abi.MouseButton::Left   => 0,
+                pcc.kernel.abi.MouseButton::Right  => 1,
+                pcc.kernel.abi.MouseButton::Middle => 2,
+            };
+        },
+        pcc.kernel.abi.InputEvent::MouseMove(m) => {
+            payload.bytes[0] = 2;
+            payload.bytes[1] = (m.x - (m.x / 256) * 256) as u8;
+            payload.bytes[2] = ((m.x / 256) - ((m.x / 65536) * 256)) as u8;
+            payload.bytes[3] = ((m.x / 65536) - ((m.x / 16777216) * 256)) as u8;
+            payload.bytes[4] = (m.x / 16777216) as u8;
+            payload.bytes[5] = (m.y - (m.y / 256) * 256) as u8;
+            payload.bytes[6] = ((m.y / 256) - ((m.y / 65536) * 256)) as u8;
+            payload.bytes[7] = ((m.y / 65536) - ((m.y / 16777216) * 256)) as u8;
+            payload.bytes[8] = (m.y / 16777216) as u8;
+            payload.bytes[9] = 0;
+        },
+    };
+    payload
+}
+
+// Dispatch a single input event to the focused window's owning task
+// channel. NoFocusedWindow when no window currently holds focus;
+// InvalidInputEvent when the event shape is malformed; QueueFull when
+// the receiving task's input channel is at capacity.
+fn dispatch_input(
+    tables: GlobalTables,
+    event: pcc.kernel.abi.InputEvent,
+) -> Result[GlobalTables, pcc.kernel.error.KernelError] {
+    match tables.windows.focused_slot {
+        None => Err(pcc.kernel.error.KernelError::NoFocusedWindow),
+        Some(slot) => {
+            let win: pcc.kernel.windows.WindowEntry = tables.windows.entries[slot as u32];
+            // Channel index for the focused window's owning task is the
+            // same as the task's slot. Each task owns channel slot N where
+            // N == task slot; the convention is pinned in kernel/docs/ipc.md.
+            let channel_slot: u16 = win.owner_task_slot;
+            match (channel_slot as u32) >= 128 {
+                true => Err(pcc.kernel.error.KernelError::InvalidHandle),
+                false => {
+                    let channel_entry: pcc.kernel.ipc.ChannelEntry =
+                        tables.ipc.entries[channel_slot as u32];
+                    let payload: pcc.kernel.ipc.MessagePayload = encode_input_event(event);
+                    match pcc.kernel.ipc.send_message(
+                        tables.ipc,
+                        tables.manifest,
+                        channel_slot,
+                        channel_entry.generation,
+                        payload,
+                    ) {
+                        Err(e) => Err(e),
+                        Ok(updated_entry) => {
+                            let mut updated_tables: GlobalTables = tables;
+                            updated_tables.ipc.entries[channel_slot as u32] = updated_entry;
+                            // R2 ipc_route_delta — emit residual at the
+                            // authority boundary. Payload[0..2] = channel
+                            // slot LE; payload[2] = direction (0=send);
+                            // remaining bytes reserved.
+                            let mut p: [u8; 14] = [0; 14];
+                            p[0] = (channel_slot - (channel_slot / 256) * 256) as u8;
+                            p[1] = (channel_slot / 256) as u8;
+                            p[2] = 0;
+                            updated_tables.residuals = pcc.kernel.residual.record(
+                                updated_tables.residuals,
+                                2,                  // kind = ipc_route_delta
+                                0,                  // arch_id (filled in per-arch later)
+                                0,                  // cycle (real counter wired with arch port)
+                                p,
+                            );
+                            Ok(updated_tables)
+                        },
+                    }
+                },
+            }
+        },
+    }
+}
+
+// Resolve the per-window background color from the active task's published
+// state. The boot-loop scaffold uses a deterministic per-window color so
+// each window's damage rect renders with its own hue. Real per-task state
+// lookup is gated on the task table's `state` field carrying a published
+// color; until that's wired, this is a stable mapping from slot index to
+// a 32-bit RGBA value.
+fn resolve_window_color(
+    tables: GlobalTables,
+    window_slot: u16,
+) -> u32 {
+    let entry: pcc.kernel.windows.WindowEntry = tables.windows.entries[window_slot as u32];
+    // Mix slot index and owner task slot into a reproducible color.
+    let slot_byte: u32 = (window_slot as u32) - ((window_slot as u32) / 256) * 256;
+    let owner_byte: u32 = (entry.owner_task_slot as u32) - ((entry.owner_task_slot as u32) / 256) * 256;
+    // R = slot_byte, G = owner_byte, B = 128, A = 255
+    slot_byte * 16777216 + owner_byte * 65536 + 128 * 256 + 255
+}
+
+// Compose the per-frame render command list. Walks each window's
+// damage rect; for each non-empty rect, emits a FillRect command.
+// Terminates with a Present command. Returns the list plus the
+// updated tables (damage rects are drained as a side effect).
+struct ComposeResult {
+    commands: pcc.kernel.abi.RenderCommandList,
+    tables: GlobalTables,
+}
+
+fn compose_render_commands(
+    tables: GlobalTables,
+) -> Result[ComposeResult, pcc.kernel.error.KernelError] {
+    // Recessed (Phase 7 Tranche B). The damage-rect drain has been cut;
+    // each active window emits one full-bounds FillRect per tick. The
+    // critical section still wraps the walk because GlobalTables is
+    // shared with interrupt handlers; the window is now smaller (no
+    // damage bookkeeping) but the discipline is unchanged.
+    ember.sched.enter_critical_section();
+    let mut updated: GlobalTables = tables;
+    let sentinel_handle: pcc.kernel.caps.WindowHandle =
+        pcc.kernel.caps.WindowHandle {
+            slot: 0,
+            generation: 0,
+            kind: pcc.kernel.caps.CapabilityKind::Window,
+        };
+    let mut list: pcc.kernel.abi.RenderCommandList = pcc.kernel.abi.RenderCommandList {
+        count: 0,
+        commands: [pcc.kernel.abi.RenderCommand::Present(sentinel_handle); 64],
+    };
+    #[bound = 16]
+    for slot in 0..16 {
+        let entry: pcc.kernel.windows.WindowEntry = updated.windows.entries[slot];
+        match entry.active {
+            false => (),
+            true => match (list.count as u32) < 63 {
+                false => {
+                    ember.sched.exit_critical_section();
+                    return Err(pcc.kernel.error.KernelError::OutputOverflow);
+                },
+                true => {
+                    let color: u32 = resolve_window_color(updated, slot as u16);
+                    let win_handle: pcc.kernel.caps.WindowHandle =
+                        pcc.kernel.caps.WindowHandle {
+                            slot: slot as u16,
+                            generation: entry.generation,
+                            kind: pcc.kernel.caps.CapabilityKind::Window,
+                        };
+                    list.commands[list.count as u32] =
+                        pcc.kernel.abi.RenderCommand::FillRect(
+                            win_handle,
+                            0,
+                            0,
+                            entry.width,
+                            entry.height,
+                            color,
+                        );
+                    list.count = list.count + 1;
+                },
+            },
+        };
+    }
+    // Trail with Present targeting the focused window. The recessed
+    // pipeline always renders, even when nothing changed — determinism
+    // over efficiency. A frame with no focused window has nothing to
+    // present.
+    match list.count > 0 {
+        true => match (list.count as u32) < 64 {
+            true => match updated.windows.focused_slot {
+                None => {
+                    ember.sched.exit_critical_section();
+                    return Err(pcc.kernel.error.KernelError::NoFocusedWindow);
+                },
+                Some(focused) => {
+                    let focused_entry: pcc.kernel.windows.WindowEntry =
+                        updated.windows.entries[focused as u32];
+                    let present_handle: pcc.kernel.caps.WindowHandle =
+                        pcc.kernel.caps.WindowHandle {
+                            slot: focused,
+                            generation: focused_entry.generation,
+                            kind: pcc.kernel.caps.CapabilityKind::Window,
+                        };
+                    list.commands[list.count as u32] =
+                        pcc.kernel.abi.RenderCommand::Present(present_handle);
+                    list.count = list.count + 1;
+                },
+            },
+            false => {
+                ember.sched.exit_critical_section();
+                return Err(pcc.kernel.error.KernelError::OutputOverflow);
+            },
+        },
+        false => (),
+    };
+    ember.sched.exit_critical_section();
+    Ok(ComposeResult {
+        commands: list,
+        tables: updated,
+    })
+}
+
+// Top-level boot loop entrypoint. Ember calls this once after boot.
+// Returns Ok(0) on demo completion, Err(KernelError) on first fault.
+//
+// Shape:
+//   1. validate boot info
+//   2. allocate empty globals
+//   3. enter the bounded demo loop
+//   4. each tick: poll input -> dispatch -> compose -> present
+//   5. exit on demo_complete (typed; defaults false until UI signals it)
+//
+// Per-step Ember calls (ember_input_poll, ember_present_frame) are typed
+// signatures resolved at link time; their bodies land with T3-6 (ember
+// trusted! block bodies). The kernel side declares the contract here.
+fn kernel_main(
+    boot: pcc.kernel.abi.BootInfo,
+) -> Result[u32, pcc.kernel.error.KernelError] {
+    match validate_boot_info(boot) {
+        Err(e) => Err(e),
+        Ok(_)  => {
+            // Manifest-load preamble. Per docs/TASK_SEAL_V0.md §5,
+            // boot.manifest is the runtime-profile materialization of
+            // the .pmanifest section bytes Ember parsed at boot. The
+            // manifest is the runtime authority for cap-issue, send,
+            // and recv; ManifestMismatch (status 13) is fatal upstream.
+            let mut tables: GlobalTables = empty_global_tables(boot.manifest);
+            // R7 boot_check residual — one emission per certificate
+            // verified at boot. Eight certs × 1 residual each = 8
+            // residuals in the ring before the demo loop starts. The
+            // sequence is part of the BOOT_ATTESTATION_MISMATCH grammar
+            // dsfb-gray reads: a missing or out-of-order R7 means the
+            // boot sequence was tampered. Outcome=1 (match) here since
+            // we only reach this line if validate_boot_info succeeded.
+            #[bound = 8]
+            for cert_index in 0..8 {
+                let mut p: [u8; 14] = [0; 14];
+                p[0] = cert_index as u8;
+                p[1] = 1;                       // outcome = match
+                tables.residuals = pcc.kernel.residual.record(
+                    tables.residuals,
+                    7,                          // kind = boot_check
+                    0,
+                    0,
+                    p,
+                );
+            }
+            // Allocate the demo's framebuffer entry. The capability slot
+            // for it lives at slot 0 (first allocation in a fresh table).
+            match pcc.kernel.framebuffer.register_framebuffer(
+                tables.framebuffers,
+                0,
+                boot.framebuffer_width,
+                boot.framebuffer_height,
+                boot.framebuffer_format,
+            ) {
+                Err(e) => Err(e),
+                Ok(fb_entry) => {
+                    tables.framebuffers.entries[0] = fb_entry;
+                    // R1 cap_graph_delta — framebuffer cap-issue at slot 0
+                    // (kind_id=4 Framebuffer, outcome=0 issue).
+                    let mut p_fb: [u8; 14] = [0; 14];
+                    p_fb[0] = 4;
+                    p_fb[3] = 0;
+                    tables.residuals = pcc.kernel.residual.record(tables.residuals, 1, 0, 0, p_fb);
+                    // Allocate the demo task.
+                    match pcc.kernel.tasks.allocate_task(tables.tasks, 0) {
+                        Err(e) => Err(e),
+                        Ok(task_entry) => {
+                            tables.tasks.entries[0] = task_entry;
+                            // R1 cap_graph_delta — task cap-issue at slot 0
+                            // (kind_id=1 Task).
+                            let mut p_t: [u8; 14] = [0; 14];
+                            p_t[0] = 1;
+                            tables.residuals = pcc.kernel.residual.record(tables.residuals, 1, 0, 0, p_t);
+                            // R6 task_transition — Vacant(0) -> Ready(1) on slot 0.
+                            let mut p_tt: [u8; 14] = [0; 14];
+                            p_tt[0] = 0;
+                            p_tt[1] = 1;
+                            tables.residuals = pcc.kernel.residual.record(tables.residuals, 6, 0, 0, p_tt);
+                            // Allocate the demo task's input IPC channel at
+                            // the same slot index as the task. dispatch_input
+                            // routes input events to channel_slot ==
+                            // owner_task_slot per the boundary contract.
+                            match pcc.kernel.ipc.allocate_channel(tables.ipc, 0) {
+                                Err(e) => Err(e),
+                                Ok(channel_entry) => {
+                                    tables.ipc.entries[0] = channel_entry;
+                                    // R1 cap_graph_delta — channel cap-issue
+                                    // at slot 0 (kind_id=2 Channel).
+                                    let mut p_ch: [u8; 14] = [0; 14];
+                                    p_ch[0] = 2;
+                                    tables.residuals = pcc.kernel.residual.record(tables.residuals, 1, 0, 0, p_ch);
+                                    // Allocate the demo window and grant it focus.
+                                    match pcc.kernel.windows.allocate_window(
+                                        tables.windows,
+                                        0,
+                                        0,
+                                        boot.framebuffer_width,
+                                        boot.framebuffer_height,
+                                    ) {
+                                        Err(e) => Err(e),
+                                        Ok(win_entry) => {
+                                            tables.windows.entries[0] = win_entry;
+                                            tables.windows.focused_slot = Some(0);
+                                            // R1 cap_graph_delta — window cap-issue
+                                            // at slot 0 (kind_id=3 Window).
+                                            let mut p_w: [u8; 14] = [0; 14];
+                                            p_w[0] = 3;
+                                            tables.residuals = pcc.kernel.residual.record(tables.residuals, 1, 0, 0, p_w);
+                                            // R4 effect_trace — one residual per
+                                            // declared profile effect on the active
+                                            // task, emitted at the kernel-init
+                                            // closure boundary. Per the volume
+                                            // discipline, R4 emits ONLY at this
+                                            // boundary; not at every function entry.
+                                            let mut p_e: [u8; 14] = [0; 14];
+                                            #[bound = 5]
+                                            for effect_bit in 0..5 {
+                                                p_e[0] = effect_bit as u8;
+                                                p_e[3] = 3;     // transition_kind = closure-cross
+                                                tables.residuals = pcc.kernel.residual.record(tables.residuals, 4, 0, 0, p_e);
+                                            }
+                                    // Enter the bounded demo tick loop.
+                                    // MAX_DEMO_TICKS pinned in runtime_profile.toml.
+                                    let mut outcome: FrameOutcome = FrameOutcome::Continue;
+                                    #[bound = 65536]
+                                    for tick in 0..65536 {
+                                        match outcome {
+                                            FrameOutcome::DemoComplete => return Ok(0),
+                                            FrameOutcome::Faulted(e)   => return Err(e),
+                                            FrameOutcome::Continue => {
+                                                // 1. Poll Ember for one input event.
+                                                // Atomic: an interrupt fired mid-poll could
+                                                // truncate a multi-byte scancode, leading to
+                                                // a spurious TASK_STATE_SLEW classification.
+                                                // Same CLI/STI discipline as compose_render.
+                                                ember.sched.enter_critical_section();
+                                                let evt: Option[pcc.kernel.abi.InputEvent] =
+                                                    ember.lib.input_poll();
+                                                ember.sched.exit_critical_section();
+                                                match evt {
+                                                    Some(e) => match dispatch_input(tables, e) {
+                                                        Ok(t)  => tables = t,
+                                                        Err(e) => outcome = FrameOutcome::Faulted(e),
+                                                    },
+                                                    None => (),
+                                                };
+                                                // 2. Compose this frame's render commands
+                                                //    by draining per-window damage rects.
+                                                match compose_render_commands(tables) {
+                                                    Ok(result) => {
+                                                        tables = result.tables;
+                                                        // 3. Present the frame via Ember.
+                                                        ember.lib.present_frame(result.commands);
+                                                    },
+                                                    Err(e) => outcome = FrameOutcome::Faulted(e),
+                                                };
+                                                // R3 budget_pressure — once-per-frame stack-budget
+                                                // hook. Reads ember.sched.stack_high_water() and
+                                                // compares against manifest.budgets.task_stack_limit.
+                                                // Emits R3 when measured > 0.9 * limit so dsfb-gray
+                                                // can classify STACK_BUDGET_PRESSURE before the
+                                                // hard S-001/M-008 boundary fires. Volume bound:
+                                                // one R3 per tick per task.
+                                                let measured_stack: u32 = ember.sched.stack_high_water();
+                                                let stack_limit: u32 = tables.manifest.budgets.task_stack_limit;
+                                                let mut p_bp: [u8; 14] = [0; 14];
+                                                p_bp[0] = 0;            // budget_id 0 = task stack
+                                                p_bp[1] = (measured_stack - (measured_stack / 256) * 256) as u8;
+                                                p_bp[2] = ((measured_stack / 256) - (measured_stack / 65536) * 256) as u8;
+                                                p_bp[3] = ((measured_stack / 65536) - (measured_stack / 16777216) * 256) as u8;
+                                                p_bp[4] = (measured_stack / 16777216) as u8;
+                                                p_bp[5] = (stack_limit - (stack_limit / 256) * 256) as u8;
+                                                p_bp[6] = ((stack_limit / 256) - (stack_limit / 65536) * 256) as u8;
+                                                p_bp[7] = ((stack_limit / 65536) - (stack_limit / 16777216) * 256) as u8;
+                                                p_bp[8] = (stack_limit / 16777216) as u8;
+                                                tables.residuals = pcc.kernel.residual.record(tables.residuals, 3, 0, 0, p_bp);
+                                                tick
+                                            },
+                                        };
+                                    }
+                                    Ok(0)
+                                },
+                            }
+                                        },
+                                    }
+                        },
+                    }
+                },
+            }
+        },
+    }
+}

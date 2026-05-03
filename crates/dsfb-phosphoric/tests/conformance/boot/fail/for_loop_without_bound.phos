@@ -1,0 +1,14 @@
+module tests.conformance.boot.fail.for_loop_without_bound;
+
+// fail-expected: B-001
+//
+// Every for loop must carry a #[bound = N] annotation. Loops without the
+// annotation are rejected by the parser at the loop statement.
+
+fn count(n: u32) -> u32 {
+    let mut sum: u32 = 0;
+    for i in 0..n {
+        sum = sum + i;
+    }
+    sum
+}

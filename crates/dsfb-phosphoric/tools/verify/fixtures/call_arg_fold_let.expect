@@ -1,0 +1,9 @@
+# Pass A-11 fixture (LET op INT): producer-time fold of mixed-source arg.
+# Source: fn entry { let n = 10; return ident(n * 4); } fn ident(arg) { return arg; }
+# A-11's call-arg dispatch: at +3 sees TK_IDENT matching let_name → loads
+# let_value (10) → at +4 sees `*` → at +5 sees TK_INT (4) → folds 10 * 4
+# = 40 → commits IMM=40 + call flag. Helper passes through.
+# Verified: rc = 40 at runtime.
+size=1105
+sha=963030cf7ad3a58fed65c481d2d4fe67ed67df9240fb442e245b7244942c9c56
+rc=40

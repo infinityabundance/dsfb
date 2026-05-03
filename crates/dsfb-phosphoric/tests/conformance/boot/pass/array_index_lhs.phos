@@ -1,0 +1,14 @@
+module tests.conformance.boot.pass.array_index_lhs;
+
+// Pass case for extension 2026-04-27b. Array indexing on the LHS of an
+// assignment is legal when the index is provably within the target's
+// declared capacity.
+
+fn fill_zero(buf: [u8; 16]) -> [u8; 16] {
+    let mut out: [u8; 16] = buf;
+    #[bound = 16]
+    for i in 0..16 {
+        out[i] = 0;
+    }
+    out
+}

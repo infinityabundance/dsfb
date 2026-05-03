@@ -1,0 +1,17 @@
+module tests.conformance.runtime.fail.m012_runtime_source_boot_manifest;
+profile runtime;
+
+// fail-expected: M-012
+//
+// The source declares profile=runtime; the sibling manifest declares
+// profile="boot". Profile mismatch between manifest and source is M-012.
+// pcc rejects this combination during manifest validation, before any
+// type or effect pass runs.
+//
+// Forensic role: the profile dimension is part of the declared boundary;
+// it must match the source's declared profile exactly. A mismatch means
+// the manifest cannot speak for the source.
+
+fn marker() -> u32 {
+    0
+}

@@ -1,0 +1,13 @@
+module tests.conformance.host.fail.restored.capability_duplication;
+profile host;
+
+// fail-expected: K-006
+// (restored from legacy_ui/fail/capability_duplication; legacy code CAPABILITY_DUPLICATION "cannot be duplicated after move")
+
+module fail.capability_duplication;
+capability Window;
+
+fn duplicate(win: Window) -> Window {
+    let first = win;
+    return win;
+}

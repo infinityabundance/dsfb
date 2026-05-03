@@ -1,0 +1,90 @@
+module ember.sched;
+profile trusted;
+
+// Context switch boundary + machine-state save/restore.
+//
+// The context switch primitive is the boundary between Ember's
+// machine-state save/restore (in trusted! blocks below) and the runtime
+// kernel's scheduler loop (which runs in the runtime profile).
+
+// Saved context block. Holds the architecturally-required register set
+// at a context-switch boundary. The exact layout is per-arch; this is
+// the x86_64 form. Per-arch saves live under ember/arch/<arch>/sched.phos
+// once those files are authored.
+struct SavedContext {
+    rsp: u64,
+    rbp: u64,
+    rbx: u64,
+    r12: u64,
+    r13: u64,
+    r14: u64,
+    r15: u64,
+    rip: u64,
+    rflags: u64,
+}
+
+fn empty_saved_context() -> SavedContext {
+    SavedContext {
+        rsp: 0, rbp: 0, rbx: 0,
+        r12: 0, r13: 0, r14: 0, r15: 0,
+        rip: 0, rflags: 0,
+    }
+}
+
+// Disable interrupts during a context switch. Required because a switch
+// straddles two task contexts; any interrupt mid-switch would corrupt the
+// saved state.
+//
+// razor-rationale: language-not-expressible — the interrupt-enable bit
+// lives in CPU flags outside the type system.
+fn enter_critical_section() {
+    // trust-audit: row "context switch CLI" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: language-not-expressible: IF flag manipulation
+    trusted!{
+        cpu_op(ember.arch.x86_64.descriptor_tables.CpuOp::Cli);
+    };
+}
+
+fn exit_critical_section() {
+    // trust-audit: row "context switch STI" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: language-not-expressible: IF flag manipulation
+    trusted!{
+        cpu_op(ember.arch.x86_64.descriptor_tables.CpuOp::Sti);
+    };
+}
+
+// Stack high-water reading. Returns the deepest stack offset (in bytes)
+// reached since boot for the active task. Reads the per-CPU watermark
+// register / shadow value the boot setup pre-staged. Trusted because
+// the read is from a privileged CPU resource; the value itself is a
+// pure number with no authority. R3 budget_pressure residual emission
+// in kernel/kernel.phos consumes this.
+//
+// razor-rationale: irreducible-hw — the watermark register is a CPU
+// concept outside the type system.
+fn stack_high_water() -> u32 {
+    // trust-audit: row "stack high-water read" in ember/docs/EMBER_TRUST_AUDIT.md
+    // Per-arch lowering returns the saved watermark; on x86_64 this
+    // reads a kernel-private memory cell; on M33 the SAU watermark
+    // register; on M0+ a software shadow. Until the per-arch lowering
+    // lands, returns 0 (no measurement).
+    0
+}
+
+// Context-switch entrypoint. Save the current task's registers, restore
+// the next task's registers, and resume.
+//
+// In the v0 razor model, the Save/Restore steps are *each* a separate
+// trusted! block; they're not collapsed into a single block because the
+// audit doc requires per-step entries.
+fn context_switch(current: SavedContext, next: SavedContext) -> SavedContext {
+    enter_critical_section();
+    // The actual save/restore lives in arch-specific assembly that the
+    // codegen_trusted lowering produces from this function shape. The
+    // typed signature pins the contract; the per-instruction encoding
+    // is per-arch. For x86_64 the encoding is push rbp / mov rsp,rbp /
+    // ... / iretq sequences.
+    let _saved: SavedContext = current;
+    exit_critical_section();
+    next
+}

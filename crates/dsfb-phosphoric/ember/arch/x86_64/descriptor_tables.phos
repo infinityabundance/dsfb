@@ -1,0 +1,67 @@
+module ember.arch.x86_64.descriptor_tables;
+profile trusted;
+
+// GDT/IDT descriptor load primitives.
+//
+// Each `trusted!` block here carries a razor-rationale annotation per E24
+// and a trust-audit row in ember/docs/EMBER_TRUST_AUDIT.md. The actual
+// instruction encoding is handled by codegen_trusted (T3-4).
+
+enum DescriptorModel {
+    GdtAndIdt,
+}
+
+enum CpuOp {
+    Lgdt(u64),          // load GDT descriptor at the given linear address
+    Lidt(u64),          // load IDT descriptor at the given linear address
+    Cli,                // disable interrupts
+    Sti,                // enable interrupts
+}
+
+// Load the Global Descriptor Table register (LGDT instruction).
+//
+// razor-rationale: irreducible-hw — there is no equivalent above the trust
+// boundary; the LGDT instruction is the only way to install a GDT.
+fn load_gdt(descriptor_address: u64) {
+    // trust-audit: row "LGDT" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        cpu_op(CpuOp::Lgdt(descriptor_address));
+    };
+}
+
+// Load the Interrupt Descriptor Table register (LIDT instruction).
+//
+// razor-rationale: irreducible-hw — IDT installation has no software-level
+// equivalent on x86_64.
+fn load_idt(descriptor_address: u64) {
+    // trust-audit: row "LIDT" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        cpu_op(CpuOp::Lidt(descriptor_address));
+    };
+}
+
+// Disable interrupts.
+//
+// razor-rationale: language-not-expressible — interrupt enable/disable is
+// outside the type system; clearing IF is a single x86_64 instruction (CLI)
+// with no software-level expression.
+fn disable_interrupts() {
+    // trust-audit: row "CLI" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: language-not-expressible
+    trusted!{
+        cpu_op(CpuOp::Cli);
+    };
+}
+
+// Enable interrupts.
+//
+// razor-rationale: language-not-expressible — symmetric to disable_interrupts.
+fn enable_interrupts() {
+    // trust-audit: row "STI" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: language-not-expressible
+    trusted!{
+        cpu_op(CpuOp::Sti);
+    };
+}

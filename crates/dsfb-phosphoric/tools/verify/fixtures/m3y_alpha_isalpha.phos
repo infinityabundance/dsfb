@@ -1,0 +1,17 @@
+module fixture.m3y_alpha_isalpha;
+profile boot;
+fn entry() -> i32 {
+    return is_alpha(65);
+}
+fn is_alpha(b: i32) -> i32 {
+    match b >= 65 {
+        true => match b <= 90 {
+            true => true,
+            false => match b >= 97 {
+                true => b <= 122,
+                false => false,
+            },
+        },
+        false => false,
+    }
+}

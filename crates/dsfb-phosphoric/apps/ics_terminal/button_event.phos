@@ -1,0 +1,39 @@
+module ics_terminal.button_event;
+profile boot;
+
+// Typed payload for the button_event_route IPC channel.
+//
+// Static schema; the manifest's [[ipc.channel]] entry pins the payload
+// type by name ("button_event"). Sender encodes; receiver decodes; both
+// rely on the same struct shape.
+
+enum ButtonState {
+    Released,
+    Pressed,
+}
+
+struct ButtonEvent {
+    pin: u8,                        // GP15 = 15
+    state: ButtonState,
+    cycle: u64,                     // RP2350 cycle counter at edge detection
+    bounce_count: u8,               // detected within the debounce window
+}
+
+fn empty_button_event() -> ButtonEvent {
+    ButtonEvent {
+        pin: 0,
+        state: ButtonState::Released,
+        cycle: 0,
+        bounce_count: 0,
+    }
+}
+
+fn is_press_edge(prev: ButtonState, next: ButtonState) -> bool {
+    match prev {
+        ButtonState::Released => match next {
+            ButtonState::Pressed  => true,
+            ButtonState::Released => false,
+        },
+        ButtonState::Pressed => false,
+    }
+}

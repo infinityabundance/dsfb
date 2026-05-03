@@ -1,0 +1,11 @@
+module tests.conformance.boot.fail.let_binding_unit_to_typed;
+
+// fail-expected: K-013
+//
+// A let binding with a declared non-unit type cannot bind to the unit
+// value. K-013 (let binding type mismatch) is emitted at the binding.
+
+fn bad_let() -> u32 {
+    let n: u32 = ();
+    n
+}

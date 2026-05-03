@@ -1,0 +1,14 @@
+module tests.conformance.boot.fail.unit_literal_type_mismatch;
+
+// fail-expected: K-017
+//
+// Fail case for extension 2026-04-27a. Assigning `()` to a non-unit
+// binding is a type mismatch, diagnosed as K-017 ("unit literal in a
+// non-unit context"). The diagnostic is K-017 specifically (rather than
+// the generic K-001) because the unit literal carries enough information
+// for the type checker to point at the unit construction itself.
+
+fn bad() -> u32 {
+    let x: u32 = ();
+    x
+}

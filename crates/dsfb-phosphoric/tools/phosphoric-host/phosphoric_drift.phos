@@ -1,0 +1,204 @@
+module pcc.host_tools.phosphoric_drift;
+profile host;
+
+// phosphoric drift — the residual classifier.
+//
+// Not a "replay" tool. Does not re-execute. *Classifies*: takes a .pfi
+// incident, walks the residual stream, dispatches to exactly one of the
+// eight drift classes per the closed taxonomy in
+// docs/TASK_SEAL_V0.md §0.4 and the endoduction-substrate plan.
+//
+// Verdict shape (one line):
+//   INCIDENT <id>  CLASS=<class>  RESIDUAL=R<n>  SEQ=<seq>  EXPECTED=<x>  ACTUAL=<y>
+//
+// Exit codes:
+//   0  NO_DRIFT
+//   2  AUTHORITY_EXPANSION | IPC_ROUTE_DIVERGENCE | TASK_STATE_SLEW
+//   3  BOOT_ATTESTATION_MISMATCH
+//   4  chain corruption
+//   5  malformed container
+//   6  warning-class drift: SILENT_NARROWING | *_PRESSURE
+//   1  tool internal error
+//
+// The classifier re-uses compiler/manifest.phos and kernel/manifest.phos
+// predicates verbatim. Single source of truth: the kernel and the
+// classifier agree by construction.
+
+enum DriftClass {
+    NoDrift,
+    AuthorityExpansion,
+    SilentNarrowing,
+    IpcRouteDivergence,
+    MmioBoundaryPressure,
+    StackBudgetPressure,
+    TaskStateSlew,
+    BootAttestationMismatch,
+}
+
+struct DriftVerdict {
+    incident_id_hash: [u8; 32],
+    class: DriftClass,
+    residual_kind: u8,          // 1..7 (or 0xFF for tail marker context)
+    residual_seq: u16,
+    expected: [u8; 14],
+    actual: [u8; 14],
+}
+
+fn empty_verdict() -> DriftVerdict {
+    DriftVerdict {
+        incident_id_hash: [0; 32],
+        class: DriftClass::NoDrift,
+        residual_kind: 0,
+        residual_seq: 0,
+        expected: [0; 14],
+        actual: [0; 14],
+    }
+}
+
+fn class_to_exit_code(class: DriftClass) -> i32 {
+    match class {
+        DriftClass::NoDrift                  => 0,
+        DriftClass::AuthorityExpansion       => 2,
+        DriftClass::IpcRouteDivergence       => 2,
+        DriftClass::TaskStateSlew            => 2,
+        DriftClass::BootAttestationMismatch  => 3,
+        DriftClass::SilentNarrowing          => 6,
+        DriftClass::MmioBoundaryPressure     => 6,
+        DriftClass::StackBudgetPressure      => 6,
+    }
+}
+
+// classify_cap_residual: dispatch on a kind=1 (cap_graph_delta) residual.
+// payload[0] = kind_id, payload[1..3] = slot u16 LE, payload[3] = outcome
+// (0=issue, 1=revoke, 2=denied). Returns the drift class.
+fn classify_cap_residual(
+    payload: [u8; 14],
+    manifest: pcc.manifest.Manifest,
+) -> DriftClass {
+    let kind_id: u8 = payload[0];
+    let slot: u16 = (payload[1] as u16) + (payload[2] as u16) * 256;
+    match pcc.manifest.cap_in_manifest(kind_id, slot, manifest.capabilities, manifest.capability_count) {
+        Err(_) => DriftClass::AuthorityExpansion,
+        Ok(_)  => DriftClass::NoDrift,
+    }
+}
+
+// classify_ipc_residual: dispatch on a kind=2 (ipc_route_delta) residual.
+// payload[0..2] = slot u16 LE; payload[2] = direction (0=send, 1=recv).
+// Reduced to "is slot a declared channel index" (the runtime mirror of
+// M-006); identical-id_hash matching is the strict version that lands
+// when kernel/ipc.phos carries id_hash through.
+fn classify_ipc_residual(
+    payload: [u8; 14],
+    manifest: pcc.manifest.Manifest,
+) -> DriftClass {
+    let slot: u16 = (payload[0] as u16) + (payload[1] as u16) * 256;
+    match (slot as u32) >= (manifest.channel_count as u32) {
+        true  => DriftClass::IpcRouteDivergence,
+        false => DriftClass::NoDrift,
+    }
+}
+
+// classify_budget_residual: dispatch on kind=3 (budget_pressure).
+// payload[0] = budget_id; payload[1..5] = measured u32 LE;
+// payload[5..9] = limit u32 LE.
+fn classify_budget_residual(payload: [u8; 14]) -> DriftClass {
+    let measured: u32 = (payload[1] as u32) + (payload[2] as u32) * 256
+        + (payload[3] as u32) * 65536 + (payload[4] as u32) * 16777216;
+    let limit: u32 = (payload[5] as u32) + (payload[6] as u32) * 256
+        + (payload[7] as u32) * 65536 + (payload[8] as u32) * 16777216;
+    match measured > limit {
+        true  => DriftClass::AuthorityExpansion,
+        false => match measured * 10 >= limit * 9 {
+            true  => DriftClass::StackBudgetPressure,
+            false => DriftClass::NoDrift,
+        },
+    }
+}
+
+// classify_mmio_residual: dispatch on kind=5 (mmio_touch).
+// payload[0..8] = addr u64 LE; payload[8..12] = len u32 LE;
+// payload[12] = mode (0=read, 1=write).
+fn classify_mmio_residual(
+    payload: [u8; 14],
+    manifest: pcc.manifest.Manifest,
+) -> DriftClass {
+    let addr: u64 = (payload[0] as u64)
+        + (payload[1] as u64) * 256
+        + (payload[2] as u64) * 65536
+        + (payload[3] as u64) * 16777216
+        + (payload[4] as u64) * 4294967296
+        + (payload[5] as u64) * 1099511627776
+        + (payload[6] as u64) * 281474976710656
+        + (payload[7] as u64) * 72057594037927936;
+    match pcc.manifest.mmio_address_in_manifest_range(addr, manifest.mmio_ranges, manifest.mmio_range_count) {
+        Err(_) => DriftClass::AuthorityExpansion,
+        Ok(_)  => DriftClass::NoDrift,
+    }
+}
+
+// classify_boot_check: dispatch on kind=7 (boot_check).
+// payload[0] = cert_index (0..7); payload[1] = outcome (0=match, 1=mismatch).
+fn classify_boot_check(payload: [u8; 14]) -> DriftClass {
+    match payload[1] {
+        0 => DriftClass::NoDrift,
+        _ => DriftClass::BootAttestationMismatch,
+    }
+}
+
+// classify_residual: top-level dispatch. Any non-NoDrift class short-
+// circuits the walk; the verdict's residual_kind and residual_seq pin
+// where the drift was first observed.
+fn classify_residual(
+    kind: u8,
+    payload: [u8; 14],
+    manifest: pcc.manifest.Manifest,
+) -> DriftClass {
+    match kind {
+        1 => classify_cap_residual(payload, manifest),
+        2 => classify_ipc_residual(payload, manifest),
+        3 => classify_budget_residual(payload),
+        5 => classify_mmio_residual(payload, manifest),
+        7 => classify_boot_check(payload),
+        _ => DriftClass::NoDrift,
+    }
+}
+
+// classify_incident: walk a residual stream of `count` events; return
+// the first non-NoDrift verdict, or NoDrift if every event passes.
+//
+// The 32-byte residual layout is parsed in-place from a buffer. The
+// caller (driver) computes which slice of the .pfi is S_RES and passes
+// it as a fixed-bound buffer.
+fn classify_incident(
+    residual_buf: Slice[u8, 32768],
+    residual_count: u32,
+    manifest: pcc.manifest.Manifest,
+) -> DriftVerdict {
+    let mut verdict: DriftVerdict = empty_verdict();
+    #[bound = 1024]
+    for i in 0..residual_count {
+        let base: u32 = i * 32;
+        let kind: u8 = residual_buf[base];
+        let seq: u16 = (residual_buf[base + 2] as u16) + (residual_buf[base + 3] as u16) * 256;
+        let mut payload: [u8; 14] = [0; 14];
+        #[bound = 14]
+        for j in 0..14 {
+            payload[j] = residual_buf[base + 12 + j as u32];
+        }
+        let class: DriftClass = classify_residual(kind, payload, manifest);
+        match class {
+            DriftClass::NoDrift => (),
+            _ => match verdict.residual_seq == 0 {
+                true => {
+                    verdict.class = class;
+                    verdict.residual_kind = kind;
+                    verdict.residual_seq = seq;
+                    verdict.actual = payload;
+                },
+                false => (),
+            },
+        };
+    }
+    verdict
+}

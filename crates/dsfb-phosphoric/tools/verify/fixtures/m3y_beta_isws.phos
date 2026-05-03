@@ -1,0 +1,17 @@
+module fixture.m3y_beta_isws;
+profile boot;
+fn entry() -> i32 {
+    return is_ws(32);
+}
+fn is_ws(b: i32) -> i32 {
+    match b == 32 {
+        true => true,
+        false => match b == 9 {
+            true => true,
+            false => match b == 10 {
+                true => true,
+                false => b == 13,
+            },
+        },
+    }
+}

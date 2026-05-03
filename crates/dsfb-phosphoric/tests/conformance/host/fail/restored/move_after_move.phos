@@ -1,0 +1,12 @@
+module tests.conformance.host.fail.restored.move_after_move;
+profile host;
+
+// fail-expected: K-007
+// (restored from legacy_ui/fail/move_after_move; legacy code MOVE_AFTER_MOVE "used after move")
+
+module fail.move_after_move;
+
+fn use_twice(value: u32) -> u32 {
+    let first = value;
+    return value;
+}

@@ -1,0 +1,60 @@
+module ember.mmio;
+profile trusted;
+
+// Memory-mapped I/O register specifications.
+//
+// Today: structural types describing register blocks. No actual MMIO operations.
+// Future: read/write primitives access these specs via trusted!{ mmio_read*(...) }
+// and trusted!{ mmio_write*(...) } against named MmioRegion enum values declared
+// in docs/language/trusted_profile.toml.
+//
+// R5 mmio_touch contract (endoduction-substrate plan):
+//   When `mmio_read*` / `mmio_write*` primitives land, every per-op site
+//   on the kernel-side wrapper MUST emit one R5 residual via
+//   pcc.kernel.residual.record(ring, 5, arch_id, cycle, payload) where:
+//     payload[0..8]  = addr u64 LE
+//     payload[8..12] = len u32 LE
+//     payload[12]    = mode (0=read, 1=write)
+//   The address MUST also be cross-checked at compile-time via
+//   pcc.manifest.mmio_address_in_manifest_range (M-005 if outside).
+//   Until trusted! mmio lowering lands (T3-6), R5 has no live emission
+//   site by architectural construction — the demo never reaches mmio.
+
+enum RegisterWidth {
+    U8,
+    U16,
+    U32,
+    U64,
+}
+
+enum RegisterAccess {
+    ReadOnly,
+    WriteOnly,
+    ReadWrite,
+    WriteOneToClear,
+}
+
+struct RegisterSpec {
+    offset: u16,
+    width: RegisterWidth,
+    access: RegisterAccess,
+}
+
+// v0 has no &'static [T]; we use a fixed-capacity bounded slice.
+// Capacity 64 is the per-block ceiling; larger blocks must split.
+struct RegisterBlockSpec {
+    name_id: u16,
+    span: u16,
+    register_count: u16,
+    registers: Slice[RegisterSpec, 64],
+}
+
+fn register_block_has_shape(block: RegisterBlockSpec) -> bool {
+    match block.span == 0 {
+        true  => false,
+        false => match block.register_count == 0 {
+            true  => false,
+            false => true,
+        },
+    }
+}

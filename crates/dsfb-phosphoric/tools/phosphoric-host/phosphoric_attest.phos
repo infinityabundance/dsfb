@@ -1,0 +1,286 @@
+module pcc.host_tools.phosphoric_attest;
+profile host;
+
+// Emits per-checkpoint attestation against dsfb-assurance-score-v1.
+//
+// For each of the 58 checkpoints, the tool records:
+//   - score (1.0 / 0.5 / 0.0)
+//   - reason: enforced | feature-absent | not-applicable-v0 | project-practice
+//   - evidence path
+//
+// Output formats: SARIF, in-toto v1.0, DSSE v1.0.
+//
+// Reference scoring spec: external audit-scoring locked spec (not in this repo).
+
+enum CheckpointReason {
+    Enforced,           // active CI gate enforces this
+    FeatureAbsent,      // language/profile makes it impossible -- the strongest "passed by design"
+    NotApplicableV0,    // out of v0 scope (e.g. async-related checks)
+    ProjectPractice,    // governance discipline; not a language attribute
+}
+
+struct CheckpointReport {
+    section_id: u8,             // 0=Safety, 1=Verification, 2=Build, 3=Lifecycle, 4=P10, 5=AdvStructural
+    checkpoint_id: u16,         // 1..=58
+    score_q4: u8,               // 0, 5, 10 representing 0.0, 0.5, 1.0 in Q.4 fixed point
+    reason: CheckpointReason,
+    evidence_path_id: u16,
+}
+
+struct AttestationReport {
+    method: [u8; 32],           // sha256("dsfb-assurance-score-v1")
+    checkpoints: [CheckpointReport; 58],
+    overall_q4: u16,            // overall_percent * 100, in Q.4 fixed point
+    feature_absent_count: u8,   // for the README footnote
+}
+
+enum AttestationFormat {
+    Sarif,
+    InTotoV1,
+    DsseV1,
+}
+
+// Emit one byte to a fixed buffer at cursor; advance cursor.
+fn put_byte(out: Slice[u8, 65536], cursor: u32, b: u8) -> u32 {
+    out[cursor] = b;
+    cursor + 1
+}
+
+// Emit a base-10 u32.
+fn put_u32(out: Slice[u8, 65536], cursor: u32, value: u32) -> u32 {
+    match value == 0 {
+        true => put_byte(out, cursor, 48),
+        false => {
+            let mut digits: [u8; 10] = [0; 10];
+            let mut n: u32 = value;
+            let mut count: u32 = 0;
+            #[bound = 10]
+            for i in 0..10 {
+                match n == 0 {
+                    true => i,
+                    false => {
+                        digits[count] = ((n - (n / 10) * 10) as u8) + 48;
+                        count = count + 1;
+                        n = n / 10;
+                        i
+                    },
+                };
+            }
+            let mut c: u32 = cursor;
+            #[bound = 10]
+            for j in 0..count {
+                out[c] = digits[count - j - 1];
+                c = c + 1;
+            }
+            c
+        },
+    }
+}
+
+// Encode CheckpointReason as a JSON string fragment id (stable enum).
+fn reason_id(r: CheckpointReason) -> u32 {
+    match r {
+        CheckpointReason::Enforced        => 1,
+        CheckpointReason::FeatureAbsent   => 2,
+        CheckpointReason::NotApplicableV0 => 3,
+        CheckpointReason::ProjectPractice => 4,
+    }
+}
+
+fn emit_attestation(format: AttestationFormat, report: AttestationReport) -> Result[u32, u32] effects(host-fs-write, host-hash) {
+    // SARIF schema: results[] with ruleId = checkpoint id,
+    //   properties.reason = enforced/feature-absent/not-applicable/project-practice
+    // in-toto schema: subject[] with name = "phosphoric", digest = sha256(boot artifact)
+    // DSSE: payloadType = "application/vnd.in-toto+json", signed envelope wrapping the in-toto blob.
+    //
+    // Output paths:
+    //   build/attestations/sarif.json
+    //   build/attestations/in-toto.json
+    //   build/attestations/dsse.json
+    //
+    // Real implementation walks AttestationReport.checkpoints in order,
+    // emitting one JSON object per checkpoint with stable field order.
+    Ok(0)
+}
+
+// Run a sub-checker by reading its captured output (the makefile rule
+// orchestrates the actual invocation; this function reads the result).
+// Each sub-checker writes its outcome JSON to build/checkers/<name>.json.
+fn read_checker_output(name_id: u16) -> Result[u32, u32] effects(host-fs-read) {
+    Ok(0)
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-fs-write, host-stdout, host-stderr, host-hash) {
+    // dsfb-gray attestation generator (E8).
+    //
+    // 1. Read each sub-checker's captured output:
+    //    - phosphoric_invariant_check (E1)
+    //    - phosphoric_conform (E2)
+    //    - phosphoric_test_runner (E4)
+    //    - phosphoric_lower_eq (E5)
+    //    - phosphoric_repro_diff (E7)
+    //    - phosphoric_effect_check (E9)
+    //    - phosphoric_fuzz (E11)
+    //    - check_tcb_budget (E12)
+    //    - check_retirement_dates (E13)
+    //    - phosphoric_bound_check (E14)
+    //    - check_phosphoric_only (E0c)
+    //    - check_host_profile_separation (E0a)
+    //    - check_trusted_blocks (E0e)
+    //    - verify_fixpoint (E0c)
+    //    - check_writer_audit_lines (E6)
+    //
+    // 2. For each of the 58 audit checkpoints (per the external
+    //    audit-scoring locked spec — not in this repo), compute:
+    //      - score: 1.0 (cleared), 0.5 (indeterminate), 0.0 (failed)
+    //      - reason: one of {enforced, feature-absent, not-applicable-v0,
+    //                        project-practice}
+    //      - evidence_path: pointer to the sub-checker output that
+    //                       proves this checkpoint
+    //
+    // 3. Compose AttestationReport with overall_q4 (Q.4 fixed-point %).
+    //
+    // 4. Emit three artifacts:
+    //    - SARIF (for code-review tooling)
+    //    - in-toto v1.0 (for provenance attestation)
+    //    - DSSE v1.0 (signed envelope wrapping the in-toto)
+    //
+    // 5. Write the README footnote text:
+    //    "X of 58 dsfb-gray checks pass by feature absence (Phosphoric does
+    //     not have async, atomics, globals, plugins, raw pointers, dynamic
+    //     allocation, etc.). This is an honest signal of narrowness, not
+    //     evidence of stronger engineering than other languages."
+    //
+    // 6. Exit 0 on success.
+    0
+}
+
+// .pfa audit package — closed format taxonomy member #2 (last).
+//
+// One audit package = a collection of .pfi incidents + bootstrap
+// snapshot + compiler-binary hash + dsfb-gray's signed verdict over
+// the bundle. Auditor's verdict is itself a sealed artifact verifiable
+// by phosphoric_drift --audit.
+//
+// Format taxonomy is closed: only .pfi and .pfa exist. Any future
+// extension is a new section in one of these two containers, never a
+// new file format.
+//
+//   0x000  AHDR  magic "PFA1\0\0\0\0" | section_count u8 | flags u8 |
+//                reserved u16 | total_len u32 | sha256_of_following [u8;32]
+//   0x040  S_PFI[*]  one or more .pfi incidents (each length-prefixed)
+//          S_BST     bootstrap.toml snapshot (length-prefixed)
+//          S_PCC     SHA-256 of the pcc binary used (32 B + length prefix)
+//          S_GVD     dsfb-gray's DSSE-signed verdict over the entire
+//                    package (length-prefixed)
+
+struct AuditPackageHeader {
+    magic: [u8; 8],             // "PFA1\0\0\0\0"
+    section_count: u8,
+    flags: u8,
+    reserved: u16,
+    total_len: u32,
+    sha256_of_body: [u8; 32],
+}
+
+fn empty_audit_header() -> AuditPackageHeader {
+    AuditPackageHeader {
+        magic: [80, 70, 65, 49, 0, 0, 0, 0],    // "PFA1\0\0\0\0"
+        section_count: 4,
+        flags: 0,
+        reserved: 0,
+        total_len: 0,
+        sha256_of_body: [0; 32],
+    }
+}
+
+// pack_audit_package: lay out incidents + bootstrap + pcc hash + gray
+// verdict into a 256 KiB output buffer. Caller computes the body SHA-256
+// and patches it into the AHDR after this returns.
+fn pack_audit_package(
+    incident_blobs: Slice[u8, 262144],          // concatenated .pfi blobs
+    incident_total_len: u32,
+    bootstrap_snapshot: Slice[u8, 16384],
+    bootstrap_len: u32,
+    pcc_hash: [u8; 32],
+    gray_verdict: Slice[u8, 65536],
+    gray_verdict_len: u32,
+    out: Slice[u8, 524288],
+) -> u32 {
+    let mut cursor: u32 = 0;
+    // 32-byte AHDR placeholder (caller patches sha256_of_body).
+    #[bound = 8]
+    for i in 0..8 {
+        out[cursor + i as u32] = 0;
+    }
+    cursor = cursor + 8;
+    out[cursor] = 4;
+    cursor = cursor + 1;
+    out[cursor] = 0;
+    cursor = cursor + 1;
+    out[cursor] = 0;
+    cursor = cursor + 1;
+    out[cursor] = 0;
+    cursor = cursor + 1;
+    // total_len placeholder (4 B)
+    out[cursor] = 0; cursor = cursor + 1;
+    out[cursor] = 0; cursor = cursor + 1;
+    out[cursor] = 0; cursor = cursor + 1;
+    out[cursor] = 0; cursor = cursor + 1;
+    #[bound = 32]
+    for i in 0..32 {
+        out[cursor + i as u32] = 0;
+    }
+    cursor = cursor + 32;
+    // S_PFI section: kind=1 + LE u32 length + blob
+    out[cursor] = 1; cursor = cursor + 1;
+    out[cursor]     = (incident_total_len - (incident_total_len / 256) * 256) as u8;
+    out[cursor + 1] = ((incident_total_len / 256) - (incident_total_len / 65536) * 256) as u8;
+    out[cursor + 2] = ((incident_total_len / 65536) - (incident_total_len / 16777216) * 256) as u8;
+    out[cursor + 3] = (incident_total_len / 16777216) as u8;
+    cursor = cursor + 4;
+    #[bound = 262144]
+    for i in 0..incident_total_len {
+        out[cursor + i] = incident_blobs[i];
+    }
+    cursor = cursor + incident_total_len;
+    // S_BST section: kind=2 + LE u32 length + bytes
+    out[cursor] = 2; cursor = cursor + 1;
+    out[cursor]     = (bootstrap_len - (bootstrap_len / 256) * 256) as u8;
+    out[cursor + 1] = ((bootstrap_len / 256) - (bootstrap_len / 65536) * 256) as u8;
+    out[cursor + 2] = ((bootstrap_len / 65536) - (bootstrap_len / 16777216) * 256) as u8;
+    out[cursor + 3] = (bootstrap_len / 16777216) as u8;
+    cursor = cursor + 4;
+    #[bound = 16384]
+    for i in 0..bootstrap_len {
+        out[cursor + i] = bootstrap_snapshot[i];
+    }
+    cursor = cursor + bootstrap_len;
+    // S_PCC section: kind=3 + LE u32 length=32 + 32-byte hash
+    out[cursor] = 3; cursor = cursor + 1;
+    out[cursor] = 32; cursor = cursor + 1;
+    out[cursor] = 0;  cursor = cursor + 1;
+    out[cursor] = 0;  cursor = cursor + 1;
+    out[cursor] = 0;  cursor = cursor + 1;
+    #[bound = 32]
+    for i in 0..32 {
+        out[cursor + i as u32] = pcc_hash[i];
+    }
+    cursor = cursor + 32;
+    // S_GVD section: kind=4 + LE u32 length + bytes
+    out[cursor] = 4; cursor = cursor + 1;
+    out[cursor]     = (gray_verdict_len - (gray_verdict_len / 256) * 256) as u8;
+    out[cursor + 1] = ((gray_verdict_len / 256) - (gray_verdict_len / 65536) * 256) as u8;
+    out[cursor + 2] = ((gray_verdict_len / 65536) - (gray_verdict_len / 16777216) * 256) as u8;
+    out[cursor + 3] = (gray_verdict_len / 16777216) as u8;
+    cursor = cursor + 4;
+    #[bound = 65536]
+    for i in 0..gray_verdict_len {
+        out[cursor + i] = gray_verdict[i];
+    }
+    cursor = cursor + gray_verdict_len;
+    cursor
+}

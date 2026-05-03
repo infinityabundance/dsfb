@@ -1,0 +1,16 @@
+module tests.conformance.host.fail.restored.branch_capability_after_match;
+profile host;
+
+// fail-expected: K-006
+// (restored from legacy_ui/fail/branch_capability_after_match; legacy code CAPABILITY_DUPLICATION "cannot be duplicated after move")
+
+module demo;
+capability Window;
+enum State { Ready, Waiting }
+fn duplicate_after_match(state: State, win: Window) -> Window {
+    match state {
+        Ready => { let first = win; 1 },
+        Waiting => 2,
+    };
+    return win;
+}

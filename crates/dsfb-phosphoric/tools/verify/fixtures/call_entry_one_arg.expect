@@ -1,0 +1,17 @@
+# Pass A-2 + A-3 fixture: end-to-end runtime call+arg+return triangle.
+# Source:
+#   fn entry()        { return double(21); }
+#   fn double(arg)    { return __a0; }
+# Lowering:
+#   - entry: 195-byte stage0_call_entry block — `mov edi, 21; call double;
+#     mov edi, eax; mov eax, 60; syscall` (Pass A-3 patches IMM at byte 1
+#     and rel32 at byte 6; rel32 = double_offset - 130)
+#   - double: 24-byte param-identity block — `mov eax, edi; ret; nops`
+#     (Pass A-2 magic IDENT __a0 → first parameter's register)
+# At runtime: entry passes 21 in edi; double's `mov eax, edi` returns 21;
+# entry uses helper's return as exit code.
+#
+# Verified: rc=21 (= 0x15 = the IMM passed to double).
+size=1105
+sha=7c446018e45c69a8fa90739afe9a9b860887d59d841cf4541056fd3e94e8333d
+rc=21

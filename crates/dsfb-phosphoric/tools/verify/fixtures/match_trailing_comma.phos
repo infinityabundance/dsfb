@@ -1,0 +1,8 @@
+module fixture.match_trailing_comma;
+profile boot;
+fn entry() -> i32 {
+    return helper(7);
+}
+fn helper(arg: i32) -> i32 {
+    match arg == 7 { true => 100, false => 0, }
+}

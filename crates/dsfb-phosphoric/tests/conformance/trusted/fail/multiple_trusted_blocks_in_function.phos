@@ -1,0 +1,18 @@
+module tests.conformance.trusted.fail.multiple_trusted_blocks_in_function;
+profile trusted;
+
+// fail-expected: T-008
+//
+// A function may contain at most one `trusted!` block. Functions that
+// need multiple primitives issue them in a single block.
+
+fn two_blocks() {
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#first
+    trusted! {
+        cpu_op(CpuOp::Cli);
+    }
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#second
+    trusted! {
+        cpu_op(CpuOp::Sti);
+    }
+}

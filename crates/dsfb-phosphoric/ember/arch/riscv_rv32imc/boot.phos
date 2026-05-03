@@ -1,0 +1,96 @@
+module ember.arch.riscv_rv32imc.boot;
+profile trusted;
+
+// Low-end RISC-V (RV32IMC w/ PMP) boot reset handler.
+//
+// Open ISA target. PMP regions provide the protection-unit pattern
+// equivalent to ARM MPU. Vector table is replaced by a single mtvec
+// CSR that points at the trap handler, with the handler dispatching on
+// mcause to per-cause handlers.
+
+struct RiscvBootInfo {
+    flash_base: u32,
+    flash_size: u32,
+    sram_base: u32,
+    sram_size: u32,
+    hart_id: u32,            // mhartid
+}
+
+// Standard RISC-V machine-mode CSR addresses.
+fn csr_mstatus() -> u32  { 768 }     // 0x300
+fn csr_mtvec() -> u32    { 773 }     // 0x305
+fn csr_mhartid() -> u32  { 3860 }    // 0xF14
+
+// Read mhartid (constant per hart). Required to pin the per-hart boot
+// path before configuring per-hart PMP entries.
+//
+// razor-rationale: irreducible-hw — CSR access is the only path to read
+// machine-mode registers.
+fn read_hart_id() -> u32 {
+    // trust-audit: row "mhartid CSR read" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        cpu_op(ember.arch.riscv_rv32imc.pmp.CpuOp::Csrrs(csr_mhartid(), 0))
+    }
+}
+
+// Install the trap vector address. Direct mode (low 2 bits = 0b00):
+// every trap dispatches to mtvec. Vectored mode is rejected for v0
+// (the dispatch table approach lives above the trust boundary in the
+// runtime kernel's trap-routing code).
+//
+// razor-rationale: irreducible-hw — mtvec is the architectural trap entry.
+fn install_trap_vector(handler_address: u32) {
+    // trust-audit: row "mtvec CSR write" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        cpu_op(ember.arch.riscv_rv32imc.pmp.CpuOp::Csrrw(csr_mtvec(), handler_address));
+    };
+}
+
+// Configure mstatus for machine-mode operation. Sets MPP=11 (machine mode
+// previous privilege) and MIE=0 (interrupts initially disabled; the runtime
+// kernel enables them after trap-vector install).
+//
+// razor-rationale: language-not-expressible — privilege-level transition
+// is a CPU state machine outside the type system's expression.
+fn configure_mstatus(value: u32) {
+    // trust-audit: row "mstatus CSR write" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: language-not-expressible
+    trusted!{
+        cpu_op(ember.arch.riscv_rv32imc.pmp.CpuOp::Csrrw(csr_mstatus(), value));
+    };
+}
+
+// Reset handler entry. Called by the boot ROM after stack pointer is
+// set and the hart enters machine mode at reset.
+fn reset_handler() -> RiscvBootInfo {
+    // Stage 1 — read hart id (always 0 on single-hart parts).
+    let hart: u32 = read_hart_id();
+
+    // Stage 2 — install trap vector. The handler lives in the runtime
+    // kernel; its address is pinned by the linker.
+    install_trap_vector(2147483648);     // 0x80000000 — typical RAM base for trap handler
+
+    // Stage 3 — configure mstatus. MPP=11 (machine), MIE=0.
+    configure_mstatus(6144);             // 0x1800 — MPP[1:0]=11, MIE=0
+
+    // Stage 4 — PMP entry 0: secure flash region, RX-locked.
+    let secure_flash: ember.arch.riscv_rv32imc.pmp.PmpEntry =
+        ember.arch.riscv_rv32imc.pmp.PmpEntry {
+            addr: 536870912,             // 0x20000000 (encoded in NAPOT)
+            mode: ember.arch.riscv_rv32imc.pmp.PmpAddressingMode::Napot,
+            permissions: ember.arch.riscv_rv32imc.pmp.PmpPermissions::Rx,
+            locked: true,
+        };
+    ember.arch.riscv_rv32imc.pmp.configure_pmp_entry(0, secure_flash);
+
+    // Stage 5 — handoff shape.
+    RiscvBootInfo {
+        flash_base: 536870912,           // 0x20000000
+        flash_size: 1048576,             // 1 MiB typical low-end RV32 part
+        sram_base: 2147483648,           // 0x80000000
+        sram_size: 65536,                // 64 KiB typical
+        hart_id: hart,
+    }
+}

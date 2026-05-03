@@ -1,0 +1,13 @@
+module tests.conformance.host.pass.host_capacity_minimum_declaration;
+profile host;
+
+// A program may declare capacity ceilings smaller than the host_profile.toml
+// language maximum but never larger. This program declares a 256-byte path
+// buffer (smaller than the 4 KiB language max).
+
+fn read_short_path(path: Slice[u8, 256], len: u32) -> bool effects(host-fs-read) {
+    match len <= 256 {
+        true  => true,
+        false => false,
+    }
+}

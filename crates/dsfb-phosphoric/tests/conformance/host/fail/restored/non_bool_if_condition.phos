@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.non_bool_if_condition;
+profile host;
+
+// fail-expected: K-002
+// (restored from legacy_ui/fail/non_bool_if_condition; legacy code BAD_IF_CONDITION "expected `bool`")
+
+module fail.non_bool_if_condition;
+
+fn choose() -> bool {
+    if 1 { true } else { false }
+}

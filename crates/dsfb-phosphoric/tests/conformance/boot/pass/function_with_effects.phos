@@ -1,0 +1,26 @@
+module tests.conformance.boot.pass.function_with_effects;
+
+// Pass case for FunctionDecl with explicit effect declaration.
+// Boot profile alphabet: {draw, ipc, mmio, sched, time}.
+
+capability Window;
+capability Channel;
+
+fn redraw(win: Window) -> bool effects(draw) {
+    true
+}
+
+fn route(ch: Channel, ev: u32) -> bool effects(ipc) {
+    match ev == 0 {
+        true  => false,
+        false => true,
+    }
+}
+
+fn pulse(win: Window, ch: Channel) -> bool effects(draw, ipc) {
+    let drew: bool = redraw(win);
+    match drew {
+        true  => route(ch, 1),
+        false => false,
+    }
+}

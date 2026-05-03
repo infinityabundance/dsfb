@@ -1,0 +1,33 @@
+module dsfb_demo.theorem_text;
+
+fn theorem_text_length() -> u32 { 692 }
+fn theorem_first_byte() -> u8 { 68 }
+fn theorem_last_byte() -> u8 { 10 }
+fn theorem_stage_count() -> u32 { 7 }
+fn endoduction_inference_mode() -> u32 { 4 }
+
+// v0.3 razor demo DSFB primary theorem text (verbatim from the
+// papers, ASCII-rendered, 707 bytes). Embedded in BOOTX64.EFI's
+// .rdata; written via debug-text-port at task entry.
+//
+// Text rendered:
+//
+//   DSFB (Drift-Slew Fusion Bootstrap) creates human-readable
+//   structure from usually-discarded residuals. Information from
+//   the signatures or fingerprints of noise. Endoduction is the
+//   4th mode of Inference.
+//
+//   DSFB factors operator-legible deterministic residual inference
+//   into seven typed deterministic stages,
+//     (y_hat, y, phi, s) -> r -> (d, sigma) -> E -> g -> tau -> C,
+//   i.e. observation+prediction+phase+source -> residual ->
+//   drift+slew -> admissibility envelope -> grammar/motif state ->
+//   trust state -> byte-deterministic certificate. Every stage is
+//   a total deterministic function on its typed input; no stage
+//   admits randomness, learned weights, or non-deterministic
+//   parallel reductions.
+//
+// theorem_first_byte = 'D' (0x44 = 68); theorem_last_byte = '\n'
+// (0x0A = 10). Endoduction is the 4th mode of Inference (after
+// deduction, induction, abduction). Seven typed deterministic
+// stages: (y-hat, y, phi, s) -> r -> (d, sigma) -> E -> g -> tau -> C.

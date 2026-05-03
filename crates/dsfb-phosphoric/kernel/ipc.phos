@@ -1,0 +1,248 @@
+module pcc.kernel.ipc;
+profile runtime;
+
+// IPC channels — bounded message-passing between tasks.
+//
+// DEFER NOTE (Phase 7 Tranche A, endoduction-substrate plan).
+// Per-channel `[ipc.channel].capacity` *enforcement* is deferred until
+// a second active channel exists (the demo + ICS terminal both use a
+// single channel; overflow can't currently arise). The schema field is
+// retained for forward compatibility; the runtime check waits.
+//
+// Capacity from runtime_profile.toml:
+//   CHANNEL_MAX=128, GLOBAL_MSG_MAX=1024, IPC_PAYLOAD_MAX=256
+//   CHANNEL_QUEUE_CAPACITY = GLOBAL_MSG_MAX / CHANNEL_MAX = 8
+
+struct MessagePayload {
+    len: u16,
+    bytes: [u8; 256],   // IPC_PAYLOAD_MAX
+}
+
+fn empty_message_payload() -> MessagePayload {
+    MessagePayload {
+        len: 0,
+        bytes: [0; 256],
+    }
+}
+
+struct ChannelEntry {
+    active: bool,
+    generation: u16,
+    capability_slot: u16,
+    head: u16,
+    tail: u16,
+    queue: [MessagePayload; 8],   // CHANNEL_QUEUE_CAPACITY
+}
+
+struct ChannelTable {
+    entries: [ChannelEntry; 128],   // CHANNEL_MAX
+}
+
+fn empty_channel_entry() -> ChannelEntry {
+    ChannelEntry {
+        active: false,
+        generation: 1,
+        capability_slot: 0,
+        head: 0,
+        tail: 0,
+        queue: [empty_message_payload(); 8],
+    }
+}
+
+fn bump_channel_generation(generation: u16) -> u16 {
+    let next: u16 = generation + 1;
+    match next == 0 {
+        true  => 1,
+        false => next,
+    }
+}
+
+// Bounded byte copy: fail if `len` exceeds the payload byte ceiling.
+fn payload_from_bytes(
+    src: Slice[u8, 256],
+    len: u16,
+) -> Result[MessagePayload, pcc.kernel.error.KernelError] {
+    match len > 256 {
+        true => Err(pcc.kernel.error.KernelError::PayloadTooLarge),
+        false => {
+            let mut out: MessagePayload = empty_message_payload();
+            out.len = len;
+            #[bound = 256]
+            for i in 0..(len as u32) {
+                out.bytes[i] = src[i];
+            }
+            Ok(out)
+        },
+    }
+}
+
+// Linear scan for the first vacant channel slot.
+fn find_vacant_channel(table: ChannelTable) -> Option[u16] {
+    #[bound = 128]
+    for i in 0..128 {
+        match table.entries[i].active {
+            false => return Some(i as u16),
+            true  => (),
+        };
+    }
+    None
+}
+
+// Number of populated messages in a ring queue.
+//
+// The ring uses CHANNEL_QUEUE_CAPACITY = 8. head and tail walk a single
+// 16-bit counter; depth is `tail - head` modulo 8. The counters can run
+// past 8; only the modulo matters at indexing time.
+fn queue_depth(entry: ChannelEntry) -> u16 {
+    let raw: u16 = entry.tail - entry.head;
+    raw & 7
+}
+
+fn queue_full(entry: ChannelEntry) -> bool {
+    queue_depth(entry) == 7
+}
+
+fn queue_empty(entry: ChannelEntry) -> bool {
+    queue_depth(entry) == 0
+}
+
+// validate(): verify (slot, generation) refers to a live channel.
+fn validate_channel(
+    table: ChannelTable,
+    slot: u16,
+    generation: u16,
+) -> Result[u32, pcc.kernel.error.KernelError] {
+    match (slot as u32) >= 128 {
+        true => Err(pcc.kernel.error.KernelError::InvalidHandle),
+        false => {
+            let entry: ChannelEntry = table.entries[slot as u32];
+            match entry.active {
+                false => Err(pcc.kernel.error.KernelError::InvalidHandle),
+                true  => match entry.generation == generation {
+                    false => Err(pcc.kernel.error.KernelError::StaleHandle),
+                    true  => Ok(0),
+                },
+            }
+        },
+    }
+}
+
+// send(): enqueue a payload on the channel slot. Returns Err(QueueFull)
+// when the ring is at capacity (depth == 7; one slot reserved to disambiguate
+// full from empty).
+//
+// Returns the updated ChannelEntry; caller writes it back to table.entries[slot].
+fn send_message(
+    table: ChannelTable,
+    manifest: pcc.kernel.manifest.ManifestTable,
+    slot: u16,
+    generation: u16,
+    payload: MessagePayload,
+) -> Result[ChannelEntry, pcc.kernel.error.KernelError] {
+    // Manifest cross-check: the channel slot MUST be < manifest.channel_count.
+    // The compiler maps source-side channel ids to slot indices in
+    // declaration order; an untranslated slot is by construction not in
+    // the manifest. Returns UndeclaredChannel (status 12) on miss — the
+    // runtime mirror of compile-time M-006.
+    match (slot as u32) >= (manifest.channel_count as u32) {
+        true => Err(pcc.kernel.error.KernelError::UndeclaredChannel),
+        false => match validate_channel(table, slot, generation) {
+            Err(e) => Err(e),
+            Ok(_) => {
+                let entry: ChannelEntry = table.entries[slot as u32];
+                match queue_full(entry) {
+                    true => Err(pcc.kernel.error.KernelError::QueueFull),
+                    false => {
+                        let mut updated: ChannelEntry = entry;
+                        let tail_idx: u16 = entry.tail & 7;
+                        updated.queue[tail_idx as u32] = payload;
+                        updated.tail = entry.tail + 1;
+                        Ok(updated)
+                    },
+                }
+            },
+        },
+    }
+}
+
+// recv(): dequeue the head payload. Returns Err(QueueEmpty) when the ring is
+// empty. Caller writes the returned ChannelEntry back; the popped payload is
+// returned via the inner tuple-shape struct.
+struct RecvResult {
+    payload: MessagePayload,
+    updated: ChannelEntry,
+}
+
+fn recv_message(
+    table: ChannelTable,
+    manifest: pcc.kernel.manifest.ManifestTable,
+    slot: u16,
+    generation: u16,
+) -> Result[RecvResult, pcc.kernel.error.KernelError] {
+    // Manifest cross-check: undeclared slot returns UndeclaredChannel. See
+    // send_message above for the rationale.
+    match (slot as u32) >= (manifest.channel_count as u32) {
+        true => Err(pcc.kernel.error.KernelError::UndeclaredChannel),
+        false => match validate_channel(table, slot, generation) {
+            Err(e) => Err(e),
+            Ok(_) => {
+                let entry: ChannelEntry = table.entries[slot as u32];
+                match queue_empty(entry) {
+                    true => Err(pcc.kernel.error.KernelError::QueueEmpty),
+                    false => {
+                        let head_idx: u16 = entry.head & 7;
+                        let payload: MessagePayload = entry.queue[head_idx as u32];
+                        let mut updated: ChannelEntry = entry;
+                        updated.head = entry.head + 1;
+                        Ok(RecvResult {
+                            payload: payload,
+                            updated: updated,
+                        })
+                    },
+                }
+            },
+        },
+    }
+}
+
+// Allocate a fresh channel for the given capability slot.
+fn allocate_channel(
+    table: ChannelTable,
+    capability_slot: u16,
+) -> Result[ChannelEntry, pcc.kernel.error.KernelError] {
+    match find_vacant_channel(table) {
+        None => Err(pcc.kernel.error.KernelError::TableFull),
+        Some(idx) => {
+            let prev_gen: u16 = table.entries[idx as u32].generation;
+            Ok(ChannelEntry {
+                active: true,
+                generation: bump_channel_generation(prev_gen),
+                capability_slot: capability_slot,
+                head: 0,
+                tail: 0,
+                queue: [empty_message_payload(); 8],
+            })
+        },
+    }
+}
+
+// revoke(): release a channel slot, bump generation, drop pending messages.
+fn revoke_channel(
+    table: ChannelTable,
+    slot: u16,
+) -> Result[ChannelEntry, pcc.kernel.error.KernelError] {
+    match (slot as u32) >= 128 {
+        true => Err(pcc.kernel.error.KernelError::InvalidHandle),
+        false => {
+            let entry: ChannelEntry = table.entries[slot as u32];
+            Ok(ChannelEntry {
+                active: false,
+                generation: bump_channel_generation(entry.generation),
+                capability_slot: 0,
+                head: 0,
+                tail: 0,
+                queue: [empty_message_payload(); 8],
+            })
+        },
+    }
+}

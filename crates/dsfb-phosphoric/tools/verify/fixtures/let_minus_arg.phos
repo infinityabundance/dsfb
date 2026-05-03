@@ -1,0 +1,9 @@
+module fixture.let_minus_arg;
+profile boot;
+fn entry() -> i32 {
+    return shifted(30);
+}
+fn shifted(arg: i32) -> i32 {
+    let bias = 50;
+    return bias - arg;
+}

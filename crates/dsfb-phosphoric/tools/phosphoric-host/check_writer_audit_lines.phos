@@ -1,0 +1,166 @@
+module pcc.host_tools.check_writer_audit_lines;
+profile host;
+
+// Asserts every executable line of the PE writer (tools/phosphoric-host/pe_writer/)
+// is covered by the audit doc tools/phosphoric/PE_WRITER_TRUST_AUDIT.md.
+//
+// This is the analog of check_trusted_blocks for the PE writer, since the
+// writer is host-profile (not trusted-profile) but is still TCB.
+
+struct AuditedLine {
+    file_path_id: u16,
+    line_number: u32,
+    audit_section_id: u16,
+}
+
+// Count executable lines: any line containing at least one non-whitespace
+// character that is not part of a `//` line comment. Identical state
+// machine to check_tcb_budget's LOC counter, applied to the PE writer
+// source (which is currently a shell script; see PE_WRITER_TRUST_AUDIT.md
+// for the migration plan to a Phosphoric host program).
+fn count_executable_lines(file_buf: Slice[u8, 1048576], len: u32) -> u32 {
+    let mut count: u32 = 0;
+    let mut line_has_code: bool = false;
+    let mut in_comment: bool = false;
+    let mut i: u32 = 0;
+    #[bound = 1048576]
+    for step in 0..len {
+        match i >= len {
+            true => step,
+            false => {
+                let b: u8 = file_buf[i];
+                match b == 10 {
+                    true => {
+                        match line_has_code {
+                            true  => count = count + 1,
+                            false => (),
+                        }
+                        line_has_code = false;
+                        in_comment = false;
+                    },
+                    false => match in_comment {
+                        true => (),
+                        false => match b == 47 {
+                            true => match i + 1 < len {
+                                true => match file_buf[i + 1] == 47 {
+                                    true  => in_comment = true,
+                                    false => match is_non_ws(b) {
+                                        true  => line_has_code = true,
+                                        false => (),
+                                    },
+                                },
+                                false => match is_non_ws(b) {
+                                    true  => line_has_code = true,
+                                    false => (),
+                                },
+                            },
+                            false => match is_non_ws(b) {
+                                true  => line_has_code = true,
+                                false => (),
+                            },
+                        },
+                    },
+                }
+                i = i + 1;
+                step
+            },
+        };
+    }
+    match line_has_code {
+        true  => count + 1,
+        false => count,
+    }
+}
+
+fn is_non_ws(b: u8) -> bool {
+    match b == 32 {
+        true  => false,
+        false => match b == 9 {
+            true  => false,
+            false => match b == 13 {
+                true  => false,
+                false => true,
+            },
+        },
+    }
+}
+
+// Count audit-table rows in PE_WRITER_TRUST_AUDIT.md. A row is any line
+// starting with `|` and containing `|` separators (i.e. a non-header
+// markdown table row). Header separator rows (containing only `|---|...`)
+// are excluded.
+fn count_audit_rows(audit_buf: Slice[u8, 1048576], len: u32) -> u32 {
+    let mut count: u32 = 0;
+    let mut line_start: u32 = 0;
+    let mut i: u32 = 0;
+    #[bound = 1048576]
+    for step in 0..len {
+        match i >= len {
+            true => step,
+            false => {
+                match audit_buf[i] == 10 {    // '\n'
+                    true => {
+                        // Classify line [line_start, i).
+                        let starts_with_pipe: bool = match line_start < i {
+                            true  => audit_buf[line_start] == 124,    // '|'
+                            false => false,
+                        };
+                        match starts_with_pipe {
+                            true => match is_separator_row(audit_buf, line_start, i) {
+                                true  => (),    // separator line; skip
+                                false => count = count + 1,
+                            },
+                            false => (),
+                        }
+                        line_start = i + 1;
+                    },
+                    false => (),
+                }
+                i = i + 1;
+                step
+            },
+        };
+    }
+    count
+}
+
+// A separator row contains only `|`, `-`, `:`, and whitespace.
+fn is_separator_row(buf: Slice[u8, 1048576], start: u32, end: u32) -> bool {
+    #[bound = 4096]
+    for i in start..end {
+        let b: u8 = buf[i];
+        match b == 124 {        // '|'
+            true => (),
+            false => match b == 45 {    // '-'
+                true => (),
+                false => match b == 58 {    // ':'
+                    true => (),
+                    false => match b == 32 {    // ' '
+                        true => (),
+                        false => match b == 9 {     // '\t'
+                            true => (),
+                            false => match b == 13 {    // '\r'
+                                true => (),
+                                false => return false,
+                            },
+                        },
+                    },
+                },
+            },
+        }
+    }
+    true
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr) {
+    // TODO(E6):
+    //   1. Walk tools/phosphoric-host/pe_writer/.
+    //   2. Count executable lines.
+    //   3. Read audit doc; count audit rows.
+    //   4. Assert every line has an audit row (line range covered).
+    //   5. Exit non-zero on uncovered lines.
+    0
+}

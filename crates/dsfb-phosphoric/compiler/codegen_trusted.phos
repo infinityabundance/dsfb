@@ -1,0 +1,107 @@
+module pcc.codegen.trusted;
+profile host;
+
+// Trusted-profile codegen. HIR -> Ember-shape blob.
+//
+// Trusted profile is Ember source. It compiles to a flat binary blob loaded
+// by the boot loader at a fixed physical address. trusted! blocks compile
+// to direct CPU instructions whose argument enums are resolved at compile
+// time (no runtime indirection).
+//
+// M-005 HOOK (deferred to T3-6 trusted! lowering).
+//   When `trusted! { mmio_read(addr) }` and `trusted! { mmio_write(addr, _) }`
+//   lowering lands here, every per-op site MUST call:
+//
+//     pcc.manifest.mmio_address_in_manifest_range(
+//         addr,
+//         manifest.mmio_ranges,
+//         manifest.mmio_range_count,
+//     )
+//
+//   and propagate the Err (M-005) on out-of-range. This is the load-bearing
+//   forensic check at the codegen layer for the [[mmio.range]] axis: an
+//   image cannot emit bytes that touch an unmanifested physical address.
+//   Per the trust-zone partition (TASK_SEAL_V0.md §0.4), this check sits in
+//   the *trusted* zone and is independently re-derived by dsfb-gray.
+
+struct TrustedImage {
+    text: Slice[u8, 524288],            // Ember nucleus is small by design
+    text_len: u32,
+    cpu_op_uses: u32,                   // count, for the audit doc cross-reference
+    mmio_region_uses: u32,
+    port_uses: u32,
+}
+
+// Collect counts of trusted-profile primitive uses across every HIR
+// function in the module. Per the trusted-profile effect-bit layout in
+// docs/language/effect_lattice.toml:
+//   bit 6  cpu_op
+//   bit 7  mmio_read   (counted under mmio_region_uses)
+//   bit 8  mmio_write  (counted under mmio_region_uses)
+//   bit 9  port_io
+//
+// The walker sums occurrences per bit; the codegen pass uses these as
+// the audit-doc cross-reference: every cpu_op_uses count must equal the
+// number of cpu_op rows in EMBER_TRUST_AUDIT.md.
+fn count_trusted_primitives(hir: pcc.hir.HirModule) -> TrustedImage {
+    let mut cpu: u32 = 0;
+    let mut mmio: u32 = 0;
+    let mut port: u32 = 0;
+    #[bound = 1024]
+    for i in 0..(hir.item_count as u32) {
+        match hir.items[i] {
+            pcc.hir.HirItem::Function(f) => {
+                let bits: u32 = f.declared_effects;
+                let cpu_bit: u32 = (bits / 64) - ((bits / 128) * 2);
+                let mmio_r_bit: u32 = (bits / 128) - ((bits / 256) * 2);
+                let mmio_w_bit: u32 = (bits / 256) - ((bits / 512) * 2);
+                let port_bit: u32 = (bits / 512) - ((bits / 1024) * 2);
+                cpu = cpu + cpu_bit;
+                mmio = mmio + mmio_r_bit + mmio_w_bit;
+                port = port + port_bit;
+            },
+            _ => (),
+        };
+    }
+    TrustedImage {
+        text: [0; 524288],
+        text_len: 0,
+        cpu_op_uses: cpu,
+        mmio_region_uses: mmio,
+        port_uses: port,
+    }
+}
+
+fn lower_trusted_module(
+    hir: pcc.hir.HirModule,
+) -> Result[TrustedImage, pcc.diagnostic.Diagnostic] {
+    // Per-trusted!-block instruction emission lands once T3-1 typeck +
+    // T3-6 ember trusted! block bodies do. The current shape walks the
+    // HIR, accumulates use counts (load-bearing for the trust audit
+    // cross-reference), and returns a structurally-valid empty image.
+    let image: TrustedImage = count_trusted_primitives(hir);
+    Ok(image)
+}
+
+// Encode a single x86_64 trusted-profile cpu_op. The full mapping is
+// pinned in docs/language/trusted_profile.toml's [arch.x86_64.cpu_op]
+// table. Each enum constant maps to a fixed instruction encoding; this
+// function is the lookup that the lower-trusted! pass calls per emitted
+// trusted! block.
+//
+// Currently the lookup is a contract scaffold: it accepts the enum
+// constant id and returns the canonical instruction-byte length so the
+// caller can size its emission buffer. Real instruction-byte emission
+// lands with T3-6.
+fn cpu_op_byte_length(op_id: u8) -> u8 {
+    match op_id {
+        1 => 1,         // CLI:  0xFA
+        2 => 1,         // STI:  0xFB
+        3 => 6,         // LGDT: 0F 01 /2 mem48
+        4 => 6,         // LIDT: 0F 01 /3 mem48
+        5 => 2,         // OUT:  0xEE / 0xEF (variable; minimum)
+        6 => 2,         // IN:   0xEC / 0xED
+        7 => 3,         // MOV CR0..CR4: 0F 22 /r
+        _ => 0,
+    }
+}

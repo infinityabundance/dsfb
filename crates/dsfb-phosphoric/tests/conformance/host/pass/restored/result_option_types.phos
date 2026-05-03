@@ -1,0 +1,15 @@
+module tests.conformance.host.pass.restored.result_option_types;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/result_option_types)
+
+module pass.result_option_types;
+
+fn pass_result(value: Result[u32, u32]) -> Result[u32, u32] {
+    return value;
+}
+
+fn pass_option(value: Option[u32]) -> Option[u32] {
+    return value;
+}

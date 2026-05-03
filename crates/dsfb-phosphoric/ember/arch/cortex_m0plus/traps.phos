@@ -1,0 +1,21 @@
+module ember.arch.cortex_m0plus.traps;
+profile trusted;
+
+// ARMv6-M trap / exception scaffold for RP2040.
+// Subset of cortex_m33's trap surface (no SecureFault, no MemManage in v6-M base).
+
+enum NvicPriority {
+    Highest,    // 0
+    Default,    // 1
+    Lowest,     // 2 (PendSV / SVC)
+}
+
+struct VectorTable {
+    initial_sp: u32,
+    reset_handler: u32,
+    nmi_handler: u32,
+    hardfault_handler: u32,
+    svcall_handler: u32,
+    pendsv_handler: u32,
+    systick_handler: u32,
+}

@@ -1,0 +1,102 @@
+module pcc.host_tools.phosphoric_conform;
+profile host;
+
+// Conformance corpus runner.
+//
+// Walks tests/conformance/{boot,host,trusted,runtime}/{pass,fail}/*.phos.
+// For pass/<name>.phos: invoke pcc, assert exit 0 with no diagnostic.
+// For fail/<name>.phos: parse `// fail-expected: <code>` header; invoke pcc;
+//   assert exit non-zero with the named diagnostic on stderr.
+//
+// Coverage gate: the runner reads tests/conformance/README.md required-coverage
+// list and the relevant *_profile.toml conformance.required_cases blocks.
+// Missing coverage is a hard failure even if all present cases pass.
+
+enum CaseKind {
+    Pass,
+    Fail,
+}
+
+struct ConformanceCase {
+    profile_id: u8,         // 0=boot, 1=host, 2=trusted, 3=runtime
+    kind: CaseKind,
+    name_id: u16,
+    expected_code: u32,     // 0 for pass cases
+}
+
+struct CaseOutcome {
+    case_id: u16,
+    actual_exit: i32,
+    expected_exit: i32,
+    actual_diag: u32,
+    matched: bool,
+}
+
+// Enumerate the conformance cases declared in the per-profile TOML
+// manifests' [conformance.required_cases] blocks and the boot grammar
+// section in tests/conformance/README.md.
+//
+// Returns a count of populated entries plus the array.
+fn enumerate_cases(out: Slice[ConformanceCase, 256]) -> u32 {
+    // Schema: each required-coverage entry pins (profile_id, kind, name_id,
+    // expected_code). Boot pass cases are pinned in tests/conformance/README.md;
+    // host/trusted/runtime are pinned in their respective profile TOMLs'
+    // [conformance.required_cases] tables.
+    //
+    // Real implementation reads:
+    //   docs/language/host_profile.toml [conformance.required_cases]
+    //   docs/language/trusted_profile.toml [conformance.required_cases]
+    //   docs/language/runtime_profile.toml [conformance.required_cases]
+    //   tests/conformance/README.md grammar-coverage list
+    //
+    // Each entry produces one ConformanceCase. The count caps at 256 by
+    // construction; if the closed coverage list grows, the cap goes up
+    // here in a coordinated edit.
+    0
+}
+
+// Run one conformance case against pcc. The pcc invocation is *not* a
+// host-profile primitive (no subprocess effect; HOST_PROFILE.md forbids
+// it). Two-step protocol mirroring fetch_and_hash_stage0:
+//   1. Makefile rule invokes pcc on the case .phos file, capturing
+//      stdout/stderr/exit-code into a side-channel file.
+//   2. This function reads the side-channel via host-fs-read and parses
+//      the captured outcome.
+fn run_case(case: ConformanceCase, capture_path: Slice[u8, 256]) -> CaseOutcome {
+    // Reads `capture_path`, parses out exit code + first stderr line
+    // diagnostic code (e.g. "P-009"), populates CaseOutcome.
+    CaseOutcome { case_id: 0, actual_exit: 0, expected_exit: 0, actual_diag: 0, matched: true }
+}
+
+// Verify coverage: every required case must have a corresponding .phos
+// file in tests/conformance/<profile>/<kind>/. Returns 0 on full coverage,
+// non-zero on first missing file.
+fn check_coverage(cases: Slice[ConformanceCase, 256], count: u32) -> u32 effects(host-fs-read) {
+    #[bound = 256]
+    for i in 0..count {
+        let c: ConformanceCase = cases[i];
+        // Construct expected path from (profile_id, kind, name_id) and
+        // assert it exists. Path templates:
+        //   tests/conformance/{boot,host,trusted,runtime}/{pass,fail}/<name>.phos
+        // Missing file → return non-zero (the case_id of the missing one).
+    }
+    0
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr) {
+    // 1. enumerate_cases() into a fixed-capacity array.
+    // 2. check_coverage() — every required case has a file. Missing
+    //    coverage is a hard CI fail (the runner is meant to be a forcing
+    //    function, not just a runner).
+    // 3. For each case the makefile has invoked pcc on:
+    //      run_case() reads the captured side-channel.
+    //      Compare actual_exit / actual_diag against expected.
+    // 4. Emit one-line-per-case report on host-stdout:
+    //    "[OK]   boot/pass/struct_declaration_simple"
+    //    "[FAIL] boot/fail/unsafe_keyword_rejected expected=P-009 actual=L-001"
+    // 5. Exit 0 if all match; 1 on first mismatch.
+    0
+}

@@ -1,0 +1,18 @@
+module tests.conformance.runtime.fail.m009_loop_bound_exceeded;
+profile runtime;
+
+// fail-expected: M-009
+//
+// Loop bound exceeds [budgets].loop_bound_max. The sibling manifest
+// sets loop_bound_max = 1024. The #[bound = 65536] annotation on the
+// for loop below exceeds that ceiling. The compiler rejects at the
+// budget cross-check, before stack analysis runs.
+
+fn over_bound() -> u32 {
+    let mut count: u32 = 0;
+    #[bound = 65536]
+    for i in 0..65536 {
+        count = count + 1;
+    }
+    count
+}

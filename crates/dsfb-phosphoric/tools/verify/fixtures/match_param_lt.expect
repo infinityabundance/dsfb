@@ -1,0 +1,7 @@
+# Pass A-13 fixture (`<`): match-comparison with jl opcode.
+# Source: classify(3) with `match arg < 7 { true => 111, false => 222 }`.
+# 3 < 7 is TRUE → eax stays 111.
+# Verified: rc = 111 at runtime.
+size=1105
+sha=c800f52aeab9f83b70a835801bdb1a9c048827b195910c7da74fac078f7dbc07
+rc=111

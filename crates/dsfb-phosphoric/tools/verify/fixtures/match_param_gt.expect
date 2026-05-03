@@ -1,0 +1,7 @@
+# Pass A-13 fixture (`>`): match-comparison with jg opcode.
+# Source: classify(10) with `match arg > 7 { true => 33, false => 44 }`.
+# 10 > 7 is TRUE → eax stays 33.
+# Verified: rc = 33 at runtime.
+size=1105
+sha=eff346d586b0ba4b6f70cf55f682079fb23723dba7c818efe6db8bd3b47eeacb
+rc=33

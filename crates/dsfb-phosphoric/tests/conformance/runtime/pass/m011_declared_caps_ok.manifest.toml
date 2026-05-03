@@ -1,0 +1,44 @@
+manifest_version = "phosphoric-task-seal-v0"
+task_id          = "m011_pass"
+task_image_hash  = "TBD"
+profile          = "runtime"
+
+[effects]
+allowed = []
+
+[capabilities]
+
+[[capabilities.entry]]
+kind     = "Task"
+slot     = 0
+purpose  = "test task"
+
+[[capabilities.entry]]
+kind     = "Window"
+slot     = 0
+purpose  = "test window"
+
+[mmio]
+
+[ipc]
+
+[budgets]
+task_stack_limit  = 4096
+kernel_init_limit = 4096
+loop_bound_max    = 4096
+
+[forbidden]
+heap                = false
+filesystem          = false
+network             = false
+dynamic_loading     = false
+ambient_mmio        = false
+reflection          = false
+pointer_types       = false
+hidden_syscalls     = false
+undeclared_ipc      = false
+undeclared_effects  = false
+
+[bootstrap]
+compiler_image_hash = "TBD"
+manifest_self_hash  = "TBD"

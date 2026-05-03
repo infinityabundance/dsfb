@@ -1,0 +1,13 @@
+module tests.conformance.host.fail.restored.non_exhaustive_enum_match;
+profile host;
+
+// fail-expected: K-016
+// (restored from legacy_ui/fail/non_exhaustive_enum_match; legacy code NON_EXHAUSTIVE_MATCH "missing branches: Waiting")
+
+module demo;
+enum State { Ready, Waiting }
+fn choose(state: State) -> u64 {
+    match state {
+        Ready => 1,
+    }
+}

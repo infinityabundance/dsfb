@@ -1,0 +1,21 @@
+module tests.conformance.boot.pass.struct_declaration_simple;
+
+// Pass case for StructDecl ::= "struct" Ident "{" FieldList? "}"
+// Fields exercise primitive types, fixed array, bounded slice, Option.
+
+struct Pixel {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+}
+
+struct Frame {
+    pixels: [Pixel; 64],
+    used: u32,
+}
+
+struct Spans {
+    rows: Slice[u32, 16],
+    label: Option[u32],
+}

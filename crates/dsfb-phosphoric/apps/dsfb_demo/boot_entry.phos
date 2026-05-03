@@ -1,0 +1,26 @@
+module dsfb_demo.boot_entry;
+
+fn demo_framebuffer_width() -> u32 { 500 }
+fn demo_framebuffer_height() -> u32 { 320 }
+fn demo_framebuffer_stride() -> u32 { 500 }
+fn demo_framebuffer_bytes_per_pixel() -> u32 { 4 }
+fn demo_framebuffer_pixel_format() -> u32 { 1 }
+
+// v0.3 razor demo boot-time constants. Mirrors apps/demo/boot_entry's
+// shape (bare-INT-body fns) so pcc-stage2.bin compiles these
+// byte-equal to phase0_stub-direct.
+
+fn debug_text_port() -> u16 { 1026 }
+fn debug_exit_port() -> u16 { 244 }
+fn debug_data_port() -> u16 { 1280 }
+
+// QEMU isa-debugcon default port 0x402 = 1026; isa-debug-exit
+// default port 0xf4 = 244; debug-data port 0x500 = 1280 is a
+// distinct stream the kernel writes residual record bytes to.
+
+fn residual_emission_count() -> u32 { 3 }
+fn theorem_text_length() -> u32 { 692 }
+
+// 3 residuals: R7 boot_check at kernel init, R6 task_transition at
+// task entry, R6 task_transition at task exit. theorem_text_length
+// pins the byte count of the DSFB theorem in .rdata.

@@ -1,0 +1,11 @@
+# Pass B-3 fixture: __load32(IMM_ADDR) primitive emits a leaf load fn.
+# Body `return __load32(4194400);` lowers to a 24-byte block:
+#   push rbp; mov rbp,rsp; sub rsp,16
+#   mov edi, 0x400060      ; ELF p_filesz address
+#   mov eax, [rdi]         ; load u32
+#   add rsp,16; pop rbp; ret; nop nop nop
+# The helper is unreachable from entry (entry returns 0), so rc=0; the
+# helper's bytes are still emitted and locked here at byte level.
+size=1105
+sha=04237eaa26f8f43c4bb2efa4404aca90cfff4ba61af9a5a20653280939812916
+rc=0

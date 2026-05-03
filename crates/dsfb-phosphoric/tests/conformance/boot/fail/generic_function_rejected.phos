@@ -1,0 +1,11 @@
+module tests.conformance.boot.fail.generic_function_rejected;
+
+// fail-expected: P-011
+//
+// Generic type parameters are forbidden in v0. Every function operates on
+// a concrete, named set of types. Result[T, E] and Option[T] are
+// hardcoded grammar forms; application-defined generics are not in scope.
+
+fn identity<T>(x: T) -> T {
+    x
+}

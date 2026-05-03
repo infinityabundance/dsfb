@@ -1,0 +1,5 @@
+module fixture.dsfb.byte_0111;
+profile boot;
+fn main() -> i32 {
+    return 0;
+}

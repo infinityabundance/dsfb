@@ -1,0 +1,14 @@
+module tests.conformance.boot.fail.array_index_lhs_unbounded;
+
+// fail-expected: K-018
+//
+// Fail case for extension 2026-04-27b. The index `i` could exceed the
+// target's declared capacity (16) at runtime; the compiler cannot
+// statically prove `i < 16`. Diagnostic K-018 ("array LHS index out of
+// bounds at compile time").
+
+fn write_at(buf: [u8; 16], i: u32, v: u8) -> [u8; 16] {
+    let mut out: [u8; 16] = buf;
+    out[i] = v;
+    out
+}

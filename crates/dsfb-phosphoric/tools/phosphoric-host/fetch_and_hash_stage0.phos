@@ -1,0 +1,98 @@
+module pcc.host_tools.fetch_and_hash_stage0;
+profile host;
+
+// Downloads the stage0 bootstrap binary by URL from bootstrap.toml,
+// verifies its SHA-256 matches the manifest, caches it locally.
+//
+// Important: HTTP fetching is NOT a host-profile primitive (no network
+// effect; see HOST_PROFILE.md forbidden list). The fetch is performed by
+// an external helper (curl, wget, or a bare TCP/TLS implementation outside
+// the host profile) invoked through a narrow makefile rule. THIS Phosphoric
+// program operates only on the already-fetched local file:
+//   1. Read the local file.
+//   2. Compute SHA-256.
+//   3. Compare against manifest.
+//   4. Write either OK or FAIL to stdout.
+//
+// The makefile rule is the trust-boundary point: it invokes a fetcher,
+// then invokes this program. If the fetcher is malicious, the SHA-256
+// check still catches it.
+
+struct FetchResult {
+    expected_sha256: [u8; 32],
+    actual_sha256: [u8; 32],
+    matches: bool,
+    binary_size: u32,
+}
+
+// Compare two byte arrays byte-for-byte. Returns true iff equal.
+fn bytes_eq_32(a: [u8; 32], b: [u8; 32]) -> bool {
+    #[bound = 32]
+    for i in 0..32 {
+        match a[i] == b[i] {
+            true  => (),
+            false => return false,
+        }
+    }
+    true
+}
+
+// Convert one hex character to its 4-bit value, or 16 if invalid.
+fn hex_digit_value(c: u8) -> u8 {
+    match c >= 48 {
+        true => match c <= 57 {
+            true => c - 48,                       // '0'..'9'
+            false => match c >= 97 {
+                true => match c <= 102 {
+                    true  => c - 97 + 10,         // 'a'..'f'
+                    false => 16,
+                },
+                false => 16,
+            },
+        },
+        false => 16,
+    }
+}
+
+// Parse a 64-char hex string into 32 raw bytes. Returns Some on success.
+fn parse_sha256_hex(s: Slice[u8, 256], len: u32) -> Option[[u8; 32]] {
+    match len == 64 {
+        true => {
+            let mut out: [u8; 32] = [0; 32];
+            #[bound = 32]
+            for i in 0..32 {
+                let hi: u8 = hex_digit_value(s[i * 2]);
+                let lo: u8 = hex_digit_value(s[i * 2 + 1]);
+                match hi {
+                    16 => return None,
+                    _  => match lo {
+                        16 => return None,
+                        _  => out[i] = hi * 16 + lo,
+                    },
+                }
+            }
+            Some(out)
+        },
+        false => None,
+    }
+}
+
+fn main(
+    argv: [Slice[u8, 256]; 256],
+    argc: u32,
+) -> i32 effects(host-fs-read, host-stdout, host-stderr, host-hash) {
+    // argv[1] = path to fetched stage0 binary
+    // argv[2] = expected SHA-256 (64 hex chars)
+    //
+    // Sequence:
+    //   1. Parse argv[2] expected hash. Bail with exit 2 on parse failure.
+    //   2. Read argv[1] binary file via host-fs-read into a fixed buffer.
+    //   3. Call SHA-256 on the buffer (host-hash effect).
+    //   4. bytes_eq_32 with parsed expected.
+    //   5. Exit 0 on match, 1 on mismatch.
+    //
+    // Steps 2-3 require host-profile syscall lowering (E0a host-profile
+    // codegen + the SHA-256 implementation provided by the runtime). Stage1+
+    // wires those once pcc.codegen.host produces real ELF.
+    0
+}

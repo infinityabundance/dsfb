@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.invalid_borrow_ref;
+profile host;
+
+// fail-expected: L-001
+// (restored from legacy_ui/fail/invalid_borrow_ref; legacy code LEXER_ERROR "unsupported character `&`")
+
+module demo;
+fn borrow(value: u32) -> u32 {
+    let alias = &value;
+    return 1;
+}

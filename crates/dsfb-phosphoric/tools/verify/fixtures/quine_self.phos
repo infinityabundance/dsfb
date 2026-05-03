@@ -1,0 +1,6 @@
+module fixture.quine_self;
+profile boot;
+fn entry() -> i32 {
+    __quine();
+    return 0;
+}

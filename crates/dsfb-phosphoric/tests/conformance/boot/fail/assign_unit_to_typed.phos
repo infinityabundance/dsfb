@@ -1,0 +1,13 @@
+module tests.conformance.boot.fail.assign_unit_to_typed;
+
+// fail-expected: K-001
+//
+// Assignment requires the rhs to match the place's declared type.
+// Assigning the unit value `()` to a typed `u32` slot is K-001
+// (type mismatch).
+
+fn bad_assign() -> u32 {
+    let mut count: u32 = 0;
+    count = ();
+    count
+}

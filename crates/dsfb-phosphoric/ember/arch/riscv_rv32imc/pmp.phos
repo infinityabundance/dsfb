@@ -1,0 +1,127 @@
+module ember.arch.riscv_rv32imc.pmp;
+profile trusted;
+
+// RISC-V Physical Memory Protection (PMP).
+//
+// 8 or 16 PMP entries depending on the part. Each entry pairs a
+// pmpcfg register byte (permissions + addressing mode) with a pmpaddr
+// register holding the region address.
+//
+// Used for the same belt-and-suspenders pattern as MPU on Cortex-M:
+// stack guard pages, fixed-capacity buffer bounds, write-protected
+// post-boot flash region.
+
+enum PmpAddressingMode {
+    Off,                     // entry disabled
+    Tor,                     // top-of-range (paired with previous entry's addr)
+    Na4,                     // naturally aligned 4-byte region
+    Napot,                   // naturally aligned power-of-two (size encoded in low bits)
+}
+
+enum PmpPermissions {
+    None,
+    R,
+    Rw,
+    Rx,
+    Rwx,
+}
+
+struct PmpEntry {
+    addr: u32,               // pmpaddr value (encoding depends on mode)
+    mode: PmpAddressingMode,
+    permissions: PmpPermissions,
+    locked: bool,             // L bit; once set, entry is immutable until reset
+}
+
+// Encode the pmpcfg byte for one entry. Layout:
+//   [0]    R   (read)
+//   [1]    W   (write)
+//   [2]    X   (execute)
+//   [4:3]  A   (addressing mode: 00=OFF, 01=TOR, 10=NA4, 11=NAPOT)
+//   [7]    L   (lock; sticky until reset)
+fn pmp_permissions_bits(perms: PmpPermissions) -> u8 {
+    match perms {
+        PmpPermissions::None => 0,
+        PmpPermissions::R    => 1,
+        PmpPermissions::Rw   => 3,
+        PmpPermissions::Rx   => 5,
+        PmpPermissions::Rwx  => 7,
+    }
+}
+
+fn pmp_mode_bits(mode: PmpAddressingMode) -> u8 {
+    match mode {
+        PmpAddressingMode::Off   => 0,
+        PmpAddressingMode::Tor   => 8,       // 0b01_000
+        PmpAddressingMode::Na4   => 16,      // 0b10_000
+        PmpAddressingMode::Napot => 24,      // 0b11_000
+    }
+}
+
+fn pmp_cfg_byte(entry: PmpEntry) -> u8 {
+    let mut v: u8 = pmp_permissions_bits(entry.permissions);
+    v = v + pmp_mode_bits(entry.mode);
+    match entry.locked {
+        true  => v + 128,
+        false => v,
+    }
+}
+
+// Write a single PMP entry. RISC-V PMP is configured via CSR writes
+// (csrrw), not MMIO; the trusted! block invokes the csrrw cpu_op
+// rather than mmio_write.
+//
+// pmpaddr0..pmpaddr15 occupy CSR addresses 0x3B0..0x3BF.
+// pmpcfg0..pmpcfg3 occupy CSR addresses 0x3A0..0x3A3 (each holding
+// 4 entry config bytes).
+fn pmpaddr_csr(index: u8) -> u32 {
+    944 + (index as u32)         // 0x3B0 = 944
+}
+
+fn pmpcfg_csr(index: u8) -> u32 {
+    928 + ((index as u32) / 4)   // 0x3A0 = 928; 4 entries per cfg word
+}
+
+// Configure one PMP entry. Two CSR writes:
+//   1. pmpaddr<i> ← entry.addr
+//   2. pmpcfg<i/4> ← updated 32-bit cfg word with entry's byte slot rewritten
+//
+// The pmpcfg update is read-modify-write; for the boot-time configuration
+// we assume cfg starts zeroed and write a fresh word containing only this
+// entry's byte. Multi-entry configuration walks the table and OR-accumulates.
+fn configure_pmp_entry(index: u8, entry: PmpEntry) {
+    // trust-audit: row "PMP address (csrrw pmpaddr)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        cpu_op(CpuOp::Csrrw(pmpaddr_csr(index), entry.addr));
+    };
+    let byte_slot: u32 = (index as u32) - ((index as u32) / 4) * 4;
+    let cfg_word: u32 = (pmp_cfg_byte(entry) as u32) * pow_byte_position(byte_slot);
+    // trust-audit: row "PMP config (csrrw pmpcfg)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        cpu_op(CpuOp::Csrrw(pmpcfg_csr(index), cfg_word));
+    };
+}
+
+// Compute 256^slot for placing a config byte at byte_slot of a 32-bit word.
+fn pow_byte_position(byte_slot: u32) -> u32 {
+    match byte_slot {
+        0 => 1,
+        1 => 256,
+        2 => 65536,
+        3 => 16777216,
+        _ => 1,
+    }
+}
+
+// CpuOp variants for RISC-V CSR access. Phosphoric's trusted profile
+// permits a small whitelist of CPU operations per arch; for RISC-V the
+// CSR family covers everything PMP needs.
+enum CpuOp {
+    Csrrw(u32, u32),         // write-then-read CSR
+    Csrrs(u32, u32),         // set-bits-then-read CSR
+    Csrrc(u32, u32),         // clear-bits-then-read CSR
+    Mret,                    // return from machine-mode trap
+    Wfi,                     // wait for interrupt
+}

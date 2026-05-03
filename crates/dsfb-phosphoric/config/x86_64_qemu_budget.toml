@@ -1,0 +1,9 @@
+name = "x86_64-qemu"
+
+[stack]
+task_stack_limit = 8192
+kernel_init_limit = 4096
+
+[entrypoints]
+kernel_init = ["kernel_main", "main", "efi_main"]
+task = ["task_main"]

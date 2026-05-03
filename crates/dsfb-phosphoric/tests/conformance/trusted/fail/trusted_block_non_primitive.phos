@@ -1,0 +1,21 @@
+module tests.conformance.trusted.fail.trusted_block_non_primitive;
+profile trusted;
+
+// fail-expected: T-002
+//
+// A `trusted!` block contains *only* primitive op calls (cpu_op, mmio_*,
+// port_*). General expressions, function calls, and control flow are
+// rejected.
+
+fn computed_op(x: u32) -> u32 {
+    x + 1
+}
+
+fn bad() {
+    let x: u32 = 0;
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#nope
+    trusted! {
+        let y: u32 = computed_op(x);
+        cpu_op(CpuOp::Cli);
+    }
+}

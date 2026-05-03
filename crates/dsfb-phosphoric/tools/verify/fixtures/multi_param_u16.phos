@@ -1,0 +1,3 @@
+module fixture.multi_param_u16;
+fn first(unicode_char: u16, scan_code: u16) -> u32 { 7 }
+fn second() -> u32 { 11 }

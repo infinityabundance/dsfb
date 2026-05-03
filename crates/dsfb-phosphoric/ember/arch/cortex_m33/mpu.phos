@@ -1,0 +1,86 @@
+module ember.arch.cortex_m33.mpu;
+profile trusted;
+
+// ARMv8-M MPU configuration — 8 region-based memory permissions on RP2350.
+//
+// Used for: stack-guard pages (catch overflow into the next task), bounding
+// fixed-capacity buffers at runtime in addition to compile-time enforcement,
+// and write-protecting the secure flash region after boot.
+
+enum MpuRegionPurpose {
+    StackGuardLow,         // detect underflow
+    StackGuardHigh,        // detect overflow
+    SecureFlashRO,         // boot image, write-protected post-boot
+    NonSecureFlashRW,      // app data area
+    SecureSramRW,          // kernel runtime state
+    NonSecureSramRW,       // app heap (forbidden in v0; reserved for v0.2)
+    PeripheralRO,          // catch erroneous writes to read-only registers
+    Reserved,              // 8th slot, reserved
+}
+
+struct MpuRegion {
+    purpose: MpuRegionPurpose,
+    base: u32,
+    size_log2: u8,           // size = 2^size_log2 bytes; min 32 bytes
+    permissions_attr: u8,    // ARMv8-M MAIR attribute index
+}
+
+fn mpu_ctrl_addr() -> u32   { 3758104468 }       // 0xE000ED94 (MPU_CTRL)
+fn mpu_rnr_addr() -> u32    { 3758104472 }       // 0xE000ED98 (MPU_RNR  — region number)
+fn mpu_rbar_addr() -> u32   { 3758104476 }       // 0xE000ED9C (MPU_RBAR — region base)
+fn mpu_rlar_addr() -> u32   { 3758104480 }       // 0xE000EDA0 (MPU_RLAR — region limit)
+
+// ARMv8-M MPU region size encoding: size = 2^(size_log2). The hardware
+// expects (limit - base) where limit is inclusive and aligned to 32 bytes.
+fn mpu_region_limit(region: MpuRegion) -> u32 {
+    // 2^size_log2: emulated as repeated doubling since v0 grammar has no
+    // shift operator.
+    let mut size: u32 = 1;
+    #[bound = 32]
+    for _ in 0..(region.size_log2 as u32) {
+        size = size * 2;
+    }
+    region.base + size - 1
+}
+
+// Encode RLAR write value: limit_address[31:5] | (attr_index << 1) | ENABLE
+fn mpu_rlar_encoding(region: MpuRegion) -> u32 {
+    let limit: u32 = mpu_region_limit(region);
+    let aligned_limit: u32 = (limit / 32) * 32;
+    aligned_limit + (region.permissions_attr as u32) * 2 + 1     // ENABLE bit
+}
+
+// Configure one MPU region. The ARMv8-M write sequence is fixed:
+//   1. select region via MPU_RNR
+//   2. write base via MPU_RBAR
+//   3. write limit + attribute via MPU_RLAR
+// Each step is a separate trusted! block with its own annotation per E24.
+fn configure_mpu_region(index: u8, region: MpuRegion) {
+    // trust-audit: row "MPU region select (RNR)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(mpu_rnr_addr(), index as u32);
+    };
+    // trust-audit: row "MPU region base (RBAR)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(mpu_rbar_addr(), region.base);
+    };
+    // trust-audit: row "MPU region limit + attr (RLAR)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(mpu_rlar_addr(), mpu_rlar_encoding(region));
+    };
+}
+
+// Enable the MPU (PRIVDEFENA=1 keeps the default memory map for privileged
+// accesses to unmapped regions; ENABLE=1 turns the unit on).
+//
+// razor-rationale: irreducible-hw — MPU master enable.
+fn enable_mpu() {
+    // trust-audit: row "MPU enable" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        mmio_write_u32(mpu_ctrl_addr(), 5);     // ENABLE | PRIVDEFENA
+    };
+}

@@ -1,0 +1,12 @@
+module tests.conformance.boot.fail.variant_access_on_non_enum;
+
+// fail-expected: K-004
+//
+// Variant-style path access (`Type::Variant`) is only valid when the
+// base is an enum. Applying it to an integer literal or any non-enum
+// base is K-004 (variant access on non-enum).
+
+fn bad_variant_access() -> u32 {
+    let n: u32 = 42;
+    n.SomeVariant
+}

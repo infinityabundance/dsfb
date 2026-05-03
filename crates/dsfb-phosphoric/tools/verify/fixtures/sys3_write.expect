@@ -1,0 +1,5 @@
+# Locked-in for Pass B-2: __sys3 emits real syscall with 4-arg lowering.
+# Helper is non-entry; rc reflects entry's return 0.
+size=1105
+sha=a6cee0ac8db70d1a6136e1a7b0b1e4fe044e5db14dfa2dcf731e772319d3981f
+rc=0

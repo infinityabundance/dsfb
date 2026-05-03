@@ -1,0 +1,318 @@
+module pcc.hir_wf;
+profile host;
+
+// HIR well-formedness gate. Runs before typeck, effects, layout, and stack
+// analysis. Asserts:
+//   - every name reference resolves to an in-scope binding
+//   - every type annotation references a defined type
+//   - every effect label is in the program's profile alphabet
+//   - every variant pattern names an enum variant defined in the same module
+//   - capability declarations are non-duplicated
+//   - same-module call targets are present
+//
+// Diagnostic codes: W-001 .. W-020.
+
+enum WfCheck {
+    NameResolution,
+    TypeAnnotationRef,
+    EffectInProfileAlphabet,
+    VariantInEnum,
+    CapabilityNonDuplicated,
+    SameModuleCallTarget,
+    StructFieldUnique,
+    EnumVariantUnique,
+    FunctionSignatureWellFormed,
+}
+
+struct WfReport {
+    checks_passed: u32,
+    first_failure: Option[pcc.diagnostic.Diagnostic],
+}
+
+// W-prefix diagnostic codes:
+//   W-001 unresolved name reference
+//   W-002 type annotation references undefined type
+//   W-003 effect label not in profile alphabet
+//   W-004 variant pattern names variant not defined in enum
+//   W-005 duplicate capability declaration in module
+//   W-006 same-module call target not defined
+//   W-007 duplicate field name in struct
+//   W-008 duplicate variant name in enum
+//   W-009 function signature malformed (param/return mismatch)
+//   W-010 type acyclicity violated (struct field or enum payload references its own type)
+fn wf_diagnostic(code: u16) -> pcc.diagnostic.Diagnostic {
+    pcc.diagnostic.Diagnostic {
+        code_prefix: 87,    // 'W'
+        code_number: code,
+        span: None,
+        message_id: 0,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Type acyclicity check (W-010)
+//
+// Phosphoric has no pointer types. Every struct field and enum payload is
+// a by-value type reference. Acyclicity is therefore a structural property:
+// no type may transitively reference itself.
+//
+// The check walks the type-reference graph using an iterative work stack
+// (no recursion in v0). For each top-level type, it verifies that
+// expanding all field and variant references reaches every type at most
+// once. A revisit of a type already on the path indicates a cycle and
+// emits W-010.
+//
+// This proof is what keeps stack analysis (S-prefix) sound: the stack
+// budget computation depends on every type's size being computable in
+// finite time, which requires the type-reference graph to be a DAG.
+// ---------------------------------------------------------------------------
+
+struct AcyclicityFrame {
+    type_id: u16,
+    on_path: bool,
+}
+
+struct AcyclicityState {
+    visited: [bool; 1024],          // global visit flag — set once a type is fully expanded
+    on_path: [bool; 1024],          // currently-on-the-DFS-path flag — cycle detected if revisited
+    work_stack: [AcyclicityFrame; 1024],
+    work_top: u32,
+    cycle_found: bool,
+    cycle_type_id: u16,
+}
+
+fn empty_acyclicity_state() -> AcyclicityState {
+    AcyclicityState {
+        visited: [false; 1024],
+        on_path: [false; 1024],
+        work_stack: [AcyclicityFrame { type_id: 0, on_path: false }; 1024],
+        work_top: 0,
+        cycle_found: false,
+        cycle_type_id: 0,
+    }
+}
+
+// Returns the number of direct type-id references made by an HIR item:
+//   - HirStruct → field count, with field type ids in fields[i].type_id
+//   - HirEnum  → sum of variant payload counts, with payload ids
+//   - HirCapability / HirFunction → 0 (no type-graph edges from these)
+fn item_outgoing_type_ids(
+    item: pcc.hir.HirItem,
+    out: Slice[u16, 64],
+) -> u8 {
+    match item {
+        pcc.hir.HirItem::Struct(s) => {
+            #[bound = 64]
+            for i in 0..(s.field_count as u32) {
+                out[i] = s.fields[i].type_id;
+            }
+            s.field_count
+        },
+        pcc.hir.HirItem::Enum(e) => {
+            let mut idx: u32 = 0;
+            #[bound = 64]
+            for v in 0..(e.variant_count as u32) {
+                let variant: pcc.hir.HirVariant = e.variants[v];
+                #[bound = 8]
+                for j in 0..(variant.payload_type_count as u32) {
+                    match idx < 64 {
+                        true => {
+                            out[idx] = variant.payload_type_ids[j];
+                            idx = idx + 1;
+                        },
+                        false => (),
+                    };
+                }
+            }
+            idx as u8
+        },
+        _ => 0,
+    }
+}
+
+// Walk every type's outgoing edges via an iterative DFS. Returns Ok(0) if
+// acyclic; Err(W-010) on cycle detected.
+fn check_type_acyclicity(
+    hir: pcc.hir.HirModule,
+) -> Result[u32, pcc.diagnostic.Diagnostic] {
+    let mut state: AcyclicityState = empty_acyclicity_state();
+    // Iterate over every top-level item; for each unvisited one, run a
+    // bounded DFS that tracks on_path and visited globally.
+    #[bound = 1024]
+    for root_idx in 0..(hir.item_count as u32) {
+        match state.cycle_found {
+            true => return Err(wf_diagnostic(10)),
+            false => (),
+        };
+        match state.visited[root_idx] {
+            true  => (),
+            false => {
+                // Push the root onto the work stack.
+                state.work_stack[0] = AcyclicityFrame {
+                    type_id: root_idx as u16,
+                    on_path: false,
+                };
+                state.work_top = 1;
+                #[bound = 4096]
+                for _ in 0..4096 {
+                    match state.work_top == 0 {
+                        true  => return continue_outer(state),
+                        false => (),
+                    };
+                    let frame: AcyclicityFrame = state.work_stack[state.work_top - 1];
+                    let id: u16 = frame.type_id;
+                    match (id as u32) >= (hir.item_count as u32) {
+                        true  => state.work_top = state.work_top - 1,
+                        false => match frame.on_path {
+                            // Second visit: pop, mark visited, clear on_path.
+                            true => {
+                                state.work_top = state.work_top - 1;
+                                state.visited[id as u32] = true;
+                                state.on_path[id as u32] = false;
+                            },
+                            // First visit: check cycle, mark on_path, push children.
+                            false => match state.on_path[id as u32] {
+                                true => {
+                                    state.cycle_found = true;
+                                    state.cycle_type_id = id;
+                                    return Err(wf_diagnostic(10));
+                                },
+                                false => match state.visited[id as u32] {
+                                    true => state.work_top = state.work_top - 1,
+                                    false => {
+                                        state.on_path[id as u32] = true;
+                                        state.work_stack[state.work_top - 1].on_path = true;
+                                        let mut children: [u16; 64] = [0; 64];
+                                        let count: u8 = item_outgoing_type_ids(
+                                            hir.items[id as u32],
+                                            children,
+                                        );
+                                        #[bound = 64]
+                                        for c in 0..(count as u32) {
+                                            match state.work_top < 1024 {
+                                                true => {
+                                                    state.work_stack[state.work_top] =
+                                                        AcyclicityFrame {
+                                                            type_id: children[c],
+                                                            on_path: false,
+                                                        };
+                                                    state.work_top = state.work_top + 1;
+                                                },
+                                                false => (),
+                                            };
+                                        }
+                                    },
+                                },
+                            },
+                        },
+                    };
+                }
+            },
+        };
+    }
+    Ok(0)
+}
+
+fn continue_outer(state: AcyclicityState) -> Result[u32, pcc.diagnostic.Diagnostic] {
+    match state.cycle_found {
+        true  => Err(wf_diagnostic(10)),
+        false => Ok(0),
+    }
+}
+
+// Check for duplicate field names within a struct. Each pair compared once.
+fn check_struct_fields_unique(s: pcc.hir.HirStruct) -> bool {
+    let count: u8 = s.field_count;
+    #[bound = 64]
+    for i in 0..(count as u32) {
+        let name_i: u16 = s.fields[i].name_id;
+        #[bound = 64]
+        for j in (i + 1)..(count as u32) {
+            match s.fields[j].name_id == name_i {
+                true  => return false,
+                false => (),
+            }
+        }
+    }
+    true
+}
+
+// Check for duplicate variant names within an enum.
+fn check_enum_variants_unique(e: pcc.hir.HirEnum) -> bool {
+    let count: u8 = e.variant_count;
+    #[bound = 64]
+    for i in 0..(count as u32) {
+        let name_i: u16 = e.variants[i].name_id;
+        #[bound = 64]
+        for j in (i + 1)..(count as u32) {
+            match e.variants[j].name_id == name_i {
+                true  => return false,
+                false => (),
+            }
+        }
+    }
+    true
+}
+
+// Check for duplicate capability declarations across the module.
+fn check_capabilities_unique(hir: pcc.hir.HirModule) -> bool {
+    #[bound = 1024]
+    for i in 0..(hir.item_count as u32) {
+        let item_i: pcc.hir.HirItem = hir.items[i];
+        match item_i {
+            pcc.hir.HirItem::Capability(c_i) => {
+                #[bound = 1024]
+                for j in (i + 1)..(hir.item_count as u32) {
+                    let item_j: pcc.hir.HirItem = hir.items[j];
+                    match item_j {
+                        pcc.hir.HirItem::Capability(c_j) => match c_j.name_id == c_i.name_id {
+                            true  => return false,
+                            false => (),
+                        },
+                        _ => (),
+                    }
+                }
+            },
+            _ => (),
+        }
+    }
+    true
+}
+
+fn check_module(hir: pcc.hir.HirModule) -> WfReport {
+    let mut report: WfReport = WfReport { checks_passed: 0, first_failure: None };
+    // 1. Capability uniqueness (W-005)
+    match check_capabilities_unique(hir) {
+        true  => report.checks_passed = report.checks_passed + 1,
+        false => {
+            report.first_failure = Some(wf_diagnostic(5));
+            return report;
+        },
+    }
+    // 2. Per-item structural checks (W-007 / W-008 for struct/enum)
+    #[bound = 1024]
+    for i in 0..(hir.item_count as u32) {
+        let item: pcc.hir.HirItem = hir.items[i];
+        match item {
+            pcc.hir.HirItem::Struct(s) => match check_struct_fields_unique(s) {
+                true  => report.checks_passed = report.checks_passed + 1,
+                false => {
+                    report.first_failure = Some(wf_diagnostic(7));
+                    return report;
+                },
+            },
+            pcc.hir.HirItem::Enum(e) => match check_enum_variants_unique(e) {
+                true  => report.checks_passed = report.checks_passed + 1,
+                false => {
+                    report.first_failure = Some(wf_diagnostic(8));
+                    return report;
+                },
+            },
+            _ => (),
+        }
+    }
+    // 3. Name resolution + type-annotation + effect-alphabet checks land
+    //    once typeck's symbol table is real. Reserved here as TODO with
+    //    the codes already pinned (W-001, W-002, W-003).
+    report
+}

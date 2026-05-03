@@ -1,0 +1,13 @@
+module tests.conformance.host.fail.host_disallowed_syscall_attempt;
+profile host;
+
+// fail-expected: H-005
+//
+// `network-send` is not in the host effect alphabet. Any attempt to
+// declare or invoke a Linux syscall not in host_profile.toml's syscall
+// table fails with H-005 in codegen, or earlier with H-001 if declared
+// as an effect label.
+
+fn beam_data(buf: Slice[u8, 65536]) -> bool effects(network-send) {
+    true
+}

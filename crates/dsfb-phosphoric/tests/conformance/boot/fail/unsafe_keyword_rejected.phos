@@ -1,0 +1,12 @@
+module tests.conformance.boot.fail.unsafe_keyword_rejected;
+
+// fail-expected: P-009
+//
+// `unsafe` is forbidden in v0 (LANGUAGE_NON_GOALS.md, V0_FREEZE.md).
+// Diagnostic P-009 covers the family of forbidden keywords.
+
+fn evil() -> u32 {
+    unsafe {
+        0
+    }
+}

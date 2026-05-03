@@ -1,0 +1,6 @@
+module fixture.let_fold_sub;
+profile boot;
+fn entry() -> i32 {
+    let n = 100 - 58;
+    return n;
+}

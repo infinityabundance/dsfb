@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.incompatible_if_branches;
+profile host;
+
+// fail-expected: K-014
+// (restored from legacy_ui/fail/incompatible_if_branches; legacy code BRANCH_TYPE_MISMATCH "if branches have incompatible types")
+
+module fail.incompatible_if_branches;
+
+fn choose(flag: bool, value: u32) -> u32 {
+    if flag { value } else { false }
+}

@@ -1,0 +1,19 @@
+module tests.conformance.host.fail.host_recursive_walk_attempt;
+profile host;
+
+// fail-expected: H-006
+//
+// HOST_PROFILE.md forbids recursive directory walks at the language
+// level. A function that walks one directory and then walks each entry
+// is the canonical violation. (Phosphoric also forbids self-recursion
+// outright, so this would also trigger G-001; H-006 names the policy.)
+
+fn walk(root: Slice[u8, 256]) -> u32 effects(host-fs-read) {
+    let mut count: u32 = 0;
+    #[bound = 4096]
+    for i in 0..4096 {
+        let child: Slice[u8, 256] = root;
+        count = count + walk(child);
+    }
+    count
+}

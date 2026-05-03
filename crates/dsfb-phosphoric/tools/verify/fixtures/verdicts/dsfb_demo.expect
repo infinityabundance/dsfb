@@ -1,0 +1,6 @@
+CLASS=NO_DRIFT
+RESIDUAL=R7
+SEQ=1
+EXPECTED=clean_boot
+ACTUAL=clean_boot
+EXIT=0

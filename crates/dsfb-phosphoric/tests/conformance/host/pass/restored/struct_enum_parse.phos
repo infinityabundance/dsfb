@@ -1,0 +1,23 @@
+module tests.conformance.host.pass.restored.struct_enum_parse;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/struct_enum_parse)
+
+module pass.struct_enum_parse;
+
+struct Rect {
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+}
+
+enum Event {
+    Redraw,
+    MouseDown(u32, u32),
+}
+
+fn keep(flag: bool) -> bool {
+    return flag;
+}

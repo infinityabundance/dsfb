@@ -1,0 +1,13 @@
+module tests.conformance.host.fail.host_cross_profile_import;
+profile host;
+
+// fail-expected: H-008
+//
+// Importing a boot-profile module from a host program is rejected.
+// Phosphoric has no `use` syntax; cross-profile reference would happen
+// via dotted path resolution. The compiler refuses to resolve a path
+// that crosses profiles.
+
+fn invoke_boot_logic() -> u32 {
+    apps.demo.button_policy.tick()
+}

@@ -1,0 +1,11 @@
+module tests.conformance.host.fail.restored.unsupported_heap_string;
+profile host;
+
+// fail-expected: L-001
+// (restored from legacy_ui/fail/unsupported_heap_string; legacy code LEXER_ERROR "unsupported character `"`")
+
+module fail.unsupported_heap_string;
+
+fn bad() {
+    let value = "heap";
+}

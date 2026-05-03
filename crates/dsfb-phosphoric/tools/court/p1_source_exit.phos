@@ -1,0 +1,45 @@
+module court.p1_source_exit;
+profile boot;
+
+// Court Promotion P1-source (narrow): smallest Phosphoric-toolchain-produced
+// court artifact compilable via the existing 51-shape repertoire (no
+// phase0_stub.S edits, no ASM exception).
+//
+// Forensic role: derive the canonical MMIO_BOUNDARY_PRESSURE verdict
+// EXIT code (= 6) from the canonical observed / declared_hi inputs via
+// runtime `>` comparison performed by a Phosphoric-toolchain-produced
+// binary. The bytes are not emitted (SYS_WRITE is not yet a lowerable
+// shape under the ASM authority cutover); the exit code is the channel.
+//
+// Canonical inputs (R5 mmio_touch boundary case):
+//   declared_lo = 0x1000  ; 4096
+//   declared_hi = 0x10FF  ; 4351
+//   observed    = 0x1100  ; 4352
+//
+// Earned claim: a Phosphoric-toolchain-produced binary returns the
+// canonical MMIO_BOUNDARY_PRESSURE EXIT code (= 6) by performing the
+// observed > declared_hi comparison at runtime. This is the smallest
+// Phosphoric-source court artifact compilable without extending
+// phase0_stub.S.
+//
+// NOT earned: a Phosphoric-compiled binary emits the 32-byte R5
+// record / 192-byte PFI0 case / 6-line verdict bytes. Byte emission
+// requires SYS_WRITE lowering (sys3_write candidate, currently
+// CONDITIONAL with trigger evidence-emission in
+// docs/future_work/source_asm_closure/REMAINING_FIXTURE_INVENTORY.md);
+// the ASM authority cutover forbids extending phase0_stub.S to lower
+// it. Promotion of byte emission to Phosphoric-toolchain-produced is
+// reserved for a future MVCC+ cycle that does not extend the ASM
+// scaffold.
+//
+// Doctrine anchors: docs/ASM_AUTHORITY_CUTOVER.md (cutover policy +
+// MVCC+ criteria), docs/FORENSIC_PRIMACY.md §3 (canonical EXIT
+// mapping; EXIT=6 = MMIO_BOUNDARY_PRESSURE).
+
+fn entry() -> i32 {
+    return mmio_boundary_exit(4352);
+}
+
+fn mmio_boundary_exit(observed: i32) -> i32 {
+    match observed > 4351 { true => 6, false => 0 }
+}

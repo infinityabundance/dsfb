@@ -1,0 +1,8 @@
+module fixture.match_imm32;
+profile boot;
+fn entry() -> i32 {
+    return classify(1000);
+}
+fn classify(arg: i32) -> i32 {
+    match arg > 500 { true => 77, false => 99 }
+}

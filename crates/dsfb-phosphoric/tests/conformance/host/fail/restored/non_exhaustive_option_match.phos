@@ -1,0 +1,12 @@
+module tests.conformance.host.fail.restored.non_exhaustive_option_match;
+profile host;
+
+// fail-expected: K-016
+// (restored from legacy_ui/fail/non_exhaustive_option_match; legacy code NON_EXHAUSTIVE_MATCH "missing branches: None")
+
+module demo;
+fn choose(value: Option[u32]) -> u64 {
+    match value {
+        Some(inner) => 1,
+    }
+}

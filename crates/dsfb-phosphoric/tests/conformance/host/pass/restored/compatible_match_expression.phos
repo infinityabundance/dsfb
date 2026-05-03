@@ -1,0 +1,14 @@
+module tests.conformance.host.pass.restored.compatible_match_expression;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/compatible_match_expression)
+
+module pass.compatible_match_expression;
+
+fn choose(flag: bool, left: u32, right: u32) -> u32 {
+    match flag {
+        true => left,
+        false => right,
+    }
+}

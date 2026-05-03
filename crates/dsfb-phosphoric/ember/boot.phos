@@ -1,0 +1,46 @@
+module ember.boot;
+profile trusted;
+
+// UEFI boot scaffold types.
+//
+// FramebufferInfo and SerialConsoleInfo are populated at boot from UEFI
+// firmware-provided data. The handoff is the typed contract Ember presents
+// to the runtime kernel.
+
+struct FramebufferInfo {
+    width: u32,
+    height: u32,
+    stride: u32,
+    bytes_per_pixel: u8,
+}
+
+struct SerialConsoleInfo {
+    path: ember.arch.x86_64.serial.SerialPath,
+}
+
+struct BootHandoff {
+    framebuffer: Option[FramebufferInfo],
+    serial: Option[SerialConsoleInfo],
+}
+
+enum BootMilestone {
+    FirmwareEntry,
+    SerialReady,
+    FramebufferValidated,
+    TrapBoundaryReady,
+}
+
+fn expected_framebuffer_path() -> ember.arch.x86_64.framebuffer.FramebufferPath {
+    ember.arch.x86_64.framebuffer.FramebufferPath::UefiGopLinear
+}
+
+fn handoff_is_usable(handoff: BootHandoff) -> bool {
+    // v0 has no && / || operators; nested match expresses logical AND.
+    match handoff.framebuffer {
+        Some(_) => match handoff.serial {
+            Some(_) => true,
+            None    => false,
+        },
+        None => false,
+    }
+}

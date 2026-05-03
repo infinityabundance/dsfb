@@ -1,0 +1,9 @@
+module fixture.call_arg_fold_let;
+profile boot;
+fn entry() -> i32 {
+    let n = 10;
+    return ident(n * 4);
+}
+fn ident(arg: i32) -> i32 {
+    return arg;
+}

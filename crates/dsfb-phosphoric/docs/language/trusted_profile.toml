@@ -1,0 +1,336 @@
+# Phosphoric trusted profile — machine-readable manifest.
+#
+# Authoritative source for the trusted profile's:
+#   - file-path allowlist
+#   - cpu_op enum
+#   - MmioRegion enum and physical-base table
+#   - permitted MSR index set
+#   - port-I/O whitelist
+#   - diagnostic catalog
+#
+# Narrative is in TRUSTED_PROFILE.md.
+#
+# Any change here is a breaking change and must be coordinated with:
+#   - docs/language/TRUSTED_PROFILE.md
+#   - compiler/pcc.phos (parser, codegen)
+#   - ember/docs/EMBER_TRUST_AUDIT.md (audit cross-reference)
+#   - tests/conformance/trusted/
+
+profile_name = "trusted"
+spec_version = "trusted-profile-v1"
+inherits_from = "v0-freeze"
+
+# File-path allowlist. A .phos file declaring profile = "trusted" outside these
+# paths is rejected with diagnostic T-001.
+[allowlist]
+paths = [
+    "ember/",
+]
+
+# Closed list of supported architectures. Mirror of [arches.supported] in
+# docs/language/hardware_features.toml. Adding an arch is a coordinated
+# breaking change to both manifests + tcb_budget.toml.
+[arches]
+supported = [
+    "x86_64",
+    "cortex_m33",
+    "cortex_m0plus",
+    "riscv_rv32imc",
+    "esp32_c3",
+]
+
+# ===========================================================================
+# Per-arch primitive tables. Each [arch.<name>.cpu_op] / [arch.<name>.mmio_region]
+# block is the source of truth for what `trusted!` blocks may emit on that
+# arch. The compiler reads the target arch from the build config and rejects
+# primitives not in the corresponding [arch.<name>.*] table (diagnostic T-009).
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# x86_64 (development / test target)
+# ---------------------------------------------------------------------------
+[arch.x86_64.cpu_op]
+variants = [
+    "Cli",
+    "Sti",
+    "Hlt",
+    "Lgdt",
+    "Lidt",
+    "LtrSelector",
+    "WriteCr0", "ReadCr0",
+    "WriteCr3", "ReadCr3",
+    "WriteCr4", "ReadCr4",
+    "Wrmsr", "Rdmsr",
+    "Invlpg",
+    "Wbinvd",
+]
+
+[arch.x86_64.mmio_region.ApicBase]
+phys_base = 0xFEE00000
+size      = 0x1000
+purpose   = "Local APIC registers"
+
+[arch.x86_64.mmio_region.IoApic]
+phys_base = 0xFEC00000
+size      = 0x1000
+purpose   = "I/O APIC registers"
+
+[arch.x86_64.mmio_region.SerialPort]
+phys_base = 0x000003F8
+size      = 0x0008
+purpose   = "16550 UART (COM1) — debug logging"
+
+[arch.x86_64.mmio_region.Framebuffer]
+phys_base = 0x00000000   # placeholder; resolved from UEFI GOP at boot
+size      = 0x00000000   # placeholder; resolved from UEFI GOP at boot
+purpose   = "linear framebuffer; base/size resolved at boot from UEFI GOP and validated against this entry"
+
+# Permitted MSR indices. Any wrmsr/rdmsr against an index not in this set
+# produces diagnostic T-005.
+[arch.x86_64.msr]
+permitted_indices = [
+    0xC0000080,   # IA32_EFER
+    0xC0000081,   # IA32_STAR
+    0xC0000082,   # IA32_LSTAR
+    0xC0000083,   # IA32_CSTAR
+    0xC0000084,   # IA32_FMASK
+    0x000001D9,   # IA32_DEBUGCTL
+    0x000001A0,   # IA32_MISC_ENABLE
+]
+
+# Port-I/O whitelist. Ports outside this list produce warning T-W-001.
+[arch.x86_64.ports]
+whitelist = [
+    0x0020, 0x0021,   # PIC1 command/data
+    0x00A0, 0x00A1,   # PIC2 command/data
+    0x0040, 0x0043,   # PIT
+    0x0060, 0x0064,   # PS/2 keyboard
+    0x0070, 0x0071,   # CMOS
+    0x03F8, 0x03F9, 0x03FA, 0x03FB, 0x03FC, 0x03FD, 0x03FE, 0x03FF,   # COM1
+    0x0080,           # POST code
+]
+
+# ---------------------------------------------------------------------------
+# cortex_m33 (RP2350) — primary embedded target. ARMv8-M w/ TrustZone.
+# Per E23, RP2350 has the most security primitives; bodies land first here.
+# ---------------------------------------------------------------------------
+[arch.cortex_m33.cpu_op]
+variants = [
+    "Cps_id",                # disable interrupts (CPSID)
+    "Cps_ie",                # enable interrupts (CPSIE)
+    "Wfi",                   # wait for interrupt
+    "Wfe",                   # wait for event
+    "Isb",                   # instruction synchronization barrier
+    "Dsb",                   # data synchronization barrier
+    "Dmb",                   # data memory barrier
+    "Msr_control",           # write CONTROL register
+    "Mrs_control",           # read CONTROL register
+    "Msr_basepri",           # write BASEPRI (interrupt priority mask)
+    "Mrs_basepri",
+    "SauRegionConfigure",    # SAU region configuration (TrustZone-M)
+    "MpuRegionConfigure",    # MPU region configuration
+    "Sev",                   # send event
+]
+
+[arch.cortex_m33.mmio_region.SystemControl]
+phys_base = 0xE000ED00
+size      = 0x90
+purpose   = "ARMv8-M System Control Block (CCR, CPACR, AIRCR, etc.)"
+
+[arch.cortex_m33.mmio_region.MpuConfig]
+phys_base = 0xE000ED90
+size      = 0x40
+purpose   = "ARMv8-M Memory Protection Unit registers"
+
+[arch.cortex_m33.mmio_region.SauConfig]
+phys_base = 0xE000EDD0
+size      = 0x40
+purpose   = "ARMv8-M Security Attribution Unit registers (TrustZone-M)"
+
+[arch.cortex_m33.mmio_region.NvicBase]
+phys_base = 0xE000E100
+size      = 0x600
+purpose   = "Nested Vectored Interrupt Controller"
+
+[arch.cortex_m33.mmio_region.Rp2350Otp]
+phys_base = 0x40130000
+size      = 0x4000
+purpose   = "RP2350 OTP (one-time-programmable) memory; trust-root storage"
+
+[arch.cortex_m33.mmio_region.Rp2350Sha256]
+phys_base = 0x400F0000
+size      = 0x100
+purpose   = "RP2350 SHA-256 hardware accelerator"
+
+[arch.cortex_m33.mmio_region.Rp2350Trng]
+phys_base = 0x400F8000
+size      = 0x100
+purpose   = "RP2350 hardware true random number generator"
+
+[arch.cortex_m33.mmio_region.Rp2350Uart0]
+phys_base = 0x40070000
+size      = 0x100
+purpose   = "RP2350 UART0 (debug logging)"
+
+# Cortex-M does not have x86 MSRs; use system registers via Msr_/Mrs_ instead.
+# The ARM equivalent of "permitted MSR set" is the closed list of MRS/MSR
+# system registers. Encoded in the cpu_op variants above (Msr_control etc.).
+
+# ---------------------------------------------------------------------------
+# cortex_m0plus (RP2040) — minimal-protection portability proof
+# ---------------------------------------------------------------------------
+[arch.cortex_m0plus.cpu_op]
+variants = [
+    "Cps_id",                # CPSID i (disable interrupts)
+    "Cps_ie",                # CPSIE i (enable interrupts)
+    "Wfi",
+    "Wfe",
+    "Isb",
+    "Dsb",
+    "Dmb",
+    "Msr_control",
+    "Mrs_control",
+    "MpuRegionConfigure",    # ARMv6-M MPU
+    # No SAU (no TrustZone on M0+)
+    # No BASEPRI on M0+ (only PRIMASK via Cps_*)
+]
+
+[arch.cortex_m0plus.mmio_region.SystemControl]
+phys_base = 0xE000ED00
+size      = 0x40
+purpose   = "ARMv6-M System Control Block (subset)"
+
+[arch.cortex_m0plus.mmio_region.MpuConfig]
+phys_base = 0xE000ED90
+size      = 0x40
+purpose   = "ARMv6-M Memory Protection Unit registers"
+
+[arch.cortex_m0plus.mmio_region.NvicBase]
+phys_base = 0xE000E100
+size      = 0x100
+purpose   = "Nested Vectored Interrupt Controller (subset)"
+
+[arch.cortex_m0plus.mmio_region.Rp2040Uart0]
+phys_base = 0x40034000
+size      = 0x100
+purpose   = "RP2040 UART0 (debug logging)"
+
+# ---------------------------------------------------------------------------
+# riscv_rv32imc (low-end RISC-V w/ PMP) — open ISA target
+# ---------------------------------------------------------------------------
+[arch.riscv_rv32imc.cpu_op]
+variants = [
+    "Csrrw",                 # CSR read+write
+    "Csrrs",                 # CSR read+set
+    "Csrrc",                 # CSR read+clear
+    "Mret",                  # machine-mode return
+    "Wfi",                   # wait for interrupt
+    "Fence",                 # memory fence
+    "FenceI",                # instruction-fetch fence
+    "PmpConfigure",          # write to pmpcfg* / pmpaddr* CSRs
+]
+
+[arch.riscv_rv32imc.csr]
+permitted_indices = [
+    0x300,   # mstatus
+    0x301,   # misa
+    0x304,   # mie
+    0x305,   # mtvec
+    0x340,   # mscratch
+    0x341,   # mepc
+    0x342,   # mcause
+    0x344,   # mip
+    0x3A0, 0x3A1, 0x3A2, 0x3A3,   # pmpcfg0..3
+    0x3B0, 0x3B1, 0x3B2, 0x3B3,   # pmpaddr0..3 (additional ranges per part)
+    0xF11, 0xF12, 0xF13, 0xF14,   # mvendorid, marchid, mimpid, mhartid
+]
+
+[arch.riscv_rv32imc.mmio_region.PlicBase]
+phys_base = 0x0C000000
+size      = 0x400000
+purpose   = "Platform-Level Interrupt Controller (typical SiFive E-class layout)"
+
+[arch.riscv_rv32imc.mmio_region.ClintBase]
+phys_base = 0x02000000
+size      = 0x10000
+purpose   = "Core-Local Interruptor (mtimer + msoftware-interrupt)"
+
+# ---------------------------------------------------------------------------
+# esp32_c3 (Espressif RISC-V variant) — high-volume; weakest protection
+# ---------------------------------------------------------------------------
+[arch.esp32_c3.cpu_op]
+variants = [
+    "Csrrw",
+    "Csrrs",
+    "Csrrc",
+    "Mret",
+    "Wfi",
+    "Fence",
+    "FenceI",
+    # No PmpConfigure: ESP32-C3 lacks PMP per the hardware-features manifest.
+]
+
+[arch.esp32_c3.csr]
+permitted_indices = [
+    0x300,   # mstatus
+    0x301,   # misa
+    0x304,   # mie
+    0x305,   # mtvec
+    0x340,   # mscratch
+    0x341,   # mepc
+    0x342,   # mcause
+    0x344,   # mip
+    0xF11, 0xF12, 0xF13, 0xF14,
+]
+
+[arch.esp32_c3.mmio_region.Sha256]
+phys_base = 0x6003B000
+size      = 0x100
+purpose   = "ESP32-C3 SHA-256 accelerator"
+
+[arch.esp32_c3.mmio_region.Trng]
+phys_base = 0x600B0000
+size      = 0x10
+purpose   = "ESP32-C3 hardware RNG"
+
+[arch.esp32_c3.mmio_region.Uart0]
+phys_base = 0x60000000
+size      = 0x100
+purpose   = "ESP32-C3 UART0 (debug logging)"
+
+[arch.esp32_c3.mmio_region.EFuse]
+phys_base = 0x60008800
+size      = 0x100
+purpose   = "ESP32-C3 eFuse controller (OTP-equivalent)"
+
+# Diagnostic codes reserved for trusted-profile violations.
+# Stable; renumbering is a breaking change.
+[diagnostics]
+T-001 = "trusted profile declared outside file-path allowlist"
+T-002 = "trusted! block contains a non-primitive expression"
+T-003 = "runtime-computed operation selector in trusted! block"
+T-004 = "MMIO region not in trusted_profile.toml manifest for the target arch"
+T-005 = "MSR/CSR index outside permitted_indices set for the target arch"
+T-006 = "trusted! block missing trust-audit comment"
+T-007 = "trusted! block not cross-referenced in the per-arch trust audit doc"
+T-008 = "multiple trusted! blocks in one function"
+T-009 = "cpu_op variant not in the target arch's [arch.<name>.cpu_op] table"
+T-010 = "primitive uses arch feature absent from hardware_features.toml"
+
+[diagnostics.warnings]
+T-W-001 = "port number outside whitelisted set"
+
+# Audit cross-reference. check_trusted_blocks.phos asserts every trusted! block
+# has a matching section in the per-arch trust audit doc.
+#
+# Each arch has its own audit doc. The dev/test target (x86_64) keeps the
+# original EMBER_TRUST_AUDIT.md. Embedded targets get one audit doc each.
+[audit]
+required_per_block = ["file_path_and_lines", "purpose", "caller_invariant", "post_condition", "aliasing_claim"]
+
+[audit.per_arch]
+x86_64         = "ember/docs/EMBER_TRUST_AUDIT.md"
+cortex_m33     = "ember/docs/EMBER_RP2350_TRUST_AUDIT.md"
+cortex_m0plus  = "ember/docs/EMBER_RP2040_TRUST_AUDIT.md"
+riscv_rv32imc  = "ember/docs/EMBER_RISCV_TRUST_AUDIT.md"
+esp32_c3       = "ember/docs/EMBER_ESP32C3_TRUST_AUDIT.md"

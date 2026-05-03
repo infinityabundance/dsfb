@@ -1,0 +1,127 @@
+# Phosphoric runtime profile — machine-readable manifest.
+#
+# Authoritative source for the runtime profile's:
+#   - file-path allowlist
+#   - effect alphabet (subset of v0 + runtime-specific labels)
+#   - handle kinds and capacity ceilings
+#   - queue type family
+#   - diagnostic catalog
+#
+# Narrative is in RUNTIME_PROFILE.md.
+#
+# Any change here is a breaking change and must be coordinated with:
+#   - docs/language/RUNTIME_PROFILE.md
+#   - compiler/pcc.phos (parser, codegen)
+#   - kernel/ source
+#   - tests/conformance/runtime/
+
+profile_name = "runtime"
+spec_version = "runtime-profile-v1"
+inherits_from = "v0-freeze"
+
+[allowlist]
+paths = [
+    "kernel/",
+]
+
+[effects]
+labels = [
+    "draw",         # inherited from v0
+    "ipc",          # inherited from v0
+    "sched",        # inherited from v0
+    "time",         # inherited from v0
+    "cap-issue",    # runtime-only: mint new capability
+    "cap-revoke",   # runtime-only: revoke capability, increment generation
+]
+
+# Effects explicitly forbidden in runtime profile
+[effects.forbidden]
+labels = [
+    "mmio",                                                                                         # Ember only
+    "host-fs-read", "host-fs-write", "host-stdout", "host-stderr", "host-time-mono", "host-hash",   # host only
+]
+
+# Capability handle kinds. Adding a kind is a breaking change.
+[handle_kinds]
+kinds = [
+    "Task",
+    "Channel",
+    "Window",
+    "Framebuffer",
+    "Capability",
+]
+
+# Per-kind slot-table capacity. Compile-time constants.
+[handle_capacity]
+Task        = 64
+Channel     = 128
+Window      = 16
+Framebuffer = 4
+Capability  = 256
+
+# Queue type family. Three closed types; adding one is a breaking change.
+[queue_types]
+types = [
+    "QueueDropNewest",
+    "QueueDropOldest",
+    "QueueFailClosed",
+]
+
+[queue_capacity]
+default_max = 4096
+language_max = 65536
+per_program_override = "downward_only"
+
+# IPC-specific resource bounds, pinned by the PhosphorOS design review.
+# Per-queue capacity is a language-level type constraint (above). Global
+# message ceiling is an additional kernel-level resource bound: total
+# messages-in-flight across all channels combined.
+#
+# Both apply: the per-queue limit caps any single channel's static type;
+# the global limit is enforced at runtime by the kernel and supersedes
+# per-queue capacity when a single channel would otherwise consume more
+# than the global ceiling.
+#
+# Reference: docs/PHOSPHOROS_DESIGN.md § "Contradictions resolved"
+[ipc]
+global_message_ceiling = 1024     # total messages in flight across all channels
+payload_max_bytes      = 256      # per-message payload ceiling
+per_queue_default      = 4096     # mirrors [queue_capacity].default_max
+per_queue_language_max = 65536    # mirrors [queue_capacity].language_max
+overflow_diagnostic    = "R-011"  # global ceiling exceeded
+
+# Diagnostic codes reserved for runtime-profile violations.
+[diagnostics]
+R-001 = "runtime profile declared outside file-path allowlist"
+R-002 = "handle field accessed outside typed lookup"
+R-003 = "direct MMIO / port / cpu_op in runtime profile"
+R-004 = "queue capacity exceeds language maximum"
+R-005 = "host-profile effect declared in runtime profile"
+R-006 = "trusted-profile primitive used in runtime profile"
+R-007 = "recursive scheduling pattern"
+R-008 = "dynamic queue resize attempt"
+R-009 = "framebuffer pixel format unsupported (not BGRA8888)"
+R-010 = "capability revocation attempted by non-creator non-kernel"
+R-011 = "IPC message exceeds global ceiling (1024 in flight)"
+R-012 = "wake condition not in enumerated set"
+
+[conformance.required_cases]
+positive = [
+    "runtime_handle_lookup",
+    "runtime_cap_issue",
+    "runtime_cap_revoke_increments_generation",
+    "runtime_stale_handle_returns_error",
+    "runtime_queue_drop_newest_overflow_returns_err",
+    "runtime_queue_drop_oldest_overflow_evicts",
+    "runtime_queue_fail_closed_seals_on_overflow",
+]
+negative = [
+    "runtime_direct_mmio_attempt",
+    "runtime_handle_field_access",
+    "runtime_queue_capacity_overflow",
+    "runtime_host_effect_attempt",
+    "runtime_trusted_block_attempt",
+    "runtime_recursive_schedule",
+    "runtime_dynamic_queue_resize",
+    "runtime_outside_allowlist",
+]

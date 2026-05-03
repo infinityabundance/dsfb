@@ -1,0 +1,12 @@
+module tests.conformance.host.pass.restored.fixed_array;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/fixed_array)
+
+module pass.fixed_array;
+
+fn array_value() -> [u64; 3] {
+    let values = [1, 2, 3];
+    return values;
+}

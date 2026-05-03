@@ -1,0 +1,11 @@
+module fixture.match_fn_call_scrutinee;
+profile boot;
+fn entry() -> i32 {
+    return is_ident_start(95);
+}
+fn is_alpha(b: i32) -> i32 {
+    match b == 65 { true => true, false => false }
+}
+fn is_ident_start(b: i32) -> i32 {
+    match is_alpha(b) { true => true, false => b == 95 }
+}

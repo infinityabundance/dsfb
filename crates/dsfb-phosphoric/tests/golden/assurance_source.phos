@@ -1,0 +1,13 @@
+module demo;
+capability Window;
+struct Pair { left: u32, flag: bool }
+enum Event { Tick, Resize(u32, u32) }
+
+fn leaf(win: Window) -> u64 effects(draw) {
+    let scratch: [u64; 4] = [1, 2, 3, 4];
+    return 0;
+}
+
+fn render(win: Window) -> u64 effects(draw) {
+    return leaf(win);
+}

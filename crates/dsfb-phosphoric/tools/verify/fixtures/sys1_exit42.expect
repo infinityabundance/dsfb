@@ -1,0 +1,5 @@
+# Locked-in for Pass B-1: __sys1(60, 42) emits real syscall in helper block.
+# Helper is non-entry (not called by entry); rc reflects entry's .
+size=1105
+sha=3d1d0c0b06cc8d255530de9c624818e3d64de815f991e9ac90e06c0d5fb41200
+rc=0

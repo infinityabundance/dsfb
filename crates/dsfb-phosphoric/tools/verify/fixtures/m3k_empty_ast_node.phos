@@ -1,0 +1,49 @@
+module fixture.m3k_empty_ast_node;
+profile boot;
+
+enum Phase0AstNodeKind {
+    NodeModule,
+    NodeFunction,
+    NodeStruct,
+    NodeEnum,
+    NodeCapability,
+    NodeStmtLet,
+    NodeStmtExpr,
+    NodeStmtReturn,
+    NodeStmtForLoop,
+    NodeExprIntLit,
+    NodeExprBoolLit,
+    NodeExprUnit,
+    NodeExprPath,
+    NodeExprBinary,
+    NodeExprCall,
+    NodeExprField,
+    NodeExprMatch,
+    NodeExprBlock,
+    NodeTypePrim,
+    NodeTypeArray,
+    NodeTypeStruct,
+    NodeTypeEnum,
+    NodePatternLit,
+    NodePatternBinding,
+    NodePatternVariant,
+    NodeMatchArm,
+}
+
+struct Phase0AstNode {
+    kind: Phase0AstNodeKind,
+    payload: [u32; 4],
+    name_pool_idx: u32,
+}
+
+fn entry() -> i32 {
+    return 0;
+}
+
+fn empty_ast_node() -> Phase0AstNode {
+    Phase0AstNode {
+        kind: Phase0AstNodeKind::NodeModule,
+        payload: [0; 4],
+        name_pool_idx: 0,
+    }
+}

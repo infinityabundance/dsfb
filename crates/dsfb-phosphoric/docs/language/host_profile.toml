@@ -1,0 +1,146 @@
+# Phosphoric host profile — machine-readable manifest.
+#
+# This file is the authoritative source for the host profile's effect alphabet,
+# syscall table, and capacity ceilings. The narrative is in HOST_PROFILE.md.
+# Compiler passes and the verification gates read this file directly.
+#
+# Any change here is a breaking change and must be coordinated with:
+#   - docs/language/HOST_PROFILE.md
+#   - the conformance corpus under tests/conformance/host/
+#   - the diagnostic catalog
+#   - tools/verify/check_host_profile_separation.phos
+
+profile_name = "host"
+spec_version = "host-profile-v1"
+inherits_from = "v0-freeze"
+
+# Effect alphabet. Each label is required-explicit; default is denied.
+# Order is significant for diagnostic stability — never reorder.
+[effects]
+labels = [
+    "host-fs-read",
+    "host-fs-write",
+    "host-stdout",
+    "host-stderr",
+    "host-time-mono",
+    "host-hash",
+]
+
+[effects.host-fs-read]
+description = "Open and read a regular file under the project tree into a caller-supplied stack buffer."
+syscalls = ["openat", "read", "close"]
+
+[effects.host-fs-write]
+description = "Open, truncate, and write a regular file under the project tree from a caller-supplied buffer."
+syscalls = ["openat", "write", "close", "fsync"]
+
+[effects.host-stdout]
+description = "Write a caller-supplied buffer to file descriptor 1."
+syscalls = ["write"]
+
+[effects.host-stderr]
+description = "Write a caller-supplied buffer to file descriptor 2."
+syscalls = ["write"]
+
+[effects.host-time-mono]
+description = "Read the monotonic clock as a u64 of nanoseconds since process start."
+syscalls = ["clock_gettime"]
+
+[effects.host-hash]
+description = "Compute SHA-256 over a caller-supplied buffer. Pure computation."
+syscalls = []
+
+# Permitted Linux syscalls. The codegen pass refuses any syscall not in this list.
+# Each entry names exactly which effect label authorizes it.
+[syscalls]
+openat        = ["host-fs-read", "host-fs-write"]
+read          = ["host-fs-read"]
+write         = ["host-fs-write", "host-stdout", "host-stderr"]
+close         = ["host-fs-read", "host-fs-write"]
+fsync         = ["host-fs-write"]
+clock_gettime = ["host-time-mono"]
+exit_group    = []  # implicit in entrypoint return; no effect label required
+
+# Capacity ceilings. A program may declare smaller; never larger.
+# Units are bytes unless otherwise specified.
+[capacity_defaults]
+file_path_length    = 256
+file_contents       = 1048576    # 1 MiB
+stdio_message       = 4096       # 4 KiB
+hash_input          = 16777216   # 16 MiB
+argv_entry_length   = 256
+argv_count          = 16
+program_working_set = 33554432   # 32 MiB
+
+[capacity_maxima]
+file_path_length    = 4096
+file_contents       = 16777216   # 16 MiB
+stdio_message       = 65536      # 64 KiB
+hash_input          = 268435456  # 256 MiB
+argv_entry_length   = 4096
+argv_count          = 256
+program_working_set = 268435456  # 256 MiB
+
+# Forbidden syscalls. Any of these in the codegen table is a hard reject.
+# This list is non-exhaustive — anything not in [syscalls] above is also forbidden;
+# the explicit list below documents the most safety-relevant prohibitions.
+[forbidden]
+syscalls = [
+    "fork", "clone", "vfork", "execve", "execveat",
+    "socket", "connect", "accept", "accept4", "bind", "listen",
+    "sendto", "recvfrom", "sendmsg", "recvmsg",
+    "pipe", "pipe2", "shm_open", "shmat", "mmap", "mprotect",
+    "sigaction", "rt_sigaction", "signal", "kill", "tgkill",
+    "futex", "ptrace",
+    "getenv", "setenv",  # not real syscalls, but their semantics are forbidden
+    "chmod", "fchmod", "chown", "fchown", "utimes", "futimes",
+    "ioctl",
+    "msgget", "msgsnd", "msgrcv", "semget", "semop", "shmget",
+    "epoll_create", "epoll_create1", "epoll_ctl", "epoll_wait",
+    "inotify_init", "inotify_add_watch",
+]
+language_constructs = [
+    "recursive_directory_walk",
+    "stdin_read",
+    "environment_variable_access",
+    "signal_handler",
+    "shared_memory",
+    "subprocess_creation",
+]
+
+# Diagnostic codes reserved for host-profile violations.
+# Stable; renumbering is a breaking change.
+[diagnostics]
+H-001 = "undeclared host effect"
+H-002 = "host effect declared in non-host profile"
+H-003 = "boot effect declared in host profile"
+H-004 = "buffer ceiling exceeded at declaration site"
+H-005 = "disallowed Linux syscall in codegen"
+H-006 = "recursive directory walk at language level"
+H-007 = "argv access beyond declared capacity"
+H-008 = "host profile module imported from non-host profile"
+
+# Conformance corpus pointer. The conformance gate fails if any item below
+# does not have at least one positive test and one negative test in
+# tests/conformance/host/.
+[conformance.required_cases]
+positive = [
+    "host_fs_read_file",
+    "host_fs_write_file",
+    "host_stdout_message",
+    "host_stderr_message",
+    "host_time_mono_read",
+    "host_hash_buffer",
+    "host_argv_iteration",
+    "host_capacity_minimum_declaration",
+]
+negative = [
+    "host_undeclared_effect",
+    "host_effect_in_boot_profile",
+    "host_boot_effect_in_host_profile",
+    "host_capacity_exceeds_maximum",
+    "host_disallowed_syscall_attempt",
+    "host_recursive_walk_attempt",
+    "host_argv_overflow",
+    "host_cross_profile_import",
+]

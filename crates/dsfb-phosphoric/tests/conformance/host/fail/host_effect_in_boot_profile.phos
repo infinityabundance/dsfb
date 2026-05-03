@@ -1,0 +1,12 @@
+module tests.conformance.host.fail.host_effect_in_boot_profile;
+profile boot;
+
+// fail-expected: H-002
+//
+// host-stdout is a host-profile effect; declaring it in a boot-profile
+// program is rejected. This file declares profile=boot but uses
+// host-stdout, which is the cross-profile contamination case.
+
+fn print_status(line: Slice[u8, 4096], len: u32) -> bool effects(host-stdout) {
+    true
+}

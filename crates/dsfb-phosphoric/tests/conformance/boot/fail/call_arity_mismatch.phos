@@ -1,0 +1,15 @@
+module tests.conformance.boot.fail.call_arity_mismatch;
+
+// fail-expected: K-002
+//
+// A function call must supply exactly the number of arguments declared
+// in the callee's signature. K-002 (arity mismatch) is emitted when the
+// argument count does not match.
+
+fn add_two(a: u32, b: u32) -> u32 {
+    a + b
+}
+
+fn caller() -> u32 {
+    add_two(1)
+}

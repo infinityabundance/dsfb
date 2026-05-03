@@ -1,0 +1,31 @@
+module tests.conformance.runtime.pass.residual_chain_continuity;
+profile runtime;
+
+// pass-expected
+//
+// Chain-continuity gate for the dynamic residual stream (R1–R7 in
+// kernel/residual.phos).
+//
+// The contract: emit N residuals to a fresh ring; dump the ring;
+// re-derive each chain_hash off-device using the same chain_step /
+// fold_into_batch primitives. Every residual's chain_hash must match
+// the host re-derivation byte-for-byte.
+//
+// This is the load-bearing forensic-claim test at the residual-primitive
+// layer. Without it, the on-device and off-device pictures of the
+// substrate's behavior could silently diverge — exactly the ambiguity
+// the doctrine forecloses.
+//
+// Test flow (pseudo, will land as a host-tool driver in Phase 4):
+//   1. ring = empty_residual_ring(chain_freq=1)
+//   2. for i in 0..16:
+//        ring = record(ring, kind=i mod 7 + 1, arch_id=0,
+//                      cycle=i as u64, payload=[i as u8; 14])
+//   3. dump ring entries[0..16]
+//   4. host re-derives chain by walking entries with chain_step
+//   5. assert: for every i, dumped_entries[i].chain_hash ==
+//      host_rederive(dumped_entries[0..=i])
+
+fn marker() -> u32 {
+    0
+}

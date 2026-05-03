@@ -1,0 +1,14 @@
+module tests.conformance.trusted.fail.trusted_block_runtime_selector;
+profile trusted;
+
+// fail-expected: T-003
+//
+// Operation selectors must be enum constants known at compile time.
+// A runtime-selected variant via a parameter is rejected.
+
+fn ambiguous(op: CpuOp) {
+    // trust-audit: ember/docs/EMBER_TRUST_AUDIT.md#nope
+    trusted! {
+        cpu_op(op);
+    }
+}

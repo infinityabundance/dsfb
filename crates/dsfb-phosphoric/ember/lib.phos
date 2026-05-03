@@ -1,0 +1,82 @@
+module ember.lib;
+profile trusted;
+
+// Ember nucleus.
+//
+// Each `trusted!` block here is cross-referenced in
+// ember/docs/EMBER_TRUST_AUDIT.md per the trusted profile contract
+// (docs/language/TRUSTED_PROFILE.md). Razor-rationale annotations follow
+// E24's discipline: irreducible-hw or language-not-expressible.
+
+// ---------------------------------------------------------------------------
+// Per-frame Ember-side primitives (T3-6 / T3-7)
+//
+// The kernel calls these once per tick. Each primitive is short, typed,
+// and either irreducibly hardware-bound or expresses a CPU operation
+// the language type system cannot describe.
+// ---------------------------------------------------------------------------
+
+// Poll for one input event. Returns None when no event is queued.
+//
+// razor-rationale: irreducible-hw — input controller registers are MMIO/PIC;
+// no software-level abstraction exists at this layer.
+fn input_poll() -> Option[pcc.kernel.abi.InputEvent] {
+    // trust-audit: row "input_poll" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    //
+    // Real implementation reads PS/2 ports (legacy) or PIC vectors
+    // (modern). For the demo path, returns None — no input.
+    None
+}
+
+// Present the supplied render-command list to the framebuffer.
+//
+// razor-rationale: irreducible-hw — final pixel writes are MMIO; the
+// command-list walk lives above the trust boundary, but each FillRect /
+// WritePixel translates into mmio_write_u32 against MmioRegion::Framebuffer.
+fn present_frame(commands: pcc.kernel.abi.RenderCommandList) {
+    // trust-audit: row "present_frame" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    //
+    // Real implementation walks commands.commands[0..count], dispatching
+    // each variant to the framebuffer write primitives.
+    #[bound = 64]
+    for i in 0..(commands.count as u32) {
+        let cmd: pcc.kernel.abi.RenderCommand = commands.commands[i];
+        // Each variant carries a WindowHandle (E19); Ember validates the
+        // handle before applying any pixel writes. The validation surfaces
+        // typed errors back via the runtime kernel's error path.
+        match cmd {
+            pcc.kernel.abi.RenderCommand::FillRect(_, _, _, _, _, _) => (),
+            pcc.kernel.abi.RenderCommand::WritePixel(_, _, _, _) => (),
+            pcc.kernel.abi.RenderCommand::Present(_) => (),
+        };
+    }
+}
+
+// Emit a debug message via the serial console.
+//
+// razor-rationale: irreducible-hw — UART writes are port-mapped I/O.
+fn debug_log(message: Slice[u8, 256], len: u16) {
+    // trust-audit: row "debug_log" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    let config: ember.arch.x86_64.serial.Uart16550Config =
+        ember.arch.x86_64.serial.Uart16550Config { base_port: 1016 };
+    #[bound = 256]
+    for i in 0..(len as u32) {
+        ember.arch.x86_64.serial.uart_blocking_write(config, message[i]);
+    }
+}
+
+// QEMU debug-exit: write a status byte to port 0xF4 to terminate QEMU.
+// Used by the demo path only.
+//
+// razor-rationale: irreducible-hw — debug-exit is a single OUT instruction.
+fn qemu_exit(status: u8) {
+    // trust-audit: row "qemu_exit" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    trusted!{
+        port_write_u8(244, status);
+    };
+    // 244 = 0xF4 in base 10.
+}

@@ -1,0 +1,96 @@
+module pcc.budget;
+profile host;
+
+// Reads stack/entrypoint budget manifests from config/*.toml.
+
+struct BudgetManifest {
+    target_id: u16,
+    entrypoints: [BudgetEntry; 32],
+    entrypoint_count: u8,
+}
+
+struct BudgetEntry {
+    entrypoint_name_id: u16,
+    stack_budget_bytes: u32,
+}
+
+// Minimal TOML budget reader. Recognizes one schema:
+//
+//   target = "name"
+//   [[entrypoint]]
+//   name = "function_name"
+//   stack_budget_bytes = 4096
+//
+// The reader is line-oriented: it scans the buffer for top-level keys and
+// each `[[entrypoint]]` block. No nested tables, no arrays-of-tables beyond
+// `entrypoint`. All other TOML constructs are rejected with diagnostic D-001.
+
+fn d_diagnostic(code: u16) -> pcc.diagnostic.Diagnostic {
+    pcc.diagnostic.Diagnostic {
+        code_prefix: 68,    // 'D' (data manifest)
+        code_number: code,
+        span: None,
+        message_id: 0,
+    }
+}
+
+// Helper: is byte b ASCII whitespace (space, tab, newline, CR)?
+fn is_ws(b: u8) -> bool {
+    match b == 32 {
+        true  => true,
+        false => match b == 9 {
+            true  => true,
+            false => match b == 10 {
+                true  => true,
+                false => b == 13,
+            },
+        },
+    }
+}
+
+// Parse a base-10 unsigned integer from buf starting at offset; advance
+// offset past the digits. Returns (value, new_offset).
+struct IntParseResult {
+    value: u32,
+    offset: u32,
+}
+
+fn parse_uint(buf: Slice[u8, 65536], start: u32) -> IntParseResult {
+    let mut value: u32 = 0;
+    let mut cursor: u32 = start;
+    #[bound = 16]
+    for i in 0..16 {
+        let b: u8 = buf[cursor];
+        match b >= 48 {
+            true => match b <= 57 {
+                true => {
+                    value = value * 10 + ((b - 48) as u32);
+                    cursor = cursor + 1;
+                },
+                false => i,    // not a digit; stop
+            },
+            false => i,
+        };
+    }
+    IntParseResult { value: value, offset: cursor }
+}
+
+// Real implementation: walks the manifest buffer line-by-line, recognizing
+// `[[entrypoint]]` headers, `name = "..."` keys, and `stack_budget_bytes = N`
+// keys. The host-fs-read effect supplies the buffer; we just parse it.
+//
+// For now: returns an empty manifest. The line scanner lands when the
+// expression-tree pass + string handling are real (string literals in TOML
+// require byte-equality without v0 string support).
+fn read_budget(
+    manifest_path: Slice[u8, 256],
+) -> Result[BudgetManifest, pcc.diagnostic.Diagnostic] effects(host-fs-read) {
+    // Open + read the file into a 64 KiB buffer (host-fs-read effect).
+    // Parse line-by-line, recognizing the keys above.
+    // Return populated manifest or D-001 for malformed schema.
+    Ok(BudgetManifest {
+        target_id: 0,
+        entrypoints: [BudgetEntry { entrypoint_name_id: 0, stack_budget_bytes: 0 }; 32],
+        entrypoint_count: 0,
+    })
+}

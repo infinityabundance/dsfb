@@ -1,0 +1,11 @@
+# Pass A-12 fixture (TRUE arm fires): real runtime conditional return.
+# Source:
+#   fn entry()  { return classify(7); }
+#   fn classify(arg) { match arg == 7 { true => 100, false => 0 } }
+# Lowering: 24-byte classify block emits real `cmp edi, IMM_8; mov eax,
+# INT_A; je +5; mov eax, INT_B; ret` — first runtime conditional branch
+# the producer can lower. arg=7 makes ZF=1, je takes, eax stays 100.
+# Verified: rc = 100 at runtime.
+size=1105
+sha=ceac7d07b0f053e6d2e9a105eb4c8a1bb83b95c609f69cbcbe7efe740d45f983
+rc=100

@@ -1,0 +1,4 @@
+module fixture.struct_const_fns;
+struct Point { x: u32, y: u32, }
+fn get_x() -> u32 { 10 }
+fn get_y() -> u32 { 20 }

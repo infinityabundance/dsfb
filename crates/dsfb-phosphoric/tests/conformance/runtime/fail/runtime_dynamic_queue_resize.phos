@@ -1,0 +1,17 @@
+module tests.conformance.runtime.fail.runtime_dynamic_queue_resize;
+profile runtime;
+
+// fail-expected: R-008
+//
+// Queue capacity is a compile-time constant. Any attempt to resize at
+// runtime (via Slice rebinding, swap, or similar) is rejected.
+
+struct ResizeAttempt {
+    items: Slice[u32, 16],
+}
+
+fn grow(q: ResizeAttempt) -> ResizeAttempt {
+    let mut updated: ResizeAttempt = q;
+    updated.items = Slice[u32, 32]::empty();
+    updated
+}

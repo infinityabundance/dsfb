@@ -1,0 +1,10 @@
+module tests.conformance.host.fail.restored.illegal_external_call_unresolved;
+profile host;
+
+// fail-expected: P-019
+// (restored from legacy_ui/fail/illegal_external_call_unresolved; legacy code ILLEGAL_EXTERNAL_CALL "not a legal same-module function")
+
+module demo;
+fn bad() -> u32 {
+    return host();
+}

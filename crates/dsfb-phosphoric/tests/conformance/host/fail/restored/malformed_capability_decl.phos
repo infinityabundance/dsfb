@@ -1,0 +1,8 @@
+module tests.conformance.host.fail.restored.malformed_capability_decl;
+profile host;
+
+// fail-expected: P-003
+// (restored from legacy_ui/fail/malformed_capability_decl; legacy code UNSUPPORTED_SYNTAX "expected identifier")
+
+module demo;
+capability ;

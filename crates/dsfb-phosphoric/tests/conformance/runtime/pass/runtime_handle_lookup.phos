@@ -1,0 +1,22 @@
+module tests.conformance.runtime.pass.runtime_handle_lookup;
+profile runtime;
+
+// Pass case: typed handle lookup through the documented entry point.
+// Handle field access goes through the typed function only; direct
+// field reads outside the lookup are rejected by R-002.
+
+struct TaskHandle {
+    slot: u16,
+    generation: u16,
+    kind: u8,
+    reserved: u8,
+}
+
+enum RuntimeError {
+    InvalidHandle,
+    StaleHandle,
+}
+
+fn validate(handle: TaskHandle) -> Result[u32, RuntimeError] {
+    Ok(0)
+}

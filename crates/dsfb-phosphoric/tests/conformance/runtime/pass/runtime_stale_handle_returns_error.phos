@@ -1,0 +1,24 @@
+module tests.conformance.runtime.pass.runtime_stale_handle_returns_error;
+profile runtime;
+
+// Pass case: a stale handle (generation mismatch) returns StaleHandle as
+// a typed error, never a panic. Phosphoric has no unwrap.
+
+struct TaskHandle {
+    slot: u16,
+    generation: u16,
+    kind: u8,
+    reserved: u8,
+}
+
+enum RuntimeError {
+    InvalidHandle,
+    StaleHandle,
+}
+
+fn check(handle: TaskHandle, expected_generation: u16) -> Result[u32, RuntimeError] {
+    match handle.generation == expected_generation {
+        true  => Ok(0),
+        false => Err(RuntimeError::StaleHandle),
+    }
+}

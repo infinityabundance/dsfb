@@ -1,0 +1,13 @@
+module tests.conformance.host.pass.restored.exhaustive_option_match;
+profile host;
+
+// pass-expected
+// (restored from legacy_ui/pass/exhaustive_option_match)
+
+module demo;
+fn choose(value: Option[u32]) -> u64 {
+    match value {
+        Some(inner) => 1,
+        None => 0,
+    }
+}

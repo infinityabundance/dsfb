@@ -1,0 +1,6 @@
+module fixture.multi_seg_type;
+profile boot;
+fn main() -> i32 {
+    let x: some.module.TypeName = 0;
+    return 0;
+}

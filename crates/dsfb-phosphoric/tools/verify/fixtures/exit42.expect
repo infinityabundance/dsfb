@@ -1,0 +1,5 @@
+# Locked-in expectation for tools/verify/fixtures/exit42.phos
+# size, sha, rc captured at producer hash 8ada5b21... (M.3.M-recursion-1)
+size=1081
+sha=9a0d0ca0f40670b6c2f4336ec366b32fd9d4191305b3a903c64e09290acde9de
+rc=42

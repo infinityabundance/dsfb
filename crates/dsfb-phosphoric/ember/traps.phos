@@ -1,0 +1,81 @@
+module ember.traps;
+profile trusted;
+
+// IDT install + trap-handler stubs.
+//
+// IDT installation runs once at boot. Each trap vector points at a
+// fixed-size stub in flash; the stub saves machine state, calls into the
+// runtime kernel's trap-dispatch function (in runtime profile), then
+// resumes via iretq.
+
+// IDT descriptor — 16 bytes per entry on x86_64. 256 vectors total.
+struct IdtDescriptor {
+    offset_low: u16,
+    selector: u16,
+    ist: u8,
+    flags: u8,
+    offset_mid: u16,
+    offset_high: u32,
+    reserved: u32,
+}
+
+fn empty_idt_descriptor() -> IdtDescriptor {
+    IdtDescriptor {
+        offset_low: 0,
+        selector: 0,
+        ist: 0,
+        flags: 0,
+        offset_mid: 0,
+        offset_high: 0,
+        reserved: 0,
+    }
+}
+
+// Build a single IDT descriptor pointing at the given handler address.
+// `selector` is the GDT code segment selector (typically 0x08 for the
+// kernel code segment). `flags` packs DPL + present + type bits; 0x8E
+// is "present, ring 0, interrupt gate".
+fn make_interrupt_gate(handler: u64, selector: u16, ist: u8) -> IdtDescriptor {
+    let off_low: u16 = (handler - (handler / 65536) * 65536) as u16;
+    let off_mid: u16 = ((handler / 65536) - ((handler / 4294967296) * 65536)) as u16;
+    let off_high: u32 = (handler / 4294967296) as u32;
+    IdtDescriptor {
+        offset_low: off_low,
+        selector: selector,
+        ist: ist,
+        flags: 142,                  // 0x8E
+        offset_mid: off_mid,
+        offset_high: off_high,
+        reserved: 0,
+    }
+}
+
+// IDTR pointer structure: 2-byte limit + 8-byte base.
+struct IdtPointer {
+    limit: u16,
+    base: u64,
+}
+
+// Install the IDT by issuing LIDT against the supplied descriptor.
+// The IDT must be in memory and the IdtPointer must point at it.
+//
+// razor-rationale: irreducible-hw — LIDT is the only path to install
+// the IDT register; per descriptor_tables.phos's load_idt primitive.
+fn install_idt(pointer_address: u64) {
+    // trust-audit: row "LIDT (traps install)" in ember/docs/EMBER_TRUST_AUDIT.md
+    // razor-rationale: irreducible-hw
+    ember.arch.x86_64.descriptor_tables.load_idt(pointer_address);
+}
+
+// Trap-bringup driver. Builds an IDT in a caller-supplied buffer, then
+// calls install_idt with the IDTR pointer.
+fn build_default_idt(
+    handlers: Slice[u64, 256],
+    idt_out: Slice[IdtDescriptor, 256],
+) -> u32 {
+    #[bound = 256]
+    for i in 0..256 {
+        idt_out[i] = make_interrupt_gate(handlers[i], 8, 0);
+    }
+    256
+}
