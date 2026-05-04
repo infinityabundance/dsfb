@@ -71,9 +71,12 @@ parsed="$(awk '
         next
     }
     in_block {
-        if (match($0, /^[ \t]*([a-z_][a-z_0-9]*)[ \t]*=[ \t]*(.*)$/, m)) {
-            key = m[1]
-            val = m[2]
+        if ($0 ~ /^[ \t]*[a-z_][a-z_0-9]*[ \t]*=/) {
+            key = $0
+            sub(/^[ \t]*/, "", key)
+            sub(/[ \t]*=.*/, "", key)
+            val = $0
+            sub(/^[ \t]*[a-z_][a-z_0-9]*[ \t]*=[ \t]*/, "", val)
             sub(/[ \t]*#.*$/, "", val)
             sub(/[ \t]+$/, "", val)
             if (substr(val, 1, 1) == "\"") {
