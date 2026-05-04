@@ -57,6 +57,116 @@ The current golden booted vertical slice consumes active `.phos` sources under `
 
 The QEMU run emits the marker line `phosphoric: entering generated boot-asm demo`, followed by per-stage progress markers and the closing `phosphoric: demo complete`.
 
+## DSFB v0.3 Court Path: What, Why, and How
+
+This package's active reproducibility path is the v0.3 DSFB demo plus the
+`verify-court-active` forensic gate. It is designed to make the executable
+artifact, runtime residual evidence, case-file bytes, and verdict fixtures
+inspectable from a clean clone.
+
+### What It Demonstrates
+
+- A Phosphoric-source DSFB demo is emitted as a UEFI `BOOTX64.EFI` image.
+- The image boots under QEMU/OVMF and prints the DSFB theorem text.
+- The runtime emits three typed residual records.
+- The emitted residual stream is wrapped into a PFI0 case file.
+- The runtime PFI is byte-compared against `tests/golden/dsfb_demo.pfi`.
+- The PFI fixtures are replayed into deterministic verdict text.
+- Malformed PFI fixtures are rejected with named, stable reasons.
+- Court producer gates check narrow Phosphoric-source byte producers for the
+  R5 record, PFI0 case file, and verdict bytes.
+
+### Mathematical Model
+
+DSFB frames forensic computation as a deterministic residual pipeline:
+
+```text
+(y_hat, y, phi, s) -> r -> (d, sigma) -> E -> g -> tau -> C
+```
+
+Read this as:
+
+- `y_hat`: predicted or declared state
+- `y`: observed state
+- `phi`: phase or execution context
+- `s`: source or authority context
+- `r`: typed residual
+- `(d, sigma)`: drift and slew classification
+- `E`: admissibility envelope
+- `g`: grammar or motif state
+- `tau`: trust state
+- `C`: byte-deterministic certificate or verdict
+
+The v0.3 QEMU demo does not claim to solve that whole research program. It
+pins a narrow executable path where residual evidence is emitted, packaged,
+hashed, replayed, and checked by deterministic gates.
+
+### Residual Record Math
+
+Each runtime residual record is a fixed 32-byte structure:
+
+```text
+kind:u8 | arch_id:u8 | seq:u16 | cycle:u64 | payload:[u8;14] | chain_hash:[u8;4] | pad:[u8;2]
+```
+
+The `chain_hash` is a byte-stable 4-byte mixer used for fixture continuity, not
+a cryptographic hash. For a 28-byte event vector and four previous chain bytes,
+the verifier re-derives:
+
+```text
+primes = [31, 131, 524287, 16777213]
+s[n] = prev[n] + sum(event[k] * primes[n] for k in 0..27)
+chain_hash[n] = s[n] mod 256
+```
+
+SHA-256 is used separately for artifact and stream hashes. The R5 MMIO boundary
+fixture locks the canonical vector `declared=0x1000..0x10FF`,
+`observed=0x1100` to `chain_hash=8aa2ca5e`.
+
+### PFI0 Case File Layout
+
+PFI0 is the replayable evidence container checked by
+`tools/verify/check_pfi_layout.sh`:
+
+```text
+magic "PFI0"
+residual_count:u32le
+reserved header bytes
+manifest_hash:sha256
+image_hash:sha256
+stream_hash:sha256(records)
+Residual records, 32 bytes each
+final_chain_hash
+reserved footer bytes
+```
+
+The layout gate checks magic, size, count, reserved zero regions, stream hash,
+closed residual kind taxonomy, monotonic sequence numbers, chain continuity, and
+footer final-chain anchoring.
+
+### Code Path Map
+
+- `apps/dsfb_demo/` - active v0.3 DSFB demo source files
+- `compiler/pcc2.phos` - Phosphoric compiler source used by the active path
+- `tools/phosphoric/write_dsfb_efi.sh` - emits the DSFB UEFI image
+- `tools/qemu-run/run_dsfb_demo.sh` - boots the image, captures residuals, and writes the runtime PFI
+- `tests/golden/dsfb_demo.pfi` - golden runtime PFI fixture
+- `tools/verify/fixtures/pfi/` - PFI case-file fixtures
+- `tools/verify/fixtures/verdicts/` - expected deterministic verdict text
+- `tools/court/` - narrow court reference and producer gates
+- `notebooks/dsfb_phosphoric_colab.ipynb` - clean Colab reproduction path
+
+### Main Command
+
+```bash
+make -k verify-court-active
+```
+
+This is the active forensic court gate. It intentionally prints `[scaffold]`
+disclosures for historical or out-of-tree checks that are absent from a public
+source-only clone. Those disclosures are recorded as limitations, not counted as
+empirical pass evidence.
+
 ## Reproducible Run Paths
 
 ### Google Colab
@@ -161,3 +271,11 @@ Makefile               — verification targets
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 Copyright 2026 Invariant Forge LLC.
+
+## Project Link and IP Notice
+
+Repository:
+[https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-phosphoric](https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-phosphoric)
+
+Licensed under Apache 2.0 - Copyright 2026 - Invariant Forge LLC. Commercial
+use requires a separate license. licensing@invariantforge.net
