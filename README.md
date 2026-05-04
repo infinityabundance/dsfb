@@ -143,6 +143,14 @@ Don’t believe a sensor all at once.
 > *DSFB Structural Semiotics Engine for Robotics Health Monitoring: A Deterministic Augmentation Layer for Typed Residual Interpretation of Joint Degradation, Actuator Drift, and Kinematic Anomalies in Safety-Critical Robotic Systems* (v1.0). 
 > Zenodo. [https://doi.org/10.5281/zenodo.19778382]
 
+> **de Beer, R.** (2026). 
+> *DSFB-ATLAS Alternative Deterministic Residual Theorem Atlas: A 10,000-Theorem Universality Framework for Operator-Legible Deterministic Residual Inference — Drift–Slew, Envelope, Grammar, Trust, and Endoductive Structural Inference.* (v2.0). 
+> Zenodo. [https://doi.org/10.5281/zenodo.19798649]
+
+> **de Beer, R.** (2026). 
+> *DSFB-Phosphoric Structural Semiotics Engine for Deterministic Forensic Computing: A DSFB-Native Execution Substrate for Typed Residual Emission at Compile-Time-Checked Authority Boundaries in Single-Purpose Edge Devices* 
+> (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.20024283]
+
 ---
 
 `DSFB Simulation Notebook:`
@@ -210,6 +218,12 @@ Don’t believe a sensor all at once.
 
 `DSFB Robotics`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-robotics/colab/dsfb_robotics_reproduce.ipynb)
+
+`DSFB Atlas`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-atlas/colab/dsfb_atlas_reproduce.ipynb)
+
+`DSFB Phosphoric`
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-phosphoric/notebooks/dsfb_phosphoric_colab.ipynb)
 
 ---
 
