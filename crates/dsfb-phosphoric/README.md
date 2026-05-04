@@ -1,4 +1,4 @@
-# Phosphoric
+# DSFB-Phosphoric
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-phosphoric/notebooks/dsfb_phosphoric_colab.ipynb)
 [![DSFB Gray Audit: 73.3%](https://img.shields.io/badge/DSFB%20Gray%20Audit-73.3%25-green)](audit/dsfb-gray-2026-05-03T23-48-09Z/DSFB_PHOSPHORIC_GRAY_AUDIT_REPORT.md)
