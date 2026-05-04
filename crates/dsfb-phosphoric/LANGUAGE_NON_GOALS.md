@@ -14,7 +14,7 @@ It exists to keep the language from drifting into a broad ambition project that 
 
 ## Ultra-Razor Non-Goals (2026-04-27 scope recession)
 
-Per the Ultra-Razor direction [docs/PHOSPHOROS_DESIGN.md](docs/PHOSPHOROS_DESIGN.md):
+Per the Ultra-Razor direction 
 
 - **No application-class architectures** as deployment targets. cortex-a, aarch64 server, x86_64 server, RV64GC application class — all out. The five supported arches (x86_64 dev, cortex_m33, cortex_m0plus, riscv_rv32imc, esp32_c3) are a closed set per [docs/language/hardware_features.toml](docs/language/hardware_features.toml).
 - **No virtual memory / MMU** in the kernel/runtime. MPU/PMP/SAU is the protection surface.
