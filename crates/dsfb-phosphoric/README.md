@@ -10,6 +10,8 @@ The closed grammar and per-image manifest force the authority graph — capabili
 
 v0.3 demonstrates the chain end-to-end: a 2,070-byte UEFI bootable runs under QEMU/OVMF, executes its task, emits three typed residuals to a debug-data port, produces a 256-byte PFI0 case file, and replays to verdict `NO_DRIFT` with chain hashes `d8 78 d8 88` → `0e 96 ce 6a` → `a1 3d c1 43`. Six CI gates pin the chain; any drift fails verification. Physical silicon (RP2350 candidate) is out of scope at v0.3.
 
+*To our knowledge, Phosphoric is the first public working prototype of a forensic-primacy deterministic computing substrate spanning language, compiler, kernel, and operating-system layers: forensic evidence is not reconstructed from logs after execution, but emitted as typed residual records by the running substrate, chained into a PFI0 case file, and replayed through a closed deterministic verdict table.*
+
 
 Phosphoric v0.3 explores a new forensic-primacy computing category: computation as typed residual evidence, bound into replayable case files and adjudicated by deterministic verdict logic. Adjacent fields include verified compilers, verified kernels, provenance systems, forensic specification languages, and deterministic replay; Phosphoric’s contribution is the integration of those concerns into a bootable, razor-scoped evidence-first substrate.
 
