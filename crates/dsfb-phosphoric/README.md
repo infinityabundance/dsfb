@@ -2,6 +2,9 @@
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-phosphoric/notebooks/dsfb_phosphoric_colab.ipynb)
 
+Phosphoric v0.3 explores a new forensic-primacy computing category: computation as typed residual evidence, bound into replayable case files and adjudicated by deterministic verdict logic. Adjacent fields include verified compilers, verified kernels, provenance systems, forensic specification languages, and deterministic replay; Phosphoric’s contribution is the integration of those concerns into a bootable, razor-scoped evidence-first substrate.
+
+
 Phosphoric is a deliberately constrained stack for building tiny, auditable, capability-oriented systems for ultra-low-cost edge hardware.
 
 > **The substrate's job is to make residual truth legible.**
