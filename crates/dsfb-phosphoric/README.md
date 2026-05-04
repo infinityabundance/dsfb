@@ -1,6 +1,7 @@
 # Phosphoric
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-phosphoric/notebooks/dsfb_phosphoric_colab.ipynb)
+[![DSFB Gray Audit: 73.3%](https://img.shields.io/badge/DSFB%20Gray%20Audit-73.3%25-green)](audit/dsfb-gray-2026-05-03T23-48-09Z/DSFB_PHOSPHORIC_GRAY_AUDIT_REPORT.md)
 
 Phosphoric v0.3 explores a new forensic-primacy computing category: computation as typed residual evidence, bound into replayable case files and adjudicated by deterministic verdict logic. Adjacent fields include verified compilers, verified kernels, provenance systems, forensic specification languages, and deterministic replay; Phosphoric’s contribution is the integration of those concerns into a bootable, razor-scoped evidence-first substrate.
 
@@ -106,6 +107,21 @@ build/release/SHA256SUMS
 If QEMU reports a temporary file failure under read-only `/var/tmp`, see
 [docs/QEMU_VVFAT_TMPDIR.md](docs/QEMU_VVFAT_TMPDIR.md). The active DSFB runner
 uses a build-local FAT image and avoids QEMU `fat:rw:` vvfat mode.
+
+## Audit Reports
+
+The current DSFB Gray static audit artifacts are in
+[audit/dsfb-gray-2026-05-03T23-48-09Z/](audit/dsfb-gray-2026-05-03T23-48-09Z/).
+
+- [DSFB_PHOSPHORIC_GRAY_AUDIT_REPORT.md](audit/dsfb-gray-2026-05-03T23-48-09Z/DSFB_PHOSPHORIC_GRAY_AUDIT_REPORT.md) — human-readable audit summary
+- [dsfb_phosphoric_scan.txt](audit/dsfb-gray-2026-05-03T23-48-09Z/dsfb_phosphoric_scan.txt) — raw `dsfb-gray` text report
+- [dsfb_phosphoric_scan.sarif.json](audit/dsfb-gray-2026-05-03T23-48-09Z/dsfb_phosphoric_scan.sarif.json), [dsfb_phosphoric_scan.intoto.json](audit/dsfb-gray-2026-05-03T23-48-09Z/dsfb_phosphoric_scan.intoto.json), and [dsfb_phosphoric_scan.dsse.json](audit/dsfb-gray-2026-05-03T23-48-09Z/dsfb_phosphoric_scan.dsse.json) — machine-readable audit outputs
+
+The badge score is an advisory source-visible review-readiness score from
+`dsfb-gray`, not a certification result, runtime correctness proof, or universal
+reproducibility claim. This scan reported `0` Rust source files scanned and
+`26399` artifact files inspected, so function-level Rust checks should be read
+as scanner coverage limits for this artifact-heavy package.
 
 ## Documentation
 
