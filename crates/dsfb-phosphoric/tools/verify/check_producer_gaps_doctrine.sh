@@ -48,11 +48,6 @@ if [ ! -r "$registry" ]; then
     exit 1
 fi
 
-if [ ! -x "$producer" ]; then
-    echo "[producer-gaps] producer not built; building..."
-    bash untracked/internaldocs/phase0_producer/build.sh >/dev/null
-fi
-
 # -------------------------------------------------------------------
 # Parse: per [[gap]] block, collect the four required fields.
 # Output one record per gap, '|' separated:
@@ -103,6 +98,11 @@ gap_marker_count="$(grep -c '^\[\[gap\]\]' "$registry" || true)"
 if [ -z "$parsed" ] && [ "${gap_marker_count:-0}" -gt 0 ]; then
     echo "[producer-gaps] FAIL: registry has $gap_marker_count [[gap]] markers but parsed zero entries — schema drift" >&2
     exit 1
+fi
+
+if [ -n "$parsed" ] && [ ! -x "$producer" ]; then
+    echo "[producer-gaps] producer not built; building..."
+    bash untracked/internaldocs/phase0_producer/build.sh >/dev/null
 fi
 
 echo "============================================================"

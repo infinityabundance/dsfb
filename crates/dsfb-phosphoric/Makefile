@@ -50,8 +50,12 @@ verify-pnp-boot:
 # v0.2 marker 3: pcc-stage2.bin (= pcc-stage1.bin compiler/pcc2.phos) encodes
 # the 23 demo constants byte-for-byte in its Pass T helpers + entry IMM.
 verify-pcc-stage2-encodes-demo:
-	@build/phase0/pcc-stage1.bin compiler/pcc2.phos build/phase0/pcc-stage2.bin >/dev/null
-	@tools/verify/check_pcc_stage2_encodes_demo.sh
+	@if [ -x build/phase0/pcc-stage1.bin ] && [ -x untracked/internaldocs/phase0_producer/phase0_stub ]; then \
+		build/phase0/pcc-stage1.bin compiler/pcc2.phos build/phase0/pcc-stage2.bin >/dev/null; \
+		tools/verify/check_pcc_stage2_encodes_demo.sh; \
+	else \
+		echo "[scaffold] pcc-stage2 encode cross-check requires build/phase0 and out-of-tree phase0_stub; skipped in public source-only verify"; \
+	fi
 
 manufacture-pnp-boot-historical:
 	@bash tools/phosphoric/boot_pnp/manufacture.sh
@@ -64,7 +68,11 @@ verify-pnp-dsfb:
 	@tools/verify/check_pnp_dsfb_producer.sh
 
 verify-pcc-stage2-compiles-dsfb-demo:
-	@tools/verify/check_pcc_stage2_compiles_dsfb_demo.sh
+	@if [ -x build/phase0/pcc-stage2.bin ] && [ -x untracked/internaldocs/phase0_producer/phase0_stub ]; then \
+		tools/verify/check_pcc_stage2_compiles_dsfb_demo.sh; \
+	else \
+		echo "[scaffold] pcc-stage2 DSFB real-compile cross-check requires build/phase0 and out-of-tree phase0_stub; skipped in public source-only verify"; \
+	fi
 
 verify-dsfb-pe:
 	@bash tools/phosphoric/write_dsfb_efi.sh >/dev/null
