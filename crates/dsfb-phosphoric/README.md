@@ -276,6 +276,14 @@ README.md              — this file
 Makefile               — verification targets
 ```
 
+## Citation
+
+If you use this crate or reference its companion paper, please cite:
+
+> **de Beer, R.** (2026). *DSFB-Phosphoric Structural Semiotics Engine for Deterministic Forensic Computing: A DSFB-Native Execution Substrate for Typed Residual Emission at Compile-Time-Checked Authority Boundaries in Single-Purpose Edge Devices* (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.20024283]
+
+
+
 ## License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
