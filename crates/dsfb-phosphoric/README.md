@@ -4,6 +4,11 @@
 [![DSFB Gray Audit: 73.3%](https://img.shields.io/badge/DSFB%20Gray%20Audit-73.3%25-green)](audit/dsfb-gray-2026-05-03T23-48-09Z/DSFB_PHOSPHORIC_GRAY_AUDIT_REPORT.md)
 
 
+**Try it now (no install required) Click the Open in Colab badge above**
+- 1. Open the Colab notebook
+- 2. Click Runtime > Run all
+- 3. Watch the 7-phase evidence path execute in ~2 minutes
+
 **Phosphoric** is a from-scratch systems stack for single-task edge devices. No Rust, no LLVM, no external linker, no libc, no POSIX surface — everything below the application is in-tree. The stack is four pieces. **Phosphoric** is the language: a closed v0 grammar with affine capabilities, fixed-capacity collections, a six-element runtime effect alphabet, and per-function effect declarations. `no_std`, `no_alloc`, `no_unsafe`, no FFI. **pcc** is the self-hosted compiler: parses Phosphoric source and emits PE/COFF EFI directly, no assembler, no linker, no third-party codegen. The bootstrap reduces to a small ASM stub whose hash is pinned and whose source-to-ASM correspondence is byte-equal verified. **Ember** is the trusted nucleus — ~330 LOC on x86_64, per-arch ceilings 100–800 — owning CPU primitives, MMIO, and port I/O behind line-audited `trusted!` blocks. **PhosphorOS** is the kernel above Ember: fixed-capacity tables (64 tasks, 128 channels, 256 capability slots), generation-tagged handles, cooperative scheduling, one manifest-sealed task per device.
 
 ![DSFB v0.3 QEMU demo running](assets/dsfb-demo-running.gif)
