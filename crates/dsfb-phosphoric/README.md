@@ -6,6 +6,8 @@
 
 **Phosphoric** is a from-scratch systems stack for single-task edge devices. No Rust, no LLVM, no external linker, no libc, no POSIX surface — everything below the application is in-tree. The stack is four pieces. **Phosphoric** is the language: a closed v0 grammar with affine capabilities, fixed-capacity collections, a six-element runtime effect alphabet, and per-function effect declarations. `no_std`, `no_alloc`, `no_unsafe`, no FFI. **pcc** is the self-hosted compiler: parses Phosphoric source and emits PE/COFF EFI directly, no assembler, no linker, no third-party codegen. The bootstrap reduces to a small ASM stub whose hash is pinned and whose source-to-ASM correspondence is byte-equal verified. **Ember** is the trusted nucleus — ~330 LOC on x86_64, per-arch ceilings 100–800 — owning CPU primitives, MMIO, and port I/O behind line-audited `trusted!` blocks. **PhosphorOS** is the kernel above Ember: fixed-capacity tables (64 tasks, 128 channels, 256 capability slots), generation-tagged handles, cooperative scheduling, one manifest-sealed task per device.
 
+![DSFB v0.3 QEMU demo running](assets/dsfb-demo-running.gif)
+
 The closed grammar and per-image manifest force the authority graph — capabilities, IPC channels, MMIO ranges, effects, budgets — to be enumerated at build time, hashed into a `.pmanifest` certificate bundle, and cross-checked at boot and at every runtime authority transition. The kernel emits seven typed residual record kinds at those transitions; a chain-hash mixer folds each event into a deterministic stream that an off-device court re-derives independently.
 
 v0.3 demonstrates the chain end-to-end: a 2,070-byte UEFI bootable runs under QEMU/OVMF, executes its task, emits three typed residuals to a debug-data port, produces a 256-byte PFI0 case file, and replays to verdict `NO_DRIFT` with chain hashes `d8 78 d8 88` → `0e 96 ce 6a` → `a1 3d c1 43`. Six CI gates pin the chain; any drift fails verification. Physical silicon (RP2350 candidate) is out of scope at v0.3.
@@ -25,6 +27,8 @@ The project is split into three layers:
 - **Ember** — the minimal trusted machine nucleus. Owns boot, traps, page tables, context switch, and the small set of hardware-dangerous operations. Every privileged operation is justified at line precision.
 - **Phosphoric** — the language surface above Ember. `no_std`, `no_alloc`, `no_unsafe`, with affine capabilities, fixed-capacity collections, and explicit declared effects on every function.
 - **PhosphorOS** — the operating system layer built on Ember and Phosphoric. Fixed-capacity tables, message-passing IPC, capability-based authority, single-window GUI demo today.
+
+![DSFB v0.3 QEMU demo evidence path](assets/dsfb-demo-screenshot.png)
 
 ## Goal
 
