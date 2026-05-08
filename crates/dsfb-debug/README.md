@@ -10,6 +10,22 @@ human-readable debugging episodes.
 
 *Invariant Forge LLC — Riaan de Beer — ORCID: 0009-0006-1155-027X*
 
+## Citation
+
+If you use DSFB-Debug, cite the Zenodo software record:
+
+> de Beer, R. (2026). *DSFB-Debug Structural Detector-Field Residual
+> Semiotics Engine for Software Debugging: A Deterministic Augmentation
+> Layer for Typed Residual Interpretation of Execution Traces, Log
+> Streams, and Observability Telemetry in Production Software Systems*
+> (v1.0). Zenodo. https://doi.org/10.5281/zenodo.20088863
+
+Zenodo record: <https://zenodo.org/records/20088863>
+
+Paper Version 1.0 and internal Phase labels are research-publication
+identifiers; crate semver remains 0.1.0 until crates.io release
+stabilization.
+
 ## What It Does
 
 - Reads residuals from existing observability tools (OpenTelemetry,
@@ -38,8 +54,10 @@ human-readable debugging episodes.
   methods. The framing is augmentation, not competition.
 - Does NOT modify upstream data (compile-time enforced via
   `&[T]`-only public surface).
-- Does NOT use heap allocation, unsafe code, unwrap, or any runtime
-  Cargo dependency in the no_std core.
+- The no_std operational core is zero-runtime-dependency,
+  `#![forbid(unsafe_code)]`, and avoids unwrap/panic paths in public core
+  evaluation APIs. std/demo/test/audit paths are separated from the no_std
+  core.
 
 ## Crate Properties
 
@@ -47,7 +65,7 @@ human-readable debugging episodes.
 |---|---|
 | `#![no_std]` | No standard library dependency |
 | `#![forbid(unsafe_code)]` | Zero unsafe blocks |
-| `#![deny(clippy::unwrap_used)]` | No panic paths |
+| `#![deny(clippy::unwrap_used)]` | Core APIs avoid unwrap paths; std/demo/test/audit paths are separated |
 | Zero runtime deps | Hand-rolled SHA-256, DFT, matrix algebra |
 | Observer-only | All APIs accept `&[T]` only |
 | Deterministic | Theorem 9: identical inputs → identical outputs |

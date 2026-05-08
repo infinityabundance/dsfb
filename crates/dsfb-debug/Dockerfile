@@ -1,4 +1,4 @@
-# DSFB-Debug — reviewer reproducibility container (Phase η.8, Session 18).
+# DSFB-Debug — reviewer reproducibility container.
 #
 # One-command boot of the entire DSFB-Debug verification chain on a
 # clean machine. From a fresh checkout:
@@ -6,35 +6,34 @@
 #     docker build -t dsfb-debug:reviewer .
 #     docker run --rm dsfb-debug:reviewer
 #
-# Default CMD runs `cargo test --features "std paper-lock" -- --nocapture`
-# which fires every per-fixture eval test, the LO-CV harness, the
-# sensitivity sweep, the axis ablation, the detector subset opt, the
-# timing benchmark, and the property-test suite end-to-end.
+# Default CMD runs `bash scripts/reproduce_all.sh`, the same full
+# reproduction path documented for local reviewer runs.
 #
 # Pinned to rust:1.75-bookworm to match the rust-toolchain.toml MSRV.
 # No Cargo runtime dependencies in the no_std core; the demo feature
 # adds plotters + zip; both vendored via cargo's own resolution.
 #
-# Theorem 9 deterministic replay verified inside every test invoked
-# by the default CMD; reproducibility is byte-identical across
-# reviewer machines that match the rust:1.75-bookworm digest.
+# With fixed source, Cargo.lock, feature flags, vendored fixture bytes,
+# and the Rust 1.75 container, the verification path is intended to
+# reproduce the published audit ledgers from `docs/audit/`.
 
 FROM rust:1.75-bookworm
 
 WORKDIR /work/dsfb-debug
 
-# Bring source tree in. .dockerignore should exclude target/ +
-# build artefacts; reviewers running `docker build` get a clean
+# Bring source tree in. .dockerignore excludes target/, local papers,
+# generated demo outputs, upstream archives, and other build artefacts;
+# reviewers running `docker build` get a clean
 # build from source.
 COPY . .
 
-# Pre-fetch dependencies + build the crate so first `docker run`
-# is snappy. Build with full features so the LO-CV harness +
-# audit modules are wired.
-RUN cargo build --features "std paper-lock"
+# Pre-fetch dependencies and compile test binaries under the checked-in
+# lockfile. This catches dependency drift during image build while
+# keeping the full, stdout-producing run in the default CMD.
+RUN cargo build --locked --no-default-features \
+    && cargo test --locked --features "std paper-lock" --no-run
 
 # Default verification chain. Re-runs every fixture eval + LO-CV
-# + sensitivity + ablation + subset opt + timing + property tests.
-# Output is the verbatim test stdout reviewers should match against
-# the published audit ledgers in docs/audit/.
-CMD ["cargo", "test", "--features", "std paper-lock", "--", "--nocapture"]
+# + sensitivity + ablation + subset opt + timing + property tests via
+# the canonical local reproducer script.
+CMD ["bash", "scripts/reproduce_all.sh"]

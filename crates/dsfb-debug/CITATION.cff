@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use DSFB-Debug, please cite the Zenodo software record."
+title: "DSFB-Debug Structural Detector-Field Residual Semiotics Engine for Software Debugging: A Deterministic Augmentation Layer for Typed Residual Interpretation of Execution Traces, Log Streams, and Observability Telemetry in Production Software Systems"
+version: "1.0"
+doi: 10.5281/zenodo.20088863
+url: "https://zenodo.org/records/20088863"
+repository-code: "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-debug"
+license: Apache-2.0
+authors:
+  - family-names: "de Beer"
+    given-names: "Riaan"
+    orcid: "https://orcid.org/0009-0006-1155-027X"
+preferred-citation:
+  type: software
+  authors:
+    - family-names: "de Beer"
+      given-names: "Riaan"
+      orcid: "https://orcid.org/0009-0006-1155-027X"
+  title: "DSFB-Debug Structural Detector-Field Residual Semiotics Engine for Software Debugging: A Deterministic Augmentation Layer for Typed Residual Interpretation of Execution Traces, Log Streams, and Observability Telemetry in Production Software Systems"
+  version: "1.0"
+  doi: 10.5281/zenodo.20088863
+  url: "https://zenodo.org/records/20088863"
+  year: 2026

@@ -14,6 +14,32 @@ repository = "https://github.com/infinityabundance/dsfb"
 keywords = ["debugging", "observability", "deterministic", "semiotics", "tracing"]
 categories = ["no-std", "science", "algorithms"]
 rust-version = "1.75.0"
+exclude = [
+    "paper/**",
+    "output-dsfb-debug/**",
+    "data/upstream/**",
+    "target/**",
+    "target-local/**",
+    "artifacts/**",
+    "build/**",
+    "*.zip",
+    "**/*.zip",
+    "*.tar.gz",
+    "**/*.tar.gz",
+    "*.log",
+    "**/*.log",
+    "*.aux",
+    "**/*.aux",
+    "*.out",
+    "**/*.out",
+    "*.toc",
+    "**/*.toc",
+    "*.synctex.gz",
+    "**/*.synctex.gz",
+    "**/__pycache__/**",
+    "*.pyc",
+    "**/*.pyc",
+]
 
 [features]
 default = []

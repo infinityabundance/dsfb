@@ -1,6 +1,8 @@
 target/
 target-local/
 artifacts/
+paper/
+output-dsfb-debug/
 data/upstream/
 *.zip
 *.tar.gz
