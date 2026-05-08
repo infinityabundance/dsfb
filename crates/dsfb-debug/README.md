@@ -4,6 +4,10 @@
 
 **DSFB-Debug — Structural Semiotics Engine for Software Debugging**
 
+**Try it now (no install required) Click the Open in Colab badge above**
+- Open the Colab notebook
+- Click ► Run all
+
 A deterministic, read-only, observer-only augmentation layer that turns
 the residuals every observability stack already discards into typed,
 human-readable debugging episodes.
