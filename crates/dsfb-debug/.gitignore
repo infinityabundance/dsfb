@@ -1,0 +1,21 @@
+# Build artefacts (also covered by parent .gitignore but listed for
+# standalone-workspace clarity).
+target/
+Cargo.lock.bak
+
+# Upstream archives — these are large and DOI-pinned externally; we
+# store SHA-256 manifests in `data/MANIFEST.toml` and the projected
+# slices in `data/fixtures/`. The raw upstream archives stay local.
+data/upstream/
+
+# Paper source and build artefacts stay local unless explicitly requested.
+paper/
+
+# Generated demo/report bundles.
+output-dsfb-debug/
+
+# Misc local-only.
+*.swp
+.DS_Store
+*.zip
+*.tar.gz

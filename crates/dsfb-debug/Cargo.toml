@@ -1,0 +1,55 @@
+[package]
+name = "dsfb-debug"
+version = "0.1.0"
+edition = "2021"
+authors = ["Riaan de Beer <riaan@invariantforge.net>"]
+license = "Apache-2.0"
+description = """
+DSFB-Debug — Structural Semiotics Engine for Software Debugging.
+A deterministic, read-only, observer-only augmentation layer for
+execution-trace residual interpretation. Does NOT replace existing
+observability tools — augments them with typed structural interpretation.
+"""
+repository = "https://github.com/infinityabundance/dsfb"
+keywords = ["debugging", "observability", "deterministic", "semiotics", "tracing"]
+categories = ["no-std", "science", "algorithms"]
+rust-version = "1.75.0"
+
+[features]
+default = []
+# paper-lock: gates the real-dataset evaluation API (`evaluate_real_dataset`).
+# Without this feature the std-only real-data path is physically absent from
+# the compiled artefact, preserving the no_std/no_alloc default build.
+paper-lock = ["std"]
+# std: enables the std-only adapter, hash-verification, and real-dataset entry
+# points. The no_std core (residual/sign/grammar/policy/episode pipeline)
+# remains identical regardless of this feature.
+std = []
+# demo: opt-in feature for the `dsfb-debug-demo` binary. Pulls in plotters /
+# printpdf / zip / chrono crates ONLY when this feature is requested. The
+# zero-dep no_std core is unaffected; default `cargo install` pulls nothing.
+# Reviewers reproducing the published figures use:
+#   cargo install --path . --features demo
+#   dsfb-debug-demo
+demo = ["std", "paper-lock", "dep:plotters", "dep:zip"]
+
+[dependencies]
+# Core crate has zero runtime dependencies — pure no_std, no_alloc.
+# SHA-256 and TSV parsing are hand-rolled in `src/adapters/`.
+# The optional dependencies below are gated behind the `demo` feature
+# and never enter the no_std/no_alloc core build.
+plotters = { version = "0.3", optional = true, default-features = false, features = ["bitmap_backend", "bitmap_encoder", "ttf", "all_series", "all_elements", "full_palette"] }
+zip = { version = "0.6", optional = true, default-features = false, features = ["deflate"] }
+
+[[bin]]
+name = "dsfb-debug-demo"
+path = "src/bin/dsfb_debug_demo.rs"
+required-features = ["demo"]
+
+[dev-dependencies]
+
+# Detached from the parent workspace at /home/one/dsfb/Cargo.toml so the
+# crate can be built / tested standalone after the folder rename. Remove
+# this block once the parent manifest's `workspace.members` is updated
+# to point at `crates/dsfb-debug`.
+[workspace]

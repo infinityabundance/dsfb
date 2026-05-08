@@ -1,0 +1,15 @@
+{
+  "_doc": "DeepTraLog dataset (Zhang et al., ICSE 2022). Combined log + trace data for normal and abnormal executions. Per-service residual projection includes log-frequency residuals alongside latency / error projections. Expected motif depends on the underlying fault scenario in each replay; window indices reference the per-fixture window axis.",
+  "schema_version": 1,
+  "license": "per-archive-verify",
+  "upstream_url": "https://github.com/FudanSELab/DeepTraLog",
+  "fault_cases": {
+    "_template_per_case": {
+      "fixture": "deeptralog",
+      "fault_window_ranges": [],
+      "expected_motif_class": "TBD",
+      "narrative": "Template entry; populate one block per replayed fault case when the upstream archive is extracted. Log-frequency residuals exercise SustainedOutwardDrift / RecurrentBoundaryGrazing branches in the heuristics bank.",
+      "_status": "schema-only until fixture is vendored"
+    }
+  }
+}

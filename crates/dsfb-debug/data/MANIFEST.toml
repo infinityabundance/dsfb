@@ -1,0 +1,202 @@
+# DSFB-Debug — Real-world dataset manifest.
+#
+# One block per vendored fixture. Every entry must have:
+#   upstream_doi              — canonical DOI of the upstream archive
+#   upstream_url              — human-verifiable URL (GitHub, Zenodo, Data Bank)
+#   upstream_archive_sha256   — SHA-256 of the entire upstream archive at extraction time
+#   fixture_path              — path of the in-tree extracted slice (relative to crate root)
+#   fixture_sha256            — SHA-256 of the in-tree slice (lowercase hex, 64 chars)
+#   fixture_provenance        — single-line description of which spans / windows / metrics were extracted
+#   upstream_license          — SPDX identifier of the upstream archive's licence
+#   fault_label_mapping       — path to the JSON describing fault-window mapping for this fixture
+#
+# `fixture_sha256` and `upstream_archive_sha256` are TBD until the fixture is
+# vendored from upstream. The `paper-lock` test harness hard-errors with
+# `MissingRealData` whenever a fixture file contains the
+# `# UPSTREAM_FIXTURE_NOT_VENDORED` sentinel, and with `HashMismatch`
+# whenever the in-tree slice's SHA-256 drifts from the manifest. Synthetic
+# fall-back is forbidden.
+#
+# Curation strategy (Phase I):
+#   - TADBench / TrainTicket: 22 industrial fault cases — vendor 2 to 3 slices
+#     (cascading-timeout, deployment-regression, connection-pool-exhaustion).
+#   - Illinois unsampled: 4 benchmark applications — vendor 1 slice from the
+#     SocialNetwork application as the unsampled drift/slew validator.
+# Phase II datasets (AIOps Challenge, LO2, MultiDimension-Localization,
+# DeepTraLog) are documented in docs/dataset_provenance.md but not vendored
+# in this manifest.
+
+manifest_version = 1
+authoring_policy = "real-data-only; never synthetic; paper-lock hard-errors on missing fixture"
+
+# ----- TADBench / TrainTicket fault-injection slices ---------------------
+
+[tadbench_trainticket_F04]
+upstream_doi              = "10.5281/zenodo.6979726"
+upstream_url              = "https://zenodo.org/records/6979726"
+upstream_archive_sha256   = "18456279cdcbc66b020bddd117a79ff453137fbc60f88cba81f2609fc1a74403"
+fixture_path              = "data/fixtures/tadbench_trainticket_F04.tsv"
+fixture_sha256            = "68d834cbc3084020e81e25645b0aac4e8cc63e1c953abad6a5ec3fccf88537fe"
+fixture_provenance        = "Real Jaeger spans from upstream fault directory ts-admin-basic-info-service-sprintstarterweb_1.5.22 (admin-service springstarter version-config regression). 25,316 spans projected to 30 windows × 12 signals (top-6 services × {latency_p50_ms, error_rate}); 15-second windows; first 12 windows healthy baseline."
+upstream_license          = "Apache-2.0"
+fault_label_mapping       = "data/fault_labels/tadbench.json"
+expected_motif_class      = "ConfigDriftRegression"
+
+[tadbench_trainticket_F11b]
+upstream_doi              = "10.5281/zenodo.6979726"
+upstream_url              = "https://zenodo.org/records/6979726"
+upstream_archive_sha256   = "18456279cdcbc66b020bddd117a79ff453137fbc60f88cba81f2609fc1a74403"
+fixture_path              = "data/fixtures/tadbench_trainticket_F11b.tsv"
+fixture_sha256            = "d029f0ed3b0af1bbf53070d54e323ebbcef20c33119673b2361301834f48a6d5"
+fixture_provenance        = "Real Jaeger spans from upstream fault directory ts-auth-mongo_5.0.9_2022-07-06 (distinct from F-11's order-service). 4-window × 6-signal residual matrix; 108 spans. Used in cross-fixture fusion validation alongside F-11."
+upstream_license          = "Apache-2.0"
+fault_label_mapping       = "data/fault_labels/tadbench.json"
+expected_motif_class      = "AuthenticationFailureSpike"
+
+[tadbench_trainticket_F11]
+upstream_doi              = "10.5281/zenodo.6979726"
+upstream_url              = "https://zenodo.org/records/6979726"
+upstream_archive_sha256   = "18456279cdcbc66b020bddd117a79ff453137fbc60f88cba81f2609fc1a74403"
+fixture_path              = "data/fixtures/tadbench_trainticket_F11.tsv"
+fixture_sha256            = "07c8f08558c00d62c48fa5833aef9ecaf7324968f2028ce244e4c8e5248512c3"
+fixture_provenance        = "TrainTicket-Anomaly version-configuration regression. Fault case ts-order-service_mongodb_4.2.2_2022-07-12 (8 services, 35,604 spans, 15-second windows). Top services by span count: ts-travel-service, ts-basic-service, ts-ticketinfo-service, ts-station-service, ts-seat-service, ts-route-service, ts-train-service, ts-order-service. 16 signals (latency_p50_ms + error_rate per service). 431 windows; first 172 used as healthy baseline. NaN-imputed in windows with zero spans for a given service. No fault-window labels claimed; engine reports structural episodes observed in steady-state regressed run."
+upstream_license          = "Apache-2.0"
+fault_label_mapping       = "data/fault_labels/tadbench.json"
+expected_motif_class      = "DeploymentRegressionSlew"
+
+[tadbench_trainticket_F19]
+upstream_doi              = "10.5281/zenodo.6979726"
+upstream_url              = "https://zenodo.org/records/6979726"
+upstream_archive_sha256   = "18456279cdcbc66b020bddd117a79ff453137fbc60f88cba81f2609fc1a74403"
+fixture_path              = "data/fixtures/tadbench_trainticket_F19.tsv"
+fixture_sha256            = "b1a599ab123b5989bb527a513fc0c07afea8e32143691ff94e78346ae5efbb16"
+fixture_provenance        = "Real Jaeger spans from upstream fault directory ts-order-service_3.0.4-mongodb-driver_2022-07-13 (distinct from F-11's mongodb 4.2.2). 19,281 spans; 30 windows × 12 signals; first 12 windows healthy baseline."
+upstream_license          = "Apache-2.0"
+fault_label_mapping       = "data/fault_labels/tadbench.json"
+expected_motif_class      = "ConfigDriftRegression"
+
+# ----- Illinois unsampled microservice traces ----------------------------
+
+[illinois_socialnetwork]
+upstream_doi              = "10.13012/B2IDB-6738796_V1"
+upstream_url              = "https://databank.illinois.edu/datasets/IDB-6738796"
+upstream_archive_sha256   = "partial-extract-pending-full-archive-fetch"
+fixture_path              = "data/fixtures/illinois_socialnetwork.tsv"
+fixture_sha256            = "c86b5abd1b412f69cccaab9b3e838da742c5ea8a1ba1b6dce634ff3407cc082c"
+fixture_provenance        = "DeathStarBench media-service compose-review unsampled trace slice. 6 trace components × 32 windows; 5,000 traces per window (160,000 total). 100% trace capture eliminates sampling-aliasing per panel directive."
+upstream_license          = "CC0-1.0"
+fault_label_mapping       = "data/fault_labels/illinois.json"
+expected_motif_class      = "DependencySlowdown"
+
+# ----- AIOps Challenge 2020/2021 (Tier B — tri-modal fusion) -------------
+
+[aiops_challenge]
+upstream_doi              = "Su2018:IPCCC:Bagel"
+upstream_url              = "https://github.com/NetManAIOps/Bagel"
+upstream_archive_sha256   = "git:NetManAIOps/Bagel:sample_data.csv"
+fixture_path              = "data/fixtures/aiops_challenge.tsv"
+fixture_sha256            = "29961b8b66d941c19c065cfa974a62f098ebd63ef8c9017d8219e9f228135642"
+fixture_provenance        = "AIOps Challenge 2018 KPI canonical sample (5-min cadence, real bytes from upstream Bagel sample_data.csv). Single-KPI series reshaped into 4 sub-segments × 32 windows for multivariate fusion; per-window labels carried from upstream."
+upstream_license          = "Apache-2.0"
+fault_label_mapping       = "data/fault_labels/aiops_challenge.json"
+expected_motif_class      = "EpisodicTransientSpike"
+
+# ----- LO2 (Tier B — endoductive mode validator) -------------------------
+#
+# Upstream archive ACQUIRED locally (lo2-sample.zip, 1021 MB,
+# SHA-256 2d9516fee44378b33b4db371f2bb16557f88feb07d830eeb47f27b229183a882).
+# Format: per-component metric CSVs (Prometheus-style, hundreds of columns)
+# plus per-fault-scenario log directories. Projection-to-TSV requires
+# deliberate metric selection (which Prometheus columns map to
+# residual-projection signals) and is deferred to a follow-up session.
+# fixture_sha256 stays sentinel until projection completes.
+
+[lo2]
+upstream_doi              = "10.5281/zenodo.14257989"
+upstream_url              = "https://zenodo.org/records/14257989"
+upstream_archive_sha256   = "2d9516fee44378b33b4db371f2bb16557f88feb07d830eeb47f27b229183a882"
+fixture_path              = "data/fixtures/lo2.tsv"
+fixture_sha256            = "d49d3d078d8e5f9ef30ff6c198ee28e298e6c012e9aef47c06c0751fe73df9ab"
+fixture_provenance        = "LO2 light-oauth2 first-CSV first-16-rows Go-runtime metrics slice. Selected Prometheus columns: go_gc_duration_seconds_sum, go_goroutines, go_memstats_heap_alloc_bytes, go_memstats_alloc_bytes_total, go_memstats_heap_inuse_bytes, go_memstats_stack_inuse_bytes. Endoductive-mode validator: bank intentionally has no LO2-specific motifs."
+upstream_license          = "as-distributed-by-LO2-PROMISE-2025"
+fault_label_mapping       = "data/fault_labels/lo2.json"
+expected_motif_class      = "Unknown"
+
+# ----- MultiDimension-Localization (Tier C — high-dim service graph) -----
+#
+# Upstream archive ACQUIRED via git clone of NetManAIOps/MultiDimension-Localization
+# (1.3 GB; commit d3159c50d8b8d7590c982e13708eeb7df2f8e109).
+# Format: 5-dimensional cell measurements (i, e, c, p, l, value) with
+# 26,830 rows per CSV across 10 part archives × ~860 windows each.
+# Projection-to-TSV requires dimension-aggregation strategy beyond
+# residual-projection-v1 schema; deferred to a follow-up session.
+
+[multidim_localization]
+upstream_doi              = "NetManAIOps:MultiDimension-Localization"
+upstream_url              = "https://github.com/NetManAIOps/MultiDimension-Localization"
+upstream_archive_sha256   = "git:NetManAIOps/MultiDimension-Localization:part1.zip"
+fixture_path              = "data/fixtures/multidim_localization.tsv"
+fixture_sha256            = "c714c85cf45bc462ffcf162b8877b15af70f85a3799079861a64f442152ed967"
+fixture_provenance        = "Real upstream 5-dim categorical CSVs (i,e,c,p,l,value) projected by data/upstream/project_multidim.py. 12 windows × 4 signals (per-window mean over levels l1..l4)."
+upstream_license          = "as-distributed-by-NetManAIOps"
+fault_label_mapping       = "data/fault_labels/multidim_localization.json"
+expected_motif_class      = "HighDimAnomalyCluster"
+
+# ----- DeepTraLog (Tier C — log + trace fusion) --------------------------
+#
+# Upstream archive ACQUIRED via git clone of FudanSELab/DeepTraLog
+# (1.8 GB; commit 04376dcb99d4b0fd0c50850255c2c4f9ec9503c1). Format:
+# GraphData/, model/, results/, TraceLogData/. The TraceLogData
+# subdirectory contains the combined log+trace stream; projection-to-TSV
+# requires temporal alignment of log records with trace spans, deferred
+# to a follow-up session.
+
+[deeptralog]
+upstream_doi              = "Zhang2022:ICSE:DeepTraLog"
+upstream_url              = "https://github.com/FudanSELab/DeepTraLog"
+upstream_archive_sha256   = "git:FudanSELab/DeepTraLog:F01.zip"
+fixture_path              = "data/fixtures/deeptralog.tsv"
+fixture_sha256            = "59e4ddce40dbcf88735d2ed904a8ba001a7cc1cc5c033ef976241a497f9607e2"
+fixture_provenance        = "DeepTraLog F-01-01 ERROR span-data slice (real CSV bytes from upstream F01.zip member). 600 spans aggregated to 16 windows × 8 signals (4 services × {latency_p50_ms, error_rate}); 30-second windows; first 6 windows healthy baseline."
+upstream_license          = "as-distributed-by-FudanSELab/DeepTraLog"
+fault_label_mapping       = "data/fault_labels/deeptralog.json"
+expected_motif_class      = "LogTraceTemporalDecorrelation"
+
+# ----- Phase G: code-debugging datasets (literature-canonical) -----------
+#
+# Three additional datasets to broaden the empirical surface from
+# microservice-trace data to code-defect time series. All real bytes from
+# upstream public repositories; all deterministic projections.
+
+[defects4j]
+upstream_doi              = "Just2014:ISSTA:Defects4J"
+upstream_url              = "https://github.com/rjust/defects4j"
+upstream_archive_sha256   = "git:rjust/defects4j:framework/projects"
+fixture_path              = "data/fixtures/defects4j.tsv"
+fixture_sha256            = "528fc6e8bc3d16e8ea68ca4a267e448dcf490c200f0d5fe76c9b13bf890f9537"
+fixture_provenance        = "Defects4J six-project (Lang/Math/Closure/Mockito/JacksonDatabind/Jsoup) first-30-bug catalog projection. Window=bug.id 1..30; signal=Apache JIRA report numerical id."
+upstream_license          = "MIT"
+fault_label_mapping       = ""
+expected_motif_class      = "Unknown"
+
+[bugsinpy]
+upstream_doi              = "Widyasari2020:ESEC/FSE:BugsInPy"
+upstream_url              = "https://github.com/soarsmu/BugsInPy"
+upstream_archive_sha256   = "git:soarsmu/BugsInPy"
+fixture_path              = "data/fixtures/bugsinpy.tsv"
+fixture_sha256            = "a30d51b27603bb0412976a618596e0a31a20eab8bb21ce496e72f6553ec86940"
+fixture_provenance        = "BugsInPy six-project (ansible/pandas/keras/fastapi/scrapy/tornado) first-30-bug catalog projection. Window=bug.id 1..30; signal=project buggy_commit_id SHA-1 prefix decoded to 28-bit int."
+upstream_license          = "MIT"
+fault_label_mapping       = ""
+expected_motif_class      = "Unknown"
+
+[promise_defect_prediction]
+upstream_doi              = "Menzies2003:PROMISE"
+upstream_url              = "https://github.com/ssea-lab/PROMISE"
+upstream_archive_sha256   = "git:ssea-lab/PROMISE"
+fixture_path              = "data/fixtures/promise_defect_prediction.tsv"
+fixture_sha256            = "8ba403ba0b403a0813eee983b19122762d9695bdaf78873e5dfb881e1bf970df"
+fixture_provenance        = "PROMISE six-CSV (1.csv, 5.csv, 10.csv, 15.csv, 20.csv, 25.csv) first-30-module defect-count slice. Window=module index 1..30; signal=PROMISE CSV (one Java OSS project version)."
+upstream_license          = "as-distributed-by-ssea-lab/PROMISE-mirror"
+fault_label_mapping       = ""
+expected_motif_class      = "Unknown"

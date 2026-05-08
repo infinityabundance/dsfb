@@ -1,0 +1,50 @@
+# residual-projection v2
+# upstream_doi=10.5281/zenodo.6979726
+# upstream_url=https://zenodo.org/records/6979726
+# upstream_archive=trainticket_anomaly.zip
+# upstream_archive_sha256=18456279cdcbc66b020bddd117a79ff453137fbc60f88cba81f2609fc1a74403
+# upstream_archive_size_bytes=153186506
+# fault_case=ts-order-service_3.0.4-mongodb-driver_2022-07-13 (order-service mongodb-driver-3.0.4 version-config regression)
+# extraction_recipe=see crates/dsfb-debug/data/README.md
+# extracted_at=2026-05-06T18:31:20.352344Z
+# license=Apache-2.0
+# num_windows=30
+# num_signals=12
+# healthy_window_end=12
+# fault_labels=
+# window_width_us=15000000
+# top_services=ts-basic-service,ts-travel-service,ts-ticketinfo-service,ts-station-service,ts-seat-service,ts-travel2-service
+# channels=ts-basic-service_latency_p50_ms,ts-basic-service_error_rate,ts-travel-service_latency_p50_ms,ts-travel-service_error_rate,ts-ticketinfo-service_latency_p50_ms,ts-ticketinfo-service_error_rate,ts-station-service_latency_p50_ms,ts-station-service_error_rate,ts-seat-service_latency_p50_ms,ts-seat-service_error_rate,ts-travel2-service_latency_p50_ms,ts-travel2-service_error_rate
+# total_spans_projected=19281
+# notes=Steady-state regressed-config run; engine reports
+#       structural episodes; fault-recall not applicable.
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	65700.602000	0.500000	26500.314000	0.000000	nan	nan	nan	nan	nan	nan
+10009.235000	0.000000	nan	nan	18700.545000	0.000000	5506.846000	0.000000	nan	nan	nan	nan
+198.334000	0.000000	1194.960000	0.092784	405.702000	0.000000	99.076000	0.000000	nan	nan	35908.408500	0.000000
+285.482000	0.000000	789.515000	0.000000	947.887000	0.000000	101.261000	0.000000	nan	nan	445.105500	0.000000
+294.302000	0.000000	12626.285500	0.000000	nan	nan	203.388000	0.000000	nan	nan	11046.383500	0.000000
+209.633000	0.000000	696.633500	0.000000	358.566000	0.000000	102.188000	0.000000	1898.858000	0.000000	452.152500	0.000000
+107.420000	0.000000	504.275000	0.000000	398.873500	0.000000	91.486000	0.000000	504.837000	0.000000	296.629000	0.000000
+nan	nan	403.227000	0.000000	nan	nan	nan	nan	nan	nan	398.353000	0.000000
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+43.082000	0.000000	320.443500	0.000000	158.141000	0.000000	11.904500	0.000000	nan	nan	604.201000	0.000000
+102.519500	0.000000	293.655500	0.000000	278.943000	0.000000	14.468000	0.000000	194.604500	0.000000	193.313000	0.000000
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+90.990000	0.000000	195.057500	0.000000	118.757500	0.000000	10.922500	0.000000	345.718000	0.000000	168.044000	0.000000
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+81.191500	0.000000	190.104000	0.000000	161.617500	0.000000	58.453000	0.000000	178.022000	0.000000	nan	nan
+108.588000	0.000000	183.495000	0.000000	378.610500	0.000000	57.417500	0.000000	197.199500	0.000000	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan

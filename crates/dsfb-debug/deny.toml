@@ -1,0 +1,54 @@
+# DSFB-Debug — cargo-deny configuration.
+#
+# Enforces the crate's licence and supply-chain claims:
+#   - Apache-2.0 only; reject GPL/LGPL/AGPL contamination.
+#   - Zero direct dependencies (verified by Cargo.toml + manual review).
+#   - Zero transitive dependencies under default features (no_std + no_alloc).
+#   - The std-only adapters add zero deps either (SHA-256 + TSV are
+#     hand-rolled in src/adapters/).
+#
+# Usage:
+#   cargo deny --manifest-path crates/dsfb-debug/Cargo.toml check
+#
+# This file is consumed by cargo-deny (https://github.com/EmbarkStudios/cargo-deny).
+
+[graph]
+# Targets we care about. Empty list = all-targets, which is fine here
+# because the crate is no_std and the adapter is pure-Rust std.
+targets = []
+
+[advisories]
+version = 2
+yanked = "deny"
+ignore = []
+
+[licenses]
+version = 2
+# Apache-2.0 only at the crate level. The crate's own licence declaration
+# (Cargo.toml) and any future dev-dep licences must fall in this allow-list.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Unicode-DFS-2016",
+    "ISC",
+]
+# Reject copyleft and source-availability licences that would block
+# defence supply-chain or commercial deployment.
+confidence-threshold = 0.93
+
+[bans]
+# Reject any direct/transitive dependency unless explicitly allow-listed.
+# Today the allow-list is empty by design — the crate has zero deps.
+multiple-versions = "warn"
+wildcards = "deny"
+allow = []
+deny = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

@@ -1,0 +1,29 @@
+{
+  "_doc": "TADBench / TrainTicket fault-label mapping. Each block below corresponds to one fault case from the FudanSELab/train-ticket fault-injection suite. The window indices reference the per-fixture window axis. expected_motif_class names a MotifClass variant from src/types.rs that the heuristics bank should match for the fault. Provenance for each fault range comes from the upstream fault-injection log; populate per the extraction recipe in data/README.md.",
+  "schema_version": 1,
+  "license": "Apache-2.0",
+  "upstream_doi": "10.5281/zenodo.6979726",
+  "fault_cases": {
+    "F-04_cascading_timeout": {
+      "fixture": "tadbench_trainticket_F04",
+      "fault_window_ranges": [],
+      "expected_motif_class": "CascadingTimeoutSlew",
+      "narrative": "Step-change latency propagating across an upstream dependency chain; affects ts-order-service, ts-travel-service, ts-station-service in succession. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    },
+    "F-11_deployment_regression": {
+      "fixture": "tadbench_trainticket_F11",
+      "fault_window_ranges": [],
+      "expected_motif_class": "DeploymentRegressionSlew",
+      "narrative": "Abrupt baseline shift coinciding with a redeployment of ts-payment-service; structural step function in latency baseline. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    },
+    "F-19_connection_pool_exhaustion": {
+      "fixture": "tadbench_trainticket_F19",
+      "fault_window_ranges": [],
+      "expected_motif_class": "ConnectionPoolExhaustionDrift",
+      "narrative": "Slow positive drift in queue depth + latency for ts-config-service; sustained outward drift before envelope exit. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    }
+  }
+}

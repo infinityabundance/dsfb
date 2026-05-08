@@ -1,0 +1,37 @@
+# residual-projection v2
+# upstream_doi=DeepTraLog (Zhang et al., ICSE 2022)
+# upstream_url=https://github.com/FudanSELab/DeepTraLog
+# upstream_archive=F01.zip
+# upstream_archive_path=data/upstream/deeptralog/TraceLogData/F01.zip
+# fault_case=DeepTraLog F-01 (F01-01 ERROR span-data slice)
+# extraction_recipe=see crates/dsfb-debug/data/README.md
+# extracted_at=2026-05-06T18:33:48.186148Z
+# license=as-distributed-by-FudanSELab/DeepTraLog
+# num_windows=16
+# num_signals=8
+# healthy_window_end=6
+# fault_labels=
+# window_width_ms=30000
+# top_services=ts-cancel-service,ts-order-service,ts-inside-payment-service,ts-user-service
+# channels=ts-cancel-service_latency_p50_ms,ts-cancel-service_error_rate,ts-order-service_latency_p50_ms,ts-order-service_error_rate,ts-inside-payment-service_latency_p50_ms,ts-inside-payment-service_error_rate,ts-user-service_latency_p50_ms,ts-user-service_error_rate
+# total_spans_projected=600
+# notes=Combined log+trace fault case; engine reports
+#       structural episodes; fault-recall not applicable
+#       (DeepTraLog upstream label format is per-trace, not
+#       per-fixed-window).
+7.500000	0.000000	1.000000	0.000000	1.000000	0.000000	2.000000	0.000000
+21.000000	0.000000	1.000000	0.000000	1.000000	0.000000	1.500000	0.000000
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan
+9.000000	0.000000	1.000000	0.000000	1.000000	0.000000	2.000000	0.000000
+8.000000	0.000000	1.000000	0.000000	1.000000	0.000000	2.000000	0.000000
+nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan

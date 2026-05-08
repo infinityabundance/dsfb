@@ -1,0 +1,15 @@
+# DSFB-Debug — Python notebook requirements (Phase η.8, Session 18).
+#
+# Pinned dependencies for the Colab reviewer notebook. Install with:
+#
+#     pip install -r notebooks/requirements.txt
+#
+# matplotlib's PdfPages is stdlib-only and does not need a separate
+# pin. The notebook also uses scienceplots + cmcrameri for IEEE/Nature-
+# grade figure styling.
+
+matplotlib>=3.7,<4.0
+numpy>=1.24,<2.0
+scipy>=1.10,<2.0
+scienceplots>=2.1,<3.0
+cmcrameri>=1.6,<2.0

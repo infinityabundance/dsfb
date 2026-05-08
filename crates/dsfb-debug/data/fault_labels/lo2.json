@@ -1,0 +1,22 @@
+{
+  "_doc": "LO2 dataset (Taibi et al., PROMISE 2025). Production-like microservice system with OAuth2.0 flows. The novel feature of this dataset is API-semantic anomalies (e.g. OAuth2 flow failures, architectural-degradation events) that do NOT have a direct entry in the heuristics bank. The expected disposition is therefore SemanticDisposition::Unknown — the engine should still produce typed structural episodes via the endoductive branch.",
+  "schema_version": 1,
+  "license": "per-archive-verify",
+  "upstream_doi": "10.5281/zenodo.14257989",
+  "fault_cases": {
+    "oauth2_flow_failure": {
+      "fixture": "lo2",
+      "fault_window_ranges": [],
+      "expected_motif_class": "Unknown",
+      "narrative": "OAuth2.0 token-refresh failure creates a structural latency + error-rate signature that is not in the canonical heuristics bank; engine should produce SemanticDisposition::Unknown with valid (r,d,s) tuple chain. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    },
+    "architectural_degradation": {
+      "fixture": "lo2",
+      "fault_window_ranges": [],
+      "expected_motif_class": "Unknown",
+      "narrative": "Architectural-degradation events arising from API-contract drift; these are gradual structural changes that do not match a named motif. Endoductive mode validator. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    }
+  }
+}

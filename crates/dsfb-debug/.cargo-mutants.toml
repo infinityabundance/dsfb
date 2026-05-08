@@ -1,0 +1,41 @@
+# DSFB-Debug — cargo-mutants configuration.
+#
+# Mutation testing focuses on the modules whose correctness the paper
+# makes load-bearing claims about: grammar evaluation (§5.5),
+# policy mapping (§5), and episode aggregation (§7 — Trace Event
+# Collapse). A mutation in any of these that is NOT killed by the test
+# suite is a signal that the test suite under-specifies the module.
+#
+# Run:
+#   cargo mutants --manifest-path crates/dsfb-debug/Cargo.toml --in-place
+#
+# Tier-1 modules (must have ≥ 80% mutation kill-rate before paper goes
+# out): grammar.rs, policy.rs, episode.rs.
+# Tier-2 (target ≥ 60%): sign.rs, dsa.rs, baseline.rs.
+# Tier-3 (best-effort): heuristics_bank.rs, residual.rs, envelope.rs.
+
+# Examine only the load-bearing modules first; the const constructors in
+# adapters/ and lib.rs internal scaffolding produce noisy mutants.
+examine_globs = [
+    "src/grammar.rs",
+    "src/policy.rs",
+    "src/episode.rs",
+    "src/sign.rs",
+    "src/dsa.rs",
+    "src/baseline.rs",
+    "src/heuristics_bank.rs",
+    "src/residual.rs",
+    "src/envelope.rs",
+]
+
+# The test command must fire both the no_std unit tests and the std-side
+# fixture-aware tests so paper-lock invariants are exercised.
+test_tool = "cargo"
+additional_cargo_test_args = ["--features", "std paper-lock"]
+
+# Timeout safety: the no_std core is tiny, but mutation runs are slow.
+timeout_multiplier = 2.0
+
+# Skip mutants that target trivial scaffolding the paper does not
+# claim correctness for.
+skip_calls = ["dbg!"]

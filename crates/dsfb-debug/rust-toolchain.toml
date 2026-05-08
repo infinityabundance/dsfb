@@ -1,0 +1,12 @@
+# DSFB-Debug — pinned Rust toolchain.
+#
+# Why a pin: defence supply-chain stability. The crate's MSRV (in
+# Cargo.toml) is 1.75.0; pinning the toolchain prevents nightly-feature
+# drift in CI and makes the build deterministic across reviewer
+# environments. Reproducibility is a Theorem-9-adjacent property at the
+# build-system level: identical source + identical compiler →
+# identical object code.
+
+[toolchain]
+channel = "1.75.0"
+components = ["clippy", "rustfmt"]

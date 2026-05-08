@@ -1,0 +1,23 @@
+# residual-projection v2
+# upstream_doi=10.5281/zenodo.6979726
+# upstream_url=https://zenodo.org/records/6979726
+# upstream_archive_sha256=18456279cdcbc66b020bddd117a79ff453137fbc60f88cba81f2609fc1a74403
+# upstream_archive_size_bytes=153186506
+# extraction_recipe=see crates/dsfb-debug/data/README.md §Extraction
+# fault_case=ts-auth-mongo_5.0.9_2022-07-06 (version-config regression on auth-service (F-11b))
+# extracted_at=2026-05-05T23:40:24.742410Z
+# license=Apache-2.0
+# num_windows=4
+# num_signals=6
+# healthy_window_end=1
+# fault_labels=
+# window_width_us=15000000
+# top_services=ts-travel-service,ts-route-service,ts-ticketinfo-service
+# channels=ts-travel-service_latency_p50_ms,ts-travel-service_error_rate,ts-route-service_latency_p50_ms,ts-route-service_error_rate,ts-ticketinfo-service_latency_p50_ms,ts-ticketinfo-service_error_rate
+# notes=Steady-state regressed-config run; no fault-window
+#       labels claimed. Engine reports structural episodes
+#       observed; numerical fault-recall is not applicable.
+32153.393500	0.500000	nan	nan	19398.672500	0.000000
+1366.839000	0.000000	nan	nan	1208.806500	0.000000
+401.799000	0.000000	401.155500	0.000000	225.607500	0.000000
+318.282000	0.000000	178.400000	0.000000	nan	nan

@@ -1,0 +1,53 @@
+# residual-projection v2
+# upstream_doi=10.5281/zenodo.6979726
+# upstream_url=https://zenodo.org/records/6979726
+# upstream_archive=trainticket_anomaly.zip
+# upstream_archive_sha256=18456279cdcbc66b020bddd117a79ff453137fbc60f88cba81f2609fc1a74403
+# upstream_archive_size_bytes=153186506
+# fault_case=ts-admin-basic-info-service_springstarterweb_1.5.22.RELEASE_2022-07-08 (admin-service springstarter version-config regression)
+# extraction_recipe=see crates/dsfb-debug/data/README.md
+# extracted_at=2026-05-06T18:30:47.846586Z
+# license=Apache-2.0
+# num_windows=30
+# num_signals=12
+# healthy_window_end=12
+# fault_labels=
+# window_width_us=15000000
+# top_services=ts-travel-service,ts-basic-service,ts-ticketinfo-service,ts-station-service,ts-seat-service,ts-route-service
+# channels=ts-travel-service_latency_p50_ms,ts-travel-service_error_rate,ts-basic-service_latency_p50_ms,ts-basic-service_error_rate,ts-ticketinfo-service_latency_p50_ms,ts-ticketinfo-service_error_rate,ts-station-service_latency_p50_ms,ts-station-service_error_rate,ts-seat-service_latency_p50_ms,ts-seat-service_error_rate,ts-route-service_latency_p50_ms,ts-route-service_error_rate
+# total_spans_projected=25316
+# notes=Steady-state regressed-config run; no per-window
+#       fault labels claimed. Engine reports whatever
+#       structural episodes the post-Phase-8 fusion
+#       pipeline observes. Numerical fault-recall is not
+#       applicable to this case-form fixture.
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+58048.121500	0.500000	nan	nan	18794.392000	0.000000	nan	nan	nan	nan	nan	nan
+nan	nan	9705.125000	0.000000	14193.458000	0.000000	6306.691000	0.000000	nan	nan	nan	nan
+853.376500	0.125000	250.692000	0.000000	404.343000	0.000000	186.548000	0.000000	nan	nan	2600.567000	0.000000
+839.798000	0.000000	4298.656000	0.000000	22542.438500	0.000000	497.409500	0.000000	nan	nan	599.549000	0.000000
+5054.762000	0.000000	299.961500	0.000000	nan	nan	295.254500	0.000000	nan	nan	nan	nan
+551.409500	0.000000	173.181500	0.000000	444.887000	0.000000	50.606500	0.000000	1568.094500	0.000000	105.416500	0.000000
+217.250000	0.000000	104.261500	0.000000	351.564000	0.000000	95.310500	0.000000	199.679000	0.000000	101.113000	0.000000
+346.345000	0.000000	141.519000	0.000000	241.219500	0.000000	88.851500	0.000000	383.650000	0.000000	95.820000	0.000000
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan
+nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan	nan

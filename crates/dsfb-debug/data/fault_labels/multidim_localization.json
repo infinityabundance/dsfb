@@ -1,0 +1,15 @@
+{
+  "_doc": "MultiDimension-Localization dataset (NetManAIOps). 21 microservices, 19 metrics per service (399 time series), 58 anomaly cases. The high-dimensional service-graph validator: expected motifs depend on which root-cause category each of the 58 cases belongs to. Window ranges and per-case motif assignments TBD until upstream extraction.",
+  "schema_version": 1,
+  "license": "per-archive-verify",
+  "upstream_url": "https://github.com/NetManAIOps",
+  "fault_cases": {
+    "_template_per_case": {
+      "fixture": "multidim_localization",
+      "fault_window_ranges": [],
+      "expected_motif_class": "TBD",
+      "narrative": "Template entry; populate one block per anomaly case (1..58) when the upstream archive is extracted. Each case carries its own root-cause category which determines the expected MotifClass.",
+      "_status": "schema-only until fixture is vendored"
+    }
+  }
+}

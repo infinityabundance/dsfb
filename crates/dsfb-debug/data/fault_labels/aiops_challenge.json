@@ -1,0 +1,50 @@
+{
+  "_doc": "AIOps Challenge 2020/2021 (Tsinghua NetMan) tri-modal e-commerce microservice dataset. 26 services. Faults injected per fault category; window indices reference the per-fixture window axis. expected_motif_class names a MotifClass variant that the heuristics bank should match. Window ranges remain TBD until upstream extraction.",
+  "schema_version": 1,
+  "license": "per-archive-verify",
+  "upstream_url": "https://github.com/NetManAIOps",
+  "fault_cases": {
+    "packet_loss": {
+      "fixture": "aiops_challenge",
+      "fault_window_ranges": [],
+      "expected_motif_class": "ErrorRateEscalation",
+      "narrative": "Network-layer packet loss elevates per-service error rate; structural signature is sustained positive drift on error-rate signals. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    },
+    "memory_exhaustion": {
+      "fixture": "aiops_challenge",
+      "fault_window_ranges": [],
+      "expected_motif_class": "MemoryLeakDrift",
+      "narrative": "JVM heap pressure produces sustained latency drift with rising variance; matches MemoryLeakDrift motif. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    },
+    "network_delay": {
+      "fixture": "aiops_challenge",
+      "fault_window_ranges": [],
+      "expected_motif_class": "DependencySlowdown",
+      "narrative": "Injected network delay on upstream dependency; expected gradual-latency-increase pattern. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    },
+    "disk_exhaustion": {
+      "fixture": "aiops_challenge",
+      "fault_window_ranges": [],
+      "expected_motif_class": "ResourceSaturation",
+      "narrative": "Disk I/O saturation; concave-up drift on latency. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    },
+    "cpu_exhaustion": {
+      "fixture": "aiops_challenge",
+      "fault_window_ranges": [],
+      "expected_motif_class": "ResourceSaturation",
+      "narrative": "CPU saturation; latency drift with rising envelope occupancy. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    },
+    "jvm_resource_exhaustion": {
+      "fixture": "aiops_challenge",
+      "fault_window_ranges": [],
+      "expected_motif_class": "GcPressureOscillation",
+      "narrative": "JVM GC pressure produces periodic slew events; matches GcPressureOscillation motif. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    }
+  }
+}

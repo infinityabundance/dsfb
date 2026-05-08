@@ -1,0 +1,15 @@
+{
+  "_doc": "Illinois Microservice Tracing Dataset (IDB-6738796) fault-label mapping. The SocialNetwork benchmark's fault-injection scripts inject specific service-level disruptions; window indices reference the 500-ms-window axis of the vendored slice.",
+  "schema_version": 1,
+  "license": "CC-BY-4.0",
+  "upstream_doi": "IDB-6738796",
+  "fault_cases": {
+    "socialnetwork_dependency_slowdown": {
+      "fixture": "illinois_socialnetwork",
+      "fault_window_ranges": [],
+      "expected_motif_class": "DependencySlowdown",
+      "narrative": "Gradual latency increase in upstream user-timeline-service; the unsampled trace property is what allows the drift to be read structurally rather than as a sampling artefact. Window range pending upstream extraction.",
+      "_status": "ranges TBD until fixture is vendored"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+target/
+target-local/
+artifacts/
+data/upstream/
+*.zip
+*.tar.gz
+*.log
+*.aux
+*.out
+*.toc
+build/
+.cargo/
