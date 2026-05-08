@@ -1,5 +1,7 @@
 # dsfb-debug
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-debug/notebooks/dsfb_debug_demo.ipynb)
+
 **DSFB-Debug — Structural Semiotics Engine for Software Debugging**
 
 A deterministic, read-only, observer-only augmentation layer that turns
