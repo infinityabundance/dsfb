@@ -228,7 +228,8 @@ arrangements.
 
 The publication of this work establishes prior art for the DSFB framework.
 
-For commercial licensing or collaboration inquiries:
+Commercial use requires a separate license.
+
 licensing@invariantforge.net
 
 ---
