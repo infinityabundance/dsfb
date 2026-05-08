@@ -8,30 +8,14 @@
 
 ## What is DSFB?
 
-DSFB compares prediction and measurement.
 
-- If they disagree a lot, it reduces trust.  
-- If they agree, it increases trust.
-
-Instead of treating a sensor as valid or invalid, DSFB treats it as trusted proportionally.
-
-**Essentially:** *Proportional Trust Observer.*
 
 DSFB creates human readable structure from usually discarded residuals. Information from the signatures or fingerprints of noise.
 And it does it without ML or LLM (AI), meaning it is white-box and can run on the edge with minimal computational requirements.
-DSFB doesn't replace existing, proven, tried and tested sensors and methods, it augments them, and makes them even more important in as a read-only observer.
+DSFB doesn't replace existing, proven, tried and tested sensors and methods, it augments them, and makes them even more important as a read-only observer.
 
 ---
 
-### ELI5
-
-If a sensor says something that matches what you expect, you listen a lot.  
-If it says something very different, you listen a little.  
-
-Don’t believe a sensor all at once.
-
-<br>
-<sub><i>Informal overview. See paper for formal definition.</i></sub>
 
 ## Citations
 
