@@ -213,24 +213,17 @@ DSFB doesn't replace existing, proven, tried and tested sensors and methods, it 
 
 ## IP Notice
 
-This repository is licensed under the Apache License 2.0.
-
-All source code, reference implementations, and associated artifacts in this
-repository are provided under that license.
-
 The DSFB framework presented in this repository and in associated papers
 represents an ongoing research and engineering effort by Invariant Forge LLC.
 
-While this repository provides open reference implementations, production
-deployment, system-level integration, and domain-specific adaptation of these
-methods may require additional engineering, validation, and licensing
-arrangements.
+The theoretical framework, formal constructions, and supervisory methods described
+herein constitute proprietary Background IP of Invariant Forge LLC (Delaware LLC
+No. 10529072), with prior art established by this publication and earlier Zenodo DOI
+publications by the same author. Commercial deployment requires a separate written
+license. Reference implementations are released under Apache 2.0.
+Licensing: licensing@invariantforge.net
 
-The publication of this work establishes prior art for the DSFB framework.
 
-Commercial use requires a separate license.
-
-licensing@invariantforge.net
 
 ---
 
