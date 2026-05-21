@@ -135,6 +135,10 @@ DSFB doesn't replace existing, proven, tried and tested sensors and methods, it 
 > *DSFB-Phosphoric Structural Semiotics Engine for Deterministic Forensic Computing: A DSFB-Native Execution Substrate for Typed Residual Emission at Compile-Time-Checked Authority Boundaries in Single-Purpose Edge Devices* 
 > (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.20024283]
 
+> **de Beer, R.** (2026). 
+> *DSFB-Debug Structural Detector-Field Residual Semiotics Engine for Software Debugging: A Deterministic Augmentation Layer for Typed Residual Interpretation of Execution Traces, Log Streams, and Observability Telemetry in Production Software Systems* 
+> (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.20088863]
+
 ---
 
 `DSFB Simulation Notebook:`
