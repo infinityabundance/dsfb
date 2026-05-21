@@ -213,6 +213,9 @@ DSFB doesn't replace existing, proven, tried and tested sensors and methods, it 
 `DSFB Phosphoric`
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-phosphoric/notebooks/dsfb_phosphoric_colab.ipynb)
 
+`DSFB Debug`
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-debug/notebooks/dsfb_debug_demo.ipynb)
+
 ---
 
 ## IP Notice
