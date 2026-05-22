@@ -2,9 +2,102 @@
 
 # dsfb-gpu
 
-**Clear-box deterministic inference for replayable verdicts — the
-DSFB-GPU-Atlas deterministic jurisprudence court built on top of the
-sealed DSFB-GPU-Debug acceleration proof.**
+
+**Try it now (no install required) Click the Open in Colab badge above**
+- Open the Colab notebook
+- Click ► Run all
+
+---
+
+
+
+**Clear-box deterministic inference on GPU hardware: residual evidence goes in,
+a replayable verdict case file comes out. No neural network. No learned weights.
+No probabilistic black box.**
+
+DSFB-GPU is a prior-art implementation of **densorial / tekmeric
+inference**: deterministic evidence adjudication over residuals, signs,
+detector motifs, consensus fields, candidate intervals, and bank-governed
+episodes. The CUDA layer accelerates evidence production; the CPU court
+keeps semantic authority. The output is not a prediction. It is a
+hash-linked case file whose intermediate evidence can be replayed.
+
+```text
+trace / residual bytes
+  → deterministic CUDA evidence factory
+  → residual signs + detector motifs + consensus/candidates
+  → CPU bank admission
+  → replayable verdict case file
+  → optional LLM narration over admitted evidence only
+```
+The core doctrine is simple:
+
+> The GPU produces evidence. The court decides what that evidence is allowed
+> to mean.
+
+## What this repository proves
+
+- **Deterministic GPU inference is possible without neural weights.**
+  DSFB-GPU-Debug maps residual extraction, drift/slew signs, detector motif
+  scoring, consensus formation, candidate collapse, bank-governed episode
+  emission, and case-file assembly onto fixed-point CUDA + Rust court logic.
+
+- **The reasoning chain is replayable.**
+  Case files carry byte-stable hash chains over the evidence path instead of
+  post-hoc explanations or probabilistic confidence scores.
+
+- **The real-data audit surface is public and reproducible.**
+  The repository includes vendored fixture paths, audit receipts, a Colab
+  replay notebook, and metadata files so external evaluators can rebuild the
+  CUDA path and inspect the replay artifacts.
+
+- **The Atlas layer preserves the prior-art surface.**
+  DSFB-GPU-Atlas is the deterministic jurisprudence court over detector
+  literature, provenance, passports, precedents, admissibility grammar,
+  activation decisions, execution receipts, challenge dockets, and
+  coverage-hole reports.
+
+- **The paper and repository are intentionally exhaustive.**
+  This is a prior-art disclosure artifact. Detail is preserved on purpose:
+  campaign ledgers, hashes, non-claims, receipts, and artifact manifests are
+  part of the disclosure surface.
+
+## What this is not
+
+DSFB-GPU is not a neural network, not Bayesian inference, not stochastic
+sampling, not an LLM, not an APM replacement, and not a black-box anomaly
+score. The optional LLM role is downstream narration over admitted case-file
+evidence; it never creates court evidence or changes admission status.
+
+## Quick start
+
+```bash
+# CPU-only build
+cargo build --workspace
+
+# CUDA build
+cargo build --workspace --features cuda
+
+# Run the public Colab replay surface instead of configuring CUDA locally:
+# use the "Open in Colab" badge above.
+```
+
+For the full command surface, see **Building**, **Running**, and
+**Reproducibility** below.
+
+## Evidence map
+
+| surface | purpose |
+|---|---|
+| `paper/dsfb_gpu_debug.pdf` | prior-art paper and full disclosure narrative |
+| `PRIOR_ART_MAP.md` | disclosed architecture elements mapped to code / tests / receipts |
+| `CLAIM_BOUNDARY_MATRIX.md` | what is claimed, what is disclosed, and what is not claimed |
+| `ARTIFACT_MANIFEST.v1.toml` | SHA-256-pinned artifact index |
+| `TIMESTAMP_RECEIPT.md` | public-accessibility and archive receipt |
+| `CITATION.cff`, `codemeta.json`, `.zenodo.json` | machine-readable citation / release metadata |
+| `notebooks/dsfb_gpu_debug_colab.ipynb` | public replay path |
+| `reports/` | sealed receipts, timing reports, replay verification, and audit artifacts |
+
 
 ## Citation
 
