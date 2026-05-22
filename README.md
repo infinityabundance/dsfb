@@ -139,6 +139,10 @@ DSFB doesn't replace existing, proven, tried and tested sensors and methods, it 
 > *DSFB-Debug Structural Detector-Field Residual Semiotics Engine for Software Debugging: A Deterministic Augmentation Layer for Typed Residual Interpretation of Execution Traces, Log Streams, and Observability Telemetry in Production Software Systems* 
 > (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.20088863]
 
+> **de Beer, R.** (2026). 
+> *DSFB-GPU — Clear-Box Pure Deterministic Inference CUDA Acceleration for Replayable Trace-Event Verdicts — A Prior-Art Architecture for non-probabilistic, non-stochastic, non-weighted, GPU-Accelerated Residual Signs, Detector Motifs, Bank-Governed Fusion, and Byte-Exact Case Files Without Probabilistic Models* 
+> (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.20346478](https://doi.org/10.5281/zenodo.20346478)
+
 ---
 
 `DSFB Simulation Notebook:`
@@ -215,6 +219,9 @@ DSFB doesn't replace existing, proven, tried and tested sensors and methods, it 
 
 `DSFB Debug`
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-debug/notebooks/dsfb_debug_demo.ipynb)
+
+`DSFB GPU`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-gpu/notebooks/dsfb_gpu_debug_colab.ipynb)
 
 ---
 
