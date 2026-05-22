@@ -45,7 +45,7 @@ notebook reports it honestly; divergence is a finding, not a crash.
 > differing artifact and preserves the result as an honest
 > portability finding.
 
-## Producing the source tarball
+## Refreshing the source tarball
 
 From the dev-machine repo root:
 
@@ -53,8 +53,13 @@ From the dev-machine repo root:
 bash scripts/pack_for_colab.sh
 ```
 
-The script writes a slim ~18 MB tarball at
-`target/colab/dsfb-gpu.tar.gz`. The tarball includes:
+The script writes a slim ~18 MB tarball to two locations:
+
+- `notebooks/dsfb-gpu.tar.gz` — checked into the repo so the Colab
+  notebook can download and run without a manual upload step
+- `target/colab/dsfb-gpu.tar.gz` — local build copy for inspection
+
+The tarball includes:
 
 - the full Rust + CUDA source tree so Colab can rebuild from scratch
 - `data/fixtures/*.tsv` — the 20 SHA-pinned audit input TSVs
@@ -69,6 +74,8 @@ The script writes a slim ~18 MB tarball at
 The tarball **excludes** by construction:
 
 - `target/`, `.git/` — build artifacts and VCS metadata
+- `notebooks/dsfb-gpu.tar.gz` — the checked-in tarball itself, so the
+  archive does not self-nest on refresh
 - `data/upstream/`, `data/CMAPSSData.zip` — upstream reconstruction
   archives (~28 MB; the audit doesn't need them)
 - `data/fixtures/*x1024.tsv` — the 10 large saturation-class TSVs
@@ -127,8 +134,8 @@ missed and the operator receives a ZIP with empty A-F fields.
    work; CPU-only is **not supported** — `s-real-audit` requires
    the CUDA path).
 3. **Run all cells** top-to-bottom (Runtime → Run all).
-4. The §1 upload cell prompts you to select the tarball produced
-   by `pack_for_colab.sh`.
+4. The §1 setup cell downloads `notebooks/dsfb-gpu.tar.gz` from the
+   GitHub `main` branch and extracts it automatically.
 5. The final cell triggers a browser download of
    `dsfb_gpu_audit_bundle.zip` (~1.2 MB containing all 180 audit
    artifacts + the sealed bundle receipts + INDEX.md + the

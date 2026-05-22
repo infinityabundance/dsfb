@@ -33,7 +33,7 @@
 [manifest]
 schema_version = "v1"
 sealed_at_commit = "2281cc8"
-note = "sealed_at_commit is the commit that ratified THIS manifest (PA.1 seal). The per-artifact entries below each pin SHA-256 over upstream sealed bytes from earlier campaign commits: paper PDF at PAPER.1e 117c237; bundle manifest + 60-row chain at S-REAL.3 a8aaa04; saturation sweep at S-REAL.3.1 fde8a99; A6.1 receipt at S-PERF.16.a 3e84e05; COLAB notebook at COLAB.S-REAL.1 3548366 with PENDING-guard at S-REAL.3.1.2 6843a40; CITATION.cff extended at PA.1 2281cc8. PA.1 itself adds documentation files (this manifest, PRIOR_ART_MAP, CLAIM_BOUNDARY_MATRIX, TIMESTAMP_RECEIPT, .zenodo.json, codemeta.json, sbom.spdx.json) without changing the per-artifact byte content recorded below."
+note = "sealed_at_commit is the commit that ratified THIS manifest (PA.1 seal). The per-artifact entries below each pin SHA-256 over upstream sealed bytes from earlier campaign commits: paper PDF at PAPER.1e 117c237; bundle manifest + 60-row chain at S-REAL.3 a8aaa04; saturation sweep at S-REAL.3.1 fde8a99; A6.1 receipt at S-PERF.16.a 3e84e05; COLAB notebook with built-in source-bundle auto-download and PENDING-guard; CITATION.cff extended at PA.1 2281cc8. PA.1 itself adds documentation files (this manifest, PRIOR_ART_MAP, CLAIM_BOUNDARY_MATRIX, TIMESTAMP_RECEIPT, .zenodo.json, codemeta.json, sbom.spdx.json) without changing the per-artifact byte content recorded below."
 
 # ---------------------------------------------------------------------
 # Paper artifact
@@ -84,9 +84,9 @@ role = "A6.1 post-Nsight receipt: detector_motif_fused_d64_kernel 1,324,608 -> 9
 
 [[artifact]]
 path = "notebooks/dsfb_gpu_debug_colab.ipynb"
-sha256 = "d9c59f8fa22b3b13895cb9c1a4dc5d3c6678c185dc592926c5a0540bfbbd11fb"
+sha256 = "90d7a85b6065a4985818a8ac1e244cb8cae6b1f6d9e1743ac5a467f91c148a38"
 kind = "public-replay-notebook"
-role = "Public Colab replay surface (COLAB.S-REAL.1). Rebuilds the CUDA path from source on a free Colab GPU runtime, re-runs the 20-dataset audit, and emits a downloadable ZIP with the plan-locked A-F verdict. PENDING-guard cell at position 19 prevents downloading with unpopulated gates. Sealed at 3548366; PENDING-guard sealed at 6843a40."
+role = "Public Colab replay surface (COLAB.S-REAL.1). Downloads the built-in source bundle from the GitHub main branch, rebuilds the CUDA path from source on a free Colab GPU runtime, re-runs the 20-dataset audit, and emits a downloadable ZIP with the plan-locked A-F verdict. PENDING-guard cell at position 19 prevents downloading with unpopulated gates."
 
 # ---------------------------------------------------------------------
 # Citation metadata

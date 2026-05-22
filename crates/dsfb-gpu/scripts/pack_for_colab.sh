@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
-# pack_for_colab.sh — produce a tarball suitable for upload into the
+# pack_for_colab.sh — produce the source tarball used by the
 # Colab notebook (notebooks/dsfb_gpu_debug_colab.ipynb).
 #
 # WHY THIS EXISTS (for the future engineer reading cold):
 #
 # The Colab notebook is the COLAB.S-REAL.1 public-replay surface (sealed
-# operational flow post-S-REAL.3.1.1). It needs an UPLOADABLE source
-# tarball because Colab's `files.upload()` is the simplest hands-off
-# distribution path (no remote clone, no GitHub auth, works on any
-# free Colab tier). The notebook extracts the tarball, builds the
-# CUDA binary, runs `s-real-audit --dataset all` against the 20
-# panel-locked vendored fixtures, and packages the results via
-# `scripts/package_s_real_colab_outputs.sh`.
+# operational flow post-S-REAL.3.1.1). It downloads the checked-in
+# `notebooks/dsfb-gpu.tar.gz` bundle from GitHub raw content, extracts
+# the tarball, builds the CUDA binary, runs `s-real-audit --dataset all`
+# against the 20 panel-locked vendored fixtures, and packages the
+# results via `scripts/package_s_real_colab_outputs.sh`.
 #
 # The tarball MUST include:
 #   - the full source tree (crates/, cuda/, Cargo.toml, Cargo.lock,
@@ -24,27 +22,33 @@
 #   - scripts/ — including package_s_real_colab_outputs.sh which the
 #     notebook calls at section 5
 # The tarball MUST exclude:
-#   - target/    — build artifacts; Colab rebuilds from source
-#   - .git/      — version control metadata; the notebook reads the
-#                  sealed commit SHA from the tarball's anchors inside
-#                  Cargo.lock plus the embedded receipt, not from git
+#   - target/                   — build artifacts; Colab rebuilds from
+#                                 source
+#   - .git/                     — version control metadata; the notebook
+#                                 reads the sealed commit SHA from the
+#                                 tarball's anchors inside Cargo.lock
+#                                 plus the embedded receipt, not from git
+#   - notebooks/dsfb-gpu.tar.gz — the checked-in bundle itself, to avoid
+#                                 self-nesting on every refresh
 #
 # The implementation below uses an explicit allowlist-by-exclusion
 # (every top-level entry except target/ and .git/) which
 # naturally covers all of the above. `shopt -s dotglob` also picks up
 # dotfiles like `.gitignore` and `.githooks/` for reproducibility.
 #
-# The archive lands in `target/colab/dsfb-gpu.tar.gz`. The tarball is
-# rooted at a single top-level directory `dsfb-gpu/` so the notebook's
-# `tar -xzf` lands the source at a known path.
+# The archive lands in both `target/colab/dsfb-gpu.tar.gz` and the
+# checked-in `notebooks/dsfb-gpu.tar.gz`. The tarball is rooted at a
+# single top-level directory `dsfb-gpu/` so the notebook's `tar -xzf`
+# lands the source at a known path.
 
 set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-mkdir -p target/colab
+mkdir -p target/colab notebooks
 out=target/colab/dsfb-gpu.tar.gz
+builtin_out=notebooks/dsfb-gpu.tar.gz
 
 # Stage the repo into a tmpdir under target/ so the tarball is rooted at
 # `dsfb-gpu/` rather than at the user's absolute path. We exclude target/
@@ -88,8 +92,16 @@ fi
 # anchored and not replayed on Colab.
 find "$stage/dsfb-gpu/data/fixtures" -maxdepth 1 -type f -name '*x1024.tsv' -delete
 
+# If an older built-in bundle exists in the working tree, it was copied
+# into the stage by the top-level copy loop. Remove it before creating
+# the refreshed tarball so the archive never contains itself.
+rm -f "$stage/dsfb-gpu/$builtin_out"
+
 tar -C "$stage" -czf "$out" dsfb-gpu
 rm -rf "$stage"
+cp "$out" "$builtin_out"
 
 bytes=$(stat -c %s "$out")
 echo "pack_for_colab: wrote $out (${bytes} bytes)"
+builtin_bytes=$(stat -c %s "$builtin_out")
+echo "pack_for_colab: refreshed $builtin_out (${builtin_bytes} bytes)"

@@ -2,10 +2,6 @@ target/
 **/*.rs.bk
 Cargo.lock.local
 
-research/_extracted/
-research/*.zip
-research/*.tar.gz
-
 reports/*
 !reports/.gitkeep
 !reports/money_table.txt
@@ -251,21 +247,6 @@ reports/*
 !reports/r9_b3_d64_timing.txt
 !reports/d64_stage_timing_256x4096_K1.txt
 !reports/r12_d64_saturation.txt
-
-paper/*.aux
-paper/*.bbl
-paper/*.bcf
-paper/*.blg
-paper/*.fdb_latexmk
-paper/*.fls
-paper/*.log
-paper/*.out
-paper/*.run.xml
-paper/*.synctex.gz
-paper/*.toc
-paper/*.pdf
-paper/figures/*.aux
-paper/figures/*.log
 
 notebooks/.ipynb_checkpoints/
 **/.DS_Store
