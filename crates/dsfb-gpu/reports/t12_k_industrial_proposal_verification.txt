@@ -1,0 +1,129 @@
+================================================================
+T.12.k - Industrial / FDD / Condition Monitoring verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_k_industrial::seed_t12_k_industrial_proposal()
+
+----------------------------------------------------------------
+Positive verification (admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+All T.12.0 verifier rules pass: BatchIdEmpty, ProposalIdEmpty,
+UnknownSourceClass, AmendmentProposalHashMismatch,
+BatchHashMismatch, DedupDeltaHashMismatch,
+DedupDeltaCollidesWithExistingSeedCanonicalId (reserved ids
+6101..=6112 outside SEED's 1..=54 range),
+AcceptedProposalWithoutBodyOrDelta,
+AcceptedProposalWithoutFutureFreezeGate.
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage
+----------------------------------------------------------------
+
+All 16 panel-required negatives pass plus per-canonical
+structural-distinctness assertions + ParameterizationOf family
+tests + DomainTransferOf assertion tests + bank-surface
+coverage witness + per-bucket reserved-id-range tests + shape /
+determinism / rendering invariants.
+Total: 49 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Root-cause-claim discipline coverage
+----------------------------------------------------------------
+
+The t12_k_rejects_root_cause_claim_language test runs a
+parametric scanner over every CanonicalAddition AND
+ExistingCanonicalAuthorityResolution reason text. For each
+qualifying record it asserts:
+  - The reason text does NOT contain any of: root cause,
+    diagnosis of machine cause, remaining useful life,
+    predicted rul, failure mode classification.
+  - The reason text DOES end with the panel-locked non-claim
+    "condition-monitoring witness, not a maintenance
+    recommendation" (intact form or Rust string-literal
+    continuation split form).
+
+Forbidden terms appear only inside RejectedNotDeterministic
+reason text (where they describe what is NOT admitted).
+
+Note: "maintenance recommendation" is intentionally NOT in the
+forbidden list because it appears legitimately inside the non-
+claim phrase — the non-claim DISCLAIMS the term rather than
+making a positive claim.
+
+----------------------------------------------------------------
+Plant-or-residual contract coverage
+----------------------------------------------------------------
+
+The t12_k_rejects_fault_detector_without_plant_or_residual_
+contract test asserts every CanonicalAddition reason text
+declares at least one math-structure term (plant / observer /
+residual / model / state-machine / latent-space / estimator /
+envelope / computation) AND at least one decision-functional
+term (decision law / decision functional / decision predicate).
+
+----------------------------------------------------------------
+SEED bank-surface coverage (parametric)
+----------------------------------------------------------------
+
+The t12_k_existing_seed_collision_requires_authority_resolution
+test runs a parametric loop over all eight SEED industrial IDs
+(12, 19, 20, 21, 22, 23, 24, 25). Each iteration constructs a
+defective proposal duplicating one SEED ID and asserts the
+verifier rejects it with DedupDeltaCollidesWithExistingSeed
+CanonicalId.
+
+----------------------------------------------------------------
+Proprietary-PdM rejection contract coverage
+----------------------------------------------------------------
+
+The t12_k_rejects_proprietary_pdm_score_without_deterministic_
+formula test asserts:
+  - 6111 NOT in new_canonical_records
+  - reason text contains "deterministic formula"
+  - reason text contains "model-identification anchor"
+  - reason text contains "training-" + "data anchor"
+    (continuation-joined)
+  - reason text contains "feature schema"
+  - reason text contains "tie-break"
+  - reason text contains "numeric mode"
+  - reason text names at least one of: ge predix, siemens
+    mindsphere, ibm maximo predict, honeywell forge, aspen mtell
+  - reason text contains "does not issue maintenance
+    recommendations"
+  - reason text contains "remaining-useful-life"
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.x hash           : unchanged
+    T.12.0 proof-of-life          : 325bbf3d...
+    T.12.a SPC                    : ae493a85...
+    T.12.b SCD                    : ac10e27c...
+    T.12.c drift                  : 0ffb0639...
+    T.12.d robust                 : 7b51703f...
+    T.12.e spectral               : 0036435f...
+    T.12.f time-series            : 76717e02...
+    T.12.g graph                  : 1bc14266...
+    T.12.h data-quality           : d4566a74...
+    T.12.i observability          : 9776c1b9...
+    T.12.j biosignal              : e64b603b...
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.k industrial literature_expansion_batch_hash_v1 (NEW):
+    5c952a60f4f51fec2c28b49b268638d887a7a360eccf1f30506a4bdf99b562bf
+  T.12.k industrial dedup_court_delta_hash_v1 (NEW):
+    3c32085d5d333c39d3d77e8fb8885a6499ceb48e322b10d4c71aeae5c70105fa
+  T.12.k industrial corpus_amendment_proposal_hash_v1 (NEW):
+    22f06c769daad5472255edce97cbe9e419b5aa22c6d07345a5c667c23ce93565

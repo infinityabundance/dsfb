@@ -1,0 +1,152 @@
+================================================================
+T.12.c - Drift / Distribution-Distance Authority verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_c_drift::seed_t12_c_drift_proposal()
+
+----------------------------------------------------------------
+Positive verification (the proposal IS admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+  ProposalIdEmpty                                          : not fired
+  BatchIdEmpty                                             : not fired
+  UnknownSourceClass                                       : not fired (target_source_class = DriftDetection)
+  AmendmentProposalHashMismatch                            : not fired
+  BatchHashMismatch                                        : not fired
+  DedupDeltaHashMismatch                                   : not fired
+  DedupDeltaCollidesWithExistingSeedCanonicalId            : not fired (reserved ids 5301..=5306 outside SEED's 1..54 range)
+  AcceptedProposalWithoutBodyOrDelta                       : not fired (status = Open; body + delta are non-trivial)
+  AcceptedProposalWithoutFutureFreezeGate                  : not fired
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage (all passing)
+----------------------------------------------------------------
+
+  1. t12_c_does_not_mutate_seed_len
+     - SEED.len() == 54 after seed_t12_c_drift_proposal().
+
+  2. t12_c_seed_collision_loop_fires_for_every_authority_resolved_id
+     - Parametric loop over 11 SEED ids
+       (KS 8, KL 9, MMD 10, Anderson-Darling 26, Cramer-von
+       Mises 27, Wasserstein 28, Energy distance 29,
+       Hellinger 30, PSI 31, Jensen-Shannon 32, Total
+       variation 33). For each, a defective variant promoting
+       that id to new_canonical_records fires
+       DedupDeltaCollidesWithExistingSeedCanonicalId.
+       Plus 5 per-named-record tests for the
+       most-frequently-mentioned distance methods (KS, KL,
+       MMD, Wasserstein, PSI).
+
+  3. t12_c_rejects_kswin_as_canonical_without_ks_relationship_decision
+     - asserted KSWIN's id 5306 NOT in new_canonical_records;
+       asserted a ParameterizationOf record exists for KSWIN
+       whose reason references KS / Kolmogorov-Smirnov.
+
+  4. t12_c_rejects_adwin_without_declared_adaptive_window_law
+     - asserted ADWIN's CanonicalAddition reason text mentions
+       'adaptive' / 'Hoeffding' AND mentions 'cut' / 'delta' /
+       'window'.
+
+  5. t12_c_rejects_ddm_family_variant_without_family_relationship
+     - asserted EDDM's id 5305 NOT in new_canonical_records;
+       asserted a ParameterizationOf record exists for EDDM
+       whose reason references DDM; asserted HDDM (canonical
+       5304) has a genealogy edge to DDM (5303) declaring the
+       family relationship.
+
+  6. t12_c_rejects_distribution_distance_without_reference_distribution_requirement
+     - asserted every CanonicalAddition and
+       ExistingCanonicalAuthorityResolution record's reason
+       text mentions reference distribution / reference window
+       / window pair / ordered binary / ordered stream / adaptive
+       partition / running minimum (DomainTransferOf and
+       ParameterizationOf records inherit the contract from
+       their parent canonical and bypass the per-record check).
+
+  7. t12_c_rejects_psi_without_binning_law
+     - asserted PSI's ExistingCanonicalAuthorityResolution record
+       reason text mentions 'binning' / 'bin'.
+
+  8. t12_c_rejects_probabilistic_or_randomized_distance_without_deterministic_reduction
+     - asserted no proposed_primitive motivation OR dedup-record
+       reason claims probabilistic / randomized / Monte Carlo /
+       random projection language without a matching
+       'deterministic' disclosure. (Kuiper and ADWIN both
+       mention 'no probabilistic step' / 'no probabilistic
+       sampling' AND carry the 'deterministic' disclosure.)
+
+  9. t12_c_hash_changes_when_distance_formula_or_source_ref_changes
+     - mutated one source-ref title; asserted the proposal hash
+       differs from the canonical seed's hash.
+
+----------------------------------------------------------------
+Additional invariants (passing)
+----------------------------------------------------------------
+
+  drift_proposal_is_admissible_under_t12_0_verifier
+  drift_proposal_has_open_status
+  drift_proposal_targets_drift_detection
+  drift_proposal_proposes_six_primitives
+  drift_proposal_proposes_zero_aliases
+  drift_proposal_proposes_eighteen_dedup_records
+  drift_proposal_proposes_six_genealogy_edges
+  drift_proposal_proposes_six_source_refs
+  drift_delta_has_four_new_canonical_records
+  drift_proposal_emits_four_court_delta_categories
+  drift_proposal_court_delta_category_counts (4 / 11 / 1 / 2)
+  drift_proposal_hash_is_deterministic_across_two_builds
+  recomputed_drift_proposal_hash_matches_stored
+  drift_proposal_hash_is_distinct_from_t12_0_a_b
+  t12_c_rejects_duplicate_ks_when_seed_id_exists
+  t12_c_rejects_duplicate_kl_when_seed_id_exists
+  t12_c_rejects_duplicate_mmd_when_seed_id_exists
+  t12_c_rejects_duplicate_wasserstein_when_seed_id_exists
+  t12_c_rejects_duplicate_psi_when_seed_id_exists
+  t12_c_existing_canonical_authority_resolution_targets_must_be_in_seed
+  t12_c_rejects_domain_transfer_without_existing_target
+  t12_c_parameterizationof_records_reference_parent_canonical
+  t12_c_every_new_canonical_has_source_ref
+  t12_c_every_dedup_record_has_reason_code
+  t12_c_canonical_addition_ids_are_in_5301_to_5304_range
+  drift_proposal_text_rendering_byte_stable
+  drift_proposal_json_rendering_byte_stable
+
+Total: 36 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  precedent_hash_v1                           : unchanged (6721f511...)
+  admissibility_grammar_hash_v1               : unchanged (ff66706a...)
+  trial_transcript_hash_v1                    : unchanged (37618a45...)
+  execution_attestation_receipt_hash_v1       : unchanged
+  challenge_docket_hash_v1                    : unchanged (dde4ecb4...)
+  detector_contraindication_hash_v1           : unchanged (1b899f5d...)
+  coverage_hole_hash_v1                       : unchanged (671e2164...)
+  activation_plan_hash_v1                     : unchanged (5a81da47...)
+  activation_diff_hash_v1                     : unchanged (469536e7...)
+  task_manifest_hash_v1                       : unchanged (88a33338...)
+  dataset_manifest_hash_v1                    : unchanged (3864db34...)
+  activation_context_hash_v1                  : unchanged (4948bf45...)
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  T.12.b SCD corpus_amendment_proposal_hash_v1: unchanged (ac10e27c...)
+  Every DetectorPassport hash                 : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.c drift literature_expansion_batch_hash_v1 (NEW):
+    5723f79a9288a824fd05fccdc8bd56e101d3842c3aae7f99071c4432f0b8c935
+  T.12.c drift dedup_court_delta_hash_v1 (NEW):
+    2a9c0e1a32b1bbb4990f33b008056d0934d40f950a35d643be489c4d7946d10c
+  T.12.c drift corpus_amendment_proposal_hash_v1 (NEW):
+    0ffb0639256c318c0d3d1ffa3a24cc5b567a931ece1a0617251ad23253a4a92d

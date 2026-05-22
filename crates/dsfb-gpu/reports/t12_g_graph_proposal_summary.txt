@@ -1,0 +1,214 @@
+================================================================
+T.12.g - Graph / Topology Anomaly
+        amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.g files the Graph / Topology Anomaly
+amendment proposal. It admits only deterministic topology
+witnesses whose graph model, baseline, update law, metric
+definition, normalization, node / edge identity law, and
+decision functional are declared; resolves SEED collisions;
+classifies metric variants as parameterizations; rejects
+community / embedding / random-walk claims unless
+deterministically reduced; and preserves the frozen T.10
+corpus hash.
+
+Main panel warning: "A graph metric is not a detector until
+the baseline, update law, metric law, and decision law are
+declared."
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.g emitted values (byte-identical across two builds):
+
+  literature_expansion_batch_hash_v1 :
+    0358c53be687c24c5eed965dfde8b8ef28f013a48bed098917f3d6b063348528
+  dedup_court_delta_hash_v1          :
+    37a2d159a60fa2d655acccef97307496f3cd9c76e01f86393e2ad3e80afadbe1
+  corpus_amendment_proposal_hash_v1  :
+    1bc142666cdf680f352ee8327ec53a4699f63601b5371db284600f75bde81ddd
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+Major architectural milestone
+----------------------------------------------------------------
+
+T.12.g is the **first T.12.x proposal to exercise TWO
+RejectedNotDeterministic records in one commit**:
+
+  5712 Community boundary shift (Louvain / Leiden / label
+       propagation / Infomap)
+  5713 Random-walk embedding anomaly (DeepWalk / node2vec)
+
+Both rejected as randomized / implementation-sensitive in
+origin; admission requires the corresponding deterministic-
+reduction contract declared.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found ONE graph-adjacent primitive already
+canonical:
+
+  43 Fanout cascade (debug-trace cascade; shared cascade
+                     ancestor for GraphAnomalyDetection)
+
+The corpus is graph-anomaly-sparse: most graph / topology
+anomaly primitives have no SEED ancestor. T.12.g is therefore
+CanonicalAddition-heavy.
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  13  (8 canonical + 3 parameterization
+                                 + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  15  (panel-locked headline; see
+                                 court-delta categories below)
+  proposed_genealogy_edges:  4
+  proposed_source_refs   :  10
+
+  new_canonical_records (in delta): 8
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised)
+----------------------------------------------------------------
+
+  CanonicalAddition (x8) with declared graph + decision laws:
+    5701 Degree spike (graph type + node / edge identity +
+         edge weight + baseline + threshold + tie-break)
+    5702 Betweenness shift (shortest-path law + weighted /
+         unweighted + normalization + tie-handling + baseline)
+    5703 Clustering-coefficient shift (triangle-count law +
+         normalization + baseline)
+    5704 PageRank residual (Brin & Page 1998; damping factor
+         + iteration / convergence + dangling-node handling +
+         normalization + baseline)
+    5705 Edge-cut anomaly (Stoer-Wagner / Karger deterministic
+         / spectral cut algorithm + baseline + threshold)
+    5706 Bridge-node emergence (Tarjan 1972 articulation;
+         connectivity definition + DFS-based detection law +
+         tie-break)
+    5707 Cascade precursor (temporal-edge-ordering +
+         causal-adjacency + hop limit + fanout threshold +
+         minimum cycle support + clock-skew confuser)
+    5708 Motif-count anomaly (Milo et al. 2002; motif
+         definition + label inclusion + directed / undirected
+         + enumeration law + normalization + baseline)
+
+  ExistingCanonicalAuthorityResolution (x1):
+    SEED 43 Fanout cascade (debug-trace cascade; cross-class
+            adjacency to GraphAnomalyDetection)
+
+  DomainTransferOf (x1):
+    SEED 43 Fanout cascade as shared cascade ancestor for
+            GraphAnomalyDetection
+
+  ParameterizationOf (x3):
+    5709 Weighted-degree spike -> ParameterizationOf
+         (Degree spike, 5701) -- edge-weight summation
+    5710 k-hop fanout          -> ParameterizationOf
+         (Fanout cascade, SEED 43) -- k-hop neighbourhood law
+    5711 Directed motif-count  -> ParameterizationOf
+         (Motif-count anomaly, 5708) -- directed-edge-aware
+         enumeration
+
+  RejectedNotDeterministic (x2):
+    5712 Community boundary shift (Louvain Blondel 2008,
+         Leiden Traag 2019, label propagation, Infomap) --
+         randomized / implementation-sensitive in origin
+         (tie-break in modularity-gain sorting depends on
+         traversal order; several algorithms include random
+         restarts). Rejected unless future T.12.x admits a
+         Deterministic_Community_Partition_Proxy with algorithm
+         + sample seed + tie-break + modularity rule +
+         resolution parameter + convergence law declared.
+    5713 Random-walk embedding anomaly (DeepWalk Perozzi
+         2014; node2vec Grover & Leskovec 2016) -- randomized
+         in origin (each invocation samples fresh random
+         walks). Rejected unless future T.12.x admits a
+         Deterministic_Walk_Embedding_Proxy with walk seed +
+         walk length + walk count + tie-break + embedding-
+         projection matrix anchor + numeric mode declared.
+
+----------------------------------------------------------------
+Genealogy edges (proposed)
+----------------------------------------------------------------
+
+  5707 Cascade precursor    DerivedFrom Fanout cascade (43)
+  5709 Weighted-degree spike ParameterVariantOf Degree spike (5701)
+  5710 k-hop fanout         ParameterVariantOf Fanout cascade (43)
+  5711 Directed motif-count ParameterVariantOf Motif-count (5708)
+
+The corpus is graph-anomaly-sparse; most new canonicals have
+no SEED ancestor (no graph-anomaly family in SEED beyond
+Fanout cascade).
+
+----------------------------------------------------------------
+Source refs (proposed)
+----------------------------------------------------------------
+
+  newman_networks_2010              (Oxford University Press)
+  freeman_betweenness_1977          (Sociometry 40(1))
+  watts_strogatz_clustering_1998    (Nature 393)
+  brin_page_pagerank_1998           (Computer Networks 30(1-7))
+  stoer_wagner_mincut_1997          (JACM 44(4))
+  tarjan_articulation_1972          (SICOMP 1(2))
+  milo_motif_2002                   (Science 298(5594))
+  iribarren_moro_cascade_2009       (PRL 103(3))
+  blondel_louvain_2008              (J Stat Mech 2008(10);
+                                     rejection-shell reference)
+  perozzi_deepwalk_2014             (KDD 2014; rejection-shell
+                                     reference)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives
+----------------------------------------------------------------
+
+   1. t12_g_does_not_mutate_seed_len
+   2. t12_g_rejects_degree_spike_without_baseline_and_graph_update_law
+   3. t12_g_rejects_betweenness_shift_without_shortest_path_and_normalization_law
+   4. t12_g_rejects_pagerank_residual_without_damping_and_dangling_node_law
+   5. t12_g_rejects_community_shift_without_deterministic_partition_law
+      (MOST IMPORTANT)
+   6. t12_g_rejects_motif_count_without_motif_enumeration_law
+   7. t12_g_rejects_cascade_precursor_without_temporal_edge_order_law
+   8. t12_g_rejects_bridge_node_without_connectivity_definition
+   9. t12_g_hash_changes_when_graph_metric_law_changes
+  10. t12_g_existing_seed_collision_requires_authority_resolution
+
+Plus random-walk-embedding rejection contract test, edge-cut +
+clustering contract tests, 3 ParameterizationOf family tests,
+shape / determinism / rendering invariants, and the panel-locked
+two-rejection-records witness. Total: 36 acceptance tests in
+tests/t12_g_graph_invariants.rs.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.g does NOT:
+- mutate corpus_hash_v1 (35c276c7...);
+- mutate any prior T.11/S1.3/T.12.x hash or any
+  DetectorPassport hash;
+- create corpus_hash_v2;
+- duplicate Fanout cascade (SEED id 43);
+- promote weighted-degree spike / k-hop fanout / directed
+  motif-count to new_canonical_records (each is
+  ParameterizationOf);
+- promote community boundary shift or random-walk embedding
+  anomaly to new_canonical_records (both rejected as
+  RejectedNotDeterministic);
+- claim a graph metric as a detector without declared baseline
+  + update law + metric law + decision law;
+- duplicate the SCD / drift / robust / spectral / time-series
+  primitives T.12.b through T.12.f admitted;
+- activate new detectors (S1.3a planner not re-emitted);
+- execute on GPU (corpus crate stays host-only and zero-dep);
+- claim empirical usefulness for the new primitives (T.8
+  ledger stays NotScored for the 8 new canonicals).

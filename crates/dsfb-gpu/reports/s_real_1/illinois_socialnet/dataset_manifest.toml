@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "illinois_socialnet"
+display_name        = "Illinois SocialNetwork (DeathStarBench)"
+upstream_doi_or_url = "10.13012/B2IDB-6738796_V1"
+license             = "CC0-1.0"
+source_class        = "ObservabilityTraces"
+vendored_path       = "data/fixtures/illinois_socialnetwork.tsv"
+
+[fixture]
+sha256_hex          = "c86b5abd1b412f69cccaab9b3e838da742c5ea8a1ba1b6dce634ff3407cc082c"
+byte_size           = 3399

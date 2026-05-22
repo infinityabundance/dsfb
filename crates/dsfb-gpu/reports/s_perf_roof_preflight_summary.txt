@@ -1,0 +1,107 @@
+================================================================
+ S-PERF.ROOF-PREFLIGHT SUMMARY
+ (panel-verified 2026-05-18; post-S-PERF.13; one-shot audit)
+================================================================
+
+Purpose: name the actual saturated device fabric on the
+post-S-PERF.13 D64 compact-densor throughput pipeline so the
+S-PERF.14 campaign attacks the real wall, not a logical metric.
+
+Method: Nsight Compute (ncu 2026.1.1.0) `--set detailed`
+profile of the canonical 256x4096 K=1 D64 bench
+(s_perf_12_d64_compact_densor_stage_profile_256x4096_k1) on
+RTX 4080 SUPER / CUDA 13.2. Profiled one measurement
+iteration (12 kernels) after 3 warmup iterations (36 launches
+skipped). Receipt: reports/s_perf_roof_preflight_d64_nsight_metrics.txt.
+
+----------------------------------------------------------------
+ Panel-locked one-line verdict (verbatim)
+----------------------------------------------------------------
+
+  The next lever is launch-geometry repair for occupancy-bound
+  per-entity-serial kernels. It is not digest fusion first.
+
+----------------------------------------------------------------
+ Why this overrides the prior S-PERF.14 default
+----------------------------------------------------------------
+
+The S-PERF.13 plan + memory carried an earlier-default
+S-PERF.14 lever of "fuse the 4 compact_densor digest stages".
+That suggestion was based on the LOGICAL bench metric
+`wide bytes/sec` (264 B/cell x cells/sec), which is the
+nominal evidence-write footprint, NOT physical DRAM / L2 /
+SM / PCIe traffic.
+
+ROOF measured the actual fabric distribution. The dominant
+actionable bucket is OCCUPANCY-BOUND launch geometry: five
+kernels run at 2-6% achieved occupancy because their grids
+expose only ~8 blocks to an 80-SM RTX 4080 SUPER. The single
+largest single-kernel wall is drift_slew_sign_kernel at 1.6 ms
+@ 2.1% occupancy. The compact_densor_root_kernel is also
+structurally underfilled at 1 thread per block (1.2 ms wall @
+2.1% occupancy).
+
+Total occupancy-bound wall: ~4.1 ms (>50% of the
+post-S-PERF.13 device wall). Total compact_densor digest
+stages: ~3.2 ms (43%). Fixing launch geometry attacks the
+larger slice first; the same fix may incidentally help
+compact_densor_root.
+
+----------------------------------------------------------------
+ Bucket table (per-kernel; sorted by bucket then duration)
+----------------------------------------------------------------
+
+bucket             kernel                              duration   metric
+-----------------  ----------------------------------  --------   -----------
+occupancy-bound    drift_slew_sign_kernel              1.6 ms     2.1% Occ
+occupancy-bound    compact_densor_digest_v1_root_k.    1.2 ms     2.1% Occ
+occupancy-bound    candidate_pack_kernel_wide          0.85 ms    5.7% Occ
+occupancy-bound    candidate_boundary_kernel_wide      0.29 ms    2.1% Occ
+occupancy-bound    compact_densor_digest_v1_leaf_k.    0.18 ms    32.9% Occ
+
+L2-bound           detector_motif_kernel_wide_d64      2.14 ms    81%  L2
+L2-bound           detector_wide_digest_pack_kerne.    0.69 ms    84%  L2
+L2-bound           consensus_grid_kernel_wide          0.38 ms    91%  L2
+L2-bound           residual_field_kernel               0.18 ms    97.7% L2
+
+DRAM-bound         axis5_grid_sum_kernel_wide          51 us      92%  DRAM
+DRAM-bound         window_feature_kernel_structured    127 us     86.8% DRAM
+DRAM-bound         candidate_fired_kernel_wide         62 us      75.4% DRAM
+
+----------------------------------------------------------------
+ S-PERF.14 implementation direction (panel-locked)
+----------------------------------------------------------------
+
+  1. Fix drift_slew_sign_kernel first.
+  2. Expand grid geometry from per-entity serial shape to
+     tiled cell/window work.
+  3. Preserve deterministic indexed output slots.
+  4. No completion-order merge.
+  5. Re-run Nsight after the launch-geometry fix.
+  6. Only then revisit digest fusion if it remains dominant.
+
+----------------------------------------------------------------
+ Files
+----------------------------------------------------------------
+
+  scripts/s_perf_roof_preflight.sh                       (script)
+  reports/_ncu_d64_compact_densor_metrics.csv            (raw)
+  reports/s_perf_roof_preflight_d64_nsight_metrics.txt   (full)
+  reports/s_perf_roof_preflight_summary.txt              (this)
+  reports/s_perf_roof_preflight_verdict.txt              (verdict)
+
+----------------------------------------------------------------
+ Panel-locked non-claims
+----------------------------------------------------------------
+
+  - Does NOT change any kernel.
+  - Does NOT claim bandwidth saturation; it measures it.
+  - Does NOT add Rust-side code or dependencies.
+  - Does NOT mutate any hash anchor.
+  - Does NOT pre-commit to a specific S-PERF.14 byte-identical
+    implementation; only the lever class is panel-locked.
+
+================================================================
+ Receipt is one-shot; no hash chain. S-PERF.14 commit cites
+ this summary + verdict as load-bearing scope-correction input.
+================================================================

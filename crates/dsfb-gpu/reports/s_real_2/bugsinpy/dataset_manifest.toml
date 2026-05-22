@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "bugsinpy"
+display_name        = "BugsInPy patch-line complexity (Widyasari et al.)"
+upstream_doi_or_url = "github.com/soarsmu/BugsInPy"
+license             = "no-upstream-license"
+source_class        = "SoftwareDefects"
+vendored_path       = "data/fixtures/bugsinpy.tsv"
+
+[fixture]
+sha256_hex          = "1e9349f3a0e3c76f20681d4623ff0c0ee768943c07a814ef3c7b481021a57f94"
+byte_size           = 7332

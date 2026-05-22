@@ -1,0 +1,204 @@
+S-PERF.1 DeviceTrafficReceiptV1
+       Regression Check — 10-step per-section discipline ritual
+============================================================
+
+----------------------------------------------------------------
+Commit identity (panel-locked)
+----------------------------------------------------------------
+
+S-PERF.1 defines the byte-accounting receipt required before
+DSFB-GPU can make any serious memory-bandwidth or saturation
+claim. It does not claim bandwidth saturation, does not
+benchmark B300 / GB300, does not change CUDA kernels, and
+does not alter court authority. It creates the measurement
+law.
+
+Panel-locked one-line verdict (verbatim):
+
+    T.12.PROV made the science creditable; S-PERF.1 makes
+    future CUDA performance claims accountable.
+
+----------------------------------------------------------------
+Step 1: cargo fmt --all --check
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 2: cargo clippy --workspace --all-targets --features cuda
+                     -- -D warnings
+----------------------------------------------------------------
+
+  Outcome: CLEAN (no new lints; the S-PERF.1 module ships
+                  ~860 lines with `no-silent-court-logic`
+                  doctrine applied to every pub item and every
+                  private helper)
+
+----------------------------------------------------------------
+Step 3: bash scripts/scrub.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN (scrub: clean)
+
+----------------------------------------------------------------
+Step 4: bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 5: cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+
+  Outcome: 54 groups / 2095 tests PASS
+  Delta vs T.12.PROV: +1 group, +61 tests
+    new group: tests/s_perf_1_device_traffic_receipt_invariants.rs
+    new tests: 61 (8 panel-required negatives + 3 baseline
+               admission + 3 cross-device comparison + 6
+               determinism + 6 sensitivity + 6 structural
+               defect + 3 domain separator + 2 schema id + 3
+               nul-termination + 4 policy structural pins +
+               2 saturation admission + 1 percent-flag
+               admission + 2 no-claim admission + 2 non-zero
+               hash guard + 2 wire-name stability + 7 misc
+               distinctness)
+
+----------------------------------------------------------------
+Step 6: cargo test --workspace --features cuda --
+                   --test-threads=1
+----------------------------------------------------------------
+
+  Outcome: 93 groups / 2410 tests PASS
+  Delta vs T.12.PROV: +1 group, +61 tests
+
+  FF.4 live README sweep (`ff4_live_readme_satisfies_policy`)
+  passes after the README S-PERF.1 section insertion. The
+  new section was placed AFTER the T.12.PROV Scientific
+  Provenance Credit Pass section, preserving every FF.4
+  required substring and avoiding every FF.4 forbidden
+  substring.
+
+----------------------------------------------------------------
+Step 7: R.12b D64 saturation byte-stability check
+----------------------------------------------------------------
+
+  Pre-run backup: reports/r12_d64_saturation.txt,
+                  reports/d64_stage_timing_256x4096_K1.txt,
+                  reports/r9_b3_d64_timing.txt,
+                  reports/r9_b_d64_timing.txt
+   → backed up to /tmp/s_perf_1_backup/ before workspace
+     serial.
+
+  Post-run restoration: byte-identical to backup
+                        (`diff -q` clean).
+
+  Episodes: 13 / 89 / 1917 (byte-stable, unchanged).
+  Pinned R.12b baseline: NOT REBASELINED.
+
+----------------------------------------------------------------
+Step 8: Stale-doc grep scan
+----------------------------------------------------------------
+
+  README:
+    - Inserted "## S-PERF.1 — DeviceTrafficReceiptV1
+      (measurement law)" section after the T.12.PROV
+      Scientific Provenance Credit Pass section and before
+      "What this is".
+
+  archived prior-art manuscript source:
+    - Inserted dedicated `\section{Device Traffic Receipt
+      (Measurement Law)}\label{sec:device-traffic-receipt}`
+      after the Scientific Provenance Credit Pass section.
+
+  crates/dsfb-gpu-atlas-corpus/src/lib.rs:
+    - Module decl `pub mod s_perf_1_device_traffic_receipt;`
+      already wired during build.
+    - Crate docstring "Current state through T.12.PROV" →
+      "Current state through S-PERF.1" with the S-PERF.1
+      bullet enumerating the 22 hashable receipt fields, the
+      two new own-namespace hashes, the eight panel-required
+      negatives, the panel-locked saturation threshold
+      (8000 bp = 80.00 %), and the panel-locked credit
+      verdict.
+
+  crates/dsfb-gpu-atlas-corpus/src/main.rs:
+    - 4 CLI subcommands wired:
+        s-perf-1-receipt              (text dump baseline)
+        s-perf-1-receipt-emit         (4 artifacts to out/)
+        s-perf-1-policy               (text dump policy)
+        s-perf-1-policy-emit          (2 artifacts to out/)
+    - Usage block extended.
+
+----------------------------------------------------------------
+Step 9: Atomic commit under the 10-step ritual
+----------------------------------------------------------------
+
+  Pre-commit hook: fmt + clippy + scrub + docs_freshness
+  gates pass; no `--no-verify`.
+
+----------------------------------------------------------------
+Step 10: Plan-file Quick Start rotation + memory file +
+          MEMORY.md index entry
+----------------------------------------------------------------
+
+  Plan-file Quick Start: Current state → S-PERF.1 at the
+                          new commit hash; Prior current
+                          state → T.12.PROV at `a3566c3`;
+                          Active campaign (next) →
+                          S-PERF.2 Layer-A resident densor
+                          pipeline per the post-T.12.consolidate
+                          scaling roadmap (Section H, leg 7).
+
+  New memory file: project_s_perf_1_device_traffic_receipt.md.
+  MEMORY.md: extended with the S-PERF.1 one-line hook.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  Every prior court anchor: UNCHANGED.
+  SEED.len()              : 54 (UNCHANGED).
+  Two NEW own-namespace hashes:
+
+    device_traffic_receipt_hash_v1
+      = 09e96f17c2b56697a0af8ff55d4d209b9067d72fa445951110f1a5a47cdf0fb7
+    device_bandwidth_claim_policy_hash_v1
+      = 5b4d43601ac6f2902c0b02905cb6fac3f004a77a92b16cd68c72713387ceee40
+
+  Both deterministic across two consecutive builds; pairwise
+  distinct; distinct from every prior corpus / T.11 /
+  T.12.x / T.12.consolidate / FF.x / S1.3.x / T.12.PROV hash
+  anchor.
+
+R.12b episodes 13/89/1917 byte-stable; pinned baseline NOT
+rebaselined.
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in README + paper)
+----------------------------------------------------------------
+
+S-PERF.1 does NOT:
+
+  - claim that DSFB-GPU has measured peak memory-bandwidth
+    saturation on any GPU;
+  - claim production CUDA performance numbers;
+  - benchmark B300 / GB300 cloud hardware (that is the
+    S-PERF.7 / S-MG.6 victory-lap commit);
+  - change any CUDA kernel;
+  - change any court decision (S1.3a / FF.2 / FF.3 / S1.3d /
+    S1.3e / S1.3f / S1.3g);
+  - mutate any upstream hash anchor;
+  - alter SEED.len() (stays at 54);
+  - emit detector outputs, witness records, fusion tensors,
+    candidate intervals, or episodes;
+  - decide contraindications or challenges;
+  - modify the registry crate.
+
+S-PERF.1 creates the measurement law. It changes the court's
+ability to admit future performance claims; it does not
+admit any performance claim itself.
+
+Panel-locked one-line verdict (verbatim):
+
+  T.12.PROV made the science creditable; S-PERF.1 makes
+  future CUDA performance claims accountable.

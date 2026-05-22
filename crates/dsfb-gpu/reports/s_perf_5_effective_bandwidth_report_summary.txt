@@ -1,0 +1,245 @@
+S-PERF.5 EffectiveBandwidthReport — Summary Receipt
+====================================================
+
+Panel verdict: post-S-PERF.4 panel directive (2026-05-17).
+Sealed under the 10-step per-section discipline ritual.
+
+Commit identity (panel-locked):
+
+    S-PERF.5 computes and reports effective bandwidth for the
+    Layer-A evidence factory using the S-PERF.1 traffic law,
+    S-PERF.2 Layer-A boundary, S-PERF.3 public workload
+    bundle, and S-PERF.4 compacted active-family plan. It
+    does not claim saturation unless the measured percent-of-
+    peak meets the S-PERF.1 threshold and the timing method
+    is admissible.
+
+Panel-locked one-line verdict (verbatim):
+
+    S-PERF.4 packs the active witnesses into benchmarkable
+    lanes; S-PERF.5 turns measured Layer-A bytes and time
+    into an admissible bandwidth report.
+
+Core rule:
+
+    Effective bandwidth report != saturation claim.
+    Saturation requires accounted device bytes, admissible
+    CUDA timing, declared device peak bandwidth, percent-of-
+    peak >= 8000 bp, and a Layer-A-only timing boundary.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+S-PERF.5 ships ONLY the report schema + verifier + builder +
+uninstrumented baseline + renderers + CLI subcommands.
+
+  - LayerABandwidthMeasurementV1
+    Raw measurement: device traffic receipt hash (citation
+    to S-PERF.1), device identity, theoretical peak GB/s,
+    measured kernel time in microseconds, timing method
+    wire name, total accounted device bytes, computed
+    effective bandwidth in GB/s, computed percent-of-peak
+    in basis points, plus the LayerA forbidden-flag mirror
+    (host_json / casefile_materialization / host_transcript
+    presence flags — all must be false).
+
+  - BandwidthClaimAdmissionV1
+    Verdict record: claim_kind (NoClaim / EffectiveBandwidth
+    / PercentOfPeak / Saturation), panel-locked admissibility
+    reason wire name, admitted boolean.
+
+  - EffectiveBandwidthReportV1
+    Top-level META-hash envelope binding the measurement +
+    admission + four upstream anchor hashes (S-PERF.1
+    DeviceTrafficReceipt + S-PERF.2 LayerATrafficReceipt +
+    S-PERF.3 PublicDataSaturationBundle + S-PERF.4
+    FamilyCompactionBenchmarkSchema).
+
+  - BandwidthClaimKind (enum, 4 variants):
+    NoClaim, EffectiveBandwidth, PercentOfPeak, Saturation.
+    Wire names stable for the hash buffer.
+
+  - 4 panel-locked admissibility-reason wire-name constants:
+      AdmissibleNoClaim
+      AdmissibleEffectiveBandwidthBackedByByteAccounting
+      AdmissiblePercentOfPeakWithDeclaredDeviceBandwidth
+      AdmissibleSaturationWithCudaEventTimingAndFullReceiptChain
+
+----------------------------------------------------------------
+Panel-locked baseline (derived from live upstream)
+----------------------------------------------------------------
+
+  report_id    : s_perf_5_baseline_effective_bandwidth_report_v1
+  claim_kind   : NoClaim
+  admitted     : true
+  reason       : AdmissibleNoClaim
+
+The baseline is intentionally uninstrumented: every
+measurement field is zero (mirrors the S-PERF.1 uninstrumented
+baseline). The report exists to pin the receipt chain — to
+prove the schema, hashes, and verifier work end-to-end
+without making any bandwidth claim. Later S-PERF.* commits
+replace these zeros with measured values on real hardware.
+
+----------------------------------------------------------------
+Three new own-namespace hashes
+----------------------------------------------------------------
+
+  layer_a_bandwidth_measurement_hash_v1
+    = 0554ec29b2923fffef299100f1365d5682ea2696f9928d4b86ab1072cc18ea55
+    domain: DSFB-GPU-ATLAS:LAYER-A-BANDWIDTH-MEASUREMENT:v1\0
+    schema: DSFB-GPU-ATLAS:LAYER-A-BANDWIDTH-MEASUREMENT:v1
+
+  bandwidth_claim_admission_hash_v1
+    = c45f8b883860ed7961e981f39e9b391d5b644707e49e0c1584046d34ced97cfd
+    domain: DSFB-GPU-ATLAS:BANDWIDTH-CLAIM-ADMISSION:v1\0
+    schema: DSFB-GPU-ATLAS:BANDWIDTH-CLAIM-ADMISSION:v1
+
+  effective_bandwidth_report_hash_v1
+    = a129d7e0b0f6c3bf094f446761d519b4109ac86e19c3ec82d5624600c745afa8
+    domain: DSFB-GPU-ATLAS:EFFECTIVE-BANDWIDTH-REPORT:v1\0
+    schema: DSFB-GPU-ATLAS:EFFECTIVE-BANDWIDTH-REPORT:v1
+
+All three deterministic across two consecutive builds;
+pairwise distinct; distinct from every prior corpus / T.11 /
+T.12.x / T.12.consolidate / FF.x / S1.3.x / T.12.PROV /
+S-PERF.1 / S-PERF.2 / S-PERF.3 / S-PERF.4 hash anchor.
+
+----------------------------------------------------------------
+TEN panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. s_perf_5_rejects_report_without_s_perf_1_receipt
+       (measurement.device_traffic_receipt_hash_v1 == 0)
+
+  2. s_perf_5_rejects_report_without_s_perf_2_layer_a_receipt
+       (report.layer_a_traffic_receipt_hash == 0)
+
+  3. s_perf_5_rejects_report_without_s_perf_3_bundle_hash
+       (report.public_data_bundle_hash == 0)
+
+  4. s_perf_5_rejects_report_without_s_perf_4_compaction_hash
+       (report.family_compaction_benchmark_schema_hash == 0)
+
+  5. s_perf_5_rejects_saturation_claim_below_8000_bp
+       (Saturation claim with percent_of_peak < 8000 bp)
+
+  6. s_perf_5_rejects_saturation_claim_with_host_timing
+       (Saturation claim with timing_method neither CudaEvent
+        nor CudaStreamSync)
+
+  7. s_perf_5_rejects_effective_bandwidth_mismatch_from_bytes_and_time
+       (effective_bandwidth_gbps or percent_of_peak_basis_points
+        does not equal the value computed from the byte / time
+        / peak integer arithmetic formula)
+
+  8. s_perf_5_rejects_report_that_includes_host_json_or_casefile_time
+       (inner_host_json_emission_present OR
+        inner_casefile_materialization_present OR
+        inner_host_transcript_present == true)
+
+  9. s_perf_5_rejects_cross_device_claim_without_device_identity
+       (non-NoClaim claim with device_uuid_or_identity_hash == 0)
+
+ 10. s_perf_5_rejects_benchmark_claim_without_public_artifact_manifest
+       (non-NoClaim claim with public_data_bundle_hash == 0)
+
+Plus 5 structural defect rules: ReportIdEmpty,
+AdmissibilityReasonEmpty, BenchmarkClaimInsideReport (case-
+insensitive 12-substring scanner mirroring S-PERF.3 /
+S-PERF.4), ClaimKindIncoherentWithMeasurement, and
+InadmissibleClaimWithoutVerifierReason.
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/s_perf_5_effective_bandwidth_report_invariants.rs
+  66 acceptance tests:
+    - 10 panel-required load-bearing negatives
+    - 5 positive variants (saturation at >= 8000 bp passes;
+      saturation with CudaStreamSync passes; NoClaim with zero
+      device identity does not fire #9; NoClaim with zero bundle
+      does not fire #10; admissible PercentOfPeak / Saturation
+      / EffectiveBandwidth claims admit cleanly)
+    - 8 baseline admission + upstream-anchor cross-checks
+    - 5 determinism (hashes byte-stable across two builds;
+      pairwise distinct; distinct from every upstream anchor)
+    - 3 panel-locked pinned hash constants (back-stop against
+      silent rebaselining)
+    - 4 domain-separator / schema-id structure
+    - 7 sensitivity (every hashable field changes the hash
+      when mutated)
+    - 5 structural rejection (empty report id / empty
+      admissibility reason / forbidden substring in report_id
+      / forbidden substring in reason / case-insensitive
+      scanner)
+    - 4 claim_kind / measurement coherence
+    - 6 rendering byte-stability (3 text + 3 JSON renderers)
+    - 4 misc (constant set size; saturation threshold value;
+      claim_kind / admitted baseline value; admissibility
+      constants non-empty)
+
+----------------------------------------------------------------
+Test counts
+----------------------------------------------------------------
+
+  Corpus:    58 groups / 2363 tests PASS
+  Workspace: 97 groups / 2678 tests PASS
+  Delta vs S-PERF.4:
+    +1 group, +66 tests (the new
+    s_perf_5_effective_bandwidth_report_invariants suite)
+
+----------------------------------------------------------------
+Forbidden benchmark-claim substring scanner
+----------------------------------------------------------------
+
+The case-insensitive scanner enforces a 12-entry set
+(verbatim mirror of S-PERF.3 / S-PERF.4):
+
+  achieves saturation
+  saturates the bandwidth
+  saturates peak
+  % of peak
+  percent of peak
+  outperforms
+  beats the baseline
+  world record
+  fastest gpu
+  production-ready performance
+  petaflops
+  memory-bandwidth saturation
+
+Applied to: report_id, admissibility_reason_wire_name.
+
+These are CLAIMS, not measurements. They belong in the
+structured claim_kind + admitted fields, not in free-text
+flourishes.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+S-PERF.5 does NOT:
+
+  - claim memory-bandwidth saturation at baseline (baseline
+    report is BandwidthClaimKind::NoClaim);
+  - run any benchmark itself;
+  - change any CUDA kernel;
+  - change any court decision (S1.3a / FF.2 / FF.3 / S1.3d /
+    S1.3e / S1.3f / S1.3g);
+  - mutate any upstream hash anchor (corpus_hash_v1,
+    corpus_hash_v2, every T.11.x / T.12.x / FF.x / S1.3.x /
+    T.12.PROV / S-PERF.1 / S-PERF.2 / S-PERF.3 / S-PERF.4
+    hash byte-identical);
+  - alter SEED.len() (stays at 54);
+  - emit detector outputs / witness records / fusion tensors
+    / candidate intervals / episodes;
+  - decide contraindications or challenges;
+  - modify the registry crate;
+  - download or fetch any dataset bytes.
+
+S-PERF.5 ships the verdict layer; later S-PERF.* commits
+populate measured fields and turn the NoClaim baseline into
+measured saturation reports.

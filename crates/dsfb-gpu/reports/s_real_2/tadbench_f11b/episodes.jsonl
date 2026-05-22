@@ -1,0 +1,3 @@
+{"idx":0,"entity_id":0,"start_window":0,"end_window":4,"motif":"SlewShockRecovery","reason":"AbruptSlewViolation","peak_state":"Recovery","peak_residual_q":2107139227,"peak_drift_q":263392403,"peak_slew_q":2017627603,"detector_bit_count":5}
+{"idx":1,"entity_id":2,"start_window":2,"end_window":4,"motif":"SlewShockRecovery","reason":"AbruptSlewViolation","peak_state":"Recovery","peak_residual_q":26224558,"peak_drift_q":4333332,"peak_slew_q":26159022,"detector_bit_count":7}
+{"idx":2,"entity_id":4,"start_window":0,"end_window":4,"motif":"SlewShockRecovery","reason":"AbruptSlewViolation","peak_state":"Recovery","peak_residual_q":1271245832,"peak_drift_q":158905729,"peak_slew_q":1192091058,"detector_bit_count":5}

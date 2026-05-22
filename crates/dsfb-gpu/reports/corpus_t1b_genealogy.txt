@@ -1,0 +1,63 @@
+=== DSFB-GPU-Atlas literature detector corpus genealogy (T.1a stub) ===
+
+  total records              : 54
+  origin (no ancestors)      : 30
+  derived (>= 1 ancestor)    : 24  (full DAG export lands in T.5)
+
+Origin records:
+  [  1] Shewhart control chart
+  [  2] EWMA control chart
+  [  3] CUSUM (cumulative sum) chart
+  [  5] Hotelling T-squared
+  [  8] Kolmogorov-Smirnov two-sample test
+  [  9] Kullback-Leibler divergence
+  [ 10] Maximum Mean Discrepancy (MMD)
+  [ 11] Mann-Kendall trend test
+  [ 12] FFT band-energy anomaly
+  [ 13] Missingness spike
+  [ 15] Single-window spike confuser
+  [ 18] Tukey fences
+  [ 20] PCA SPE / Q residual
+  [ 22] Residual envelope exit
+  [ 23] Sensor bias detector
+  [ 24] Actuator stiction detector
+  [ 28] Wasserstein / earth-mover distance
+  [ 29] Energy distance
+  [ 30] Hellinger distance
+  [ 33] Total variation distance
+  [ 34] Pettitt change-point test
+  [ 35] Standard Normal Homogeneity Test (SNHT)
+  [ 39] Wavelet coefficient energy
+  [ 40] Autocorrelation-coefficient break
+  [ 45] Schema drift
+  [ 46] Cardinality drift
+  [ 47] Uniqueness violation
+  [ 49] R-peak interval anomaly (RR-interval)
+  [ 53] Carrier-frequency-offset residual
+  [ 54] Error Vector Magnitude (EVM) anomaly
+
+Derived records (ancestor IDs):
+  [  4] Page-Hinkley test <- [3]
+  [  6] Robust z-score (median / MAD) <- [1]
+  [  7] Hampel filter <- [6]
+  [ 14] Latency ramp <- [1, 2]
+  [ 16] Western Electric SPC rules <- [1]
+  [ 17] Nelson SPC rules <- [1, 16]
+  [ 19] PCA T-squared (on score vector) <- [5]
+  [ 21] PLS residual / Q on PLS <- [20]
+  [ 25] Valve hunting (control-loop oscillation) detector <- [24]
+  [ 26] Anderson-Darling test <- [8]
+  [ 27] Cramer-von Mises test <- [8]
+  [ 31] Population Stability Index (PSI) <- [9]
+  [ 32] Jensen-Shannon divergence <- [9]
+  [ 36] MOSUM (moving-sum-of-residuals) test <- [3]
+  [ 37] Buishand range test <- [35]
+  [ 38] Spectral entropy <- [12]
+  [ 41] Error burst <- [14]
+  [ 42] Slew shock <- [14]
+  [ 43] Fanout cascade <- [14]
+  [ 44] Missingness coupling <- [13]
+  [ 48] Functional-dependency violation <- [47]
+  [ 50] HRV time-domain shift <- [49]
+  [ 51] QRS width anomaly <- [49]
+  [ 52] ST-segment deviation proxy <- [49]

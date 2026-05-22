@@ -1,0 +1,121 @@
+S-PERF.7 --- source-report import verifier (summary)
+=====================================================
+
+Campaign identity
+-----------------
+
+S-PERF.7 is the first Track B leg. It makes the S-PERF.6
+measurement chain mechanically empirical: the corpus crate
+now PARSES the on-disk bench source reports and rejects any
+drift between the parsed values and the panel-pinned
+S-PERF.6 receipt constants. The corpus crate remains
+panel-locked host-only with zero CUDA dependency; the
+parser walks bytes; the verifier asserts equality.
+
+Without S-PERF.7 a hand-edit of the S_PERF_6_* const prefix
+in the corpus crate could silently drift from disk and pass
+every existing test. S-PERF.7 closes that loop.
+
+What this DOES
+--------------
+
+  - Parses reports/d64_stage_timing_256x4096_K1.txt into a
+    typed ParsedD64StageTimingV1 struct (host wall median,
+    device total, consensus_grid_kernel_wide, tree_digest
+    consensus, both host segments, measured wide bandwidth
+    in centi-GB/s, episode_count at 256x4096 K=1).
+  - Parses reports/r12_d64_saturation.txt into a typed
+    ParsedR12bSaturationV1 struct carrying the three K=1
+    episode pins (canonical 13 / mid 89 / full 1917).
+  - Builds a hashable SourceReportImportVerifierReportV1
+    envelope binding both parsed reports + the live
+    S-PERF.6 baseline report hash + verifier provenance.
+  - verify_source_reports_match_s_perf_6_baseline(...)
+    rejects any drift via four panel-required load-bearing
+    negatives plus structural rules.
+
+What this DOES NOT do
+---------------------
+
+  - Does NOT run the bench (corpus crate is host-only).
+  - Does NOT rewrite source reports.
+  - Does NOT mutate the S-PERF.6 receipt or any prior hash
+    anchor.
+  - Does NOT alter SEED.len().
+  - Does NOT rebaseline R.12b.
+  - Does NOT change measured bandwidth (no kernel changes).
+
+Hash posture
+------------
+
+One own-namespace hash (none folded upstream):
+
+  source_report_import_verifier_hash_v1
+    = 99cc8a71cdceb7db7c37754fc494b51f33a7ccefeeab95175095bee73883d5c9
+    domain: DSFB-GPU-ATLAS:S-PERF-7-SOURCE-REPORT-IMPORT-VERIFIER:v1\0
+
+  Deterministic across two builds; pairwise distinct from
+  every prior S-PERF anchor.
+
+FOUR panel-required load-bearing negatives (verbatim)
+-----------------------------------------------------
+
+   1. s_perf_7_rejects_receipt_if_source_report_bandwidth_differs
+   2. s_perf_7_rejects_receipt_if_source_report_device_total_differs
+   3. s_perf_7_rejects_receipt_if_source_report_host_segment_differs
+      (fires on either host_compute_features_us or
+       host_bank_admit_case_finalize_us)
+   4. s_perf_7_rejects_receipt_if_r12b_episode_pins_differ
+      (fires on any of the three pins disagreeing with the
+       panel-locked 13 / 89 / 1917 tuple)
+
+Plus structural defect rules: SourceReportTreeDigestConsensusDiffers,
+SourceReportConsensusGridDiffers, SourceReportHostWallMedianDiffers,
+SourceReportEpisodeCountDiffersFromFullPin,
+CrossReportEpisodeCountInconsistent, VerifierIdEmpty,
+D64SourceReportPathEmpty, R12bSourceReportPathEmpty.
+
+Parser strictness
+-----------------
+
+The bandwidth-line grammar accepts X.YY GB/s with EXACTLY
+two decimal digits. 7.7 GB/s is rejected as malformed so
+silent rounding cannot disguise a precision drop. The
+R.12b parser ignores wall-time columns (which drift
+run-to-run with thermal load) and reads only the K=1
+episode-count rows; pinning wall-time would force a
+rebaseline on every bench rerun, which is exactly the
+panel-forbidden anti-pattern.
+
+Track B linkage
+---------------
+
+S-PERF.7 does NOT change measured bandwidth (no kernel
+changes). It strengthens the measurement chain so
+subsequent Track B legs can ratchet the live measurement
+upward with the receipt automatically tracking the bench
+output rather than drifting silently.
+
+CLI surface
+-----------
+
+  dsfb-corpus s-perf-7-verifier         [--json] [--out PATH]
+  dsfb-corpus s-perf-7-verifier-emit    [--out-dir DIR]
+
+  s-perf-7-verifier exits 3 if any drift is found; 0 if the
+  verifier admits.
+
+Bulk-emit artifacts
+-------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_7_source_report_import_verifier_v1.{txt,json}
+
+  Byte-stable across two consecutive emits.
+
+One-line verdict
+----------------
+
+S-PERF.7 does not change measured bandwidth; it strengthens
+the measurement chain so subsequent Track B legs ratchet the
+live measurement upward with the receipt automatically
+tracking the bench output rather than drifting silently.

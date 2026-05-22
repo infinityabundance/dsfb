@@ -1,0 +1,203 @@
+# Post-T.9 regression check (per-section discipline artifact)
+#
+# Hardware:        RTX 4080 SUPER
+# CUDA toolkit:    13.2
+# Date:            2026-05-14
+# Pre-T.9 head:    8896d8a (T.8 usefulness ledger shell)
+# Post-T.9 head:   (this commit)
+# Test:            tests/r12_d64_saturation.rs (D64 saturation sweep)
+# Method:          re-run the R.12b saturation matrix after T.9
+#                  lands; compare against the pinned R.12b money
+#                  table in reports/money_table.txt and
+#                  reports/r12_d64_saturation.txt.
+#
+# Why this artifact exists:
+#   T.9 lands the internal corpus audit report bundle (TXT +
+#   JSON + DOT + genealogy-JSON) plus a new `report-bundle` CLI
+#   subcommand. It is host-only schema-data-renderer code; it
+#   touches no GPU code path, kernel, FFI signature, contract
+#   field, or workspace layout. Audit mode and the D16 / D64 /
+#   D128 golden hashes are unchanged.
+#
+#   T.9 is INTERNAL audit only. NOT a release artifact. NOT a
+#   publication step. No external archive marker
+#   (the panel-locked forbidden tokens) appears in any of the
+#   rendered TXT or JSON files; the T.9 acceptance tests pin
+#   that exclusion.
+#
+#   This file is the user-enforced per-section discipline receipt.
+#
+# Result: NO SEMANTIC REGRESSION.
+#   - tests/r12_d64_saturation.rs exit code: 0
+#   - Full-workspace serial test suite
+#     (cargo test --workspace --features cuda -- --test-threads=1):
+#       439 passed; 0 failed; finished green.
+#       (T.8 baseline 408 + 31 new T.9 acceptance tests = 439.)
+#   - Corpus crate tests: 211 passed
+#     (T.8 baseline 180 + 31 new T.9 tests = 211).
+#   - Episode counts byte-identical to pinned R.12b numbers:
+#       canonical 16x128 K ∈ {1,4,16,32,64,128} : 13   episodes/cat
+#       mid       64x512 K ∈ {1,4,16,32,64,128} : 89   episodes/cat
+#       full   256x4096  K ∈ {1,4,16,32,64,128} : 1917 episodes/cat
+#
+# GPU-timing posture (panel-discipline, NOT a T.9 regression):
+#   T.9 is pure host-side schema + renderer + new CLI subcommand.
+#   The R.12b numbers vary run-to-run with thermal envelope and
+#   host load. The pinned reports/r12_d64_saturation.txt is the
+#   authoritative R.12b baseline. This receipt does NOT rebaseline
+#   it. The pinned baseline files were restored to HEAD after the
+#   test rewrote them during this run.
+#
+# T.9 deliverables (sealed in this commit):
+#   - src/audit_report.rs (NEW): AUDIT_REPORT_SCHEMA constant
+#     ("DSFB-GPU-ATLAS:CORPUS-AUDIT-REPORT:v1"); RELEASE_STAGE
+#     constant ("internal-audit-pre-freeze"); CorpusCounts,
+#     CourtSummary, IdentitySummary, GenealogySummary,
+#     WitnessSummary, LBandSummary, UsefulnessSummary types;
+#     LIMITATIONS + DEFERRED_GATES const arrays; AuditReportData;
+#     AuditReportBundle; collect_audit_report_data() projects
+#     live T.1-T.8 source modules into the bundle data; per-section
+#     render_audit_report_txt / render_audit_report_json
+#     functions; generate_audit_report_bundle() composes all four
+#     artifacts; contains_publication_language() guard helper for
+#     tests.
+#   - src/main.rs: new `report-bundle` subcommand (optional
+#     `--out-dir DIR` flag; default `reports/`). The CLI prints
+#     one `wrote PATH` line per artifact emitted; exit code 5
+#     on I/O failure.
+#   - tests/audit_report_invariants.rs (NEW): 31 acceptance
+#     tests grouped into five categories — bundle shape /
+#     determinism (5), cross-source consistency (7), honesty
+#     invariants (6), publication-language exclusion (5),
+#     limitations / deferred-gates content (3), genealogy bundle
+#     equivalence to T.5 exports (2), structural shape (3).
+#
+# The ten stable top-level sections in corpus_t9_audit_report.txt:
+#   (1) Corpus identity and release state
+#   (2) Literature primitive count and source-class coverage
+#   (3) Alias / duplicate / canonicalisation summary
+#   (4) Deduplication court decision summary
+#   (5) Detector identity hash summary
+#   (6) Genealogy graph summary
+#   (7) Witness-role and fusion-plane coverage
+#   (8) Implementation-status L-band histogram
+#   (9) Usefulness ledger honesty summary
+#  (10) Limitations, non-claims, and deferred gates
+#
+# The JSON mirrors carry one top-level block per section plus
+# `schema`, `generated_by_section`, `limitations`, and
+# `deferred_gates` arrays.
+#
+# Cross-source-consistency invariants pinned by tests:
+#   - data.counts.literature_primitives == SEED.len()
+#   - data.counts.alias_claims          == CLAIMS.len()
+#   - data.counts.court_subjects        == classify_all().total()
+#   - data.court.counts                 == count_decisions(classify_all())
+#   - data.genealogy.{nodes,edges}      == build_genealogy() values
+#   - data.lband.counts                 == lband::compute_histogram(SEED)
+#   - data.usefulness                   == usefulness ledger helpers
+#
+# Honesty invariants pinned by tests:
+#   - aliases are NOT summed into the literature_primitives headline.
+#   - L0-L4 records are not described as GPU-ready (forbidden text
+#     patterns absent in the rendered TXT).
+#   - L7/L8 counts are zero AND marked "forbidden at T.9" in the
+#     TXT L-band block.
+#   - usefulness ledger remains NotScored ("At T.9 every row is
+#     NotScored." in TXT Section 9).
+#   - no fabricated empirical claims (T.8's gate held; verifier
+#     reports zero violators).
+#
+# Publication-language exclusion pinned by tests:
+#   - contains_publication_language(TXT) == false
+#   - contains_publication_language(JSON) == false
+#   - "zenodo" (case-insensitive) does NOT appear in TXT
+#   - "doi" (case-insensitive) does NOT appear in TXT
+#   - TXT explicitly says "internal audit" and "NOT a release"
+#
+# Corpus test counts after T.9:
+#   -  6 parser unit tests
+#   - 28 T.1a/T.1b seed_invariants tests
+#   - 14 T.2 toml_equivalence tests
+#   - 18 T.3 identity_invariants tests
+#   - 18 T.4 court_invariants tests
+#   - 18 T.5 genealogy_invariants tests
+#   - 24 T.6 witness_invariants tests
+#   - 17 T.7 lband_invariants tests
+#   - 37 T.8 usefulness_invariants tests
+#   - 31 T.9 audit_report_invariants tests   <-- NEW
+#   Total: 211 corpus-crate tests green.
+#
+# Full-workspace test count after T.9: 439 passed; 0 failed.
+#   (T.8 baseline 408 + 31 new = 439. Match.)
+#
+# Bundle headline-safe counts (from the just-rendered TXT):
+#   literature primitives (canonical) : 54
+#   alias / duplicate claims          : 12  (counted separately)
+#   court subjects                    : 66  (52 canonical + 12 alias + 2 composition)
+#   L7 / L8 records                   : 0   (forbidden at T.9)
+#   GPU-implemented whitelist size    : 5   (the T.7 surface)
+#   usefulness rows loaded            : 54
+#   evidence_level NotScored rows     : 54  (every row is NotScored at T.9)
+#   no-fabricated-claims violators    : 0
+#   T.7 verifier clean                : true
+#   T.8 verifier clean                : true
+#
+# Stale-doc grep scan (this commit) — verified clean:
+#   grep -RnE "publication-grade.*T.9|T.9 publication|Zenodo deposit|deposit-ready" \
+#     README.md crates/dsfb-gpu-atlas-corpus/src crates/dsfb-gpu-atlas-corpus/tests \
+#     -> zero hits (T.9 internal-only posture preserved).
+#
+# Full code-commentary discipline (this commit):
+#   - src/audit_report.rs module docstring opens with the
+#     panel-locked scope ("INTERNAL, NOT publication") and lists
+#     every honesty invariant the bundle enforces. Each pub item
+#     carries a doc-block stating the WHY for a future engineer.
+#   - render_audit_report_txt and render_audit_report_json doc
+#     comments explicitly note the too_many_lines clippy allow
+#     and the design reason (one large section-by-section
+#     renderer so a reviewer can read the bundle in source
+#     order).
+#   - contains_publication_language carries a doc note that the
+#     corpus_tN_regression_check.txt receipts MAY mention
+#     "Zenodo" in deferral context; the helper checks rendered
+#     TXT/JSON only.
+#   - tests/audit_report_invariants.rs module docstring lists
+#     every test name + the invariant it pins, grouped by
+#     category (bundle / cross-source / honesty / publication-
+#     exclusion / limitations / genealogy / structure).
+#
+# Pinned baselines not rebaselined by this commit:
+#   - reports/r12_d64_saturation.txt — restored to HEAD; the
+#     test re-wrote it during this run but the file is the
+#     authoritative R.12b baseline and should not drift with
+#     thermal noise.
+#   - reports/d64_stage_timing_256x4096_K1.txt — restored.
+#   - reports/r9_b_d64_timing.txt / reports/r9_b3_d64_timing.txt
+#     — restored.
+#
+# 10-step per-section discipline checklist (hard-enforcement order):
+#   [x]  1. cargo fmt --all --check                                (clean)
+#   [x]  2. cargo clippy --workspace --features cuda --all-targets \
+#             -- -D warnings                                       (clean)
+#   [x]  3. scripts/scrub.sh                                       (clean)
+#   [x]  4. scripts/docs_freshness.sh                              (clean)
+#   [x]  5. cargo test -p dsfb-gpu-atlas-corpus                    (211 green)
+#   [x]  6. cargo test --workspace --features cuda \
+#             -- --test-threads=1                                  (439 green)
+#   [x]  7. tests/r12_d64_saturation regression check              (exit 0;
+#             episodes byte-identical; per_catalog_us within real-
+#             world thermal/host-load drift band; pinned R.12b
+#             baseline NOT rebaselined.)
+#   [x]  8. stale-doc scan across the workspace                    (zero hits)
+#   [x]  9. README + plan-file Quick Start refreshed               (T.9 bullet
+#             + "What is NOT yet" paragraph promotes T.9 into landed)
+#   [x] 10. Atomic single commit                                   (this commit)
+#
+# Going forward (user-locked): every T-commit ships its own
+# corpus_tN_regression_check.txt receipt. With T.9 sealed the
+# allowed-pre-freeze T.1-T.9 campaign is complete. The next
+# campaign decision (panel-locked) is between:
+#   A. T.10 corpus_hash_v1 + CaseFileV2 integration
+#   B. R.9.d.2 D205 scaling ladder
+#   C. S1.1 Atlas algebra types

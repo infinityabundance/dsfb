@@ -1,0 +1,87 @@
+================================================================
+S1.3a - ActivationPlanV1 verification receipt
+================================================================
+Schema:    DSFB-GPU-ATLAS:ACTIVATION-PLAN:v1
+Hash:      activation_plan_hash_v1 =
+           5a81da473a5eedd46bf5f0037ce7e233d527c7dccda8d50aabb7410b1dc69b02
+
+The plan is built deterministically from the sealed corpus +
+T.11 court surfaces + pinned KNOWN_S12_REGISTRY_HASH_V2, so two
+builds produce byte-identical artifacts.
+
+Verifier:  verify_activation_plan
+14 reject kinds (each pinned; * marks panel-required load-bearing
+negatives):
+
+   1. *EnabledDetectorWithBlockingCoverageHole
+   2. *EnabledDetectorWithBlockingContraindication
+   3. *DisabledWithoutDisabledReason
+   4. *activation_plan_hash sensitivity to one-decision change
+   5.  EnabledWithoutEnabledReason
+   6.  EnabledDetectorWithBlockingChallenge
+   7.  DisabledDecisionWithoutBlockingHash
+   8.  DuplicateDecisionForCanonicalId
+   9.  DecisionForUnknownDetector
+  10.  DecisionCitesUnknownChallenge
+  11.  DecisionCitesUnknownCoverageHole
+  12.  DecisionCitesUnknownContraindication
+  13.  PlanMissingCorpusHash
+  14.  PlanMissingRegistryHash
+  15.  DecisionPassportHashMismatch (structural)
+
+Test family                | count
+---------------------------+------
+Schema constants           |   3
+Roster shape               |   7
+Hash determinism + sens.   |   4
+Rendering                  |   5
+Verifier positive          |   1
+Verifier reject coverage   |  10
+Wire-name stability        |   3 (covering 23 enum variants)
+Other                      |   4
+---------------------------+------
+Total acceptance tests     |  37
+
+Hash determinism + sensitivity family pins:
+  - activation_plan_hash_is_deterministic_across_two_builds
+  - activation_plan_hash_changes_when_one_decision_changes
+    (panel-required load-bearing negative #4)
+  - activation_plan_hash_changes_when_registry_hash_changes
+  - recomputed_hash_matches_stored_hash
+
+Roster-shape family pins:
+  - one_decision_per_seed_record (54 decisions)
+  - decisions_are_sorted_ascending
+  - status_counts_sum_to_decision_count
+  - every_decision_has_exactly_one_reason
+  - every_disabled_decision_cites_a_blocking_receipt
+  - cited_passport_hash_matches_live_passport
+  - anchor_hashes_are_populated
+
+Audit boundary panel-locks (asserted inside the acceptance tests):
+  - corpus_hash_v1                          UNCHANGED
+  - registry_hash_v2                        UNCHANGED
+  - precedent_hash_v1                       UNCHANGED
+  - admissibility_grammar_hash_v1           UNCHANGED
+  - trial_transcript_hash_v1                UNCHANGED
+  - execution_attestation_receipt_hash_v1   UNCHANGED
+  - challenge_docket_hash_v1                UNCHANGED
+  - detector_contraindication_hash_v1       UNCHANGED
+  - coverage_hole_hash_v1                   UNCHANGED
+  - Every DetectorPassport hash             UNCHANGED
+
+Verifier result on emitted seed snapshot:
+  Decisions inspected     : 54
+  Verifier errors         :  0
+
+The S1.3a verifier passes on the seed snapshot deterministically
+across two builds. The same plan re-derived from
+collect_activation_plan(KNOWN_S12_REGISTRY_HASH_V2) on a clean
+build produces byte-identical activation_plan_v1.{txt,json}
+artifacts.
+
+Enable / disable counts witnessed at seed:
+  Enabled    :  0
+  Disabled   : 49 (DisabledByWeakLBand)
+  WarnOnly   :  5 (EnabledByRoleSeededGpuSurface)
+  Deferred   :  0

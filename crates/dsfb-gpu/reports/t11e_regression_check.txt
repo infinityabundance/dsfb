@@ -1,0 +1,174 @@
+================================================================
+DSFB-GPU-Atlas — T.11e regression-check receipt (10-step ritual)
+================================================================
+Commit         : (this commit) — atomic; HEAD-before = 1c8238e (T.11d)
+Timestamp      : 2026-05-15T04:51:29Z
+Scope          : T.11e ExecutionAttestationReceiptV1 — unsigned,
+                 local, DSFB-native execution receipt recording
+                 gates, toolchain, hash-chain anchors, materials,
+                 subjects, and panel-locked non-claims. NO signed
+                 attestation, NO SLSA compliance, NO in-toto
+                 envelope, NO ChallengeDocket, NO Contraindications,
+                 NO ActivationPlanner, NO OTel binding.
+
+----------------------------------------------------------------
+Step 1 — cargo fmt --all --check
+----------------------------------------------------------------
+$ cargo fmt --all --check
+  (no output; exit 0)
+
+----------------------------------------------------------------
+Step 2 — cargo clippy --workspace --all-targets --features cuda
+         -- -D warnings
+----------------------------------------------------------------
+$ cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Finished `dev` profile [unoptimized + debuginfo] target(s)
+  (zero warnings; exit 0)
+
+Workspace-pedantic lints handled at the call site (not relaxed):
+  - clippy::too_many_lines on build_t11e_test_fixture +
+    print_usage (panel-acknowledged with `#[allow]` and rationale
+    in the doc comment).
+  - format_push_string → write!/writeln! via std::fmt::Write.
+  - expect_used → `let Some(x) = ... else { panic!(...) }` with
+    a # Panics doc comment in the fixture builder.
+
+----------------------------------------------------------------
+Step 3 — bash scripts/scrub.sh
+----------------------------------------------------------------
+$ bash scripts/scrub.sh
+  (no forbidden strings; exit 0)
+
+----------------------------------------------------------------
+Step 4 — bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+$ bash scripts/docs_freshness.sh
+  Finished `dev` profile [unoptimized + debuginfo] target(s)
+  Documenting dsfb-gpu-atlas-corpus v0.1.0
+  (no missing-doc warnings; exit 0)
+
+----------------------------------------------------------------
+Step 5 — cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+$ cargo test -p dsfb-gpu-atlas-corpus
+  test result: ok. 53 passed; 0 failed; 0 ignored
+                   (execution_attestation_invariants)
+  All other corpus suites: green (passport / precedent / admissibility
+                                   / trial_transcript / court /
+                                   genealogy / l-band / usefulness /
+                                   verify / seed / corpus_hash /
+                                   toml_equivalence)
+
+----------------------------------------------------------------
+Step 6 — cargo test --workspace --features cuda -- --test-threads=1
+----------------------------------------------------------------
+$ cargo test --workspace --features cuda -- --test-threads=1
+  result groups : 58
+  passed        : 723
+  failed        : 0
+  ignored       : 0
+
+Delta vs T.11d (670 -> 723): +53 new T.11e acceptance tests.
+
+----------------------------------------------------------------
+Step 7 — R.12b byte-stability check
+----------------------------------------------------------------
+Pinned episode counts (R.12b baseline) — byte-identical to T.11d:
+
+  canonical 16x128 : 13
+  mid 64x512       : 89
+  full 256x4096    : 1917
+
+Wall-time receipts (reports/{d64_stage_timing_256x4096_K1.txt,
+r12_d64_saturation.txt, r9_b3_d64_timing.txt, r9_b_d64_timing.txt})
+were rewritten by the test harness with this session's measured
+times; episode counts byte-stable. RESTORED via `git restore`
+per the panel-locked discipline: the pinned R.12b baseline is
+NOT rebaselined by T.11e.
+
+----------------------------------------------------------------
+Step 8 — Stale-doc scan
+----------------------------------------------------------------
+Sweep across new + touched files for stale T.* / S.* references,
+TODO / FIXME / XXX markers, and broken intra-doc links:
+
+  - crates/dsfb-gpu-atlas-corpus/src/lib.rs              clean
+  - crates/dsfb-gpu-atlas-corpus/src/main.rs             clean
+  - crates/dsfb-gpu-atlas-corpus/src/execution_attestation.rs
+                                                         clean
+  - crates/dsfb-gpu-atlas-corpus/tests/execution_attestation_invariants.rs
+                                                         clean
+  - README.md (T.11e section added under T.11d)          clean
+
+No stale-doc hits. The panel-locked non-claims block in the
+summary report mirrors the verifier-enforced AttestationNonClaim::
+all_required() set byte-for-byte; future variant additions will
+need to update both surfaces together.
+
+----------------------------------------------------------------
+Step 9 — README + plan refresh
+----------------------------------------------------------------
+README.md gains a "T.11e — Execution Attestation Receipt V1
+(unsigned, local, DSFB-native)" section under T.11d with:
+
+  - Schema name + domain separator + verifier-enforced 20
+    reject conditions enumerated by name.
+  - CLI surface (`execution-attestation`,
+    `execution-attestation-emit`).
+  - Pinned hash-chain anchors carried by the receipt.
+  - Panel-locked 7-variant non-claims list.
+  - Path to bulk-emit artifacts.
+
+Plan file records T.11e sealing and marks T.11f (ChallengeDocket)
+as the next campaign per the panel iteration-4 sequence.
+
+----------------------------------------------------------------
+Step 10 — Atomic commit
+----------------------------------------------------------------
+Pre-commit hook (fmt + clippy + scrub + docs_freshness) ran
+clean. No `--no-verify`. Commit subject:
+
+  T.11e: ExecutionAttestationReceiptV1 - unsigned DSFB-native local
+  execution receipt
+
+----------------------------------------------------------------
+Critical files (T.11e)
+----------------------------------------------------------------
+  + crates/dsfb-gpu-atlas-corpus/src/execution_attestation.rs (new)
+  + crates/dsfb-gpu-atlas-corpus/tests/execution_attestation_invariants.rs (new)
+  + crates/dsfb-gpu-atlas-corpus/out/execution_attestation_v1.txt (new)
+  + crates/dsfb-gpu-atlas-corpus/out/execution_attestation_v1.json (new)
+  + reports/t11e_execution_attestation_summary.txt (new)
+  + reports/t11e_execution_attestation_verification.txt (new)
+  + reports/t11e_regression_check.txt (new)
+  M crates/dsfb-gpu-atlas-corpus/src/lib.rs           (+1 mod decl + re-exports)
+  M crates/dsfb-gpu-atlas-corpus/src/main.rs          (+2 CLI subcommands)
+  M README.md                                          (+ T.11e section)
+  M .gitignore                                         (+3 whitelist lines)
+
+----------------------------------------------------------------
+Hash anchors carried unchanged (no prior chain mutated)
+----------------------------------------------------------------
+  corpus_hash_v1                : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  registry_hash_v2              : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+  precedent_hash_v1             : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14
+  admissibility_grammar_hash_v1 : ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7
+  trial_transcript_hash_v1      : 37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee
+
+NEW in this commit:
+  receipt_hash_v1 (test fixture / pinned in tests)
+                                : (see test pin in
+                                   tests/execution_attestation_invariants.rs)
+  receipt_hash_v1 (live emit)   : 559a52f6f314b51fd9d4c635e3f850b2d8e11058b68c1b3cf8e435e6cab31050
+                                  (operator-environment-dependent)
+
+----------------------------------------------------------------
+End state
+----------------------------------------------------------------
+The Atlas now ships an unsigned, local, DSFB-native execution
+attestation surface. The court records what was run, when, on
+which toolchain, against which corpus / registry / precedent /
+grammar / transcript anchors — without claiming SLSA, in-toto,
+signature, or reproducible-build compliance. T.11f opens the
+ChallengeDocket so the court supports appeals over detector,
+precedent, and grammar-rule claims.

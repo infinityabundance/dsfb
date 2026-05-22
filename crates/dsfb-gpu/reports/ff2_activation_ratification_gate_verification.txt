@@ -1,0 +1,181 @@
+================================================================
+FF.2 - ActivationReason::DisabledUnratifiedProposal
+       activation ratification gate verification receipt
+================================================================
+
+Verifier coverage table — every reject kind, the rule it
+encodes, the panel-required negative or structural rule it
+satisfies, and the acceptance test that exercises it.
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (6)
+----------------------------------------------------------------
+
+R.1  ActivationForUnratifiedProposal
+     Reject any decision whose canonical id is outside SEED
+     AND outside the ratified expansion index AND whose status
+     is NOT UnratifiedProposal. Surfaces the "id in nowhere"
+     bucket.
+     Test: ff2_rejects_activation_for_unratified_proposal
+
+R.2  ActivationForMissingFf1Passport
+     Reject any decision whose canonical id is in the ratified
+     expansion index AND NOT in the FF.1 passport index AND
+     whose status is NOT MissingPassport. Surfaces the "ratified
+     but no passport" structural defect.
+     Test: ff2_rejects_activation_for_missing_ff1_passport
+
+R.3  PassportIndexHashMismatch
+     Reject when the gate's pinned ff1_passport_index_hash_v1
+     does not equal the live FF.1 passport index hash. Surfaces
+     stale-anchor defects (the FF.1 passport surface rotated
+     under FF.2's feet).
+     Test: ff2_rejects_activation_when_passport_index_hash_mismatch
+
+R.4  UnratifiedProposalWithoutReasonCode
+     Reject any decision whose status is UnratifiedProposal or
+     MissingPassport AND whose disabled_reason_wire_name is
+     empty. Surfaces the "non-ratified status without explicit
+     reason code" defect.
+     Test: ff2_rejects_unratified_proposal_without_reason_code
+
+R.5  SilentFallbackToDisabledByWeakLBand
+     Reject any decision whose status is UnratifiedProposal or
+     MissingPassport AND whose disabled_reason_wire_name is
+     NOT "DisabledUnratifiedProposal" (specifically rejecting
+     "DisabledByWeakLBand" — the pre-FF.2 silent fallback the
+     panel warning forbids). The panel verdict is explicit:
+     unratified proposals must not collapse into the generic
+     weak-L-band bucket.
+     Test: ff2_rejects_silent_fallback_to_disabled_by_weak_lband
+
+R.6  ActivationReasonWithoutCorpusHashV2Binding
+     Reject when the gate's corpus_hash_v2 field is the all-
+     zero sentinel OR does not equal the live consolidation
+     report's corpus_hash_v2. The gate MUST anchor to the
+     ratified-corpus authority.
+     Test: ff2_rejects_activation_reason_without_corpus_hash_v2_binding
+
+----------------------------------------------------------------
+Structural defect rules (4)
+----------------------------------------------------------------
+
+R.7  DuplicateGateDecisionForSameCanonicalId
+     Reject two decisions for the same canonical id.
+     Test: ff2_rejects_duplicate_gate_decision_for_same_canonical_id
+
+R.8  GateDecisionsNotSortedAscending
+     Reject when decisions are not sorted strictly ascending
+     by canonical id (the gate hash material requires
+     canonical ordering for byte stability).
+     Test: ff2_rejects_gate_decisions_not_sorted_ascending
+
+R.9  CorpusHashV1Mismatch
+     Reject when the gate's corpus_hash_v1 does not equal
+     compute_corpus_hash_v1(). Surfaces a defect where FF.2
+     accidentally read a stale corpus snapshot.
+     Test: ff2_rejects_corpus_hash_v1_mismatch
+
+R.10 ConsolidationReportHashV1Mismatch
+     Reject when the gate's consolidation_report_hash_v1 does
+     not equal the live consolidation report hash. Surfaces
+     a defect where FF.2 read a stale T.12.consolidate hash.
+     Test: ff2_rejects_consolidation_report_hash_v1_mismatch
+
+R.10b SEED-invariance (unconditional)
+     Reject when SEED.len() != 54.
+     Implicitly covered by every default-build invariant test
+     (the FF.2 builder rejects construction with the wrong
+     SEED length).
+
+----------------------------------------------------------------
+Determinism + sensitivity invariants
+----------------------------------------------------------------
+
+  ff2_gate_hash_is_deterministic_across_two_builds
+  ff2_gate_summary_hash_is_deterministic_across_two_builds
+  ff2_text_render_byte_stable
+  ff2_json_render_byte_stable
+  ff2_summary_text_render_byte_stable
+  ff2_summary_json_render_byte_stable
+  ff2_gate_hash_changes_when_candidate_set_changes
+  ff2_gate_hash_changes_when_decision_status_mutates
+  ff2_summary_hash_changes_when_gate_hash_changes
+
+----------------------------------------------------------------
+Upstream-anchor invariance (FF.2 mutates nothing)
+----------------------------------------------------------------
+
+  ff2_does_not_mutate_corpus_hash_v1
+  ff2_does_not_mutate_corpus_hash_v2
+  ff2_does_not_mutate_ff1_passport_index_hash_v1
+  ff2_does_not_mutate_consolidation_report_hash_v1
+  ff2_does_not_mutate_seed_len
+
+----------------------------------------------------------------
+Field-level + pinned-anchor cross-check invariants
+----------------------------------------------------------------
+
+  ff2_seed_decisions_carry_empty_disabled_reason
+  ff2_t12_decisions_carry_empty_disabled_reason_and_non_zero_passport_hash
+  ff2_seed_decisions_cover_ids_one_through_fifty_four
+  ff2_t12_decisions_only_in_reserved_band
+  ff2_disabled_reason_wire_name_matches_activation_enum_variant
+  ff2_non_claim_lines_are_non_empty
+  ff2_summary_carries_canonical_non_claim_lines
+  ff2_gate_domain_separator_pin
+  ff2_gate_schema_pin
+  ff2_gate_summary_domain_separator_pin
+  ff2_gate_summary_schema_pin
+  ff2_status_wire_names_pin
+  ff2_passes_gate_predicate_matches_status_buckets
+  ff2_gate_pins_live_corpus_hash_v1
+  ff2_gate_pins_live_corpus_hash_v2
+  ff2_gate_pins_live_consolidation_report_hash_v1
+  ff2_gate_pins_live_ff1_passport_index_hash_v1
+
+----------------------------------------------------------------
+Count-shape regression sentinels
+----------------------------------------------------------------
+
+  ff2_seed_historical_count_is_fifty_four            -> 54
+  ff2_t12_ratified_and_passported_count_is_ninety_eight -> 98
+  ff2_total_decision_count_is_one_hundred_fifty_two  -> 152
+
+----------------------------------------------------------------
+Hash-namespace distinctness
+----------------------------------------------------------------
+
+  ff2_gate_hash_distinct_from_summary_hash
+  ff2_gate_hash_distinct_from_corpus_hash_v1
+  ff2_gate_hash_distinct_from_corpus_hash_v2
+  ff2_gate_hash_distinct_from_passport_index_hash
+  ff2_gate_hash_distinct_from_consolidation_report_hash
+
+----------------------------------------------------------------
+Render coverage
+----------------------------------------------------------------
+
+  ff2_render_text_contains_pinned_anchors_and_counts
+  ff2_render_json_contains_schema_field
+  ff2_summary_render_text_contains_non_claim_lines
+  ff2_summary_render_json_contains_non_claim_array
+  ff2_render_text_has_deterministic_count_row_order
+
+----------------------------------------------------------------
+Summary
+----------------------------------------------------------------
+
+  Total FF.2 acceptance tests              : 60
+  Panel-required load-bearing negatives    : 6  (R.1..R.6)
+  Structural / determinism / sensitivity   : 30+
+  Default-build invariants                 : 5
+  Field-level / pin / anchor cross-checks  : 17
+  Count-shape regression sentinels         : 3
+  Hash-namespace distinctness assertions   : 5
+  Render coverage assertions               : 5
+
+  Corpus crate test count change           : 1474 -> 1534
+                                            (44 -> 45 groups)
+  Workspace serial test count change       : 1789 -> 1849
+                                            (83 -> 84 groups)

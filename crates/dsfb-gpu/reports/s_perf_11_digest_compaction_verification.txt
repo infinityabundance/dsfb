@@ -1,0 +1,177 @@
+S-PERF.11 --- measured digest-lane compaction (verification)
+============================================================
+
+Acceptance suites
+-----------------
+
+  Module : crates/dsfb-gpu-atlas-corpus/src/s_perf_11_measured_digest_compaction.rs
+  Tests  : crates/dsfb-gpu-atlas-corpus/tests/s_perf_11_measured_digest_compaction_invariants.rs
+  Count  : 61 tests
+  Result : 61 passed, 0 failed
+  Rewrite: panel-locked 2026-05-18 (3-hash spec; 8
+           campaign-identity negatives with verbatim names;
+           12 positive tests with verbatim names; folded
+           kernel-rewrite metadata into the measurement
+           hash; new s_perf_11_digest_root_equivalence
+           hash pins four pre + four post TreeSha256V1
+           roots).
+
+  Safety harness (CUDA-gated, demo crate):
+  Module : cuda/kernels.cu :: tree_digest_leaf_kernel_v2
+  Tests  : crates/dsfb-gpu-debug-demo/tests/s_perf_11_pre_rewrite_root_capture.rs
+  Count  : 1 test (pre-rewrite TreeSha256V1 root capture)
+  Result : passed (four root digests byte-identical
+            pre/post-rewrite on canonical 16x128 K=1 D64
+            fixture)
+
+Verifier coverage matrix (8 panel-required negatives +
+5 structural + 4 defense-in-depth structural extras)
+-----------------------------------------------------
+
+| #  | reject_kind                                          | covered_by_test                                                    |
+|----|------------------------------------------------------|--------------------------------------------------------------------|
+|  1 | SpeedupWithoutDigestRootEquivalence (CAMPAIGN ID)    | s_perf_11_rejects_speedup_without_digest_root_equivalence          |
+|  2 | SpeedupWithoutR12bEpisodeStability                   | s_perf_11_rejects_speedup_without_r12b_episode_stability           |
+|  3 | DigestTotalNotReduced                                | s_perf_11_rejects_digest_total_not_reduced                         |
+|  4 | BandwidthNotImproved                                 | s_perf_11_rejects_bandwidth_not_improved                           |
+|  5 | MissingSPerf10DigestLanePlanHash                     | s_perf_11_rejects_missing_s_perf_10_digest_lane_plan_hash          |
+|  6 | TreeSha256V1RootDrift                                | s_perf_11_rejects_tree_sha256v1_root_drift                         |
+|  7 | SaturationClaimBelow8000Bp                           | s_perf_11_rejects_saturation_claim_below_8000_bp                   |
+|  8 | ClaimThat1638GbpsIsMemorySaturation                  | s_perf_11_rejects_claim_that_16_38_gbps_is_memory_saturation       |
+| S1 | ReportIdEmpty                                        | structural_rejects_empty_report_id                                 |
+| S2 | PreSourceReportPathEmpty                             | structural_rejects_empty_pre_source_report_path                    |
+| S3 | PostSourceReportPathEmpty                            | structural_rejects_empty_post_source_report_path                   |
+| S4 | DigestSpeedupArithmeticMismatch                      | structural_rejects_digest_speedup_arithmetic_mismatch              |
+| S5 | BandwidthDeltaArithmeticMismatch                     | structural_rejects_bandwidth_delta_arithmetic_mismatch             |
+| X1 | StructuralCompletionOrderFragmentMerge               | structural_rejects_completion_order_fragment_merge                 |
+| X2 | StructuralCasefileChainDrift                         | structural_rejects_casefile_chain_drift                            |
+| X3 | StructuralMissingPrePostDigestTable                  | structural_rejects_missing_pre_post_digest_table                   |
+| X4 | StructuralKAmortisationOverclaim                     | structural_rejects_k_amortisation_overclaim                        |
+
+Live-disk seed admission
+------------------------
+
+  - seed_bandwidth_delta_report_from_disk(repo_root())
+    OK (verifier admits with zero errors).
+  - pre_source_report_path  : reports/d64_stage_timing_256x4096_K1.txt
+                              (restored from HEAD; pinned R.12b
+                              13.33 GB/s reference unchanged).
+  - post_source_report_path : reports/d64_stage_timing_256x4096_K1_post_s_perf_11.txt
+                              (one-time captured post-kernel-swap
+                              bench; whitelisted in .gitignore).
+  - Per-stage pre/post:
+      tree_digest residual               | 2364 -> 1685   (-679)
+      tree_digest sign                   | 2684 -> 1929   (-755)
+      tree_digest detector (wide cells)  | 2509 -> 2052   (-457)
+      tree_digest consensus              | 4338 -> 2890   (-1448)
+      digest_total_us                    | 11895 -> 8556  (-3339)
+      digest_speedup                     : 1.39x
+  - Bandwidth pre/post:
+      pre_bandwidth_centi_gbps  = 1333 (= 13.33 GB/s, 186 bp)
+      post_bandwidth_centi_gbps = 1638 (= 16.38 GB/s, 228 bp)
+      delta_centi_gbps          = +305 (+22.88% relative to pre)
+      delta_basis_points        = +2288
+      saturation_admitted       = false  (228 bp << 8000 bp threshold)
+  - R.12b episode pins (canonical / mid / full): 13 / 89 / 1917
+  - four_roots_byte_identical : true (per-stage byte_identical
+                                       flags all true)
+  - Upstream anchor bindings:
+      s_perf_6_baseline_report_hash_v1
+        = d44c9ec5447f05fb6c40567dcb56502c17c14f00ad100f81d30900c1c15a1533
+      s_perf_7_source_report_import_verifier_hash_v1
+        = 99cc8a71cdceb7db7c37754fc494b51f33a7ccefeeab95175095bee73883d5c9
+      s_perf_8_batched_k_saturation_receipt_hash_v1
+        = 37212c42b4fdf06069c019e34474cf0d6660843bad7cd4a9cbc92020a7b9f201
+      s_perf_10_digest_lane_plan_hash_v1
+        = e9cf5c3418015044a03e4b369fefdf284908f4b63412fe372187de670db07811
+        (rebaselined under bundled S-PERF.10 contract wording
+         clarification; same atomic commit)
+
+Rewrite metadata (folded into measurement hash)
+-----------------------------------------------
+
+  rewrite_kernel_name  : tree_digest_leaf_kernel_v2
+  rewrite_kind_label   : LeafBatchingV1
+  leaves_per_block     : 32  (one warp per block; one chunk per thread)
+  digest_mode_label    : TreeSha256V1  (unchanged from S-PERF.10)
+  chunk_size_bytes     : 16384  (workspace parameter; unchanged)
+
+Same-mode digest-root preservation enforcement
+----------------------------------------------
+
+  The matching `s_perf_11_pre_rewrite_root_capture`
+  CUDA-gated test pins four pre-rewrite TreeSha256V1 root
+  digests on the canonical 16x128 K=1 D64 fixture:
+
+    S_PERF_11_PRE_ROOT_RESIDUAL  = 89a18526fca358c455d710ebe0f2ad67b295c4c265cfd6d2e970c5c29c49dc2e
+    S_PERF_11_PRE_ROOT_SIGN      = ace5e6265a3cda8514fcb6a9aaa7f019c3ec1ba9b7d2ce7e6e23fd383c33da59
+    S_PERF_11_PRE_ROOT_DETECTOR  = 879dc9a94c0b5043d3806b4325a9a664345e4d773768ca28ed59e46c2a5f4bae
+    S_PERF_11_PRE_ROOT_CONSENSUS = 0d8949d52d1aeac7d0f04418382127 6b230f6a871957fd320a0d66d44d47ced6
+
+  Running the test against the post-rewrite kernel
+  (`tree_digest_leaf_kernel_v2`) produces byte-identical
+  four root digests; the receipt-level
+  `s_perf_11_digest_root_equivalence_hash_v1` mirrors
+  this byte-identity at the receipt layer.
+
+Hash determinism + sensitivity
+------------------------------
+
+  - Two seed_bandwidth_delta_report_from_disk() invocations
+    produce byte-identical
+    `s_perf_11_bandwidth_delta_report_hash_v1`.
+  - Changing any one of:
+      post stage timing (e.g. consensus us)
+      post bandwidth (centi-GB/s)
+      rewrite_kind_label
+      any pre-rewrite or post-rewrite root digest byte
+      any episode pin
+      any upstream anchor hash
+    changes the corresponding S-PERF.11 hash
+    deterministically.
+  - Pinned top-level hash:
+      1a27154e335c27df6db939d4c8ff0f36f8baf75871be06c750f0853f2268adc8
+    Backed by `pinned_top_level_hash_matches_live_disk_seed`
+    so any silent rebaseline fails CI immediately.
+
+Renderer byte-stability
+-----------------------
+
+  - render_bandwidth_delta_report_text() byte-stable
+    across two invocations.
+  - render_bandwidth_delta_report_json() byte-stable
+    across two invocations.
+  - Text renderer contains the panel-pinned stage labels +
+    "Digest-root equivalence" + the panel-locked report
+    wording + the panel-locked one-line verdict.
+  - JSON renderer contains `"rewrite_kernel_name":
+    "tree_digest_leaf_kernel_v2"`, `"digest_mode_label":
+    "TreeSha256V1"`, `"four_roots_byte_identical": true`,
+    and all three S-PERF.11 own-namespace hash field
+    names.
+
+Cross-anchor distinctness
+-------------------------
+
+  - The three S-PERF.11 own-namespace hashes
+    (measurement, root-equivalence, top-level) are
+    pairwise distinct.
+  - The top-level S-PERF.11 hash is distinct from every
+    upstream anchor it binds (S-PERF.6 / S-PERF.7 /
+    S-PERF.8.1 / S-PERF.10).
+
+Test result summary
+-------------------
+
+  cargo test -p dsfb-gpu-atlas-corpus --test
+  s_perf_11_measured_digest_compaction_invariants
+
+  61 tests pass; 0 fail; 0 ignored.
+
+  cargo test -p dsfb-gpu-debug-demo --features cuda --test
+  s_perf_11_pre_rewrite_root_capture
+
+  1 test passes; 0 fail. The four pre-rewrite
+  TreeSha256V1 root digests captured on the canonical
+  16x128 K=1 D64 fixture remain byte-identical after the
+  kernel swap to `tree_digest_leaf_kernel_v2`.

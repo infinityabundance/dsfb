@@ -1,0 +1,56 @@
+=== R.12b D64 saturation sweep (post-R.11c, R.13 headline) ===
+Hardware: RTX 4080 SUPER, CUDA 13.2. GPU Layer B compact verdict.
+K is processed as a host loop of K serial single-catalog dispatches
+on one GpuWorkspace; batched K > 1 kernels are R.9.d+ work.
+CPU Layer B D64 comparison is deferred to R.12b.1 (no CPU
+consensus_wide / candidate_collapse_wide path in core); recorded as '—'.
+The 'spd_vs_cpub' column STAYS '—' until R.12b.1 adds the CPU wide path.
+R.13 headline framing: full-pipeline campaign reduction
+(R.9.b.3 baseline 1.82 s/cat → R.11c 33.1 ms/cat at K=1 full).
+This is NOT a GPU-vs-CPU speedup claim (see panel-locked overclaim guardrail).
+
+  scale                  |   K | per_cat_us |  cat/sec | features_pct | dev_total_pct | finalize_pct | top_stage         | spd_vs_cpub
+  ---------------------- | --- | ---------- | -------- | ------------ | ------------- | ------------ | ----------------- | -----------
+  canonical 16x128       |   1 |       3061 |    326.7 |        0.2%  |        98.6%  |        0.9%  | digest_consensus (24%) | —
+  canonical 16x128       |   4 |       3062 |    326.6 |        0.2%  |        98.6%  |        0.9%  | digest_consensus (24%) | —
+  canonical 16x128       |  16 |       2817 |    355.0 |        0.2%  |        98.5%  |        1.0%  | digest_detector (24%) | —
+  canonical 16x128       |  32 |       1739 |    575.0 |        0.4%  |        97.6%  |        1.6%  | digest_sign (24%) | —
+  canonical 16x128       |  64 |       1738 |    575.2 |        0.4%  |        97.6%  |        1.6%  | digest_detector (24%) | —
+  canonical 16x128       | 128 |       1743 |    573.5 |        0.4%  |        97.7%  |        1.6%  | digest_detector (23%) | —
+  mid 64x512             |   1 |       2428 |    411.9 |        3.2%  |        91.3%  |        4.9%  | digest_consensus (21%) | —
+  mid 64x512             |   4 |       2433 |    411.0 |        3.2%  |        91.2%  |        4.9%  | digest_consensus (20%) | —
+  mid 64x512             |  16 |       2432 |    411.0 |        3.2%  |        91.4%  |        4.9%  | digest_consensus (21%) | —
+  mid 64x512             |  32 |       2439 |    410.0 |        3.2%  |        91.4%  |        4.9%  | digest_consensus (21%) | —
+  mid 64x512             |  64 |       2432 |    411.1 |        3.2%  |        91.4%  |        4.9%  | digest_consensus (21%) | —
+  mid 64x512             | 128 |       2434 |    410.8 |        3.2%  |        91.4%  |        4.9%  | digest_consensus (21%) | —
+  full 256x4096          |   1 |      28644 |     34.9 |       26.1%  |        65.9%  |        7.8%  | digest_consensus (21%) | —
+  full 256x4096          |   4 |      27714 |     36.1 |       23.8%  |        68.1%  |        8.1%  | digest_consensus (21%) | —
+  full 256x4096          |  16 |      27731 |     36.1 |       23.5%  |        68.4%  |        8.1%  | digest_consensus (21%) | —
+  full 256x4096          |  32 |      27833 |     35.9 |       23.7%  |        68.2%  |        8.0%  | digest_consensus (21%) | —
+  full 256x4096          |  64 |      27781 |     36.0 |       23.8%  |        68.0%  |        8.0%  | digest_consensus (21%) | —
+  full 256x4096          | 128 |      27770 |     36.0 |       23.7%  |        68.1%  |        8.0%  | digest_consensus (21%) | —
+
+Detailed throughput (cells/sec, detector_evals/sec) at each cell:
+  canonical 16x128       K=  1 : cells/sec=6.69e5  det_evals/sec=4.28e7  episodes/cat=13
+  canonical 16x128       K=  4 : cells/sec=6.69e5  det_evals/sec=4.28e7  episodes/cat=13
+  canonical 16x128       K= 16 : cells/sec=7.27e5  det_evals/sec=4.65e7  episodes/cat=13
+  canonical 16x128       K= 32 : cells/sec=1.18e6  det_evals/sec=7.54e7  episodes/cat=13
+  canonical 16x128       K= 64 : cells/sec=1.18e6  det_evals/sec=7.54e7  episodes/cat=13
+  canonical 16x128       K=128 : cells/sec=1.17e6  det_evals/sec=7.52e7  episodes/cat=13
+  mid 64x512             K=  1 : cells/sec=1.35e7  det_evals/sec=8.64e8  episodes/cat=89
+  mid 64x512             K=  4 : cells/sec=1.35e7  det_evals/sec=8.62e8  episodes/cat=89
+  mid 64x512             K= 16 : cells/sec=1.35e7  det_evals/sec=8.62e8  episodes/cat=89
+  mid 64x512             K= 32 : cells/sec=1.34e7  det_evals/sec=8.60e8  episodes/cat=89
+  mid 64x512             K= 64 : cells/sec=1.35e7  det_evals/sec=8.62e8  episodes/cat=89
+  mid 64x512             K=128 : cells/sec=1.35e7  det_evals/sec=8.61e8  episodes/cat=89
+  full 256x4096          K=  1 : cells/sec=3.66e7  det_evals/sec=2.34e9  episodes/cat=1917
+  full 256x4096          K=  4 : cells/sec=3.78e7  det_evals/sec=2.42e9  episodes/cat=1917
+  full 256x4096          K= 16 : cells/sec=3.78e7  det_evals/sec=2.42e9  episodes/cat=1917
+  full 256x4096          K= 32 : cells/sec=3.77e7  det_evals/sec=2.41e9  episodes/cat=1917
+  full 256x4096          K= 64 : cells/sec=3.77e7  det_evals/sec=2.42e9  episodes/cat=1917
+  full 256x4096          K=128 : cells/sec=3.78e7  det_evals/sec=2.42e9  episodes/cat=1917
+
+Decision rule (per plan):
+  features_pct > 40% at K=64/full -> R.11b: GPU/window-feature path
+  features_pct < ~25% AND GPU still scales -> R.9.d detector ladder
+  D64 already clears paper gate at K=64 -> preserve as headline row

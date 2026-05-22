@@ -1,0 +1,155 @@
+================================================================
+FF.1 - DetectorPassport materialisation verification receipt
+================================================================
+
+The FF.1 verifier (verify_ff1) walks the passport index
+against the live consolidation report under ten panel-required
+rules and exits clean: zero errors against the admissible
+materialisation, every negative test triggers the expected
+rule against a defective set.
+
+----------------------------------------------------------------
+Ten panel-required load-bearing negatives (each PASSED)
+----------------------------------------------------------------
+
+LN.1  ff1_rejects_passport_for_non_ratified_canonical_id     PASS
+      Injecting a passport for canonical_id 9999 (NOT in the
+      ratified expansion index) surfaces
+      PassportForNonRatifiedCanonicalId { canonical_id = 9999 }.
+
+LN.2  ff1_rejects_passport_if_corpus_hash_v2_mismatch        PASS
+      Mutating the passport index's pinned corpus_hash_v2 to
+      [0xAA; 32] surfaces PassportIfCorpusHashV2Mismatch.
+
+LN.3  ff1_rejects_passport_materialisation_that_mutates_t12_proposal_hash
+                                                              PASS
+      Mutating the first proposal_summary's proposal_hash to
+      the all-zero sentinel surfaces
+      PassportMaterialisationMutatedT12ProposalHash.
+
+LN.4  ff1_rejects_passport_materialisation_that_mutates_corpus_hash_v2
+                                                              PASS
+      Mutating the consolidation report's corpus_hash_v2 to
+      the all-zero sentinel surfaces
+      PassportMaterialisationMutatedCorpusHashV2.
+
+LN.5  ff1_rejects_duplicate_passport_for_same_canonical_id   PASS
+      Duplicating the first passport surfaces
+      DuplicatePassportForSameCanonicalId.
+
+LN.6  ff1_rejects_missing_source_lineage_for_literature_passport
+                                                              PASS
+      Clearing source_class_wire_name OR origin_proposal_id
+      surfaces MissingSourceLineageForLiteraturePassport.
+
+LN.7  ff1_rejects_missing_gpu_family_mapping                 PASS
+      Clearing gpu_family_wire_name surfaces
+      MissingGpuFamilyMapping.
+
+LN.8  ff1_rejects_missing_activation_applicability_tags      PASS
+      Clearing activation_applicability_tags surfaces
+      MissingActivationApplicabilityTags.
+
+LN.9  ff1_rejects_missing_contraindication_linkage_stub      PASS
+      Setting contraindication_linkage_stub.stub_declared =
+      false surfaces MissingContraindicationLinkageStub.
+
+LN.10 ff1_rejects_missing_challenge_surface_stub             PASS
+      Setting challenge_surface_stub.stub_declared = false
+      surfaces MissingChallengeSurfaceStub.
+
+----------------------------------------------------------------
+Shape + materialisation discipline (each PASSED)
+----------------------------------------------------------------
+
+  ff1_materialises_one_passport_per_ratified_canonical_addition
+                                                              PASS
+  ff1_total_passport_count_is_98                              PASS
+  ff1_passports_sorted_ascending_by_canonical_id              PASS
+  ff1_admissible_set_produces_zero_verify_errors              PASS
+
+----------------------------------------------------------------
+Hash invariance (FF.1 does NOT mutate any upstream; each PASSED)
+----------------------------------------------------------------
+
+  ff1_does_not_mutate_corpus_hash_v1                          PASS
+  ff1_does_not_mutate_corpus_hash_v2                          PASS
+  ff1_does_not_mutate_t12_expansion_index_hash_v1             PASS
+  ff1_does_not_mutate_consolidation_report_hash_v1            PASS
+  ff1_does_not_mutate_t12_proposal_hashes                     PASS
+  ff1_seed_len_remains_54                                     PASS
+  ff1_passport_index_pins_all_four_anchors                    PASS
+
+----------------------------------------------------------------
+FF.1 new own-namespace hash discipline (each PASSED)
+----------------------------------------------------------------
+
+  ff1_passport_index_hash_is_deterministic                    PASS
+  ff1_materialisation_report_hash_is_deterministic            PASS
+  ff1_passport_index_hash_is_nonzero                          PASS
+  ff1_materialisation_report_hash_is_nonzero                  PASS
+  ff1_new_hashes_distinct_from_upstream_anchors               PASS
+  every_passport_carries_unique_passport_hash_v1              PASS
+
+----------------------------------------------------------------
+Domain-separator pins (each PASSED)
+----------------------------------------------------------------
+
+  ff1_domain_separators_are_panel_locked                      PASS
+    Pinned: DSFB-GPU-ATLAS:FF1-T12-RATIFIED-PASSPORT:v1\0
+    Pinned: DSFB-GPU-ATLAS:FF1-PASSPORT-INDEX:v1\0
+    Pinned: DSFB-GPU-ATLAS:FF1-MATERIALISATION-REPORT:v1\0
+
+----------------------------------------------------------------
+Per-passport field invariants (each PASSED)
+----------------------------------------------------------------
+
+  every_passport_has_canonical_id_in_t12_reserved_bands       PASS
+  no_passport_collides_with_seed_canonical_ids                PASS
+  every_passport_has_nonempty_display_name                    PASS
+  every_passport_has_nonempty_source_class                    PASS
+  every_passport_has_nonempty_origin_proposal_id              PASS
+  every_passport_has_nonempty_gpu_family_wire_name            PASS
+  every_passport_has_nonempty_activation_tags                 PASS
+  every_passport_contraindication_stub_is_declared            PASS
+  every_passport_challenge_stub_is_declared                   PASS
+
+----------------------------------------------------------------
+SourceClass mapping discipline (each PASSED)
+----------------------------------------------------------------
+
+  source_class_to_gpu_family_is_total                         PASS
+    (every panel-locked SourceClass variant returns a
+     non-NegativeWitnessFamily GpuFamilyKernel)
+  source_class_to_activation_tags_is_total_and_nonempty       PASS
+
+----------------------------------------------------------------
+Aggregate per-source-class count (regression sentinels)
+----------------------------------------------------------------
+
+  ff1_per_source_class_counts_sum_to_total                    PASS
+  ff1_per_source_class_counts_sorted_by_wire_name             PASS
+
+----------------------------------------------------------------
+Rendering byte-stability (each PASSED)
+----------------------------------------------------------------
+
+  ff1_passport_index_text_rendering_byte_stable               PASS
+  ff1_passport_index_json_rendering_byte_stable               PASS
+  ff1_materialisation_report_text_rendering_byte_stable       PASS
+  ff1_materialisation_report_json_rendering_byte_stable       PASS
+  ff1_materialisation_report_text_carries_panel_locked_non_claims
+                                                              PASS
+
+----------------------------------------------------------------
+Test surface summary
+----------------------------------------------------------------
+
+  Test group  : 1 (tests/ff1_passport_invariants.rs)
+  Tests       : 46 (all pass)
+  Of which panel-required load-bearing negatives : 10
+  Of which structural / hash / determinism / rendering : 36
+
+----------------------------------------------------------------
+End of FF.1 verification receipt
+----------------------------------------------------------------

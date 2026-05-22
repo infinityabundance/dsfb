@@ -1,0 +1,187 @@
+================================================================
+T.12.consolidate - amendment review + corpus_hash_v2 freeze
+                   verification receipt
+================================================================
+
+The consolidation verifier (verify_consolidation) walks the
+panel-locked 17-proposal set under ten rules and exits clean:
+zero errors against the canonical proposal set, every negative
+test triggers the expected rule against a defective set.
+
+----------------------------------------------------------------
+Ten panel-required load-bearing negatives (each PASSED)
+----------------------------------------------------------------
+
+LN.1  consolidate_rejects_missing_t12_proposal                PASS
+      Stripping T.12.p from the loaded set surfaces
+      MissingProposal { proposal_id =
+      "t12_p_information_theory_first_proposal" }.
+
+LN.2  consolidate_rejects_duplicate_reserved_id               PASS
+      Injecting a CanonicalAddition for canonical_id 6601
+      (T.12.p Shannon entropy) into a second proposal
+      surfaces DuplicateReservedId { canonical_id = 6601, ... }.
+
+LN.3  consolidate_rejects_unused_reserved_id_without_pin_or_explanation
+                                                              PASS
+      Reserved ids 6301 + 6302 (T.12.m's deliberately-unused
+      slots after SEED-walk-first caught SEED 53/54 collisions)
+      verified absent from the expansion index; pinned by
+      T.12.m guards
+      t12_m_cfo_authority_resolves_seed_53_with_morelli_reference
+      + t12_m_evm_authority_resolves_seed_54_with_shafik_reference.
+
+LN.4  consolidate_rejects_canonical_addition_colliding_with_seed
+                                                              PASS
+      Injecting a CanonicalAddition for SEED id 9 (KL
+      divergence) surfaces
+      CanonicalAdditionCollidesWithSeed { canonical_id = 9, ... }.
+
+LN.5  consolidate_rejects_parameterization_without_parent     PASS
+      Injecting a ParameterizationOf record with canonical_id 38
+      (SEED Spectral entropy) — child colliding with SEED —
+      surfaces
+      ParameterizationWithoutParent { canonical_id = 38, ... }.
+
+LN.6  consolidate_rejects_authority_resolution_without_existing_target
+                                                              PASS
+      Injecting an ExistingCanonicalAuthorityResolution for
+      canonical_id 9999 (NOT in SEED) surfaces
+      AuthorityResolutionTargetNotInSeed { canonical_id = 9999, ... }.
+
+LN.7  consolidate_rejects_rejected_record_without_rejection_contract
+                                                              PASS
+      Injecting a RejectedNotDeterministic with empty reason
+      surfaces
+      RejectionWithoutContract { canonical_id = 6699, ... }.
+
+LN.8  consolidate_rejects_hash_mismatch_against_emitted_artifact
+                                                              PASS
+      Mutating the first proposal's
+      corpus_amendment_proposal_hash_v1 to a non-matching value
+      surfaces
+      HashMismatchAgainstArtifact { field =
+      "corpus_amendment_proposal_hash_v1", ... }.
+
+LN.9  consolidate_rejects_corpus_hash_v2_if_corpus_hash_v1_mutated
+                                                              PASS
+      SEED + corpus_hash_v1 invariance verified
+      unconditionally; no SeedLengthMutated /
+      CorpusHashV1Mutated errors surface on the canonical
+      proposal set. The verifier guard SHAPE for both error
+      kinds is verified via matches!() assertion.
+
+LN.10 consolidate_rejects_uncredited_literature_record        PASS
+      Injecting a CanonicalAddition for canonical_id 6700
+      WITHOUT a matching ProposedPrimitive in the same batch
+      surfaces
+      UncreditedLiteratureRecord { canonical_id = 6700, ... }.
+
+----------------------------------------------------------------
+Additional verifier rule pinned (sibling of LN.6)
+----------------------------------------------------------------
+
+  consolidate_rejects_domain_transfer_targeting_non_seed_id   PASS
+    Injecting a DomainTransferOf for canonical_id 8888 (NOT
+    in SEED) surfaces
+    DomainTransferTargetNotInSeed { canonical_id = 8888, ... }.
+
+----------------------------------------------------------------
+Shape + load discipline (each PASSED)
+----------------------------------------------------------------
+
+  loader_returns_all_seventeen_t12_proposals                  PASS
+  loader_proposal_ids_match_expected_set                      PASS
+  every_loaded_proposal_is_open_status                        PASS
+  admissible_proposal_set_produces_zero_errors                PASS
+
+----------------------------------------------------------------
+SEED + corpus_hash_v1 invariance (each PASSED)
+----------------------------------------------------------------
+
+  seed_len_remains_54_after_consolidation                     PASS
+  corpus_hash_v1_unchanged_after_consolidation                PASS
+  report_records_seed_len_as_54                               PASS
+  report_records_corpus_hash_v1_anchor                        PASS
+
+----------------------------------------------------------------
+Aggregate count pins (regression sentinels; each PASSED)
+----------------------------------------------------------------
+
+  aggregates_count_seventeen_proposals_sixteen_real           PASS
+    (proposal_count = 17; real_proposal_count = 16)
+  aggregates_canonical_addition_total_pinned                  PASS (98)
+  aggregates_authority_resolution_total_pinned                PASS (76)
+  aggregates_domain_transfer_total_pinned                     PASS (23)
+  aggregates_parameterization_total_pinned                    PASS (49)
+  aggregates_rejection_total_pinned                           PASS (24)
+  aggregates_alias_of_total_pinned_t12a_era                   PASS (1)
+  aggregates_composition_of_total_pinned_t12a_era             PASS (2)
+  aggregates_total_dedup_records_pinned                       PASS (273)
+
+----------------------------------------------------------------
+Expansion-index structural invariants (each PASSED)
+----------------------------------------------------------------
+
+  expansion_index_entries_equal_canonical_addition_total      PASS
+  expansion_index_is_sorted_by_canonical_id_ascending         PASS
+  expansion_index_ids_are_in_t12_reserved_bands               PASS
+  no_expansion_index_id_collides_with_seed                    PASS
+  every_expansion_index_entry_has_display_name                PASS
+
+----------------------------------------------------------------
+Hash determinism + sensitivity (each PASSED)
+----------------------------------------------------------------
+
+  consolidation_report_hash_v1_is_deterministic_across_two_builds
+                                                              PASS
+  t12_expansion_index_hash_v1_is_deterministic_across_two_builds
+                                                              PASS
+  corpus_hash_v2_is_deterministic_across_two_builds           PASS
+  corpus_hash_v2_is_nonzero                                   PASS
+  corpus_hash_v2_is_distinct_from_corpus_hash_v1              PASS
+  corpus_hash_v2_is_distinct_from_consolidation_report_hash_v1
+                                                              PASS
+  corpus_hash_v2_is_distinct_from_t12_expansion_index_hash_v1 PASS
+  consolidation_report_hash_v1_is_distinct_from_t12_expansion_index_hash_v1
+                                                              PASS
+  corpus_hash_v2_changes_when_proposal_set_changes            PASS
+
+----------------------------------------------------------------
+Domain separator pins (each PASSED)
+----------------------------------------------------------------
+
+  corpus_hash_v2_domain_separator_is_panel_locked             PASS
+    Pinned: DSFB-GPU-ATLAS:LITERATURE-CORPUS:v2\0
+  consolidation_report_domain_separator_is_panel_locked       PASS
+    Pinned: DSFB-GPU-ATLAS:T12-CONSOLIDATION-REPORT:v1\0
+  t12_expansion_index_domain_separator_is_panel_locked        PASS
+    Pinned: DSFB-GPU-ATLAS:T12-EXPANSION-INDEX:v1\0
+  canonical_addition_wire_names_are_panel_locked              PASS
+    Pinned: "CanonicalAddition" + "Canonical" (T.12.a-era
+    historical alias)
+
+----------------------------------------------------------------
+Rendering byte-stability (each PASSED)
+----------------------------------------------------------------
+
+  consolidation_report_text_rendering_byte_stable             PASS
+  consolidation_report_json_rendering_byte_stable             PASS
+  corpus_v2_freeze_text_rendering_byte_stable                 PASS
+  corpus_v2_freeze_json_rendering_byte_stable                 PASS
+  t12_expansion_index_text_rendering_byte_stable              PASS
+  t12_expansion_index_json_rendering_byte_stable              PASS
+  consolidation_report_text_carries_panel_locked_non_claims   PASS
+
+----------------------------------------------------------------
+Test surface summary
+----------------------------------------------------------------
+
+  Test group  : 1 (tests/consolidate_invariants.rs)
+  Tests       : 53 (all pass)
+  Of which panel-required load-bearing negatives : 10
+  Of which structural / hash / determinism / rendering : 43
+
+----------------------------------------------------------------
+End of T.12.consolidate verification receipt
+----------------------------------------------------------------

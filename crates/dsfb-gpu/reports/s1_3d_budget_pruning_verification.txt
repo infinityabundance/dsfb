@@ -1,0 +1,143 @@
+S1.3d Budget Pruning — Verification Receipt
+============================================
+
+Verifier coverage summary for the S1.3d budget pruning module.
+
+----------------------------------------------------------------
+Verifier surface
+----------------------------------------------------------------
+
+Public verifier function:
+
+  pub fn verify_s1_3d(
+      summary: &BudgetedActivationSummary,
+      report: &ConsolidationReport,
+      ff3_gate: &Ff3RegistryGenerationGate,
+      live_ff5_policy_hash: [u8; 32],
+  ) -> Vec<S13dVerifyError>
+
+Sixteen reject kinds in `S13dVerifyErrorKind`:
+
+  Panel-required (8):
+    R.1  BudgetPlanThatUsesFf3RejectedRecord
+    R.2  SilentDetectorDropWithoutSuppressionReason
+    R.3  RedundancySuppressionWithoutSurvivingRepresentative
+    R.4  BudgetOverrunWithoutReasonCodedPruning
+    R.5  NondeterministicTieBreakBetweenEqualPriorityDetectors
+    R.6  GpuFamilyBudgetWithoutDeclaredCostModel
+    R.7  PruningThatMutatesCorpusHashV1OrV2
+    R.8  SchemaUpgradeSideEffectInsideBudgetPruning
+
+  Structural defects (8):
+    R.9   DuplicateDecisionForSameCanonicalId
+    R.10  DecisionsNotSortedAscending
+    R.11a CorpusHashV1Mismatch
+    R.11b Ff3GateHashMismatch
+    R.12  SeedLengthMutated
+    R.13  DisabledCountMismatch
+    R.14  RedundancyClusterWithEmptyMemberSet
+    R.15  RedundancyClusterWithEmptySelectionRule
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives — outcome
+----------------------------------------------------------------
+
+  s13d_rejects_budget_plan_that_uses_ff3_rejected_record               PASS
+  s13d_rejects_silent_detector_drop_without_suppression_reason         PASS
+  s13d_rejects_redundancy_suppression_without_surviving_representative PASS
+  s13d_rejects_budget_overrun_without_reason_coded_pruning             PASS
+  s13d_rejects_nondeterministic_tie_break_between_equal_priority...    PASS
+  s13d_rejects_gpu_family_budget_without_declared_cost_model           PASS
+  s13d_rejects_pruning_that_mutates_corpus_hash_v1_or_v2               PASS
+  s13d_rejects_pruning_that_mutates_corpus_hash_v2                     PASS
+  s13d_rejects_schema_upgrade_side_effect_inside_budget_pruning        PASS
+
+----------------------------------------------------------------
+Structural-defect rule coverage — outcome
+----------------------------------------------------------------
+
+  s13d_rejects_duplicate_decision_for_same_canonical_id     PASS
+  s13d_rejects_decisions_not_sorted_ascending               PASS
+  s13d_rejects_disabled_count_mismatch                      PASS
+  s13d_rejects_redundancy_cluster_with_empty_member_set     PASS
+  s13d_rejects_redundancy_cluster_with_empty_selection_rule PASS
+
+----------------------------------------------------------------
+Baseline + determinism invariants — outcome
+----------------------------------------------------------------
+
+  s13d_default_summary_has_152_active_zero_disabled              PASS
+  s13d_default_summary_passes_verifier                           PASS
+  s13d_seed_len_pinned_at_54                                     PASS
+  s13d_plan_pins_corpus_hash_v1_live_value                       PASS
+  s13d_plan_pins_corpus_hash_v2_from_consolidation_report        PASS
+  s13d_plan_pins_ff1_passport_index_hash                         PASS
+  s13d_plan_pins_ff2_gate_hash                                   PASS
+  s13d_plan_pins_ff3_gate_hash                                   PASS
+  s13d_plan_pins_ff4_policy_hash                                 PASS
+  s13d_plan_pins_ff5_policy_hash                                 PASS
+  s13d_plan_pins_seed_len_54                                     PASS
+  s13d_plan_hash_is_deterministic_across_two_builds              PASS
+  s13d_redundancy_hash_is_deterministic_across_two_builds        PASS
+  s13d_summary_hash_is_deterministic_across_two_builds           PASS
+  s13d_plan_text_is_byte_stable_across_two_renders               PASS
+  s13d_plan_json_is_byte_stable_across_two_renders               PASS
+  s13d_redundancy_text_is_byte_stable_across_two_renders         PASS
+  s13d_redundancy_json_is_byte_stable_across_two_renders         PASS
+  s13d_summary_text_is_byte_stable_across_two_renders            PASS
+  s13d_summary_json_is_byte_stable_across_two_renders            PASS
+  s13d_plan_hash_changes_when_max_active_detectors_changes       PASS
+  s13d_plan_hash_changes_when_redundancy_cluster_added           PASS
+  s13d_redundancy_hash_changes_when_cluster_added                PASS
+  s13d_summary_hash_includes_plan_and_redundancy                 PASS
+
+----------------------------------------------------------------
+Pressure-bearing scenarios — outcome
+----------------------------------------------------------------
+
+  s13d_max_active_detectors_50_produces_task_budget_disables       PASS
+       (active=50, disabled_by_task_budget_count=102)
+  s13d_max_runtime_us_forces_runtime_disables                      PASS
+  s13d_max_memory_bytes_forces_memory_disables                     PASS
+  s13d_redundancy_cluster_suppresses_non_representatives           PASS
+       (cluster [1,2,3] → retain 1, suppress 2 + 3, active=150)
+  s13d_redundancy_tie_break_picks_lowest_canonical_id              PASS
+       (cluster [10,20,30] → selected=10, suppressed=[20,30])
+  s13d_redundancy_representative_carries_representative_witness... PASS
+
+----------------------------------------------------------------
+Domain-separator + schema-id pins — outcome
+----------------------------------------------------------------
+
+  s13d_plan_domain_separator_is_pinned         PASS
+  s13d_plan_schema_id_is_pinned                PASS
+  s13d_redundancy_domain_separator_is_pinned   PASS
+  s13d_redundancy_schema_id_is_pinned          PASS
+  s13d_summary_domain_separator_is_pinned      PASS
+  s13d_summary_schema_id_is_pinned             PASS
+  s13d_three_hash_namespaces_are_distinct      PASS
+
+----------------------------------------------------------------
+Upstream anchor invariance witnesses — outcome
+----------------------------------------------------------------
+
+  s13d_does_not_alter_corpus_hash_v1                  PASS (35c276c7...)
+  s13d_does_not_alter_corpus_hash_v2                  PASS (f1d132eb...)
+  s13d_does_not_alter_ff1_passport_index_hash         PASS (1ad2dc2d...)
+  s13d_does_not_alter_ff2_gate_hash                   PASS (05c1b552...)
+  s13d_does_not_alter_ff3_gate_hash                   PASS (2ffd0222...)
+  s13d_does_not_alter_ff4_policy_hash                 PASS (22b9dcb5...)
+  s13d_does_not_alter_ff5_policy_hash                 PASS (94e00ab1...)
+
+----------------------------------------------------------------
+Aggregate test outcome
+----------------------------------------------------------------
+
+  test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured;
+                   0 filtered out
+
+Default-state verifier run:
+
+  verify_s1_3d(default_summary, default_report,
+               default_ff3_gate, live_ff5_policy_hash())
+    → Vec::new()  (zero errors)

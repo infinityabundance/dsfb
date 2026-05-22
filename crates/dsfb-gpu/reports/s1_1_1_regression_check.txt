@@ -1,0 +1,164 @@
+================================================================
+DSFB-GPU-Atlas — S1.1.1 / T.10.1 regression-check receipt (10-step ritual)
+================================================================
+Commit         : (this commit) — atomic; HEAD-before = 1b29098 (T.10)
+Timestamp      : 2026-05-15T00:57:44Z
+Scope          : post-T.10 hygiene; cross-field rule + verify_registry_spec.
+                 NO registry generation, NO registry_hash_v2, NO CaseFileV2 body.
+
+Each numbered step below records the gate command and its observed
+outcome on the local workstation at the time of this commit.
+
+----------------------------------------------------------------
+1.  cargo fmt --all --check
+----------------------------------------------------------------
+    Status : clean (zero output, exit code 0)
+    Notes  : no formatting drift on any touched file.
+
+----------------------------------------------------------------
+2.  cargo clippy --workspace --all-targets --features cuda -- -D warnings
+----------------------------------------------------------------
+    Status : clean (exit code 0)
+    Final  :
+        Checking dsfb-gpu-debug-cuda v0.1.0
+        Checking dsfb-gpu-atlas-registry v0.1.0
+        Checking dsfb-gpu-debug-demo v0.1.0
+        Finished `dev` profile in 0.28s
+
+----------------------------------------------------------------
+3.  bash scripts/scrub.sh
+----------------------------------------------------------------
+    Status : "scrub: clean" (exit code 0)
+    Notes  : no forbidden-string regressions.
+
+----------------------------------------------------------------
+4.  bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+    Status : "docs_freshness: clean" (exit code 0)
+    Notes  : one broken intra-doc-link in spec.rs (`source_corpus_hash`)
+             was caught + repaired before commit. No TODO/FIXME/XXX
+             markers in touched files. cargo doc --no-deps clean.
+
+----------------------------------------------------------------
+5.  cargo test -p dsfb-gpu-atlas-registry
+----------------------------------------------------------------
+    Status : 28 passed, 0 failed
+    Detail :
+        Doc-tests              : 0
+        Lib unit tests         : 4 passed
+        algebra_canonical_name : 4 passed
+        algebra_domain_axis    : 3 passed
+        algebra_family         : 1 passed
+        algebra_template_spec  : 8 passed
+            detector_template_requires_primitive_id              ok
+            detector_spec_requires_parameter_hash                ok
+            detector_spec_requires_corpus_binding_status         ok
+            detector_spec_rejects_hash_frozen_without_source_corpus_hash  ok  (renamed)
+            detector_spec_admits_hash_frozen_t10_with_non_zero_corpus_hash ok  (S1.1.1 new)
+            detector_spec_rejects_pre_hash_with_non_zero_source_corpus_hash ok  (S1.1.1 new)
+            sample_template_verifies                             ok
+            malformed_template_fails_verify                      ok
+        algebra_verify         : 12 passed
+            clean_spec_verifies                                  ok
+            spec_with_zero_window_cells_is_rejected              ok
+            spec_with_zero_persistence_is_rejected               ok
+            spec_with_empty_axis_binding_is_rejected             ok
+            spec_with_empty_domain_tags_is_rejected              ok
+            spec_with_malformed_canonical_name_is_rejected       ok
+            spec_with_empty_token_in_canonical_name_is_rejected  ok
+            verifier_is_deterministic_across_two_runs            ok
+            verify_registry_spec_admits_hash_frozen_t10_with_live_corpus_hash ok  (S1.1.1 new)
+            verify_registry_spec_rejects_stale_source_corpus_hash             ok  (S1.1.1 new)
+            verify_registry_spec_rejects_unknown_primitive_id                 ok  (S1.1.1 new)
+            verify_registry_spec_rejects_pre_hash_t9_status                   ok  (S1.1.1 new)
+
+----------------------------------------------------------------
+6.  cargo test --workspace --features cuda -- --test-threads=1
+----------------------------------------------------------------
+    Status : 51 result groups, 532 passed, 0 failed, 0 ignored
+              (exit code 0)
+    Notes  : full workspace serial green; D16 / D64 / D128 / D205
+             golden hashes unchanged; Audit mode untouched.
+
+----------------------------------------------------------------
+7.  tests/r12_d64_saturation (R.12b episode-byte stability)
+----------------------------------------------------------------
+    Status : episode counts byte-identical to the pinned R.12b
+             baseline. Wall-time / throughput numbers shift with
+             hardware load (post-run diff showed only
+             cells/sec + det_evals/sec deltas).
+    Pinned : canonical 16x128  episodes/cat = 13
+             mid 64x512        episodes/cat = 89
+             full 256x4096     episodes/cat = 1917
+    Action : pinned `reports/r12_d64_saturation.txt` was NOT
+             rebaselined. `git restore` was used to drop the
+             test-time perf jitter; the committed file matches
+             the R.12b baseline byte-for-byte.
+
+----------------------------------------------------------------
+8.  Stale-doc scan
+----------------------------------------------------------------
+    Status : clean
+    Greps  :
+        "T.10 has not landed"          : 0 hits (excluding plan)
+        "T.10 has not yet landed"      : 0 hits
+        "only T.10 may freeze"         : 0 hits in current source
+        "rejects_hash_frozen_without_t10" : 0 hits in current source
+                                            (1 historical hit in
+                                            reports/s1_1_regression_check.txt
+                                            is the immutable S1.1
+                                            commit-time receipt and
+                                            is preserved as history)
+        "admissible_at_s1_1"           : 1 hit (definition site only;
+                                                helper retained per
+                                                panel verdict scope)
+
+----------------------------------------------------------------
+9.  README + plan refresh
+----------------------------------------------------------------
+    README.md       : Atlas algebra status heading updated to
+                      "S1.1 type surface + S1.1.1 post-T.10
+                      cross-field rule"; "T.10 has NOT landed"
+                      line removed; test-count line + new test
+                      names listed; cross-link to "Corpus identity
+                      freeze (T.10)" added.
+    Plan file       : Quick Start "Next two commits" line refreshed;
+                      S1.1.1 execution checkpoint marked code-on-disk
+                      with gates green; Post-S1.2 strategic roadmap
+                      (12 panel ideas) preserved; Post-S1.2
+                      forensic-interoperability roadmap (15 panel
+                      ideas, 2026-05-15 second iteration) added; the
+                      Unified post-S1.2 sequence consolidates both
+                      verdicts.
+
+----------------------------------------------------------------
+10. Atomic commit
+----------------------------------------------------------------
+    Verb   : single commit; pre-commit hook runs steps 1-4 again
+             and must pass without --no-verify.
+    Files  :
+        crates/dsfb-gpu-atlas-registry/Cargo.toml
+        crates/dsfb-gpu-atlas-registry/src/lib.rs
+        crates/dsfb-gpu-atlas-registry/src/spec.rs
+        crates/dsfb-gpu-atlas-registry/src/verify.rs
+        crates/dsfb-gpu-atlas-registry/src/corpus_binding.rs
+        crates/dsfb-gpu-atlas-registry/tests/algebra_template_spec.rs
+        crates/dsfb-gpu-atlas-registry/tests/algebra_verify.rs
+        README.md
+        reports/s1_1_atlas_algebra_report.txt
+        reports/s1_1_1_registry_hygiene.txt          (new)
+        reports/s1_1_1_regression_check.txt          (new — this file)
+        .gitignore                                   (whitelist the two new receipts)
+
+================================================================
+Pinned non-claims
+================================================================
+- S1.1.1 does NOT generate the parameterized DetectorSpec registry.
+- S1.1.1 does NOT compute or pin registry_hash_v2.
+- S1.1.1 does NOT emit any CaseFileV2 body or trial-transcript content.
+- S1.1.1 does NOT execute Atlas family kernels on GPU.
+- S1.1.1 does NOT change the R.13 D64 headline.
+- S1.1.1 does NOT change corpus_hash_v1 (35c276c7...).
+- S1.1.1 does NOT rebaseline reports/r12_d64_saturation.txt.
+
+================================================================

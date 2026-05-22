@@ -1,0 +1,149 @@
+================================================================
+FF.2 - ActivationReason::DisabledUnratifiedProposal
+       activation ratification gate summary receipt
+================================================================
+
+Panel-locked opening guard. FF.2 makes activation refuse any
+detector proposal that is not ratified by corpus_hash_v2 and
+materialized through FF.1 passport authority. Core rule: no
+ratification + no passport = no activation. FF.2 adds
+DisabledReason::DisabledUnratifiedProposal so the activation
+court can explicitly disable detector proposals that are not
+present in the ratified corpus_hash_v2 expansion index and
+not materialized in the FF.1 passport index. It does not add
+new detectors, alter corpus_hash_v2, rewrite FF.1 passports,
+or change prior activation decisions except by making the
+unratified-proposal failure mode explicit and reason-coded.
+
+Panel-locked one-line verdict (verbatim):
+
+> FF.1 gave ratified witnesses passports;
+> FF.2 teaches the activation court to reject anyone without one.
+
+----------------------------------------------------------------
+Two new own-namespace hash layers (panel-locked)
+----------------------------------------------------------------
+
+FF.2 emitted values:
+
+  ff2_activation_ratification_gate_hash_v1 :
+    05c1b552652c321dc670628207624d1afb1e9fcb4ea15a028e89b80ff7899efb
+    Domain: DSFB-GPU-ATLAS:FF2-ACTIVATION-RATIFICATION-GATE:v1\0
+    META-hashes the four pinned upstream anchors + sorted
+    decision set + per-status counts.
+
+  ff2_activation_ratification_gate_summary_hash_v1 :
+    e671cfc027c75509a214cc468c322c47a47bc8ec83b6b3317da9ba7ddf755314
+    Domain: DSFB-GPU-ATLAS:FF2-ACTIVATION-RATIFICATION-GATE-SUMMARY:v1\0
+    META-hashes the gate hash + panel-locked non-claim block.
+
+Both hashes distinct from every prior T.11 / S1.3 / T.12.x /
+T.12.consolidate / FF.1 hash.
+
+----------------------------------------------------------------
+Pinned upstream anchors (FF.2 does NOT mutate any of these)
+----------------------------------------------------------------
+
+  corpus_hash_v1                  :
+    35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+    (historical seed-corpus anchor; unchanged across FF.2
+     ratification-gate emission)
+
+  corpus_hash_v2                  :
+    f1d132eba43795c3087f1e388ba040357c6a0779fe22bd29de24c885ca98383f
+    (ratified-corpus authority anchor from T.12.consolidate;
+     unchanged across FF.2 emission)
+
+  consolidation_report_hash_v1    :
+    2842f6ae24bacb99c3922ca59d66358d19b5d550209f1a5adbf7c2bd747edeb0
+    (T.12.consolidate report hash; unchanged)
+
+  ff1_passport_index_hash_v1      :
+    1ad2dc2d9137320b942c17a6f5c8440b5caad03de5a92c9ae5d88f3069db2717
+    (FF.1 passport index hash; unchanged)
+
+  SEED.len()                      : 54 (unchanged)
+
+----------------------------------------------------------------
+Per-status decision counts
+----------------------------------------------------------------
+
+  SeedHistorical                  : 54
+    SEED canonical ids 1..=54; pass the gate; downstream S1.3a
+    activation continues to issue per-detector decisions.
+
+  T12RatifiedAndPassported        : 98
+    Ratified expansion-index ids + materialised FF.1 passports;
+    pass the gate; downstream activation continues with passport
+    binding.
+
+  MissingPassport                 : 0
+    Ratified id without FF.1 passport. Structural defect (should
+    be 0 in production); reserved so the verifier's
+    `ActivationForMissingFf1Passport` rule has an explicit
+    status to surface during test-driven exercise.
+
+  UnratifiedProposal              : 0
+    Id outside both SEED and the ratified expansion index. The
+    new failure mode FF.2 surfaces explicitly: an operator-
+    facing reason code that replaces the pre-FF.2 silent
+    `DisabledByWeakLBand` fallback. 0 in production because the
+    default candidate list is derived from (SEED + FF.1 passport
+    index); tests inject synthetic ids to exercise the bucket.
+
+  total decisions                 : 152
+
+----------------------------------------------------------------
+New activation enum variant (panel-locked)
+----------------------------------------------------------------
+
+  DisabledReason::DisabledUnratifiedProposal
+    wire name "DisabledUnratifiedProposal"
+    emitted only by FF.2; never collapsed into DisabledByWeakLBand
+    (the panel warning is explicit: silent fallback is a defect)
+
+----------------------------------------------------------------
+Six panel-required load-bearing negatives (acceptance suite)
+----------------------------------------------------------------
+
+  ff2_rejects_activation_for_unratified_proposal
+  ff2_rejects_activation_for_missing_ff1_passport
+  ff2_rejects_activation_when_passport_index_hash_mismatch
+  ff2_rejects_unratified_proposal_without_reason_code
+  ff2_rejects_silent_fallback_to_disabled_by_weak_lband
+  ff2_rejects_activation_reason_without_corpus_hash_v2_binding
+
+----------------------------------------------------------------
+Panel-locked non-claims (must NOT regress)
+----------------------------------------------------------------
+
+  - FF.2 does NOT add new detectors.
+  - FF.2 does NOT alter corpus_hash_v1.
+  - FF.2 does NOT alter corpus_hash_v2.
+  - FF.2 does NOT alter consolidation_report_hash_v1.
+  - FF.2 does NOT alter t12_expansion_index_hash_v1.
+  - FF.2 does NOT alter ff1_passport_index_hash_v1.
+  - FF.2 does NOT alter ff1_materialisation_report_hash_v1.
+  - FF.2 does NOT rewrite any prior T.11 / S1.3 / T.12.x / FF.1
+    hash.
+  - FF.2 does NOT mutate SEED.len() (stays at 54).
+  - FF.2 does NOT promote any open proposal to Accepted.
+  - FF.2 does NOT change S1.3a SEED activation decisions.
+  - FF.2 does NOT generate CUDA kernels.
+  - FF.2 does NOT decide contraindications or challenges.
+
+----------------------------------------------------------------
+Next campaign (panel-authorized post-FF.2)
+----------------------------------------------------------------
+
+FF.3 - RegistryGenerationGate. S1.2 DetectorSpec generation
+MUST consume only ratified corpus records under corpus_hash_v1
++ corpus_hash_v2. Open amendment proposals are inadmissible
+as registry primitive sources. The FF.2 gate provides the
+ratification status; FF.3 enforces the same discipline at the
+registry-generation boundary.
+
+Then S1.3d budget pruning + S1.3e KernelPlanV1 + S1.3f
+CaseFileV2 activation integration. See plan-file
+"Post-T.12.consolidate scaling + framing roadmap" for the
+full panel-locked sequence.

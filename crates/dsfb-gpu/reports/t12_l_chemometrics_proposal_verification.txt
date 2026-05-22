@@ -1,0 +1,164 @@
+================================================================
+T.12.l - Chemometrics verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_l_chemometrics::seed_t12_l_chemometrics_proposal()
+
+----------------------------------------------------------------
+Positive verification (admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+All T.12.0 verifier rules pass: BatchIdEmpty, ProposalIdEmpty,
+UnknownSourceClass, AmendmentProposalHashMismatch,
+BatchHashMismatch, DedupDeltaHashMismatch,
+DedupDeltaCollidesWithExistingSeedCanonicalId (reserved ids
+6201..=6211 outside SEED's 1..=54 range),
+AcceptedProposalWithoutBodyOrDelta,
+AcceptedProposalWithoutFutureFreezeGate.
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage
+----------------------------------------------------------------
+
+All 16 panel-required negatives pass plus per-canonical
+structural-distinctness assertions + ParameterizationOf family
+tests + DomainTransferOf assertion tests + chemometric-SEED
+coverage witness + per-bucket reserved-id-range tests + shape /
+determinism / rendering invariants.
+Total: 44 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Material-identification claim-language discipline coverage
+----------------------------------------------------------------
+
+The t12_l_rejects_material_identification_claim_language test
+runs a parametric scanner over every CanonicalAddition AND
+ExistingCanonicalAuthorityResolution reason text. For each
+qualifying record it asserts:
+  - The reason text does NOT contain any of: material
+    identification certainty, chemical causation, lab diagnosis,
+    process-control authority, identifies the material,
+    identifies the compound, classifies the substance.
+  - The reason text DOES end with the panel-locked non-claim
+    "chemometric signal witness, not a material identification
+    or a regulatory compliance verdict" (intact form or Rust
+    string-literal continuation split form).
+
+Forbidden terms appear only inside RejectedNotDeterministic
+reason text (where they describe what is NOT admitted).
+
+----------------------------------------------------------------
+Regulatory-compliance claim-language discipline coverage
+----------------------------------------------------------------
+
+The t12_l_rejects_regulatory_compliance_claim_language test
+asserts the campaign refuses regulatory verdicts. For each
+qualifying record it asserts:
+  - The reason text does NOT contain any of: fda approval,
+    fda-approved, iso certification, iso-certified, regulatory
+    compliance verdict, regulatory-compliance verdict, regulatory
+    approval, compliance certification.
+  - The reason text DOES end with the panel-locked non-claim
+    described above.
+
+Forbidden regulatory terms appear only inside the 6210/6211
+RejectedNotDeterministic reason text (where they describe what
+black-box / AutoML pipelines CANNOT issue).
+
+----------------------------------------------------------------
+Preprocessing-or-latent-model contract coverage
+----------------------------------------------------------------
+
+The t12_l_rejects_chemometric_detector_without_preprocessing_or_
+latent_model_contract test asserts every CanonicalAddition
+reason text declares at least one math-structure term
+(preprocessing / latent / calibration / residual / score / hat-
+matrix / per-class / VIP / model) AND at least one decision-
+functional term (decision law / decision functional / decision
+predicate / shift law / control limit / threshold).
+
+----------------------------------------------------------------
+SEED chemometric coverage (parametric)
+----------------------------------------------------------------
+
+The t12_l_existing_seed_collision_requires_authority_resolution
+test runs a parametric loop over all four SEED chemometric IDs
+(19, 20, 21, 22). Each iteration constructs a defective
+proposal duplicating one SEED ID and asserts the verifier
+rejects it with DedupDeltaCollidesWithExistingSeedCanonicalId.
+
+----------------------------------------------------------------
+Black-box-classifier rejection contract coverage
+----------------------------------------------------------------
+
+The t12_l_rejects_black_box_spectroscopy_classifier_without_
+deterministic_formula test asserts:
+  - 6210 NOT in new_canonical_records
+  - reason text contains "deterministic formula"
+  - reason text contains "model-identification anchor"
+  - reason text contains "training-" + "data anchor"
+    (continuation-joined)
+  - reason text contains "feature schema"
+  - reason text contains "tie-break"
+  - reason text contains "numeric mode"
+  - reason text names at least one of: bruker ai-ident,
+    mettler-toledo spectraline, thermo scientific omnic ml,
+    agilent microlab ai
+  - reason text contains "does not issue material identification"
+  - reason text contains "regulatory" + "compliance" disclaimer
+
+----------------------------------------------------------------
+AutoML rejection contract coverage
+----------------------------------------------------------------
+
+The t12_l_rejects_adaptive_automl_without_seed_and_training_
+artifact_and_cv_policy test asserts:
+  - 6211 NOT in new_canonical_records
+  - reason text contains "model-identification seed"
+  - reason text contains "training-" + "data anchor"
+    (continuation-joined)
+  - reason text contains "cross-validation policy" (continuation
+    forms accepted)
+  - reason text contains "fold partition"
+  - reason text contains "tie-break"
+  - reason text contains "numeric mode"
+  - reason text names at least one of: auto-sklearn, h2o automl,
+    tpot
+  - reason text contains "does not issue lab diagnosis"
+  - reason text contains "process-control" disclaimer
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.x hash           : unchanged
+    T.12.0 proof-of-life          : 325bbf3d...
+    T.12.a SPC                    : ae493a85...
+    T.12.b SCD                    : ac10e27c...
+    T.12.c drift                  : 0ffb0639...
+    T.12.d robust                 : 7b51703f...
+    T.12.e spectral               : 0036435f...
+    T.12.f time-series            : 76717e02...
+    T.12.g graph                  : 1bc14266...
+    T.12.h data-quality           : d4566a74...
+    T.12.i observability          : 9776c1b9...
+    T.12.j biosignal              : e64b603b...
+    T.12.k industrial             : 22f06c76...
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.l chemometrics literature_expansion_batch_hash_v1 (NEW):
+    c9f4116515f9a27333ba0658ad36003308068a3121b30c1202fd2391df742f78
+  T.12.l chemometrics dedup_court_delta_hash_v1 (NEW):
+    e4226efe9b964efe8d06490d52950447437d0f5ef355bcf89324cc3b52cc57d1
+  T.12.l chemometrics corpus_amendment_proposal_hash_v1 (NEW):
+    8b3e95115e5e99e3e4f87f735c928ab0923fe32fd43f2237438fc64e09c1737d

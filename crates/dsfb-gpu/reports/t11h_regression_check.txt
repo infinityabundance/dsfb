@@ -1,0 +1,124 @@
+================================================================
+T.11h - CoverageHoleReportV1 regression-check receipt
+(10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Zero warnings; workspace pedantic lints pass on
+  the new coverage_holes module and the augmented main.rs / lib.rs.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean. Zero attribution-string hits across the new
+  T.11h surface (the scrub script enforces the forbidden-string
+  list at the repository root; see scripts/scrub.sh for the
+  exact regex).
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean. Zero stale TODO / FIXME / XXX markers; zero
+  missing-doc warnings under `cargo doc --no-deps
+  --document-private-items` after the closing-tag fix in
+  src/coverage_holes.rs:1354.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 579 tests pass across 22 test groups. The new
+  T.11h surface contributes 52 acceptance tests in
+  tests/coverage_hole_invariants.rs, including three panel-
+  required load-bearing negatives:
+    - coverage_holes_rejects_critical_hole_without_resolution_gate
+    - coverage_holes_rejects_missing_contraindication_claim_when_detector_lacks_crosswalk
+    - coverage_holes_rejects_reason_coverage_row_with_impossible_denominator
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 61 test groups, 894 tests PASS, 0 FAIL. Serial run
+  (CUDA contention guard).
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable. Canonical 16x128
+  K=1..128 -> episodes/cat=13; mid 64x512 -> episodes/cat=89;
+  full 256x4096 -> episodes/cat=1917. Throughput (cells/sec,
+  det_evals/sec) fluctuates per run (documented GPU thermal /
+  host-load variance); the pinned reports/r12_d64_saturation.txt
+  baseline is NOT rebaselined and stays at the R.12b headline
+  numbers.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered:
+    - README.md (T.11g section + new T.11h section consistent;
+      forward-reference at line 1191 'CoverageHoleReport (T.11h)'
+      now matches the landed section);
+    - archived prior-art manuscript source (new Atlas Continuation section
+      added at \\label{sec:atlas-court}; lists T.1-T.11h landed
+      surfaces with panel-locked non-claims; \\label{sec:problem}
+      added for the idempotent forensic pre-inference cross-ref;
+      \\label{sec:eval} preserved; paper rebuilt clean);
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs ('Current state
+      through T.11h' updated; T.11h bullet added; CLI list
+      includes coverage-holes / coverage-holes-emit);
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs (Usage block +
+      Subcommands block include coverage-holes /
+      coverage-holes-emit);
+    - crates/dsfb-gpu-atlas-corpus/src/coverage_holes.rs (every
+      pub item AND every private helper now carries a doc
+      comment whose first sentence states the WHY for a future
+      engineer, per the global documentation discipline).
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new section "Coverage Hole Report V1 (T.11h)"
+      between T.11g section and "Performance — scaling ladder";
+      schema name, domain separator, 7 buckets, 13 reject kinds,
+      CLI surface, panel-locked non-claims, receipt paths.
+    - Plan-file 'Active campaign — T.11g' header still
+      authoritative for that commit; T.11h close-out lands as
+      the next campaign and unlocks 'S1.3 ActivationPlanner +
+      T.11x hygiene + Densor type aliases + Columnar Densor
+      ABI + DetectorSpec -> Passport handle' (see plan §Locked
+      next-arc sequence post-T.11h).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/coverage_holes.rs (new, ~1600 lines)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands)
+    - tests/coverage_hole_invariants.rs (new, 52 tests)
+    - out/coverage_holes_v1.{txt,json} (new bulk artifacts)
+    - reports/t11h_coverage_holes_summary.txt (new)
+    - reports/t11h_coverage_holes_verification.txt (new)
+    - reports/t11h_regression_check.txt (new)
+    - README.md (T.11h section)
+    - archived prior-art manuscript source (Atlas Continuation section)
+    - .gitignore (3 new whitelist lines for the T.11h receipts)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                            : unchanged (35c276c7...)
+  registry_hash_v2                          : unchanged (d3cf6300...)
+  precedent_hash_v1                         : unchanged (6721f511...)
+  admissibility_grammar_hash_v1             : unchanged (ff66706a...)
+  trial_transcript_hash_v1                  : unchanged (37618a45...)
+  execution_attestation_receipt_hash_v1     : unchanged
+  challenge_docket_hash_v1                  : unchanged (dde4ecb4...)
+  detector_contraindication_hash_v1         : unchanged
+  Every DetectorPassport hash               : unchanged
+  coverage_hole_hash_v1 (NEW at T.11h)      :
+    671e2164001a6cb16024f7ece8f6217dc0fad7d251521f8dbd2f3da023f96d32
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom: only the bank module's private
+    BankAdmissionToken constructor mints admitted episodes.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions in the new T.11h surface
+    (scrub clean; see scripts/scrub.sh for the enforced list).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+
+T.11h is sealed. The court's audit-only honesty layer records
+where the court is intentionally thin and feeds the next
+campaign (S1.3 ActivationPlanner) deterministic coverage facts
+without altering any upstream surface.

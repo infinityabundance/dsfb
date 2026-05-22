@@ -1,0 +1,202 @@
+================================================================
+DSFB-GPU-Atlas — T.11b Court Precedent summary
+================================================================
+Schema             : DSFB-GPU-ATLAS:COURT-PRECEDENT:v1
+Domain separator   : DSFB-GPU-ATLAS:COURT-PRECEDENT:v1\0
+HEAD-before        : 48eaf8c (T.11a)
+
+----------------------------------------------------------------
+Surface (new)
+----------------------------------------------------------------
+Module           : crates/dsfb-gpu-atlas-corpus/src/precedent.rs
+Public surface   :
+    pub struct PrecedentId
+    pub enum   PrecedentKind         (13 variants, panel-locked)
+    pub enum   PrecedentSource       (9 variants, T.4-T.11a + T.9)
+    pub enum   PrecedentBinding      (Global / SingleCanonical /
+                                      Composition / AliasToCanonical /
+                                      CanonicalToCanonical)
+    pub enum   PrecedentReason       (26 variants covering T.4 dedup,
+                                      T.6 / T.7 / T.8 / T.10 / S1.2 /
+                                      T.11a / T.9 deferred gates)
+    pub enum   PrecedentSeverity     (Hard / Soft / Deferred)
+    pub struct CourtPrecedent
+    pub struct PrecedentSet
+    pub const  COURT_PRECEDENT_DOMAIN
+    pub const  COURT_PRECEDENT_SCHEMA_V1
+    pub fn     collect_court_precedents() -> PrecedentSet
+    pub fn     compute_precedent_hash_v1(&PrecedentSet) -> [u8; 32]
+    pub fn     verify_precedent_set(&PrecedentSet) -> Vec<...>
+    pub fn     precedents_for_canonical(&PrecedentSet, ...) -> Vec<PrecedentId>
+    pub fn     render_precedents_text(&PrecedentSet) -> String
+    pub fn     render_precedents_json(&PrecedentSet) -> String
+
+CLI subcommands  :
+    dsfb-corpus precedents      [--json] [--out PATH]
+    dsfb-corpus precedents-emit [--out-dir DIR]
+
+Bulk artifacts (committed; byte-identical across two builds):
+    crates/dsfb-gpu-atlas-corpus/out/court_precedents.txt
+        (14 691 bytes; one block per precedent, sorted by
+         (kind, binding subject, binding target, reason))
+    crates/dsfb-gpu-atlas-corpus/out/court_precedents.json
+        (21 532 bytes; deterministic JSON array form)
+
+Passport extension (T.11a → T.11b):
+    DetectorPassport gains `linked_precedent_ids: Vec<PrecedentId>`
+    in canonical-sorted ascending order. Includes every global
+    law (14 precedents) plus per-record precedents that touch
+    the canonical id. The passport hash includes the linkage
+    bytes; passports.txt / .json regenerated.
+
+----------------------------------------------------------------
+Precedent_hash_v1 + corpus hashes (unchanged)
+----------------------------------------------------------------
+precedent_hash_v1 : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14
+corpus_hash_v1    : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7  (UNCHANGED)
+registry_hash_v2  : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08  (UNCHANGED)
+
+T.11b is **derived jurisprudence**. The precedent layer is a
+separate cumulative receipt; it does NOT modify corpus_hash_v1.
+
+----------------------------------------------------------------
+Precedent counts by kind (panel-locked at T.11b)
+----------------------------------------------------------------
+  DedupCanonical            : 52
+  AliasCollapse             : 12
+  CompositionJudgment       :  2  (Western Electric, Nelson)
+  ParameterizationJudgment  :  0  (no SEED record is a parameterisation
+                                   of another canonical; alias CLAIMS
+                                   are AliasCollapse, not parameter
+                                   variants)
+  SemanticRoleSeparation    :  0  (no SEED record carries
+                                   StochasticOriginalDeterministicReduction;
+                                   this kind is reserved for future
+                                   stochastic-reduction admissions)
+  WitnessLaw                :  2  (PrimaryWitnessCannotBeNegativeOnly,
+                                   CleanWindowWitnessCannotAdmitAlone)
+  NegativeWitnessLaw        :  1  (NegativeWitnessVetoesAdmission)
+  LBandHonestyLaw           :  3  (L5L6RequiresGpuWhitelist,
+                                   L7ForbiddenUntilBenchmarkArtifact,
+                                   L8ForbiddenUntilMeasuredLedger)
+  UsefulnessHonestyLaw      :  2  (NotScoredRequiresZeroEmpiricals,
+                                   RetiredRequiresMeasuredNegativeEvidence)
+  CorpusHashLaw             :  1  (CorpusHashV1IsFrozen)
+  RegistryBindingLaw        :  2  (RegistryHashV2BindsToFrozenCorpusHash,
+                                   HashFrozenT10RequiresNonZeroSourceCorpusHash)
+  ConstitutionLaw           :  2  (EveryCanonicalRequiresPassport,
+                                   EveryPassportRequiresAllConstitutionFlags)
+  DeferredGateLaw           :  4  (CaseFileV2BodyDeferredToT11d,
+                                   UnitSemanticsDeferredToT11e,
+                                   SamplingLawDeferredToT11e,
+                                   ExternalProvenanceExportDeferredPostS13)
+
+  Total                     : 83
+
+----------------------------------------------------------------
+Worked examples (panel-required pointers)
+----------------------------------------------------------------
+Western Electric composition precedent points to Shewhart:
+    Composition(subject=16, parents=[1])
+
+Nelson Rules composition precedent points to both:
+    Composition(subject=17, parents=[1, 16])
+
+ROBUST_Z_MAD (canonical_id=6) alias precedents:
+    AliasToCanonical(alias=1001, canonical=6)
+    AliasToCanonical(alias=1002, canonical=6)
+    AliasToCanonical(alias=1003, canonical=6)
+
+Shewhart passport (canonical_id=1) linked_precedent_ids:
+    13, 14, 15, 16, 17, 18, 70, 71, 72, 73, 74, 75, 76, 77,
+    78, 79, 80, 81, 82, 83
+    (= the 14 global laws + the 6 court records that bind to or
+     compose over canonical_id 1)
+
+----------------------------------------------------------------
+Verifier (load-bearing structural checks)
+----------------------------------------------------------------
+verify_precedent_set rejects:
+    MissingCanonicalSubject     binding names a canonical_id not in SEED
+    MissingAliasSubject         binding names an alias_id not in CLAIMS
+    KindReasonIncompatible      AliasCollapse with role-drift reason
+                                (SameFormulaDifferentWitnessRole,
+                                DifferentDecisionFunctional, etc.)
+                                preserves the T.3/T.4 semantic-role-
+                                hash collapse invariant
+    KindBindingIncompatible     Global-only kinds carry per-record bindings
+                                (or vice versa)
+    DuplicatePrecedentId        the collector reassigns ids after sort;
+                                duplicates indicate corruption
+
+Pinned by tests/precedent_invariants.rs:
+    verify_precedent_set_admits_live_collection
+    precedent_verifier_rejects_precedent_with_missing_subject
+    precedent_verifier_rejects_alias_precedent_if_semantic_role_hash_differs
+
+The two negative-direction tests preserve the load-bearing
+T.3/T.4 invariant: semantic_role_hash collapse only happens when
+witness role is preserved.
+
+----------------------------------------------------------------
+Acceptance test list (27 invariants)
+----------------------------------------------------------------
+Determinism + hash sensitivity (3):
+    precedent_collection_is_deterministic
+    precedent_hash_changes_when_reason_changes
+    precedent_hash_changes_when_binding_changes
+
+T.4 / T.5 derivations (5):
+    t4_alias_decisions_emit_alias_collapse_precedents
+    t4_composition_decisions_emit_composition_precedents
+    western_electric_precedent_points_to_shewhart
+    nelson_precedent_points_to_shewhart_and_western_electric
+    semantic_role_difference_has_precedent (via WitnessLaw)
+
+T.6 / T.7 / T.8 / T.10 / S1.2 derivations (7):
+    primary_witness_cannot_be_negative_only_has_precedent
+    clean_window_cannot_admit_alone_has_precedent
+    l6_requires_lband_whitelist_has_precedent
+    l7_forbidden_until_benchmark_artifact_has_precedent
+    l8_forbidden_until_measured_ledger_has_precedent
+    not_scored_usefulness_has_honesty_precedent
+    corpus_hash_freeze_has_precedent
+    registry_binding_has_precedent
+
+Passport linkage (2):
+    every_passport_links_at_least_one_precedent
+    alias_passports_link_alias_precedent
+
+Renderer determinism + no-publication (3):
+    precedent_text_render_is_deterministic
+    precedent_json_render_is_deterministic
+    no_publication_language_in_t11b_reports
+
+Verifier + structural (3):
+    verify_precedent_set_admits_live_collection
+    precedent_verifier_rejects_precedent_with_missing_subject
+    precedent_verifier_rejects_alias_precedent_if_semantic_role_hash_differs
+
+Severity + density + count (3):
+    deferred_gates_have_deferred_severity
+    precedent_ids_are_unique_and_dense
+    precedent_count_is_panel_locked_at_t11b
+
+Total: 27 panel-required invariants.
+
+----------------------------------------------------------------
+Panel-locked non-claims (T.11b)
+----------------------------------------------------------------
+T.11b does NOT:
+- emit CaseFileV2 episode-transcript bodies (T.11d)
+- implement UnitSemantics / SamplingLaw receipts (T.11e)
+- implement external provenance export (DSFB-PROV / OpenLineage /
+  NIST AI RMF / RO-Crate)
+- change `corpus_hash_v1` (frozen) or `registry_hash_v2`
+- change D16 / D64 / D128 / D205 GPU behavior
+- include S1.2 registry-spec linkage on the passport
+  (deferred to keep the corpus crate registry-free)
+- claim in-toto / SLSA / SPDX / CycloneDX compatibility on
+  `precedent_hash_v1`
+
+================================================================

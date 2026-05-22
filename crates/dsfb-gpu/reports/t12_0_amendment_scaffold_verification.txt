@@ -1,0 +1,65 @@
+================================================================
+T.12.0 - CorpusAmendmentProposalV1 verification receipt
+================================================================
+
+Verifiers: verify_amendment_proposal
+
+9 reject kinds (each pinned; * = panel-required load-bearing
+negatives):
+
+   1. *ProposalIdEmpty (load-bearing #1)
+   2. *UnknownSourceClass (load-bearing #2; enforced at the
+      Rust enum level; verifier rule reserved for future
+      TOML loader path)
+   3. *DedupDeltaCollidesWithExistingSeedCanonicalId
+      (load-bearing #3)
+   4. *amendment_proposal_hash_changes_when_batch_changes
+      (load-bearing #4; hash sensitivity at the build_*
+      layer)
+   5.  BatchIdEmpty
+   6.  AcceptedProposalWithoutBodyOrDelta
+   7.  AcceptedProposalWithoutFutureFreezeGate
+   8.  AmendmentProposalHashMismatch (structural)
+   9.  BatchHashMismatch / DedupDeltaHashMismatch (structural)
+
+Test family               | count
+--------------------------+------
+Schema constants          |   4
+Seed shape                |   4
+Hash determinism + sens.  |   7
+Verifier reject coverage  |  10
+Rendering                 |   4
+Upstream-anchor preserve  |   2
+--------------------------+------
+Total acceptance tests    |  31
+
+Hash determinism + sensitivity family pins:
+  - amendment_proposal_hash_is_deterministic
+  - recomputed_proposal_hash_matches_stored
+  - recomputed_batch_hash_matches_stored
+  - recomputed_dedup_delta_hash_matches_stored
+  - amendment_proposal_hash_changes_when_batch_changes
+    (panel-required load-bearing negative #4)
+  - proposal_hash_changes_when_status_changes
+  - proposal_hash_changes_when_source_class_changes
+
+Audit boundary panel-locks (asserted by
+t12_0_does_not_mutate_corpus_hash_v1 +
+t12_0_does_not_add_records_to_seed):
+  - corpus_hash_v1                            UNCHANGED
+  - SEED.len()                                = 54 (unchanged)
+  - No T.11/S1.3 hash anchor touched.
+
+Verifier result on the seed proof-of-life proposal:
+  Errors                  : 0
+  Status                  : Open (as expected for a
+                            proof-of-life proposal)
+  Body                    : empty (proof-of-life)
+  Dedup-court delta       : empty (proof-of-life)
+  All three hashes        : non-zero, deterministic
+
+Two builds against the seed proof-of-life produce
+byte-identical:
+  - corpus_amendment_proposal_v1.txt
+  - corpus_amendment_proposal_v1.json
+  - corpus_amendment_proposal_hash_v1 = 325bbf3d...

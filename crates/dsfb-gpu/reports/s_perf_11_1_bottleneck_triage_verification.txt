@@ -1,0 +1,98 @@
+S-PERF.11.1 --- post-S-PERF.11 bottleneck triage (verification)
+===============================================================
+
+Module
+------
+
+  crates/dsfb-gpu-atlas-corpus/src/s_perf_11_1_post_rewrite_bottleneck_triage.rs
+
+Six panel-required load-bearing negatives
+-----------------------------------------
+
+  1. s_perf_11_1_rejects_triage_without_post_s_perf_11_anchor
+     (CAMPAIGN IDENTITY) --- triage MUST cite the rebaselined
+     S-PERF.11 `s_perf_11_bandwidth_delta_report_hash_v1 =
+     1a27154e335c27df6db939d4c8ff0f36f8baf75871be06c750f0853f2268adc8`.
+  2. s_perf_11_1_rejects_decision_without_dominant_stage_evidence
+     --- the claimed `bottleneck_category` MUST match the
+     classifier's output for the parsed timings.
+  3. s_perf_11_1_rejects_decision_inconsistent_with_panel_locked_rule
+     --- `next_strike_recommendation` MUST follow the verbatim
+     panel decision tree (digest -> SPerf12CompactDensorDigestV1;
+     host_compute_features -> SPerf13DeviceSideFeatureConstruction;
+     detector / consensus / candidate -> ReRankBeforeNextStrike).
+  4. s_perf_11_1_rejects_triage_with_r12b_episode_drift
+     --- episode counts MUST remain 13 / 89 / 1917.
+  5. s_perf_11_1_rejects_triage_with_pinned_post_s_perf_11_bandwidth_drift
+     --- `post_s_perf_11_pinned_bandwidth_centi_gbps` MUST equal
+     1638 (the panel-locked S-PERF.11 measured bandwidth).
+  6. s_perf_11_1_rejects_triage_that_claims_bandwidth_improvement
+     --- case-insensitive scanner over every label / note field
+     forbids triage-as-speedup phrasing.
+
+Four structural defect rules
+----------------------------
+
+  1. ReportIdEmpty
+  2. SourceReportPathEmpty
+  3. DominantStagePctArithmeticMismatch
+  4. PerStageLabelMismatch (per-index canonical-label check)
+
+Verifier coverage
+-----------------
+
+  All 6 negatives + 4 structural rules exercised by 24
+  acceptance tests in
+  `crates/dsfb-gpu-atlas-corpus/tests/s_perf_11_1_bottleneck_triage_invariants.rs`.
+
+  Plus 3 classifier-behaviour tests against synthetic
+  fixtures (digest-dominant / host-compute-features-surfaced /
+  detector-motif-surfaced); 4 hash determinism + sensitivity
+  tests; 2 renderer byte-stability tests; 1 cross-anchor
+  distinctness test; 1 pinned-hash back-stop; 3 parser /
+  panel-locked-constants / live-seed-admissibility tests.
+
+Pinned own-namespace hash
+-------------------------
+
+  s_perf_11_1_bottleneck_triage_hash_v1
+    = 70dd967b47bb0830249f1e5122975bf7ab53a76473fa5241451b01e93014a4fa
+
+  Domain separator: DSFB-GPU-ATLAS:S-PERF-11-1-BOTTLENECK-TRIAGE:v1\0
+
+Upstream anchor binding
+-----------------------
+
+  s_perf_11_bandwidth_delta_report_hash_v1
+    = 1a27154e335c27df6db939d4c8ff0f36f8baf75871be06c750f0853f2268adc8
+  (sealed at S-PERF.11 commit 3e67cb4)
+
+R.12b integrity pins (panel-locked, byte-stable)
+------------------------------------------------
+
+  canonical_w16h128 = 13
+  mid_w64h512       = 89
+  full_w256h4096    = 1917
+
+Live measured shape (from triage source report)
+-----------------------------------------------
+
+  host_wall_median_us               = 40418
+  device_total_us                   = 30283
+  triage_run_bandwidth_centi_gbps   = 914   (9.14 GB/s)
+  pre_s_perf_11_pinned_centi_gbps   = 1333  (13.33 GB/s; panel-locked)
+  post_s_perf_11_pinned_centi_gbps  = 1638  (16.38 GB/s; panel-locked)
+  dominant_stage_label              = tree_digest (4-stage aggregate)
+  dominant_stage_us                 = 15334
+  dominant_stage_pct_basis_points   = 5063
+  bottleneck_category               = DigestStillDominant
+  next_strike_recommendation        = SPerf12CompactDensorDigestV1
+
+CLI surface
+-----------
+
+  dsfb-corpus s-perf-11-1-bottleneck-triage      [--json] [--out PATH]
+  dsfb-corpus s-perf-11-1-bottleneck-triage-emit [--out-dir DIR]
+
+  (Exit 3 on drift, 0 on admit. Emit writes 2 byte-stable
+  artifacts.)

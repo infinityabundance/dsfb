@@ -1,0 +1,173 @@
+================================================================
+S1.3b - ActivationDecisionTranscript + ActivationDiffV1 summary
+================================================================
+Transcript schema:  DSFB-GPU-ATLAS:ACTIVATION-TRANSCRIPT:v1
+  Domain sep:       DSFB-GPU-ATLAS:ACTIVATION-TRANSCRIPT:v1\0
+Diff schema:        DSFB-GPU-ATLAS:ACTIVATION-DIFF:v1
+  Domain sep:       DSFB-GPU-ATLAS:ACTIVATION-DIFF:v1\0
+
+Panel-locked thesis (commit identity):
+
+  DSFB-GPU-Atlas does not merely choose detectors;
+  it issues replayable activation decisions under a
+  hash-bound court record.
+
+S1.3a says WHAT each decision is. S1.3b says WHY, with full
+citation back to the court artifact(s) that drove it, and can
+diff two activation plans deterministically.
+
+Upstream hash anchors UNCHANGED (panel-locked):
+  corpus_hash_v1                              = 35c276c7...
+  registry_hash_v2                            = d3cf6300...
+  precedent_hash_v1                           = 6721f511...
+  admissibility_grammar_hash_v1               = ff66706a...
+  trial_transcript_hash_v1                    = 37618a45...
+  execution_attestation_receipt_hash_v1       = (per build)
+  challenge_docket_hash_v1                    = dde4ecb4...
+  detector_contraindication_hash_v1           = 1b899f5d...
+  coverage_hole_hash_v1                       = 671e2164...
+  activation_plan_hash_v1                     = 5a81da47...
+  Every DetectorPassport hash                 = unchanged
+
+Anchor that S1.3b carries through into transcripts:
+  source_activation_plan_hash_v1 (from S1.3a) =
+    5a81da473a5eedd46bf5f0037ce7e233d527c7dccda8d50aabb7410b1dc69b02
+
+Sample transcripts (deterministic across two builds):
+  detector 1 (Shewhart control chart, Disabled by weak L-band):
+    transcript_hash_v1 = 540c94e6c5a406fad57a4fe9554285ca...
+  detector 14 (Latency ramp, WarnOnly via GPU surface):
+    transcript_hash_v1 = 68240f6d02fd03f023e3980acd4d1f0f...
+
+Self-diff witness (plan against itself; empty by construction):
+  activation_diff_hash_v1 =
+    469536e7c06427d9f4fc9e82ad6093af943b5530567f9e2f63acee1538ed4e80
+  decisions_added           : 0
+  decisions_removed         : 0
+  decisions_status_changed  : 0
+  decisions_reason_changed  : 0
+  decisions_citation_changed: 0
+
+Per-detector transcript shape:
+  ActivationDecisionTranscript {
+      canonical_id,
+      display_name,
+      activation_status,
+      final_reason,                              // EnabledReason or DisabledReason wire
+      contributing_facts: Vec<ContributingFact>, // sorted deterministically
+      blocking_chain: Vec<BlockingLink>,         // root cause first
+      counterfactual_path_to_enabled: Vec<CounterfactualStep>,
+      transcript_hash_v1,
+  }
+
+ArtifactKind enum (7 variants):
+  Passport, CoverageHole, Contraindication, Challenge, LBand,
+  RegistryHash, CorpusHash.
+
+FactRole enum (4 variants):
+  Blocking, Warning, Supporting, Informational.
+
+CounterfactualStep enum (9 variants):
+  PromoteLBandToL3OrHigher
+  LandBenchmarkReceipt
+  ResolveChallenge
+  DeclareContraindicationFields
+  AddFamilyConfuserWitness
+  DeclareRequiredSamplingLaw
+  DeclareRequiredUnits
+  RefreshSourceProvenance
+  SupplyEvidenceContract
+
+Diff schema:
+  ActivationDiffV1 {
+      old_activation_plan_hash_v1,
+      new_activation_plan_hash_v1,
+      corpus_hash_v1,                            // MUST be equal on both plans
+      rows: Vec<ActivationDiffRow>,
+      decisions_added / removed / status / reason / citation counts,
+      activation_diff_hash_v1,
+  }
+
+DiffChangeKind enum (5 variants):
+  DecisionAdded, DecisionRemoved, StatusChanged,
+  ReasonChanged, CitationChanged.
+
+Panel-locked rule: diff REFUSES to operate across distinct
+`corpus_hash_v1` generations. The verifier surfaces this via
+`DiffRejectsMismatchedCorpusHash` (load-bearing negative #2).
+
+Verifier reject kinds:
+  Transcript (4):
+    1. *DisabledTranscriptWithoutBlockingFact (load-bearing #3)
+    2.  UnknownDetector
+    3.  FinalReasonMissing
+    4.  TranscriptHashMissing
+  Diff (2):
+    5. *DiffRejectsMismatchedCorpusHash (load-bearing #2)
+    6.  DiffHashMissing
+  Plus build-time invariants:
+    *explain_rejects_unknown_canonical_id (load-bearing #1)
+    *transcript_hash_changes_when_one_contributing_fact_changes
+     (load-bearing #4)
+
+CLI surface (new):
+  dsfb-corpus activation-plan-explain <canonical_id> [--json] [--out PATH]
+  dsfb-corpus activation-plan-audit-emit              [--out-dir DIR]
+  dsfb-corpus activation-plan-diff --old OLD.json --new NEW.json [--json] [--out PATH]
+
+  Note: activation-plan-diff in this commit demonstrates the
+  schema by diffing the live plan against itself (empty diff
+  with zero counts). External-file plan ingestion is honestly
+  deferred to S1.3c+ alongside TaskManifest parsing; the schema
+  + in-memory diff machinery + verifier are sealed here.
+
+Bulk artifacts (two builds produce byte-identical bytes):
+  crates/dsfb-gpu-atlas-corpus/out/activation_plan_audit_v1.txt   (~152 KB)
+  crates/dsfb-gpu-atlas-corpus/out/activation_plan_audit_v1.json  (~208 KB)
+
+Test suite: 34 acceptance tests at
+  crates/dsfb-gpu-atlas-corpus/tests/activation_audit_invariants.rs
+
+Sample explain output for detector 14 (Latency ramp; L6 GPU surface):
+
+  canonical_id        : 14
+  activation_status   : WarnOnly
+  final_reason        : EnabledByRoleSeededGpuSurface
+  Contributing facts  :
+    [Passport]      Supporting    PassportPresent
+    [Passport]      Supporting    GpuSurfaceRoleSeeded
+    [CoverageHole]  Warning       FamilyMissingConfuserCoverage
+    [Contraindication] Warning    ContraindicationReceiptPresent
+    [Challenge]     Informational Overruled
+    [LBand]         Supporting    L6_CpuGpuByteEquivalent
+    [RegistryHash]  Informational AnchorBound
+    [CorpusHash]    Informational AnchorBound
+
+Sample explain output for detector 1 (Shewhart control chart; L2):
+
+  activation_status   : Disabled
+  final_reason        : DisabledByWeakLBand
+  Blocking chain      :
+    #1 [LBand]        L2_DeterministicFormula
+    #2 [CoverageHole] DetectorMissingGenealogyEdge
+  Counterfactual path to Enabled:
+    - PromoteLBandToL3OrHigher
+
+Panel-locked non-claims:
+  - Does NOT mutate corpus_hash_v1, registry_hash_v2, any
+    T.11a-T.11h hash, or activation_plan_hash_v1.
+  - Does NOT consume TaskManifest / DatasetManifest (S1.3c).
+  - Does NOT prune by budget or suppress redundancy (S1.3d).
+  - Does NOT emit KernelPlanV1 (S1.3e).
+  - Does NOT integrate into CaseFileV2 (S1.3f).
+  - Does NOT execute detectors or change GPU behaviour.
+  - Does NOT claim datasheet / model-card / NIST AI RMF / SLSA
+    / in-toto / SPDX / CycloneDX compatibility on the new
+    transcript / diff hashes.
+
+R.12b D64 baseline NOT rebaselined; pinned R.12b episode counts
+(13/89/1917 for canonical/mid/full at K=1) byte-stable.
+
+The court can now answer: why this decision, what would change
+it, and what differs between two plans — deterministically,
+with hash-bound citations back to every contributing artifact.

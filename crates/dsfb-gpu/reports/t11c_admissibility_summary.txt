@@ -1,0 +1,170 @@
+================================================================
+DSFB-GPU-Atlas — T.11c Admissibility Grammar summary
+================================================================
+Schema             : DSFB-GPU-ATLAS:ADMISSIBILITY-GRAMMAR:v1
+Domain separator   : DSFB-GPU-ATLAS:ADMISSIBILITY-GRAMMAR:v1\0
+HEAD-before        : 8343331 (T.11b)
+
+----------------------------------------------------------------
+Surface (new)
+----------------------------------------------------------------
+Module           : crates/dsfb-gpu-atlas-corpus/src/admissibility.rs
+Public surface   :
+    pub struct GrammarRuleId
+    pub enum   GrammarRuleKind         (9 variants, panel-locked)
+    pub enum   GrammarRuleSeverity     (Hard / Soft / Deferred)
+    pub enum   EvidenceRequirement     (11 variants)
+    pub enum   ConfuserEffect          (Block / Downgrade / Quarantine)
+    pub struct WitnessRequirement      (4 minimums + 6 forbid flags)
+    pub struct EpisodeAdmissibilityRule
+    pub struct ConfuserSuppressionRule
+    pub struct GrammarSnapshotHash
+    pub struct AdmissibilityGrammarSnapshot
+    pub const  ADMISSIBILITY_GRAMMAR_DOMAIN
+    pub const  ADMISSIBILITY_GRAMMAR_SCHEMA_V1
+    pub fn     collect_admissibility_grammar()
+    pub fn     compute_admissibility_grammar_hash_v1(&Snapshot)
+    pub fn     verify_grammar_snapshot(&Snapshot, &PrecedentSet)
+    pub fn     grammar_rules_consuming(&Snapshot, PrecedentId)
+    pub fn     precedent_ids_by_kind(&PrecedentSet, PrecedentKind)
+    pub fn     build_crosswalk(&Snapshot) -> Vec<CrosswalkRow>
+    pub fn     render_grammar_{text,json}(&Snapshot)
+    pub fn     render_crosswalk_{text,json}(&[CrosswalkRow])
+
+CLI subcommands  :
+    dsfb-corpus admissibility    [--json] [--out PATH]
+    dsfb-corpus admissibility-emit [--out-dir DIR]
+
+Bulk artifacts (committed; byte-identical across two builds):
+    crates/dsfb-gpu-atlas-corpus/out/admissibility_grammar.txt
+        (6 614 bytes; episode + confuser rules sorted canonically)
+    crates/dsfb-gpu-atlas-corpus/out/admissibility_grammar.json
+        (10 629 bytes; deterministic JSON object form)
+    crates/dsfb-gpu-atlas-corpus/out/passport_grammar_crosswalk.txt
+        (12 760 bytes; per-passport precedent → grammar trace)
+    crates/dsfb-gpu-atlas-corpus/out/passport_grammar_crosswalk.json
+        (15 035 bytes; same content, JSON array form)
+
+----------------------------------------------------------------
+Grammar receipt (panel-locked hash posture)
+----------------------------------------------------------------
+admissibility_grammar_hash_v1 :
+    ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7
+
+corpus_hash_v1    : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7  (UNCHANGED)
+registry_hash_v2  : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08  (UNCHANGED)
+precedent_hash_v1 : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14  (UNCHANGED)
+
+T.11c is a SEPARATE court-layer receipt; it does NOT mutate any
+prior hash. Passport hashes are also unchanged — the
+passport-grammar linkage is carried by the crosswalk artifact,
+not by extending the passport struct.
+
+----------------------------------------------------------------
+Episode-admissibility rules (9, panel-locked)
+----------------------------------------------------------------
+The grammar's nine admission rules, sorted by
+(kind, name) at canonical-sort time:
+
+  1. BoundaryWitnessCannotClassifyAlone     (BoundaryCondition)
+  2. CleanWindowWitnessCannotAdmitAlone     (CleanWindowSupport)
+  3. UnknownOrDeferredOutcomeIsExplicit     (DeferredUnknown; Deferred severity)
+  4. PrimaryWitnessRequiresPositiveSupport  (EpisodeAdmission)
+  5. MinimumPrimaryWitnessEvidence          (MinimumEvidence)
+  6. NegativeWitnessBlocksAdmissionUnlessBankOverride (NegativeWitnessRejection)
+  7. RecoveryWitnessCannotOriginateAlone    (RecoveryClosure)
+  8. BankAdmissionTokenIsTheOnlyAdmissionRoute (SemanticNonBypass)
+  9. GpuOutputIsEvidenceOnly                (SemanticNonBypass)
+
+(IDs 1..9 assigned after canonical sort.)
+
+----------------------------------------------------------------
+Confuser-suppression rules (9, one per NegativeWitnessKind)
+----------------------------------------------------------------
+  10. BatchBoundaryConfuser      → BlockAdmission
+  11. ClockSkewConfuser          → BlockAdmission
+  12. DeploymentMarkerConfuser   → BlockAdmission
+  13. MissingnessArtifactConfuser → BlockAdmission
+  14. PeriodicBoundaryConfuser   → BlockAdmission
+  15. SchemaChangeConfuser       → BlockAdmission
+  16. SingleWindowSpikeConfuser  → BlockAdmission
+  17. SmallSampleConfuser        → BlockAdmission
+  18. UnitScaleChangeConfuser    → BlockAdmission
+
+Every named NegativeWitnessKind variant (excluding
+NotANegativeWitness) is consumed; pinned by
+`confuser_suppression_rules_cover_every_named_negative_witness_kind`.
+
+----------------------------------------------------------------
+Precedent linkage coverage
+----------------------------------------------------------------
+- Every grammar rule MUST link at least one T.11b precedent
+  (panel-required invariant; pinned by
+  `every_grammar_rule_links_precedent`).
+- Every WitnessLaw precedent in T.11b is consumed by at least
+  one grammar rule (panel-required;
+  `every_witness_law_precedent_is_consumed`).
+- Every NegativeWitnessLaw precedent in T.11b is consumed by at
+  least one grammar rule (panel-required;
+  `every_negative_witness_law_precedent_is_consumed`).
+
+The SemanticNonBypass rules `BankAdmissionTokenIsTheOnlyAdmissionRoute`
+and `GpuOutputIsEvidenceOnly` cite multiple precedents
+(witness law + negative-witness law + constitution-coverage +
+registry-binding) because they bind corpus-side jurisprudence
+to runtime axioms.
+
+----------------------------------------------------------------
+Passport-precedent-grammar crosswalk (T.11a × T.11b × T.11c)
+----------------------------------------------------------------
+54 rows (one per SEED canonical record). Every row carries the
+passport's `linked_precedent_ids` (from T.11b) PLUS the set of
+grammar rules that consume any of those precedents. The Shewhart
+crosswalk row (canonical_id 1) links to all 18 grammar rules
+(9 admission + 9 confuser) because every global law touches
+every passport AND the witness-law precedents propagate to
+every confuser-suppression rule.
+
+The crosswalk is the panel-required artifact for "every passport
+links to a precedent that is consumed by a grammar rule" without
+churning the passport struct or hash.
+
+----------------------------------------------------------------
+Verifier (load-bearing structural checks)
+----------------------------------------------------------------
+verify_grammar_snapshot rejects:
+    RuleWithoutPrecedentLink         a rule cites no precedent
+    EpisodeAdmissionAllowsConfuserOnly
+                                     a rule of kind EpisodeAdmission
+                                     does not forbid confuser-only
+                                     admission (load-bearing for
+                                     Semantic Non-Bypass)
+    LinkedPrecedentMissing           a cited precedent id is not in
+                                     the live T.11b set
+    DuplicateRuleId                  two rules share an id
+
+Pinned by:
+    verify_grammar_snapshot_admits_live_collection
+    grammar_verifier_rejects_rule_without_precedent_link        (panel-required negative)
+    grammar_verifier_rejects_episode_admission_rule_that_allows_confuser_only_admission
+                                                                 (panel-required negative)
+    verifier_rejects_linked_precedent_outside_known_set
+    verifier_rejects_duplicate_rule_id
+
+----------------------------------------------------------------
+Panel-locked non-claims (T.11c)
+----------------------------------------------------------------
+T.11c does NOT:
+- emit CaseFileV2 episode-transcript bodies (T.11d)
+- implement UnitSemantics / SamplingLaw receipts (T.11e — superseded
+  by T.11g DetectorContraindicationReceipt per panel iteration 4)
+- implement external provenance export (DSFB-PROV / OpenLineage /
+  NIST AI RMF / RO-Crate)
+- change `corpus_hash_v1`, `registry_hash_v2`, `precedent_hash_v1`,
+  or any passport hash
+- change D16 / D64 / D128 / D205 GPU behavior
+- include S1.2 registry-spec linkage anywhere
+- claim in-toto / SLSA / SPDX / CycloneDX compatibility on
+  `admissibility_grammar_hash_v1`
+
+================================================================

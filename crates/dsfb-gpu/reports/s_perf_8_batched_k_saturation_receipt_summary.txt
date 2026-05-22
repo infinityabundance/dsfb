@@ -1,0 +1,284 @@
+S-PERF.8 --- batched-K saturation receipt (summary, S-PERF.8.1 hardening pass)
+==============================================================================
+
+Campaign identity
+-----------------
+
+S-PERF.8 is the second Track B leg. It converts the
+existing R.12b D64 saturation sweep (which already
+processes K as a host loop of K serial single-catalog
+dispatches on a hot GpuWorkspace) into a mechanically-
+auditable corpus receipt that records the per-scale
+K-amortisation pattern. The corpus crate stays panel-locked
+host-only with zero CUDA dependency; the parser walks the
+on-disk R.12b table bytes and the verifier asserts
+coherence against S-PERF.6.
+
+S-PERF.8.1 hardens the receipt and the verifier against
+the most dangerous overclaim the campaign could produce:
+"canonical 16x128 got 1.76x speedup, therefore K batching
+solved the full-scale workload." The hardening pass
+makes that overclaim mechanically inadmissible.
+
+Panel-locked conclusion (verbatim, MUST appear in the
+receipt + receipts/ + README + paper + lib.rs)
+--------------------------------------------------
+
+  S-PERF.8 replaces K-as-host-loop with batched-K execution
+  and measures the effect. The result is mixed and
+  informative: canonical 16x128 improves by 1.76x,
+  confirming launch-amortization benefit on small fixtures,
+  while full 256x4096 improves only +3.4% / 1.03x, showing
+  that the full-scale path is not primarily launch-bound.
+  This is a measured optimization result, not a saturation
+  claim.
+
+What this DOES
+--------------
+
+  - Parses reports/r12_d64_saturation.txt's 3 x 6 K matrix
+    (scales canonical 16x128 / mid 64x512 / full 256x4096
+    crossed with K in {1, 4, 16, 32, 64, 128}).
+  - Records each (scale, K) cell's per_cat_us, cat/sec,
+    features_pct, dev_total_pct, finalize_pct, and top-stage
+    label + percentage.
+  - Computes per-scale summaries: K=1 baseline, best
+    observed K, K-amortisation gain ratio (best / K=1),
+    delta basis-points, pre-bandwidth (anchored to S-PERF.6
+    measurement for full 256x4096; 0 for the other scales),
+    post-bandwidth (pre x gain).
+  - Classifies every per-scale result into one of four
+    panel-locked `BatchedKResultInterpretation` variants:
+      LaunchBoundGainAtSmallFixture  (>= 1.5x gain)
+      ModestFullScaleGain            (1.01x..1.5x gain)
+      NoFullScaleImprovement         (1.00x..1.01x gain)
+      Regressed                      (< 1.00x gain)
+  - Carries panel-pinned execution-mode labels:
+    dispatch_mode_label    : host-loop K serial dispatches
+                             on hot GpuWorkspace (R.12b);
+                             explicitly NOT true batched-K.
+    catalog_order_label    : canonical scale-major then
+                             K-ascending; deterministic
+                             per-catalog dispatch order.
+    merge_policy_label     : no inter-catalog merge;
+                             sequential per-catalog
+                             admission in canonical order;
+                             completion-order merging is
+                             panel-forbidden.
+    cuda_graph_status_label: CUDA Graph capture NOT engaged
+                             for K iterations; per-iteration
+                             cudaLaunchKernel.
+  - Carries device identity (RTX 4080 SUPER + sm_89 +
+    declared 716 GB/s peak) and the three R.12b episode
+    pins (canonical=13, mid=89, full=1917).
+  - Binds the parsed table + summaries + the 4 labels +
+    device identity + 3 episode pins + upstream S-PERF.6
+    baseline-report hash + S-PERF.7 source-report-import
+    verifier hash into a single hashable envelope.
+
+What this DOES NOT do
+---------------------
+
+  - Does NOT run the bench (corpus crate is host-only;
+    dsfb-gpu-debug-cuda's tests/r12_d64_saturation.rs
+    produces the source report).
+  - Does NOT rewrite source reports.
+  - Does NOT claim the workload is true batched-K execution
+    (R.12b is host-loop K; S-PERF.8.1 verifier rejects any
+    claim to the contrary in dispatch_mode_label).
+  - Does NOT claim 25-50 GB/s as the S-PERF.8 result; the
+    panel-pinned saturation gate is 8000 bp (= 572.8 GB/s)
+    and the measured full-scale post-batching bandwidth is
+    ~13.78 GB/s.
+  - Does NOT claim CUDA Graph or single-launch K batching
+    is engaged; cuda_graph_status_label is explicit that
+    capture is NOT enabled for the K iterations.
+  - Does NOT mutate the S-PERF.6 receipt or any prior
+    hash anchor.
+  - Does NOT alter SEED.len() (stays 54).
+  - Does NOT rebaseline R.12b.
+
+Honest measurement (live R.12b sweep, RTX 4080 SUPER, CUDA 13.2)
+----------------------------------------------------------------
+
+Per-scale K-amortisation summary with bandwidth delta and
+panel-locked interpretation:
+
+  scale            |  k1 c/s  | bestK | best c/s |  gain | delta% | pre GB/s | post GB/s | interpretation
+  ---------------- | -------- | ----- | -------- | ----- | ------ | -------- | --------- | ------------------------------
+  canonical 16x128 |    326.7 |    64 |    575.2 | 1.76x |+76.06% |     0.00 |      0.00 | LaunchBoundGainAtSmallFixture
+  mid 64x512       |    411.9 |     1 |    411.9 | 1.00x |  0.00% |     0.00 |      0.00 | NoFullScaleImprovement
+  full 256x4096    |     34.9 |    16 |     36.1 | 1.03x | +3.43% |    13.33 |     13.78 | ModestFullScaleGain
+
+Interpretation
+--------------
+
+At small fixtures (canonical 16x128) the host-loop K
+nearly doubles throughput because per-cat work is small
+relative to per-launch overhead. At mid fixture (64x512)
+the workload is already device-bound and batching
+delivers no measurable gain. At the headline scale (full
+256x4096) batching delivers only +3.4% because per-cat
+work massively dominates per-launch overhead.
+
+The panel-pinned Track B target of 25-50 GB/s for
+S-PERF.8 presumed a launch-bound workload; the live data
+shows the workload is device-bound at full-scale.
+Honest reporting: batched K at the headline scale is NOT
+the lever to ratchet bandwidth from 13.33 GB/s toward
+saturation. The real lever lives in S-PERF.10 (digest
+lane compaction; the 4 tree_digest stages currently
+consume ~57% of device time across the panel-pinned
+profile and are the immediate next attack target).
+
+S-PERF.8's value is the auditability: every future Track
+B leg can compare against the S-PERF.8 K-saturation
+pattern to verify the new optimisation actually changes
+the K-amortisation shape, not just the K=1 number.
+
+Hash posture
+------------
+
+One own-namespace hash (none folded upstream):
+
+  batched_k_saturation_receipt_hash_v1
+    = 37212c42b4fdf06069c019e34474cf0d6660843bad7cd4a9cbc92020a7b9f201
+    domain: DSFB-GPU-ATLAS:S-PERF-8-BATCHED-K-SATURATION-RECEIPT:v1\0
+
+  Deterministic across two builds; pairwise distinct from
+  every prior S-PERF anchor; binds the live S-PERF.6
+  baseline (d44c9ec5...) + the live S-PERF.7 verifier
+  (99cc8a71...) + the new S-PERF.8.1 labels + device
+  identity + 3 R.12b episode pins.
+
+Panel-required load-bearing negatives (S-PERF.8.1, 14 total)
+------------------------------------------------------------
+
+Original four (S-PERF.8 baseline):
+
+   1. s_perf_8_rejects_receipt_with_incomplete_k_matrix
+   2. s_perf_8_rejects_receipt_if_k1_full_scale_per_cat
+      _inconsistent_with_s_perf_6
+   3. s_perf_8_rejects_receipt_if_k1_cat_per_sec
+      _arithmetic_mismatch
+   4. s_perf_8_rejects_receipt_if_k_amortisation_gain
+      _exceeds_ceiling (5x per-scale ceiling)
+
+New under S-PERF.8.1 (campaign-identity guards):
+
+   5. s_perf_8_rejects_host_loop_k_claimed_as_batched
+      --- dispatch_mode_label rejects "true batched K",
+      "single launch", "graph capture engaged".
+   6. s_perf_8_rejects_missing_batched_k_source_report
+      --- r12b_source_report_path is non-empty AND
+      readable on disk.
+   7. s_perf_8_rejects_missing_pre_post_bandwidth_delta
+      --- every per-scale summary carries a delta value
+      (basis points) AND interpretation label.
+   8. s_perf_8_rejects_full_scale_claim_above_measured_delta
+      --- post-bandwidth cannot exceed pre x measured gain
+      (arithmetic check at full 256x4096).
+   9. s_perf_8_rejects_claim_that_full_scale_reached_25gbps
+      _if_it_did_not --- post-bandwidth >= 25 GB/s claim
+      is rejected unless backed by a measured gain >= 1.875x
+      at full-scale (1.875 = 25/13.33).
+  10. s_perf_8_rejects_saturation_claim_below_8000bp
+      --- post percent-of-peak < 8000 bp cannot be labelled
+      a saturation result.
+  11. s_perf_8_rejects_canonical_launch_bound_gain
+      _generalized_to_full_scale  (CAMPAIGN IDENTITY)
+      --- the full 256x4096 summary's interpretation may
+      NOT be LaunchBoundGainAtSmallFixture; the canonical
+      result does not generalize to full-scale.
+  12. s_perf_8_rejects_r12b_episode_pins_drift
+      --- canonical=13, mid=89, full=1917 are panel-locked.
+  13. s_perf_8_rejects_catalog_order_drift
+      --- catalog_order_label requires "scale-major" AND
+      "K-ascending"; deterministic per-catalog dispatch
+      order.
+  14. s_perf_8_rejects_completion_order_merge
+      --- merge_policy_label must NOT contain
+      "completion-order" or "first-completed-wins"; the
+      bank admits catalogs sequentially in canonical order.
+
+Plus 4 structural defect rules: ReceiptIdEmpty,
+R12bSourceReportPathEmpty, PerScaleSummariesIncomplete,
+SummaryK1MismatchWithParsedCell.
+
+Plus 5 additional integrity rules:
+CudaGraphClaimWithoutReplayContract,
+MissingDeviceIdentity, PercentOfPeakArithmeticMismatch,
+SpeedupArithmeticMismatch, InterpretationLabelMismatch,
+EmptyPanelLabel.
+
+`BatchedKResultInterpretation` enum (panel-locked)
+--------------------------------------------------
+
+  LaunchBoundGainAtSmallFixture  (>= 1.5x gain)
+  ModestFullScaleGain            (1.01x .. 1.5x gain)
+  NoFullScaleImprovement         (1.00x .. 1.01x gain)
+  Regressed                      (< 1.00x gain)
+
+Boundary classifier `from_gain_basis_points()` pins the
+4 thresholds (15000, 10100, 10000 bp); the per-scale
+interpretation label flows from the per-scale gain.
+
+Parser strictness
+-----------------
+
+The parser asserts the full 3 x 6 K matrix is present
+(18 cells). The top-stage column accepts only panel-known
+stage labels (digest_consensus, digest_detector, etc.) so
+a future drift in the harness's stage naming is caught.
+The cat/sec column accepts X.Y form (one decimal place),
+matching the R.12b harness's output format. Any drift
+surfaces as a typed ParseError.
+
+CLI surface
+-----------
+
+  dsfb-corpus s-perf-8-batched-k          [--json] [--out PATH]
+  dsfb-corpus s-perf-8-batched-k-emit     [--out-dir DIR]
+
+  s-perf-8-batched-k exits 3 if any drift is found; 0 if
+  the verifier admits.
+
+Bulk-emit artifacts
+-------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_8_batched_k_saturation_receipt_v1.{txt,json}
+
+  Byte-stable across two consecutive emits.
+
+Test surface (S-PERF.8.1 acceptance suite, 43 tests total)
+----------------------------------------------------------
+
+  - 8 measured-shape pin tests (canonical ~1.76x band
+    15000..20000 bp, full ~+3.4% band 0..1000 bp, parser
+    determinism, episode pin readback, S-PERF.6 / S-PERF.7
+    binding distinctness, verifier admits live disk seed).
+  - 14 panel-required load-bearing negatives (enumerated
+    above).
+  - 8 structural defect tests (missing required fields).
+  - 6 sensitivity tests (changing any one of: canonical
+    speedup, full-scale post bandwidth, delta percent,
+    interpretation label, device identity, source report
+    path) changes the receipt hash.
+  - 3 determinism / renderer byte-stability / distinctness.
+  - 1 pinned-hash back-stop against silent rebaselining
+    (`37212c42b4fdf06069c019e34474cf0d6660843bad7cd4a9cbc92020a7b9f201`).
+  - 3 parser unit tests (header rejection, missing rows,
+    summary-K1 cell parsing).
+
+One-line verdict
+----------------
+
+S-PERF.8 records what host-loop K batching actually
+delivers at every scale: launch-bound 1.76x gain at
+canonical, device-bound 1.03x at full. The S-PERF.8.1
+hardening pass makes the per-scale interpretation
+auditable AND inadmissible to overclaim. The next Track
+B leg (S-PERF.10 digest lane compaction) attacks the
+~57% of device time consumed by the 4 tree_digest
+stages, not by chasing a launch-bound lever that
+demonstrably doesn't apply at the headline scale.

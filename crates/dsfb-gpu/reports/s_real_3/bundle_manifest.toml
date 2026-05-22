@@ -1,0 +1,250 @@
+# S-REAL.3 Zenodo-publishable bundle manifest.
+#
+# WHY: One toml file enumerates every dataset admitted into the
+# S-REAL gauntlet, its tier directory, its source-class family,
+# its license, its admitted-episode count, and its sealed
+# `final_case_file_hash`. A Zenodo depositor (or any external
+# reviewer) reads this manifest and walks the linked artifact
+# directories to verify replay.
+#
+# Replay protocol:
+#   1. Read the fixture's pinned SHA-256 from `data/fixtures/MANIFEST.toml`.
+#   2. Re-run `dsfb-gpu-debug s-real-1-audit --dataset <id>`
+#      against the in-repo `data/fixtures/<...>.tsv`.
+#   3. Compare the emitted `final_case_file_hash` to the
+#      `sealed_case_file_hash` field in this manifest.
+#   4. Byte-identical = replay verified.
+#
+# 20 datasets, 5 source-class families, 316 admitted episodes.
+
+[bundle]
+schema_version = "v1"
+sealed_at_commit = "<this commit hash>"
+total_datasets = 20
+total_source_class_families = 5
+total_admitted_episodes = 316
+toolchain_cuda_version = "13.2"
+toolchain_dispatcher = "build_gpu (D64 throughput-mode tree-compact)"
+nondeterminism_disclaimer = "Replay byte-identity is asserted only for the recorded toolchain; cross-driver / cross-CUDA / cross-hardware byte-identity is NOT claimed."
+
+[families]
+F1 = "DebuggingSoftwareTelemetry"
+F2 = "ObservabilityTraces"
+F3 = "TimeSeriesAnomaly"
+F4 = "ReliabilityIndustrial"
+F5 = "SoftwareDefects"
+
+# --- F1 DebuggingSoftwareTelemetry (4 datasets) ---
+
+[datasets.tadbench_f11]
+family = "F1"
+tier_dir = "reports/s_real_1/tadbench_f11"
+license = "CC-BY-4.0"
+upstream = "Zenodo 10.5281/zenodo.6979726 (Steidl 2022)"
+admitted_episodes = 90
+sealed_case_file_hash = "23a8975841995421e840b7d368f951206d99477c2c1146667c4fcaf88d5f70cc"
+replay_verified = true
+
+[datasets.tadbench_f04]
+family = "F1"
+tier_dir = "reports/s_real_2/tadbench_f04"
+license = "CC-BY-4.0"
+upstream = "Zenodo 10.5281/zenodo.6979726 (Steidl 2022)"
+admitted_episodes = 6
+sealed_case_file_hash = "e8ab40737df0b5aafeefb03f59a694a231d5335b8115a90cf484505e384cb6b8"
+replay_verified = true
+
+[datasets.tadbench_f19]
+family = "F1"
+tier_dir = "reports/s_real_2/tadbench_f19"
+license = "CC-BY-4.0"
+upstream = "Zenodo 10.5281/zenodo.6979726 (Steidl 2022)"
+admitted_episodes = 12
+sealed_case_file_hash = "0727e92beb8d2fcf8492acd08b1aea168b8281abd5ad2de227bf11fd6ce3ed5b"
+replay_verified = true
+
+[datasets.tadbench_f11b]
+family = "F1"
+tier_dir = "reports/s_real_2/tadbench_f11b"
+license = "CC-BY-4.0"
+upstream = "Zenodo 10.5281/zenodo.6979726 (Steidl 2022)"
+admitted_episodes = 3
+sealed_case_file_hash = "78d28a1540515980402c28b27f65fa31d80e7a60688d1a070e76bec4ae98bca8"
+replay_verified = true
+
+# --- F2 ObservabilityTraces (4 datasets) ---
+
+[datasets.illinois_socialnet]
+family = "F2"
+tier_dir = "reports/s_real_1/illinois_socialnet"
+license = "CC0-1.0"
+upstream = "Illinois Data Bank IDB-6738796"
+admitted_episodes = 3
+sealed_case_file_hash = "219ff3d06d79130029b37c00e7a7508d33a788504fa0d4c06f18f3824dead98e"
+replay_verified = true
+
+[datasets.lo2]
+family = "F2"
+tier_dir = "reports/s_real_2/lo2"
+license = "CC-BY-4.0"
+upstream = "Zenodo 10.5281/zenodo.14257989 (Bakhtin et al. 2025)"
+admitted_episodes = 4
+sealed_case_file_hash = "cc1995c903104c3847bc9e9ce3aa84d2a99139418a8c6811355c472b2cee597f"
+replay_verified = true
+
+[datasets.deeptralog]
+family = "F2"
+tier_dir = "reports/s_real_2/deeptralog"
+license = "no-upstream-license"
+upstream = "github.com/FudanSELab/DeepTraLog F01-02 ERROR (Zhang et al. ICSE 2022)"
+admitted_episodes = 3
+sealed_case_file_hash = "99430c33871d13dd53ad6580d9f886372311869e6e5cbcc89504433a555c9b01"
+replay_verified = true
+
+[datasets.deeptralog_f02]
+family = "F2"
+tier_dir = "reports/s_real_3/deeptralog_f02"
+license = "no-upstream-license"
+upstream = "github.com/FudanSELab/DeepTraLog F02-04 ERROR"
+admitted_episodes = 9
+sealed_case_file_hash = "b22acc48d40224adc73afcff6a818af6c1c2baf20742ac230f385aadb753e8c0"
+replay_verified = true
+
+# --- F3 TimeSeriesAnomaly (2 datasets) ---
+
+[datasets.aiops_kpi]
+family = "F3"
+tier_dir = "reports/s_real_1/aiops_kpi"
+license = "no-upstream-license"
+upstream = "github.com/NetManAIOps/Bagel (Li, Chen, Pei IPCCC 2018)"
+admitted_episodes = 3
+sealed_case_file_hash = "06a26a61c4dde60e44274eb6c521079edd00e2113c0c4e8e151a4b552b4e5082"
+replay_verified = true
+
+[datasets.multidim_localization]
+family = "F3"
+tier_dir = "reports/s_real_2/multidim_localization"
+license = "no-upstream-license"
+upstream = "github.com/NetManAIOps/MultiDimension-Localization"
+admitted_episodes = 3
+sealed_case_file_hash = "7c730edae4b1c3204d15a020c9251a90e9f8c78427603fad16a894ead66eba2b"
+replay_verified = true
+
+# --- F4 ReliabilityIndustrial (6 datasets) ---
+
+[datasets.cmapss_fd001_unit1]
+family = "F4"
+tier_dir = "reports/s_real_2/cmapss_fd001_unit1"
+license = "Public-Domain"
+upstream = "NASA PCoE Prognostics Data Repository (Saxena et al. PHM08)"
+admitted_episodes = 26
+sealed_case_file_hash = "396af2610c4dbaaa438142baf4c4ecf8705de0bbc2bcf6d4640da2f236d1c2fa"
+replay_verified = true
+
+[datasets.cmapss_fd001_unit50]
+family = "F4"
+tier_dir = "reports/s_real_3/cmapss_fd001_unit50"
+license = "Public-Domain"
+upstream = "NASA C-MAPSS FD001 unit 50"
+admitted_episodes = 33
+sealed_case_file_hash = "aac75f765e5c87361ea83310991378590f8fcd12f73b85647fd12af6b5f15b83"
+replay_verified = true
+
+[datasets.cmapss_fd002_unit1]
+family = "F4"
+tier_dir = "reports/s_real_3/cmapss_fd002_unit1"
+license = "Public-Domain"
+upstream = "NASA C-MAPSS FD002 unit 1 (multi-condition)"
+admitted_episodes = 25
+sealed_case_file_hash = "8803d9867aa50e4d0ad6c0cbf04d7d7ddeba9824377908551563771af6d9f071"
+replay_verified = true
+
+[datasets.cmapss_fd002_unit100]
+family = "F4"
+tier_dir = "reports/s_real_3/cmapss_fd002_unit100"
+license = "Public-Domain"
+upstream = "NASA C-MAPSS FD002 unit 100"
+admitted_episodes = 29
+sealed_case_file_hash = "8169b972a1c256c7d90984eec28f6686b94aaa29e087196d5eee54b444e9714c"
+replay_verified = true
+
+[datasets.cmapss_fd003_unit1]
+family = "F4"
+tier_dir = "reports/s_real_3/cmapss_fd003_unit1"
+license = "Public-Domain"
+upstream = "NASA C-MAPSS FD003 unit 1 (multi-fault)"
+admitted_episodes = 19
+sealed_case_file_hash = "316a876bd430864fec265e65def561ee548873b570d75dc9ef87b6afc2b27b9c"
+replay_verified = true
+
+[datasets.cmapss_fd004_unit1]
+family = "F4"
+tier_dir = "reports/s_real_3/cmapss_fd004_unit1"
+license = "Public-Domain"
+upstream = "NASA C-MAPSS FD004 unit 1 (multi-condition + multi-fault)"
+admitted_episodes = 29
+sealed_case_file_hash = "ff47164d3a755c8ee4ec7dad41e1176d284896d01e23b20e974b3844dbae25a3"
+replay_verified = true
+
+# --- F5 SoftwareDefects (4 datasets) ---
+
+[datasets.defects4j]
+family = "F5"
+tier_dir = "reports/s_real_2/defects4j"
+license = "MIT"
+upstream = "github.com/rjust/defects4j"
+admitted_episodes = 2
+sealed_case_file_hash = "0410667a6d67784dd8b178308d7278635fcbfa8ea0b0a0b1c42cc89bbea79095"
+replay_verified = true
+
+[datasets.bugsinpy]
+family = "F5"
+tier_dir = "reports/s_real_2/bugsinpy"
+license = "no-upstream-license"
+upstream = "github.com/soarsmu/BugsInPy (Widyasari et al. ESEC/FSE 2020)"
+admitted_episodes = 1
+sealed_case_file_hash = "8412fae131b8af27c7804aa46894ff53afabaa4d8a65b524e8c68687077a1564"
+replay_verified = true
+
+[datasets.promise_defect_prediction]
+family = "F5"
+tier_dir = "reports/s_real_2/promise_defect_prediction"
+license = "no-upstream-license"
+upstream = "github.com/ssea-lab/PROMISE 1.csv (Apache Ant 1.3 CK metrics)"
+admitted_episodes = 5
+sealed_case_file_hash = "2cd73eceef0f89f2586acec2c76c78f86dd819212a5046f13567de495b52a35e"
+replay_verified = true
+
+[datasets.promise_ant_1_4]
+family = "F5"
+tier_dir = "reports/s_real_3/promise_ant_1_4"
+license = "no-upstream-license"
+upstream = "github.com/ssea-lab/PROMISE 2.csv (Apache Ant 1.4 CK metrics)"
+admitted_episodes = 11
+sealed_case_file_hash = "379f34d0768c0e4f82b039f00fe0615b64325f72e7a3ae01c602b6665c13721f"
+replay_verified = true
+
+# --- Source-class breadth (computed from datasets above) ---
+[breadth]
+F1_count = 4
+F2_count = 4
+F3_count = 2
+F4_count = 6
+F5_count = 4
+
+# --- License distribution (computed from datasets above) ---
+[licenses]
+CC_BY_4_0_count = 5
+CC0_1_0_count = 1
+MIT_count = 1
+Public_Domain_count = 6
+no_upstream_license_count = 7
+
+# --- Honest non-claims (apply to every dataset in this bundle) ---
+[non_claims]
+ground_truth = "DSFB does not assert which admitted episodes correspond to real-world anomalies, faults, defects, or causal events."
+detector_superiority = "DSFB does not claim its admitted-episode count is better or worse than any other anomaly-detection method's. The numbers are structural-residual evidence, not a benchmark verdict."
+remaining_useful_life = "For F4 datasets (NASA C-MAPSS), DSFB does not predict remaining useful life. It interprets structural residual evidence."
+bug_severity = "For F5 datasets (Defects4J / BugsInPy / PROMISE), DSFB does not classify bug severity or predict defect density. Patch line count and CK metrics are projection inputs, not domain claims."
+commercial_redistribution = "Datasets marked `no-upstream-license` are admitted under academic research-use convention; no commercial redistribution right is asserted."
+cross_toolchain_replay = "Byte-identical replay is asserted only for the toolchain recorded in run_receipt.txt; cross-driver / cross-CUDA / cross-hardware byte-identity is NOT claimed."

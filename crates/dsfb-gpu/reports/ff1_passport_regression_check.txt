@@ -1,0 +1,169 @@
+================================================================
+FF.1 - DetectorPassport materialisation
+       regression-check receipt (10-step ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Initial pass hit:
+  - doc_lazy_continuation on the numbered-list continuation
+    lines in ff1_passport_materialisation.rs module
+    docstring (same gotcha as consolidate.rs); resolved by
+    rewriting the `+`-chained step-5 sub-bullet as comma-
+    separated prose with proper 3-space continuation.
+  - doc_overindented_list_items on the over-indented
+    follow-up (4-space continuation); reverted to 3-space.
+  - match_same_arms on both source_class_to_gpu_family AND
+    source_class_to_activation_tags. The explicit per-class
+    arms are intentional panel-locked declarations (the
+    SourceClass -> GpuFamilyKernel mapping is documentation,
+    not a compile-time optimisation target); resolved by
+    adding `#[allow(clippy::match_same_arms)]` to both
+    functions with a comment explaining the intent.
+  - clippy::expect_used on the source_class_from_wire
+    materialisation path; resolved by replacing the
+    `.expect(...)` with `Option`-chaining that surfaces an
+    empty `gpu_family_wire_name` / `activation_applicability_tags`
+    instead, which the FF.1 verifier rejects via the
+    MissingGpuFamilyMapping / MissingActivationApplicabilityTags
+    rules. Honest failure mode.
+  - too_many_lines on main.rs `fn main()` (103/100); resolved
+    by adding `#[allow(clippy::too_many_lines)]`. The fn
+    grew past the 100-line limit because each new CLI
+    subcommand adds 2 dispatch entries; alternative would
+    require a dispatcher-table refactor that is out of scope
+    for FF.1.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 44 groups / 1474 tests pass (T.12.consolidate
+  baseline 43 groups / 1428 tests + 1 new group + 46 new
+  ff1_passport_invariants tests). The 46 new tests include
+  the 10 panel-required load-bearing negatives, every shape
+  + materialisation discipline witness, every hash invariance
+  invariant (FF.1 does NOT mutate any upstream anchor), every
+  FF.1-new-own-namespace-hash determinism + sensitivity
+  invariant, every domain-separator pin, every per-passport
+  field invariant, the SourceClass-mapping discipline tests,
+  the per-source-class count regression sentinels, and the
+  rendering byte-stability + panel-locked-non-claim checks.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 83 test groups, 1789 tests PASS, 0 FAIL. Delta
+  from T.12.consolidate seal (6a6bd74): +1 test group, +46
+  tests. No known-flake retries needed.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined. The saturation test
+  rewrites reports/r12_d64_saturation.txt as part of its
+  run; the pinned baseline was restored from HEAD before
+  commit (also for reports/d64_stage_timing_256x4096_K1.txt,
+  reports/r9_b3_d64_timing.txt, reports/r9_b_d64_timing.txt).
+
+Step 8. Stale-doc scan
+  Result: clean. src/lib.rs module docstring header refreshed
+  through FF.1; new FF.1 enumeration bullet inserted after
+  T.12.consolidate; CLI list extended with 4 new
+  ff1-passport / ff1-materialisation-report subcommands.
+  README + paper get extended in this same commit.
+
+Step 9. README / plan refresh
+  Result: README front-door title bumped to T.1-FF.1 /
+  S1.3a-S1.3c; test count bumped to 1474/44 groups; paper
+  section enumeration bumped; new FF.1 section between
+  T.12.consolidate and the scaling-ladder header; Layout
+  block extended with FF.1 descriptor. Plan-file post-commit
+  will mark FF.1 sealed and rotate the Quick Start "Active
+  campaign (next)" anchor to FF.2 (ActivationReason::
+  DisabledUnratifiedProposal).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/ff1_passport_materialisation.rs (new, ~800 lines
+      fully commented: schema + per-passport hash + index
+      hash + materialisation report hash + 10-rule verifier +
+      panel-locked SourceClass -> GpuFamilyKernel mapping +
+      SourceClass -> activation-tag mapping + text + JSON
+      renderers)
+    - src/lib.rs (module export + docstring header bump to
+      "Current state through FF.1" + new FF.1 enumeration
+      bullet + 4 new CLI list entries)
+    - src/main.rs (4 CLI subcommands: ff1-passport-index{,-emit}
+      + ff1-materialisation-report{,-emit} + usage block)
+    - tests/ff1_passport_invariants.rs (new, 46 tests
+      including 10 panel-required load-bearing negatives)
+    - out/ff1_passport_index_v1.{txt,json} (new)
+    - out/ff1_materialisation_report_v1.{txt,json} (new)
+    - reports/ff1_passport_summary.txt (new)
+    - reports/ff1_passport_verification.txt (new)
+    - reports/ff1_passport_regression_check.txt (new)
+    - .gitignore (3 new whitelist lines)
+    - README.md (front-door + test-count + paper-section +
+      new FF.1 section + Layout block extension)
+    - archived prior-art manuscript source (lead sentence + paragraph
+      header + new \item \textbf{FF.1} bullet)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged
+                                                (35c276c7...)
+  corpus_hash_v2                              : unchanged
+                                                (f1d132eb...)
+  consolidation_report_hash_v1                : unchanged
+                                                (2842f6ae...)
+  t12_expansion_index_hash_v1                 : unchanged
+                                                (11fe6543...)
+  Every prior T.11/S1.3/T.12.0-T.12.p hash    : unchanged
+  Every prior T.11a SEED-DetectorPassport hash : unchanged
+  Every T.12.consolidate hash                  : unchanged
+  SEED.len()                                  : 54 (unchanged)
+
+  FF.1 NEW per-passport passport_hash_v1 (98 values)
+    Domain: DSFB-GPU-ATLAS:FF1-T12-RATIFIED-PASSPORT:v1\0
+  FF.1 NEW ff1_passport_index_hash_v1 :
+    1ad2dc2d9137320b942c17a6f5c8440b5caad03de5a92c9ae5d88f3069db2717
+  FF.1 NEW ff1_materialisation_report_hash_v1 :
+    5edacbc42832cd64547197fc6eef31e46a6137db6dccdbdc30cd8c572de4d2b9
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in ff1_passport_materialisation.rs carries
+  a doc comment whose first sentence states the WHY for a
+  future engineer.
+- Panel-locked discipline: FF.1 is a META-derivation layer
+  over the ratified expansion index. It does NOT reopen
+  T.12 dedup decisions, does NOT add new literature
+  primitives, does NOT mutate any upstream hash, does NOT
+  promote individual proposals to Accepted, does NOT
+  activate detectors, does NOT decide contraindications /
+  challenges (stubs reserve the slot for later commits),
+  does NOT generate CUDA kernels.
+
+FF.1 is sealed. Every accepted T.12 corpus expansion entry
+ratified by corpus_hash_v2 now carries a passport. The
+accepted witnesses have become operational court citizens.
+
+Next campaign (panel-authorized post-FF.1): FF.2 -
+ActivationReason::DisabledUnratifiedProposal (activation
+planner distinguishes "disabled because unratified" from
+other disabled reasons). Then FF.3 RegistryGenerationGate
+(S1.2 DetectorSpec generation under corpus_hash_v2). Then
+S1.3d budget pruning + S1.3e KernelPlanV1 + S1.3f CaseFileV2
+activation integration. See the "Post-T.12.consolidate
+scaling + framing roadmap" section in the plan file for the
+full panel-locked sequence.

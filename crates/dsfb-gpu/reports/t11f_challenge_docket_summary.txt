@@ -1,0 +1,223 @@
+================================================================
+DSFB-GPU-Atlas — T.11f Challenge Docket V1 summary
+================================================================
+Schema             : DSFB-GPU-ATLAS:CHALLENGE-DOCKET:v1
+Domain separator   : DSFB-GPU-ATLAS:CHALLENGE-DOCKET:v1\0
+HEAD-before        : 4ee264c (T.11e)
+challenge_docket_hash_v1 :
+    dde4ecb4de491f93fe671b77d6ffd8567199f6d1a3f5cca51ea4facb21c10415
+
+----------------------------------------------------------------
+Scope (panel-locked)
+----------------------------------------------------------------
+T.11f introduces the **adversarial self-audit layer** of the
+court. The docket records objections against detector identities,
+precedent judgments, grammar rules, witness roles, source claims,
+implementation status, and runtime cost. It does **NOT** mutate
+the corpus directly; it creates reviewable challenges that
+future court commits may sustain, overrule, or defer.
+
+T.11f is panel-locked as the **conservative seed boundary**: 10
+honest entries, no Open or Sustained challenges, every entry
+either Overruled (court accepts that the architecture is sound
+as-is) or Deferred (court accepts the concern, gates the action
+behind a named future commit).
+
+Correct flow:
+
+```text
+  ChallengeDocketEntry created
+    → verifier accepts docket integrity
+    → later court commit may sustain / overrule / defer
+    → if sustained, corpus / precedent / grammar changes in
+      a separate commit
+    → hashes change visibly
+```
+
+That separation is what makes it a court instead of an issue
+tracker.
+
+----------------------------------------------------------------
+Surface (new)
+----------------------------------------------------------------
+Module           : crates/dsfb-gpu-atlas-corpus/src/challenge_docket.rs
+Public surface   :
+    pub const CHALLENGE_DOCKET_DOMAIN
+    pub const CHALLENGE_DOCKET_SCHEMA_V1
+    pub struct ChallengeId(u32)
+    pub enum   ChallengeDocketSchema      (V1AdversarialOverlay)
+    pub enum   ChallengeTarget            (8 variants:
+                                           Detector / Precedent /
+                                           GrammarRule / Passport /
+                                           TrialTranscript /
+                                           ExecutionReceipt /
+                                           CorpusGlobal /
+                                           RegistryGlobal)
+    pub enum   ChallengeKind              (11 variants:
+                                           OverbroadAlias /
+                                           MissingConfuser /
+                                           WrongWitnessRole /
+                                           BadSource /
+                                           FormulaMismatch /
+                                           DomainMisapplied /
+                                           UnimplementedButClaimed /
+                                           RuntimeTooHigh /
+                                           HashBindingMismatch /
+                                           MissingNegativeWitness /
+                                           EvidenceLevelOverclaimed)
+    pub enum   ChallengeSeverity          (Critical / High /
+                                           Medium / Low)
+    pub enum   ChallengeStatus            (Open / Sustained /
+                                           Overruled / Deferred /
+                                           Superseded)
+    pub enum   ChallengerRole             (SelfAudit /
+                                           CorpusMaintainer /
+                                           Panel / External)
+    pub enum   ChallengeEvidenceRef       (8 variants: SourceRef /
+                                           SourceHash / FormulaHash /
+                                           SemanticRoleHash /
+                                           ParameterHash /
+                                           RuntimeCostUs /
+                                           HashChainAnchor / Note)
+    pub struct AffectedHashSet            (corpus / registry /
+                                           precedent / grammar /
+                                           transcript / passport)
+    pub enum   ProposedResolution         (11 variants)
+    pub enum   CourtResponse              (NotYetResponded /
+                                           SustainedAwaitingMutation /
+                                           OverruledReason /
+                                           DeferredToGate /
+                                           SupersededByCommit)
+    pub struct ChallengeDocketEntry
+    pub struct ChallengeDocketSnapshot
+    pub static CHALLENGES                 (10 panel-locked seed entries)
+    pub fn     collect_challenge_docket   -> ChallengeDocketSnapshot
+    pub fn     compute_challenge_docket_hash_v1
+                                          -> [u8; 32]
+    pub struct DocketVerifyError
+    pub enum   DocketVerifyErrorKind      (17 reject conditions)
+    pub fn     verify_challenge_docket
+    pub fn     render_challenge_docket_text
+    pub fn     render_challenge_docket_json
+
+CLI subcommands  :
+    dsfb-corpus challenges [--json] [--out PATH]
+    dsfb-corpus challenges-emit --out-dir <DIR>
+
+----------------------------------------------------------------
+Conservative seed (10 entries, panel-locked)
+----------------------------------------------------------------
+ #1  RuntimeTooHigh           target=RegistryGlobal       status=Deferred
+       D128 / D205 wide-digest baseline runs without compact-pack;
+       deferred to R.10b compact-pack post-R.13.
+ #2  UnimplementedButClaimed  target=CorpusGlobal         status=Overruled
+       L7 / L8 guard already enforced by T.7 lband verifier.
+ #3  MissingConfuser          target=TrialTranscript(1)   status=Deferred
+       Spectral / cyclostationary confusers absent; spectral
+       projection lands with S1.3 EvidenceProjection.
+ #4  DomainMisapplied         target=CorpusGlobal         status=Overruled
+       Medical / EKG primitives gated by DomainTagSet bits; no
+       biosignal projection active.
+ #5  OverbroadAlias           target=Detector(8)          status=Overruled
+       RobustZ / MAD aliases preserved by T.4 semantic-role-hash
+       distinction.
+ #6  HashBindingMismatch      target=CorpusGlobal         status=Overruled
+       corpus_hash_v1 deliberately excludes rendered report text;
+       rendered text is NOT the corpus.
+ #7  MissingNegativeWitness   target=GrammarRule(0)       status=Deferred
+       Future grammar additions must keep 9-variant
+       NegativeWitnessKind coverage invariant.
+ #8  RuntimeTooHigh           target=RegistryGlobal       status=Deferred
+       Future S1.2.x expansion must arrive with usefulness-ledger
+       evidence before any runtime claim is admissible.
+ #9  EvidenceLevelOverclaimed target=CorpusGlobal         status=Overruled
+       T.8 verify_usefulness_ledger blocks nonzero empirical
+       fields without matching evidence_level.
+ #10 BadSource                target=Detector(14)         status=Overruled
+       The 5 L6 GPU IDs cite dsfb-gpu-debug-core; that surface IS
+       the authoritative L6 implementation provenance.
+
+Counts by status: 0 Open, 0 Sustained, 6 Overruled, 4 Deferred, 0 Superseded.
+Severity histogram: 0 Critical, 3 High, 4 Medium, 3 Low.
+
+----------------------------------------------------------------
+Verifier — 17 reject conditions
+----------------------------------------------------------------
+  1. ChallengeAgainstMissingDetector
+  2. ChallengeAgainstMissingPrecedent
+  3. ChallengeAgainstMissingGrammarRule
+  4. EmptyClaim
+  5. EmptyChallenger
+  6. DuplicateChallengeId
+  7. SustainedWithoutResolution
+  8. OverruledWithoutCourtResponse
+  9. DeferredWithoutDeferralReason
+ 10. SupersededWithoutCommitReference
+ 11. RuntimeTooHighWithoutRuntimeEvidence
+ 12. FormulaMismatchWithoutFormulaHashReference
+ 13. BadSourceWithoutSourceEvidence
+ 14. WrongWitnessRoleWithoutSemanticRoleHashReference
+ 15. UnimplementedButClaimedAgainstHonestLBand
+ 16. OpenCriticalWithoutDeferredGate
+ 17. StatusResponseInconsistent
+
+Two panel-required load-bearing negatives:
+  - challenge_docket_rejects_sustained_challenge_without_resolution
+        Sustained + ProposedResolution::NoAction
+        → SustainedWithoutResolution
+  - challenge_docket_rejects_bad_source_without_source_evidence
+        BadSource without SourceRef / SourceHash evidence
+        → BadSourceWithoutSourceEvidence
+
+----------------------------------------------------------------
+Hash chain anchors (carried unchanged from T.11e)
+----------------------------------------------------------------
+corpus_hash_v1                : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+registry_hash_v2              : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+precedent_hash_v1             : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14
+admissibility_grammar_hash_v1 : ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7
+trial_transcript_hash_v1      : 37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee
+
+NEW (T.11f, lives in its own namespace):
+challenge_docket_hash_v1      : dde4ecb4de491f93fe671b77d6ffd8567199f6d1a3f5cca51ea4facb21c10415
+
+The docket hash is **not folded into corpus_hash_v1**. It is
+adversarial post-freeze metadata; future CaseFileV2 body
+receipts may cross-cite it.
+
+----------------------------------------------------------------
+Generated artifacts (deterministic)
+----------------------------------------------------------------
+crates/dsfb-gpu-atlas-corpus/out/challenge_docket_v1.txt
+    2973 bytes — operator-readable docket rendering.
+crates/dsfb-gpu-atlas-corpus/out/challenge_docket_v1.json
+    8673 bytes — canonical JSON rendering.
+
+Two invocations produce byte-identical artifacts.
+
+----------------------------------------------------------------
+What T.11f does NOT do (deferred)
+----------------------------------------------------------------
+  - Mutate corpus_hash_v1, registry_hash_v2, precedent_hash_v1,
+    admissibility_grammar_hash_v1, or trial_transcript_hash_v1.
+  - Mutate any DetectorPassport hash (T.11a).
+  - Resolve a Sustained challenge — resolution requires a
+    SEPARATE later commit that mutates the canonical artifact.
+  - Implement DetectorContraindicationReceipt (T.11g),
+    CoverageHoleReport (T.11h), NullVerdict / CorpusAmendment /
+    RetirementCase (T.11i), the ActivationPlanner (S1.3), or
+    OTel binding receipts (S1.3a).
+  - Change D16 / D64 / D128 / D205 GPU behavior.
+  - Claim in-toto / SLSA / SPDX / CycloneDX / W3C PROV
+    compatibility on challenge_docket_hash_v1.
+  - Hash repo source-bytes (the canonical materials are
+    addressed via their upstream v1 anchors only).
+
+----------------------------------------------------------------
+Panel-locked closing claim
+----------------------------------------------------------------
+DSFB-GPU-Atlas is now a deterministic court with an **appeals
+process**: objection records, sustained / overruled / deferred /
+superseded judgments, and explicit hash-visible correction paths.
+Hostile review is now part of the architecture instead of an
+external threat.

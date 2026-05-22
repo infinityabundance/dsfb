@@ -1,0 +1,239 @@
+================================================================
+T.12.m - RF / Communications verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_m_rf::seed_t12_m_rf_proposal()
+
+----------------------------------------------------------------
+Positive verification (admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+All T.12.0 verifier rules pass: BatchIdEmpty, ProposalIdEmpty,
+UnknownSourceClass, AmendmentProposalHashMismatch,
+BatchHashMismatch, DedupDeltaHashMismatch,
+DedupDeltaCollidesWithExistingSeedCanonicalId (delta lists
+6303..=6308; reserved ids 6301 and 6302 deliberately unused
+and excluded from the delta because the CFO and EVM ideas
+they once shadowed collapsed onto SEED 53 and SEED 54
+respectively under the SEED-walk-first discipline),
+AcceptedProposalWithoutBodyOrDelta,
+AcceptedProposalWithoutFutureFreezeGate.
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage
+----------------------------------------------------------------
+
+All 8 panel-required negatives pass plus per-canonical
+structural-distinctness assertions + ParameterizationOf family
+tests + DomainTransferOf assertion tests + SEED-walk-first
+authority-resolution guards for CFO and EVM (asserting
+reserved ids 6301 / 6302 stay unused and SEED 53 / 54 carry
+the canonical authority) + authority-coverage witness +
+per-bucket reserved-id-range tests + shape / determinism /
+rendering invariants + hash distinctness from every prior
+T.12.x.
+Total: 50 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Emitter-identification claim-language discipline coverage
+----------------------------------------------------------------
+
+The t12_m_rejects_emitter_identification_claim_language test
+runs a parametric scanner over every CanonicalAddition AND
+ExistingCanonicalAuthorityResolution reason text. For each
+qualifying record it asserts:
+  - The reason text does NOT contain any of: emitter
+    identified as, transmitter identified as, transmitter
+    identity verified, device identity verified, transmitter
+    fingerprint matched.
+  - The reason text DOES contain one of the panel-locked RF
+    signal-witness self-descriptions (RF signal witness / RF
+    modulation-quality signal witness / RF channel signal
+    witness / RF synchronization signal witness / RF spectral
+    signal witness / RF envelope signal witness / RF
+    correlation signal witness).
+  - The reason text DOES contain a "not emitter attribution
+    ..." disclaimer.
+
+Forbidden terms appear only inside the 6313 / 6314
+RejectedNotDeterministic reason text (where they describe
+what is NOT admitted).
+
+----------------------------------------------------------------
+Geolocation / attribution claim-language discipline coverage
+----------------------------------------------------------------
+
+The t12_m_rejects_geolocation_or_attribution_claim_language
+test asserts the campaign refuses geolocation claims. For each
+qualifying record it asserts the reason text does NOT contain
+any of: geolocation certainty, geolocates the, transmitter
+location verified, transmitter located at, geolocated to.
+
+Forbidden geolocation terms appear only inside the 6313
+RejectedNotDeterministic reason text.
+
+----------------------------------------------------------------
+Spectrum-enforcement claim-language discipline coverage
+----------------------------------------------------------------
+
+The t12_m_rejects_spectrum_enforcement_claim_language test
+asserts the campaign refuses regulatory enforcement, SIGINT,
+and COMINT verdicts. For each qualifying record it asserts the
+reason text does NOT contain any of: regulatory enforcement
+verdict, illegal transmission verdict, unauthorized
+transmission verdict, military classification verdict, signals
+intelligence conclusion, comint conclusion, sigint verdict.
+
+Forbidden enforcement / SIGINT / COMINT terms appear only
+inside the 6314 RejectedNotDeterministic reason text.
+
+----------------------------------------------------------------
+Signal-or-sampling contract coverage
+----------------------------------------------------------------
+
+The t12_m_rejects_rf_detector_without_signal_or_sampling_
+contract test asserts every CanonicalAddition reason text
+declares at least one signal-representation term (signal
+representation / baseband I/Q / post-equalisation I/Q /
+bandpass / instantaneous-phase) AND sampling law AND at least
+one carrier-or-channel-assumption term (carrier assumption /
+channel assumption / declared cycle frequencies / declared
+oscillator model) AND at least one window-or-transform-law
+term (window / transform law / transform law / estimator) AND
+at least one decision-functional term (decision functional /
+decision law / decision predicate).
+
+----------------------------------------------------------------
+SEED RF coverage (parametric)
+----------------------------------------------------------------
+
+The t12_m_existing_seed_collision_requires_authority_resolution
+test runs a parametric loop over all six SEED RF IDs (12, 22,
+38, 40, 53, 54). Each iteration constructs a defective
+proposal duplicating one SEED ID and asserts the verifier
+rejects it with DedupDeltaCollidesWithExistingSeedCanonicalId.
+
+----------------------------------------------------------------
+CFO / EVM authority-resolution guards (SEED-walk-first
+discipline, MOST IMPORTANT)
+----------------------------------------------------------------
+
+The t12_m_cfo_authority_resolves_seed_53_with_morelli_reference
+test asserts:
+  - There IS an ExistingCanonicalAuthorityResolution record
+    targeting SEED 53.
+  - Reason text names Morelli AND Mengali.
+  - Reason text mentions OFDM CFO estimator or MLE frequency
+    estimator.
+  - Reason text contains "seed id 53".
+  - Reason text contains "no duplicate admitted".
+  - Reason text contains "reserved id 6301 stays unused" (the
+    SEED-walk-first guard).
+
+The t12_m_evm_authority_resolves_seed_54_with_shafik_reference
+test asserts:
+  - There IS an ExistingCanonicalAuthorityResolution record
+    targeting SEED 54.
+  - Reason text names Shafik AND Rahman AND Islam.
+  - Reason text contains "seed id 54".
+  - Reason text contains "no duplicate admitted".
+  - Reason text contains "reserved id 6302 stays unused" (the
+    SEED-walk-first guard).
+
+----------------------------------------------------------------
+Black-box-modulation-classifier rejection contract coverage
+----------------------------------------------------------------
+
+The t12_m_rejects_black_box_rf_classifier_without_formula
+test asserts:
+  - 6314 NOT in new_canonical_records
+  - reason text contains "deterministic feature-" +
+    "extraction law" (continuation-joined)
+  - reason text contains "declared formula"
+  - reason text contains "training-" + "data anchor"
+    (continuation-joined)
+  - reason text contains "feature schema"
+  - reason text contains "tie-break"
+  - reason text contains "numeric mode"
+  - reason text names at least one of: keysight, rohde &
+    schwarz, ni rfic analyser ml, ettus usrp
+  - reason text contains "does not issue spectrum-" +
+    "enforcement authority" (continuation-joined)
+
+----------------------------------------------------------------
+Learned-RF-fingerprinting rejection contract coverage
+----------------------------------------------------------------
+
+The t12_m_rejects_learned_rf_fingerprint_classifier_without_
+deterministic_formula test asserts:
+  - 6313 NOT in new_canonical_records
+  - reason text names at least one of: restuccia, sankhe,
+    wang
+  - reason text contains "deterministic feature-" +
+    "extraction law" (continuation-joined)
+  - reason text contains "declared formula"
+  - reason text contains "declared tie-break law"
+  - reason text contains "declared numeric mode"
+  - reason text contains "no learned opaque embedding"
+  - reason text contains "no transmitter identity claim"
+
+----------------------------------------------------------------
+Channel-detector / modulation-classifier / cyclostationary
+contract coverage
+----------------------------------------------------------------
+
+t12_m_rejects_channel_detector_without_channel_model_contract:
+  CIR drift (6304) reason declares channel assumption +
+  multipath finite-impulse-response model + tap-delay grid +
+  per-tap magnitude + channel-sounding waveform.
+
+t12_m_rejects_modulation_classifier_without_declared_decision_
+functional:
+  Constellation spread (6303) CanonicalAddition AND SEED 54
+  EVM ExistingCanonicalAuthorityResolution each declare a
+  symbol constellation + decision functional. SEED 54 EVM
+  authority record additionally enumerates BPSK / QPSK / QAM
+  as canonical constellations.
+
+t12_m_rejects_cyclostationary_witness_without_cycle_frequency_law:
+  Cyclostationary feature shift (6308) declares Gardner 1987
+  + declared cycle frequencies + symbol rate + spectral
+  correlation function + DECLARED-not-implicit distinction
+  from autocorrelation.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.x hash           : unchanged
+    T.12.0 proof-of-life          : 325bbf3d...
+    T.12.a SPC                    : ae493a85...
+    T.12.b SCD                    : ac10e27c...
+    T.12.c drift                  : 0ffb0639...
+    T.12.d robust                 : 7b51703f...
+    T.12.e spectral               : 0036435f...
+    T.12.f time-series            : 76717e02...
+    T.12.g graph                  : 1bc14266...
+    T.12.h data-quality           : d4566a74...
+    T.12.i observability          : 9776c1b9...
+    T.12.j biosignal              : e64b603b...
+    T.12.k industrial             : 22f06c76...
+    T.12.l chemometrics           : 8b3e9511...
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.m RF literature_expansion_batch_hash_v1 (NEW):
+    437e6f91b28ba041928f2b8654eeff63e7ae8f41f56b4688d2d985586174aa5b
+  T.12.m RF dedup_court_delta_hash_v1 (NEW):
+    669e0b6ad9f96f365f05b302b9ef758f28c8a6a34c9500ac802c9931a9c8557d
+  T.12.m RF corpus_amendment_proposal_hash_v1 (NEW):
+    3263e87b2beca1e98eb390ab6642ae8a66728faa5405b8dff67fea05abda243b

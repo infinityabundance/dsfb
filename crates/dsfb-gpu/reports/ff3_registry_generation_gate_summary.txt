@@ -1,0 +1,168 @@
+================================================================
+FF.3 - RegistryGenerationGate
+       registry-generation gate summary receipt
+================================================================
+
+Panel-locked opening guard. FF.3 adds a registry-generation
+gate for S1.2 DetectorSpec generation. The generator must
+accept only SeedHistorical records from corpus_hash_v1 and
+T12RatifiedAndPassported records from corpus_hash_v2 + FF.1
+passport authority. It does not add detectors, mutate
+corpus_hash_v1, mutate corpus_hash_v2, rewrite FF.1 passports,
+or change activation decisions. It only prevents unratified /
+non-passported / stale / ad-hoc records from entering generated
+registry output.
+
+Panel-locked one-line verdict (verbatim):
+
+> FF.2 blocks unratified activation;
+> FF.3 blocks unratified registry generation.
+
+Reason-code separation (the load-bearing win):
+
+  DisabledByWeakLBand              !=
+  DisabledUnratifiedProposal       !=    (FF.2: activation reason)
+  RejectedUnratifiedProposal             (FF.3: registry rejection)
+
+A weak-but-ratified detector, an unratified-at-activation
+detector, and an unratified-at-registry-generation detector are
+three different court failures. The operator must be able to
+distinguish them.
+
+----------------------------------------------------------------
+Two new own-namespace hash layers (panel-locked)
+----------------------------------------------------------------
+
+FF.3 emitted values:
+
+  ff3_registry_generation_gate_hash_v1 :
+    2ffd02229a4e0f99023a5791ed27e097346d29c14c9eeebd7a2ee8d26caf0d41
+    Domain: DSFB-GPU-ATLAS:FF3-REGISTRY-GENERATION-GATE:v1\0
+    META-hashes the five pinned upstream anchors + sorted
+    decision set + per-status counts.
+
+  ff3_registry_generation_gate_summary_hash_v1 :
+    c66f81745d939f38d81ed4c78b80009d998422796e8698c4993e3cb64f7e8494
+    Domain:
+    DSFB-GPU-ATLAS:FF3-REGISTRY-GENERATION-GATE-SUMMARY:v1\0
+    META-hashes the gate hash + panel-locked non-claim block.
+
+Both hashes distinct from every prior T.11 / S1.3 / T.12.x /
+T.12.consolidate / FF.1 / FF.2 hash.
+
+----------------------------------------------------------------
+Pinned upstream anchors (FF.3 does NOT mutate any of these)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              :
+    35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+    (historical seed-corpus anchor; unchanged)
+
+  corpus_hash_v2                              :
+    f1d132eba43795c3087f1e388ba040357c6a0779fe22bd29de24c885ca98383f
+    (ratified-corpus authority anchor; unchanged)
+
+  consolidation_report_hash_v1                :
+    2842f6ae24bacb99c3922ca59d66358d19b5d550209f1a5adbf7c2bd747edeb0
+    (T.12.consolidate report hash; unchanged)
+
+  ff1_passport_index_hash_v1                  :
+    1ad2dc2d9137320b942c17a6f5c8440b5caad03de5a92c9ae5d88f3069db2717
+    (FF.1 passport index hash; unchanged)
+
+  ff2_activation_ratification_gate_hash_v1    :
+    05c1b552652c321dc670628207624d1afb1e9fcb4ea15a028e89b80ff7899efb
+    (FF.2 activation ratification gate hash; unchanged)
+
+  SEED.len()                                  : 54 (unchanged)
+
+----------------------------------------------------------------
+Per-status decision counts
+----------------------------------------------------------------
+
+  Eligible                                    : 152
+    Candidates that may legitimately produce a generated
+    DetectorSpec. 54 SeedHistorical + 98 T12RatifiedAndPassported
+    in the default production gate.
+
+  RejectedUnratifiedProposal                  : 0
+    T12RatifiedAndPassported claim for an id NOT in the
+    ratified expansion index. Mirror of FF.2's
+    UnratifiedProposal bucket at the registry-generation
+    boundary.
+
+  RejectedMissingFf1Passport                  : 0
+    Ratified id NOT in the FF.1 passport index. Mirror of
+    FF.2's MissingPassport bucket; structural defect that
+    should never occur in production.
+
+  RejectedCorpusHashV2Mismatch                : 0
+    Pinned corpus_hash_v2 drifted from the live ratified-
+    corpus authority anchor; every ratified claim rejected.
+
+  RejectedPassportIndexHashMismatch           : 0
+    Pinned ff1_passport_index_hash_v1 drifted from the live
+    passport-index hash; every ratified claim rejected.
+
+  RejectedAdHocRecord                         : 0
+    Candidate declared AdHocUnsanctioned source authority
+    (a record proposed for registry generation outside the
+    panel-locked two-source discipline). Forbidden by
+    construction.
+
+  RejectedUnknownSourceAuthority              : 0
+    Candidate declared UnknownExternal source authority.
+    Forbidden by construction.
+
+  total decisions                             : 152
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives (acceptance suite)
+----------------------------------------------------------------
+
+  ff3_rejects_detector_spec_for_unratified_proposal
+  ff3_rejects_detector_spec_for_missing_ff1_passport
+  ff3_rejects_detector_spec_when_corpus_hash_v2_mismatch
+  ff3_rejects_detector_spec_when_passport_index_hash_mismatch
+  ff3_rejects_detector_spec_from_ad_hoc_record
+  ff3_rejects_detector_spec_with_unknown_source_authority
+  ff3_rejects_registry_generation_that_skips_ff2_ratification_gate
+  ff3_rejects_registry_generation_that_mutates_existing_registry_hash
+
+----------------------------------------------------------------
+Panel-locked non-claims (must NOT regress)
+----------------------------------------------------------------
+
+  - FF.3 does NOT add new detectors.
+  - FF.3 does NOT alter corpus_hash_v1.
+  - FF.3 does NOT alter corpus_hash_v2.
+  - FF.3 does NOT alter consolidation_report_hash_v1.
+  - FF.3 does NOT alter t12_expansion_index_hash_v1.
+  - FF.3 does NOT alter ff1_passport_index_hash_v1.
+  - FF.3 does NOT alter ff1_materialisation_report_hash_v1.
+  - FF.3 does NOT alter ff2_activation_ratification_gate_hash_v1.
+  - FF.3 does NOT rewrite any prior T.11 / S1.3 / T.12.x /
+    FF.1 / FF.2 hash.
+  - FF.3 does NOT mutate SEED.len() (stays at 54).
+  - FF.3 does NOT promote any open proposal to Accepted.
+  - FF.3 does NOT change S1.3a SEED activation decisions.
+  - FF.3 does NOT change FF.2 ratification decisions.
+  - FF.3 does NOT itself emit DetectorSpec records (pure-
+    decision module; the S1.2 registry generator consults it).
+  - FF.3 does NOT modify dsfb-gpu-atlas-registry's existing
+    162-spec registry_hash_v2.
+  - FF.3 does NOT generate CUDA kernels.
+  - FF.3 does NOT decide contraindications or challenges.
+
+----------------------------------------------------------------
+Next campaign (panel-authorized post-FF.3)
+----------------------------------------------------------------
+
+S1.3d Budget pruning + redundancy suppression. Consumes
+ActivationContextV1, T.8 usefulness ledger, contraindications,
+coverage holes, and task budget. Emits reason-coded
+DisabledByBudget / DisabledByRedundancy decisions. With FF.2
++ FF.3 in place, the post-S1.3a activation arc continues into
+the full S1.3d/e/f maturity sequence. See plan-file
+"Post-T.12.consolidate scaling + framing roadmap" for the
+full panel-locked implementation sequence.

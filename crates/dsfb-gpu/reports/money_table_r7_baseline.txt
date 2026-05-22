@@ -1,0 +1,27 @@
+# R.7 Money Table — DSFB-GPU-Debug headline benchmark
+# generated: 1778678036 epoch seconds
+# quick: true    skip-large: false    big-k: false
+#
+# Layer A: device evidence fabric (skip-bank, on-device digests).
+# Layer B: throughput verdict summary (host bank stage admits compact candidates).
+# Layer C: full audit court (every intermediate cell materialised host-side).
+# Speedup is measured against CPU Layer B at the SAME (n_entities, n_windows) scale.
+#
+# graph_status: captured
+# graph_plan_hash: 784884defb7ab566d35fee6b54f8b73a5db79d805e18d50ef59020a6345989fd
+
+  label                                                    | median_us  | per_catalog_us | catalogs/sec | cells/sec     | det_evals/sec  | speedup_vs_cpu_b
+  ------------------------------------------------------- | ---------- | -------------- | ------------ | ------------- | -------------- | ----------------
+  canonical 16x128 K= 32  CPU Layer B          [quick]   |       1710 |           1710 |          584 |       1197660 |       19162573 |             1.0x
+  canonical 16x128 K= 32  GPU Layer A          [quick]   |      46537 |           1454 |          687 |       1408255 |       22532092 |             1.1x
+  canonical 16x128 K= 32  GPU Layer B          [quick]   |      55057 |           1720 |          581 |       1190330 |       19045280 |             0.9x
+  canonical 16x128 K=  1  CPU Layer C (audit)  [quick]   |       5523 |           5523 |          181 |        370812 |        5933007 |             0.3x
+  canonical 16x128 K=  1  GPU Layer C (audit)  [quick]   |       6411 |           6411 |          155 |        319450 |        5111215 |             0.2x
+  scaled  256x4096 K=  1  CPU Layer B          [quick]   |     892236 |         892236 |            1 |       1175222 |       18803563 |             1.0x
+  scaled  256x4096 K=  1  GPU Layer A          [quick]   |    2760456 |        2760456 |            0 |        379856 |        6077697 |             0.3x
+  scaled  256x4096 K=  1  GPU Layer B          [quick]   |     884326 |         884326 |            1 |       1185734 |       18971754 |             1.0x
+  scaled  256x4096 K= 16  GPU Layer A          [quick]   |   11793374 |         737085 |            1 |       1422596 |       22761548 |             1.2x
+  scaled  256x4096 K= 16  GPU Layer B          [quick]   |    5230777 |         326923 |            3 |       3207404 |       51318466 |             2.7x
+  scaled  256x4096 K= 64  GPU Layer A          [quick]   |   40087845 |         626372 |            1 |       1674045 |       26784723 |             1.4x
+  scaled  256x4096 K= 64  GPU Layer B          [quick]   |   18900758 |         295324 |            3 |       3550591 |       56809458 |             3.0x
+  scaled  256x4096 K=  1  Layer C (audit)      [not run: transcript materialisation cost]|        n/a |            n/a |          n/a |           n/a |            n/a |              n/a

@@ -1,0 +1,232 @@
+S-PERF.1 DeviceTrafficReceiptV1 — Summary Receipt
+==================================================
+
+Panel verdict: post-T.12.PROV panel directive (2026-05-17).
+Sealed under the 10-step per-section discipline ritual.
+
+Commit identity (panel-locked):
+
+    S-PERF.1 defines the byte-accounting receipt required
+    before DSFB-GPU can make any serious memory-bandwidth or
+    saturation claim. It does not claim bandwidth saturation,
+    does not benchmark B300 / GB300, does not change CUDA
+    kernels, and does not alter court authority. It creates
+    the measurement law.
+
+Panel-locked verdict (verbatim):
+
+    T.12.PROV made the science creditable; S-PERF.1 makes
+    future CUDA performance claims accountable.
+
+Core rule (panel-locked, 8 lines):
+
+  1. No bandwidth claim without byte accounting.
+  2. No peak-percentage claim without declared device bandwidth.
+  3. No CUDA timing claim without CUDA event timing.
+  4. No Layer-A claim if host JSON / report time is included.
+  5. No cross-device comparison without device identity.
+  6. No effective bandwidth when total accounted bytes equals zero.
+  7. No percent-of-peak above 100 without explicit error flag.
+  8. Every receipt MUST declare contract hashes.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+S-PERF.1 ships ONLY the receipt schema + policy + verifier +
+builder + renderers. The first actual measurement against
+this receipt is a separate S-PERF.2+ commit gated on the
+Layer-A device-resident densor pipeline work.
+
+  - DeviceTrafficReceiptV1
+    The byte-accounting envelope every future memory-
+    bandwidth claim MUST cite. 22 hashable fields covering
+    device identity (device_name, device_uuid_or_identity_hash,
+    sm_arch, driver_version, cuda_version), bandwidth posture
+    (theoretical_memory_bandwidth_gbps, measured_kernel_time_us,
+    timing_method, layer), workload (detector_count,
+    catalog_count), byte accounting (input_bytes,
+    evidence_bytes_read, evidence_bytes_written,
+    witness_bytes_written, fusion_bytes_read_written,
+    digest_bytes_read, candidate_summary_bytes,
+    total_accounted_device_bytes), effective claim
+    (effective_bandwidth_gbps, percent_of_peak_basis_points,
+    accounting_overflow_acknowledged), and anchors
+    (artifact_hashes, contract_hashes).
+
+  - DeviceBandwidthClaimPolicyV1
+    The panel-locked 8-line policy. Carries
+    `device_bandwidth_claim_policy_hash_v1` so the contract is
+    citable as a hash, not just as prose.
+
+  - DeviceTrafficReceiptComparison
+    Cross-device comparison wrapper. Enforces (a) >= 2
+    receipts and (b) distinct device identities.
+
+  - TimingMethod enum: CudaEvent / CudaStreamSync /
+    HostInstantOnly / HostJsonInclusiveTime / Unknown.
+    `is_device_resident()` classifier separates CudaEvent +
+    CudaStreamSync (admissible for saturation claims) from
+    HostInstantOnly + HostJsonInclusiveTime + Unknown
+    (insufficient for saturation; HostJsonInclusiveTime is
+    the Layer-A trip wire).
+
+  - DeviceBandwidthLayer enum: LayerA (device-resident
+    evidence fabric) / LayerB (throughput verdict summaries +
+    CPU bank admission) / LayerC (full audit court).
+
+----------------------------------------------------------------
+Two new own-namespace hashes
+----------------------------------------------------------------
+
+  device_traffic_receipt_hash_v1
+    = 09e96f17c2b56697a0af8ff55d4d209b9067d72fa445951110f1a5a47cdf0fb7
+    domain: DSFB-GPU-ATLAS:DEVICE-TRAFFIC-RECEIPT:v1\0
+
+  device_bandwidth_claim_policy_hash_v1
+    = 5b4d43601ac6f2902c0b02905cb6fac3f004a77a92b16cd68c72713387ceee40
+    domain: DSFB-GPU-ATLAS:DEVICE-BANDWIDTH-CLAIM-POLICY:v1\0
+
+Both deterministic across two consecutive builds; pairwise
+distinct; distinct from every prior corpus / T.11 / T.12.x /
+T.12.consolidate / FF.x / S1.3.x / T.12.PROV hash anchor.
+
+A third domain separator (`DSFB-GPU-ATLAS:DEVICE-IDENTITY:v1\0`)
+governs the deterministic device-identity hash used as a
+stand-in for `cudaDeviceGetUuid` when the real UUID is not
+available; the helper `compute_device_identity_hash(name,
+sm_arch)` returns a non-zero hash by construction.
+
+----------------------------------------------------------------
+Baseline (uninstrumented) receipt
+----------------------------------------------------------------
+
+The S-PERF.1 baseline is the RTX 4080 SUPER reference host
+with every measurement field zero. The verifier accepts this
+case because zero bytes + zero time + zero bandwidth + zero
+percent-of-peak is consistent. Each later S-PERF.* commit
+replaces these zeros with measured values.
+
+  device_name                       : RTX 4080 SUPER
+  device_uuid_or_identity_hash      : 8fc7e700...
+  sm_arch                           : 89
+  driver_version                    : 13.2.0
+  cuda_version                      : 13.2
+  theoretical_memory_bandwidth_gbps : 716    (vendor datasheet)
+  measured_kernel_time_us           : 0      (no measurement)
+  timing_method                     : CudaEvent
+  layer                             : LayerA
+  total_accounted_device_bytes      : 0
+  effective_bandwidth_gbps          : 0
+  percent_of_peak_basis_points      : 0
+  contract_hashes                   : [corpus_hash_v1]
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. s_perf_1_rejects_bandwidth_claim_without_byte_accounting
+       — any non-zero bandwidth claim
+         (effective_bandwidth_gbps > 0 OR
+          percent_of_peak_basis_points > 0) with
+         total_accounted_device_bytes == 0.
+  2. s_perf_1_rejects_peak_percentage_without_device_bandwidth_declared
+       — percent_of_peak_basis_points > 0 with
+         theoretical_memory_bandwidth_gbps == 0 (no anchor
+         to take a percentage against).
+  3. s_perf_1_rejects_layer_a_claim_when_host_json_time_included
+       — LayerA receipt with TimingMethod::HostJsonInclusiveTime
+         is rejected. Layer-A means device-resident evidence
+         fabric; host JSON time destroys the claim.
+  4. s_perf_1_rejects_saturation_claim_without_cuda_event_timing
+       — saturation (percent_of_peak >= S_PERF_1_SATURATION_BP
+         = 8000 = 80.00 %) requires CudaEvent or
+         CudaStreamSync timing.
+  5. s_perf_1_rejects_cross_device_comparison_without_device_identity
+       — receipt with device_uuid_or_identity_hash == [0; 32]
+         is inadmissible for cross-device comparison. Fires
+         on single-receipt verification AND on the
+         DeviceTrafficReceiptComparison helper.
+  6. s_perf_1_rejects_effective_bandwidth_when_total_bytes_zero
+       — effective_bandwidth_gbps > 0 with
+         total_accounted_device_bytes == 0 (the arithmetic
+         invariant that complements negative #1).
+  7. s_perf_1_rejects_percent_of_peak_above_100_without_explicit_error_flag
+       — percent_of_peak_basis_points > 10000 (i.e. > 100 %)
+         without accounting_overflow_acknowledged set.
+  8. s_perf_1_rejects_receipt_missing_contract_hashes
+       — contract_hashes.is_empty() (every performance claim
+         must be tied to a specific execution contract).
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/s_perf_1_device_traffic_receipt_invariants.rs : 61 tests
+    - 8 panel-required load-bearing negatives (above)
+    - 3 baseline admission tests
+    - 3 cross-device comparison rules
+    - 6 determinism tests (receipt hash, policy hash, 4
+      renderers)
+    - 6 sensitivity tests (every hashable field that the
+      receipt struct exposes via the builder API changes the
+      hash when mutated)
+    - 6 structural defect tests (empty device_name / driver /
+      cuda version / sm_arch=0 / unknown timing with non-zero
+      time / accounted-bytes mismatch sum of fields)
+    - 4 hash-distinctness + 3 domain-separator distinctness +
+      2 schema-id distinctness + 3 nul-termination tests
+    - 4 panel-locked-policy structural pins (8-line count,
+      lines match in-built policy, saturation threshold =
+      8000 bp, panel-locked credit note disclaims invention)
+    - 2 admission cases for saturation backed by CudaStreamSync
+      AND CudaEvent
+    - 1 admission case for percent>100 WITH flag
+    - 2 admission cases for "no bandwidth claim" + "modest
+      backed claim"
+    - 2 non-zero hash slip-through guards
+    - 2 TimingMethod / Layer wire-name stability tests
+
+  Corpus suite (54 groups / 2095 tests) green.
+  Workspace serial (93 groups / 2410 tests) green.
+  Delta vs T.12.PROV: +1 group, +61 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                          UNCHANGED
+  corpus_hash_v2                          UNCHANGED
+  every prior T.11 / S1.3 / T.12.x /
+    T.12.consolidate / FF.x / T.12.PROV
+    hash                                  UNCHANGED
+  every DetectorPassport hash             UNCHANGED
+  SEED.len()                              54 (UNCHANGED)
+  R.12b episodes                          13 / 89 / 1917 BYTE-STABLE
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in receipt + README +
+paper)
+----------------------------------------------------------------
+
+S-PERF.1 does NOT:
+
+  - claim that DSFB-GPU has measured peak memory-bandwidth
+    saturation on any GPU;
+  - claim production CUDA performance numbers;
+  - benchmark B300 / GB300 cloud hardware (that is the
+    S-PERF.7 / S-MG.6 victory-lap commit, gated on the rest
+    of S-PERF + S-MG landing);
+  - change any CUDA kernel;
+  - change any court decision (S1.3a / FF.2 / FF.3 / S1.3d /
+    S1.3e / S1.3f / S1.3g);
+  - mutate any upstream hash anchor;
+  - alter SEED.len() (stays at 54);
+  - emit detector outputs, witness records, fusion tensors,
+    candidate intervals, or episodes;
+  - decide contraindications or challenges;
+  - modify the registry crate.
+
+S-PERF.1 creates the measurement law. It changes the court's
+ability to admit future performance claims; it does not
+admit any performance claim itself.

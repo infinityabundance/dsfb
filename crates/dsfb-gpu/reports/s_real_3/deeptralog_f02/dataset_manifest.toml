@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "deeptralog_f02"
+display_name        = "DeepTraLog F02-04 ERROR fault period"
+upstream_doi_or_url = "github.com/FudanSELab/DeepTraLog"
+license             = "no-upstream-license"
+source_class        = "ObservabilityTraces"
+vendored_path       = "data/fixtures/deeptralog_f02.tsv"
+
+[fixture]
+sha256_hex          = "2ce480415b20dc49d09119b79933f2dd5d0ba62c186a8ecc0f2e2bf8b1e1a95f"
+byte_size           = 5875

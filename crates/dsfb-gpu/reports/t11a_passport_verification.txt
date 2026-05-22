@@ -1,0 +1,72 @@
+================================================================
+DSFB-GPU-Atlas — T.11a passport verification
+================================================================
+Verifier      : crate::passport::all_passports() + the 15
+                acceptance tests in tests/passport_invariants.rs
+Input         : crates/dsfb-gpu-atlas-corpus/src/seed.rs::SEED
+Domain        : DSFB-GPU-ATLAS:DETECTOR-PASSPORT:v1\0
+
+----------------------------------------------------------------
+Result
+----------------------------------------------------------------
+Passports inspected   : 54
+Failures              :  0
+Verdict               : every SEED canonical record produces a
+                        passport that hashes deterministically,
+                        is sensitive to every T.3 / T.6 / T.7 /
+                        T.8 / constitution-flag axis, and obeys
+                        the panel-locked dedup / L-band /
+                        rendering invariants.
+
+----------------------------------------------------------------
+Per-passport invariants enforced (15)
+----------------------------------------------------------------
+1.  all_passports() emits one passport per SEED canonical id.
+2.  passport_hash is deterministic across two builds.
+3.  passport_hash changes when semantic_role_hash changes.
+4.  passport_hash changes when lifecycle_state changes.
+5.  passport_hash changes when L-band changes.
+6.  passport_hash changes when constitution_flags change.
+7.  passport_hash changes when detector_identity_hash changes.
+8.  No passport carries an alias-side id (canonical_id < 1000).
+9.  Every L6 passport canonical_id is in
+    GPU_IMPLEMENTED_CANONICAL_IDS AND
+    verify_record_lband(record).is_empty().
+10. passport_for(unknown id) returns None.
+11. Aliased canonicals (e.g. ROBUST_Z_MAD) surface their
+    literature aliases via the aliases slice.
+12. render_passport_text is deterministic across two calls (and
+    across every passport in SEED).
+13. render_passport_json is deterministic across two calls (and
+    across every passport in SEED).
+14. All 54 passport hashes are pairwise distinct.
+15. SEED.len() == 54 and all_passports().len() == 54 at T.10.
+
+----------------------------------------------------------------
+Cross-pinned invariants from earlier sections
+----------------------------------------------------------------
+- corpus_hash_v1 unchanged:
+    35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+- registry_hash_v2 unchanged:
+    d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+- D16 / D64 / D128 / D205 golden hashes unchanged.
+- R.12b D64 episode counts byte-identical (13 / 89 / 1917).
+
+----------------------------------------------------------------
+Non-claims (T.11a verification scope)
+----------------------------------------------------------------
+This verification result attests ONLY that every DetectorPassport
+produced from the live SEED:
+
+- is internally consistent (every passport_hash matches
+  compute_passport_hash on the same struct)
+- is byte-stable across two builds
+- distinguishes records via every panel-required axis
+- obeys the dedup-court / L-band / lifecycle / constitution
+  invariants
+
+It does NOT attest empirical detector usefulness, S1.3
+activation behavior, S1.2 registry-spec linkage (deferred),
+CaseFileV2 episode-body correctness (T.11d), court precedents
+(T.11b), or admissibility-grammar snapshots (T.11c).
+================================================================

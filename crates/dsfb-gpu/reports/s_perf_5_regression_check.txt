@@ -1,0 +1,115 @@
+S-PERF.5 EffectiveBandwidthReport
+       Regression Check — 10-step per-section discipline ritual
+============================================================
+
+Commit identity (panel-locked):
+
+  S-PERF.5 computes and reports effective bandwidth for the
+  Layer-A evidence factory using the S-PERF.1 traffic law,
+  S-PERF.2 Layer-A boundary, S-PERF.3 public workload
+  bundle, and S-PERF.4 compacted active-family plan. It
+  does not claim saturation unless the measured percent-of-
+  peak meets the S-PERF.1 threshold and the timing method
+  is admissible.
+
+Panel-locked one-line verdict (verbatim):
+
+  S-PERF.4 packs the active witnesses into benchmarkable
+  lanes; S-PERF.5 turns measured Layer-A bytes and time
+  into an admissible bandwidth report.
+
+----------------------------------------------------------------
+Step 1: cargo fmt --all --check       : CLEAN
+Step 2: cargo clippy (--features cuda
+         -- -D warnings)              : CLEAN
+Step 3: scripts/scrub.sh              : CLEAN
+Step 4: scripts/docs_freshness.sh     : CLEAN
+----------------------------------------------------------------
+
+Step 5: cargo test -p dsfb-gpu-atlas-corpus
+  Outcome: 58 groups / 2363 tests PASS
+  Delta vs S-PERF.4: +1 group, +66 tests
+    new group: tests/s_perf_5_effective_bandwidth_report_invariants.rs
+    new tests: 66 (10 panel-required negatives + 5 positive
+               variants + 8 baseline admission + 5 determinism
+               + 3 panel-locked pinned constants + 4 domain-
+               separator / schema-id + 7 sensitivity + 5
+               structural rejection + 4 claim_kind coherence
+               + 6 rendering byte-stability + 4 misc invariants
+               + 5 cross-verifier composition)
+
+Step 6: cargo test --workspace --features cuda
+                   -- --test-threads=1
+  Outcome: 97 groups / 2678 tests PASS
+  Delta vs S-PERF.4: +1 group, +66 tests
+
+  FF.4 live README sweep
+  (`ff4_live_readme_satisfies_policy`) passes after the
+  README S-PERF.5 section insertion. The new section was
+  placed AFTER the S-PERF.4 active-family compaction section
+  and BEFORE "What this is", preserving every FF.4 required
+  substring and avoiding every FF.4 forbidden substring.
+
+Step 7: R.12b D64 saturation byte-stability check
+  Pre-run backup: 4 receipts -> /tmp/{r12_d64_saturation,
+    d64_stage_timing_256x4096_K1, r9_b3_d64_timing,
+    r9_b_d64_timing}.txt.bak
+  Post-run restoration: byte-identical (`diff -q` clean).
+  Episodes: 13 / 89 / 1917 (byte-stable, unchanged).
+  Pinned R.12b baseline: NOT REBASELINED.
+
+Step 8: Stale-doc grep scan
+  README: new S-PERF.5 section inserted after S-PERF.4.
+  archived prior-art manuscript source: new
+    \section{Effective-Bandwidth Report}
+    \label{sec:effective-bandwidth-report} inserted after
+    Active-Detector Family Compaction.
+  lib.rs: docstring "Current state through S-PERF.4" ->
+    "Current state through S-PERF.5" plus S-PERF.5 bullet;
+    CLI list extended with 4 s-perf-5-* subcommands.
+
+Step 9: Atomic commit under the 10-step ritual; no
+        --no-verify.
+
+Step 10: Plan-file Quick Start rotation + memory file +
+         MEMORY.md index entry.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  Every prior court anchor: UNCHANGED.
+  SEED.len() : 54 (UNCHANGED).
+  Three NEW own-namespace hashes:
+
+    layer_a_bandwidth_measurement_hash_v1
+      = 0554ec29b2923fffef299100f1365d5682ea2696f9928d4b86ab1072cc18ea55
+    bandwidth_claim_admission_hash_v1
+      = c45f8b883860ed7961e981f39e9b391d5b644707e49e0c1584046d34ced97cfd
+    effective_bandwidth_report_hash_v1
+      = a129d7e0b0f6c3bf094f446761d519b4109ac86e19c3ec82d5624600c745afa8
+
+  All three deterministic across two consecutive builds;
+  pairwise distinct; distinct from every prior corpus /
+  T.11 / T.12.x / T.12.consolidate / FF.x / S1.3.x /
+  T.12.PROV / S-PERF.1 / S-PERF.2 / S-PERF.3 / S-PERF.4
+  hash anchor.
+
+R.12b episodes 13/89/1917 byte-stable; pinned baseline NOT
+rebaselined.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+S-PERF.5 does NOT claim memory-bandwidth saturation at
+baseline (baseline report is BandwidthClaimKind::NoClaim);
+does NOT run any benchmark; does NOT emit any kernel
+timing; does NOT change any CUDA kernel; does NOT change
+any court decision (S1.3a / FF.2 / FF.3 / S1.3d / S1.3e /
+S1.3f / S1.3g); does NOT mutate any upstream hash anchor;
+does NOT alter SEED.len() (stays at 54); does NOT emit
+detector outputs / witness records / episodes; does NOT
+decide contraindications or challenges; does NOT modify
+the registry crate; does NOT download or fetch any dataset
+bytes.

@@ -1,0 +1,147 @@
+================================================================
+DSFB-GPU-Atlas — T.11b regression-check receipt (10-step ritual)
+================================================================
+Commit         : (this commit) — atomic; HEAD-before = 48eaf8c (T.11a)
+Timestamp      : 2026-05-15T02:42:45Z
+Scope          : T.11b CourtPrecedent — deterministic jurisprudence
+                 over T.4 dedup / T.6 witness law / T.7 L-band /
+                 T.8 usefulness / T.10 corpus hash / S1.2 registry
+                 binding / T.11a passport coverage / T.9 deferred
+                 gates. Passport extended with
+                 linked_precedent_ids; corpus_hash_v1 unchanged.
+
+----------------------------------------------------------------
+1.  cargo fmt --all --check
+----------------------------------------------------------------
+    Status : clean (exit code 0). Initial drafts triggered fmt
+             fixes; committed source is post-fmt.
+
+----------------------------------------------------------------
+2.  cargo clippy --workspace --all-targets --features cuda -- -D warnings
+----------------------------------------------------------------
+    Status : clean (exit code 0).
+    Notes  : two errors surfaced — `iter_cloned_collect` on a
+             slice-to-Vec in `project_t4_dedup` and
+             `manual_contains` on the passport linkage loop —
+             both resolved at the call site by switching to
+             `.to_vec()` and `.contains(&value)` respectively.
+             No `#[allow(...)]` relaxations of workspace
+             pedantic lints.
+
+----------------------------------------------------------------
+3.  bash scripts/scrub.sh
+----------------------------------------------------------------
+    Status : "scrub: clean" (exit code 0).
+
+----------------------------------------------------------------
+4.  bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+    Status : "docs_freshness: clean" (exit code 0).
+
+----------------------------------------------------------------
+5.  cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+    Status : 271 passed, 0 failed.
+    Detail : T.11a baseline 244 + 27 new T.11b tests in
+             tests/precedent_invariants.rs.
+
+----------------------------------------------------------------
+6.  cargo test --workspace --features cuda -- --test-threads=1
+----------------------------------------------------------------
+    Status : 55 result groups, 586 passed, 0 failed, 0 ignored.
+              (exit code 0)
+    Notes  : full workspace serial green. D16/D64/D128/D205
+             golden hashes unchanged. Audit mode untouched.
+
+----------------------------------------------------------------
+7.  tests/r12_d64_saturation (R.12b episode-byte stability)
+----------------------------------------------------------------
+    Status : episode counts byte-identical to the pinned R.12b
+             baseline. Wall-time / throughput numbers shift with
+             hardware load; the suite rewrites the receipt file
+             each run.
+    Pinned : canonical 16x128  episodes/cat = 13
+             mid 64x512        episodes/cat = 89
+             full 256x4096     episodes/cat = 1917
+    Action : `git restore` drops test-time perf jitter from the
+             pinned baselines. NOT rebaselined.
+
+----------------------------------------------------------------
+8.  cargo run -p dsfb-gpu-atlas-corpus -- precedents-emit
+----------------------------------------------------------------
+    Status : exit code 0.
+    Emit   : crates/dsfb-gpu-atlas-corpus/out/court_precedents.txt
+                 (14 691 bytes; 83 precedents, sorted canonically)
+             crates/dsfb-gpu-atlas-corpus/out/court_precedents.json
+                 (21 532 bytes; deterministic JSON array)
+    Notes  : two invocations produce byte-identical output.
+
+----------------------------------------------------------------
+8b. cargo run -p dsfb-gpu-atlas-corpus -- passports-emit (regenerated)
+----------------------------------------------------------------
+    Status : exit code 0.
+    Emit   : passports.txt 114 782 → 120 287 bytes
+             passports.json  91 168 →  96 619 bytes
+    Notes  : the passport now carries `linked_precedent_ids`
+             (T.11b extension). Passport hash for every record
+             changes; T.11a's 15 acceptance tests still pass
+             (they test structural invariants, not pinned
+             hashes).
+
+----------------------------------------------------------------
+9.  README + plan refresh
+----------------------------------------------------------------
+    README.md  : new "Court precedents (T.11b)" section under
+                 "Detector corpus" naming the CLI, the precedent
+                 count by kind, the precedent_hash_v1, and the
+                 passport-linkage extension. The T.11a passport
+                 sample is refreshed with the new passport_hash
+                 and the new `linked_precedent_ids` line.
+    Plan       : T.11a / T.11b sealed in the active-campaign
+                 section; next campaign is T.11c
+                 (AdmissibilityGrammarSnapshot) per the
+                 iteration-3 verdict.
+
+----------------------------------------------------------------
+10. Atomic commit
+----------------------------------------------------------------
+    Verb   : single commit; pre-commit hook runs steps 1-4 again
+             and must pass without --no-verify.
+    Files  :
+        crates/dsfb-gpu-atlas-corpus/src/precedent.rs               (A)
+        crates/dsfb-gpu-atlas-corpus/src/passport.rs                (M)
+        crates/dsfb-gpu-atlas-corpus/src/lib.rs                     (M)
+        crates/dsfb-gpu-atlas-corpus/src/main.rs                    (M)
+        crates/dsfb-gpu-atlas-corpus/tests/precedent_invariants.rs  (A)
+        crates/dsfb-gpu-atlas-corpus/out/passports.txt              (M — regenerated)
+        crates/dsfb-gpu-atlas-corpus/out/passports.json             (M — regenerated)
+        crates/dsfb-gpu-atlas-corpus/out/court_precedents.txt       (A)
+        crates/dsfb-gpu-atlas-corpus/out/court_precedents.json      (A)
+        README.md                                                   (M)
+        reports/t11b_precedent_summary.txt                          (A)
+        reports/t11b_precedent_verification.txt                     (A)
+        reports/t11b_regression_check.txt                           (A — this file)
+        .gitignore                                                  (M — whitelist three new receipts)
+
+================================================================
+Pinned hashes
+================================================================
+- corpus_hash_v1    : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7 (UNCHANGED)
+- registry_hash_v2  : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08 (UNCHANGED)
+- precedent_hash_v1 : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14 (NEW)
+
+================================================================
+Pinned non-claims (T.11b)
+================================================================
+- T.11b does NOT emit CaseFileV2 episode-transcript bodies (T.11d).
+- T.11b does NOT implement UnitSemantics / SamplingLaw receipts (T.11e).
+- T.11b does NOT implement external provenance export.
+- T.11b does NOT change `corpus_hash_v1` (frozen at T.10).
+- T.11b does NOT change `registry_hash_v2` (frozen at S1.2).
+- T.11b does NOT change D16 / D64 / D128 / D205 GPU behavior.
+- T.11b does NOT include S1.2 registry-spec linkage on the
+  passport (the corpus crate stays registry-free).
+- T.11b's `precedent_hash_v1` is DSFB-native; no in-toto / SLSA
+  / SPDX / CycloneDX compatibility claim.
+
+================================================================

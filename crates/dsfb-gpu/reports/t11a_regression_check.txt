@@ -1,0 +1,165 @@
+================================================================
+DSFB-GPU-Atlas — T.11a regression-check receipt (10-step ritual)
+================================================================
+Commit         : (this commit) — atomic; HEAD-before = 8ccd522 (S1.2)
+Timestamp      : 2026-05-15T02:15:30Z
+Scope          : T.11a DetectorPassport — per-detector
+                 legal-identity packet. NO CaseFileV2 body, NO
+                 court precedents, NO admissibility grammar, NO
+                 unit / sampling receipts. Panel iteration-3
+                 sequencing: passport first, body fourth.
+
+----------------------------------------------------------------
+1.  cargo fmt --all --check
+----------------------------------------------------------------
+    Status : clean (exit code 0). Initial drafts triggered fmt
+             fixes on passport.rs + passport_invariants.rs;
+             committed source is post-fmt and stable.
+
+----------------------------------------------------------------
+2.  cargo clippy --workspace --all-targets --features cuda -- -D warnings
+----------------------------------------------------------------
+    Status : clean (exit code 0).
+    Notes  : 45+ initial errors surfaced — all `format_push_string`
+             from the renderers + one `trivially_copy_pass_by_ref`
+             on a ConstitutionFlags arg + one `items_after_statements`
+             in the test file + one `match-arm-could-be-if-let` in
+             the CLI. All resolved at the call site by replacing
+             `out.push_str(&format!(...))` with `write!`/`writeln!`,
+             passing ConstitutionFlags by value, hoisting the
+             `use` statement to the top of the test file, and
+             rewriting the parse match arm as `let Ok(id) = ...`.
+             No `#[allow(...)]` relaxations of workspace pedantic
+             lints.
+
+----------------------------------------------------------------
+3.  bash scripts/scrub.sh
+----------------------------------------------------------------
+    Status : "scrub: clean" (exit code 0).
+    Notes  : no forbidden-string regressions in passport.rs,
+             passport_invariants.rs, or the new receipts.
+
+----------------------------------------------------------------
+4.  bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+    Status : "docs_freshness: clean" (exit code 0).
+    Notes  : one broken intra-doc-link
+             ([`passport_hash`] on a non-existent item) was caught
+             and repaired (rewritten as plain English). No
+             TODO/FIXME/XXX markers in modified files. cargo doc
+             --no-deps clean.
+
+----------------------------------------------------------------
+5.  cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+    Status : 244 passed, 0 failed.
+    Detail : T.10/S1.2 baseline 229 + 15 new T.11a tests in
+             tests/passport_invariants.rs.
+    New tests:
+        all_passports_one_per_seed_canonical_id                                ok
+        passport_hash_is_deterministic_across_two_builds                       ok
+        passport_hash_changes_when_semantic_role_hash_changes                  ok
+        passport_hash_changes_when_lifecycle_state_changes                     ok
+        passport_hash_changes_when_l_band_changes                              ok
+        passport_hash_changes_when_constitution_flags_change                   ok
+        passport_hash_includes_detector_identity_hash                          ok
+        passport_does_not_count_alias_records_as_unique_primitives             ok
+        passport_cannot_claim_l6_unless_lband_verifier_admits_record           ok
+        passport_for_unknown_id_returns_none                                   ok
+        passport_for_aliased_record_surfaces_canonical_target_id_via_genealogy ok
+        passport_text_rendering_is_deterministic_across_two_calls              ok
+        passport_json_rendering_is_deterministic_across_two_calls              ok
+        passport_hashes_pairwise_distinct                                      ok
+        passport_count_matches_panel_locked_seed_count                         ok
+
+----------------------------------------------------------------
+6.  cargo test --workspace --features cuda -- --test-threads=1
+----------------------------------------------------------------
+    Status : 54 result groups, 559 passed, 0 failed, 0 ignored.
+              (exit code 0)
+    Notes  : full workspace serial green. D16/D64/D128/D205
+             golden hashes unchanged. Audit mode untouched. One
+             new result group vs S1.2 reflects the new
+             passport_invariants.rs file (15 tests).
+
+----------------------------------------------------------------
+7.  tests/r12_d64_saturation (R.12b episode-byte stability)
+----------------------------------------------------------------
+    Status : episode counts byte-identical to the pinned R.12b
+             baseline. Wall-time/throughput numbers shift with
+             hardware load; the suite rewrites the receipt file
+             each run.
+    Pinned : canonical 16x128  episodes/cat = 13
+             mid 64x512        episodes/cat = 89
+             full 256x4096     episodes/cat = 1917
+    Action : `git restore` was used to drop test-time perf
+             jitter from reports/r12_d64_saturation.txt +
+             reports/d64_stage_timing_256x4096_K1.txt +
+             reports/r9_b3_d64_timing.txt + reports/r9_b_d64_timing.txt.
+             Pinned baselines NOT rebaselined.
+
+----------------------------------------------------------------
+8.  cargo run -p dsfb-gpu-atlas-corpus -- passports-emit
+----------------------------------------------------------------
+    Status : exit code 0.
+    Emit   : crates/dsfb-gpu-atlas-corpus/out/passports.txt
+                 (114 782 bytes; one passport per SEED record,
+                  sorted by canonical_id)
+             crates/dsfb-gpu-atlas-corpus/out/passports.json
+                 (91 168 bytes; deterministic JSON array)
+    Notes  : two invocations produce byte-identical output. The
+             CLI `dsfb-corpus passport <id> [--json]` exits 0
+             on a known id, 2 on an unknown id.
+
+----------------------------------------------------------------
+9.  README + plan refresh
+----------------------------------------------------------------
+    README.md  : new "Detector passport (T.11a)" bullet under
+                 the existing "Detector corpus" section, naming
+                 the CLI + bulk-emit + the sample passport, plus
+                 the panel-locked non-claims.
+    Plan       : Active campaign section (T.11a) marked sealed;
+                 next campaign is T.11b (CourtPrecedent) per the
+                 iteration-3 verdict.
+
+----------------------------------------------------------------
+10. Atomic commit
+----------------------------------------------------------------
+    Verb   : single commit; pre-commit hook runs steps 1-4 again
+             and must pass without --no-verify.
+    Files  :
+        crates/dsfb-gpu-atlas-corpus/src/passport.rs              (A)
+        crates/dsfb-gpu-atlas-corpus/src/lib.rs                   (M)
+        crates/dsfb-gpu-atlas-corpus/src/main.rs                  (M)
+        crates/dsfb-gpu-atlas-corpus/tests/passport_invariants.rs (A)
+        crates/dsfb-gpu-atlas-corpus/out/passports.txt            (A)
+        crates/dsfb-gpu-atlas-corpus/out/passports.json           (A)
+        README.md                                                 (M)
+        reports/t11a_passport_summary.txt                         (A)
+        reports/t11a_passport_verification.txt                    (A)
+        reports/t11a_regression_check.txt                         (A — this file)
+        .gitignore                                                (M — whitelist three new receipts)
+
+================================================================
+Pinned hashes (carried forward)
+================================================================
+- corpus_hash_v1   : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+- registry_hash_v2 : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+
+================================================================
+Pinned non-claims (T.11a)
+================================================================
+- T.11a does NOT emit CaseFileV2 episode-transcript bodies (T.11d work).
+- T.11a does NOT implement court precedents (T.11b).
+- T.11a does NOT implement admissibility grammar snapshots (T.11c).
+- T.11a does NOT include unit-semantics / sampling-law receipts (T.11e).
+- T.11a does NOT include S1.2 registry-spec linkage on the
+  passport (deferred to keep the corpus crate registry-free).
+- T.11a does NOT implement S1.3 activation planning.
+- T.11a does NOT implement external provenance export.
+- T.11a does NOT claim learned detector usefulness.
+- T.11a does NOT change D16 / D64 / D128 / D205 GPU behavior.
+- T.11a's passport hash is DSFB-native; no in-toto / SLSA /
+  SPDX / CycloneDX compatibility claim.
+
+================================================================

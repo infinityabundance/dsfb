@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "multidim_localization"
+display_name        = "MultiDim Localization (2019 AIOps Challenge match 2)"
+upstream_doi_or_url = "github.com/NetManAIOps/MultiDimension-Localization"
+license             = "no-upstream-license"
+source_class        = "TimeSeriesAnomaly"
+vendored_path       = "data/fixtures/multidim_localization.tsv"
+
+[fixture]
+sha256_hex          = "b1237ea1f26e380f6323c5a42f158f5c5ce8901b28d94c7d3aae281747d20926"
+byte_size           = 1543

@@ -1,0 +1,169 @@
+================================================================
+T.12.n - Econometrics + Reliability / Survival
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. (Initial pass hit doc_lazy_continuation on the
+  RejectedNotDeterministic bullet's `+`-chained contract list;
+  fixed by rewriting the chain as comma-separated prose. Reason
+  text bytes in the proposal body were untouched; three emitted
+  hashes byte-stable from first emit.)
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 40 groups / 1286 tests pass (T.12.m baseline 39 /
+  1239 + 1 new group + 47 new T.12.n acceptance tests).
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 79 test groups, 1601 tests PASS, 0 FAIL. Delta from
+  T.12.m seal (b35a8ad): +1 test group, +47 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined. The saturation test
+  rewrites reports/r12_d64_saturation.txt as part of its run;
+  the pinned baseline was restored from HEAD before commit
+  (also for reports/d64_stage_timing_256x4096_K1.txt,
+  reports/r9_b3_d64_timing.txt, reports/r9_b_d64_timing.txt).
+
+Step 8. Stale-doc scan
+  Result: clean. README.md, archived prior-art manuscript source, lib.rs
+  module docstring all refreshed through T.12.n. New T.12.n
+  section in README between T.12.m and the scaling-ladder
+  header.
+
+Step 9. README / plan refresh
+  Result: README T.12.n section + front-door + Layout +
+  Paper-section refreshed from T.1-T.12.m to T.1-T.12.n.
+  Plan-file post-commit will mark T.12.n sealed and rotate
+  next-active campaign to T.12.o (Streaming Sketches) per the
+  updated canonical sequence (T.12.n combines what was
+  previously T.12.n Econometrics + T.12.o Reliability/Survival
+  into a single proposal because the two domains share
+  structural-break / CUSUM / envelope-residual ancestry).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_n_econometrics_reliability.rs (new, ~750 lines
+      fully commented)
+    - src/lib.rs (module export + docstring header bump +
+      T.12.n enumeration bullet)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_n_econometrics_reliability_invariants.rs (new,
+      47 tests including 6 panel-required load-bearing
+      negatives + per-canonical structural-distinctness
+      assertions + ParameterizationOf family tests +
+      DomainTransferOf tests + reserved-id-range tests +
+      rendering / determinism / hash-distinctness invariants)
+    - out/t12_n_econometrics_reliability_proposal_v1.{txt,json}
+      (new)
+    - reports/t12_n_econometrics_reliability_proposal_summary.txt
+      (new)
+    - reports/t12_n_econometrics_reliability_proposal_verification.txt
+      (new)
+    - reports/t12_n_regression_check.txt (new)
+    - README.md (front-door title bump + test-count bump +
+      paper-section enumeration bump + new T.12.n section +
+      Next-campaign prose rotation)
+    - archived prior-art manuscript source (lead sentence + paragraph
+      header + new \item \textbf{T.12.n} bullet)
+    - .gitignore (3 new whitelist lines)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.0-T.12.m hash    : unchanged
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.n literature_expansion_batch_hash_v1 (NEW) :
+    ea8d7fb5f04d04d48df63370c22a3ce249247ef2bc522150ad098ab8b2c92e70
+  T.12.n dedup_court_delta_hash_v1 (NEW) :
+    eef41dca3e49e025b1f989747a218e59b707264f7c0c5d9a7ceb64fa0fed988c
+  T.12.n corpus_amendment_proposal_hash_v1 (NEW) :
+    b1c5ea455064b232251147d116de8cc38af91ee9a1b5b412f625dd2b4a2d2670
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in t12_n_econometrics_reliability.rs carries
+  a doc comment whose first sentence states the WHY for a
+  future engineer.
+- Panel "success shape" applied: cross-class dedup discipline
+  (4 authority resolutions over the structural-change +
+  envelope SEED family that econometric / reliability /
+  survival methods heavily reuse) + 4 ParameterizationOf
+  collapses (CUSUM-of-recursive-residuals / Quandt-Andrews /
+  hazard-rate change / cumulative damage into existing SEED
+  records). 8 new canonicals admitted (4 econometric + 4
+  reliability / survival) only after each survived the SEED-
+  walk as structurally distinct decision functionals.
+- Stationarity / window contract discipline: every econometric
+  CanonicalAddition reason declares stationarity contract +
+  window contract.
+- Censoring / time-origin contract discipline: every survival
+  / reliability CanonicalAddition reason declares censoring
+  law + time-origin law.
+- Market-prediction-claim discipline (MOST IMPORTANT): every
+  CanonicalAddition / ExistingCanonicalAuthorityResolution
+  reason is scanned for forbidden market-prediction terms.
+- Investment / credit-decision / actuarial-pricing discipline
+  (MOST IMPORTANT): forbidden credit-decision / investment-
+  advice / actuarial-pricing-verdict terms appear ONLY in
+  6413 RejectedNotDeterministic reason text.
+- RUL / failure-time / maintenance-recommendation discipline
+  (MOST IMPORTANT): forbidden RUL-certainty / failure-time-
+  prediction / maintenance-recommendation terms appear ONLY
+  in 6414 RejectedNotDeterministic reason text.
+- Learned-market-predictor + learned-RUL-classifier honesty:
+  both RejectedNotDeterministic until deterministic feature-
+  extraction law + declared formula + training-data anchor +
+  tie-break + numeric mode AND no-market-prediction / no-RUL-
+  certainty / no-credit-decision / no-actuarial-pricing /
+  no-maintenance-recommendation guards are all declared.
+
+T.12.n is sealed. The amendment court has admitted the
+fourteenth real expansion proposal: 8 new canonical primitives
+(4 econometric: GARCH residual / cointegration-break / Hausman
+test residual / Bai-Perron multiple-break detector; 4
+reliability / survival: Kaplan-Meier survival residual / Cox-
+Schoenfeld residual / Weibull failure-rate envelope exit /
+Paris-Erdogan crack-growth residual), 4 existing-canonical
+authority resolutions over the structural-change + envelope
+SEED family (CUSUM 3, Page-Hinkley 4, Mann-Kendall 11,
+Residual envelope exit 22), 2 DomainTransferOf records (SEED 3
+structural-change + SEED 22 envelope-boundary ancestors for
+Econometrics + ReliabilitySurvival), 4 ParameterizationOf
+records collapsing CUSUM-of-recursive-residuals / Quandt-
+Andrews / hazard-rate-change / cumulative-damage-residual into
+existing SEED canonicals, 2 RejectedNotDeterministic records
+(eighth T.12.x with two rejections, following T.12.g / h / i /
+j / k / l / m) -- all WITHOUT mutating SEED or corpus_hash_v1
+and WITHOUT admitting a single market-prediction, investment-
+advice, credit-decision, actuarial-pricing, RUL-certainty,
+failure-time-prediction, or maintenance-recommendation claim.
+
+Next campaign (panel-authorized post-T.12.n): T.12.o -
+Streaming Sketches (reserved id band 6501..=6599; the original
+T.12.o Reliability/Survival slot collapsed into the combined
+T.12.n proposal). Same SEED-walk-first discipline. Candidate
+primitives include Count-Min sketch residual, HyperLogLog
+cardinality break, Bloom-filter false-positive-rate anomaly,
+Misra-Gries heavy-hitter shift, Greenwald-Khanna quantile
+drift, t-digest summary residual, frequency-moments sketch
+residual.

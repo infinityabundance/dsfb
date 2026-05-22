@@ -1,0 +1,150 @@
+================================================================
+T.12.a - Statistical Process Control regression-check receipt
+(10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Zero warnings; workspace pedantic lints pass
+  on the new t12_a_spc module, the augmented main.rs, lib.rs,
+  and the new acceptance suite.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean. Zero attribution-string hits across the new
+  T.12.a surface (the scrub script enforces the forbidden-
+  string list at the repository root).
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean. Zero stale TODO / FIXME / XXX markers; zero
+  missing-doc warnings under `cargo doc --no-deps
+  --document-private-items` on the corpus crate.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 742 tests pass across 27 test groups. The new T.12.a
+  surface contributes 26 acceptance tests in
+  tests/t12_a_spc_invariants.rs, including four panel-required
+  load-bearing negatives:
+    1. spc_rejects_duplicate_canonical_name_without_alias_decision
+    2. spc_rejects_western_electric_as_canonical_when_marked_composition
+    3. spc_rejects_q_statistic_alias_without_pca_spe_target
+    4. spc_amendment_hash_changes_when_one_source_ref_changes
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 66 test groups, 1057 tests PASS, 0 FAIL. Serial run
+  (CUDA contention guard).
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable. Canonical 16x128
+  K=1..128 -> episodes/cat=13; mid 64x512 -> episodes/cat=89;
+  full 256x4096 -> episodes/cat=1917. Throughput fluctuates
+  per run (documented GPU thermal / host-load variance); the
+  pinned reports/r12_d64_saturation.txt baseline is NOT
+  rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered AND repaired:
+    - README.md: new "T.12.a — Statistical Process Control"
+      section between the T.12.0 section and the scaling
+      ladder. Schema body, panel-locked scope, the 4
+      load-bearing negatives + 5 shape invariants, Page-
+      Hinkley deferral note, CLI surface, non-claims, and
+      the next-arc T.12.b reference.
+    - archived prior-art manuscript source: new \\textbf{T.12.a} bullet
+      in the Atlas Continuation enumeration; lead sentence
+      refreshed to "through T.11h, with the first court-
+      decision surface (S1.3a), its explanation-and-diff
+      court (S1.3b), its context-binding manifests (S1.3c),
+      the corpus amendment-proposal intake scaffold (T.12.0),
+      and the first real expansion proposal (T.12.a -
+      Statistical Process Control) landed on top."
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs: "Current state
+      through T.12.0" -> "through T.12.a" with a new T.12.a
+      bullet enumerating the 2 new canonicals + 3 aliases +
+      2 compositions + 4 genealogy edges + 4 source refs +
+      Page-Hinkley deferral; CLI list refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs: Usage block +
+      dispatch include t12-a-spc-proposal /
+      t12-a-spc-proposal-emit.
+    - crates/dsfb-gpu-atlas-corpus/src/t12_a_spc.rs: every
+      pub item AND every private helper carries a doc
+      comment whose first sentence states the WHY for a
+      future engineer, per the [[no-silent-court-logic]]
+      doctrine.
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new T.12.a section added in this commit.
+    - Plan-file: T.12.0 sealed at c5cfe5a + T.12.a authorized
+      were recorded in the previous turn's plan refresh.
+      Post-commit plan touch-up will mark T.12.a sealed +
+      surface T.12.b as the next campaign.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_a_spc.rs (new, ~410 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands)
+    - tests/t12_a_spc_invariants.rs (new, 26 tests including
+      4 panel-required load-bearing negatives)
+    - out/t12_a_spc_proposal_v1.{txt,json} (new bulk
+      artifacts)
+    - reports/t12_a_spc_proposal_summary.txt (new)
+    - reports/t12_a_spc_proposal_verification.txt (new)
+    - reports/t12_a_regression_check.txt (new)
+    - README.md (T.12.a section)
+    - archived prior-art manuscript source (T.12.a bullet in Atlas
+      Continuation enumeration)
+    - .gitignore (3 new whitelist lines for the T.12.a
+      receipts)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  precedent_hash_v1                           : unchanged (6721f511...)
+  admissibility_grammar_hash_v1               : unchanged (ff66706a...)
+  trial_transcript_hash_v1                    : unchanged (37618a45...)
+  execution_attestation_receipt_hash_v1       : unchanged
+  challenge_docket_hash_v1                    : unchanged (dde4ecb4...)
+  detector_contraindication_hash_v1           : unchanged (1b899f5d...)
+  coverage_hole_hash_v1                       : unchanged (671e2164...)
+  activation_plan_hash_v1                     : unchanged (5a81da47...)
+  activation_diff_hash_v1                     : unchanged (469536e7...)
+  task_manifest_hash_v1                       : unchanged (88a33338...)
+  dataset_manifest_hash_v1                    : unchanged (3864db34...)
+  activation_context_hash_v1                  : unchanged (4948bf45...)
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  Every DetectorPassport hash                 : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.a SPC corpus_amendment_proposal_hash_v1 (NEW) :
+    ae493a850c77ef681ef15ba5a5e11d77bc09446618ed6b1f6e6155feb1a8e92a
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom: only the bank module's private
+    BankAdmissionToken constructor mints admitted episodes.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions (scrub clean).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+  - [[no-silent-court-logic]] doctrine applied: every pub item
+    AND every private helper in t12_a_spc.rs carries WHY
+    commentary.
+
+T.12.a is sealed. The amendment court has admitted the first
+real expansion proposal: 2 new canonical SPC primitives
+(MEWMA, MCUSUM), 3 aliases (Q-stat / SPE / Hotelling T-sq),
+2 composition reclassifications (Western Electric, Nelson),
+4 genealogy edges, 4 source refs — all WITHOUT mutating SEED
+or corpus_hash_v1.
+
+Next campaign (panel-locked): T.12.b — Sequential Change
+Detection. Same scaffold + same hash discipline. Page-Hinkley
+gets cross-class authority resolution there. Reserve canonical
+ids in a new range (e.g. 5101-5xxx range; the 5101-5103 alias
+ids are taken — pick 5201+ for canonical claims to keep visual
+separation).

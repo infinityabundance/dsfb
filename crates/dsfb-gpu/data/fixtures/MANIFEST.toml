@@ -1,0 +1,368 @@
+# DSFB-GPU vendored real-data fixtures — MANIFEST
+#
+# WHY: One SHA-256 + license pin per fixture committed under
+# `data/fixtures/`. The S-REAL audit pipeline reads each TSV via
+# the plan-locked `# residual-projection v2` format and hashes
+# it before running anything; the pinned SHA-256 is the byte-pin
+# that lets a replayer prove they ran the audit on the exact
+# bytes recorded in `dataset_manifest.toml`.
+#
+# Licenses are stated plainly per upstream evidence (S-REAL.2b.1
+# verification pass, 2026-05-19). Datasets whose upstream has no
+# LICENSE file are tagged `no-upstream-license` and admitted
+# under academic research-use convention. DSFB-GPU is a research
+# project; no fixture is redistributed for commercial use.
+
+[fixtures.aiops_challenge]
+path = "aiops_challenge.tsv"
+sha256 = "be17110ebe6647d00fad79dc1ca69b1b01b22788773202bad6e3322e97b0602e"
+byte_size = 2073
+source_class = "TimeSeriesAnomaly"
+license = "no-upstream-license"
+attribution = "Li, Chen, Pei. IPCCC 2018."
+sealed_in = "s_real_2_c"
+
+[fixtures.illinois_socialnetwork]
+path = "illinois_socialnetwork.tsv"
+sha256 = "c86b5abd1b412f69cccaab9b3e838da742c5ea8a1ba1b6dce634ff3407cc082c"
+byte_size = 3399
+source_class = "ObservabilityTraces"
+license = "CC0-1.0"
+sealed_in = "s_real_1"
+
+[fixtures.tadbench_trainticket_F11]
+path = "tadbench_trainticket_F11.tsv"
+sha256 = "cdebdab01e310d4d02241b694b3771acfa9beca3060b0cee0e19fb237f65dc97"
+byte_size = 32806
+source_class = "DebuggingSoftwareTelemetry"
+license = "CC-BY-4.0"
+attribution = "Steidl, Monika. Zenodo 2022. DOI 10.5281/zenodo.6979726."
+sealed_in = "s_real_2_c"
+
+[fixtures.tadbench_trainticket_F04]
+path = "tadbench_trainticket_F04.tsv"
+sha256 = "b3e7ba260617b4496aa5b09f7d399fecae2cc60dbb2002f6405e65a5f37cb1d7"
+byte_size = 3406
+source_class = "DebuggingSoftwareTelemetry"
+license = "CC-BY-4.0"
+attribution = "Steidl, Monika. Zenodo 2022. DOI 10.5281/zenodo.6979726."
+sealed_in = "s_real_2_c"
+
+[fixtures.tadbench_trainticket_F11b]
+path = "tadbench_trainticket_F11b.tsv"
+sha256 = "2f45979af791964873a48e6f53a769e0610c02a6452c4a96b7b8bb208d5c492e"
+byte_size = 1305
+source_class = "DebuggingSoftwareTelemetry"
+license = "CC-BY-4.0"
+attribution = "Steidl, Monika. Zenodo 2022. DOI 10.5281/zenodo.6979726."
+sealed_in = "s_real_2_c"
+
+[fixtures.tadbench_trainticket_F19]
+path = "tadbench_trainticket_F19.tsv"
+sha256 = "d412b6e44a83bb583d7f4ea2e5c3405115e686282fd2840db3f640c1dc3dd480"
+byte_size = 3532
+source_class = "DebuggingSoftwareTelemetry"
+license = "CC-BY-4.0"
+attribution = "Steidl, Monika. Zenodo 2022. DOI 10.5281/zenodo.6979726."
+sealed_in = "s_real_2_c"
+
+[fixtures.lo2]
+path = "lo2.tsv"
+sha256 = "24d5d7c06d755366b2148a3887151478adfd46062bbec54e9ce20dc358b4647c"
+byte_size = 2234
+source_class = "ObservabilityTraces"
+license = "CC-BY-4.0"
+attribution = "Bakhtin et al. Zenodo 2025. DOI 10.5281/zenodo.14257989."
+sealed_in = "s_real_2_c"
+
+[fixtures.deeptralog]
+path = "deeptralog.tsv"
+sha256 = "90f2625258b4f823e317a331a8b800dbc0c13c4ee3182b81be6c06a9aaef1853"
+byte_size = 17657
+source_class = "ObservabilityTraces"
+license = "no-upstream-license"
+attribution = "Zhang et al. ICSE 2022."
+sealed_in = "s_real_3"
+
+# DeepTraLog F01 upstream archive (re-projected richly under S-REAL.3
+# via data/recipes/deeptralog_f01.py).
+[fixtures.deeptralog_f01_archive]
+path = "../upstream/deeptralog/F01.zip"
+sha256 = "932b664d108818d1d65e486bb45f15cb805bcff39e3bf553acac9f5d3f76451e"
+byte_size = 14037980
+source_class = "ObservabilityTraces"
+license = "no-upstream-license"
+sealed_in = "s_real_3_upstream"
+
+[fixtures.multidim_localization]
+path = "multidim_localization.tsv"
+sha256 = "b1237ea1f26e380f6323c5a42f158f5c5ce8901b28d94c7d3aae281747d20926"
+byte_size = 1543
+source_class = "TimeSeriesAnomaly"
+license = "no-upstream-license"
+attribution = "Tsinghua NetMan Lab. 2019 AIOps Challenge match 2."
+sealed_in = "s_real_2_c"
+
+[fixtures.defects4j]
+path = "defects4j.tsv"
+sha256 = "a6fa8c9d8e1fa78e2bb9c9f33e40d02aa6f26a04c0af2f760539793d33875a63"
+byte_size = 3004
+source_class = "SoftwareDefects"
+license = "MIT"
+attribution = "Just, R.; Jalali, D.; Ernst, M. D. Defects4J. github.com/rjust/defects4j."
+sealed_in = "s_real_2_c"
+
+[fixtures.bugsinpy]
+path = "bugsinpy.tsv"
+sha256 = "1e9349f3a0e3c76f20681d4623ff0c0ee768943c07a814ef3c7b481021a57f94"
+byte_size = 7332
+source_class = "SoftwareDefects"
+license = "no-upstream-license"
+attribution = "Widyasari et al. ESEC/FSE 2020. github.com/soarsmu/BugsInPy."
+sealed_in = "s_real_3"
+
+# BugsInPy bug-patch metadata snapshot (composed deterministically
+# from the soarsmu/BugsInPy projects/ tree).
+[fixtures.bugsinpy_snapshot_csv]
+path = "../upstream/bugsinpy/bugsinpy_snapshot.csv"
+sha256 = "c2b561a1410b739fdb666b303c77ef32be6aabac7e3f11de2f5cc8e68f3deb24"
+byte_size = 12078
+source_class = "SoftwareDefects"
+license = "no-upstream-license"
+sealed_in = "s_real_3_upstream"
+
+[fixtures.promise_defect_prediction]
+path = "promise_defect_prediction.tsv"
+sha256 = "14856ef507c9ef8ff6b7120a8c50177d76b492bbff0653b1e635312eadba4461"
+byte_size = 8219
+source_class = "SoftwareDefects"
+license = "no-upstream-license"
+attribution = "Sayyad Shirabad, J.; Menzies, T. J. PROMISE Repository. github.com/ssea-lab/PROMISE."
+sealed_in = "s_real_3"
+
+# S-REAL.3 new admissions (5 C-MAPSS sisters + 1 PROMISE Ant 1.4 + 1 DeepTraLog F02).
+
+[fixtures.cmapss_fd001_unit50]
+path = "cmapss_fd001_unit50.tsv"
+sha256 = "d4920f9801bf1e27104387702f17e2413194201578ed9434e7a4f1a5b84fe5da"
+byte_size = 27396
+source_class = "ReliabilityIndustrial"
+license = "Public-Domain"
+attribution = "NASA C-MAPSS FD001 unit 50."
+sealed_in = "s_real_3"
+
+[fixtures.cmapss_fd002_unit1]
+path = "cmapss_fd002_unit1.tsv"
+sha256 = "07a94ffc69c54e9838cbf78c2f087e1a247f6971a7e7e75bc47fe6947d6c6c6a"
+byte_size = 31042
+source_class = "ReliabilityIndustrial"
+license = "Public-Domain"
+attribution = "NASA C-MAPSS FD002 unit 1 (multi-condition)."
+sealed_in = "s_real_3"
+
+[fixtures.cmapss_fd002_unit100]
+path = "cmapss_fd002_unit100.tsv"
+sha256 = "34310904bd557b0e264d0e8d874695ed007026d05e62ca02745f295efbbbe2b0"
+byte_size = 43759
+source_class = "ReliabilityIndustrial"
+license = "Public-Domain"
+attribution = "NASA C-MAPSS FD002 unit 100 (multi-condition)."
+sealed_in = "s_real_3"
+
+[fixtures.cmapss_fd003_unit1]
+path = "cmapss_fd003_unit1.tsv"
+sha256 = "8eeb96ec624782e06f5abc4f77dc62f11e714634c6b6e520221432a2be4a87b1"
+byte_size = 37791
+source_class = "ReliabilityIndustrial"
+license = "Public-Domain"
+attribution = "NASA C-MAPSS FD003 unit 1 (multi-fault)."
+sealed_in = "s_real_3"
+
+[fixtures.cmapss_fd004_unit1]
+path = "cmapss_fd004_unit1.tsv"
+sha256 = "abc69ca301edea69b7d60fe0bc8eac912e991eb80d4ec0fb2f2725167266bdae"
+byte_size = 65592
+source_class = "ReliabilityIndustrial"
+license = "Public-Domain"
+attribution = "NASA C-MAPSS FD004 unit 1 (multi-condition + multi-fault)."
+sealed_in = "s_real_3"
+
+[fixtures.promise_ant_1_4]
+path = "promise_ant_1_4.tsv"
+sha256 = "f965a049b98d69ade3391c5f7a777c4ea37089c386cd886b05012cc86748024c"
+byte_size = 11393
+source_class = "SoftwareDefects"
+license = "no-upstream-license"
+attribution = "PROMISE 2.csv (Apache Ant 1.4 CK metrics). github.com/ssea-lab/PROMISE."
+sealed_in = "s_real_3"
+
+[fixtures.promise_2_csv]
+path = "../upstream/promise/2.csv"
+sha256 = "bd6c4b7994d3e79f4a5170677e00a45505b3f7dd5a69118eb6abe5c262e77ea3"
+byte_size = 20262
+source_class = "SoftwareDefects"
+license = "no-upstream-license"
+sealed_in = "s_real_3_upstream"
+
+[fixtures.deeptralog_f02]
+path = "deeptralog_f02.tsv"
+sha256 = "2ce480415b20dc49d09119b79933f2dd5d0ba62c186a8ecc0f2e2bf8b1e1a95f"
+byte_size = 5875
+source_class = "ObservabilityTraces"
+license = "no-upstream-license"
+attribution = "DeepTraLog F02-04 ERROR (Zhang et al. ICSE 2022)."
+sealed_in = "s_real_3"
+
+[fixtures.deeptralog_f02_archive]
+path = "../upstream/deeptralog/F02.zip"
+sha256 = "b6a96305e800840884a35ad861dc0c7df11ef8566de6c9a31c5f94b4341beed8"
+byte_size = 14209346
+source_class = "ObservabilityTraces"
+license = "no-upstream-license"
+sealed_in = "s_real_3_upstream"
+
+# PROMISE 1.csv (Apache Ant 1.3 CK metrics) upstream source.
+[fixtures.promise_1_csv]
+path = "../upstream/promise/1.csv"
+sha256 = "c7098c54c93a1412826dfaa169d75c97b215be12853fb4d598cf2bb5b307760c"
+byte_size = 14334
+source_class = "SoftwareDefects"
+license = "no-upstream-license"
+sealed_in = "s_real_3_upstream"
+
+[fixtures.cmapss_fd001_unit1]
+path = "cmapss_fd001_unit1.tsv"
+sha256 = "633442bb93f128bb44e82f4b09d0dd0f175933107bc9c0c3e1fc6bd6b040c93e"
+byte_size = 26740
+source_class = "ReliabilityIndustrial"
+license = "Public-Domain"
+attribution = "Saxena, Goebel, Simon, Eklund (PHM08). NASA PCoE Prognostics Data Repository."
+sealed_in = "s_real_2_f4_anchor"
+
+# Upstream archive for the F4 anchor.
+[fixtures.cmapss_data_archive]
+path = "../CMAPSSData.zip"
+sha256 = "74bef434a34db25c7bf72e668ea4cd52afe5f2cf8e44367c55a82bfd91a5a34f"
+byte_size = 12425978
+source_class = "ReliabilityIndustrial"
+license = "Public-Domain"
+sealed_in = "s_real_2_f4_anchor_upstream"
+
+# =====================================================================
+# S-REAL.3.1 saturation-class large fixtures (1 M-cell shape).
+#
+# WHY: Each entry below records a fixture produced by a deterministic
+# recipe under `data/recipes/<name>_large.py`. The recipe reads a
+# pinned upstream archive (RF capture, mmWave power dump, database
+# snapshot, etc.), projects rows into the plan-locked
+# `# residual-projection v2` TSV shape at 1 024 × 1 024 cells (or
+# 512 × 1 024 for Deepsense6G, capped by available files), and pins
+# the projected SHA-256 below. These large fixtures are
+# gitignored (~90 MB combined; see `.gitignore` under
+# `data/fixtures/*_1024x1024.tsv` and friends) and reconstructed by
+# re-running the recipe; the SHA-256 here is the byte-identity gate
+# the saturation bench verifies before dispatch.
+#
+# `sealed_in = "s_real_3_1_saturation"` indicates the row was sealed
+# at the S-REAL.3.1 hardening pass alongside
+# `reports/s_real_saturation_sweep.txt`.
+
+[fixtures.deepbeam_1024x1024]
+path = "deepbeam_1024x1024.tsv"
+recipe = "../recipes/deepbeam_large.py"
+sha256 = "242aae914fc3a88c0a5027536923a72f598062ea0647078f7b0e0024a8aa7929"
+byte_size = 9968393
+source_class = "RfCommunications"
+license = "no-upstream-license"
+attribution = "DeepBeam RF dataset (HDF5 IQ); academic research-use only."
+sealed_in = "s_real_3_1_saturation"
+
+[fixtures.deepsense6g_512x1024]
+path = "deepsense6g_512x1024.tsv"
+recipe = "../recipes/deepsense6g_large.py"
+sha256 = "4d71dc2c087697f1c1455d78f926d11870149828786bbfca865b277afab6052e"
+byte_size = 5092467
+source_class = "RfCommunications"
+license = "no-upstream-license"
+attribution = "DeepSense6G mmWave dataset; academic research-use only."
+sealed_in = "s_real_3_1_saturation"
+
+[fixtures.imdb_duckdb_1024x1024]
+path = "imdb_duckdb_1024x1024.tsv"
+recipe = "../recipes/imdb_duckdb_large.py"
+sha256 = "2970fbd9d0d6bdb7b98b461d549dff9a77ae4b0a94a4fc2967acbb7eec3e12e7"
+byte_size = 10158999
+source_class = "DatabaseTelemetry"
+license = "no-upstream-license"
+attribution = "JOB / IMDB DuckDB binary (byte-frequency projection); academic research-use only."
+sealed_in = "s_real_3_1_saturation"
+
+[fixtures.imdb_tgz_1020x1024]
+path = "imdb_tgz_1020x1024.tsv"
+recipe = "../recipes/imdb_tgz_large.py"
+sha256 = "9e0d356f9a706f6132461873a5903df123e046326e67181497413ff122234aa6"
+byte_size = 7474234
+source_class = "DatabaseTelemetry"
+license = "no-upstream-license"
+attribution = "JOB / IMDB cast_info.csv tarball projection; academic research-use only."
+sealed_in = "s_real_3_1_saturation"
+
+[fixtures.oracle_1024x1024]
+path = "oracle_1024x1024.tsv"
+recipe = "../recipes/oracle_large.py"
+sha256 = "6ada4586de505fdc67f2be053b24f92732acc32d3bc8154d17a27b52db570133"
+byte_size = 10464828
+source_class = "RfCommunications"
+license = "no-upstream-license"
+attribution = "ORACLE RF fingerprinting dataset (SigMF cf32 in zip); academic research-use only."
+sealed_in = "s_real_3_1_saturation"
+
+[fixtures.powder_1024x1024]
+path = "powder_1024x1024.tsv"
+recipe = "../recipes/powder_large.py"
+sha256 = "8438f02bc033142797411f5789d8ef6a3f9c214a120ff1aeaabfa3528edb08f2"
+byte_size = 10007285
+source_class = "RfCommunications"
+license = "no-upstream-license"
+attribution = "POWDER RF testbed captures (cf32 in zip); academic research-use only."
+sealed_in = "s_real_3_1_saturation"
+
+[fixtures.radioml_2018_snr30_1024x1024]
+path = "radioml_2018_snr30_1024x1024.tsv"
+recipe = "../recipes/radioml_2018_snr30_large.py"
+sha256 = "0a626804be42f113bc62afd2245f86f9ac7c7204472e29fa09faf976ee7f6e86"
+byte_size = 9963162
+source_class = "RfCommunications"
+license = "no-upstream-license"
+attribution = "RadioML 2018.01 SNR=30 dB IQ subset (HDF5); academic research-use only."
+sealed_in = "s_real_3_1_saturation"
+
+[fixtures.radioml_gold_1024x1024]
+path = "radioml_gold_1024x1024.tsv"
+recipe = "../recipes/radioml_gold_large.py"
+sha256 = "06f156dc662a2ce26c9867b49cbf87e534be92b93bfed7402bfe56971906aeaf"
+byte_size = 10007124
+source_class = "RfCommunications"
+license = "no-upstream-license"
+attribution = "RadioML GOLD/2016 IQ subset (HDF5); academic research-use only."
+sealed_in = "s_real_3_1_saturation"
+
+[fixtures.snowset_1024x1024]
+path = "snowset_1024x1024.tsv"
+recipe = "../recipes/snowset_large.py"
+sha256 = "0ec2b78c1fc4db066208968ab6fc452a4ac6dad31dc740b0870a77a3e73fc3c8"
+byte_size = 8558030
+source_class = "DatabaseTelemetry"
+license = "no-upstream-license"
+attribution = "Snowset query-event CSV (gz-streamed); academic research-use only."
+sealed_in = "s_real_3_1_saturation"
+
+[fixtures.sqlshare_1024x1024]
+path = "sqlshare_1024x1024.tsv"
+recipe = "../recipes/sqlshare_large.py"
+sha256 = "e663b53ccdcc1c2bad808a7268af10c9b638e05f108a371707c3e1ac924c37c8"
+byte_size = 9750484
+source_class = "DatabaseTelemetry"
+license = "no-upstream-license"
+attribution = "SQLShare workload CSVs in zip (seaflow projection); academic research-use only."
+sealed_in = "s_real_3_1_saturation"

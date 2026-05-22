@@ -1,0 +1,60 @@
+# Convenience commands. `just <target>`. Targets are intentionally small and
+# composable so individual steps can be invoked or inspected. Nothing here
+# reaches outside the repo root.
+
+default: check
+
+# Install the local pre-commit hook (idempotent).
+hooks:
+    git config core.hooksPath .githooks
+    chmod +x .githooks/pre-commit scripts/*.sh
+
+# CPU-only build of the whole workspace.
+build:
+    cargo build --workspace
+
+# Build including the CUDA kernels. Requires nvcc on PATH.
+build-cuda:
+    cargo build --workspace --features cuda
+
+# CPU-only tests (works on any host).
+test:
+    cargo test --workspace --no-fail-fast
+
+# Full test matrix including CUDA-gated tests.
+test-cuda:
+    cargo test --workspace --features cuda --no-fail-fast
+
+# Format check, clippy-as-deny, scrub, docs-freshness. Same as the pre-commit
+# pipeline.
+check:
+    cargo fmt --all --check
+    cargo clippy --workspace --all-targets -- -D warnings
+    bash scripts/scrub.sh
+    bash scripts/docs_freshness.sh
+
+# Reformat in place.
+fmt:
+    cargo fmt --all
+
+# Run the end-to-end CLI smoke (CPU-only path).
+demo:
+    cargo run -p dsfb-gpu-debug-demo --release -- generate-fixture --out fixtures/synthetic_trace.json
+    cargo run -p dsfb-gpu-debug-demo --release -- run-cpu --fixture fixtures/synthetic_trace.json --contract contract.toml --out reports/cpu_case.json
+    cargo run -p dsfb-gpu-debug-demo --release -- compare --cpu reports/cpu_case.json --gpu reports/cpu_case.json --out reports/replay_comparison.json
+
+# Produce a tarball suitable for upload into the Colab notebook.
+pack-colab:
+    bash scripts/pack_for_colab.sh
+
+# Attribution scrub only (greps for forbidden strings).
+scrub:
+    bash scripts/scrub.sh
+
+# Documentation freshness only.
+docs:
+    bash scripts/docs_freshness.sh
+
+# Wipe build artifacts. Does not touch fixtures/ or reports/.
+clean:
+    cargo clean

@@ -1,0 +1,195 @@
+================================================================
+DSFB-GPU-Atlas — T.11f regression-check receipt (10-step ritual)
+================================================================
+Commit         : (this commit) — atomic; HEAD-before = 4ee264c (T.11e)
+Timestamp      : 2026-05-15T05:29:30Z
+Scope          : T.11f ChallengeDocketV1 — the court's adversarial
+                 self-audit layer. 10-entry conservative seed (0
+                 Open, 0 Sustained, 6 Overruled, 4 Deferred). 17
+                 verifier reject kinds. 62 acceptance tests
+                 including two panel-required load-bearing
+                 negatives. Does NOT mutate corpus / registry /
+                 precedent / grammar / transcript / receipt /
+                 passport hashes. Does NOT resolve a Sustained
+                 challenge — separate later commit required.
+
+----------------------------------------------------------------
+Step 1 — cargo fmt --all --check
+----------------------------------------------------------------
+$ cargo fmt --all --check
+  (no output; exit 0)
+
+----------------------------------------------------------------
+Step 2 — cargo clippy --workspace --all-targets --features cuda
+         -- -D warnings
+----------------------------------------------------------------
+$ cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Finished `dev` profile [unoptimized + debuginfo] target(s)
+  (zero warnings; exit 0)
+
+Workspace-pedantic lints handled at the call site (not relaxed):
+  - clippy::too_many_lines on verify_challenge_docket
+    (panel-acknowledged with `#[allow]` and rationale: 17
+    reject kinds each gated by a dedicated branch with
+    kind-specific evidence rules; refactoring would obscure the
+    docket's brutality without changing behaviour).
+  - clippy::too_many_lines on render_challenge_docket_text and
+    render_challenge_docket_json (linear walk of all seed
+    entries + per-category histograms).
+  - clippy::trivially_copy_pass_by_ref fixed at the call site
+    (write_affected takes AffectedHashSet by value, not &).
+  - clippy::field_reassign_with_default fixed in tests via the
+    `..AffectedHashSet::default()` struct-update syntax.
+  - clippy::format_push_string + clippy::useless_format
+    + clippy::unwrap_used + clippy::explicit_iter_loop all
+    handled in the hash-rendering helper inside the test file
+    (write!(&mut hex, "{b:02x}") via std::fmt::Write, then drop
+    the Result via `let _ = ...`).
+
+----------------------------------------------------------------
+Step 3 — bash scripts/scrub.sh
+----------------------------------------------------------------
+$ bash scripts/scrub.sh
+  (no forbidden strings; exit 0)
+
+----------------------------------------------------------------
+Step 4 — bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+$ bash scripts/docs_freshness.sh
+  Finished `dev` profile [unoptimized + debuginfo] target(s)
+  Documenting dsfb-gpu-atlas-corpus v0.1.0
+  (no missing-doc warnings; exit 0)
+
+----------------------------------------------------------------
+Step 5 — cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+$ cargo test -p dsfb-gpu-atlas-corpus --test challenge_docket_invariants
+  test result: ok. 62 passed; 0 failed; 0 ignored
+                   (challenge_docket_invariants)
+
+$ cargo test -p dsfb-gpu-atlas-corpus
+  All corpus suites: green (challenge_docket / passport /
+                            precedent / admissibility /
+                            trial_transcript / execution_attestation /
+                            court / genealogy / l-band / usefulness /
+                            verify / seed / corpus_hash /
+                            toml_equivalence)
+
+----------------------------------------------------------------
+Step 6 — cargo test --workspace --features cuda -- --test-threads=1
+----------------------------------------------------------------
+$ cargo test --workspace --features cuda -- --test-threads=1
+  result groups : 59
+  passed        : 785
+  failed        : 0
+  ignored       : 0
+
+Delta vs T.11e (723 -> 785): +62 new T.11f acceptance tests.
+
+----------------------------------------------------------------
+Step 7 — R.12b byte-stability check
+----------------------------------------------------------------
+Pinned episode counts (R.12b baseline) — byte-identical to T.11e:
+
+  canonical 16x128 : 13
+  mid 64x512       : 89
+  full 256x4096    : 1917
+
+Wall-time receipts (reports/{d64_stage_timing_256x4096_K1.txt,
+r12_d64_saturation.txt, r9_b3_d64_timing.txt, r9_b_d64_timing.txt})
+were rewritten by the test harness with this session's measured
+times; episode counts byte-stable. RESTORED via `git restore`
+per the panel-locked discipline: the pinned R.12b baseline is
+NOT rebaselined by T.11f.
+
+----------------------------------------------------------------
+Step 8 — Stale-doc scan
+----------------------------------------------------------------
+Sweep across new + touched files for stale T.* / S.* references,
+TODO / FIXME / XXX markers, and broken intra-doc links:
+
+  - crates/dsfb-gpu-atlas-corpus/src/lib.rs              clean
+  - crates/dsfb-gpu-atlas-corpus/src/main.rs             clean
+  - crates/dsfb-gpu-atlas-corpus/src/challenge_docket.rs clean
+  - crates/dsfb-gpu-atlas-corpus/tests/challenge_docket_invariants.rs
+                                                         clean
+  - README.md (T.11f section added under T.11e)          clean
+
+No stale-doc hits. The T.11f section mirrors the panel-locked
+verifier reject set and the conservative-seed posture
+byte-for-byte; future variant additions (T.11g
+Contraindications, T.11h CoverageHoleReport, etc.) must keep the
+non-claims list in sync.
+
+----------------------------------------------------------------
+Step 9 — README + plan refresh
+----------------------------------------------------------------
+README.md gains a "T.11f — Challenge Docket V1 (adversarial
+self-audit overlay)" section under T.11e with:
+
+  - Schema name + domain separator + 17 verifier reject kinds
+    enumerated by name.
+  - CLI surface (`challenges`, `challenges-emit`).
+  - 11-variant ChallengeKind list (with the three additions:
+    HashBindingMismatch, MissingNegativeWitness,
+    EvidenceLevelOverclaimed).
+  - 5-variant ChallengeStatus including Superseded.
+  - Conservative seed posture: 0 Open / 0 Sustained / 6
+    Overruled / 4 Deferred / 0 Superseded.
+  - Panel-locked design boundary: docket does NOT mutate corpus
+    or any prior hash; sustaining requires SEPARATE later commit.
+
+Plan file (Active campaign section + T.11f execution checkpoint
++ Foundational Doctrine "Idempotent forensic pre-inference"
+subsection) refreshed to reflect T.11e sealed and T.11f
+mid-flight, plus the panel-locked idempotence framing
+("DSFB-GPU-Atlas makes LLM inference cheaper by moving
+first-pass evidence discovery out of the probabilistic model
+and into an idempotent deterministic evidence court").
+
+----------------------------------------------------------------
+Step 10 — Atomic commit
+----------------------------------------------------------------
+Pre-commit hook (fmt + clippy + scrub + docs_freshness) ran
+clean. No `--no-verify`. Commit subject:
+
+  T.11f: ChallengeDocketV1 - the court's adversarial self-audit layer
+
+----------------------------------------------------------------
+Critical files (T.11f)
+----------------------------------------------------------------
+  + crates/dsfb-gpu-atlas-corpus/src/challenge_docket.rs (new)
+  + crates/dsfb-gpu-atlas-corpus/tests/challenge_docket_invariants.rs (new)
+  + crates/dsfb-gpu-atlas-corpus/out/challenge_docket_v1.txt (new)
+  + crates/dsfb-gpu-atlas-corpus/out/challenge_docket_v1.json (new)
+  + reports/t11f_challenge_docket_summary.txt (new)
+  + reports/t11f_challenge_docket_verification.txt (new)
+  + reports/t11f_regression_check.txt (new)
+  M crates/dsfb-gpu-atlas-corpus/src/lib.rs           (+1 mod decl)
+  M crates/dsfb-gpu-atlas-corpus/src/main.rs          (+2 CLI subcommands + usage)
+  M README.md                                          (+ T.11f section)
+  M .gitignore                                         (+3 whitelist lines)
+
+----------------------------------------------------------------
+Hash anchors carried unchanged (no prior chain mutated)
+----------------------------------------------------------------
+  corpus_hash_v1                : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  registry_hash_v2              : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+  precedent_hash_v1             : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14
+  admissibility_grammar_hash_v1 : ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7
+  trial_transcript_hash_v1      : 37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee
+
+NEW in this commit (lives in its own namespace; not folded into
+corpus_hash_v1):
+  challenge_docket_hash_v1      : dde4ecb4de491f93fe671b77d6ffd8567199f6d1a3f5cca51ea4facb21c10415
+
+----------------------------------------------------------------
+End state
+----------------------------------------------------------------
+The Atlas now ships an adversarial self-audit overlay. The court
+supports appeals: objection records, sustained / overruled /
+deferred / superseded judgments, and explicit hash-visible
+correction paths. Hostile review is part of the architecture
+instead of an external threat. T.11g
+(DetectorContraindicationReceipt) is the next campaign per the
+panel iteration-5 sequence.

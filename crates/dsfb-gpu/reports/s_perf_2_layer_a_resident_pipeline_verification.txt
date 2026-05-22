@@ -1,0 +1,204 @@
+S-PERF.2 LayerAResidentPipelineV1 — Verification
+================================================
+
+Pinned corpus anchors
+  corpus_hash_v1 : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  SEED.len()     : 54
+
+Three new own-namespace hashes
+  layer_a_resident_pipeline_hash_v1
+    = 6269773e81f3cd2634d12188eb7570bfbfa0098ae5c3bf820774917631e7d7fa
+  layer_a_device_residency_receipt_hash_v1
+    = 072510913da106ad00d7bae046b5672f728ec4cdfb29dff750e3fafc9ab41f11
+  layer_a_traffic_receipt_hash_v1
+    = 3415013763ec033ae248285a38654a94e24b2dcbd742cf0f7f5ce56fb4c0b18c
+
+S-PERF.1 reference
+  device_traffic_receipt_hash_v1 : 09e96f17c2b56697a0af8ff55d4d209b9067d72fa445951110f1a5a47cdf0fb7
+  inner_timing_method            : CudaEvent
+
+Court-authority anchors (must include corpus_hash_v1)
+  35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives — verifier result
+----------------------------------------------------------------
+
+When the baseline traffic receipt is fed to
+`verify_layer_a_traffic_receipt`, the verifier returns ZERO
+errors. Each panel-required negative is exercised in
+`tests/s_perf_2_layer_a_resident_pipeline_invariants.rs` by
+synthesising a defective record, then asserting the matching
+verifier-error kind appears.
+
+  1. LayerAReceiptWithHostJsonTime
+       synthesise pipeline with host_json_emission_present=true
+       -> verifier surfaces the host-JSON-time error.
+       Result: PASS.
+
+  2. LayerAReceiptWithCasefileMaterializationTime
+       synthesise pipeline with
+       casefile_materialization_present=true
+       -> verifier surfaces the casefile-materialization error.
+       Result: PASS.
+
+  3. PipelineWithoutDeviceResidencyDeclaration
+       synthesise pipeline with empty residency_declarations
+       -> verifier surfaces the missing-declaration error.
+       Result: PASS.
+
+  4. D2hFullWitnessDumpWhenSummaryOnlyDeclared
+       synthesise residency receipt with Witness D2H bytes >
+       0 (Witness panel-locked DeviceResidentOnly)
+       -> verifier surfaces the full-dump error.
+       Result: PASS.
+
+  5. MissingH2dD2hByteAccounting
+       synthesise residency receipt with empty per-densor
+       H2D AND empty per-densor D2H lists
+       -> verifier surfaces the missing-accounting error.
+       Result: PASS.
+
+  6. CudaTimingMethodNotAllowedBySPerf1
+       synthesise traffic receipt with
+       inner_timing_method_wire_name="HostJsonInclusiveTime"
+       -> verifier surfaces the insufficient-timing error.
+       (Companion test confirms CudaStreamSync admits.)
+       Result: PASS.
+
+  7. LayerAClaimWithoutDeviceTrafficReceipt
+       synthesise traffic receipt with
+       device_traffic_receipt_hash_v1=[0;32]
+       -> verifier surfaces the missing-S-PERF.1-reference
+       error.
+       Result: PASS.
+
+  8. PipelineThatMutatesCourtAuthorityHashes
+       synthesise pipeline with
+       mutates_court_authority_hashes=true
+       -> verifier surfaces the mutation-warning error.
+       Result: PASS.
+
+----------------------------------------------------------------
+Structural defect tests — verifier result
+----------------------------------------------------------------
+
+  PipelineIdEmpty                              : PASS
+  StageNamesEmpty                              : PASS
+  DuplicateDensorKindInPipeline                : PASS
+  HostMaterializedDensorInLayerAPipeline       : PASS
+  ResidencyReceiptPipelineHashMismatch         : PASS
+  D2hBytesExceedDeclaredCap                    : PASS (Candidate
+                                                 D2H 5000 > cap 2048)
+  CourtAuthorityAnchorListMissingCorpusHashV1  : PASS
+
+----------------------------------------------------------------
+Determinism + sensitivity verification
+----------------------------------------------------------------
+
+  Two consecutive `seed_baseline_layer_a_pipeline()` calls
+  produce byte-identical pipeline hashes (6269773e...).
+  Two consecutive `seed_baseline_layer_a_residency_receipt()`
+  calls produce byte-identical hashes (07251091...).
+  Two consecutive `seed_baseline_layer_a_traffic_receipt()`
+  calls produce byte-identical hashes (34150137...).
+  All six renderers (text + JSON for pipeline, residency,
+  traffic) are byte-stable.
+
+  Sensitivity (every test mutates ONE hashable field and
+  asserts the hash changes):
+    pipeline_id                          -> pipeline hash differs
+    stage_names                          -> pipeline hash differs
+    residency_class                      -> pipeline hash differs
+    casefile_materialization flag        -> pipeline hash differs
+    H2D bytes (per-densor)               -> residency hash differs
+    D2H bytes (per-densor)               -> residency hash differs
+    court_authority_hash_anchors         -> traffic hash differs
+    inner_timing_method                  -> traffic hash differs
+  Result: PASS (all eight sensitivity tests).
+
+----------------------------------------------------------------
+Inner timing-method admission matrix
+----------------------------------------------------------------
+
+  CudaEvent              -> admit (baseline). PASS.
+  CudaStreamSync         -> admit. PASS.
+  HostInstantOnly        -> reject (negative #6). PASS.
+  HostJsonInclusiveTime  -> reject (negative #6, exercised
+                            by the dedicated test). PASS.
+  Unknown                -> reject (negative #6, implicit
+                            via not-in-allowed-set check).
+
+----------------------------------------------------------------
+Composition invariants
+----------------------------------------------------------------
+
+  baseline_traffic_receipt.pipeline.layer_a_resident_pipeline_hash_v1
+    == baseline_pipeline.layer_a_resident_pipeline_hash_v1
+    Result: PASS.
+
+  baseline_traffic_receipt.residency_receipt.layer_a_device_residency_receipt_hash_v1
+    == baseline_residency_receipt.layer_a_device_residency_receipt_hash_v1
+    Result: PASS.
+
+  baseline_traffic_receipt.device_traffic_receipt_hash_v1
+    == seed_baseline_uninstrumented_receipt().device_traffic_receipt_hash_v1
+    Result: PASS.
+
+----------------------------------------------------------------
+Bulk artifacts emitted
+----------------------------------------------------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_2_layer_a_resident_pipeline_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_2_layer_a_resident_pipeline_v1.json
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_2_layer_a_device_residency_receipt_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_2_layer_a_device_residency_receipt_v1.json
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_2_layer_a_traffic_receipt_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_2_layer_a_traffic_receipt_v1.json
+
+Two consecutive `dsfb-corpus s-perf-2-receipts-emit`
+invocations produced byte-identical files (verified via
+`diff -q`).
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/s_perf_2_layer_a_resident_pipeline_invariants.rs : 67 PASS / 0 FAIL
+  cargo test -p dsfb-gpu-atlas-corpus : 55 groups / 2162 PASS
+  cargo test --workspace --features cuda -- --test-threads=1 :
+    94 groups / 2477 PASS
+
+  Delta vs S-PERF.1: +1 group, +67 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+Every prior corpus / T.11 / T.12.x / T.12.consolidate /
+FF.x / S1.3.x / T.12.PROV / S-PERF.1 hash anchor:
+BYTE-IDENTICAL.
+
+  corpus_hash_v1                       : 35c276c7... UNCHANGED
+  device_traffic_receipt_hash_v1       : 09e96f17... UNCHANGED
+  device_bandwidth_claim_policy_hash_v1: 5b4d4360... UNCHANGED
+  SEED.len()                           : 54         UNCHANGED
+  R.12b episodes                       : 13 / 89 / 1917 BYTE-STABLE
+
+R.12b pinned baselines NOT REBASELINED; restored from
+/tmp/s_perf_2_backup before commit.
+
+----------------------------------------------------------------
+Schema discipline
+----------------------------------------------------------------
+
+  3 domain separators pairwise distinct: PASS
+  3 domain separators end with \0 byte: PASS
+  3 schema ids pairwise distinct: PASS
+  Panel-locked LAYER_A_CANONICAL_STAGE_NAMES: 5 in order
+    (EvidenceDensorProjection / WitnessDensorEvaluation /
+    FusionDensorReduction / CandidateDensorCollapse /
+    StageDigestEmission)
+  Panel-locked baseline residency caps: Candidate=2048,
+    StageDigest=160 bytes/catalog; Evidence/Witness/Fusion
+    DeviceResidentOnly (cap=0).

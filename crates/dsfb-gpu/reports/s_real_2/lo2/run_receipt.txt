@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 lo2
+display_name:            LO2 (Bakhtin et al. 2025)
+license:                 CC-BY-4.0
+upstream_doi_or_url:     10.5281/zenodo.14257989
+
+Input
+  vendored_path:         data/fixtures/lo2.tsv
+  fixture_sha256:        24d5d7c06d755366b2148a3887151478adfd46062bbec54e9ce20dc358b4647c
+  fixture_byte_size:     2234
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               96
+  nan_cells_skipped:          0
+  events_emitted:             96
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 6
+  n_windows  (= observed_num_windows): 16
+  contract_hash:         sha256:fc2b34bf08fed26f6cc1f257da59d6ba4ee0c92495ded32b482d1d54c1261916
+  bank_hash:             sha256:ff2eff7b443e52699e2e45bf60cc481d427dd73039376d954850d668ca7ed66f
+  detector_registry_hash: sha256:1d193b74a454a0cfbda6b5f1c43b9a1251bfc4aea03d8123a544349c22261569
+
+Result
+  episodes_admitted:     4
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:cc1995c903104c3847bc9e9ce3aa84d2a99139418a8c6811355c472b2cee597f

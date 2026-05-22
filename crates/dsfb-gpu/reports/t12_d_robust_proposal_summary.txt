@@ -1,0 +1,247 @@
+================================================================
+T.12.d - Robust Statistics amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.d files the Robust Statistics
+amendment proposal. It resolves robust z / MAD aliases against
+the existing SEED canonical, admits only robust primitives with
+explicit estimator, window, trimming, quartile, or pair-
+selection laws, rejects stochastic RANSAC-style claims unless
+deterministically reduced, and preserves the frozen T.10
+corpus hash.
+
+Main panel instruction: "Robust-statistics names are alias-
+heavy. Make estimator law explicit, or collapse / defer."
+
+----------------------------------------------------------------
+Major architectural milestone
+----------------------------------------------------------------
+
+T.12.d is the **first proposal to exercise ALL FIVE
+panel-locked court-delta categories**:
+
+  CanonicalAddition                       (introduced T.12.0)
+  ExistingCanonicalAuthorityResolution    (introduced T.12.b)
+  DomainTransferOf                        (introduced T.12.b)
+  ParameterizationOf                      (introduced T.12.c)
+  RejectedNotDeterministic                (introduced T.12.b)
+
+The wire-name set is now closed at five categories.
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.d emitted values (byte-identical across two builds):
+
+  literature_expansion_batch_hash_v1 :
+    7fffd93ab387b101626aad84c950915b4c43c3f514b37e5c14ad671f8c2509e9
+  dedup_court_delta_hash_v1          :
+    182000af0592fd6ff992b0bb8b22abf602562db417859089be2dfc788aac759b
+  corpus_amendment_proposal_hash_v1  :
+    7b51703fae33c53ee438bdcc8b4fef796d7da736025416bc81e6318f4b426eff
+
+Distinct from T.12.0 (325bbf3d...), T.12.a (ae493a85...),
+T.12.b (ac10e27c...), and T.12.c (0ffb0639...).
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs for every T.12.d candidate found THREE
+robust-statistics primitives already canonical:
+
+   6  Robust z-score (median / MAD)
+   7  Hampel filter
+  18  Tukey fences
+
+All three become ExistingCanonicalAuthorityResolution records.
+Modified z-score, median-MAD z-score, MAD outlier detector,
+rolling Hampel, Hampel-MAD-z-with-replacement, k x IQR fence,
+IQR-fence variants — every alias name in the robust-statistics
+literature — collapses into one of these three records OR into
+a ParameterizationOf shell.
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :   8  (4 canonical additions +
+                                 3 parameterization shells +
+                                 1 RANSAC rejection shell)
+  proposed_aliases       :   0
+  proposed_dedup_records :  12  (panel-locked headline; see
+                                 court-delta categories below)
+  proposed_genealogy_edges:  7
+  proposed_source_refs   :   8
+
+  new_canonical_records (in delta): 4
+  new_alias_records      (in delta): 0
+  new_composition_records (in delta): 0
+  rejection_records      (in delta): 0
+  deferred_records       (in delta): 0
+
+----------------------------------------------------------------
+Court-delta categories
+----------------------------------------------------------------
+
+  CanonicalAddition                       :  4 records
+    5401 Theil-Sen slope estimator      (pair-selection +
+                                         slope-median + tie-
+                                         break + window law)
+    5402 Biweight midvariance           (tuning constant c +
+                                         convergence threshold)
+    5403 Trimmed mean shift             (trim fraction +
+                                         symmetric/one-sided +
+                                         percentile/count
+                                         semantics)
+    5404 Winsorized mean shift          (winsor limit +
+                                         replacement rule)
+
+  ExistingCanonicalAuthorityResolution    :  3 records
+    SEED  6  Robust z-score (median / MAD; threshold multiplier)
+    SEED  7  Hampel filter (windowed local median + MAD +
+                            threshold + replacement / rejection
+                            rule)
+    SEED 18  Tukey fences (quartile estimator + IQR multiplier
+                           + inclusive/exclusive fence +
+                           tie-handling)
+
+  DomainTransferOf                        :  1 record
+    SEED  6  Robust z-score as shared robust-location-estimator
+             ancestor for RobustStatistics
+
+  ParameterizationOf                      :  3 records
+    5405 Modified z-score (Iglewicz-Hoaglin 1993) ->
+         ParameterizationOf(robust-z, SEED 6) -- 0.6745 / MAD
+         scaling parameterization
+    5406 Rolling Hampel                  ->
+         ParameterizationOf(Hampel, SEED 7) -- windowed-
+         application parameterization
+    5407 k x IQR fence                   ->
+         ParameterizationOf(Tukey fences, SEED 18) -- k-
+         multiplier parameterization (Tukey's 1.5 inner /
+         3.0 outer are one point)
+
+  RejectedNotDeterministic                :  1 record
+    5408 RANSAC residual proxy (Fischler & Bolles 1981) --
+         randomized in origin. Rejected as a literature-
+         original canonical primitive unless reduced to a
+         declared deterministic proxy (sample seed + iteration
+         budget + fixed sample schedule + tie-break law +
+         numeric mode all brutally explicit) in a later T.12.x
+         proposal.
+
+----------------------------------------------------------------
+Estimator-law contract declarations (panel-required)
+----------------------------------------------------------------
+
+Per the panel's main instruction, every CanonicalAddition and
+ExistingCanonicalAuthorityResolution record declares its
+estimator-law contract in the reason text. The acceptance
+suite pins each declaration under a dedicated load-bearing
+negative:
+
+  Theil-Sen        : pair-selection + slope-median + tie-break
+                     + window laws  -> pinned by
+                     t12_d_rejects_theil_sen_without_pair_selection_law
+  Biweight midvar. : tuning constant + convergence threshold +
+                     iteration count + numeric mode
+                     -> pinned by t12_d_rejects_biweight_midvariance_
+                        without_tuning_and_convergence_law
+  Trimmed mean     : trim fraction + symmetric/one-sided +
+                     percentile/count semantics + tie-break
+                     -> pinned by t12_d_rejects_trimmed_mean_
+                        without_trim_fraction_law
+  Winsorized mean  : winsor limit + replacement-rule + tie-
+                     break
+                     -> pinned by t12_d_rejects_winsorized_mean_
+                        without_winsor_limit_law
+  Robust z (SEED 6): median + MAD + threshold multiplier +
+                     window
+  Hampel    (SEED 7): windowed local median + MAD + threshold
+                     + replacement/rejection rule
+                     -> pinned by t12_d_rejects_hampel_as_canonical_
+                        without_windowed_local_median_law
+  Tukey     (SEED 18): quartile estimator + IQR multiplier +
+                     inclusive/exclusive fence + tie-handling
+                     -> pinned by t12_d_rejects_tukey_fence_
+                        without_quartile_law
+  RANSAC    (5408)  : declaration of the four reduction
+                     requirements (seed + schedule +
+                     iteration budget + tie-break)
+                     -> pinned by t12_d_rejects_ransac_without_
+                        deterministic_seed_and_schedule
+
+----------------------------------------------------------------
+Genealogy edges (proposed)
+----------------------------------------------------------------
+
+  5401 Theil-Sen           DerivedFrom robust-z (6)
+  5402 Biweight midvariance DerivedFrom robust-z (6)
+  5403 Trimmed mean        DerivedFrom robust-z (6)
+  5404 Winsorized mean     DerivedFrom robust-z (6)
+  5405 Modified z-score    ParameterVariantOf robust-z (6)
+  5406 Rolling Hampel      ParameterVariantOf Hampel (7)
+  5407 k x IQR fence       ParameterVariantOf Tukey fences (18)
+
+----------------------------------------------------------------
+Source refs (proposed)
+----------------------------------------------------------------
+
+  theil_sen_1950            (KNAW Proceedings 53)
+  sen_theil_extension_1968  (JASA 63(324))
+  mosteller_tukey_biweight_1977 (Data Analysis and Regression)
+  tukey_trimmed_1962        (Annals of Math. Stat. 33(1))
+  dixon_winsorized_1960     (Annals of Math. Stat. 31(2))
+  iglewicz_hoaglin_modified_z_1993 (ASQC Quality Press)
+  davies_gather_hampel_1993 (JASA 88(423))
+  fischler_bolles_ransac_1981 (Communications of the ACM 24(6))
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives
+----------------------------------------------------------------
+
+   1. t12_d_does_not_mutate_seed_len
+   2. t12_d_rejects_robust_z_duplicate_without_existing_authority_resolution
+      (most important for an alias-heavy class)
+   3. t12_d_rejects_hampel_as_canonical_without_windowed_local_median_law
+   4. t12_d_rejects_tukey_fence_without_quartile_law
+   5. t12_d_rejects_theil_sen_without_pair_selection_law
+   6. t12_d_rejects_ransac_without_deterministic_seed_and_schedule
+   7. t12_d_rejects_trimmed_mean_without_trim_fraction_law
+   8. t12_d_rejects_winsorized_mean_without_winsor_limit_law
+   9. t12_d_hash_changes_when_robust_statistic_law_changes
+
+Plus parametric SEED collision loop (3 SEED ids), per-named-
+record collision tests, ParameterizationOf family-relationship
+assertions, biweight-midvariance estimator-law assertion, and
+shape / determinism / rendering invariants. Total: 38
+acceptance tests in tests/t12_d_robust_invariants.rs.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.d does NOT:
+- mutate corpus_hash_v1 (35c276c7...);
+- mutate registry_hash_v2 or any T.11/S1.3/T.12.0/T.12.a/
+  T.12.b/T.12.c hash or any DetectorPassport hash;
+- create corpus_hash_v2;
+- duplicate robust-z / Hampel / Tukey fences (the three
+  ExistingCanonicalAuthorityResolution records + the
+  parametric collision-loop test prevent it);
+- promote modified z-score / rolling Hampel / k x IQR fence
+  to new_canonical_records (each is ParameterizationOf);
+- promote RANSAC to new_canonical_records (rejected as
+  RejectedNotDeterministic; the four reduction requirements
+  must be declared in a future T.12.x proposal);
+- claim a robust-statistics primitive without declared
+  estimator law (every record's reason text declares its
+  specific operational contract);
+- duplicate the SCD / drift / distribution-distance
+  primitives T.12.b / T.12.c admitted;
+- activate new detectors (S1.3a planner not re-emitted);
+- execute on GPU (corpus crate stays host-only and zero-dep);
+- claim empirical usefulness for the new primitives (T.8
+  ledger stays NotScored for the 4 new canonicals).

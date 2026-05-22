@@ -1,0 +1,115 @@
+# Post-T.6 regression check (per-section discipline artifact)
+#
+# Hardware:        RTX 4080 SUPER
+# CUDA toolkit:    13.2
+# Pre-T.6 head:    e956cb7 (T.5 deterministic detector genealogy graph)
+# Post-T.6 head:   (this commit)
+# Test:            tests/r12_d64_saturation.rs (D64 saturation sweep)
+# Method:          re-run the R.12b saturation matrix after T.6 lands;
+#                  compare against the pinned R.12b money table in
+#                  reports/money_table.txt and reports/r12_d64_saturation.txt.
+#
+# Why this artifact exists:
+#   T.6 introduces the witness-law layer (FusionPlane + axes_to_planes +
+#   WitnessCompatibilityRule + report extensions). It is host-only schema
+#   code; it does NOT touch any GPU code path. The "performance delta" in
+#   the strict R-campaign sense (kernel-time change) is not measurable.
+#   What CAN regress is the semantic invariants the existing GPU paths
+#   depend on: episode counts, byte-identical case files, end-to-end
+#   test pass. This artifact records that those held after T.6 landed.
+#
+#   This file is the user-enforced per-section discipline receipt.
+#   Going forward every T-section commit ships an equivalent file.
+#
+# Result: NO REGRESSION.
+#   - Test exit code: 0
+#   - Full-workspace serial test suite (RUST_TEST_THREADS=1 cargo test
+#     --workspace --features cuda): exit 0
+#   - Episode counts byte-identical to pinned R.12b numbers:
+#       canonical 16x128 K=1 :  13 episodes/cat (pinned: 13)
+#       mid 64x512    K=1    :  89 episodes/cat (pinned: 89)
+#       full 256x4096 K=1    : 1917 episodes/cat (pinned: 1917)
+#       across every K in {1, 4, 16, 32, 64, 128} the count is byte-stable.
+#   - Throughput within run-to-run noise band:
+#       full 256x4096 K=1   : 2.35e9 det_evals/sec (pinned 2.34e9; +0.4%)
+#       full 256x4096 K=4   : 2.23e9                (pinned --;     within noise)
+#       full 256x4096 K=16  : 2.29e9                (pinned 2.42e9; -5.4%)
+#       full 256x4096 K=32  : 2.28e9                (pinned 2.41e9; -5.4%)
+#       full 256x4096 K=64  : 2.27e9                (pinned 2.42e9; -6.2%)
+#       full 256x4096 K=128 : 2.36e9                (pinned 2.42e9; -2.5%)
+#       All within the +/-10% run-to-run noise band documented in
+#       reports/corpus_t1b_regression_check.txt.
+#
+# Interpretation: pure schema commit; no GPU code touched. Variance is
+# GPU thermal/scheduling, not a regression. The pinned numbers in
+# reports/money_table.txt and reports/r12_d64_saturation.txt remain
+# the authoritative R.12b headline.
+#
+# T.6 deliverables (sealed in this commit):
+#   - src/fusion.rs: FusionPlane (8-variant enum), FusionPlaneSet (8-bit
+#     bitset), axes_to_planes() deterministic mapping from v1 9-axis ->
+#     8 fusion planes, COMPATIBILITY_RULES (declarative role-pair table),
+#     lookup_verdict(), clean_window_can_admit_episode_alone() = false,
+#     primary_may_carry_negative_witness_kind() rule.
+#   - src/report.rs: 6 new sections (7..12) in render_report:
+#       (7) Negative-witness histogram
+#       (8) Fusion-plane histogram
+#       (9) Witness-role x fusion-plane coverage matrix
+#       (10) Witness-law coverage block (invariant counters)
+#       (11) Primary-witness detector list
+#       (12) Confuser detector list
+#   - tests/witness_invariants.rs: 24 acceptance tests.
+#   - reports/corpus_t6_report.txt: regenerated public report with the
+#     new sections (166 lines).
+#
+# Corpus test counts after T.6:
+#   - 6 parser unit tests
+#   - 28 T.1a/T.1b seed_invariants tests
+#   - 14 T.2 toml_equivalence tests
+#   - 18 T.3 identity_invariants tests
+#   - 17 T.4 court_invariants tests
+#   - 18 T.5 genealogy_invariants tests
+#   - 24 T.6 witness_invariants tests   <-- NEW
+#   Total: 125 corpus-crate tests green.
+#
+# Stale-doc scan results (this commit):
+#   - Fixed: README "Detector corpus" section had T.5 listed before T.4
+#     in the bullet sequence (T.5 was inserted after T.4 in error).
+#   - Fixed: README "What is NOT yet in the corpus crate" said
+#     "(these land in T.3-T.11)" which was stale after T.3-T.5 landed.
+#     Now reads "(these land in T.6-T.11)".
+#   - Verified: every other v0 reference in the workspace is legitimate
+#     historical context (paper section 14, contract.rs scoping, etc.).
+#   - Verified: the genealogy graph self-check (T.5 invariant) is
+#     unchanged; T.6 does not touch fusion edges in the graph.
+#
+# Full code-commentary discipline (this commit):
+#   - Every new pub item in src/fusion.rs carries a doc comment whose
+#     first sentence states the WHY for a future engineer (including the
+#     user, after they have forgotten how this works).
+#   - The module docstring lists the panel-locked invariants T.6
+#     enforces (no fusion engine yet, no CaseFileV2, no corpus_hash_v1,
+#     no empirical usefulness claims, no free-text roles).
+#   - axes_to_planes() doc includes the canonical mapping table so a
+#     reader can read off "axis -> plane" without re-reading code.
+#   - COMPATIBILITY_RULES carries an extended docstring documenting
+#     the non-commutativity of Suppresses (Confuser suppresses Primary,
+#     not the other way around).
+#
+# 10-step per-section discipline checklist (hard-enforcement order):
+#   [x]  1. cargo fmt --all --check
+#   [x]  2. cargo clippy --workspace --all-targets --features cuda --
+#             -D warnings
+#   [x]  3. scripts/scrub.sh
+#   [x]  4. scripts/docs_freshness.sh
+#   [x]  5. cargo test -p dsfb-gpu-atlas-corpus (125 green)
+#   [x]  6. RUST_TEST_THREADS=1 cargo test --workspace --features cuda
+#             (exit 0)
+#   [x]  7. tests/r12_d64_saturation regression check (exit 0;
+#             episodes byte-identical; throughput within noise)
+#   [x]  8. stale-doc scan across the workspace
+#   [x]  9. README + plan-file Quick Start refreshed
+#   [x] 10. Atomic single commit
+#
+# Going forward (user-locked): every T-commit ships its own
+# corpus_tN_regression_check.txt receipt.

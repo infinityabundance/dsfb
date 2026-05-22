@@ -1,0 +1,164 @@
+S1.3e — Regression Check (10-step ritual)
+==========================================
+
+Per-section discipline ritual outcome for the S1.3e seal.
+
+----------------------------------------------------------------
+Step 1: cargo fmt --all --check
+----------------------------------------------------------------
+
+  Outcome: CLEAN (no formatting drift after `cargo fmt --all`)
+
+----------------------------------------------------------------
+Step 2: cargo clippy --workspace --all-targets --features cuda
+                     -- -D warnings
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+  Lints addressed during execution:
+    - clippy::manual_ignore_case_cmp    (rewrote a manual
+                                          byte-by-byte
+                                          `to_ascii_lowercase`
+                                          loop as
+                                          `eq_ignore_ascii_case`)
+    - clippy::too_many_lines           (`verify_s1_3e` exceeds
+                                          the 100-line cap;
+                                          `#[allow(...)]` with
+                                          a WHY-comment because
+                                          splitting the 16 rules
+                                          across helpers would
+                                          obscure the panel-
+                                          locked rule numbering)
+    - clippy::items_after_statements   (hoisted `use
+                                          GpuFamilyKernel`
+                                          import in
+                                          `s13e_baseline_lanes_contain_no_unknown_family_strings`
+                                          to module scope)
+    - rustdoc::broken_intra_doc_links  (two intra-doc link
+                                          paths fixed:
+                                          `crate::types::GpuFamilyKernel`
+                                          + replaced the
+                                          forward-pointing
+                                          `crate::casefile_v2_header::CaseFileV2Header`
+                                          with a non-link
+                                          mention)
+
+----------------------------------------------------------------
+Step 3: bash scripts/scrub.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN (scrub: clean)
+
+----------------------------------------------------------------
+Step 4: bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN (no stale TODO/FIXME/XXX markers, docs build)
+
+----------------------------------------------------------------
+Step 5: cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+
+  Outcome: 50 groups / 1848 tests PASS
+  Delta vs S1.3d: +1 group / +67 tests
+
+----------------------------------------------------------------
+Step 6: cargo test --workspace --features cuda --
+                   --test-threads=1
+----------------------------------------------------------------
+
+  Outcome: 89 groups / 2163 tests PASS
+  Delta vs S1.3d: +1 group / +67 tests
+
+----------------------------------------------------------------
+Step 7: R.12b D64 saturation byte-stability check
+----------------------------------------------------------------
+
+  Pre-run backup:
+    reports/r12_d64_saturation.txt
+    reports/d64_stage_timing_256x4096_K1.txt
+    reports/r9_b3_d64_timing.txt
+    reports/r9_b_d64_timing.txt
+   → backed up to /tmp/s13e_backup/ before workspace serial.
+
+  Post-run restoration: byte-identical to backup
+                        (`diff -q` clean).
+
+  Episodes: 13 / 89 / 1917 (byte-stable, unchanged).
+  Pinned R.12b baseline: NOT REBASELINED.
+
+----------------------------------------------------------------
+Step 8: Stale-doc grep scan
+----------------------------------------------------------------
+
+  README front-door title (line 18) updated:
+    T.1–S1.3d, S1.3a–S1.3d  →  T.1–S1.3e, S1.3a–S1.3e
+
+  README test-count line refreshed:
+    1781 acceptance tests / 49 groups
+    → 1848 acceptance tests / 50 groups
+
+  README paper-section anchor refreshed.
+
+  README Layout block (corpus crate) extended with S1.3e
+  one-liner descriptor.
+
+  README new ## S1.3e section inserted between S1.3d and the
+  scaling-ladder header.
+
+  archived prior-art manuscript source:
+    - lead sentence extended with S1.3e clause
+    - \paragraph{What is landed} enumeration includes S1.3e
+    - new \item \textbf{S1.3e} bullet appended at the end of
+      the Atlas Continuation itemize
+
+  src/lib.rs:
+    - "Current state through S1.3d" → "Current state through S1.3e"
+    - new S1.3e enumeration bullet inserted between S1.3d and CLI
+    - CLI list extended with the 4 new S1.3e subcommands
+
+----------------------------------------------------------------
+Step 9: Atomic commit under the 10-step ritual
+----------------------------------------------------------------
+
+  Pre-commit hook: fmt + clippy + scrub + docs_freshness gates
+  pass; no `--no-verify`.
+
+----------------------------------------------------------------
+Step 10: Plan-file Quick Start rotation + memory file +
+          MEMORY.md index entry
+----------------------------------------------------------------
+
+  Plan-file Quick Start: Current state → S1.3e at the new
+                          commit hash; Prior current state →
+                          S1.3d; Active campaign (next) →
+                          S1.3f CaseFileV2 activation
+                          integration.
+
+  New memory file: project_s1_3e_kernel_plan.md.
+  MEMORY.md: extended with the S1.3e one-line hook.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                               : 35c276c7... (UNCHANGED)
+  corpus_hash_v2                               : f1d132eb... (UNCHANGED)
+  ff1_passport_index_hash_v1                   : 1ad2dc2d... (UNCHANGED)
+  ff2_activation_ratification_gate_hash_v1     : 05c1b552... (UNCHANGED)
+  ff3_registry_generation_gate_hash_v1         : 2ffd0222... (UNCHANGED)
+  ff4_readme_authority_boundary_policy_hash_v1 : 22b9dcb5... (UNCHANGED)
+  proposal_schema_upgrade_policy_hash_v1       : 94e00ab1... (UNCHANGED)
+  budget_pruning_plan_hash_v1                  : 82be2289... (UNCHANGED)
+  budgeted_activation_summary_hash_v1          : 5feab238... (UNCHANGED)
+  SEED.len()                                   : 54         (UNCHANGED)
+
+  NEW own-namespace hashes:
+  kernel_plan_hash_v1                  : e48c89b9...
+  kernel_family_schedule_hash_v1       : 8a58d3bc...
+  kernel_parameter_table_hash_v1       : 6b27dcbe...
+
+R.12b episodes 13/89/1917 byte-stable; pinned baseline NOT
+rebaselined. Every prior T.11 / S1.3 / T.12.x / FF.x / S1.3d
+hash byte-identical.

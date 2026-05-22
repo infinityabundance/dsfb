@@ -1,0 +1,222 @@
+================================================================
+FF.3 - RegistryGenerationGate
+       registry-generation gate verification receipt
+================================================================
+
+Verifier coverage table — every reject kind, the rule it
+encodes, the panel-required negative or structural rule it
+satisfies, and the acceptance test that exercises it.
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (8)
+----------------------------------------------------------------
+
+R.1  DetectorSpecForUnratifiedProposal
+     Reject any decision whose claimed source authority is
+     T12RatifiedAndPassported AND whose canonical id is NOT in
+     the ratified expansion index AND whose eligibility is NOT
+     RejectedUnratifiedProposal. Surfaces the "ratified claim
+     for an id that was never ratified" defect at the registry-
+     generation boundary.
+     Test: ff3_rejects_detector_spec_for_unratified_proposal
+
+R.2  DetectorSpecForMissingFf1Passport
+     Reject any decision whose claimed source authority is
+     T12RatifiedAndPassported AND whose canonical id IS in
+     the ratified expansion index AND NOT in the FF.1 passport
+     index AND whose eligibility is NOT
+     RejectedMissingFf1Passport. Mirror of FF.2's
+     MissingPassport rule at the registry-generation boundary.
+     Test: ff3_rejects_detector_spec_for_missing_ff1_passport
+
+R.3  DetectorSpecWhenCorpusHashV2Mismatch
+     Reject when the gate's pinned corpus_hash_v2 does not
+     equal the live consolidation report's corpus_hash_v2.
+     The ratification anchor itself drifted; every ratified
+     claim is invalidated.
+     Test: ff3_rejects_detector_spec_when_corpus_hash_v2_mismatch
+
+R.4  DetectorSpecWhenPassportIndexHashMismatch
+     Reject when the gate's pinned ff1_passport_index_hash_v1
+     does not equal the live FF.1 passport-index hash. The
+     passport authority drifted.
+     Test: ff3_rejects_detector_spec_when_passport_index_hash_mismatch
+
+R.5  DetectorSpecFromAdHocRecord
+     Reject any decision whose claimed source authority is
+     AdHocUnsanctioned AND whose eligibility is NOT
+     RejectedAdHocRecord. Surfaces records proposed for
+     registry generation outside the panel-locked two-source
+     discipline.
+     Test: ff3_rejects_detector_spec_from_ad_hoc_record
+
+R.6  DetectorSpecWithUnknownSourceAuthority
+     Reject any decision whose claimed source authority is
+     UnknownExternal AND whose eligibility is NOT
+     RejectedUnknownSourceAuthority. Surfaces records with
+     no SEED / no ratified passport / no panel-locked path.
+     Test: ff3_rejects_detector_spec_with_unknown_source_authority
+
+R.7  RegistryGenerationThatSkipsFf2RatificationGate
+     Reject when the gate's pinned
+     ff2_activation_ratification_gate_hash_v1 does not equal
+     the live FF.2 gate hash. Panel verdict: FF.3 MUST consult
+     the FF.2 ratification gate; any FF.3 build that skips or
+     stales the FF.2 anchor is a defect.
+     Test: ff3_rejects_registry_generation_that_skips_ff2_ratification_gate
+
+R.8  RegistryGenerationThatMutatesExistingRegistryHash
+     Reject when the FF.3 eligible_count exceeds the FF.2
+     gate's eligible count (SeedHistorical +
+     T12RatifiedAndPassported). FF.3 cannot admit MORE
+     candidates for registry generation than FF.2 admits for
+     activation; doing so would silently mutate the would-be
+     registry surface beyond the FF.2-ratified set.
+     Test: ff3_rejects_registry_generation_that_mutates_existing_registry_hash
+
+----------------------------------------------------------------
+Structural defect rules (7)
+----------------------------------------------------------------
+
+R.9  DuplicateGateDecisionForSameCanonicalId
+     Reject two decisions for the same canonical id.
+     Test: ff3_rejects_duplicate_gate_decision_for_same_canonical_id
+
+R.10 GateDecisionsNotSortedAscending
+     Reject when decisions are not sorted strictly ascending
+     by canonical id.
+     Test: ff3_rejects_gate_decisions_not_sorted_ascending
+
+R.11 CorpusHashV1Mismatch
+     Reject when the gate's corpus_hash_v1 does not equal
+     compute_corpus_hash_v1().
+     Test: ff3_rejects_corpus_hash_v1_mismatch
+
+R.12 ConsolidationReportHashV1Mismatch
+     Reject when the gate's consolidation_report_hash_v1 does
+     not equal the live consolidation report hash.
+     Test: ff3_rejects_consolidation_report_hash_v1_mismatch
+
+R.13 EligibleDecisionCarriesNonEmptyRejectionReason
+     Reject when an Eligible decision carries a non-empty
+     rejection-reason wire name.
+     Test: ff3_rejects_eligible_decision_with_nonempty_rejection_reason
+
+R.14 RejectionDecisionCarriesEmptyRejectionReason
+     Reject when a non-Eligible decision carries an empty
+     rejection-reason wire name. Every rejection MUST be
+     reason-coded.
+     Test: ff3_rejects_rejection_decision_with_empty_rejection_reason
+
+R.15 DecisionClassificationInconsistentWithClaim
+     Reject when a decision's claimed source authority and its
+     eligibility classification are structurally inconsistent
+     (e.g. a SeedHistorical claim cannot legitimately be
+     classified as RejectedUnratifiedProposal — that rejection
+     applies only to T12RatifiedAndPassported claims).
+     Test: ff3_rejects_decision_classification_inconsistent_with_claim
+
+R.16 SeedLengthMutated (unconditional)
+     Reject when SEED.len() != 54. Covered by every default-
+     build invariant test.
+
+----------------------------------------------------------------
+Determinism + sensitivity invariants
+----------------------------------------------------------------
+
+  ff3_gate_hash_is_deterministic_across_two_builds
+  ff3_gate_summary_hash_is_deterministic_across_two_builds
+  ff3_gate_decisions_sorted_ascending
+  ff3_text_render_byte_stable
+  ff3_json_render_byte_stable
+  ff3_summary_text_render_byte_stable
+  ff3_summary_json_render_byte_stable
+  ff3_gate_hash_changes_when_candidate_set_changes
+  ff3_summary_hash_changes_when_gate_hash_changes
+
+----------------------------------------------------------------
+Upstream-anchor invariance (FF.3 mutates nothing)
+----------------------------------------------------------------
+
+  ff3_does_not_mutate_corpus_hash_v1
+  ff3_does_not_mutate_corpus_hash_v2
+  ff3_does_not_mutate_ff1_passport_index_hash_v1
+  ff3_does_not_mutate_ff2_activation_ratification_gate_hash_v1
+  ff3_does_not_mutate_consolidation_report_hash_v1
+  ff3_does_not_mutate_seed_len
+
+----------------------------------------------------------------
+Pinned-anchor cross-check invariants
+----------------------------------------------------------------
+
+  ff3_gate_pins_live_corpus_hash_v1
+  ff3_gate_pins_live_corpus_hash_v2
+  ff3_gate_pins_live_consolidation_report_hash_v1
+  ff3_gate_pins_live_ff1_passport_index_hash_v1
+  ff3_gate_pins_live_ff2_activation_ratification_gate_hash_v1
+
+----------------------------------------------------------------
+Field-level + wire-name + domain-separator pins
+----------------------------------------------------------------
+
+  ff3_eligible_decisions_carry_empty_rejection_reason
+  ff3_eligible_seed_decisions_carry_zero_passport_hash
+  ff3_eligible_t12_decisions_carry_non_zero_passport_hash
+  ff3_seed_decisions_cover_ids_one_through_fifty_four
+  ff3_t12_decisions_only_in_reserved_band
+  ff3_non_claim_lines_are_non_empty
+  ff3_summary_carries_canonical_non_claim_lines
+  ff3_gate_domain_separator_pin
+  ff3_gate_schema_pin
+  ff3_gate_summary_domain_separator_pin
+  ff3_gate_summary_schema_pin
+  ff3_source_authority_wire_names_pin
+  ff3_eligibility_wire_names_pin
+  ff3_passes_gate_only_for_eligible
+
+----------------------------------------------------------------
+Count-shape regression sentinels
+----------------------------------------------------------------
+
+  ff3_eligible_count_is_one_hundred_fifty_two            -> 152
+  ff3_total_decision_count_is_one_hundred_fifty_two      -> 152
+  ff3_default_build_eligible_count_matches_ff2_eligible_count
+
+----------------------------------------------------------------
+Hash-namespace distinctness
+----------------------------------------------------------------
+
+  ff3_gate_hash_distinct_from_summary_hash
+  ff3_gate_hash_distinct_from_corpus_hash_v1
+  ff3_gate_hash_distinct_from_corpus_hash_v2
+  ff3_gate_hash_distinct_from_consolidation_report_hash
+  ff3_gate_hash_distinct_from_ff1_passport_index_hash
+  ff3_gate_hash_distinct_from_ff2_gate_hash
+
+----------------------------------------------------------------
+Render coverage
+----------------------------------------------------------------
+
+  ff3_render_text_contains_pinned_anchors_and_counts
+  ff3_render_json_contains_schema_field
+  ff3_summary_render_text_contains_non_claim_lines
+  ff3_summary_render_json_contains_non_claim_array
+  ff3_render_text_has_deterministic_count_row_order
+
+----------------------------------------------------------------
+Summary
+----------------------------------------------------------------
+
+  Total FF.3 acceptance tests              : 67
+  Panel-required load-bearing negatives    : 8  (R.1..R.8)
+  Structural / determinism / sensitivity   : 35+
+  Default-build invariants                 : 5
+  Field-level / pin / anchor cross-checks  : 19
+  Count-shape regression sentinels         : 3
+  Hash-namespace distinctness assertions   : 6
+  Render coverage assertions               : 5
+
+  Corpus crate test count change           : 1534 -> 1601
+                                            (45 -> 46 groups)
+  Workspace serial test count change       : 1849 -> 1916
+                                            (84 -> 85 groups)

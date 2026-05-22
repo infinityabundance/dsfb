@@ -1,0 +1,198 @@
+S-PERF.4 ActiveFamilyCompaction — Verification
+==============================================
+
+Pinned corpus anchors
+  corpus_hash_v1 : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  SEED.len()     : 54
+
+S-PERF.4 baseline hashes
+  active_family_compaction_plan_hash_v1
+    = 76e28c927cde8deb967874c5c87f2d25ef31a9b526d64f5559758a3cc62cdcfc
+  compacted_parameter_table_receipt_hash_v1
+    = bf87574ed2a63b989744238347761f7bf9dedd768a69c6d68592ddd616b7437f
+  family_compaction_benchmark_schema_hash_v1
+    = 5c2dac74ee3bdf305fdd187fe9ada5532d89cdc43d540536f401be17ed7a311b
+
+Upstream reference hashes (verified live):
+  source_budget_summary_hash      (S1.3d): live match
+  source_kernel_plan_hash         (S1.3e): live match
+  source_passport_index_hash      (FF.1):  live match
+  layer_a_pipeline_hash           (S-PERF.2 baseline): 6269773e...
+  layer_a_traffic_receipt_hash    (S-PERF.2 baseline): 34150137...
+  public_data_bundle_hash         (S-PERF.3 baseline): 532892b2...
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives — verifier result
+----------------------------------------------------------------
+
+When the baseline schema is fed to
+`verify_family_compaction_benchmark_schema`, the verifier
+returns ZERO errors. Each panel-required negative is
+exercised in
+`tests/s_perf_4_active_family_compaction_invariants.rs` by
+synthesising a defective record, then asserting the matching
+verifier-error kind appears.
+
+  1. BenchmarkSchemaWithoutKernelPlanHash
+       synthesise plan with source_kernel_plan_hash=[0;32]
+       -> verifier surfaces. Result: PASS.
+
+  2. DetectorNotActiveInBudgetSummary
+       inject canonical id 9999 into a lane (not in any live
+       Active set)
+       -> verifier surfaces. Result: PASS.
+
+  3. FamilyLaneWithoutGpuFamilyMapping
+       set lane.gpu_family_wire_name=""
+       -> verifier surfaces. Result: PASS.
+
+  4. ParameterTableWithoutStableSortOrder
+       set sort_order_wire_name="NonCanonicalOrder"
+       -> verifier surfaces. Result: PASS.
+
+  5. CompactionThatCountsDetectorVariantsAsNewCanonicals
+       duplicate a canonical id across two lanes
+       -> verifier surfaces. Result: PASS.
+
+  6. BenchmarkClaimInsideSchema
+       set plan_id="plan_that_outperforms_baseline" (and
+       variant: schema_id="schema_with_petaflops_claim";
+       case-insensitive variant: "PETAFLOPS_OF_PEAK")
+       -> verifier surfaces in all three variants. Result:
+       PASS (all variants).
+
+  7. DatasetBundleHashMismatch
+       schema.public_data_bundle_hash=[0xAB;32]
+       -> verifier surfaces. Result: PASS.
+
+  8. LayerAPipelineHashMismatch
+       schema.layer_a_pipeline_hash=[0xCD;32]
+       -> verifier surfaces. Result: PASS.
+
+----------------------------------------------------------------
+Structural defect tests — verifier result
+----------------------------------------------------------------
+
+  PlanIdEmpty                                            : PASS
+  SchemaIdEmpty                                          : PASS
+  FamilyLanesEmpty                                       : PASS
+  LaneCanonicalIdsNotSortedAscending                     : PASS (first
+    multi-id lane reversed)
+  LaneActiveDetectorCountMismatch                        : PASS
+  ParameterTableReceiptPlanHashMismatch                  : PASS
+
+----------------------------------------------------------------
+Baseline composition verification
+----------------------------------------------------------------
+
+  total_active_detector_count = 152                     : PASS
+  total_family_lane_count = 14                          : PASS
+  lanes sorted ascending by gpu_family_wire_name         : PASS
+  per-lane canonical_ids sorted ascending                : PASS
+  no duplicate canonical id across lanes                 : PASS
+  per-lane count equals canonical_ids.len()              : PASS
+  per-lane parameter_table_offset is cumulative          : PASS
+  parameter-table total bytes = 152 × 32 = 4864          : PASS
+  parameter-table sort order = panel-locked              : PASS
+
+----------------------------------------------------------------
+Cross-verifier: build-from-live derives the baseline
+----------------------------------------------------------------
+
+  build_active_family_compaction_plan_from(live S1.3d,
+    live S1.3e, live FF.1 hash) produces a plan with the
+    same hash as the baseline                            : PASS
+
+  build_compacted_parameter_table_receipt_from_plan(baseline
+    plan) produces a receipt with the same hash as the
+    baseline                                              : PASS
+
+----------------------------------------------------------------
+Determinism + sensitivity verification
+----------------------------------------------------------------
+
+  Two consecutive `seed_baseline_active_family_compaction_plan()`
+  calls produce byte-identical plan hashes (76e28c92...).
+  Two consecutive `seed_baseline_compacted_parameter_table_receipt()`
+  calls produce byte-identical receipt hashes (bf87574e...).
+  Two consecutive `seed_baseline_family_compaction_benchmark_schema()`
+  calls produce byte-identical schema hashes (5c2dac74...).
+  All 6 renderers (text + JSON for plan, receipt, schema)
+  are byte-stable.
+
+  Sensitivity:
+    extra lane added                       -> plan hash differs
+    plan_id changed                        -> plan hash differs
+    layer_a_pipeline_hash changed          -> schema hash differs
+    sort_order_wire_name changed           -> receipt hash differs
+  Result: PASS.
+
+----------------------------------------------------------------
+Production-walk no-forbidden-substring guards
+----------------------------------------------------------------
+
+  baseline_plan_carries_no_forbidden_benchmark_substring
+    -> PASS (scanned plan_id + all 14 lane wire names +
+       expected kernel names against the 12-entry forbidden
+       set; zero hits)
+  baseline_schema_carries_no_forbidden_benchmark_substring
+    -> PASS (scanned schema_id; zero hits)
+
+----------------------------------------------------------------
+Bulk artifacts emitted
+----------------------------------------------------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_4_active_family_compaction_plan_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_4_active_family_compaction_plan_v1.json
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_4_compacted_parameter_table_receipt_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_4_compacted_parameter_table_receipt_v1.json
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_4_family_compaction_benchmark_schema_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_4_family_compaction_benchmark_schema_v1.json
+
+Two consecutive `dsfb-corpus s-perf-4-receipts-emit`
+invocations produced byte-identical files (verified via
+`diff -q`).
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/s_perf_4_active_family_compaction_invariants.rs : 64 PASS / 0 FAIL
+  cargo test -p dsfb-gpu-atlas-corpus : 57 groups / 2297 PASS
+  cargo test --workspace --features cuda -- --test-threads=1 :
+    96 groups / 2612 PASS
+
+  Delta vs S-PERF.3: +1 group, +64 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+Every prior corpus / T.11 / T.12.x / T.12.consolidate /
+FF.x / S1.3.x / T.12.PROV / S-PERF.1 / S-PERF.2 / S-PERF.3
+hash anchor: BYTE-IDENTICAL.
+
+  corpus_hash_v1                                : 35c276c7... UNCHANGED
+  budgeted_activation_summary_hash_v1           : (live S1.3d)
+  kernel_plan_hash_v1                           : (live S1.3e)
+  ff1_passport_index_hash_v1                    : (live FF.1)
+  layer_a_resident_pipeline_hash_v1             : 6269773e... UNCHANGED
+  layer_a_traffic_receipt_hash_v1               : 34150137... UNCHANGED
+  public_data_saturation_bundle_hash_v1         : 532892b2... UNCHANGED
+  SEED.len()                                    : 54         UNCHANGED
+  R.12b episodes                                : 13 / 89 / 1917 BYTE-STABLE
+
+R.12b pinned baselines NOT REBASELINED; restored from
+/tmp/s_perf_4_backup before commit.
+
+----------------------------------------------------------------
+Schema discipline
+----------------------------------------------------------------
+
+  3 domain separators pairwise distinct: PASS
+  3 domain separators end with \0 byte: PASS
+  3 schema ids pairwise distinct: PASS
+  Panel-locked sort order constant: "CanonicalIdAscendingWithinFamily"
+  Panel-locked bytes per parameter row: 32
+  Forbidden benchmark-claim substring set: 12 entries
+    (case-insensitive scanner; mirrors S-PERF.3 set)

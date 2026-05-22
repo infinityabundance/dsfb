@@ -1,0 +1,148 @@
+================================================================
+DSFB-GPU-Atlas — T.11d Trial Transcript verification
+================================================================
+Verifier      : crate::trial_transcript::verify_trial_transcript +
+                the 46 acceptance tests in
+                tests/trial_transcript_invariants.rs
+Input         : crate::trial_transcript::build_t11d_latency_ramp_fixture()
+Domain        : DSFB-GPU-ATLAS:TRIAL-TRANSCRIPT:v1\0
+Schema        : V1MinimalT11d
+
+----------------------------------------------------------------
+Result
+----------------------------------------------------------------
+Transcript inspected : 1 (LatencyRamp synthetic fixture)
+Failures             : 0
+Verdict              : the fixture passes every structural
+                       invariant the T.11d verifier enforces.
+
+trial_transcript_hash_v1      : 37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee
+
+corpus_hash_v1                : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7 (UNCHANGED)
+registry_hash_v2              : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08 (UNCHANGED)
+precedent_hash_v1             : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14 (UNCHANGED)
+admissibility_grammar_hash_v1 : ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7 (UNCHANGED)
+
+----------------------------------------------------------------
+Verifier rules enforced (16)
+----------------------------------------------------------------
+1. corpus_hash_v1 MUST be non-zero.
+2. registry_hash_v2 MUST be non-zero.
+3. precedent_hash_v1 MUST be non-zero.
+4. admissibility_grammar_hash_v1 MUST be non-zero.
+5. Zero grammar hash + zero admission rule => composite
+   MissingAdmissibilityGrammarLink rejection (load-bearing
+   for panel test).
+6. admitted_by_rule.0 != 0 (no sentinel).
+7. admitted_by_rule MUST resolve to a live grammar rule.
+8. If the resolved rule requires min_primary >= 1, the
+   primary-witness list MUST be non-empty.
+9. The transcript MUST carry at least one positive witness
+   (primary / corroborating / boundary / recovery /
+   clean-window). Confuser-only admission is rejected
+   (load-bearing Semantic Non-Bypass invariant).
+10. Every witness canonical_id MUST be in the SEED.
+11. Primary witnesses MUST NOT carry dedup_decision = AliasOf
+    (forward-compat; no current SEED record).
+12. Every rejected_confuser.suppression_rule_id MUST resolve
+    to a live grammar confuser rule.
+13. Every disabled_but_relevant entry MUST declare a non-
+    Unspecified DetectorDisabledReason.
+14. ReasonCodeCoverage MUST NOT be empty (at least one flag
+    true OR percent_bp != 0).
+15. Every supporting_precedent id MUST resolve to a live
+    T.11b precedent.
+16. trial_transcript_hash_v1 MUST equal the recomputed hash
+    over the canonical-byte projection.
+
+----------------------------------------------------------------
+Acceptance-test list (46 invariants)
+----------------------------------------------------------------
+Determinism + clean fixture (2):
+    fixture_is_deterministic_across_two_builds
+    fixture_verifies_clean
+
+Hash inclusion + sensitivity (8):
+    transcript_hash_includes_corpus_hash
+    transcript_hash_includes_registry_hash
+    transcript_hash_includes_precedent_hash
+    transcript_hash_includes_admissibility_grammar_hash
+    transcript_hash_changes_when_primary_witness_changes
+    transcript_hash_changes_when_admission_rule_changes
+    transcript_hash_changes_when_reason_coverage_changes
+    rendered_text_is_not_in_hash_material
+
+Cross-citation pinning (4):
+    fixture_cites_live_corpus_hash
+    fixture_cites_panel_locked_registry_hash
+    fixture_cites_live_precedent_hash
+    fixture_cites_live_grammar_hash
+
+Fixture structural shape (7):
+    fixture_admitted_by_rule_resolves_to_primary_admission_rule
+    fixture_supporting_precedents_are_live
+    fixture_primary_is_latency_ramp
+    fixture_corroborating_includes_ewma_and_cusum
+    fixture_rejects_single_window_spike_confuser
+    fixture_disables_fft_band_energy_with_reason
+    fixture_reason_code_coverage_is_full
+
+Renderer determinism + no-publication (3):
+    rendered_text_is_deterministic
+    rendered_json_is_deterministic
+    no_publication_language_in_t11d_reports
+
+Verifier (positive + 13 reject paths; 14 total):
+    fixture_verifies_clean   (above)
+    trial_transcript_verifier_rejects_confuser_only_admission
+        (panel-required NEGATIVE; load-bearing Semantic
+         Non-Bypass)
+    trial_transcript_verifier_rejects_missing_admissibility_grammar_link
+        (panel-required NEGATIVE)
+    verifier_rejects_zero_corpus_hash
+    verifier_rejects_zero_registry_hash
+    verifier_rejects_zero_precedent_hash
+    verifier_rejects_admission_rule_not_in_grammar
+    verifier_rejects_empty_primary_witness_when_rule_requires_one
+    verifier_rejects_witness_id_missing_from_corpus
+    verifier_rejects_rejected_confuser_with_unknown_suppression_rule
+    verifier_rejects_disabled_detector_with_unspecified_reason
+    verifier_rejects_empty_reason_code_coverage
+    verifier_rejects_transcript_hash_mismatch
+    verifier_rejects_supporting_precedent_missing
+
+Schema + enum coverage (5):
+    schema_wire_name_is_panel_locked
+    transcript_schema_field_is_v1_minimal_t11d
+    transcript_id_is_one_at_t11d
+    enum_wire_names_cover_every_disabled_reason_variant
+    enum_wire_names_cover_every_confuser_rejection_reason
+
+Hash-stability cross-checks (4):
+    fixture_admission_rule_requires_at_least_one_primary_witness
+    corpus_hash_v1_unchanged_by_t11d
+    precedent_hash_v1_unchanged_by_t11d
+    admissibility_grammar_hash_v1_unchanged_by_t11d
+
+Total: 46 invariants.
+
+----------------------------------------------------------------
+Non-claims (T.11d verification scope)
+----------------------------------------------------------------
+This verification attests ONLY that the synthetic LatencyRamp
+fixture:
+- is internally consistent (every field references a live
+  corpus / precedent / grammar entry)
+- is byte-stable across two builds
+- obeys all 16 panel-locked structural rules
+- forbids confuser-only admission (Semantic Non-Bypass)
+- does NOT change any prior hash receipt
+
+It does NOT attest:
+- empirical episode admission (the fixture is synthetic)
+- GPU-derived transcripts (no integration with CaseFileV1 yet)
+- ActivationPlanner behavior (S1.3)
+- ChallengeDocket / Contraindications / external provenance
+  export (T.11f / T.11g / post-S1.3)
+
+================================================================

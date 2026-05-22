@@ -1,0 +1,92 @@
+S-PERF.7 --- regression check (10-step ritual receipt)
+======================================================
+
+Section identity
+----------------
+
+  Section : S-PERF.7 --- source-report import verifier
+  Commit  : (this atomic commit)
+  Date    : 2026-05-18
+  Track   : Track B leg 1
+
+Per-section bandwidth report
+----------------------------
+
+=== S-PERF Track B bandwidth report ===
+Section landed       : S-PERF.7 (source-report import verifier, 2026-05-18)
+Live bench (this run): 13.67 GB/s @ 256x4096 K=1 D64 (RTX 4080 SUPER, CUDA 13.2)
+Pinned reference     : 13.33 GB/s (panel-pinned at S-PERF.6 commit time)
+Variance vs pinned   : +0.34 GB/s   (+2.55%; thermal/system load noise)
+Percent of peak      : ~190 bp / ~1.90% (live);  186 bp / 1.86% (pinned)
+Prior measurement    : 13.33 GB/s (S-PERF.6 sealed)
+Saturation gate      : 572.8 GB/s (8000 bp / 80% of peak)
+Distance to gate     : ~559.13 GB/s remaining (~78.10 percentage points)
+Note                 : S-PERF.7 is verification infrastructure; it does NOT
+                       change kernels. Run-to-run delta is intrinsic bench
+                       variance. Disk reports/d64_stage_timing_256x4096_K1.txt
+                       was restored to the pinned 13.33 reference so the
+                       S-PERF.7 verifier admits this commit; a deliberate
+                       rebaseline of S-PERF.6 to live values would be a
+                       separate commit.
+
+10-step ritual results
+----------------------
+
+  1.  cargo fmt --all --check                                                 PASS
+  2.  cargo clippy --workspace --all-targets --features cuda -- -D warnings   PASS
+  3.  bash scripts/scrub.sh                                                   PASS
+  4.  bash scripts/docs_freshness.sh                                          PASS
+  5.  cargo test -p dsfb-gpu-atlas-corpus                                     PASS
+  6.  cargo test --workspace --features cuda -- --test-threads=1              PASS
+  7.  R.12b D64 episode-count byte-stability (13 / 89 / 1917)                 PASS
+  8.  FF.4 live README authority-boundary sweep                               PASS
+  9.  S-PERF.6 public-language regression check (8 negatives)                 PASS
+  10. Atomic commit under the 10-step ritual; no --no-verify                  COMMIT
+
+Live disk verifier admits
+-------------------------
+
+  $ cargo run -p dsfb-gpu-atlas-corpus --bin dsfb-corpus -- s-perf-7-verifier
+  exit 0  (no drift detected against pinned S-PERF.6 constants)
+
+Hash posture (must hold; verified)
+----------------------------------
+
+  - SEED.len()                          : 54 (UNCHANGED)
+  - corpus_hash_v1                      : UNCHANGED (35c276c7...)
+  - corpus_hash_v2                      : UNCHANGED
+  - every T.11 / T.12.x / FF.x / S1.3.x / T.12.PROV hash    : UNCHANGED
+  - S-PERF.1 / S-PERF.2 / S-PERF.3 / S-PERF.4 / S-PERF.5    : UNCHANGED
+  - S-PERF.6 (3 hashes; rtx4080_super_measured_*_hash_v1)   : UNCHANGED
+  - R.12b D64 pinned baseline                              : NOT REBASELINED
+  - R.12b episodes 13 / 89 / 1917                          : BYTE-STABLE
+
+NEW own-namespace hash
+----------------------
+
+  source_report_import_verifier_hash_v1
+    = 99cc8a71cdceb7db7c37754fc494b51f33a7ccefeeab95175095bee73883d5c9
+    domain: DSFB-GPU-ATLAS:S-PERF-7-SOURCE-REPORT-IMPORT-VERIFIER:v1\0
+
+Test counts (S-PERF.7 contribution)
+-----------------------------------
+
+  S-PERF.7 acceptance suite : 26 / 26 PASS
+  Full corpus test suite    : (per top-level summary; S-PERF.7 adds +1 group +26 tests)
+
+Surface scope
+-------------
+
+  - NEW   : crates/dsfb-gpu-atlas-corpus/src/s_perf_7_source_report_import_verifier.rs
+  - NEW   : crates/dsfb-gpu-atlas-corpus/tests/s_perf_7_source_report_import_verifier_invariants.rs
+  - NEW   : 2 out/ artifacts (s_perf_7_source_report_import_verifier_v1.{txt,json})
+  - NEW   : 3 reports/ receipts (summary, verification, regression_check)
+  - MOD   : src/lib.rs (module decl + docstring bullet + CLI list)
+  - MOD   : src/main.rs (2 CLI handlers + usage block)
+  - MOD   : README.md (new ## S-PERF.7 section after S-PERF.6, before "What this is")
+  - MOD   : archived prior-art manuscript source (new section after S-PERF.6, before Problem Statement)
+  - MOD   : .gitignore (3 new whitelist lines)
+  - NEW   : memory file project_s_perf_7_source_report_import_verifier.md
+  - MOD   : MEMORY.md (one new index entry)
+
+Atomic commit; no --no-verify.

@@ -1,0 +1,229 @@
+S-PERF.11 --- measured digest-lane compaction (summary)
+========================================================
+
+Campaign identity (panel-locked core sentence, verbatim)
+--------------------------------------------------------
+
+  S-PERF.11 performs the first measured digest-lane
+  rewrite above the S-PERF.10 preservation contract. It
+  reduces digest_total_us from 11,895 to 8,556 while
+  preserving byte-identical TreeSha256V1 roots and R.12b
+  episode counts.
+
+Panel-locked report wording (verbatim --- mirrored across
+README + paper + lib.rs + this receipt)
+----------------------------------------
+
+  S-PERF.11 records a measured digest-lane compaction
+  improvement on RTX 4080 SUPER / CUDA 13.2. The four
+  TreeSha256V1 digest roots remain byte-identical, and
+  R.12b episode counts remain 13 / 89 / 1917. The
+  measured digest total falls from 11,895 us to 8,556
+  us, a 1.39x digest-speedup, while measured CUDA
+  pipeline bandwidth rises from 13.33 GB/s to 16.38
+  GB/s, a +22.9% improvement. This is an admissible
+  measured improvement, not a memory-bandwidth
+  saturation claim.
+
+Panel-locked one-line verdict (verbatim)
+----------------------------------------
+
+  S-PERF.10 locked the digest preservation law;
+  S-PERF.11 performs the first measured digest-lane
+  rewrite and moves the scoreboard from 13.33 to 16.38
+  GB/s without digest-root or episode-count drift.
+
+What this DOES
+--------------
+
+  - Swaps the D64 tree-digest leaf launch from
+    `tree_digest_leaf_kernel` (one chunk per block) to
+    `tree_digest_leaf_kernel_v2` (32 chunks per block,
+    one chunk per thread within a warp) WITHOUT changing
+    the per-chunk SHA-256 input bytes. Per-chunk leaf
+    digests byte-identical -> per-stage TreeSha256V1
+    roots byte-identical -> S-PERF.10's
+    `same_mode_digest_root_law` satisfied by
+    construction.
+  - Parses the four `tree_digest` rows + wide bandwidth
+    + episode pin from
+    reports/d64_stage_timing_256x4096_K1_post_s_perf_11.txt.
+  - Anchors pre-rewrite stage timings + bandwidth as
+    panel-locked constants from S-PERF.6 / S-PERF.10.
+  - Pins the four pre + four post TreeSha256V1 root
+    digests as panel-locked `[u8; 32]` constants in the
+    receipt (mirroring the kernel-side
+    `s_perf_11_pre_rewrite_root_capture` safety harness)
+    and emits a per-stage `byte_identical` flag.
+  - Binds measurement + root-equivalence + bandwidth
+    pre/post + delta + saturation flag + four upstream
+    anchor hashes (S-PERF.6 + S-PERF.7 + S-PERF.8.1 +
+    S-PERF.10) + three R.12b episode pins into a single
+    hashable receipt.
+
+What this DOES NOT do
+---------------------
+
+  - Does NOT claim memory-bandwidth saturation (228 bp
+    < 8000 bp threshold; saturation_admitted = false).
+  - Does NOT change digest mode (TreeSha256V1 unchanged).
+  - Does NOT mutate the S-PERF.6 / S-PERF.7 / S-PERF.8
+    audit content or any prior hash anchor (the
+    rebaselined S-PERF.10 contract + plan hashes are a
+    panel-acknowledged wording-clarification schema
+    upgrade landed in the same atomic commit; not an
+    audit-content change).
+  - Does NOT rebaseline the pinned R.12b D64 saturation
+    reports (13 / 89 / 1917 byte-stable).
+  - Does NOT alter SEED.len() (stays 54).
+  - Does NOT run CUDA from inside the corpus crate
+    (measurement is captured by `dsfb-gpu-debug-cuda`'s
+    bench harness; this receipt parses the pinned post
+    file).
+
+Honest measurement (canonical 256x4096 K=1 D64, RTX 4080
+SUPER, CUDA 13.2)
+-----------------
+
+  stage                              |    pre |   post |   delta
+  ---------------------------------- | ------ | ------ | -------
+  tree_digest residual               |   2364 |   1685 |    -679
+  tree_digest sign                   |   2684 |   1929 |    -755
+  tree_digest detector (wide cells)  |   2509 |   2052 |    -457
+  tree_digest consensus              |   4338 |   2890 |   -1448
+  ---------------------------------- | ------ | ------ | -------
+  digest_total_us                    |  11895 |   8556 |   -3339
+
+  digest_speedup_x                   : 1.39x  (pre / post)
+  pre_bandwidth_gbps                 : 13.33 GB/s   (186 bp /  1.86% of peak)
+  post_bandwidth_gbps                : 16.38 GB/s   (228 bp /  2.28% of peak)
+  bandwidth_delta                    : +3.05 GB/s   (+2288 bp relative to pre)
+  saturation_admitted                : false  (gate = 8000 bp; observed = 228 bp)
+  R.12b episodes 13 / 89 / 1917      : BYTE-STABLE
+  four TreeSha256V1 roots            : BYTE-IDENTICAL (pre == post)
+
+Hash posture (panel-locked, three own-namespace hashes)
+-------------------------------------------------------
+
+  s_perf_11_digest_compaction_measurement_hash_v1
+    domain: DSFB-GPU-ATLAS:S-PERF-11-DIGEST-COMPACTION-MEASUREMENT:v1\0
+    Pins pre/post stage timings + totals + speedup +
+    source paths + folded rewrite metadata
+    (`tree_digest_leaf_kernel_v2`, `LeafBatchingV1`,
+    `LEAVES_PER_BLOCK = 32`, `TreeSha256V1`, chunk_size
+    16384).
+
+  s_perf_11_digest_root_equivalence_hash_v1
+    domain: DSFB-GPU-ATLAS:S-PERF-11-DIGEST-ROOT-EQUIVALENCE:v1\0
+    Pins four pre + four post TreeSha256V1 root digests
+    + per-stage byte_identical flags + top-level
+    four_roots_byte_identical flag. Receipt-level mirror
+    of the kernel-side
+    `s_perf_11_pre_rewrite_root_capture` safety harness.
+
+  s_perf_11_bandwidth_delta_report_hash_v1
+    domain: DSFB-GPU-ATLAS:S-PERF-11-BANDWIDTH-DELTA-REPORT:v1\0
+    = 1a27154e335c27df6db939d4c8ff0f36f8baf75871be06c750f0853f2268adc8
+    Top-level META-hash binding measurement +
+    root-equivalence + bandwidth pre/post + delta +
+    saturation flag + S-PERF.6 + S-PERF.7 + S-PERF.8.1 +
+    S-PERF.10 anchors + three R.12b episode pins.
+
+  Deterministic across two builds; pairwise distinct
+  from every prior S-PERF anchor; binds the live
+  S-PERF.6 baseline (d44c9ec5...), the live S-PERF.7
+  verifier (99cc8a71...), the live S-PERF.8.1 receipt
+  (37212c42...), and the rebaselined S-PERF.10
+  digest-lane plan (e9cf5c34...) under the panel-
+  acknowledged contract wording clarification landed in
+  the same atomic commit.
+
+EIGHT panel-required campaign-identity negatives
+(verbatim names from the 2026-05-18 panel directive)
+----------------------------------------------------
+
+   1. s_perf_11_rejects_speedup_without_digest_root_equivalence
+   2. s_perf_11_rejects_speedup_without_r12b_episode_stability
+   3. s_perf_11_rejects_digest_total_not_reduced
+   4. s_perf_11_rejects_bandwidth_not_improved
+   5. s_perf_11_rejects_missing_s_perf_10_digest_lane_plan_hash
+   6. s_perf_11_rejects_tree_sha256v1_root_drift
+   7. s_perf_11_rejects_saturation_claim_below_8000_bp
+   8. s_perf_11_rejects_claim_that_16_38_gbps_is_memory_saturation
+
+Plus 5 structural defect rules (ReportIdEmpty,
+PreSourceReportPathEmpty, PostSourceReportPathEmpty,
+DigestSpeedupArithmeticMismatch,
+BandwidthDeltaArithmeticMismatch) and 4 panel-
+acknowledged defense-in-depth structural extras
+(StructuralCompletionOrderFragmentMerge,
+StructuralCasefileChainDrift,
+StructuralMissingPrePostDigestTable,
+StructuralKAmortisationOverclaim).
+
+TWELVE panel-required positive tests (verbatim names)
+-----------------------------------------------------
+
+   1. admits_measured_digest_compaction_result
+   2. computes_digest_speedup_1_39x
+   3. computes_bandwidth_delta_3_05_gbps
+   4. computes_bandwidth_gain_22_9_percent
+   5. preserves_four_tree_sha256v1_roots
+   6. preserves_r12b_episode_counts_13_89_1917
+   7. binds_s_perf_10_digest_lane_plan_hash
+   8. renderers_are_byte_stable
+   9. hashes_are_deterministic
+  10. changing_post_digest_total_changes_hash
+  11. changing_post_bandwidth_changes_hash
+  12. changing_any_digest_root_changes_equivalence_hash
+
+CLI surface
+-----------
+
+  dsfb-corpus s-perf-11-digest-compaction       [--json] [--out PATH]
+  dsfb-corpus s-perf-11-digest-compaction-emit  [--out-dir DIR]
+
+  s-perf-11-digest-compaction exits 3 if any drift is
+  found; 0 if the verifier admits.
+
+Bulk-emit artifacts
+-------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_11_measured_digest_compaction_report_v1.{txt,json}
+
+  Byte-stable across two consecutive emits.
+
+Test surface (61-test acceptance suite +
+s_perf_11_pre_rewrite_root_capture safety harness)
+--------------------------------------------------
+
+  - 12 panel-required positive tests (verbatim names)
+  - 8 panel-required campaign-identity negatives
+  - 5 structural defect rules
+  - 4 defense-in-depth structural extras
+  - measured-shape + bandwidth + rewrite-metadata pins
+  - hash determinism + sensitivity tests
+  - renderer byte-stability + content checks
+  - cross-anchor distinctness tests
+  - saturation arithmetic checks
+  - pinned-hash back-stop
+  - round-trip + canonical stage-label checks
+
+  Plus the separate `s_perf_11_pre_rewrite_root_capture`
+  CUDA-gated test in `crates/dsfb-gpu-debug-demo/tests/`
+  pinning four pre-rewrite TreeSha256V1 root digests as
+  `[u8; 32]` constants and asserting byte-equality after
+  the kernel swap.
+
+Forward-looking question (panel-locked, post-S-PERF.11)
+-------------------------------------------------------
+
+  Did the remaining device wall stay in digest, or did
+  the bottleneck move? Before the next Track B leg
+  (S-PERF.12) commits, re-run
+  `r9_c_d64_stage_profile_256x4096_k1` and inspect
+  whether the four `tree_digest` stages are still
+  dominant (justifying S-PERF.12 CompactDensorDigestV1
+  throughput mode) or whether host `compute_features` /
+  consensus / candidate-collapse have surfaced (which
+  would re-rank the saturation-campaign ladder).

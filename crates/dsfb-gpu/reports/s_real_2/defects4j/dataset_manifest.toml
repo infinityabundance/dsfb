@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "defects4j"
+display_name        = "Defects4J (Just, Jalali, Ernst)"
+upstream_doi_or_url = "github.com/rjust/defects4j"
+license             = "MIT"
+source_class        = "SoftwareDefects"
+vendored_path       = "data/fixtures/defects4j.tsv"
+
+[fixture]
+sha256_hex          = "a6fa8c9d8e1fa78e2bb9c9f33e40d02aa6f26a04c0af2f760539793d33875a63"
+byte_size           = 3004

@@ -1,0 +1,198 @@
+T.12.PROV Scientific Provenance Credit Pass — Verification
+==========================================================
+
+Pinned corpus anchors
+  corpus_hash_v1 : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  SEED.len()     : 54
+
+Walk shape (live T.12.a..T.12.p set via consolidate::load_all_t12_proposals())
+  proposal_count                    : 17
+  canonical_addition_count          : 98
+  unique_bibliography_entry_count   : 133
+  rejection_record_count            : 24
+  parameterization_record_count     : 49
+
+Component hashes
+  scientist_credit_index_hash_v1    : 5a55f0340085505125f1f9ca355d7a0555470da2e1c9b215e8e201417bc9189a
+  source_bibliography_index_hash_v1 : 0db6afc6ac68bcbebef68e028b58f84eec938def558a30890b439c25dba9e49a
+  provenance_credit_report_hash_v1  : 8b4f0f83dc7c5c0c0b876e5b5003f12e09507348fc3caf7066c84d94d16af961
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives — verifier result
+----------------------------------------------------------------
+
+When the live T.12.a..T.12.p proposal set is fed to
+`verify_t12_prov`, the verifier returns ZERO errors. Each
+panel-required negative is exercised in
+`tests/t12_prov_invariants.rs` by injecting a defective
+proposal alongside the live set, then asserting the matching
+verifier-error kind appears.
+
+  1. CanonicalAdditionWithoutScientistCredit
+       inject canonical 6950 with no matching ProposedPrimitive
+       -> verifier surfaces the missing-credit error.
+       Result: PASS.
+
+  2. CanonicalAdditionWithoutSourceRef
+       inject canonical 6951 in a batch with empty
+       proposed_source_refs
+       -> verifier surfaces the missing-source-ref error.
+       Result: PASS.
+
+  3. ScientistCreditWithoutContributionNote
+       inject canonical 6952 with empty dedup-record reason
+       -> verifier surfaces the empty-contribution error.
+       Result: PASS.
+
+  4. SourceRefKeyNotInProposalSources
+       hand-mutate the first credit row's source_ref_keys to
+       append "t12_prov_neg4_orphan_key"
+       -> verifier surfaces the orphan-key error.
+       Result: PASS.
+
+  5. DsfbInventionClaimForPriorDetector
+       inject canonical 6953 with reason text containing
+       "dsfb invented this detector"
+       -> verifier surfaces the forbidden-substring error.
+       Case-insensitive variant (`dsfb_invention_scanner_is_case_insensitive`)
+       confirms uppercase "DSFB INVENTED" also trips.
+       Result: PASS.
+
+  6. EngineeringPracticeRecordWithoutProvenanceNote
+       inject a source ref with year=0 and empty venue
+       -> verifier surfaces the missing-engineering-practice-
+       provenance-note error.
+       Result: PASS.
+
+  7. RejectedRecordWithoutMethodFamilyCredit
+       inject a RejectedNotDeterministic dedup record at
+       canonical 6955 with empty reason
+       -> verifier surfaces the missing-method-family-credit
+       error.
+       Result: PASS.
+
+  8. ParameterizationWithoutParentLineageNote
+       inject a ParameterizationOf dedup record at canonical
+       6956 with empty reason
+       -> verifier surfaces the missing-parent-lineage-note
+       error.
+       Result: PASS.
+
+----------------------------------------------------------------
+Structural defect tests — verifier result
+----------------------------------------------------------------
+
+  CorpusHashV1Mismatch
+    flip one byte of the pinned report.corpus_hash_v1
+    -> verifier surfaces the mismatch.
+    Result: PASS.
+
+  ScientistCreditNotSortedAscending
+    swap two entries of the credit list
+    -> verifier surfaces the sort violation.
+    Result: PASS.
+
+  BibliographyNotSortedAscending
+    swap two entries of the bibliography list
+    -> verifier surfaces the sort violation.
+    Result: PASS.
+
+----------------------------------------------------------------
+Determinism + sensitivity verification
+----------------------------------------------------------------
+
+  Two consecutive `build_provenance_credit_report` calls
+  produce byte-identical hashes
+  (provenance_credit_report_hash_v1 = 8b4f0f83...).
+  Two consecutive `build_scientist_credit_index` calls produce
+  byte-identical hashes
+  (scientist_credit_index_hash_v1 = 5a55f034...).
+  Two consecutive `build_source_bibliography_index` calls
+  produce byte-identical hashes
+  (source_bibliography_index_hash_v1 = 0db6afc6...).
+  All four renderers (text + JSON for report, credit index,
+  bibliography) are byte-stable.
+
+  Sensitivity: adding a single legitimate proposal changes
+  ALL three top-level hashes (scientist_credit_index,
+  source_bibliography_index, provenance_credit_report). The
+  baseline production hashes pin the live T.12.a..T.12.p set;
+  any future mutation surfaces as a hash drift caught by the
+  acceptance suite at build time.
+
+----------------------------------------------------------------
+Bulk artifacts emitted
+----------------------------------------------------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/t12_provenance_credit_report_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/t12_provenance_credit_report_v1.json
+  crates/dsfb-gpu-atlas-corpus/out/scientist_credit_index_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/scientist_credit_index_v1.json
+  crates/dsfb-gpu-atlas-corpus/out/source_bibliography_index_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/source_bibliography_index_v1.json
+
+Two consecutive `dsfb-corpus t12-prov-report-emit` invocations
+produced byte-identical files (verified via `diff -q`).
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/t12_prov_invariants.rs : 65 PASS / 0 FAIL
+  cargo test -p dsfb-gpu-atlas-corpus : 53 groups / 2034 PASS
+  cargo test --workspace --features cuda -- --test-threads=1 :
+    92 groups / 2349 PASS
+
+  Delta vs identity commit (post-S1.3g): +1 group, +65 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+Every prior corpus / T.11 / T.12.x / T.12.consolidate / FF.x /
+S1.3.x hash anchor: BYTE-IDENTICAL.
+
+  corpus_hash_v1 : 35c276c7... UNCHANGED
+  SEED.len()     : 54         UNCHANGED
+  R.12b episodes : 13 / 89 / 1917 BYTE-STABLE
+
+R.12b pinned baselines NOT REBASELINED; restored from
+/tmp/t12_prov_backup before commit.
+
+----------------------------------------------------------------
+Cross-proposal canonical-id uniqueness (production walk)
+----------------------------------------------------------------
+
+  no_two_credits_share_the_same_canonical_id_on_production_walk
+    -> PASS (BTreeSet insert succeeded for every of the 98
+       credits)
+
+----------------------------------------------------------------
+Reserved id-band coverage
+----------------------------------------------------------------
+
+  every_credit_canonical_id_lies_in_reserved_t12_band
+    -> PASS (every credit canonical id ∈ 5001..=6699)
+
+  first_credit_row_lies_in_t12_a_band_5001_through_5199
+    -> PASS
+
+  last_credit_row_lies_in_t12_p_band_6601_through_6699
+    -> PASS
+
+----------------------------------------------------------------
+Forbidden-substring discipline (production walk)
+----------------------------------------------------------------
+
+  production_credit_rows_carry_no_forbidden_dsfb_invention_substring
+    -> PASS (scanned every credit row's contribution +
+       motivation against the 8-entry forbidden set; zero
+       hits)
+
+----------------------------------------------------------------
+Schema discipline
+----------------------------------------------------------------
+
+  3 domain separators pairwise distinct: PASS
+  3 domain separators end with \0 byte: PASS
+  3 schema ids pairwise distinct: PASS

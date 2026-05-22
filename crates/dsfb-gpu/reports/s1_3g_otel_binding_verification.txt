@@ -1,0 +1,147 @@
+S1.3g OTelBindingReceiptTypes — Verification Receipt
+=====================================================
+
+Verifier coverage summary for the S1.3g OTel binding module.
+
+----------------------------------------------------------------
+Verifier surface
+----------------------------------------------------------------
+
+Public verifier function:
+
+  pub fn verify_otel_binding_receipt(
+      r: &OTelBindingReceiptTypesV1,
+  ) -> Vec<S13gVerifyError>
+
+Thirteen reject kinds in `S13gVerifyErrorKind`:
+
+  Panel-required (10):
+    R.1  BindingWithoutTimestampLaw
+    R.2  MetricBindingWithoutUnitOrTemporalityLaw
+    R.3  SpanBindingWithoutTraceOrSpanIdentityLaw
+    R.4  LogBindingWithoutBodyHashOrSeverityLaw
+    R.5  ResourceBindingWithoutResourceIdentityLaw
+    R.6  BindingThatClaimsLiveIngestion
+    R.7  BindingThatDependsOnOtelSdkRuntime
+    R.8  StaleS13aOtelBindingReference
+    R.9  NondeterministicAttributeOrdering
+    R.10 BindingWithoutEvidenceDensorFieldMapping
+
+  Structural defects (3):
+    R.11 BindingIdEmpty
+    R.12 SeedLengthMutated
+    R.13 CorpusHashV1Mismatch
+    R.14 BindingHashCollision
+
+----------------------------------------------------------------
+Ten panel-required load-bearing negatives — outcome
+----------------------------------------------------------------
+
+  s13g_rejects_binding_without_timestamp_law_on_span                  PASS
+  s13g_rejects_binding_without_timestamp_law_on_metric                PASS
+  s13g_rejects_binding_without_timestamp_law_on_log                   PASS
+  s13g_rejects_binding_without_timestamp_law_on_resource              PASS
+  s13g_rejects_metric_binding_without_unit_or_temporality_law_unit    PASS
+  s13g_rejects_metric_binding_without_unit_or_temporality_law_temporality PASS
+  s13g_rejects_span_binding_without_trace_or_span_identity_law        PASS
+  s13g_rejects_log_binding_without_body_hash_or_severity_law_body_hash PASS
+  s13g_rejects_log_binding_without_body_hash_or_severity_law_severity PASS
+  s13g_rejects_resource_binding_without_resource_identity_law         PASS
+  s13g_rejects_binding_that_claims_live_ingestion_via_flag            PASS
+  s13g_rejects_binding_that_claims_live_ingestion_via_substring       PASS
+  s13g_rejects_binding_that_depends_on_otel_sdk_runtime_via_flag      PASS
+  s13g_rejects_binding_that_depends_on_otel_sdk_runtime_via_substring PASS
+  s13g_rejects_stale_s13a_otel_binding_references                     PASS
+  s13g_rejects_nondeterministic_attribute_ordering_on_span            PASS
+  s13g_rejects_binding_without_evidence_densor_field_mapping          PASS
+
+----------------------------------------------------------------
+Structural defect rule coverage — outcome
+----------------------------------------------------------------
+
+  s13g_rejects_binding_id_empty_on_span      PASS
+  s13g_rejects_corpus_hash_v1_mismatch       PASS
+
+----------------------------------------------------------------
+Baseline + determinism invariants — outcome
+----------------------------------------------------------------
+
+  s13g_default_receipt_passes_verifier                              PASS
+  s13g_seed_len_pinned_at_54                                        PASS
+  s13g_receipt_pins_corpus_hash_v1_live_value                       PASS
+  s13g_receipt_pins_seed_len_54                                     PASS
+  s13g_receipt_hash_is_deterministic_across_two_builds              PASS
+  s13g_per_signal_binding_hashes_are_deterministic_across_two_builds PASS
+  s13g_receipt_text_is_byte_stable_across_two_renders               PASS
+  s13g_receipt_json_is_byte_stable_across_two_renders               PASS
+  s13g_span_binding_text_is_byte_stable                             PASS
+  s13g_metric_binding_text_is_byte_stable                           PASS
+  s13g_log_binding_text_is_byte_stable                              PASS
+  s13g_resource_binding_text_is_byte_stable                         PASS
+  s13g_span_binding_json_is_byte_stable                             PASS
+  s13g_metric_binding_json_is_byte_stable                           PASS
+  s13g_log_binding_json_is_byte_stable                              PASS
+  s13g_resource_binding_json_is_byte_stable                         PASS
+  s13g_receipt_hash_changes_when_a_binding_law_string_changes       PASS
+
+----------------------------------------------------------------
+Domain-separator + schema-id pins — outcome
+----------------------------------------------------------------
+
+  s13g_span_binding_domain_is_pinned                                PASS
+  s13g_span_binding_schema_id_is_pinned                             PASS
+  s13g_metric_binding_domain_is_pinned                              PASS
+  s13g_metric_binding_schema_id_is_pinned                           PASS
+  s13g_log_binding_domain_is_pinned                                 PASS
+  s13g_log_binding_schema_id_is_pinned                              PASS
+  s13g_resource_binding_domain_is_pinned                            PASS
+  s13g_resource_binding_schema_id_is_pinned                         PASS
+  s13g_receipt_domain_is_pinned                                     PASS
+  s13g_receipt_schema_id_is_pinned                                  PASS
+  s13g_five_hash_namespaces_are_distinct                            PASS
+
+----------------------------------------------------------------
+Default-state structural assertions — outcome
+----------------------------------------------------------------
+
+  s13g_default_admits_no_live_ingestion_on_any_binding              PASS
+  s13g_default_does_not_depend_on_otel_sdk_runtime_on_any_binding   PASS
+  s13g_default_evidence_densor_field_counts_match_panel_expectation PASS
+  s13g_default_law_strings_contain_required_attribute_ordering_substring PASS
+  s13g_default_law_strings_carry_no_live_ingestion_substrings       PASS
+  s13g_default_law_strings_carry_no_sdk_runtime_substrings          PASS
+  s13g_default_law_strings_carry_no_stale_s13a_substrings           PASS
+
+----------------------------------------------------------------
+Upstream anchor invariance witnesses — outcome
+----------------------------------------------------------------
+
+  s13g_does_not_alter_corpus_hash_v1                                PASS (35c276c7...)
+  s13g_does_not_alter_seed_len                                      PASS
+
+----------------------------------------------------------------
+Forbidden-substring + renderer coverage — outcome
+----------------------------------------------------------------
+
+  s13g_forbidden_live_ingestion_set_is_non_empty_and_lowercase      PASS
+  s13g_forbidden_sdk_runtime_set_is_non_empty_and_lowercase         PASS
+  s13g_forbidden_stale_s13a_set_is_non_empty_and_lowercase          PASS
+  s13g_required_attribute_ordering_substring_is_non_empty           PASS
+  s13g_receipt_text_contains_all_five_hash_lines                    PASS
+  s13g_receipt_json_parses_as_object                                PASS
+  s13g_span_binding_json_parses_as_object                           PASS
+  s13g_metric_binding_json_parses_as_object                         PASS
+  s13g_log_binding_json_parses_as_object                            PASS
+  s13g_resource_binding_json_parses_as_object                       PASS
+
+----------------------------------------------------------------
+Aggregate test outcome
+----------------------------------------------------------------
+
+  test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured;
+                   0 filtered out
+
+Default-state verifier run:
+
+  verify_otel_binding_receipt(default_receipt) → Vec::new()
+  (zero errors)

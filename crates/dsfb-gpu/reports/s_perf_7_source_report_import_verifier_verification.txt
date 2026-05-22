@@ -1,0 +1,91 @@
+S-PERF.7 --- source-report import verifier (verification)
+==========================================================
+
+Acceptance suite
+----------------
+
+  Module : crates/dsfb-gpu-atlas-corpus/src/s_perf_7_source_report_import_verifier.rs
+  Tests  : crates/dsfb-gpu-atlas-corpus/tests/s_perf_7_source_report_import_verifier_invariants.rs
+  Count  : 26 tests
+  Result : 26 passed, 0 failed
+
+4 panel-required load-bearing negatives (all green)
+---------------------------------------------------
+
+   1. s_perf_7_rejects_receipt_if_source_report_bandwidth_differs       PASS
+   2. s_perf_7_rejects_receipt_if_source_report_device_total_differs    PASS
+   3. s_perf_7_rejects_receipt_if_source_report_host_segment_differs_compute_features  PASS
+      s_perf_7_rejects_receipt_if_source_report_host_segment_differs_bank_admit        PASS
+   4. s_perf_7_rejects_receipt_if_r12b_episode_pins_differ_canonical    PASS
+      s_perf_7_rejects_receipt_if_r12b_episode_pins_differ_mid          PASS
+      s_perf_7_rejects_receipt_if_r12b_episode_pins_differ_full         PASS
+
+Structural defect tests (all green)
+-----------------------------------
+
+  s_perf_7_rejects_empty_verifier_id                                    PASS
+  s_perf_7_rejects_cross_report_episode_count_inconsistency             PASS
+  s_perf_7_rejects_tree_digest_drift                                    PASS
+
+Parser tests (all green)
+------------------------
+
+  parser_reads_live_d64_source_report                                   PASS
+  parser_reads_live_r12b_source_report                                  PASS
+  parser_rejects_d64_missing_bandwidth_line                             PASS
+  parser_rejects_d64_with_unparseable_us                                PASS
+  parser_rejects_bandwidth_with_one_decimal_digit                       PASS
+  parser_rejects_r12b_missing_canonical_pin                             PASS
+
+Hash determinism + sensitivity (all green)
+------------------------------------------
+
+  verifier_hash_is_deterministic_across_two_builds                      PASS
+  verifier_hash_changes_when_bandwidth_changes                          PASS
+  verifier_hash_changes_when_r12b_pin_changes                           PASS
+  verifier_hash_changes_when_verifier_id_changes                        PASS
+  verifier_hash_changes_when_upstream_s_perf_6_baseline_hash_changes    PASS
+  verifier_hash_distinct_from_s_perf_6_anchors                          PASS
+
+Renderer + pinned-hash back-stop (all green)
+--------------------------------------------
+
+  renderers_are_byte_stable_across_two_calls                            PASS
+  text_renderer_contains_verifier_id_and_provenance                     PASS
+  pinned_verifier_hash_matches_live_disk_seed                           PASS
+  live_disk_seed_admits_against_s_perf_6_baseline                       PASS
+
+Pinned hash (back-stop against silent rebaselining)
+---------------------------------------------------
+
+  PINNED_SOURCE_REPORT_IMPORT_VERIFIER_HASH_V1
+    = 99cc8a71cdceb7db7c37754fc494b51f33a7ccefeeab95175095bee73883d5c9
+
+  Pinned constant matches the live-disk-seed verifier
+  output. If the bench rewrites the source report with new
+  values, the corpus pinned constants must be deliberately
+  refreshed and this back-stop re-baselined; the verifier
+  exists precisely to surface that drift.
+
+Hash posture (must hold; verified)
+----------------------------------
+
+  - corpus_hash_v1                    : UNCHANGED (35c276c7...)
+  - corpus_hash_v2                    : UNCHANGED
+  - every prior T.11 / T.12.x / FF.x / S1.3.x / T.12.PROV  : UNCHANGED
+  - S-PERF.1 / S-PERF.2 / S-PERF.3 / S-PERF.4 / S-PERF.5   : UNCHANGED
+  - S-PERF.6 rtx4080_super_measured_*_hash_v1              : UNCHANGED
+  - SEED.len()                        : 54 (UNCHANGED)
+  - R.12b episodes 13 / 89 / 1917     : BYTE-STABLE
+  - pinned R.12b baseline             : NOT REBASELINED
+
+One new own-namespace hash
+--------------------------
+
+  source_report_import_verifier_hash_v1 = 99cc8a71...
+    deterministic across two consecutive builds
+    pairwise distinct from every prior S-PERF anchor
+    binds the upstream S-PERF.6 baseline-report hash
+    (d44c9ec5...) so an auditor can prove the verifier
+    was run against the same baseline the corpus crate's
+    S-PERF.6 receipt encodes.

@@ -1,0 +1,4 @@
+{"idx":0,"entity_id":2,"start_window":0,"end_window":16,"motif":"LatencyRamp","reason":"SustainedOutwardDrift","peak_state":"Violation","peak_residual_q":2147352576,"peak_drift_q":1893820912,"peak_slew_q":0,"detector_bit_count":5}
+{"idx":1,"entity_id":3,"start_window":0,"end_window":16,"motif":"LatencyRamp","reason":"SustainedOutwardDrift","peak_state":"Violation","peak_residual_q":2147352576,"peak_drift_q":1893820912,"peak_slew_q":0,"detector_bit_count":5}
+{"idx":2,"entity_id":4,"start_window":0,"end_window":16,"motif":"LatencyRamp","reason":"SustainedOutwardDrift","peak_state":"Violation","peak_residual_q":2147352576,"peak_drift_q":1893820912,"peak_slew_q":0,"detector_bit_count":5}
+{"idx":3,"entity_id":5,"start_window":0,"end_window":16,"motif":"LatencyRamp","reason":"SustainedOutwardDrift","peak_state":"Violation","peak_residual_q":2147352576,"peak_drift_q":1893820912,"peak_slew_q":0,"detector_bit_count":5}

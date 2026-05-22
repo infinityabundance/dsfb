@@ -1,0 +1,108 @@
+================================================================
+DSFB-GPU-Atlas — S1.2 registry summary
+================================================================
+Schema             : DSFB-GPU-ATLAS:DETECTOR-REGISTRY:v2
+Domain separator   : DSFB-GPU-ATLAS:DETECTOR-REGISTRY:v2\0
+Hash schema id     : DSFB-GPU-ATLAS:REGISTRY-HASH-SCHEMA:v2
+
+----------------------------------------------------------------
+Four-tier registry counts (panel-locked)
+----------------------------------------------------------------
+  literature_primitives  :   54  (SEED.len())
+  parameterized_specs    :  162  (54 × 3-point grid)
+  active_detectors       :    0  (no activation planner at S1.2)
+  admitted_episodes      :    0  (no GPU execution at S1.2)
+
+----------------------------------------------------------------
+Hash chain
+----------------------------------------------------------------
+  corpus_hash_v1     : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  registry_hash_v2   : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+
+  Every spec carries source_corpus_hash = corpus_hash_v1
+  (verified by `s1_2_specs_carry_source_corpus_hash_equal_to_corpus_hash_v1`).
+
+----------------------------------------------------------------
+Panel-locked parameter grid (3 points)
+----------------------------------------------------------------
+  point 0 : (W32,  P=2, comparator=HIGH,       gate=PERSISTENCE)
+  point 1 : (W64,  P=3, comparator=TWO_SIDED,  gate=PERSISTENCE)
+  point 2 : (W128, P=5, comparator=TWO_SIDED,  gate=PERSISTENCE)
+
+  Each corpus record × 3 grid points = 3 generated specs.
+  detector_id = record.canonical_id * 1000 + point_index.
+  parameterization_id = point_index.
+
+----------------------------------------------------------------
+Generated artifacts (committed)
+----------------------------------------------------------------
+  crates/dsfb-gpu-atlas-registry/out/detector_registry_v2.bin
+      Canonical-byte material (42 286 bytes) fed to
+      `compute_registry_hash_v2`. Two builds against the same
+      corpus + family mapping + grid produce byte-identical
+      output. Regenerate via:
+
+          cargo run --bin dsfb-registry-emit -p dsfb-gpu-atlas-registry
+
+  crates/dsfb-gpu-atlas-registry/out/detector_registry_v2.json
+      Human-readable mirror of the same content (127 010 bytes).
+
+----------------------------------------------------------------
+Canonical-name examples (one per registry family appearing in the seed)
+----------------------------------------------------------------
+  AUTOCORRELATION_BREAK__RESIDUAL__W64__RANGE__TWO_SIDED__P3
+  CARDINALITY_DRIFT__RESIDUAL__W64__IQR__TWO_SIDED__P3
+  CUSUM__RESIDUAL__W64__SUM__TWO_SIDED__P3
+  EWMA__RESIDUAL__W64__MEAN__TWO_SIDED__P3
+  FFT_BAND_ENERGY__RESIDUAL__W64__BAND_ENERGY__TWO_SIDED__P3
+  FUNCTIONAL_DEPENDENCY_VIOLATION__RESIDUAL__W64__RUN_LENGTH__TWO_SIDED__P3
+  HOTELLING_T2__RESIDUAL__W64__VARIANCE__TWO_SIDED__P3
+  JENSEN_SHANNON__RESIDUAL__W64__QUANTILE__TWO_SIDED__P3
+  KOLMOGOROV_SMIRNOV__RESIDUAL__W64__QUANTILE__TWO_SIDED__P3
+  LATENCY_RAMP__RESIDUAL__W64__MAX__TWO_SIDED__P3
+  MANN_KENDALL__RESIDUAL__W64__SIGNED_RANK__TWO_SIDED__P3
+  MISSINGNESS_SPIKE__RESIDUAL__W64__SUM__TWO_SIDED__P3
+  PCA_SPE_Q__RESIDUAL__W64__VARIANCE__TWO_SIDED__P3
+  RESIDUAL_ENVELOPE_EXIT__RESIDUAL__W64__MAX__TWO_SIDED__P3
+  ROBUST_Z_MAD__RESIDUAL__W64__MAD__TWO_SIDED__P3
+  VALVE_HUNTING__RESIDUAL__W64__AUTOCORRELATION__TWO_SIDED__P3
+  WAVELET_ENERGY__RESIDUAL__W64__BAND_ENERGY__TWO_SIDED__P3
+
+  17 distinct registry families × 3 grid points × ~ instances
+  per family = 162 total specs.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+  - S1.2 does NOT activate detectors. active_detectors = 0.
+  - S1.2 does NOT execute GPU kernels. admitted_episodes = 0.
+  - S1.2 does NOT claim that every spec is empirically useful.
+    Per-task utility is recorded by the T.8 usefulness ledger.
+  - S1.2 does NOT generate 2,000 detectors. The 162-spec count
+    is the disciplined first pass; the wider grid lands as
+    S1.2.1+ after planner / dispatcher infrastructure matures.
+  - S1.2 declares ImplementationKind::ScalarCpu on every spec
+    regardless of corpus L-band. The five L6 corpus records
+    (canonical IDs 14, 15, 41, 42, 43 — the dsfb-gpu-debug-core
+    bank surface) DO have GPU implementations, but the S1.2
+    DetectorSpec declaration does NOT inherit the GPU surface
+    because the registry generator has no GPU dispatch layer
+    yet.
+
+----------------------------------------------------------------
+Sensitivity to inputs
+----------------------------------------------------------------
+  Pinned by tests/s1_2_generator.rs:
+    s1_2_registry_hash_v2_is_deterministic_across_two_builds
+    s1_2_registry_hash_v2_changes_when_a_spec_byte_changes
+    s1_2_registry_hash_v2_changes_when_family_mapping_changes
+    s1_2_registry_hash_v2_changes_when_grid_window_changes
+
+  Any of the following changes registry_hash_v2:
+    - any byte of any spec
+    - the family-mapping table (corpus PrimitiveFamily ->
+      registry DetectorFamily)
+    - the parameter grid (window, persistence, comparator, gate)
+    - the corpus SEED (because every spec carries
+      source_corpus_hash = compute_corpus_hash_v1)
+================================================================

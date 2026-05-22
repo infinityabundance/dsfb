@@ -1,0 +1,200 @@
+S1.3e KernelPlanV1 — Summary Receipt
+=====================================
+
+Panel verdict: post-S1.3d panel directive (2026-05-17). Sealed
+under the 10-step per-section discipline ritual.
+
+Commit identity (panel-locked):
+
+    S1.3e converts the budgeted activation surface into a
+    deterministic GPU-family execution plan. It does not
+    execute kernels, generate CUDA code, mutate corpus
+    authority, or change activation / budget decisions. It
+    maps retained witnesses into family-compacted kernel
+    lanes, parameter-table ranges, memory estimates, and
+    execution-plan receipts.
+
+Panel-locked verdict (verbatim):
+
+    S1.3d says who survives budgeted deployment; S1.3e says
+    how the survivors are packed into deterministic GPU-
+    family execution lanes.
+
+Core rule:
+
+    Budget admission is not execution.
+    KernelPlanV1 is a deterministic plan, not a GPU run.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+S1.3e is the deterministic family-compaction layer above
+S1.3d. It consumes the S1.3d-Active candidate set (152 active
+detectors at baseline = 54 SEED + 98 T12-passported), resolves
+each id's GPU family from either the SEED record's
+`gpu_family` field (id ≤ 54) or the FF.1 passport's
+`gpu_family_wire_name` field (id > 54), groups the set by
+family, and emits:
+
+  - One `FamilyLane` per GPU family. Lanes sorted ascending by
+    `gpu_family_wire_name`. Each lane carries:
+      * `active_canonical_ids` (sorted ascending),
+      * `active_detector_count`,
+      * `declared_cost_model` (non-empty wire string from a
+        panel-locked lookup table, e.g.
+        `"O(window) per cell sliding statistic"`),
+      * `expected_kernel_name` (canonical kernel identifier,
+        e.g. `"dsfb_gpu_window_statistic_family_kernel"`),
+      * `aggregate_cost_us` (count × per_detector_runtime_us
+        from S1.3d's inherited task budget).
+  - One `ParameterTableRow` per active detector. Rows sorted
+    by `(gpu_family_wire_name, canonical_id)` ascending. Each
+    row carries canonical id, family wire name, lane offset,
+    and per-detector cost quote.
+  - A top-level `KernelPlanV1` META-hash binding the schedule
+    + parameter table + nine pinned upstream anchors (the
+    seven S1.3d pinned anchors plus the two S1.3d artifact
+    hashes themselves).
+
+The reason-code separation S1.3d established is preserved:
+S1.3e never collapses execution into activation. The
+panel-required negatives explicitly reject any kernel-plan
+that names a budget-disabled or FF.3-rejected canonical id.
+
+----------------------------------------------------------------
+Default production state (S1.3e baseline)
+----------------------------------------------------------------
+
+Under the panel-permissive default task budget the schedule
+emits 14 lanes spanning 152 active detectors:
+
+  Lanes                : 14
+  Total active count   : 152
+  Total aggregate cost : 152000 us (one detector per slot at
+                                    1000 us baseline cost)
+
+Per-lane detector counts:
+
+  CategoricalHistogramFamily    : 1
+  DistributionDistanceFamily    : 28
+  GraphLocalFamily              : 9
+  MissingnessFamily             : 2
+  NegativeWitnessFamily         : 1
+  ProjectionResidualFamily      : 9
+  RankStatisticFamily           : 2
+  ResidualObserverFamily        : 13
+  ScalarThresholdFamily         : 6
+  SequentialRecurrenceFamily    : 26
+  SpectralFamily                : 23
+  TabularConstraintFamily       : 11
+  WaveletFamily                 : 1
+  WindowStatisticFamily         : 20
+
+----------------------------------------------------------------
+Three new own-namespace hash anchors
+----------------------------------------------------------------
+
+  kernel_plan_hash_v1
+    domain : DSFB-GPU-ATLAS:S13E-KERNEL-PLAN:v1\0
+    value  : e48c89b98e65b939abed341397d0bd6ee9f81303ea4e30dd80b5e0fec155599b
+    binds  : 9 pinned upstream anchors + lane count + total
+             active count + total aggregate cost +
+             family-schedule hash + parameter-table hash
+
+  kernel_family_schedule_hash_v1
+    domain : DSFB-GPU-ATLAS:S13E-KERNEL-FAMILY-SCHEDULE:v1\0
+    value  : 8a58d3bca6c2f31befa361f40890c78ddf4e96cd284da513b95105ff3f52c75e
+    binds  : sorted list of 14 family lanes; each lane carries
+             family wire name + active count + cost model +
+             expected kernel name + aggregate cost + sorted
+             active canonical ids
+
+  kernel_parameter_table_hash_v1
+    domain : DSFB-GPU-ATLAS:S13E-KERNEL-PARAMETER-TABLE:v1\0
+    value  : 6b27dcbe80699681ccff03770ef708af4ce1c012c225764541fbc1a6c3acb19f
+    binds  : sorted list of 152 parameter-table rows; each row
+             carries canonical id + family wire name + lane
+             offset + per-detector cost
+
+----------------------------------------------------------------
+Pinned upstream anchors (all byte-stable, unchanged)
+----------------------------------------------------------------
+
+  corpus_hash_v1                               : 35c276c7...
+  corpus_hash_v2                               : f1d132eb...
+  ff1_passport_index_hash_v1                   : 1ad2dc2d...
+  ff2_activation_ratification_gate_hash_v1     : 05c1b552...
+  ff3_registry_generation_gate_hash_v1         : 2ffd0222...
+  ff4_readme_authority_boundary_policy_hash_v1 : 22b9dcb5...
+  proposal_schema_upgrade_policy_hash_v1       : 94e00ab1...
+  budget_pruning_plan_hash_v1                  : 82be2289...
+  budgeted_activation_summary_hash_v1          : 5feab238...
+  SEED.len()                                   : 54
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. s13e_rejects_kernel_plan_using_budget_disabled_detector
+  2. s13e_rejects_kernel_plan_using_ff3_rejected_record
+  3. s13e_rejects_kernel_plan_without_gpu_family_mapping
+  4. s13e_rejects_parameter_table_without_stable_order
+  5. s13e_rejects_family_schedule_without_declared_cost_model
+  6. s13e_rejects_kernel_plan_that_mutates_activation_or_budget_hash
+  7. s13e_rejects_cuda_execution_claim_inside_kernel_plan
+  8. s13e_rejects_nondeterministic_tie_break_in_family_order
+
+Plus structural defect rules (DuplicateFamilyLane,
+LaneActiveCountMismatch, LaneDetectorIdsNotSortedAscending,
+TotalActiveCountMismatch, CorpusHashV1Mismatch,
+SeedLengthMutated,
+ParameterTableRowReferencesUnknownCanonicalId,
+ParameterTableRowFamilyMismatch), determinism + sensitivity
+invariants, domain-separator + schema-id pins, three-namespace-
+distinctness assertion, structural-discipline assertions
+(sorted, every lane reason-coded), GPU-family-mapping witnesses
+(every SEED id and every ratified id resolvable), pressure-
+bearing budget scenarios (max_active_detectors=50,
+max_active_detectors=0), upstream-anchor invariance witnesses,
+forbidden-substring scanner boundary tests, renderer-coverage
+checks.
+
+Total: 67 acceptance tests in
+`tests/s1_3e_kernel_plan_invariants.rs`.
+
+----------------------------------------------------------------
+Test counts (post-S1.3e)
+----------------------------------------------------------------
+
+Corpus crate    : 49 groups / 1781 tests → 50 groups / 1848 tests
+Workspace serial: 88 groups / 2096 tests → 89 groups / 2163 tests
+
+R.12b D64 saturation: episodes byte-stable (13/89/1917); the
+pinned baseline `reports/r12_d64_saturation.txt` was backed
+up before the workspace serial run and restored byte-
+identically afterward (no rebaseline).
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in README + paper + plan)
+----------------------------------------------------------------
+
+S1.3e does NOT:
+
+  - execute kernels;
+  - emit CUDA source, PTX, SASS, or any cubin bytes;
+  - mutate any upstream hash anchor (corpus / passport /
+    FF.x / S1.3d hashes are all read-only);
+  - alter SEED.len() (stays at 54);
+  - change S1.3a SEED activation decisions or FF.2
+    ratification decisions or FF.3 registry eligibility or
+    S1.3d budget admission;
+  - itself emit a CaseFileV2Header (that integration is
+    S1.3f's job);
+  - decide contraindications or challenges;
+  - modify the registry crate.
+
+S1.3e is a deterministic decision layer above the budget
+court; the layer's only job is reason-coded family compaction
++ parameter-table emission + execution-plan receipt
+generation.

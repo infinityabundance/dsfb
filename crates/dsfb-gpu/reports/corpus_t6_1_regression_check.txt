@@ -1,0 +1,178 @@
+# Post-T.6.1 regression check (per-section discipline artifact)
+#
+# Hardware:        RTX 4080 SUPER
+# CUDA toolkit:    13.2
+# Date:            2026-05-14
+# Pre-T.6.1 head:  ac05674 (T.7 L-band ladder honesty verifier)
+# Post-T.6.1 head: (this commit)
+# Test:            tests/r12_d64_saturation.rs (D64 saturation sweep)
+# Method:          re-run the R.12b saturation matrix after T.6.1
+#                  lands; compare against the pinned R.12b money
+#                  table in reports/money_table.txt and
+#                  reports/r12_d64_saturation.txt.
+#
+# Why this artifact exists:
+#   T.6.1 is the audit-hygiene catch-up commit identified by an
+#   elite-panel audit against the post-T.7 archive. Six stale-doc
+#   defects remained after T.7's stale-doc scan caught four of ten
+#   originally identified items. T.6.1 fixes the remaining six plus
+#   adds a small functional improvement (the public report's new
+#   (1b) Dedup-court decision summary block sourcing counts from
+#   crate::court::classify_all over SEED + CLAIMS).
+#
+#   T.6.1 is host-only schema-and-docs work. It touches no GPU
+#   code path, kernel, FFI signature, contract field, or workspace
+#   layout. Audit mode and the D16 / D64 / D128 golden hashes are
+#   unchanged.
+#
+#   This file is the user-enforced per-section discipline receipt.
+#
+# Result: NO SEMANTIC REGRESSION.
+#   - tests/r12_d64_saturation.rs exit code: 0
+#   - Full-workspace serial test suite
+#     (cargo test --workspace --features cuda -- --test-threads=1):
+#       371 passed; 0 failed; finished green
+#       (T.7 baseline 370 + 1 new `report_contains_court_decision_summary`).
+#   - Corpus crate tests: 143 passed (T.7 baseline 142 + 1 new).
+#   - Episode counts byte-identical to pinned R.12b numbers:
+#       canonical 16x128 K ∈ {1,4,16,32,64,128} : 13   episodes/cat (pinned: 13)
+#       mid       64x512 K ∈ {1,4,16,32,64,128} : 89   episodes/cat (pinned: 89)
+#       full   256x4096  K ∈ {1,4,16,32,64,128} : 1917 episodes/cat (pinned: 1917)
+#
+# GPU-timing posture (panel-discipline, NOT a T.6.1 regression):
+#   T.6.1 is pure host-side text-and-schema-doc edits. The R.12b
+#   numbers vary run-to-run with thermal envelope and host load.
+#   The pinned reports/r12_d64_saturation.txt is the authoritative
+#   R.12b baseline. This receipt does NOT rebaseline it. The
+#   pinned baseline files were restored to HEAD after the test
+#   rewrote them during this run; T.6.1 does not adjust any
+#   pinned GPU report.
+#
+# T.6.1 deliverables (sealed in this commit):
+#   - README.md: typo `densores` -> `densors` (panel-locked
+#     vocabulary).
+#   - src/lib.rs: module docstring rewritten from "At T.1a (this
+#     commit) the crate ships..." stub language to a "Current
+#     state through T.7" enumeration listing T.1a / T.1b / T.2 /
+#     T.3 / T.4 / T.5 / T.6 / T.7 deliverables. Doctrine
+#     constraints preserved verbatim.
+#   - src/types.rs: refreshed seven stale "T.3/T.4/T.5 lands
+#     later" docstrings. No field layout / derive / byte-level
+#     schema change. The schema-layer types now refer to their
+#     consumers (crate::identity for T.3, crate::court for T.4,
+#     crate::genealogy for T.5, crate::fusion for T.6,
+#     crate::lband for T.7) in present tense.
+#   - src/main.rs: rename `render_genealogy_stub` ->
+#     `render_genealogy_summary` at the call site (the function
+#     itself moved to the same name in report.rs; T.5 landed the
+#     full DOT/JSON export so the "stub" label was stale).
+#   - src/report.rs:
+#       * Refresh the runtime header from
+#         "(T.1a sections 1-6 populated; sections 7-10 land in
+#         T.4-T.9)" to a post-T.7 enumeration acknowledging
+#         T.1a-T.7 populated and T.8/T.9 pending.
+#       * Drop the legacy "(T.1a all entries canonical; T.1b+
+#         adds aliases)" trailing comment in Section (1); replace
+#         with one-liner naming T.4 court as the source of truth.
+#       * NEW Section (1b) Dedup-court decision summary emitted
+#         by a new `section_court_decision_summary` function.
+#         Sources counts directly from `crate::court::classify_all`
+#         and `crate::court::count_decisions` so the (1) Totals
+#         schema-rollup row is no longer the only audit-visible
+#         dedup tally. The block reports six categories explicitly
+#         (canonical, alias, parameterisation, composition,
+#         stochastic-reduction, rejected, deferred) plus the
+#         "source" provenance line.
+#       * Rename `render_genealogy_stub` -> `render_genealogy_summary`
+#         + drop "T.1a stub" runtime text; replace with "T.5 —
+#         human-readable summary; see `genealogy-dot` and
+#         `genealogy-json` for machine-consumable exports."
+#   - tests/toml_equivalence.rs: rename
+#     `toml_loader_rejects_duplicate_canonical_ids` ->
+#     `toml_loader_preserves_duplicate_canonical_ids_for_court_review`.
+#     The body verifies the loader DOES NOT silently swallow
+#     duplicates and returns both records; the name now matches
+#     the behavior. Module docstring's invariant list updated.
+#   - tests/court_invariants.rs: add new test
+#     `report_contains_court_decision_summary` asserting the (1b)
+#     block exists, names `classify_all()` as authoritative, and
+#     produces non-zero canonical / alias / composition counts on
+#     the T.4 first batch.
+#   - tests/seed_invariants.rs: call site updated for the
+#     genealogy-summary rename.
+#   - reports/corpus_t7_report.txt: re-rendered to include the
+#     refreshed runtime header + new (1b) court summary block.
+#     File grew from 194 -> 206 lines.
+#
+# Court summary the public report now exposes:
+#   court subjects             : 66
+#   canonical decisions        : 52
+#   alias decisions            : 12
+#   parameterisation decisions : 0
+#   composition decisions      : 2
+#   stochastic-reduction decs. : 0
+#   rejected records           : 0
+#   deferred records           : 0
+#
+# Corpus test counts after T.6.1:
+#   -  6 parser unit tests
+#   - 28 T.1a/T.1b seed_invariants tests
+#   - 14 T.2 toml_equivalence tests
+#   - 18 T.3 identity_invariants tests
+#   - 18 T.4 court_invariants tests (T.7 baseline 17 + 1 new
+#     `report_contains_court_decision_summary`)
+#   - 18 T.5 genealogy_invariants tests
+#   - 24 T.6 witness_invariants tests
+#   - 17 T.7 lband_invariants tests
+#   Total: 143 corpus-crate tests green.
+#
+# Full-workspace test count after T.6.1: 371 passed; 0 failed.
+#
+# Stale-doc grep scan (this commit) — verified clean:
+#   grep -RInE "T\.1a stub|stub at T\.1a|lands in T\.[345]|At T\.1a (this commit)|T\.1a stores the classification|T\.1a stores zeros|densores" \
+#     README.md crates/dsfb-gpu-atlas-corpus/src crates/dsfb-gpu-atlas-corpus/tests \
+#     -> zero hits.
+#
+# Full code-commentary discipline (this commit):
+#   - section_court_decision_summary carries a doc-block comment
+#     stating the WHY for a future reader (the (1) Totals row is
+#     a schema-level rollup; the authoritative dedup tally lives
+#     in (1b) because T.4's court is the source of truth).
+#   - render_genealogy_summary docstring names the DOT/JSON sibling
+#     exports so a reader sees the three-way emit path at a glance.
+#   - The toml_loader_preserves_duplicate_canonical_ids_for_court_review
+#     test carries a body comment explaining why preservation,
+#     not rejection, is the correct loader contract.
+#
+# Pinned baselines not rebaselined by this commit:
+#   - reports/r12_d64_saturation.txt — restored to HEAD; the
+#     test re-wrote it during this run but the file is the
+#     authoritative R.12b baseline and should not drift with
+#     thermal noise.
+#   - reports/d64_stage_timing_256x4096_K1.txt — restored to HEAD.
+#   - reports/r9_b_d64_timing.txt / reports/r9_b3_d64_timing.txt —
+#     restored to HEAD.
+#
+# 10-step per-section discipline checklist (hard-enforcement order):
+#   [x]  1. cargo fmt --all --check                                (clean)
+#   [x]  2. cargo clippy --workspace --features cuda --all-targets \
+#             -- -D warnings                                       (clean)
+#   [x]  3. scripts/scrub.sh                                       (clean)
+#   [x]  4. scripts/docs_freshness.sh                              (clean)
+#   [x]  5. cargo test -p dsfb-gpu-atlas-corpus                    (143 green)
+#   [x]  6. cargo test --workspace --features cuda \
+#             -- --test-threads=1                                  (371 green)
+#   [x]  7. tests/r12_d64_saturation regression check              (exit 0;
+#             episodes byte-identical; per_catalog_us within real-
+#             world thermal/host-load drift band; pinned R.12b
+#             baseline NOT rebaselined.)
+#   [x]  8. stale-doc scan across the workspace                    (zero hits)
+#   [x]  9. README + plan-file Quick Start refreshed               (densors
+#             typo; "What is NOT yet" paragraph stays current from
+#             T.7; plan-file Quick Start was refreshed in plan mode
+#             before this commit and stays consistent)
+#   [x] 10. Atomic single commit                                   (this commit)
+#
+# Going forward (user-locked): every T-commit ships its own
+# corpus_tN_regression_check.txt receipt. T.8 (usefulness ledger
+# shell) is the next commit per the panel-locked sequence.

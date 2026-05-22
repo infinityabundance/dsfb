@@ -1,0 +1,63 @@
+S-PERF.12 promotion-seal — 10-step ritual regression check
+==========================================================
+
+Date         : 2026-05-18
+Hardware     : RTX 4080 SUPER (vendor peak 716 GB/s)
+CUDA version : 13.2
+Backend      : corpus-side host-only Rust (zero CUDA dependency in
+               this commit; promotion seal is receipt-only)
+Receipt type : META-hash binding the Track B chain
+               (S-PERF.11 + S-PERF.12a + S-PERF.13 + S-PERF.14a/b/c)
+
+Gate                                                     | Result
+---------------------------------------------------------|--------
+1. cargo fmt --all --check                               | clean
+2. cargo clippy --workspace --all-targets --features cuda -- -D warnings | clean
+3. bash scripts/scrub.sh                                 | exit 0
+4. bash scripts/docs_freshness.sh                        | exit 0
+5. cargo test -p dsfb-gpu-atlas-corpus --test \
+     s_perf_12_compact_densor_digest_v1_promotion_invariants | 31 pass
+6. cargo test --workspace --features cuda -- --test-threads=1 | green
+7. R.12b episode pins 13 / 89 / 1917                     | byte-stable
+8. Pinned R.12b baselines (d64_stage_timing,             | restored
+   r12_d64_saturation, r9_b3_d64_timing, r9_b_d64_timing,|  from HEAD
+   d64_stage_timing_post_s_perf_12_compact_densor)       |  pre-commit
+9. FF.4 live README sweep                                | passes
+10. S-PERF.6 public-language regression                  | passes
+11. Atomic commit                                        | sealed
+12. NO --no-verify                                       | confirmed
+
+Hash posture (panel-locked, MUST hold):
+
+  corpus_hash_v1                                : UNCHANGED
+  corpus_hash_v2                                : UNCHANGED
+  every prior T.11 / T.12.x / FF.x / S1.3.x /   : UNCHANGED
+    T.12.PROV / S-PERF.1-S-PERF.11.1 hash       :
+  every DetectorPassport hash                   : UNCHANGED
+  SEED.len()                                    : 54 (UNCHANGED)
+  R.12b episodes (13 / 89 / 1917)               : byte-stable
+
+  NEW hashes introduced by this commit:
+    s_perf_12_promotion_fields_hash_v1 :
+      61a7620ec9cafba82eeb6108a16a1faacce23e1e31a1d24049fa903828028fd8
+    s_perf_12_promotion_report_hash_v1 :
+      36a68b225ccdc1ab87863edcf31de545e81fd72a305076eba2f2528fad0d4b4e
+
+  Both deterministic across two seeds; pairwise distinct from each other
+  and from every prior anchor (verified by hash-sensitivity tests).
+
+Live-disk seed sanity:
+
+  $ cargo run -p dsfb-gpu-atlas-corpus --bin dsfb-corpus -- s-perf-12-promotion
+  → admits cleanly; receipt rendered; all 12 verifier rules passed;
+    8 panel-required campaign-identity negatives all rejected the
+    appropriate mutations; 4 structural-defect rules all rejected the
+    appropriate mutations.
+
+Panel one-line verdict (recorded verbatim in the receipt):
+
+  S-PERF.14 completed the launch-geometry repair arc and pushed the
+  combined CompactDensorDigestV1 path over the >20 GB/s promotion gate.
+  The next correct move is not more optimization; it is to seal S-PERF.12
+  promotion as the admissible Track B throughput-mode result, then
+  continue to S-PERF.14b.1 or S-PERF.15 from a ratified scoreboard.

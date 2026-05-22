@@ -1,0 +1,344 @@
+================================================================
+T.12.n - Econometrics + Reliability / Survival amendment
+        proposal summary
+================================================================
+
+Panel-locked thesis. T.12.n files the Econometrics + Reliability
+/ Survival amendment proposal as a combined campaign because the
+two domains share structural-break / CUSUM / envelope-residual
+ancestry: SEED 3 CUSUM, SEED 4 Page-Hinkley, SEED 11 Mann-
+Kendall, and SEED 22 Residual envelope exit serve as common
+ancestors for both econometric structural-break detection and
+reliability / survival hazard / failure-rate envelope-exit
+detection. The proposal admits only deterministic econometric,
+reliability, survival, and degradation witnesses whose
+stationarity contract, window contract, regression / hazard
+model, censoring law, time-origin law, residual definition,
+decision functional, confuser profile, and numeric mode are
+declared; resolves SEED collisions with CUSUM / Page-Hinkley /
+Mann-Kendall / Residual envelope exit; classifies variants as
+parameterizations or domain transfers; rejects learned market
+predictors / black-box financial forecasters and learned RUL
+classifiers / black-box predictive-maintenance scores; and
+preserves the frozen T.10 corpus hash.
+
+Main panel warning: "An econometric or reliability / survival
+witness is admissible only when the stationarity contract,
+window contract, regression / hazard model, censoring law,
+time-origin law, residual definition, decision functional,
+confuser profile, and numeric mode are declared."
+
+Panel-locked non-claim (MUST appear verbatim):
+
+> T.12.n admits deterministic econometric, reliability,
+> survival, and degradation witnesses. It does not admit
+> market prediction, investment advice, credit-decision
+> authority, actuarial pricing authority, causal economic
+> certainty, RUL certainty, maintenance recommendations, or
+> failure-time prediction.
+
+----------------------------------------------------------------
+Combined-campaign rationale
+----------------------------------------------------------------
+
+The proposal's target_source_class is Econometrics (per the
+canonical T.12 sequence). The reliability / survival primitives
+are admitted in the same body and tagged via display names
+(Kaplan-Meier / Cox-Schoenfeld / Weibull failure-rate / Paris-
+Erdogan crack-growth). This keeps cross-class dedup discipline
+tight and avoids re-resolving the same SEED collisions twice in
+a separate T.12.o; T.12.o now becomes Streaming Sketches per the
+updated canonical sequence.
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.n emitted values:
+
+  literature_expansion_batch_hash_v1 :
+    ea8d7fb5f04d04d48df63370c22a3ce249247ef2bc522150ad098ab8b2c92e70
+  dedup_court_delta_hash_v1          :
+    eef41dca3e49e025b1f989747a218e59b707264f7c0c5d9a7ceb64fa0fed988c
+  corpus_amendment_proposal_hash_v1  :
+    b1c5ea455064b232251147d116de8cc38af91ee9a1b5b412f625dd2b4a2d2670
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found four T.12.n-relevant primitives already
+canonical:
+
+  3  CUSUM (cumulative sum) chart (shared structural-change
+     ancestor for Econometrics + ReliabilitySurvival)
+  4  Page-Hinkley test (structural-break F-test parameterizes
+     here)
+  11 Mann-Kendall trend test (econometric / reliability trend
+     ancestor)
+  22 Residual envelope exit (shared envelope-boundary ancestor
+     for reliability failure-rate + hazard-rate envelope)
+
+All four become ExistingCanonicalAuthorityResolution records.
+Panel-locked success-shape: the campaign's strength comes from
+cross-class dedup discipline (4 authority resolutions over the
+structural-change + envelope SEED family that econometric /
+reliability / survival methods heavily reuse).
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  14  (8 canonical + 4 parameterization
+                                 + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  20  (panel-locked headline)
+  proposed_genealogy_edges: 12
+  proposed_source_refs   :  11
+
+  new_canonical_records (in delta): 8
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised, with
+TWO rejections - EIGHTH T.12.x with two, following T.12.g /
+T.12.h / T.12.i / T.12.j / T.12.k / T.12.l / T.12.m)
+----------------------------------------------------------------
+
+  CanonicalAddition (x8) - SEED-walk-survivors with structurally
+  distinct decision functionals; four econometric + four
+  reliability / survival:
+
+    Econometric:
+    6401 GARCH volatility residual anomaly witness (Bollerslev
+         1986) — declared GARCH(p,q) model + standardised
+         residual vs CONDITIONAL VARIANCE (distinct from any
+         SEED level model)
+    6402 Cointegration-break detector (Hansen 1992; Quintos &
+         Phillips 1993) — declared cointegrating-vector +
+         CUSUM-of-squared-residuals (distinct from SEED 3 raw
+         CUSUM because residual source is cointegration
+         regression AND decision functional is on SQUARED
+         residuals)
+    6403 Hausman-test residual witness (Hausman 1978) —
+         declared two-estimator framework + chi-squared test on
+         parameter-difference vector (distinct from any SEED
+         because decision functional is on PARAMETER-DIFFERENCE
+         chi-squared, not a residual sequence)
+    6404 Bai-Perron multiple-break detector (Bai-Perron 1998 /
+         2003) — declared information-criterion (BIC / LWZ) +
+         Quandt-Andrews supremum-F (admits MULTIPLE structural
+         breaks; distinct from SEED 4 Page-Hinkley sequential
+         single-shift)
+
+    Reliability / Survival:
+    6405 Kaplan-Meier survival-residual witness (Kaplan &
+         Meier 1958) — declared censoring contract (right-
+         censoring / left-truncation / interval-censoring) +
+         time-origin law + product-limit construction
+    6406 Cox proportional-hazards / Schoenfeld residual
+         witness (Cox 1972 / Schoenfeld 1982) — declared
+         covariate set + partial-likelihood + Schoenfeld
+         residual + Grambsch-Therneau 1994 test law
+    6407 Weibull failure-rate envelope exit witness (Weibull
+         1951) — declared Weibull shape + scale + MLE
+         estimation + parametric failure-rate envelope
+    6408 Crack-growth law residual witness (Paris & Erdogan
+         1963) — declared stress-intensity-range model + Paris-
+         Erdogan parameters C and m
+
+  ExistingCanonicalAuthorityResolution (x4):
+    SEED 3 CUSUM (cumulative sum) chart
+    SEED 4 Page-Hinkley test
+    SEED 11 Mann-Kendall trend test
+    SEED 22 Residual envelope exit
+
+  DomainTransferOf (x2):
+    SEED 3 CUSUM as shared structural-change ancestor for
+            Econometrics + ReliabilitySurvival
+    SEED 22 Residual envelope exit as shared envelope-boundary
+            ancestor for ReliabilitySurvival
+
+  ParameterizationOf (x4) - panel-candidate canonicals that
+  collapsed on closer inspection:
+    6409 CUSUM-of-recursive-residuals (Brown / Durbin / Evans
+         1975) -> ParameterizationOf(CUSUM, SEED 3) with
+         declared OLS recursive-residual computation +
+         normalised CUSUM-of-recursive-residuals path +
+         boundary-crossing decision law
+    6410 Quandt-Andrews / Chow structural-break F-test (Quandt
+         1960 / Chow 1960 / Andrews 1993) ->
+         ParameterizationOf(Page-Hinkley, SEED 4) with declared
+         F-statistic law + supremum / average / exponential
+         aggregation rule
+    6411 Hazard-rate change -> ParameterizationOf(Residual
+         envelope exit, SEED 22) with declared piecewise-
+         constant hazard model + hazard-rate envelope bounds
+    6412 Cumulative damage residual (Palmgren 1924 / Miner
+         1945 linear cumulative damage rule) ->
+         ParameterizationOf(CUSUM, SEED 3) with declared per-
+         cycle damage-increment law + cumulative-damage
+         decision threshold + S-N curve reference
+
+  RejectedNotDeterministic (x2):
+    6413 Learned market predictor / black-box financial
+         forecaster (Bloomberg AIM alpha capture, AlphaSense
+         AI signals, Kavout K Score, Goldman Sachs SecDB ML,
+         JP Morgan COIN / LOXM) -- rejected unless reduced to
+         a Deterministic_Market_Forecast_Proxy with
+         deterministic feature-extraction law + declared
+         formula + declared training-data anchor + feature
+         schema + tie-break + numeric mode + NO market-
+         prediction claim + NO investment-recommendation claim
+         + NO credit-decision claim + NO actuarial-pricing
+         claim. The court does NOT issue market prediction,
+         investment advice, credit-decision authority, or
+         actuarial-pricing authority.
+    6414 Learned RUL classifier / black-box predictive-
+         maintenance score (Uptake AI, C3.ai predictive
+         maintenance, Senseye Predictive Maintenance, IBM
+         Maximo RUL, Siemens MindSphere Asset Analytics) --
+         rejected unless reduced to a Deterministic_RUL_Proxy
+         with deterministic feature-extraction law + declared
+         formula + declared training-data anchor + feature
+         schema + tie-break + numeric mode + NO RUL-certainty
+         claim + NO failure-time-prediction claim + NO
+         maintenance-recommendation claim. The court does NOT
+         issue RUL certainty, failure-time prediction, or
+         maintenance recommendations.
+
+----------------------------------------------------------------
+Market-prediction / credit-decision / RUL-certainty discipline
+(panel-locked, MOST IMPORTANT)
+----------------------------------------------------------------
+
+Every CanonicalAddition AND
+ExistingCanonicalAuthorityResolution reason text describes its
+record as an "econometric signal witness" / "structural-break
+signal witness" / "survival signal witness" / "reliability
+signal witness" / "degradation signal witness" -- NEVER as a
+market-prediction, investment-advice, credit-decision,
+actuarial-pricing, RUL-certainty, failure-time-prediction, or
+maintenance-recommendation claim. Pinned by THREE parametric
+scanners:
+- t12_n_rejects_market_prediction_claim_language
+- t12_n_rejects_investment_or_credit_decision_claim_language
+- t12_n_rejects_rul_or_failure_time_certainty_claim_language
+Forbidden terms appear ONLY in RejectedNotDeterministic reason
+text (where they describe what is NOT admitted).
+
+----------------------------------------------------------------
+Stationarity / window / censoring / time-origin contract
+discipline (panel-locked, MOST IMPORTANT load-bearing negatives)
+----------------------------------------------------------------
+
+t12_n_rejects_econometric_witness_without_stationarity_or_window_contract
+asserts every econometric CanonicalAddition (GARCH 6401,
+cointegration-break 6402, Hausman 6403, Bai-Perron 6404)
+declares stationarity contract + window contract.
+
+t12_n_rejects_survival_witness_without_censoring_or_time_origin_contract
+asserts every survival / reliability CanonicalAddition
+(Kaplan-Meier 6405, Cox/Schoenfeld 6406, Weibull 6407)
+declares censoring law + time-origin law.
+
+----------------------------------------------------------------
+Genealogy edges (12 proposed)
+----------------------------------------------------------------
+
+  6401 GARCH residual DerivedFrom Residual envelope exit (22)
+  6402 Cointegration-break DerivedFrom CUSUM (3)
+  6403 Hausman DerivedFrom Mann-Kendall (11)
+  6404 Bai-Perron Generalizes Page-Hinkley (4)
+  6405 Kaplan-Meier DerivedFrom Residual envelope exit (22)
+  6406 Cox/Schoenfeld DerivedFrom Kaplan-Meier (6405)
+  6407 Weibull failure-rate DerivedFrom Residual envelope exit (22)
+  6408 Crack-growth DerivedFrom Mann-Kendall (11)
+  6409 CUSUM-of-recursive-residuals ParameterVariantOf CUSUM (3)
+  6410 Quandt-Andrews / Chow ParameterVariantOf Page-Hinkley (4)
+  6411 Hazard-rate change ParameterVariantOf Residual envelope exit (22)
+  6412 Cumulative damage residual ParameterVariantOf CUSUM (3)
+
+----------------------------------------------------------------
+Source refs (11)
+----------------------------------------------------------------
+
+  Brown / Durbin / Evans 1975 (CUSUM-of-recursive-residuals)
+  Bollerslev 1986 (GARCH canonical reference)
+  Hansen 1992 (cointegration-break canonical reference)
+  Hausman 1978 (Hausman-test canonical reference)
+  Bai-Perron 1998 (multiple-structural-break canonical reference)
+  Kaplan & Meier 1958 (product-limit estimator canonical
+    reference)
+  Cox 1972 (proportional-hazards canonical reference)
+  Schoenfeld 1982 (Schoenfeld residual canonical reference)
+  Weibull 1951 (Weibull distribution canonical reference)
+  Paris & Erdogan 1963 (crack-growth law canonical reference)
+  Vendor market-prediction + RUL pipelines (Bloomberg / AlphaSense
+    / Kavout / Goldman SecDB ML / JP Morgan COIN; Uptake AI /
+    C3.ai / Senseye / IBM Maximo RUL / Siemens MindSphere;
+    rejection-shell reference)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (6)
+----------------------------------------------------------------
+
+   1. t12_n_does_not_mutate_seed_len
+   2. t12_n_rejects_market_prediction_claim_language
+      (MOST IMPORTANT)
+   3. t12_n_rejects_investment_or_credit_decision_claim_language
+      (MOST IMPORTANT)
+   4. t12_n_rejects_rul_or_failure_time_certainty_claim_language
+      (MOST IMPORTANT)
+   5. t12_n_rejects_survival_witness_without_censoring_or_time_origin_contract
+      (MOST IMPORTANT)
+   6. t12_n_rejects_econometric_witness_without_stationarity_or_window_contract
+      (MOST IMPORTANT)
+   Plus t12_n_rejects_black_box_forecaster_without_formula
+   (vendor-naming + deterministic-feature-extraction-law +
+   training-data-anchor + tie-break + numeric-mode +
+   no-market-prediction-claim + no-RUL-certainty-claim contract
+   assertions, exercised on both 6413 + 6414 rejection records).
+
+Plus per-canonical structural-distinctness assertions
+(GARCH-distinct-from-level-model, cointegration-distinct-from-
+raw-CUSUM, Hausman-distinct-from-residual-sequence, Bai-
+Perron-multiple-breaks-distinct-from-Page-Hinkley, KM declares
+Kaplan-Meier, Cox/Schoenfeld declares proportional-hazards,
+Weibull declares shape and scale, Paris-Erdogan declares
+stress-intensity), ParameterizationOf family tests (CUSUM-of-
+recursive-residuals / Quandt-Andrews / hazard-rate / cumulative-
+damage), DomainTransferOf tests (SEED 3 + SEED 22), authority-
+coverage-of-all-T.12.n-SEED-ids witness, reserved-id-range
+tests for all three buckets (6401..=6408 for CanonicalAddition;
+6409..=6412 for ParameterizationOf; 6413..=6414 for
+RejectedNotDeterministic), shape / determinism / rendering
+invariants, hash distinctness from every prior T.12.x. Total:
+47 acceptance tests.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.n does NOT:
+- admit market prediction, investment advice, credit-decision
+  authority, actuarial pricing authority, causal economic
+  certainty, RUL certainty, maintenance recommendations, or
+  failure-time prediction (the court emits econometric /
+  reliability / survival signal witnesses);
+- mutate corpus_hash_v1 or any prior T.11/S1.3/T.12.x hash;
+- create corpus_hash_v2;
+- duplicate CUSUM / Page-Hinkley / Mann-Kendall / Residual
+  envelope exit;
+- promote CUSUM-of-recursive-residuals / Quandt-Andrews
+  structural-break F-test / hazard-rate change / cumulative
+  damage residual to new_canonical_records;
+- promote learned market predictors / black-box financial
+  forecasters / learned RUL classifiers / black-box
+  predictive-maintenance scores to new_canonical_records;
+- claim regulatory compliance, FDA approval, SEC certification,
+  or any vendor-specific market / actuarial verdict;
+- activate new detectors;
+- execute on GPU;
+- claim empirical usefulness (T.8 ledger stays NotScored).

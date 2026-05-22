@@ -1,0 +1,123 @@
+================================================================
+T.12.i - Observability / Debugging
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Initial run hit four doc_lazy_continuation
+  errors in the T.12.i module docstring (Timeout burst and
+  Backpressure propagation bullets used `+` chained text that
+  parsed as list markers); fixed by replacing the `+` chained
+  text with comma-separated English prose. Reason-text bytes
+  (the hashed payload) were NOT touched, so the three emitted
+  hashes are byte-stable from first emit.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 35 groups / 1048 tests pass (T.12.h baseline 34/1003
+  + 1 new group + 45 new T.12.i acceptance tests).
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 74 test groups, 1363 tests PASS, 0 FAIL. Delta from
+  T.12.h seal (0b01851): +1 test group, +45 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. README.md, archived prior-art manuscript source, lib.rs
+  module docstring, and main.rs usage block all refreshed
+  through T.12.i. New T.12.i section in README between T.12.h
+  and the scaling ladder.
+
+Step 9. README / plan refresh
+  Result: README T.12.i section + front-door + Layout +
+  Paper-section refreshed from T.1-T.12.h to T.1-T.12.i.
+  Plan-file post-commit will mark T.12.i sealed.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_i_observability.rs (new, ~620 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_i_observability_invariants.rs (new, 45 tests
+      including 11 panel-required load-bearing negatives)
+    - out/t12_i_observability_proposal_v1.{txt,json} (new)
+    - reports/t12_i_observability_proposal_summary.txt (new)
+    - reports/t12_i_observability_proposal_verification.txt (new)
+    - reports/t12_i_regression_check.txt (new)
+    - README.md (T.12.i section + front-door refresh)
+    - archived prior-art manuscript source (T.12.i bullet)
+    - .gitignore (3 new whitelist lines)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.0-T.12.h hash    : unchanged
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.i observability literature_expansion_batch_hash_v1 (NEW) :
+    115aa30f9d9f9a178b036f85a0878597652100c20ebca6810430768e73f7ee63
+  T.12.i observability dedup_court_delta_hash_v1 (NEW) :
+    b3c80c74b4a64474d0d63c73666b560a6c9dcdd3260227ab7f700d9a950b42fa
+  T.12.i observability corpus_amendment_proposal_hash_v1 (NEW) :
+    9776c1b9d87fa2fd389df933513904c9cf47b703dae18f343508b58628540611
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in t12_i_observability.rs carries a doc comment
+  whose first sentence states the WHY for a future engineer.
+- Scope + decision-law contract discipline: every Canonical
+  Addition and ExistingCanonicalAuthorityResolution record
+  declares its specific telemetry-field + aggregation-law +
+  window-law + baseline-law + topology-scope + confuser-profile
+  + decision-law contract.
+- Bank-surface non-duplication: re-adding any of SEED IDs 14,
+  15, 41, 42, 43 as a new canonical is verifier-rejected
+  (parametric loop), protecting the L6 honesty marker.
+- Vendor-APM-rejection honesty: vendor APM black-box anomaly
+  scores (Datadog / New Relic / Dynatrace / Splunk MLTK / AWS
+  DevOps Guru) are RejectedNotDeterministic until a
+  deterministic formula + model-identification + training-data
+  anchor + feature schema + tie-break + numeric mode are
+  declared; the reason text must name at least one vendor.
+- Learned-incident-classifier-rejection honesty: PagerDuty /
+  Splunk On-Call / ServiceNow AIOps classifiers are
+  RejectedNotDeterministic until a deterministic proxy is
+  declared.
+
+T.12.i is sealed. The amendment court has admitted the ninth
+real expansion proposal: 8 new canonical observability /
+debugging primitives, 5 existing-canonical bank-surface
+authority resolutions, 2 DomainTransferOf records, 4
+ParameterizationOf records, 2 RejectedNotDeterministic records,
+12 genealogy edges, 9 source refs - all WITHOUT mutating SEED
+or corpus_hash_v1 and WITHOUT erasing the dsfb-gpu-debug L6
+bank surface.
+
+Next campaign (panel-authorized post-T.12.i): T.12.j -
+Medical / Biosignal. Same SEED-walk-first discipline. Candidate
+primitives: R-peak interval anomaly, HRV time-domain shift,
+spectral HRV band shift, QRS width anomaly, ST-segment
+deviation proxy, baseline wander, motion artifact,
+saturation/clipping detector. Note that some of these (R-peak
+interval anomaly, HRV time-domain shift, QRS width anomaly,
+ST-segment deviation proxy) are likely already canonical in
+SEED at ids 49-52.

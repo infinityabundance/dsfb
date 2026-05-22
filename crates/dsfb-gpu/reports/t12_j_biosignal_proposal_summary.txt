@@ -1,0 +1,247 @@
+================================================================
+T.12.j - Medical / Biosignal amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.j files the Medical / Biosignal
+amendment proposal. It admits only deterministic biosignal
+witnesses whose signal source, sampling law, filtering law,
+morphology measurement law, baseline / noise handling, artifact
+confuser profile, and decision functional are declared;
+resolves SEED collisions; classifies measurement variants as
+parameterizations or domain transfers; rejects diagnostic
+classifiers and learned arrhythmia scores unless
+deterministically reduced; and preserves the frozen T.10
+corpus hash.
+
+Main panel warning: "Count signal witnesses, not diagnoses.
+No sampling / filtering / morphology law, no canonical
+admission."
+
+Panel-locked non-claim (MUST appear verbatim):
+
+> T.12.j does not admit medical diagnoses. It admits
+> deterministic biosignal witnesses: morphology, interval,
+> artifact, and spectral signal structures under declared
+> sampling, filtering, and measurement laws. Clinical
+> interpretation remains out of scope.
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.j emitted values:
+
+  literature_expansion_batch_hash_v1 :
+    4f7fb0b440d3d41d26f537648781357a0b1498fd07ef923585cc7faeab3898dc
+  dedup_court_delta_hash_v1          :
+    12069c59524bf11df9fbae443d7acbe28eae683110bd2b46af626c93e483c96d
+  corpus_amendment_proposal_hash_v1  :
+    e64b603b82a383c891655423e320119f32bb80380572874ae5edffa9fa57f7b2
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found FOUR T.12.j-relevant primitives already
+canonical:
+
+  49 R-peak interval anomaly (RR-interval)
+  50 HRV time-domain shift
+  51 QRS width anomaly
+  52 ST-segment deviation proxy
+
+All four become ExistingCanonicalAuthorityResolution records
+with declared signal-source + sampling-rate + filtering-law +
+morphology-or-interval-measurement-law + baseline + artifact-
+confuser-profile contracts.
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  14  (8 canonical + 4 parameterization
+                                 + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  20  (panel-locked headline)
+  proposed_genealogy_edges: 12
+  proposed_source_refs   :   9
+
+  new_canonical_records (in delta): 8
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised, with
+TWO rejections - FOURTH T.12.x with two, following T.12.g /
+T.12.h / T.12.i)
+----------------------------------------------------------------
+
+  CanonicalAddition (x8) with declared contracts:
+    6001 P-wave morphology anomaly
+         (lead/channel + sampling + filtering + P-wave
+         fiducial-detection + amplitude/duration/polarity
+         morphology + baseline + artifact exclusion)
+    6002 T-wave morphology anomaly
+         (T-wave fiducial-detection + amplitude/duration/
+         polarity/inversion morphology)
+    6003 QT interval anomaly
+         (Q-onset to T-offset extraction; optional Bazett /
+         Fridericia / Framingham / Hodges rate correction)
+    6004 PR interval anomaly
+         (P-onset to R-onset extraction)
+    6005 Spectral HRV band shift
+         (RR-interval extraction + beat inclusion/exclusion +
+         resampling cubic-spline 4 Hz / Welch / Lomb-Scargle +
+         spectral-estimation Welch periodogram / Lomb-Scargle /
+         AR + VLF / LF / HF band definitions)
+    6006 Baseline wander detector
+         (signal type ECG / PPG / EMG + high-pass filter
+         cutoff + below-0.5-Hz wander-band law)
+    6007 Motion artifact detector
+         (accelerometer-corroborated / amplitude-saturation /
+         baseline-jump artifact signal definition + sensor
+         source + confuser handling)
+    6008 Saturation / clipping detector
+         (ADC bit-depth or saturation boundary + consecutive-
+         samples-at-boundary threshold)
+
+  ExistingCanonicalAuthorityResolution (x4):
+    SEED 49 R-peak interval anomaly (RR-interval)
+    SEED 50 HRV time-domain shift
+    SEED 51 QRS width anomaly
+    SEED 52 ST-segment deviation proxy
+
+  DomainTransferOf (x2):
+    SEED 12 FFT band-energy as shared spectral ancestor for
+            MedicalBiosignal (spectral HRV band shift 6005
+            is the biosignal descendant)
+    SEED 22 Residual envelope exit as shared envelope-
+            boundary ancestor for MedicalBiosignal
+            (saturation/clipping 6008 and motion artifact
+            6007 inherit the exit-the-envelope semantic)
+
+  ParameterizationOf (x4):
+    6009 RR-interval irregularity ->
+         ParameterizationOf(R-peak interval anomaly, SEED 49)
+    6010 HRV time-domain SDNN / RMSSD / pNN50 ->
+         ParameterizationOf(HRV time-domain shift, SEED 50)
+    6011 HRV LF / HF band-specific ->
+         ParameterizationOf(Spectral HRV band shift, 6005)
+    6012 Lead-specific ST deviation ->
+         ParameterizationOf(ST-segment deviation proxy, SEED 52)
+
+  RejectedNotDeterministic (x2):
+    6013 Learned arrhythmia classifier (Hannun et al. 2019
+         deep-learning ECG classifier; commercial deep-
+         learning rhythm detectors) -- rejected unless
+         reduced to a Deterministic_Arrhythmia_Classifier_
+         Proxy with model-identification seed + training-
+         data anchor (pinned PhysioNet record-hash) + label
+         schema + tie-break + numeric mode declared
+    6014 Clinician-label-only diagnostic rule -- rejected
+         unless reduced to a deterministic signal-based
+         reduction (morphology + interval + rhythm law all
+         declared)
+
+----------------------------------------------------------------
+Diagnostic-claim discipline (panel-locked, MOST IMPORTANT)
+----------------------------------------------------------------
+
+Every CanonicalAddition AND ExistingCanonicalAuthorityResolution
+reason text describes its record as "signal witness" /
+"morphology measurement" / "interval measurement" /
+"envelope detector" / "artifact detector" / "spectral
+measurement" -- NEVER as a clinical diagnosis. Pinned by
+t12_j_rejects_diagnostic_claim_language which scans every such
+reason for forbidden diagnostic terms (arrhythmia, fibrillation,
+infarction, ischemia, ischaemia, tachycardia, bradycardia,
+"diagnoses ", "diagnostic verdict") and asserts every
+qualifying reason ends with "signal witness, not a medical
+diagnosis". Diagnostic terms may appear ONLY inside
+RejectedNotDeterministic reason text (where they describe what
+is NOT admitted) or in rejection-shell display names.
+
+----------------------------------------------------------------
+Genealogy edges (proposed)
+----------------------------------------------------------------
+
+  6001 P-wave morphology      DerivedFrom QRS width (SEED 51)
+  6002 T-wave morphology      DerivedFrom QRS width (SEED 51)
+  6003 QT interval            DerivedFrom R-peak interval (49)
+  6004 PR interval            DerivedFrom R-peak interval (49)
+  6005 Spectral HRV band     DerivedFrom HRV time-domain (50)
+  6006 Baseline wander        DerivedFrom Residual envelope exit (22)
+  6007 Motion artifact        DerivedFrom Residual envelope exit (22)
+  6008 Saturation / clipping  DerivedFrom Residual envelope exit (22)
+  6009 RR-interval irregularity ParameterVariantOf R-peak (49)
+  6010 SDNN / RMSSD / pNN50   ParameterVariantOf HRV time-domain (50)
+  6011 LF / HF band           ParameterVariantOf Spectral HRV (6005)
+  6012 Lead-specific ST       ParameterVariantOf ST-segment (52)
+
+----------------------------------------------------------------
+Source refs (9)
+----------------------------------------------------------------
+
+  Pan & Tompkins 1985 (QRS detection; doi:10.1109/TBME.1985.325532)
+  HRV Task Force 1996 (standards of measurement)
+  Moody & Mark 2001 (MIT-BIH Arrhythmia Database; PhysioNet)
+  AAMI EC57:2012 (algorithm performance standard)
+  Welch 1967 (periodogram)
+  Lomb 1976 (irregular-sample frequency analysis)
+  Friesen et al. 1990 (ECG noise / baseline wander)
+  ANSI/AAMI EC11 (diagnostic ECG devices; ADC reference)
+  Hannun et al. 2019 (deep-learning ECG; rejection-shell reference)
+
+DOIs embedded in venue strings (interim solution); formal
+`doi_or_url` field lands in the panel-flagged T.12.schema-v2-
+source-ref schema upgrade (see plan section B.4).
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (13)
+----------------------------------------------------------------
+
+   1. t12_j_does_not_mutate_seed_len
+   2. t12_j_rejects_r_peak_duplicate_without_existing_authority_resolution
+   3. t12_j_rejects_qrs_width_without_sampling_and_qrs_detection_law
+   4. t12_j_rejects_hrv_without_rr_interval_and_artifact_exclusion_law
+   5. t12_j_rejects_st_deviation_without_lead_and_baseline_law
+   6. t12_j_rejects_spectral_hrv_without_band_and_resampling_law
+   7. t12_j_rejects_baseline_wander_without_filter_and_frequency_law
+   8. t12_j_rejects_motion_artifact_without_artifact_signal_definition
+   9. t12_j_rejects_clipping_without_adc_or_saturation_boundary_law
+  10. t12_j_rejects_learned_arrhythmia_classifier_without_deterministic_formula
+  11. t12_j_rejects_diagnostic_claim_language
+      (MOST IMPORTANT - parametric scanner over every
+       CanonicalAddition / ExistingCanonicalAuthorityResolution
+       reason; forbidden-term blacklist + mandatory
+       "signal witness, not a medical diagnosis" non-claim)
+  12. t12_j_hash_changes_when_sampling_or_filter_law_changes
+  13. t12_j_existing_seed_collision_requires_authority_resolution
+      (parametric loop over all 4 SEED biosignal IDs)
+
+Plus 1 clinician-label-only rejection contract test, 4 per-
+canonical contract assertions, 4 ParameterizationOf family
+tests, 2 DomainTransferOf assertion tests, an authority-
+coverage-of-all-biosignal-SEED-IDs witness, reserved-id-range
+tests for all three buckets (6001..=6008, 6009..=6012,
+6013..=6014), shape / determinism / rendering invariants.
+Total: 48 acceptance tests.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.j does NOT:
+- admit medical diagnoses (the court emits signal witnesses);
+- mutate corpus_hash_v1 or any prior T.11/S1.3/T.12.x hash;
+- create corpus_hash_v2;
+- duplicate R-peak interval anomaly / HRV time-domain shift /
+  QRS width anomaly / ST-segment deviation proxy;
+- promote RR-interval irregularity / SDNN-RMSSD-pNN50 / LF-HF
+  / lead-specific ST to new_canonical_records;
+- promote learned arrhythmia classifier or clinician-label-only
+  diagnostic rule to new_canonical_records;
+- claim clinical interpretation of any witness;
+- activate new detectors;
+- execute on GPU;
+- claim empirical usefulness (T.8 ledger stays NotScored).

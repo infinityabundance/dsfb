@@ -1,0 +1,217 @@
+S-PERF.3 PublicDataSaturationBundleV1 — Summary Receipt
+========================================================
+
+Panel verdict: post-S-PERF.2 panel directive (2026-05-17).
+Sealed under the 10-step per-section discipline ritual.
+
+Commit identity (panel-locked):
+
+    S-PERF.3 defines the byte-pinned public artifact bundle
+    used for future Layer-A saturation measurements. It
+    does not claim saturation, does not benchmark
+    throughput, and does not change kernels. It creates the
+    reproducible public-data workload surface that
+    S-PERF.4 / S-PERF.5 will measure.
+
+Panel-locked verdict (verbatim):
+
+    S-PERF.2 isolated the evidence-factory path; S-PERF.3
+    gives that path a reproducible public workload to run
+    on.
+
+Core rule:
+
+    No saturation benchmark without a byte-pinned public-
+    data bundle. No dataset claim without source, license /
+    access status, hash policy, and fixed materialization
+    recipe.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+S-PERF.3 ships ONLY the bundle schema + materialization
+policy + verifier + builder + panel-locked baseline of five
+citation-only manifests covering the five panel-named
+dataset classes + renderers.
+
+  - PublicArtifactManifestV1
+    Per-dataset manifest declaring identity (dataset_id,
+    display_name), classification (dataset_class,
+    layer_a_role_mapping), access posture (access_note,
+    license_or_access_status, usage_mode), hash policy
+    (hash_policy_kind, per_artifact_sha256_count,
+    source_archive_sha256), synthetic flag, and
+    materialization recipe.
+
+  - DatasetMaterializationPolicyV1
+    Panel-locked 8-line policy doctrine pinned by its own
+    dataset_materialization_policy_hash_v1.
+
+  - PublicDataSaturationBundleV1
+    Top-level wrapper binding all manifests (sorted
+    ascending by dataset_id) + the policy + the bundle
+    identity under a single META-hash.
+
+Five companion enums (stable wire names):
+  DatasetClass: DebugObservabilityTrace / SoftwareDefectTable /
+    DataScienceTabular / TimeSeriesAnomaly /
+    IndustrialPublicFixture
+  HashPolicyKind: Sha256OfSourceArchive / Sha256PerFileManifest /
+    UpstreamProvidedChecksum / Unknown (forbidden)
+  LicenseOrAccessStatus: PublicDomain / Bsd2Clause / Bsd3Clause /
+    MitLicense / Apache2 / CcBy / CcBySa / CcZero /
+    AcademicResearchOnly / RegisteredAccess / UnknownLicense
+    (forbidden)
+  DatasetUsageMode: CitationOnly / MeasuredFixture
+  LayerARoleMapping: EvidenceDensorSource / WitnessDensorReference /
+    FusionDensorReference / CandidateDensorReference /
+    StageDigestReference / Unmapped (forbidden)
+
+----------------------------------------------------------------
+Panel-locked baseline bundle (5 citation-only manifests)
+----------------------------------------------------------------
+
+  tadbench_v1          DebugObservabilityTrace    Apache2          (GitHub)
+  defects4j_v2         SoftwareDefectTable        MitLicense       (GitHub)
+  adbench_subset_v1    DataScienceTabular         Bsd2Clause       (GitHub / NeurIPS 2022)
+  tsb_uad_v1           TimeSeriesAnomaly          Apache2          (GitHub)
+  nasa_cmapss_v1       IndustrialPublicFixture    PublicDomain     (NASA PCoE)
+
+All baseline manifests are usage_mode=CitationOnly with
+populated recipe (source_url_or_doi + local_path_template +
+materialization_steps + deterministic_postprocess=true +
+requires_live_remote_fetch=false). Each has
+hash_policy_kind populated (Sha256PerFileManifest for the
+4 GitHub datasets; Sha256OfSourceArchive for NASA C-MAPSS)
+but per_artifact_sha256_count=0 and source_archive_sha256=
+zero because the bytes are not yet materialised. Later
+S-PERF.* commits flip usage_mode to MeasuredFixture and
+populate the hash material.
+
+All baseline manifests are is_synthetic=false (real public
+data, not synthetic generators).
+
+----------------------------------------------------------------
+Three new own-namespace hashes
+----------------------------------------------------------------
+
+  public_artifact_manifest_hash_v1
+    (one per dataset; pairwise distinct)
+    domain: DSFB-GPU-ATLAS:PUBLIC-ARTIFACT-MANIFEST:v1\0
+
+  dataset_materialization_policy_hash_v1
+    = 84854f81e1d0625d052db175d20e898313226b11870261ba3efbb5e2a3d1e82f
+    domain: DSFB-GPU-ATLAS:DATASET-MATERIALIZATION-POLICY:v1\0
+
+  public_data_saturation_bundle_hash_v1
+    = 532892b217251491c1af354e57446b398b53b2185eaf9348d87582773395ccd8
+    domain: DSFB-GPU-ATLAS:PUBLIC-DATA-SATURATION-BUNDLE:v1\0
+
+All three deterministic across two consecutive builds;
+pairwise distinct; distinct from every prior corpus / T.11 /
+T.12.x / T.12.consolidate / FF.x / S1.3.x / T.12.PROV /
+S-PERF.1 / S-PERF.2 hash anchor.
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. s_perf_3_rejects_dataset_without_source_or_access_note
+       — manifest with empty source_url_or_doi OR empty
+         access_note.
+  2. s_perf_3_rejects_artifact_without_hash_policy
+       — manifest with HashPolicyKind::Unknown.
+  3. s_perf_3_rejects_bundle_with_synthetic_only_data
+       — bundle with zero manifests OR every manifest
+         is_synthetic=true.
+  4. s_perf_3_rejects_dataset_without_materialization_recipe
+       — recipe missing local_path_template, missing
+         materialization_steps, or MeasuredFixture with
+         expected_bytes_after_materialization=0.
+  5. s_perf_3_rejects_license_or_access_status_missing
+       — LicenseOrAccessStatus::UnknownLicense.
+  6. s_perf_3_rejects_unpinned_download_or_live_remote_dependency
+       — recipe.requires_live_remote_fetch=true.
+  7. s_perf_3_rejects_dataset_role_without_layer_a_mapping
+       — LayerARoleMapping::Unmapped.
+  8. s_perf_3_rejects_benchmark_claim_inside_bundle_definition
+       — case-insensitive scanner over 12 forbidden
+         substrings (achieves saturation / saturates the
+         bandwidth / saturates peak / % of peak / percent of
+         peak / outperforms / beats the baseline / world
+         record / fastest gpu / production-ready performance
+         / petaflops / memory-bandwidth saturation).
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/s_perf_3_public_data_saturation_bundle_invariants.rs : 71 tests
+    - 8 panel-required load-bearing negatives + 3 variants
+      (empty source URL, empty bundle, empty steps,
+      MeasuredFixture with zero bytes, uppercase forbidden
+      substring, forbidden substring in bundle_id)
+    - 12 baseline admission tests (bundle / 5 individual
+      manifests / class coverage / citation-only / not
+      synthetic / sorted ascending / panel-locked policy)
+    - 9 determinism tests (3 hashes + 6 renderers)
+    - 6 sensitivity tests (dataset_id / license / recipe
+      step / synthetic flag / layer_a_role / bundle
+      manifest addition + policy mutation)
+    - 6 structural defect tests (empty dataset_id /
+      non-deterministic recipe / per_artifact mismatch
+      with hash policy / empty bundle_id / duplicate
+      dataset_id / non-panel-locked policy)
+    - 3 hash distinctness + 3 domain separator + 3
+      schema id + 3 nul-termination tests
+    - 4 panel-locked-policy + forbidden-substring set pins
+    - 6 rendering smoke tests
+    - 1 production-walk no-forbidden-substring guard
+    - 5 wire-name stability tests
+    - 3 non-zero-hash guards
+
+  Corpus suite (56 groups / 2233 tests) green.
+  Workspace serial (95 groups / 2548 tests) green.
+  Delta vs S-PERF.2: +1 group, +71 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                          UNCHANGED
+  corpus_hash_v2                          UNCHANGED
+  every prior T.11 / S1.3 / T.12.x /
+    T.12.consolidate / FF.x / T.12.PROV /
+    S-PERF.1 / S-PERF.2 hash anchor       UNCHANGED
+  every DetectorPassport hash             UNCHANGED
+  SEED.len()                              54 (UNCHANGED)
+  R.12b episodes                          13 / 89 / 1917 BYTE-STABLE
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+S-PERF.3 does NOT:
+
+  - claim that DSFB-GPU has saturated memory bandwidth (that
+    is a separate S-PERF.4 / S-PERF.5 commit gated on the
+    device-resident pipeline running on real hardware);
+  - benchmark throughput;
+  - emit any timing receipt;
+  - change any CUDA kernel;
+  - change any court decision (S1.3a / FF.2 / FF.3 / S1.3d
+    / S1.3e / S1.3f / S1.3g);
+  - mutate any upstream hash anchor;
+  - alter SEED.len() (stays at 54);
+  - emit detector outputs, witness records, fusion
+    tensors, candidate intervals, or episodes;
+  - decide contraindications or challenges;
+  - modify the registry crate;
+  - download or fetch any dataset bytes (the baseline ships
+    citation-only manifests; live-remote fetches are
+    forbidden by panel-required negative #6).
+
+S-PERF.3 gives the Layer-A path a reproducible public
+workload. The first measurement against this workload is
+a later S-PERF.* commit.

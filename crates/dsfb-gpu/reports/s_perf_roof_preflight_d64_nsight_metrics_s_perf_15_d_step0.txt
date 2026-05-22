@@ -1,0 +1,253 @@
+========================================================================
+ S-PERF.ROOF-PREFLIGHT — D64 compact-densor Nsight Compute receipt
+ (panel-verified post-S-PERF.13; one-shot audit; no hash chain)
+========================================================================
+
+Hardware: RTX 4080 SUPER, CUDA 13.2, Nsight Compute 2026.1.1.0
+Bench:    s_perf_12_d64_compact_densor_stage_profile_256x4096_k1
+Profile:  --set detailed --launch-skip 36 --launch-count 12
+          (skip 3 warmup x 12 kernels = 36 launches; profile
+          next 12 kernels = one measurement iteration)
+Source:   _ncu_d64_compact_densor_metrics_s_perf_15_d_step0.csv
+
+Panel-locked thesis: the bench's `wide bytes/sec` metric is a
+LOGICAL byte count (264 B/cell x cells/sec), NOT physical
+fabric traffic. This receipt names the ACTUAL saturated fabric.
+
+------------------------------------------------------------------------
+ Per-kernel SpeedOfLight matrix (launch order; one row per metric)
+------------------------------------------------------------------------
+
+  kernel                                         |  Dur(ns) |  DRAM% |   L2% |   L1% |   SM% |  Occ% |     Bucket
+  ---------------------------------------------------------------------------------------------------------------
+  drift_slew_sign_kernel_cellpar                 |    32096 |   91.7 |  40.0 |  26.1 |  12.1 |  45.3 |      DRAM!
+  detector_motif_fused_d64_kernel                |  2475232 |   27.4 |  92.3 |  61.6 |   5.5 |  48.9 |        L2!
+  consensus_axis5_fused_kernel                   |   401760 |   29.1 |  87.2 |  57.9 |   5.9 |  83.6 |        L2!
+  candidate_fired_kernel_wide                    |    61472 |   75.9 |  73.3 |  49.7 |   2.5 |  46.9 |      DRAM!
+  candidate_boundary_precompute_kernel           |   285824 |    1.1 |   0.3 |  18.4 |   0.2 |   2.1 |       OCC!
+  candidate_boundary_cellpar_emit_kernel         |     2208 |    3.8 |   2.3 |   1.8 |   0.8 |   6.2 |       OCC!
+  candidate_pack_kernel_wide_blockcoop           |   145504 |   65.9 |  22.2 |   9.4 |   5.2 |  36.9 |       OCC!
+  compact_densor_digest_v1_leaf_kernel           |   213088 |   14.6 |   7.5 |  61.9 |   9.8 |  31.9 |       OCC!
+  compact_densor_digest_v1_root_kernel_blockcoop |   929472 |    0.5 |   0.2 |   4.9 |   0.2 |   2.7 |       OCC!
+
+------------------------------------------------------------------------
+ Per-kernel detail (full metrics + ncu rule insights)
+------------------------------------------------------------------------
+
+kernel: drift_slew_sign_kernel_cellpar(const ResidualCell *, const int *, int, int, SignCell *)
+  DRAM Throughput                = 91.67 %
+  L1/TEX Cache Throughput        = 26.09 %
+  L2 Cache Throughput            = 40.00 %
+  Compute (SM) Throughput        = 12.08 %
+  Memory Throughput              = 658,137,587,238.29 byte/s
+  Duration                       = 32,096 ns
+  Elapsed Cycles                 = 81,538 cycle
+  Achieved Occupancy             = 45.28 %
+  Theoretical Occupancy          = 50 %
+  Achieved Active Warps Per SM   = 21.74 warp
+  Executed Ipc Active            = 0.43 inst/cycle
+  Executed Ipc Elapsed           = 0.41 inst/cycle
+  CLASSIFICATION: DRAM-bound  (DRAM=91.7%)
+  ncu insights:
+    - This workload is utilizing greater than 80.0% of the available compute or memory performance of this device. To further improve performance,
+    - The ratio of peak float (FP32) to double (FP64) performance on this device is 64:1. The workload achieved 0% of this device's FP32 peak perf
+    - All compute pipelines are under-utilized. Either this workload is very small or it doesn't issue enough warps per scheduler. Check the Launc
+    - The 6.00 theoretical warps per scheduler this kernel can issue according to its occupancy are below the hardware maximum of 12. This kernel'
+
+kernel: detector_motif_fused_d64_kernel(const ResidualCell *, const SignCell *, int, int, DetectorThresholds, DetectorCellWide *, unsigned char *, i
+  DRAM Throughput                = 27.37 %
+  L1/TEX Cache Throughput        = 61.65 %
+  L2 Cache Throughput            = 92.33 %
+  Compute (SM) Throughput        = 5.53 %
+  Memory Throughput              = 196,875,386,226.42 byte/s
+  Duration                       = 2,475,232 ns
+  Elapsed Cycles                 = 6,310,744 cycle
+  Achieved Occupancy             = 48.90 %
+  Theoretical Occupancy          = 50 %
+  Achieved Active Warps Per SM   = 23.47 warp
+  Executed Ipc Active            = 0.22 inst/cycle
+  Executed Ipc Elapsed           = 0.22 inst/cycle
+  CLASSIFICATION: L2-bound  (L2=92.3% (DRAM=27.37%))
+  ncu insights:
+    - This workload is utilizing greater than 80.0% of the available compute or memory performance of this device. To further improve performance,
+    - The ratio of peak float (FP32) to double (FP64) performance on this device is 64:1. The workload achieved 0% of this device's FP32 peak perf
+    - All compute pipelines are under-utilized. Either this workload is very small or it doesn't issue enough warps per scheduler. Check the Launc
+    - The 6.00 theoretical warps per scheduler this kernel can issue according to its occupancy are below the hardware maximum of 12. This kernel'
+
+kernel: consensus_axis5_fused_kernel(const SignCell *, const DetectorCellWide *, int, int, ConsensusCell *, long *)
+  DRAM Throughput                = 29.14 %
+  L1/TEX Cache Throughput        = 57.91 %
+  L2 Cache Throughput            = 87.18 %
+  Compute (SM) Throughput        = 5.93 %
+  Memory Throughput              = 209,579,928,315.41 byte/s
+  Duration                       = 401,760 ns
+  Elapsed Cycles                 = 1,024,329 cycle
+  Achieved Occupancy             = 83.59 %
+  Theoretical Occupancy          = 100 %
+  Achieved Active Warps Per SM   = 40.13 warp
+  Executed Ipc Active            = 0.16 inst/cycle
+  Executed Ipc Elapsed           = 0.16 inst/cycle
+  CLASSIFICATION: L2-bound  (L2=87.2% (DRAM=29.14%))
+  ncu insights:
+    - This workload is utilizing greater than 80.0% of the available compute or memory performance of this device. To further improve performance,
+    - The ratio of peak float (FP32) to double (FP64) performance on this device is 64:1. The workload achieved 0% of this device's FP32 peak perf
+    - All compute pipelines are under-utilized. Either this workload is very small or it doesn't issue enough warps per scheduler. Check the Launc
+    - The difference between calculated theoretical (100.0%) and measured achieved occupancy (83.6%) can be the result of warp scheduling overhead
+
+kernel: candidate_fired_kernel_wide(const ConsensusCell *, int, int, int, int, unsigned char *)
+  DRAM Throughput                = 75.93 %
+  L1/TEX Cache Throughput        = 49.74 %
+  L2 Cache Throughput            = 73.31 %
+  Compute (SM) Throughput        = 2.46 %
+  Memory Throughput              = 545,919,833,420.09 byte/s
+  Duration                       = 61,472 ns
+  Elapsed Cycles                 = 156,595 cycle
+  Achieved Occupancy             = 46.94 %
+  Theoretical Occupancy          = 50 %
+  Achieved Active Warps Per SM   = 22.53 warp
+  Executed Ipc Active            = 0.06 inst/cycle
+  Executed Ipc Elapsed           = 0.06 inst/cycle
+  CLASSIFICATION: DRAM-bound  (DRAM=75.9%)
+  ncu insights:
+    - Memory is more heavily utilized than Compute: Look at the Memory Workload Analysis section to identify the DRAM bottleneck. Check memory rep
+    - The ratio of peak float (FP32) to double (FP64) performance on this device is 64:1. The workload achieved 0% of this device's FP32 peak perf
+    - All compute pipelines are under-utilized. Either this workload is very small or it doesn't issue enough warps per scheduler. Check the Launc
+    - The 6.00 theoretical warps per scheduler this kernel can issue according to its occupancy are below the hardware maximum of 12. This kernel'
+
+kernel: candidate_boundary_precompute_kernel(const unsigned char *, int, int, int, int, CandidateBoundary *, int *)
+  DRAM Throughput                = 1.07 %
+  L1/TEX Cache Throughput        = 18.36 %
+  L2 Cache Throughput            = 0.34 %
+  Compute (SM) Throughput        = 0.19 %
+  Memory Throughput              = 7,675,324,675.32 byte/s
+  Duration                       = 285,824 ns
+  Elapsed Cycles                 = 728,740 cycle
+  Achieved Occupancy             = 2.08 %
+  Theoretical Occupancy          = 50 %
+  Achieved Active Warps Per SM   = 1.00 warp
+  Executed Ipc Active            = 0.07 inst/cycle
+  Executed Ipc Elapsed           = 0.01 inst/cycle
+  CLASSIFICATION: occupancy-bound  (Occ=2.1%)
+  ncu insights:
+    - This kernel grid is too small to fill the available resources on this device, resulting in only 0.00 full waves across all SMs. Look at Laun
+    - The ratio of peak float (FP32) to double (FP64) performance on this device is 64:1. The workload achieved 0% of this device's FP32 peak perf
+    - All compute pipelines are under-utilized. Either this workload is very small or it doesn't issue enough warps per scheduler. Check the Launc
+    - The grid for this launch is configured to execute only 8 blocks, which is less than the 80 multiprocessors used. This can underutilize some 
+
+kernel: candidate_boundary_cellpar_emit_kernel(const CandidateBoundary *, const int *, int, int, CandidateBoundary *, int *)
+  DRAM Throughput                = 3.75 %
+  L1/TEX Cache Throughput        = 1.83 %
+  L2 Cache Throughput            = 2.27 %
+  Compute (SM) Throughput        = 0.81 %
+  Memory Throughput              = 26,608,695,652.17 byte/s
+  Duration                       = 2,208 ns
+  Elapsed Cycles                 = 5,554 cycle
+  Achieved Occupancy             = 6.21 %
+  Theoretical Occupancy          = 50 %
+  Achieved Active Warps Per SM   = 2.98 warp
+  Executed Ipc Active            = 0.04 inst/cycle
+  Executed Ipc Elapsed           = 0.02 inst/cycle
+  CLASSIFICATION: occupancy-bound  (Occ=6.2%)
+  ncu insights:
+    - This kernel grid is too small to fill the available resources on this device, resulting in only 0.13 full waves across all SMs. Look at Laun
+    - The ratio of peak float (FP32) to double (FP64) performance on this device is 64:1. The workload achieved 0% of this device's FP32 peak perf
+    - All compute pipelines are under-utilized. Either this workload is very small or it doesn't issue enough warps per scheduler. Check the Launc
+    - Threads are executed in groups of 32 threads called warps. This kernel launch is configured to execute 16 threads per block. Consequently, s
+
+kernel: candidate_pack_kernel_wide_blockcoop(const ConsensusCell *, const DetectorCellWide *, const long *, const CandidateBoundary *, const int *, 
+  DRAM Throughput                = 65.92 %
+  L1/TEX Cache Throughput        = 9.42 %
+  L2 Cache Throughput            = 22.19 %
+  Compute (SM) Throughput        = 5.25 %
+  Memory Throughput              = 474,104,244,556.85 byte/s
+  Duration                       = 145,504 ns
+  Elapsed Cycles                 = 370,873 cycle
+  Achieved Occupancy             = 36.92 %
+  Theoretical Occupancy          = 50 %
+  Achieved Active Warps Per SM   = 17.72 warp
+  Executed Ipc Active            = 0.13 inst/cycle
+  Executed Ipc Elapsed           = 0.11 inst/cycle
+  CLASSIFICATION: occupancy-bound  (Occ=36.9%)
+  ncu insights:
+    - Memory is more heavily utilized than Compute: Look at the Memory Workload Analysis section to identify the DRAM bottleneck. Check memory rep
+    - The ratio of peak float (FP32) to double (FP64) performance on this device is 64:1. The workload achieved 0% of this device's FP32 peak perf
+    - All compute pipelines are under-utilized. Either this workload is very small or it doesn't issue enough warps per scheduler. Check the Launc
+    - A wave of thread blocks is defined as the maximum number of blocks that can be executed in parallel on the target GPU. The number of blocks 
+
+kernel: compact_densor_digest_v1_leaf_kernel(const unsigned char *, unsigned long, unsigned int, unsigned int, unsigned char *)
+  DRAM Throughput                = 14.61 %
+  L1/TEX Cache Throughput        = 61.85 %
+  L2 Cache Throughput            = 7.49 %
+  Compute (SM) Throughput        = 9.78 %
+  Memory Throughput              = 105,059,618,561.35 byte/s
+  Duration                       = 213,088 ns
+  Elapsed Cycles                 = 543,274 cycle
+  Achieved Occupancy             = 31.87 %
+  Theoretical Occupancy          = 66.67 %
+  Achieved Active Warps Per SM   = 15.30 warp
+  Executed Ipc Active            = 0.46 inst/cycle
+  Executed Ipc Elapsed           = 0.36 inst/cycle
+  CLASSIFICATION: occupancy-bound  (Occ=31.9%)
+  ncu insights:
+    - This kernel grid is too small to fill the available resources on this device, resulting in only 0.40 full waves across all SMs. Look at Laun
+    - The ratio of peak float (FP32) to double (FP64) performance on this device is 64:1. The workload achieved 0% of this device's FP32 peak perf
+    - All compute pipelines are under-utilized. Either this workload is very small or it doesn't issue enough warps per scheduler. Check the Launc
+    - The grid for this launch is configured to execute only 64 blocks, which is less than the 80 multiprocessors used. This can underutilize some
+
+kernel: compact_densor_digest_v1_root_kernel_blockcoop(const unsigned char *, unsigned int, unsigned int, unsigned int, unsigned int, unsigned char 
+  DRAM Throughput                = 0.45 %
+  L1/TEX Cache Throughput        = 4.88 %
+  L2 Cache Throughput            = 0.18 %
+  Compute (SM) Throughput        = 0.21 %
+  Memory Throughput              = 3,255,525,717.83 byte/s
+  Duration                       = 929,472 ns
+  Elapsed Cycles                 = 2,370,064 cycle
+  Achieved Occupancy             = 2.68 %
+  Theoretical Occupancy          = 66.67 %
+  Achieved Active Warps Per SM   = 1.29 warp
+  Executed Ipc Active            = 0.42 inst/cycle
+  Executed Ipc Elapsed           = 0.01 inst/cycle
+  CLASSIFICATION: occupancy-bound  (Occ=2.7%)
+  ncu insights:
+    - This kernel grid is too small to fill the available resources on this device, resulting in only 0.00 full waves across all SMs. Look at Laun
+    - The ratio of peak float (FP32) to double (FP64) performance on this device is 64:1. The workload achieved 0% of this device's FP32 peak perf
+    - All compute pipelines are under-utilized. Either this workload is very small or it doesn't issue enough warps per scheduler. Check the Launc
+    - The grid for this launch is configured to execute only 1 block, which is less than the 80 multiprocessors used. This can underutilize some m
+
+------------------------------------------------------------------------
+ Aggregate bottleneck classification (per-kernel)
+------------------------------------------------------------------------
+  occupancy-bound                : 5 kernel(s)
+  DRAM-bound                     : 2 kernel(s)
+  L2-bound                       : 2 kernel(s)
+
+------------------------------------------------------------------------
+ Recommended S-PERF.14 lever (panel-locked decision rule)
+------------------------------------------------------------------------
+  Dominant bucket: occupancy-bound
+  Lever:           Reduce register pressure or shrink block size to admit more concurrent warps.
+
+  Per-kernel recommendation:
+    drift_slew_sign_kernel_cellpar                  [       DRAM-bound]  -> reduce DRAM traffic
+    detector_motif_fused_d64_kernel                 [         L2-bound]  -> S-PERF.15.a fused detector_motif + digest_pack kernel: eliminates the ~277 MB L2 round-trip on the wide-detector arena by writing DetectorCellWide AND its 18-byte compact pack from registers in one cell-parallel pass. Replaces the legacy 2-kernel pair (detector_motif_kernel_wide_d64 + detector_wide_digest_pack_kernel_v1) which post-S-PERF.14c ROOF flagged as the dominant L2-bound pair (62 % of the L2 bucket). Byte-identity preserved (4 PINNED_PRE_S_PERF_15_A_* constants). D64 _timed dispatchers only; D128/D205 retain the unfused 2-kernel pair (wide_mask_words_used=2).
+    consensus_axis5_fused_kernel                    [         L2-bound]  -> S-PERF.15.b direct-fusion consensus + axis5 kernel: absorbs axis5_grid_sum_kernel_wide's per-(window,catalog) i64 reduction into the consensus pass via shared-memory staging. One block per (window, catalog), one thread per entity; thread e writes axis7 to shm[e] in canonical lane order; thread 0 performs the canonical entity-ascending serial sum (byte-identical to the legacy serial loop). Eliminates the consensus -> axis5 L2 round-trip on the ~32 MB ConsensusCell arena while preserving ConsensusCell bytes, axis5_grid_sum i64 values, candidate_fired cascade, and final case-file hash (4 PINNED_PRE_S_PERF_15_B_* constants). D64 _timed dispatchers only; D128/D205 retain the unfused consensus_grid_kernel_wide_d128/_d205 + axis5_grid_sum_kernel_wide pair.
+    candidate_fired_kernel_wide                     [       DRAM-bound]  -> reduce DRAM traffic
+    candidate_boundary_precompute_kernel            [  occupancy-bound]  -> S-PERF.14c Pre-Alpha kernel: structural recurrence floor (one thread per entity by design for serial fired[] walk); low Occ here is NOT a launch-geometry failure. The cellpar emit kernel is the occupancy lever.
+    candidate_boundary_cellpar_emit_kernel          [  occupancy-bound]  -> S-PERF.14c cellpar emit kernel: 256 blocks x 16 threads at canonical scale (vs legacy 8 blocks x 32 threads = 32x block-count increase). Replaces the legacy candidate_boundary_kernel_wide which the post-S-PERF.14b ROOF flagged as the last remaining low-occupancy offender (286 us / 2.1 % Occ). Memcpy from run_buffer to boundaries[]; thread 0 publishes count_per_entity[].
+    candidate_pack_kernel_wide_blockcoop            [  occupancy-bound]  -> S-PERF.15.c block-cooperative candidate-pack kernel: one warp per (slot, entity, catalog) replaces the legacy ceil(max_per_entity/32)=1 block-x launch (16x block-count increase at canonical 256 x max_per_entity 16 K=1 D64). Block-cooperative shared-memory pairwise reduction in canonical descending-stride order on 5 peaks (max), union mask (OR), and entity/grid sums (i64-add); all associative + commutative -> byte-identical to legacy serial walk. Thread 0 emits CandidateInterval at canonical slot. Byte-identity preserved (4 PINNED_PRE_S_PERF_15_C_* constants). D64 _timed dispatcher only; D128/D205 retain legacy candidate_pack_kernel_wide. Measured: 873 -> 148.8 us (-83 %, 5.87x faster); achieved occupancy 5.66 -> 38.68 % (+33 pp); next-lever bucket DRAM (65.8 %).
+    compact_densor_digest_v1_leaf_kernel            [  occupancy-bound]  -> shrink register pressure
+    compact_densor_digest_v1_root_kernel_blockcoop  [  occupancy-bound]  -> post-S-PERF.14b cooperative-staging kernel; per-call wall already -65% vs legacy single-thread (2.38 ms -> 0.82 ms); occupancy structurally limited at K=1 (one block runs); next lever is streaming SHA-256 (Path 1b -> S-PERF.14b.1)
+
+------------------------------------------------------------------------
+ Panel-locked non-claims
+------------------------------------------------------------------------
+  - Does NOT change any kernel.
+  - Does NOT claim bandwidth saturation; it measures it.
+  - Does NOT add Rust-side code or dependencies.
+  - Does NOT mutate any hash anchor.
+  - Does NOT pre-commit to any S-PERF.14 design; the
+    measured verdict drives the next campaign.
+
+Receipt is one-shot; no hash chain. Subsequent S-PERF.14
+commit cites this verdict as load-bearing scope input.
+

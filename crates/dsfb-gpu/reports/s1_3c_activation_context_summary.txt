@@ -1,0 +1,124 @@
+================================================================
+S1.3c - TaskManifestV1 + DatasetManifestV1 + ActivationContextV1
+summary receipt
+================================================================
+Task manifest schema:    DSFB-GPU-ATLAS:TASK-MANIFEST:v1
+  Domain sep:            DSFB-GPU-ATLAS:TASK-MANIFEST:v1\0
+Dataset manifest schema: DSFB-GPU-ATLAS:DATASET-MANIFEST:v1
+  Domain sep:            DSFB-GPU-ATLAS:DATASET-MANIFEST:v1\0
+Activation context schema: DSFB-GPU-ATLAS:ACTIVATION-CONTEXT:v1
+  Domain sep:              DSFB-GPU-ATLAS:ACTIVATION-CONTEXT:v1\0
+
+Panel-locked thesis (commit identity):
+
+  S1.3c makes activation context-bound: detector decisions
+  are issued against a declared task, domain, schema, units,
+  sampling law, and artifact fixedness contract.
+
+Before S1.3c the court said "given the present corpus / legal
+surfaces, here is the activation state." After S1.3c it can
+say "given THIS specific task and dataset, here is the
+activation state."
+
+Upstream hash anchors UNCHANGED (panel-locked):
+  corpus_hash_v1                              = 35c276c7...
+  registry_hash_v2                            = d3cf6300...
+  precedent_hash_v1                           = 6721f511...
+  admissibility_grammar_hash_v1               = ff66706a...
+  trial_transcript_hash_v1                    = 37618a45...
+  execution_attestation_receipt_hash_v1       = (per build)
+  challenge_docket_hash_v1                    = dde4ecb4...
+  detector_contraindication_hash_v1           = 1b899f5d...
+  coverage_hole_hash_v1                       = 671e2164...
+  activation_plan_hash_v1                     = 5a81da47...
+  activation_diff_hash_v1 (S1.3b)             = 469536e7...
+  Every DetectorPassport hash                 = unchanged
+
+Three NEW own-namespace hashes (NOT folded upstream):
+  task_manifest_hash_v1 (S1.3c seed) =
+    88a33338a6c30aa2077b71e3a3931215858ae002b54a974457a405c48ad14006
+  dataset_manifest_hash_v1 (S1.3c seed) =
+    3864db34a79ebb524aecb209ce43e51a67c569695d91fc494c743b921688d195
+  activation_context_hash_v1 (S1.3c seed) =
+    4948bf459fad28c94bc436316c14cef3bcf53bb3e2f4c1bad8bfa499a3e8955f
+
+Conservative seed (DSFB-GPU-Debug task family):
+  task_kind          = DebugTraceResidualCourt
+  task_id            = dsfb_gpu_debug_default_task
+  domain_tags        = DEBUG | TELEMETRY | TIME_SERIES
+  target_episodes    = PRIMARY | BOUNDARY | RECOVERY | SPIKE
+  required_witnesses = PRIMARY | CORROBORATING | CONFUSER |
+                       BOUNDARY | RECOVERY
+  forbidden_witnesses = (none)
+  strictness_level   = Phase5_6
+
+  dataset_id           = dsfb_gpu_debug_default_fixture
+  artifact_fixedness   = FixedEventCatalog
+  column_kinds         = NUMERIC_INTEGER | TIMESTAMP |
+                         LATENCY | ERROR_INDICATOR
+  unit_semantics       = LatencyMillisecondsAndErrorIndicator
+  sampling_law         = OrderedRegularWindows
+  missingness_profile  = NoneDeclared
+  timestamp_law        = MonotonicStrict
+  source_artifact_hash = sha256("DSFB-GPU-ATLAS:SOURCE:...")
+  schema_hash          = sha256("DSFB-GPU-ATLAS:SCHEMA:...")
+
+Verifier: 12 reject kinds (11 panel-locked rules + 1 structural;
+4 are panel-required load-bearing negatives):
+
+   1. *FixedArtifactMissingSourceHash (load-bearing #1)
+   2. *TimeSeriesTaskWithoutTimestampLaw (load-bearing #2)
+   3. *UnitSensitiveDetectorWithoutUnits (load-bearing #3)
+   4. *activation_context_hash sensitivity to sampling-law
+      change (load-bearing #4)
+   5.  ContextMissingCorpusHash
+   6.  ContextMissingRegistryHash
+   7.  TaskManifestMissingTaskId
+   8.  DatasetManifestMissingDatasetId
+   9.  TaskManifestDomainTagsEmpty
+  10.  DatasetManifestSchemaHashZero
+  11.  SpectralDetectorWithoutSamplingLaw
+  12.  DecisionCitesContextFactNotPresent (placeholder for
+       S1.3d's per-decision crosscheck)
+  13.  ManifestHashMismatch (structural integrity)
+
+CLI surface (new):
+  dsfb-corpus task-manifest           [--json] [--out PATH]
+  dsfb-corpus dataset-manifest        [--json] [--out PATH]
+  dsfb-corpus activation-context      [--json] [--out PATH]
+  dsfb-corpus activation-context-emit [--out-dir DIR]
+
+Bulk artifacts (six files; two builds produce byte-identical
+bytes):
+  crates/dsfb-gpu-atlas-corpus/out/task_manifest_v1.txt   (~640 B)
+  crates/dsfb-gpu-atlas-corpus/out/task_manifest_v1.json  (~460 B)
+  crates/dsfb-gpu-atlas-corpus/out/dataset_manifest_v1.txt  (~830 B)
+  crates/dsfb-gpu-atlas-corpus/out/dataset_manifest_v1.json (~630 B)
+  crates/dsfb-gpu-atlas-corpus/out/activation_context_v1.txt  (~910 B)
+  crates/dsfb-gpu-atlas-corpus/out/activation_context_v1.json (~680 B)
+
+Test suite: 35 acceptance tests at
+  crates/dsfb-gpu-atlas-corpus/tests/activation_context_invariants.rs
+
+Panel-locked non-claims:
+  - Does NOT mutate corpus_hash_v1, registry_hash_v2, or any
+    T.11/S1.3a/S1.3b hash anchor.
+  - Does NOT prune by budget or suppress redundancy (S1.3d).
+  - Does NOT emit KernelPlanV1 (S1.3e).
+  - Does NOT integrate into CaseFileV2 (S1.3f).
+  - Does NOT consume the T.8 usefulness ledger.
+  - Does NOT execute detectors or change GPU behaviour.
+  - Does NOT ingest external OTel / EBOM / PROV / RO-Crate
+    exports.
+  - Does NOT claim datasheet / model-card / NIST AI RMF /
+    SLSA / in-toto / SPDX / CycloneDX compatibility on the
+    three new manifest / context hashes.
+
+R.12b D64 baseline NOT rebaselined; pinned R.12b episode counts
+(13/89/1917 for canonical/mid/full at K=1) byte-stable.
+
+The court can now bind its activation decisions to a declared
+evidence contract. Operationalising the unit-semantics +
+sampling-law crosschecks against actual activation reasons is
+S1.3d's job (which can now consume an ActivationContextV1 as
+input).

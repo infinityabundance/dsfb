@@ -1,0 +1,181 @@
+================================================================
+T.12.o - Streaming Sketches verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_o_streaming_sketches::
+      seed_t12_o_streaming_sketches_proposal()
+
+----------------------------------------------------------------
+Positive verification (admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+All T.12.0 verifier rules pass: BatchIdEmpty, ProposalIdEmpty,
+UnknownSourceClass, AmendmentProposalHashMismatch,
+BatchHashMismatch, DedupDeltaHashMismatch,
+DedupDeltaCollidesWithExistingSeedCanonicalId (reserved ids
+6501..=6514 outside SEED's 1..=54 range),
+AcceptedProposalWithoutBodyOrDelta,
+AcceptedProposalWithoutFutureFreezeGate.
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage
+----------------------------------------------------------------
+
+All 6 panel-required negatives pass plus per-canonical
+structural-distinctness assertions + ParameterizationOf family
+tests + DomainTransferOf assertion tests + authority-coverage
+witness + per-bucket reserved-id-range tests + shape /
+determinism / rendering invariants + hash distinctness from
+every prior T.12.x.
+Total: 44 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Hash / width / depth / seed contract discipline coverage
+----------------------------------------------------------------
+
+The t12_o_rejects_sketch_without_hash_family_width_depth_or_
+seed_contract test partitions the 8 CanonicalAddition records
+into three contract families:
+
+1. Hash-based seeded sketches (CMS 6501, Bloom 6503, AMS 6508)
+   must declare: hash family + width / bucket count / bit-
+   array size + per-row or per-sketch seed array.
+2. HyperLogLog (6502) has a single hash function with a
+   declared precision parameter (m = 2^precision); the test
+   requires hash family + bucket count + precision parameter
+   + harmonic-mean estimator. No separate "seed array" is
+   required because HLL uses one hash function.
+3. Deterministic-counts / deterministic-tuple sketches
+   (Misra-Gries 6504, Space-Saving 6505, Greenwald-Khanna
+   6506, t-digest 6507) must declare: width contract (k
+   counter slots / epsilon error bound / compression delta) +
+   update rule (decrement-on-miss / replace-smallest-on-miss
+   / tuple-insertion rule / centroid scale function) + merge
+   law.
+
+----------------------------------------------------------------
+Probabilistic-bound-as-deterministic-certainty discipline
+coverage
+----------------------------------------------------------------
+
+The t12_o_rejects_probabilistic_error_bound_as_deterministic_
+certainty test runs a parametric scanner over every
+CanonicalAddition AND ExistingCanonicalAuthorityResolution
+reason text. For each qualifying record it asserts the reason
+text does NOT contain any of: deterministic accuracy bound,
+deterministic count certainty, exact within probabilistic
+error, sketch estimate is exact, approximate count is exact,
+guaranteed accuracy.
+
+Forbidden terms appear only inside RejectedNotDeterministic
+reason text (where they describe what is NOT admitted).
+
+----------------------------------------------------------------
+Approximate-query-truth claim-language discipline coverage
+----------------------------------------------------------------
+
+The t12_o_rejects_approximate_query_truth_claim_language test
+asserts the campaign refuses approximate-query-truth /
+sketch-query-verdict / database-correctness-verdict claims.
+For each qualifying record it asserts the reason text does
+NOT contain any of: approximate query truth, sketch query
+verdict, database correctness verdict, approx_query_is_truth,
+issues approximate query truth.
+
+----------------------------------------------------------------
+Privacy / anonymization claim-language discipline coverage
+----------------------------------------------------------------
+
+The t12_o_rejects_privacy_or_anonymization_claim_language
+test asserts no record (CanonicalAddition or
+ExistingCanonicalAuthorityResolution or any other) contains
+positive-claim variants of privacy or anonymization. Forbidden
+terms: differential privacy guarantee, privacy-preserving
+certainty, k-anonymous output, issues privacy verdicts,
+issues anonymization, claims anonymization authority, claims
+differential privacy. The bare phrase "anonymization
+authority" is intentionally NOT forbidden because the Bloom-
+filter CanonicalAddition record (6503) legitimately disclaims
+it inside a "does NOT admit ... anonymization authority"
+sentence; only CLAIM-form variants are forbidden.
+
+----------------------------------------------------------------
+Mergeable-sketch-without-merge-law discipline coverage
+----------------------------------------------------------------
+
+The t12_o_rejects_mergeable_sketch_without_merge_law test
+asserts every CanonicalAddition record that uses the word
+"mergeable" in its reason text MUST also declare a "merge
+law". This catches the failure mode where a sketch claims
+mergeability without specifying the merge operator.
+
+----------------------------------------------------------------
+SEED collision coverage (parametric)
+----------------------------------------------------------------
+
+The t12_o_existing_seed_collision_requires_authority_resolution
+test runs a parametric loop over all four SEED IDs (8, 13,
+41, 46). Each iteration constructs a defective proposal
+duplicating one SEED ID and asserts the verifier rejects it
+with DedupDeltaCollidesWithExistingSeedCanonicalId.
+
+----------------------------------------------------------------
+Black-box-streaming-anomaly + vendor-sketch rejection contract
+coverage
+----------------------------------------------------------------
+
+The t12_o_rejects_black_box_streaming_anomaly_score_without_
+formula test asserts BOTH rejection records:
+  - 6513 (learned streaming-anomaly score): NOT in
+    new_canonical_records; reason text contains "deterministic
+    feature-" + "extraction law" + "declared formula" +
+    "declared update rule" + "declared training-" + "data
+    anchor" + "feature schema" + "tie-break" + "numeric mode"
+    + "no learned opaque embedding"; names at least one of
+    datadog watchdog / datarobot / splunk stream ml / aws
+    lookout for metrics / azure anomaly detector.
+  - 6514 (black-box vendor sketch): NOT in
+    new_canonical_records; reason text contains "hash family"
+    + "width" + "depth" + "seed" + "merge law"; names at
+    least one of snowflake / bigquery / druid / clickhouse /
+    aws athena.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.x hash           : unchanged
+    T.12.0 proof-of-life          : 325bbf3d...
+    T.12.a SPC                    : ae493a85...
+    T.12.b SCD                    : ac10e27c...
+    T.12.c drift                  : 0ffb0639...
+    T.12.d robust                 : 7b51703f...
+    T.12.e spectral               : 0036435f...
+    T.12.f time-series            : 76717e02...
+    T.12.g graph                  : 1bc14266...
+    T.12.h data-quality           : d4566a74...
+    T.12.i observability          : 9776c1b9...
+    T.12.j biosignal              : e64b603b...
+    T.12.k industrial             : 22f06c76...
+    T.12.l chemometrics           : 8b3e9511...
+    T.12.m RF                     : 3263e87b...
+    T.12.n econ + reliability     : b1c5ea45...
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.o streaming-sketches
+  literature_expansion_batch_hash_v1 (NEW):
+    fa14bd13a503f14df7f661e601a2d60df5a3abe11cd8f79be9c56c70ae50bb4c
+  T.12.o dedup_court_delta_hash_v1 (NEW):
+    434a174c0b5f9b7e269df803db5e377d2ca836d093215996fefa7dcc9b0f2c03
+  T.12.o corpus_amendment_proposal_hash_v1 (NEW):
+    1164f567948c147f24ed7baf672910213ad02f480ea88a7d326e690df5f4b66c

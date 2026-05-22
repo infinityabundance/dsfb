@@ -1,0 +1,59 @@
+================================================================
+T.12.h - Data Quality / Tabular / Database Integrity Constraints
+        verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_h_dataquality::seed_t12_h_dataquality_proposal()
+
+----------------------------------------------------------------
+Positive verification (admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+All T.12.0 verifier rules pass: BatchIdEmpty, ProposalIdEmpty,
+UnknownSourceClass, AmendmentProposalHashMismatch,
+BatchHashMismatch, DedupDeltaHashMismatch,
+DedupDeltaCollidesWithExistingSeedCanonicalId (reserved ids
+5801..=5813 outside SEED's 1..54 range),
+AcceptedProposalWithoutBodyOrDelta,
+AcceptedProposalWithoutFutureFreezeGate.
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage
+----------------------------------------------------------------
+
+All 11 panel-required negatives pass plus 2 rejection-contract
+tests + per-canonical contract tests + ParameterizationOf
+family tests + shape / determinism / rendering invariants.
+Total: 41 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.x hash           : unchanged
+    T.12.0 proof-of-life          : 325bbf3d...
+    T.12.a SPC                    : ae493a85...
+    T.12.b SCD                    : ac10e27c...
+    T.12.c drift                  : 0ffb0639...
+    T.12.d robust                 : 7b51703f...
+    T.12.e spectral               : 0036435f...
+    T.12.f time-series            : 76717e02...
+    T.12.g graph                  : 1bc14266...
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.h data-quality literature_expansion_batch_hash_v1 (NEW):
+    6e77d173bc12f3e6147297e5981800cb7c6883ada039d3ea40df23373fcde0ae
+  T.12.h data-quality dedup_court_delta_hash_v1 (NEW):
+    568719a54af6a7e93d9bc381328eb929a43ab90324d70f1e20cad5c3f85f9e70
+  T.12.h data-quality corpus_amendment_proposal_hash_v1 (NEW):
+    d4566a74b0816d4e1bd4612fb7ee677ff5ae9a679af44b1bcdacab670f9779da

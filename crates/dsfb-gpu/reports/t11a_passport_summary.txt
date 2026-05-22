@@ -1,0 +1,141 @@
+================================================================
+DSFB-GPU-Atlas — T.11a DetectorPassport summary
+================================================================
+Schema             : DSFB-GPU-ATLAS:DETECTOR-PASSPORT:v1
+Domain separator   : DSFB-GPU-ATLAS:DETECTOR-PASSPORT:v1\0
+HEAD-before        : 8ccd522 (S1.2)
+
+----------------------------------------------------------------
+Surface (new)
+----------------------------------------------------------------
+Module           : crates/dsfb-gpu-atlas-corpus/src/passport.rs
+Public surface   :
+    pub struct DetectorPassport
+    pub const PASSPORT_DOMAIN
+    pub fn passport_for(DetectorCanonicalId) -> Option<DetectorPassport>
+    pub fn all_passports() -> Vec<DetectorPassport>
+    pub fn compute_passport_hash(&DetectorPassport) -> [u8; 32]
+    pub fn render_passport_text(&DetectorPassport) -> String
+    pub fn render_passport_json(&DetectorPassport) -> String
+
+CLI subcommands  :
+    dsfb-corpus passport <canonical_id> [--json]
+    dsfb-corpus passports-emit [--out-dir DIR]
+
+Bulk artifacts (committed):
+    crates/dsfb-gpu-atlas-corpus/out/passports.txt   (114 782 bytes)
+    crates/dsfb-gpu-atlas-corpus/out/passports.json  ( 91 168 bytes)
+
+----------------------------------------------------------------
+Passport fields (every T.1-T.10 fact, byte-hashed)
+----------------------------------------------------------------
+- canonical_id              (T.1)
+- display_name              (T.1)
+- aliases                   (T.1)
+- source_refs               (T.1 / T.2)
+- primitive_family          (T.1)
+- mathematical_form         (T.1)
+- decision_functional       (T.1)
+- identity_hashes           (T.3 five-hash identity)
+- detector_identity_hash    (T.3 composite)
+- dedup_decision            (T.4)
+- dedup_reason              (T.4)
+- genealogy_edges           (T.5)
+- witness_role              (T.6)
+- fusion_planes             (T.6 via axes_to_planes)
+- implementation_level      (T.7 L-band)
+- lifecycle_state           (T.8)
+- usefulness_evidence_level (T.8 USEFULNESS_LEDGER)
+- constitution_flags        (T.1 declaration)
+- passport_hash             (SHA-256 over all the above)
+
+----------------------------------------------------------------
+Sample (canonical_id = 1, Shewhart control chart)
+----------------------------------------------------------------
+DetectorPassport (canonical_id = 1)
+  display_name              : Shewhart control chart
+  aliases                   :
+                                - 3-sigma rule
+                                - x-bar chart
+  source_refs               :
+                                - shewhart1924 (1931) [Van Nostrand (book); Bell Labs memo 1924]
+  primitive_family          : ScalarThreshold
+  mathematical_form         : StandardisedDeviation
+  decision_functional       : TwoSided
+  formula_hash              : b95213b5605d264d01c7f7d40c5bf514ae838d58d40df04fa72a5580a9fb19c9
+  parameter_hash            : 7f7f8804aebd94a04a637a7a6e31f28eb836fed9fe8454f3d69ecb024ef5f4d5
+  implementation_hash       : dc15e2f66ba736a9a7e54d71fa80f148ed065aa0e3cfb2a29ede25d41b21ece9
+  semantic_role_hash        : 429d3ba1e9d9acf349070686a810a75ca524fbe0edbc95f519eeb2e673b49f9f
+  detector_identity_hash    : b8102a9e1c4dfdbd6224acc09b8c1d1d730e1cf3a12fd7b6ecb04d58eac74569
+  dedup_decision            : Canonical
+  dedup_reason              : OriginRecord
+  witness_role              : Primary
+  fusion_planes             :
+                                - NumericStrength
+  implementation_level      : L1_Canonicalised
+  lifecycle_state           : Active
+  usefulness_evidence_level : LiteraturePrior
+  passport_hash             : 45ec8484851e31b6eeb8b01c0f718a617907cda5acdecd4ab5fd2ae3df1e89e7
+
+----------------------------------------------------------------
+Counts
+----------------------------------------------------------------
+SEED.len()              : 54
+all_passports().len()   : 54   (one per canonical record, sorted by canonical_id)
+passport_hash uniqueness: 54/54 distinct  (pinned by passport_hashes_pairwise_distinct)
+
+The passport count does NOT include the alias-side claims in
+`claims::CLAIMS` (alias_id space 1000+). Aliases appear inline
+in their canonical's `aliases` field but never as their own
+passport. This is the load-bearing dedup invariant.
+
+----------------------------------------------------------------
+Sensitivity to inputs (pinned by tests/passport_invariants.rs)
+----------------------------------------------------------------
+The passport hash changes when any of these change:
+- semantic_role_hash (T.3)
+- detector_identity_hash (T.3 composite)
+- lifecycle_state (T.8)
+- implementation_level (T.7 L-band)
+- any constitution flag (T.1 declaration)
+- any aliases / source_refs / genealogy / witness role / fusion-plane bytes
+
+Pinned tests (15 total):
+  passport_hash_is_deterministic_across_two_builds
+  passport_hash_changes_when_semantic_role_hash_changes
+  passport_hash_changes_when_lifecycle_state_changes
+  passport_hash_changes_when_l_band_changes
+  passport_hash_changes_when_constitution_flags_change
+  passport_hash_includes_detector_identity_hash
+  passport_hashes_pairwise_distinct
+  all_passports_one_per_seed_canonical_id
+  passport_count_matches_panel_locked_seed_count
+  passport_does_not_count_alias_records_as_unique_primitives
+  passport_cannot_claim_l6_unless_lband_verifier_admits_record
+  passport_for_unknown_id_returns_none
+  passport_for_aliased_record_surfaces_canonical_target_id_via_genealogy
+  passport_text_rendering_is_deterministic_across_two_calls
+  passport_json_rendering_is_deterministic_across_two_calls
+
+----------------------------------------------------------------
+Panel-locked non-claims (T.11a)
+----------------------------------------------------------------
+T.11a does NOT:
+- include S1.2 registry-spec linkage (corpus crate stays free
+  of a dependency on the registry crate; a follow-on commit may
+  add a registry-aware view in a higher-level crate)
+- include T.11d CaseFileV2 episode-transcript bodies
+- include T.11b court precedents
+- include T.11c admissibility grammar snapshots
+- include T.11e unit-semantics / sampling-law receipts
+- implement S1.3 activation planning
+- implement external provenance export (DSFB-PROV / OpenLineage
+  / NIST AI RMF / RO-Crate)
+- claim learned detector usefulness
+- change D16 / D64 / D128 / D205 GPU behavior
+- claim in-toto / SLSA / SPDX / CycloneDX compatibility on the
+  passport_hash; the hash is DSFB-native
+
+T.11a does NOT change `corpus_hash_v1` or `registry_hash_v2`.
+
+================================================================

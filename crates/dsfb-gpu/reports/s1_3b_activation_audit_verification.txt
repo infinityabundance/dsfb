@@ -1,0 +1,77 @@
+================================================================
+S1.3b - ActivationDecisionTranscript + ActivationDiffV1 verification
+================================================================
+
+Verifier suites:
+  verify_transcript  (4 reject kinds)
+  verify_diff        (2 reject kinds)
+Plus structural invariants pinned at the build_transcript_for /
+build_diff layer (None-for-unknown, hash sensitivity).
+
+Reject kinds covered by the suite (* = panel-required
+load-bearing negatives):
+
+  Transcript (4):
+   1. *DisabledTranscriptWithoutBlockingFact
+   2.  UnknownDetector
+   3.  FinalReasonMissing
+   4.  TranscriptHashMissing
+  Diff (2):
+   5. *DiffRejectsMismatchedCorpusHash
+   6.  DiffHashMissing
+  Build-time:
+   7. *explain_rejects_unknown_canonical_id
+   8. *transcript_hash_changes_when_one_contributing_fact_changes
+
+Test family               | count
+--------------------------+------
+Schema constants          |   2
+Transcript shape          |   7
+Hash determinism + sens.  |   4
+Transcript verifier       |   3
+Rendering                 |   4
+Audit wrapper             |   3
+Diff                      |   7
+Wire-name stability       |   2
+Upstream-anchor preserve  |   1
+Other                     |   1
+--------------------------+------
+Total acceptance tests    |  34
+
+Hash determinism + sensitivity family pins:
+  - transcript_hash_is_deterministic_across_two_builds
+  - recomputed_transcript_hash_matches_stored_hash
+  - transcript_hash_changes_when_one_contributing_fact_changes
+    (panel-required load-bearing negative #4)
+  - different_detectors_produce_different_transcript_hashes
+
+Diff family pins:
+  - diff_of_plan_against_itself_is_empty
+  - diff_hash_is_deterministic_across_two_builds
+  - recomputed_diff_hash_matches_stored_hash
+  - diff_detects_status_change_when_one_decision_is_mutated
+  - diff_rejects_plans_with_different_corpus_hash
+    (panel-required load-bearing negative #2)
+  - diff_hash_changes_when_plan_changes
+  - render_diff_text_lists_change_summary
+
+Audit boundary panel-locks (asserted by
+audit_and_diff_do_not_mutate_plan_hashes):
+  - corpus_hash_v1                            UNCHANGED
+  - registry_hash_v2                          UNCHANGED
+  - challenge_docket_hash_v1                  UNCHANGED
+  - detector_contraindication_hash_v1         UNCHANGED
+  - coverage_hole_hash_v1                     UNCHANGED
+  - activation_plan_hash_v1                   UNCHANGED
+
+Verifier result on the seed transcript set + self-diff:
+  Transcripts inspected     : 54 (one per SEED record)
+  Transcript verifier errors:  0
+  Diff verifier errors       :  0
+
+Two builds against the same sealed court stack produce
+byte-identical:
+  - activation_plan_audit_v1.txt
+  - activation_plan_audit_v1.json
+  - per-detector transcript hashes
+  - activation_diff_hash_v1 on the self-diff

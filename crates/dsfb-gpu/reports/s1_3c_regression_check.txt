@@ -1,0 +1,144 @@
+================================================================
+S1.3c - TaskManifestV1 + DatasetManifestV1 + ActivationContextV1
+regression-check receipt
+(10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Zero warnings; workspace pedantic lints pass
+  on the new activation_context module, the augmented main.rs,
+  lib.rs, and the new acceptance suite.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean. Zero attribution-string hits across the new
+  S1.3c surface (the scrub script enforces the forbidden-string
+  list at the repository root; see scripts/scrub.sh).
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean. Zero stale TODO / FIXME / XXX markers; zero
+  missing-doc warnings under `cargo doc --no-deps
+  --document-private-items` on the corpus crate.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 685 tests pass across 25 test groups. The new S1.3c
+  surface contributes 35 acceptance tests in
+  tests/activation_context_invariants.rs, including four
+  panel-required load-bearing negatives:
+    1. context_rejects_fixed_artifact_without_source_hash
+    2. context_rejects_time_series_task_without_sampling_law
+    3. activation_rejects_enabled_unit_sensitive_detector_when_context_has_no_units
+    4. activation_context_hash_changes_when_sampling_law_changes
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 64 test groups, 1000 tests PASS, 0 FAIL. Serial run
+  (CUDA contention guard).
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable. Canonical 16x128
+  K=1..128 -> episodes/cat=13; mid 64x512 -> episodes/cat=89;
+  full 256x4096 -> episodes/cat=1917. Throughput fluctuates
+  per run (documented GPU thermal / host-load variance); the
+  pinned reports/r12_d64_saturation.txt baseline is NOT
+  rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered AND repaired:
+    - README.md: new "Activation Context V1 (S1.3c)" section
+      between the S1.3b section and the scaling ladder, with
+      schema body, conservative seed listing, sample emitted
+      activation-context bytes, verifier reject kinds, CLI
+      surface, and non-claims;
+    - archived prior-art manuscript source: new \\textbf{S1.3c} bullet in
+      the Atlas Continuation enumeration; lead sentence
+      refreshed to "through T.11h, with the first court-
+      decision surface (S1.3a), its explanation-and-diff court
+      (S1.3b), and its context-binding manifests (S1.3c)
+      landed on top." Paper rebuilt clean.
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs: "Current state
+      through S1.3b" -> "through S1.3c" with a new S1.3c
+      bullet enumerating TaskManifestV1 / DatasetManifestV1 /
+      ActivationContextV1 plus the three new hash namespaces;
+      CLI list refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs: Usage block +
+      Subcommands block include task-manifest /
+      dataset-manifest / activation-context /
+      activation-context-emit.
+    - crates/dsfb-gpu-atlas-corpus/src/activation_context.rs:
+      every pub item AND every private helper carries a doc
+      comment whose first sentence states the WHY for a
+      future engineer, per the [[no-silent-court-logic]]
+      doctrine from T.11h.
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new Activation Context V1 (S1.3c) section
+      added in this commit.
+    - Plan-file: S1.3b sealed at 3fa0d46 and S1.3c authorized
+      were recorded in the previous turn's plan refresh; T.12
+      authorization + sub-campaign structure also landed.
+      The S1.3c SEAL note + T.12 next-arc update follows this
+      commit (post-commit plan touch-up).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/activation_context.rs (new, ~1200 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (4 CLI subcommands + emit_or_print helper)
+    - tests/activation_context_invariants.rs (new, 35 tests)
+    - out/task_manifest_v1.{txt,json} (new bulk artifacts)
+    - out/dataset_manifest_v1.{txt,json} (new bulk artifacts)
+    - out/activation_context_v1.{txt,json} (new bulk artifacts)
+    - reports/s1_3c_activation_context_summary.txt (new)
+    - reports/s1_3c_activation_context_verification.txt (new)
+    - reports/s1_3c_regression_check.txt (new)
+    - README.md (S1.3c section)
+    - archived prior-art manuscript source (S1.3c bullet in Atlas
+      Continuation enumeration)
+    - .gitignore (3 new whitelist lines for the S1.3c receipts)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  precedent_hash_v1                           : unchanged (6721f511...)
+  admissibility_grammar_hash_v1               : unchanged (ff66706a...)
+  trial_transcript_hash_v1                    : unchanged (37618a45...)
+  execution_attestation_receipt_hash_v1       : unchanged
+  challenge_docket_hash_v1                    : unchanged (dde4ecb4...)
+  detector_contraindication_hash_v1           : unchanged (1b899f5d...)
+  coverage_hole_hash_v1                       : unchanged (671e2164...)
+  activation_plan_hash_v1                     : unchanged (5a81da47...)
+  activation_diff_hash_v1                     : unchanged (469536e7...)
+  Every DetectorPassport hash                 : unchanged
+  task_manifest_hash_v1 (NEW at S1.3c)        :
+    88a33338a6c30aa2077b71e3a3931215858ae002b54a974457a405c48ad14006
+  dataset_manifest_hash_v1 (NEW at S1.3c)     :
+    3864db34a79ebb524aecb209ce43e51a67c569695d91fc494c743b921688d195
+  activation_context_hash_v1 (NEW at S1.3c)   :
+    4948bf459fad28c94bc436316c14cef3bcf53bb3e2f4c1bad8bfa499a3e8955f
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom: only the bank module's private
+    BankAdmissionToken constructor mints admitted episodes.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions (scrub clean).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+  - [[no-silent-court-logic]] doctrine applied: every pub item
+    AND every private helper in activation_context.rs carries
+    WHY commentary.
+
+S1.3c is sealed. The court can now bind its activation
+decisions to a declared task, domain, schema, units, sampling
+law, and artifact fixedness contract. The seed context binds
+the dsfb-gpu-debug fixture; future S1.3d budget pruning will
+consume an ActivationContextV1 as input. T.12 (Literature
+Corpus Scale-Out) is the panel-authorized next campaign;
+S1.3d/e/f defer to after T.12 lands at least the first 200-300
+primitives.

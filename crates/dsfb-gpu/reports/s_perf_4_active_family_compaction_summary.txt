@@ -1,0 +1,209 @@
+S-PERF.4 ActiveFamilyCompaction — Summary Receipt
+==================================================
+
+Panel verdict: post-S-PERF.3 panel directive (2026-05-17).
+Sealed under the 10-step per-section discipline ritual.
+
+Commit identity (panel-locked):
+
+    S-PERF.4 defines how the 152 active detectors are
+    compacted into GPU-family benchmark lanes for Layer-A
+    measurement. It does not run the benchmark, claim
+    saturation, change CUDA kernels, or alter activation /
+    corpus authority. It defines the benchmark schema,
+    family grouping, parameter-table shape, and compaction
+    accounting that S-PERF.5 will measure.
+
+Panel-locked verdict (verbatim):
+
+    S-PERF.3 gives the evidence factory public data;
+    S-PERF.4 packs the active court witnesses into
+    benchmarkable GPU-family lanes.
+
+Core rule:
+
+    Detector count is not kernel count. Active witnesses
+    must be family-compacted before performance claims are
+    made.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+S-PERF.4 ships ONLY the compaction plan + parameter-table
+receipt + benchmark schema + verifier + builder + baseline
+derived deterministically from the live S1.3d / S1.3e /
+FF.1 / S-PERF.2 / S-PERF.3 modules + renderers.
+
+  - ActiveFamilyCompactionPlanV1
+    Per-family lane entries (sorted ascending by GPU family
+    wire name) with active canonical-id lists, per-lane
+    detector count, parameter-table offset, expected kernel
+    name, aggregate cost estimate. Pins four upstream anchor
+    hashes (`source_budget_summary_hash`,
+    `source_kernel_plan_hash`, `source_passport_index_hash`,
+    `corpus_hash_v1`).
+
+  - CompactedParameterTableReceiptV1
+    Per-family parameter-table byte size + total byte size
+    + panel-locked sort-order wire name. References the
+    compaction plan by hash.
+
+  - FamilyCompactionBenchmarkSchemaV1
+    Top-level META-hash envelope binding plan +
+    parameter-table receipt + S-PERF.2 Layer-A pipeline +
+    traffic receipt hashes + S-PERF.3 public-data bundle
+    hash.
+
+  - FamilyLaneCompactionEntry
+    Per-lane record: GPU family wire name, active canonical
+    ids (sorted ascending), active detector count,
+    parameter-table offset, expected kernel name, aggregate
+    cost estimate.
+
+----------------------------------------------------------------
+Panel-locked baseline (derived from live upstream)
+----------------------------------------------------------------
+
+  plan_id        : s_perf_4_baseline_compaction_plan_v1
+  family lanes   : 14
+  active total   : 152
+  parameter rows : 152 (32 bytes/row × 152 = 4 864 bytes total)
+
+Per-family lane breakdown (sorted ascending):
+  CategoricalHistogramFamily  : 1
+  DistributionDistanceFamily  : 28
+  GraphLocalFamily            : 9
+  MissingnessFamily           : 2
+  NegativeWitnessFamily       : 1
+  ProjectionResidualFamily    : 9
+  RankStatisticFamily         : 2
+  ResidualObserverFamily      : 13
+  ScalarThresholdFamily       : 6
+  SequentialRecurrenceFamily  : 26
+  SpectralFamily              : 23
+  TabularConstraintFamily     : 11
+  WaveletFamily               : 1
+  WindowStatisticFamily       : 20
+  TOTAL                       : 152
+
+Panel-locked constants:
+  S_PERF_4_PANEL_LOCKED_PARAMETER_TABLE_SORT_ORDER
+    = "CanonicalIdAscendingWithinFamily"
+  S_PERF_4_BYTES_PER_PARAMETER_ROW = 32
+
+----------------------------------------------------------------
+Three new own-namespace hashes
+----------------------------------------------------------------
+
+  active_family_compaction_plan_hash_v1
+    = 76e28c927cde8deb967874c5c87f2d25ef31a9b526d64f5559758a3cc62cdcfc
+    domain: DSFB-GPU-ATLAS:ACTIVE-FAMILY-COMPACTION-PLAN:v1\0
+
+  compacted_parameter_table_receipt_hash_v1
+    = bf87574ed2a63b989744238347761f7bf9dedd768a69c6d68592ddd616b7437f
+    domain: DSFB-GPU-ATLAS:COMPACTED-PARAMETER-TABLE-RECEIPT:v1\0
+
+  family_compaction_benchmark_schema_hash_v1
+    = 5c2dac74ee3bdf305fdd187fe9ada5532d89cdc43d540536f401be17ed7a311b
+    domain: DSFB-GPU-ATLAS:FAMILY-COMPACTION-BENCHMARK-SCHEMA:v1\0
+
+All three deterministic across two consecutive builds;
+pairwise distinct; distinct from every prior corpus /
+T.11 / T.12.x / T.12.consolidate / FF.x / S1.3.x / T.12.PROV
+/ S-PERF.1 / S-PERF.2 / S-PERF.3 hash anchor.
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. s_perf_4_rejects_benchmark_schema_without_kernel_plan_hash
+       — source_kernel_plan_hash == [0; 32].
+  2. s_perf_4_rejects_detector_not_active_in_budget_summary
+       — lane references a canonical id not in S1.3d's
+         Active set.
+  3. s_perf_4_rejects_family_lane_without_gpu_family_mapping
+       — lane.gpu_family_wire_name is empty.
+  4. s_perf_4_rejects_parameter_table_without_stable_sort_order
+       — parameter-table receipt's sort_order_wire_name is
+         not "CanonicalIdAscendingWithinFamily".
+  5. s_perf_4_rejects_compaction_that_counts_detector_variants_as_new_canonicals
+       — same canonical id appears in more than one family
+         lane.
+  6. s_perf_4_rejects_benchmark_claim_inside_schema
+       — case-insensitive scanner over 12 forbidden
+         substrings on schema_id / plan_id /
+         family_wire_name / expected_kernel_name.
+  7. s_perf_4_rejects_dataset_bundle_hash_mismatch
+       — schema.public_data_bundle_hash != live S-PERF.3
+         baseline.
+  8. s_perf_4_rejects_layer_a_pipeline_hash_mismatch
+       — schema.layer_a_pipeline_hash != live S-PERF.2
+         baseline.
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/s_perf_4_active_family_compaction_invariants.rs : 64 tests
+    - 8 panel-required negatives + 2 variants (schema_id
+      forbidden substring + case-insensitive scanner)
+    - 14 baseline admission tests (plan / receipt / schema
+      admit; 152 detectors / 14 lanes / sorted ascending /
+      no duplicate canonical id / per-lane count match /
+      per-lane offset cumulative / parameter-table bytes
+      match / panel-locked sort order)
+    - 9 determinism tests (3 hashes + 6 renderers)
+    - 4 sensitivity tests (lane added / plan_id /
+      layer_a_pipeline_hash / sort_order)
+    - 6 structural defect tests
+    - 3 hash-distinctness + 3 domain-separator + 3
+      nul-termination + 2 schema-id-distinctness tests
+    - 3 panel-locked constants (sort order, 32 bytes/row,
+      forbidden substring set non-empty)
+    - 6 rendering smoke tests
+    - 2 production-walk no-forbidden-substring guards
+    - 2 cross-verifier tests (build_*_from matches baseline)
+    - 3 non-zero-hash guards
+
+  Corpus suite (57 groups / 2297 tests) green.
+  Workspace serial (96 groups / 2612 tests) green.
+  Delta vs S-PERF.3: +1 group, +64 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                          UNCHANGED
+  corpus_hash_v2                          UNCHANGED
+  every prior T.11 / S1.3 / T.12.x /
+    T.12.consolidate / FF.x / T.12.PROV /
+    S-PERF.1 / S-PERF.2 / S-PERF.3 hash   UNCHANGED
+  every DetectorPassport hash             UNCHANGED
+  SEED.len()                              54 (UNCHANGED)
+  R.12b episodes                          13 / 89 / 1917 BYTE-STABLE
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+S-PERF.4 does NOT:
+
+  - run any benchmark;
+  - claim memory-bandwidth saturation;
+  - emit any timing receipt;
+  - change any CUDA kernel;
+  - change any court decision (S1.3a / FF.2 / FF.3 / S1.3d
+    / S1.3e / S1.3f / S1.3g);
+  - alter activation outcomes (active set read verbatim from
+    S1.3d);
+  - mutate any upstream hash anchor;
+  - alter SEED.len() (stays at 54);
+  - emit detector outputs / episodes;
+  - decide contraindications or challenges;
+  - modify the registry crate;
+  - download or fetch any dataset bytes.
+
+S-PERF.4 packs the active court witnesses into
+benchmarkable GPU-family lanes. The first measurement
+against this schema is a later S-PERF.5+ commit.

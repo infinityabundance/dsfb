@@ -1,0 +1,139 @@
+S-PERF.11.1 --- regression check (10-step ritual receipt)
+=========================================================
+
+Section identity
+----------------
+
+  Section : S-PERF.11.1 --- post-S-PERF.11 bottleneck triage
+  Commit  : (this atomic commit)
+  Date    : 2026-05-18
+  Track   : Track B leg 4.1 (receipt-only re-profile between
+            S-PERF.11 kernel rewrite and S-PERF.12 architectural
+            conversion)
+  Spec    : panel-locked 2026-05-18 (1-hash triage receipt;
+            6 panel-required campaign-identity negatives + 4
+            structural defects; verbatim decision-tree wording
+            + one-line verdict)
+
+Panel-locked thesis (verbatim)
+------------------------------
+
+  S-PERF.11.1 re-profiles the device wall on the committed
+  post-S-PERF.11 kernel and records the dominant stage
+  classification + chosen `next_strike` recommendation under
+  one own-namespace hash. It does not change kernels, does
+  not claim bandwidth improvement, and does not execute the
+  next strike.
+
+Per-section Track B bandwidth report
+------------------------------------
+
+=== S-PERF Track B bandwidth report ===
+Section landed       : S-PERF.11.1 (post-S-PERF.11 bottleneck triage, receipt-only)
+K=1 full-scale bandwidth (pinned post-S-PERF.11) : 16.38 GB/s (unchanged)
+Triage-run bandwidth (this run)                  : 9.14 GB/s @ 256x4096 K=1 D64 (RTX 4080 SUPER, CUDA 13.2)
+Dominant device stage                            : tree_digest (4-stage aggregate) (5063 bp / 50.63% of device_total_us)
+Bottleneck category                              : DigestStillDominant
+Next strike recommendation                       : SPerf12CompactDensorDigestV1
+Saturation gate                                  : 572.8 GB/s (8000 bp / 80% of peak)
+Distance to gate                                 : ~556.4 GB/s remaining
+Honest note          : S-PERF.11.1 records the post-rewrite device-wall
+                       distribution and the panel-locked next-strike
+                       choice. It does NOT change kernels and does NOT
+                       claim a bandwidth improvement. The next commit
+                       (S-PERF.12 --- CompactDensorDigestV1 throughput
+                       mode) executes the recommendation.
+
+Ten-step pre-commit ritual
+--------------------------
+
+  1. cargo fmt --all --check                     clean
+  2. cargo clippy --workspace --all-targets
+       --features cuda -- -D warnings            clean
+  3. bash scripts/scrub.sh                       exit 0
+  4. bash scripts/docs_freshness.sh              exit 0
+  5. cargo test -p dsfb-gpu-atlas-corpus         green
+     (S-PERF.11.1 group: +24 tests; corpus group
+      count +1)
+  6. cargo test --workspace --features cuda
+       -- --test-threads=1                       green
+     (pinned reports restored from HEAD before commit:
+       reports/d64_stage_timing_256x4096_K1.txt,
+       reports/r12_d64_saturation.txt,
+       reports/r9_b3_d64_timing.txt,
+       reports/r9_b_d64_timing.txt,
+       reports/d64_stage_timing_256x4096_K1_post_s_perf_11.txt)
+  7. R.12b episodes 13/89/1917                   byte-stable
+     pinned R.12b baseline                       NOT rebaselined
+  8. FF.4 live README sweep                      passes
+  9. S-PERF.6 public-language regression         passes
+ 10. Atomic commit under the 10-step ritual; no
+     --no-verify
+
+Hash posture (verified)
+-----------------------
+
+  - corpus_hash_v1 / corpus_hash_v2              UNCHANGED
+  - Every prior T.11 / T.12.x / FF.x / S1.3.x /
+    T.12.PROV hash                               UNCHANGED
+  - S-PERF.1 / S-PERF.2 / S-PERF.3 / S-PERF.4 /
+    S-PERF.5 / S-PERF.6 / S-PERF.7 / S-PERF.8 /
+    S-PERF.10 / S-PERF.11 hashes                 UNCHANGED
+  - SEED.len() = 54                              UNCHANGED
+  - R.12b episodes 13 / 89 / 1917                BYTE-STABLE
+  - pinned R.12b baseline                        NOT REBASELINED
+  - 1 NEW own-namespace hash
+    s_perf_11_1_bottleneck_triage_hash_v1
+      = 70dd967b47bb0830249f1e5122975bf7ab53a76473fa5241451b01e93014a4fa
+    deterministic across two builds; distinct from every
+    prior S-PERF anchor; binds the rebaselined S-PERF.11
+    `s_perf_11_bandwidth_delta_report_hash_v1 = 1a27154e...`.
+
+Test surface delta
+------------------
+
+  S-PERF.11.1 group: 24 new tests (first appearance):
+    -  6 panel-required campaign-identity negatives
+    -  4 structural defect rules
+    -  3 classifier-behaviour fixtures (digest-dominant +
+       host-compute-features-surfaced + detector-motif-surfaced)
+    -  4 hash determinism + sensitivity tests
+    -  2 renderer byte-stability tests
+    -  1 cross-anchor distinctness test
+    -  1 pinned-hash back-stop
+    -  3 parser / panel-locked-constants / live-seed-admission
+       tests
+       (= 24)
+
+  Corpus group count: +1 group (S-PERF.11.1).
+
+Triage decision recorded
+------------------------
+
+  bottleneck_category               : DigestStillDominant
+  next_strike_recommendation        : SPerf12CompactDensorDigestV1
+
+  Panel-locked one-line verdict (verbatim):
+    "S-PERF.11 proves the saturation campaign can move the
+     scoreboard while preserving deterministic evidence
+     roots; S-PERF.11.1 re-profiles the device wall and
+     records the panel-locked next strike under one
+     hashable triage receipt."
+
+Atomic commit
+-------------
+
+  This receipt is part of a single atomic commit landing
+  S-PERF.11.1 only. No --no-verify; pre-commit hook runs
+  all four gates; failures block the commit.
+
+Next commit after S-PERF.11.1
+-----------------------------
+
+  Per the triage decision: S-PERF.12 ---
+  CompactDensorDigestV1 throughput mode (Track B leg 5;
+  gate 1->2, target ~50 GB/s). The compact-densor digest
+  mode hashes a deterministic compact densor projection
+  rather than the raw stage bytes; same court semantics,
+  different digest root, covered by S-PERF.10's
+  `digest_mode_non_aliasing_law`.

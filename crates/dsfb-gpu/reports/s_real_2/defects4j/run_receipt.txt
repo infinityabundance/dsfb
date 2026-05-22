@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 defects4j
+display_name:            Defects4J (Just, Jalali, Ernst)
+license:                 MIT
+upstream_doi_or_url:     github.com/rjust/defects4j
+
+Input
+  vendored_path:         data/fixtures/defects4j.tsv
+  fixture_sha256:        a6fa8c9d8e1fa78e2bb9c9f33e40d02aa6f26a04c0af2f760539793d33875a63
+  fixture_byte_size:     3004
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               180
+  nan_cells_skipped:          0
+  events_emitted:             180
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 6
+  n_windows  (= observed_num_windows): 30
+  contract_hash:         sha256:9e347c0f5c7850d594a270dbdbb51fe18ed91852b5a6ad90aa4ef162a1084711
+  bank_hash:             sha256:ca0528a825efb3db40180852193ff3233309d07a7727b3c6d47ad27ff6e2cd4b
+  detector_registry_hash: sha256:a7e7063a5c72bbdcc4d462a31c0c998c27a7264810b049b730687e77698010b2
+
+Result
+  episodes_admitted:     2
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:0410667a6d67784dd8b178308d7278635fcbfa8ea0b0a0b1c42cc89bbea79095

@@ -1,0 +1,22 @@
+* text=auto eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.rs   text eol=lf
+*.cu   text eol=lf
+*.cuh  text eol=lf
+*.sh   text eol=lf
+*.md   text eol=lf
+*.tex  text eol=lf
+
+*.png  binary
+*.pdf  binary
+*.zip  binary
+*.tar.gz binary
+
+# SHA-256-pinned data fixtures + upstream archives MUST NOT have
+# line endings normalized by git. CRLF/LF mangling would break the
+# byte-pin chain (data/fixtures/MANIFEST.toml -> SHA-256 -> recipe
+# -> projected TSV -> audit case_file_hash).
+data/upstream/** binary
+data/fixtures/*.tsv binary
+data/recipes/*.py text eol=lf

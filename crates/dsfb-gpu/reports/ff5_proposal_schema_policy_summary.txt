@@ -1,0 +1,161 @@
+================================================================
+FF.5 - ProposalSchemaUpgradePolicy
+       summary receipt
+================================================================
+
+Panel-locked opening guard. FF.5 defines how proposal schema
+upgrades are allowed to re-render historical proposal artifacts
+without erasing the old artifact hashes or confusing the court
+lineage. Core rule: schema upgrade != silent artifact rewrite.
+Required doctrine: if a schema change re-renders old proposals,
+the migration must preserve the old artifact hash, emit the new
+schema hash, explain why the rendered bytes changed, and provide
+an explicit old_hash -> new_hash migration table. The old
+artifact remains part of the evidence trail; the new artifact
+becomes the active schema rendering only through an explicit
+migration receipt.
+
+Panel-locked one-line verdict (verbatim):
+
+> Schema upgrade != silent artifact rewrite.
+
+Why this is forward-looking: the post-T.12.consolidate /
+post-FF.1 / post-FF.2 / post-FF.3 / post-FF.4 arc surfaced
+several future-work items (e.g. richer ProposedSourceRef with
+authors / doi_or_url, structured contract flags on
+ProposedPrimitive, ratification_commit split) that will
+eventually require re-rendering historical T.12.x proposal
+artifacts under a v2 schema. FF.5 lands the policy BEFORE any
+schema upgrade so every future upgrade has a known contract
+to satisfy.
+
+----------------------------------------------------------------
+Three new own-namespace hash layers (panel-locked)
+----------------------------------------------------------------
+
+FF.5 emitted values:
+
+  proposal_schema_upgrade_policy_hash_v1 :
+    94e00ab1403801ab56c87570a96d86dcc338e523c05eaf9ba6b334d2a2492212
+    Domain:
+    DSFB-GPU-ATLAS:PROPOSAL-SCHEMA-UPGRADE-POLICY:v1\0
+    META-hashes the doctrine + migration table + six pinned
+    upstream anchor hashes.
+
+  proposal_schema_migration_table_hash_v1 :
+    625824d0aa720fcd7aea367d0156315baebb141af7aecc0ac146cb05c150d9c8
+    Domain:
+    DSFB-GPU-ATLAS:PROPOSAL-SCHEMA-MIGRATION-TABLE:v1\0
+    META-hashes the sorted migration-row list + row count
+    (empty at FF.5 time; future schema-upgrade commits append
+    rows).
+
+  schema_upgrade_receipt_hash_v1 (per-receipt) :
+    Domain: DSFB-GPU-ATLAS:SCHEMA-UPGRADE-RECEIPT:v1\0
+    META-hashes one receipt's upgrade_id + schema versions +
+    semantic_reason + migration_rows + corpus-hash-v1/v2
+    preservation flags + freeze_campaign_id + valid-old-hash
+    flag. Pinned per-receipt; no FF.5 receipt at FF.5 time
+    (the type + verifier are the deliverable).
+
+All three hashes distinct from every prior T.11 / S1.3 /
+T.12.x / T.12.consolidate / FF.1 / FF.2 / FF.3 / FF.4 hash.
+
+----------------------------------------------------------------
+Pinned upstream anchors (FF.5 does NOT mutate any of these)
+----------------------------------------------------------------
+
+  corpus_hash_v1                                : 35c276c7... unchanged
+  corpus_hash_v2                                : f1d132eb... unchanged
+  ff1_passport_index_hash_v1                    : 1ad2dc2d... unchanged
+  ff2_activation_ratification_gate_hash_v1      : 05c1b552... unchanged
+  ff3_registry_generation_gate_hash_v1          : 2ffd0222... unchanged
+  ff4_readme_authority_boundary_policy_hash_v1  : 22b9dcb5... unchanged
+  SEED.len()                                    : 54 (unchanged)
+
+----------------------------------------------------------------
+Policy doctrine (10 panel-locked lines, pinned verbatim)
+----------------------------------------------------------------
+
+  1. Schema upgrade != silent artifact rewrite.
+  2. Historical proposal artifacts are court evidence.
+  3. A schema upgrade may produce new rendered artifacts, but
+     it must not pretend the old bytes never existed.
+  4. Every schema-driven re-render must preserve the archived
+     old hash, emit the new schema/version hash, explain the
+     semantic reason for the byte change, and record a
+     migration table from old hash to new hash.
+  5. The old artifact remains part of the evidence trail; the
+     new artifact becomes the active schema rendering only
+     through an explicit migration receipt.
+  6. corpus_hash_v1 is the historical seed-corpus anchor
+     frozen at T.10; no schema upgrade may mutate it.
+  7. corpus_hash_v2 is the ratified-corpus authority anchor;
+     any schema upgrade that mutates it requires a declared
+     freeze campaign id.
+  8. Every migration row must declare a non-zero
+     old_artifact_hash, a non-zero new_artifact_hash, the old
+     schema version, the new schema version, the
+     old_artifact_id, and the semantic reason the bytes
+     changed.
+  9. Migration table rows have unique old_artifact_hash
+     values and unique new_artifact_hash values across the
+     whole table.
+ 10. Every receipt must declare the old artifact hash was
+     VALID at filing time; a migration is not a correction.
+
+----------------------------------------------------------------
+Migration table at FF.5 baseline
+----------------------------------------------------------------
+
+  Row count : 0
+  No schema upgrades have happened yet. The type +
+  verifier are the FF.5 deliverable; future schema-upgrade
+  commits append rows.
+
+----------------------------------------------------------------
+Nine panel-required load-bearing negatives (acceptance suite)
+----------------------------------------------------------------
+
+  ff5_rejects_schema_rerender_without_old_hash
+  ff5_rejects_schema_rerender_without_new_schema_hash
+  ff5_rejects_schema_rerender_without_migration_table
+  ff5_rejects_schema_rerender_without_reason
+  ff5_rejects_migration_table_with_duplicate_old_hash
+  ff5_rejects_migration_table_with_duplicate_new_hash
+  ff5_rejects_claim_that_old_artifact_hash_was_invalid
+  ff5_rejects_schema_upgrade_that_mutates_corpus_hash_v1
+  ff5_rejects_schema_upgrade_that_mutates_corpus_hash_v2_without_freeze_campaign
+
+----------------------------------------------------------------
+Panel-locked non-claims (must NOT regress)
+----------------------------------------------------------------
+
+  - FF.5 does NOT add new detectors.
+  - FF.5 does NOT alter corpus_hash_v1, corpus_hash_v2,
+    consolidation_report_hash_v1, t12_expansion_index_hash_v1,
+    ff1_passport_index_hash_v1, ff1_materialisation_report_hash_v1,
+    ff2_activation_ratification_gate_hash_v1, or
+    ff3_registry_generation_gate_hash_v1, or
+    ff4_readme_authority_boundary_policy_hash_v1.
+  - FF.5 does NOT rewrite any prior T.11 / S1.3 / T.12.x /
+    FF.1 / FF.2 / FF.3 / FF.4 hash.
+  - FF.5 does NOT mutate SEED.len() (stays at 54).
+  - FF.5 does NOT itself perform any schema upgrade. It is a
+    forward-looking governance artifact pinning the contract
+    future upgrades MUST satisfy.
+  - FF.5 does NOT change S1.3a / FF.2 / FF.3 / FF.4 court
+    decisions.
+  - FF.5 does NOT generate CUDA kernels.
+  - FF.5 does NOT decide contraindications or challenges.
+
+----------------------------------------------------------------
+Next campaign (panel-authorized post-FF.5)
+----------------------------------------------------------------
+
+S1.3d Budget pruning + redundancy suppression. Consumes
+ActivationContextV1, T.8 usefulness ledger, contraindications,
+coverage holes, and task budget; emits reason-coded
+DisabledByBudget / DisabledByRedundancy decisions. With FF.2
++ FF.3 + FF.4 + FF.5 in place, the post-S1.3a activation arc
+continues into the full S1.3d/e/f maturity sequence.

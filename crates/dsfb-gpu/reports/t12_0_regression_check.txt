@@ -1,0 +1,146 @@
+================================================================
+T.12.0 - CorpusAmendmentProposalV1 regression-check receipt
+(10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Zero warnings; workspace pedantic lints pass
+  on the new amendment module, the augmented main.rs, lib.rs,
+  and the new acceptance suite.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean. Zero attribution-string hits across the new
+  T.12.0 surface (the scrub script enforces the forbidden-
+  string list at the repository root; see scripts/scrub.sh).
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean. Zero stale TODO / FIXME / XXX markers; zero
+  missing-doc warnings under `cargo doc --no-deps
+  --document-private-items` on the corpus crate.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 716 tests pass across 26 test groups. The new T.12.0
+  surface contributes 31 acceptance tests in
+  tests/amendment_invariants.rs, including four panel-required
+  load-bearing negatives:
+    1. proposal_rejects_empty_proposal_id
+    2. proposal_rejects_unknown_source_class (enforced at the
+       Rust enum level; verifier rule reserved for future
+       TOML loader path)
+    3. dedup_delta_rejects_canonical_id_collision_with_existing_seed
+    4. amendment_proposal_hash_changes_when_batch_changes
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 65 test groups, 1031 tests PASS, 0 FAIL. Serial run
+  (CUDA contention guard).
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable. Canonical 16x128
+  K=1..128 -> episodes/cat=13; mid 64x512 -> episodes/cat=89;
+  full 256x4096 -> episodes/cat=1917. Throughput fluctuates
+  per run (documented GPU thermal / host-load variance); the
+  pinned reports/r12_d64_saturation.txt baseline is NOT
+  rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered AND repaired:
+    - README.md: new "Corpus Amendment Proposal V1 (T.12.0)"
+      section between the S1.3c section and the scaling
+      ladder. Schema body, conservative seed listing, sample
+      emitted bytes, verifier reject kinds, CLI surface, the
+      panel-locked sub-campaign sequence, and non-claims.
+    - archived prior-art manuscript source: new \\textbf{T.12.0} bullet in
+      the Atlas Continuation enumeration; lead sentence
+      refreshed to "through T.11h, with the first court-
+      decision surface (S1.3a), its explanation-and-diff court
+      (S1.3b), its context-binding manifests (S1.3c), and the
+      corpus amendment-proposal intake scaffold (T.12.0)
+      landed on top."
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs: "Current state
+      through S1.3c" -> "through T.12.0" with a new T.12.0
+      bullet enumerating CorpusAmendmentProposalV1 +
+      CorpusExpansionBatch + DedupCourtDelta plus the three
+      new hash namespaces; CLI list refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs: Usage block +
+      Subcommands block include amendment-proposal /
+      amendment-proposal-emit.
+    - crates/dsfb-gpu-atlas-corpus/src/amendment.rs: every
+      pub item AND every private helper carries a doc
+      comment whose first sentence states the WHY for a
+      future engineer, per the [[no-silent-court-logic]]
+      doctrine from T.11h.
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new T.12.0 section added in this commit.
+    - Plan-file: S1.3c sealed at 6b6549a + T.12.0 authorized
+      + T.12.0 execution body were recorded in the previous
+      turn's plan refresh. The T.12.0 SEAL note + T.12.a
+      next-arc update follows this commit (post-commit plan
+      touch-up).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/amendment.rs (new, ~870 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands)
+    - tests/amendment_invariants.rs (new, 31 tests)
+    - out/corpus_amendment_proposal_v1.{txt,json} (new bulk
+      artifacts)
+    - reports/t12_0_amendment_scaffold_summary.txt (new)
+    - reports/t12_0_amendment_scaffold_verification.txt (new)
+    - reports/t12_0_regression_check.txt (new)
+    - README.md (T.12.0 section)
+    - archived prior-art manuscript source (T.12.0 bullet in Atlas
+      Continuation enumeration)
+    - .gitignore (3 new whitelist lines for the T.12.0
+      receipts)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  precedent_hash_v1                           : unchanged (6721f511...)
+  admissibility_grammar_hash_v1               : unchanged (ff66706a...)
+  trial_transcript_hash_v1                    : unchanged (37618a45...)
+  execution_attestation_receipt_hash_v1       : unchanged
+  challenge_docket_hash_v1                    : unchanged (dde4ecb4...)
+  detector_contraindication_hash_v1           : unchanged (1b899f5d...)
+  coverage_hole_hash_v1                       : unchanged (671e2164...)
+  activation_plan_hash_v1                     : unchanged (5a81da47...)
+  activation_diff_hash_v1                     : unchanged (469536e7...)
+  task_manifest_hash_v1                       : unchanged (88a33338...)
+  dataset_manifest_hash_v1                    : unchanged (3864db34...)
+  activation_context_hash_v1                  : unchanged (4948bf45...)
+  Every DetectorPassport hash                 : unchanged
+  corpus_amendment_proposal_hash_v1 (NEW)     :
+    325bbf3deff3595b429a3cda1d55a2fc9e31d689aaeb7a88e3bf8f691fc80092
+  literature_expansion_batch_hash_v1 (NEW)    : folded into
+    proposal hash
+  dedup_court_delta_hash_v1 (NEW)             : folded into
+    proposal hash
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom: only the bank module's private
+    BankAdmissionToken constructor mints admitted episodes.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions (scrub clean).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+  - [[no-silent-court-logic]] doctrine applied: every pub item
+    AND every private helper in amendment.rs carries WHY
+    commentary.
+
+T.12.0 is sealed. The court can now accept literature
+expansion proposals without silent corpus mutation. SEED.len()
+stays at 54 (proven by t12_0_does_not_add_records_to_seed).
+The next campaign (T.12.a) files the first real proposal:
+statistical process control (Shewhart, EWMA, CUSUM, Page-Hinkley,
+Western Electric, Nelson, Hotelling T², MEWMA, MCUSUM, PCA SPE/Q,
+PCA T²; control-limit variants as aliases/parameterizations).

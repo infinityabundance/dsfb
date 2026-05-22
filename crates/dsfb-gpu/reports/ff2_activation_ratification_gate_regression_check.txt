@@ -1,0 +1,169 @@
+================================================================
+FF.2 - ActivationReason::DisabledUnratifiedProposal
+       regression-check receipt (10-step ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Initial pass hit:
+  - uninlined_format_args on the JSON renderers' "schema" field
+    write!(s, "\"schema\":\"{}\"", FF2_ACTIVATION_GATE_SCHEMA_V1)
+    and the summary variant. Resolved by hoisting the const
+    into the format string via inline arg
+    write!(s, "\"schema\":\"{FF2_ACTIVATION_GATE_SCHEMA_V1}\"")
+    in both render_ff2_gate_json and render_ff2_gate_summary_json.
+  - items_after_statements on an inline `use ... from_gate;`
+    inside the ff2_summary_hash_changes_when_gate_hash_changes
+    test body; resolved by hoisting
+    build_ff2_activation_ratification_gate_summary_from_gate
+    into the module-level import list.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 45 groups / 1534 tests pass (FF.1 baseline
+  44 groups / 1474 tests + 1 new group + 60 new
+  ff2_activation_ratification_gate_invariants tests). The 60
+  new tests include the 6 panel-required load-bearing
+  negatives, every shape + determinism + sensitivity invariant,
+  every upstream-anchor invariance witness, every field-level
+  + wire-name + domain-separator pin, every count-shape
+  regression sentinel, every hash-namespace distinctness
+  assertion, and every renderer-coverage check.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 84 test groups, 1849 tests PASS, 0 FAIL. Delta from
+  FF.1 seal (f05d80d): +1 test group, +60 tests. No known-flake
+  retries needed.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined. The saturation test
+  rewrites reports/r12_d64_saturation.txt as part of its run;
+  the pinned baseline was restored from HEAD-equivalent backup
+  before commit (also for reports/d64_stage_timing_256x4096_K1.txt,
+  reports/r9_b3_d64_timing.txt, reports/r9_b_d64_timing.txt).
+
+Step 8. Stale-doc scan
+  Result: clean. src/lib.rs module docstring header refreshed
+  through FF.2; new FF.2 enumeration bullet inserted after
+  FF.1; CLI list extended with 4 new ff2-gate / ff2-gate-emit
+  / ff2-gate-summary / ff2-gate-summary-emit subcommands.
+  README + paper get extended in this same commit.
+
+Step 9. README / plan refresh
+  Result: README front-door title bumped through FF.2; test
+  count bumped to 1534/45 groups; paper section enumeration
+  bumped; new FF.2 section between FF.1 and the scaling-ladder
+  header; Layout block extended with FF.2 descriptor. Plan-
+  file post-commit will mark FF.2 sealed and rotate the Quick
+  Start "Active campaign (next)" anchor to FF.3
+  (RegistryGenerationGate).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/ff2_activation_ratification_gate.rs (new, ~700 lines
+      fully commented: schema + 4-bucket ratification-status
+      enum + per-decision record + top-level gate + gate-summary
+      shell + verifier with 10 reject kinds (6 panel-required
+      negatives + 4 structural) + panel-locked SourceClass-
+      independent classifier + text + JSON renderers for both
+      gate and summary + compile-time wire-name parity assertion)
+    - src/activation.rs (DisabledReason gains
+      DisabledUnratifiedProposal variant + wire-name mapping)
+    - src/lib.rs (module export + docstring header bump to
+      "Current state through FF.2" + new FF.2 enumeration
+      bullet + 4 new CLI list entries)
+    - src/main.rs (4 CLI subcommands: ff2-gate{,-emit} +
+      ff2-gate-summary{,-emit} + usage block)
+    - tests/ff2_activation_ratification_gate_invariants.rs
+      (new, 60 tests including 6 panel-required load-bearing
+      negatives)
+    - out/ff2_activation_ratification_gate_v1.{txt,json} (new)
+    - out/ff2_activation_ratification_gate_summary_v1.{txt,json}
+      (new)
+    - reports/ff2_activation_ratification_gate_summary.txt (new)
+    - reports/ff2_activation_ratification_gate_verification.txt
+      (new)
+    - reports/ff2_activation_ratification_gate_regression_check.txt
+      (new)
+    - .gitignore (3 new whitelist lines)
+    - README.md (front-door + test-count + paper-section +
+      new FF.2 section + Layout block extension)
+    - archived prior-art manuscript source (lead sentence + paragraph
+      header + new \item \textbf{FF.2} bullet)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged
+                                                (35c276c7...)
+  corpus_hash_v2                              : unchanged
+                                                (f1d132eb...)
+  consolidation_report_hash_v1                : unchanged
+                                                (2842f6ae...)
+  t12_expansion_index_hash_v1                 : unchanged
+                                                (11fe6543...)
+  ff1_passport_index_hash_v1                  : unchanged
+                                                (1ad2dc2d...)
+  ff1_materialisation_report_hash_v1          : unchanged
+                                                (5edacbc4...)
+  Every prior T.11/S1.3/T.12.0-T.12.p hash    : unchanged
+  Every T.11a SEED-DetectorPassport hash      : unchanged
+  Every T.12.consolidate hash                 : unchanged
+  Every FF.1 per-passport passport_hash_v1    : unchanged
+  SEED.len()                                  : 54 (unchanged)
+
+  FF.2 NEW ff2_activation_ratification_gate_hash_v1 :
+    05c1b552652c321dc670628207624d1afb1e9fcb4ea15a028e89b80ff7899efb
+    Domain: DSFB-GPU-ATLAS:FF2-ACTIVATION-RATIFICATION-GATE:v1\0
+
+  FF.2 NEW ff2_activation_ratification_gate_summary_hash_v1 :
+    e671cfc027c75509a214cc468c322c47a47bc8ec83b6b3317da9ba7ddf755314
+    Domain: DSFB-GPU-ATLAS:FF2-ACTIVATION-RATIFICATION-GATE-SUMMARY:v1\0
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in ff2_activation_ratification_gate.rs
+  carries a doc comment whose first sentence states the WHY
+  for a future engineer.
+- Panel-locked discipline: FF.2 is a META-discipline-gate
+  layer above S1.3a + above FF.1. It does NOT add new
+  detectors, does NOT mutate any upstream hash, does NOT
+  promote any open proposal to Accepted, does NOT change
+  S1.3a SEED activation decisions, does NOT decide
+  contraindications or challenges, does NOT generate CUDA
+  kernels.
+
+Panel warning enforced:
+  > Do not let unratified proposals collapse into generic
+  > DisabledByWeakLBand. That would erase the court
+  > distinction. FF.2 exists so the operator can see: this
+  > detector is disabled because it is not ratified / not
+  > passported.
+
+FF.2 is sealed. The activation court now refuses any detector
+proposal lacking corpus_hash_v2 ratification + FF.1 passport
+authority with an explicit, reason-coded
+DisabledUnratifiedProposal decision.
+
+Next campaign (panel-authorized post-FF.2): FF.3
+RegistryGenerationGate (S1.2 DetectorSpec generation MUST
+consume only ratified corpus records under corpus_hash_v1 +
+corpus_hash_v2; open amendment proposals inadmissible as
+registry primitive sources). Then S1.3d budget pruning +
+S1.3e KernelPlanV1 + S1.3f CaseFileV2 activation integration.
+See the "Post-T.12.consolidate scaling + framing roadmap"
+section in the plan file for the full panel-locked sequence.

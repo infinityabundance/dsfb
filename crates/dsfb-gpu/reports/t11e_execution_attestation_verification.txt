@@ -1,0 +1,133 @@
+================================================================
+DSFB-GPU-Atlas — T.11e Execution Attestation verification
+================================================================
+Suite          : tests/execution_attestation_invariants.rs
+Tests          : 53 (PASS)
+Verifier kinds : 20 (each exercised by ≥1 test)
+Non-claims     : 7 (verifier enforces all_required())
+
+----------------------------------------------------------------
+Test invocation
+----------------------------------------------------------------
+$ cargo test -p dsfb-gpu-atlas-corpus --test execution_attestation_invariants
+
+  running 53 tests
+  test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured
+
+----------------------------------------------------------------
+Cross-crate hash-chain pin verification
+----------------------------------------------------------------
+The pin-stability test family asserts that the receipt's
+declared hash-chain anchors agree with the live computations of
+each upstream module at HEAD:
+
+  - corpus_hash_anchor_matches_compute_corpus_hash_v1
+        compute_corpus_hash_v1().bytes
+        == 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+
+  - precedent_hash_anchor_matches_court_precedents_hash
+        precedent::court_precedents_hash()
+        == 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14
+
+  - grammar_hash_anchor_matches_compute_grammar_snapshot_hash_v1
+        admissibility::compute_admissibility_grammar_hash_v1(&snapshot)
+        == ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7
+
+  - transcript_hash_anchor_matches_compute_trial_transcript_hash_v1
+        trial_transcript::compute_trial_transcript_hash_v1(&fixture)
+        == 37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee
+
+The registry_hash_v2 anchor (d3cf63000cee922818e8dbc79ffecbc27d
+288063efbaed589e1eb1812bc37a08) is mirrored as literal bytes in
+the corpus crate (zero-dep posture; no dsfb-gpu-atlas-registry
+dependency from the corpus crate). The corresponding workspace-
+serial test in dsfb-gpu-atlas-registry pins the registry hash.
+
+----------------------------------------------------------------
+Verifier-reject coverage (one test per kind)
+----------------------------------------------------------------
+Each of the 20 AttestationVerifyErrorKind variants is exercised
+by a dedicated reject test that mutates one receipt field and
+asserts the verifier returns exactly that error (and that the
+positive admission test on the same fixture is otherwise clean).
+
+Two PANEL-REQUIRED load-bearing negatives:
+
+  1. execution_attestation_rejects_slsa_compliance_claim
+       claimed_slsa_level = Some(3)
+       → expect AttestationVerifyErrorKind::ClaimedSlsaLevelPresent
+       (panel-locked: "an unsigned local receipt is NOT a SLSA
+        compliance claim; any attempt to pretend otherwise must
+        be rejected at the verifier")
+
+  2. execution_attestation_rejects_dirty_repo_without_override
+       repo_dirty = true; dirty_override_acknowledged = false
+       → expect AttestationVerifyErrorKind::DirtyRepoWithoutOverride
+       (panel-locked: "a dirty repo MAY be attested, but only if
+        the operator EXPLICITLY acknowledges the override. Silent
+        attestation of a dirty tree is forbidden")
+
+----------------------------------------------------------------
+Determinism cross-checks (12 tests)
+----------------------------------------------------------------
+  - Two-build determinism (receipt_hash_is_deterministic_across_two_builds).
+  - Sensitivity to each hash-chain anchor (5 tests).
+  - Sensitivity to repo metadata (repo_commit, rustc_version).
+  - Sensitivity to command lists (build_commands, verification_commands).
+  - Sensitivity to materials + subjects.
+  - Sensitivity to non-claim set.
+  - Rendering independence: receipt_hash NEVER reflects rendered
+    text bytes.
+  - Two-call text + JSON render stability.
+  - JSON byte-pin: full JSON-rendered fixture matches a known
+    multi-line constant byte-for-byte.
+
+----------------------------------------------------------------
+Bulk-emit byte-stability
+----------------------------------------------------------------
+  - emit_outputs_byte_stable_two_runs_test_fixture
+        Two invocations of render_execution_attestation_text +
+        render_execution_attestation_json over the test fixture
+        produce byte-identical strings. The CLI
+        `execution-attestation-emit --out-dir <DIR>` therefore
+        produces byte-stable artifacts for the fixture; the live
+        attestation embeds the operator's environment metadata
+        and is byte-stable only for fixed environment values.
+
+----------------------------------------------------------------
+Bulk-emit live invocation
+----------------------------------------------------------------
+$ cargo run -p dsfb-gpu-atlas-corpus -- execution-attestation-emit \
+      --out-dir crates/dsfb-gpu-atlas-corpus/out
+
+  wrote crates/dsfb-gpu-atlas-corpus/out/execution_attestation_v1.txt (3433 bytes)
+  wrote crates/dsfb-gpu-atlas-corpus/out/execution_attestation_v1.json (3442 bytes)
+
+Live receipt_hash_v1 = 559a52f6f314b51fd9d4c635e3f850b2d8e11058b68c1b3cf8e435e6cab31050.
+
+----------------------------------------------------------------
+Hash-chain integrity (no prior anchor mutated)
+----------------------------------------------------------------
+T.11e does NOT touch:
+
+  - corpus_hash_v1                 (T.10)
+  - registry_hash_v2               (S1.2)
+  - precedent_hash_v1              (T.11b)
+  - admissibility_grammar_hash_v1  (T.11c)
+  - trial_transcript_hash_v1       (T.11d)
+  - any DetectorPassport hash      (T.11a)
+
+T.11e's new receipt_hash_v1 lives in its own namespace
+(domain separator DSFB-GPU-ATLAS:EXECUTION-ATTESTATION:v1\0).
+The receipt records the upstream anchors but never alters them.
+
+----------------------------------------------------------------
+Final verification status
+----------------------------------------------------------------
+  - 53 / 53 acceptance tests PASS.
+  - All 20 verifier-reject kinds exercised.
+  - All 7 required non-claims present in test fixture and live
+    emit; verifier enforces all_required().
+  - Receipt hash deterministic across two builds.
+  - Bulk-emit artifacts byte-stable for the fixed test fixture.
+  - No upstream hash anchor disturbed.

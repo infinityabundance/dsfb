@@ -1,0 +1,271 @@
+================================================================
+T.12.p - Information Theory catch-up amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.p files the Information Theory catch-
+up amendment proposal. It admits only deterministic information-
+theoretic witnesses: entropy, conditional entropy, mutual
+information, cross-entropy / negative-log-likelihood, and
+minimum description length / coding-length residuals whose
+estimator, binning, smoothing, sample-support, joint-
+distribution contract, log base, empty-bin law, and numeric mode
+are declared; resolves SEED collisions with KL divergence,
+Jensen-Shannon divergence, and Spectral entropy; classifies
+variants as parameterizations or domain transfers; rejects
+learned mutual-information estimators and black-box information-
+theoretic anomaly scores without declared deterministic-binning
+/ kernel / partition / formula contract; and preserves the
+frozen T.10 corpus hash.
+
+Main panel warning: "An information-theoretic witness is
+admissible only when the estimator, binning or kernel, smoothing,
+sample-support, joint-distribution contract (where applicable),
+log base, empty-bin law, and numeric mode are declared."
+
+Panel-locked non-claim (MUST appear verbatim):
+
+> T.12.p admits deterministic information-theoretic witnesses:
+> entropy, divergence, mutual-information, coding-length,
+> compression, surprise, and dependence-structure evidence with
+> declared estimator, binning, smoothing, sample-support, and
+> numeric laws. It does not admit semantic meaning, causal
+> information flow certainty, privacy leakage certainty,
+> cryptographic security claims, or learned representation
+> claims.
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.p emitted values:
+
+  literature_expansion_batch_hash_v1 :
+    dd17da603465ced567efecfc79db92d28f3113e03d8af7811f296eddb35473a8
+  dedup_court_delta_hash_v1          :
+    654bc325872e57babee643295c8f852c58a30e7f51eb6798c9d0e8461f9fe7b5
+  corpus_amendment_proposal_hash_v1  :
+    338198ebc09cc2a867f2a38aa949b9134edbde9f1778002209f157ca7bb335ca
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found three T.12.p-relevant primitives already
+canonical:
+
+  9  Kullback-Leibler divergence (foundational information-
+     theoretic divergence ancestor; every relative-entropy /
+     I-divergence claim collapses here)
+  32 Jensen-Shannon divergence (symmetric bounded JS variant;
+     every JSD / Jensen difference claim collapses here)
+  38 Spectral entropy (Shannon entropy on the normalised power
+     spectrum; every spectral Shannon entropy / power-spectrum
+     entropy claim collapses here)
+
+All three become ExistingCanonicalAuthorityResolution records.
+Panel-locked success-shape: the campaign's strength comes from
+cross-class dedup discipline (3 authority resolutions over the
+KL / JS / Spectral-entropy SEED family that information-theoretic
+witnesses heavily reuse).
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  11  (5 canonical + 4 parameterization
+                                 shells + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  16
+  proposed_genealogy_edges:   9
+  proposed_source_refs   :   9
+  new_canonical_records  :   5  (in dedup_court_delta)
+
+Dedup-court category counts (all five panel-locked categories):
+
+  CanonicalAddition                       :  5
+  ExistingCanonicalAuthorityResolution    :  3
+  DomainTransferOf                        :  2
+  ParameterizationOf                      :  4
+  RejectedNotDeterministic                :  2
+
+Total dedup records: 16.
+
+----------------------------------------------------------------
+Five new canonicals (6601..=6605)
+----------------------------------------------------------------
+
+  6601 Shannon entropy shift witness (Shannon 1948 A Mathematical
+       Theory of Communication). Declared log base (log2 / bits
+       or ln / nats), binning or partition law (equal-width /
+       equal-frequency / Freedman-Diaconis / declared partition
+       function), empty-bin law (skip / Laplace smoothing alpha
+       / Krichevsky-Trofimov 1/2), smoothing rule, sample-support
+       bound, estimator (plug-in / Miller-Madow / James-Stein /
+       declared).
+  6602 Conditional entropy shift witness (Cover-Thomas 2006
+       chapter 2). Declared joint-distribution contract over
+       (X, Y), joint binning or partition over the product space,
+       binning law for both marginals AND the joint, empty-bin
+       law for joint cells, smoothing rule, sample-support
+       bound, estimator, log base. Per-window H(Y|X) = H(X,Y) -
+       H(X) residual vs baseline reference.
+  6603 Mutual information break witness (Cover-Thomas 2006
+       chapter 2). Declared joint-distribution contract over
+       (X, Y), binning OR kernel-density-estimator law for both
+       marginals AND the joint, empty-bin law, smoothing rule,
+       bias-correction rule (Miller-Madow / James-Stein /
+       none), sample-support bound, log base. Per-window
+       I(X; Y) = H(X) + H(Y) - H(X, Y) estimate break vs
+       baseline. Structurally distinct from SEED 9 KL because
+       MI is a functional on the JOINT vs PRODUCT-OF-MARGINALS
+       whereas KL is a divergence between two declared
+       distributions; MI is symmetric and non-directional by
+       construction.
+  6604 Cross-entropy / negative-log-likelihood residual witness
+       (Shannon 1948 / Cover-Thomas 2006). Declared FIXED MODEL
+       distribution q (parameter-pinned; frozen across the
+       comparison window; no learned parameters at decision
+       time), empirical sample distribution p (declared estimator),
+       log base, smoothing (epsilon for log(0)), empty-bin law,
+       sample-support bound. Per-window H(p, q) = -sum_i p_i
+       log q_i residual vs baseline.
+  6605 Minimum description length / coding-length residual
+       witness (Rissanen 1978 / Rissanen 1986). Declared model
+       class (fixed prefix code / fixed universal code / two-
+       part code with declared parameter-cost law), code-length
+       functional L(D | M), L(M) parameter-encoding cost (two-
+       part code; model-cost is not silently dropped), sample-
+       support bound. Per-window total code length L(D | M) +
+       L(M) residual vs baseline.
+
+----------------------------------------------------------------
+Three authority resolutions
+----------------------------------------------------------------
+
+  SEED 9  Kullback-Leibler divergence (declared reference
+          distribution q + empirical distribution p + log base +
+          epsilon for log(0) + empty-bin law + sample-support
+          bound + estimator + numeric mode; streaming
+          descendants point here).
+  SEED 32 Jensen-Shannon divergence (declared symmetric mixture
+          M = 0.5 (P + Q) + bounded JS = 0.5 KL(P||M) + 0.5
+          KL(Q||M) + log base + empty-bin law + sample-support
+          bound + estimator + numeric mode).
+  SEED 38 Spectral entropy (Shannon entropy applied to the
+          normalised power spectrum per Inouye 1991; declared
+          FFT window size + spectral-bin contract + empty-bin
+          law + log base + estimator + numeric mode).
+
+----------------------------------------------------------------
+Two domain transfers
+----------------------------------------------------------------
+
+  SEED 9  KL divergence as shared information-theoretic
+          divergence ancestor for InformationTheory; cross-
+          entropy (6604) and JS divergence (SEED 32) are
+          descendants.
+  SEED 38 Spectral entropy as shared Shannon-entropy-on-
+          distribution ancestor for InformationTheory; Shannon
+          entropy shift (6601) is the abstract parent admitted
+          as a new canonical, spectral entropy is the power-
+          spectrum-domain variant already canonical.
+
+----------------------------------------------------------------
+Four parameterizations (6606..=6609)
+----------------------------------------------------------------
+
+  6606 Normalized mutual information ParameterizationOf(MI,
+       6603) with declared normalisation function (arithmetic
+       mean of marginal entropies / geometric mean / max /
+       joint entropy).
+  6607 Transfer entropy proxy ParameterizationOf(MI, 6603) per
+       Schreiber 2000 with declared lagged-joint contract:
+       TE_{X->Y} = I(Y_{t+1}; X_t^{(k)} | Y_t^{(l)}) over
+       declared embedding orders k and l. ADMITTED ONLY AS A
+       DETERMINISTIC NON-CAUSAL WITNESS; the court does NOT
+       admit transfer entropy as evidence of causal structure,
+       intervention truth, or causal information flow.
+  6608 Rényi / Tsallis entropy ParameterizationOf(Shannon
+       entropy, 6601) per Rényi 1961 / Tsallis 1988 with
+       declared order-alpha parameter law AND declared base
+       AND declared limit-recovery (Rényi alpha=1 reduces to
+       Shannon; Tsallis q=1 reduces to Shannon).
+  6609 Compression-ratio anomaly ParameterizationOf(MDL, 6605)
+       per Ziv-Lempel 1977 / Ziv-Lempel 1978 / Welch 1984 LZW
+       with declared compression algorithm + declared
+       compression-ratio decision functional. The court does
+       NOT admit compression as a surrogate for true
+       description length.
+
+----------------------------------------------------------------
+Two rejections (6610..=6611)
+----------------------------------------------------------------
+
+  6610 Learned mutual-information estimator / neural MI
+       estimator / variational MI bound (MINE Belghazi et al.
+       2018 Mutual Information Neural Estimation, InfoMax /
+       variational MI bounds, neural KL estimators, InfoVAE,
+       CPC contrastive predictive coding MI lower bounds).
+       Rejected unless reduced to a Deterministic_MI_Estimator
+       _Proxy with deterministic feature-extraction law +
+       declared formula + declared training-data anchor +
+       declared binning OR kernel + declared tie-break +
+       declared numeric mode + no learned opaque embedding.
+  6611 Black-box information-theoretic anomaly score from
+       vendor pipelines (AWS Macie information-leakage scoring,
+       IBM Guardium DAM information-theoretic anomaly
+       heuristics, Microsoft Purview information-leakage
+       classifier, Symantec / Broadcom DLP entropy-based
+       anomaly score, Cisco Talos information-theoretic threat
+       scoring). Rejected unless reduced to a
+       Deterministic_IT_Score_Proxy with declared formula +
+       binning OR partition + smoothing + sample-support bound
+       + log base + numeric mode.
+
+T.12.p is the tenth T.12.x with two RejectedNotDeterministic
+records in one commit, following T.12.g / h / i / j / k / l / m
+/ n / o.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1            : unchanged (35c276c7...)
+  registry_hash_v2          : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.0-T.12.o hash : unchanged
+  Every DetectorPassport hash               : unchanged
+  SEED.len()                                : 54 (unchanged)
+  R.12b episodes (canonical/mid/full)       : 13/89/1917
+                                              (byte-stable)
+  R.12b D64 baseline                        : NOT rebaselined
+                                              (pinned receipt
+                                              restored before
+                                              commit)
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.p does NOT admit:
+  - semantic meaning,
+  - causal information flow certainty,
+  - privacy leakage certainty,
+  - cryptographic security claims,
+  - learned representation claims,
+  - probabilistic-bound-as-deterministic-certainty,
+  - approximate-query truth,
+  - learned mutual-information estimator verdicts,
+  - black-box vendor information-theoretic verdicts.
+
+Forbidden positive-claim terms appear ONLY in
+RejectedNotDeterministic reason text (where they describe what
+is NOT admitted). Canonical and authority-resolution records
+legitimately disclaim these terms inside "does NOT admit ..."
+sentences; the discipline forbids only positive-claim variants
+("claims X" / "issues X verdicts" / "admits X" / "guarantees X").
+
+----------------------------------------------------------------
+End of T.12.p Information Theory catch-up summary
+----------------------------------------------------------------

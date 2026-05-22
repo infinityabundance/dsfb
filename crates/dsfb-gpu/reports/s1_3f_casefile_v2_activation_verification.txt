@@ -1,0 +1,147 @@
+S1.3f CaseFileV2 Activation Integration — Verification Receipt
+================================================================
+
+Verifier coverage summary for the S1.3f authority-chain module.
+
+----------------------------------------------------------------
+Verifier surface
+----------------------------------------------------------------
+
+Public verifier function:
+
+  pub fn verify_s1_3f(
+      chain: &CaseFileV2AuthorityChain,
+      body_detector_result_claims: &[CaseFileBodyDetectorResultClaim],
+      summary: &BudgetedActivationSummary,
+      audit: &ActivationPlanAuditV1,
+      context: &ActivationContextV1,
+      kernel_plan: &KernelPlanV1,
+      contraindication_hash: [u8; 32],
+      challenge_hash: [u8; 32],
+      coverage_hole_hash: [u8; 32],
+  ) -> Vec<S13fVerifyError>
+
+Fourteen reject kinds in `S13fVerifyErrorKind`:
+
+  Panel-required (10):
+    R.1  CasefileWithoutActivationPlanHash
+    R.2  CasefileWithoutActivationContextHash
+    R.3  CasefileWithoutBudgetSummaryHash
+    R.4  CasefileWithoutKernelPlanHash
+    R.5  CasefileWithKernelPlanNotMatchingBudgetedActivation
+    R.6  CasefileWithDetectorResultNotInKernelPlan
+    R.7  CasefileWithSuppressedDetectorResultAsActive
+    R.8  CasefileWithoutFf2OrFf3GateHash
+    R.9  CasefileWithoutChallengeOrContraindicationLinkage
+    R.10 CasefileAuthorityChainMutatingUpstreamHashes
+
+  Structural defects (4):
+    R.11 LaneMembershipNotSorted
+    R.12 LaneMembershipRowUnknownFamily
+    R.13 BodyDetectorResultClaimUnknownOutcome
+    R.14 SeedLengthMutated
+
+----------------------------------------------------------------
+Ten panel-required load-bearing negatives — outcome
+----------------------------------------------------------------
+
+  s13f_rejects_casefile_without_activation_plan_hash                          PASS
+  s13f_rejects_casefile_without_activation_context_hash                       PASS
+  s13f_rejects_casefile_without_budget_summary_hash                           PASS
+  s13f_rejects_casefile_without_kernel_plan_hash                              PASS
+  s13f_rejects_casefile_with_kernel_plan_not_matching_budgeted_activation     PASS
+  s13f_rejects_casefile_with_detector_result_not_in_kernel_plan               PASS
+  s13f_rejects_casefile_with_suppressed_detector_result_as_active             PASS
+  s13f_rejects_casefile_without_ff2_gate_hash                                 PASS
+  s13f_rejects_casefile_without_ff3_gate_hash                                 PASS
+  s13f_rejects_casefile_without_challenge_linkage                             PASS
+  s13f_rejects_casefile_without_contraindication_linkage                      PASS
+  s13f_rejects_casefile_without_coverage_hole_linkage                         PASS
+  s13f_rejects_casefile_authority_chain_mutating_upstream_hashes_corpus_v1    PASS
+  s13f_rejects_casefile_authority_chain_mutating_upstream_hashes_kernel_plan  PASS
+
+----------------------------------------------------------------
+Body-claim admission tests — outcome
+----------------------------------------------------------------
+
+  s13f_admits_body_claim_for_active_canonical_id                              PASS
+  s13f_rejects_body_claim_with_unknown_outcome_wire_name                      PASS
+
+----------------------------------------------------------------
+Baseline + determinism invariants — outcome
+----------------------------------------------------------------
+
+  s13f_default_chain_passes_verifier_with_empty_body                          PASS
+  s13f_default_chain_activation_binding_has_54_decisions_152_active_0_disabled PASS
+  s13f_default_chain_kernel_plan_binding_has_14_lanes_152_active              PASS
+  s13f_seed_len_pinned_at_54                                                  PASS
+  s13f_chain_pins_corpus_hash_v1_live_value                                   PASS
+  s13f_chain_pins_ff2_gate_hash                                               PASS
+  s13f_chain_pins_ff3_gate_hash                                               PASS
+  s13f_chain_pins_contraindication_hash                                       PASS
+  s13f_chain_pins_challenge_docket_hash                                       PASS
+  s13f_chain_pins_coverage_hole_hash                                          PASS
+  s13f_authority_chain_hash_is_deterministic_across_two_builds                PASS
+  s13f_activation_binding_hash_is_deterministic_across_two_builds             PASS
+  s13f_kernel_plan_binding_hash_is_deterministic_across_two_builds            PASS
+  s13f_authority_chain_text_is_byte_stable_across_two_renders                 PASS
+  s13f_authority_chain_json_is_byte_stable_across_two_renders                 PASS
+  s13f_activation_binding_text_is_byte_stable_across_two_renders              PASS
+  s13f_kernel_plan_binding_text_is_byte_stable_across_two_renders             PASS
+  s13f_activation_binding_json_is_byte_stable_across_two_renders              PASS
+  s13f_kernel_plan_binding_json_is_byte_stable_across_two_renders             PASS
+  s13f_authority_chain_hash_changes_when_budget_pressure_changes_active_set   PASS
+
+----------------------------------------------------------------
+Domain-separator + schema-id pins — outcome
+----------------------------------------------------------------
+
+  s13f_activation_binding_domain_is_pinned                                    PASS
+  s13f_activation_binding_schema_is_pinned                                    PASS
+  s13f_kernel_plan_binding_domain_is_pinned                                   PASS
+  s13f_kernel_plan_binding_schema_is_pinned                                   PASS
+  s13f_authority_chain_domain_is_pinned                                       PASS
+  s13f_authority_chain_schema_is_pinned                                       PASS
+  s13f_three_hash_namespaces_are_distinct                                     PASS
+
+----------------------------------------------------------------
+Structural invariants — outcome
+----------------------------------------------------------------
+
+  s13f_lane_membership_index_is_sorted_ascending                              PASS
+  s13f_lane_membership_index_size_matches_active_count                        PASS
+  s13f_every_lane_membership_row_carries_a_canonical_family_wire_name         PASS
+  s13f_lane_membership_index_covers_every_active_canonical_id                 PASS
+
+----------------------------------------------------------------
+Upstream anchor invariance witnesses — outcome
+----------------------------------------------------------------
+
+  s13f_does_not_alter_corpus_hash_v1                  PASS (35c276c7...)
+  s13f_does_not_alter_s1_3d_budget_pruning_plan_hash  PASS (82be2289...)
+  s13f_does_not_alter_s1_3e_kernel_plan_hash          PASS (e48c89b9...)
+  s13f_does_not_alter_ff2_or_ff3_gate_hashes          PASS (05c1b552... / 2ffd0222...)
+
+----------------------------------------------------------------
+Renderer-coverage checks — outcome
+----------------------------------------------------------------
+
+  s13f_authority_chain_text_contains_all_three_section_headers                PASS
+  s13f_authority_chain_json_parses_as_object                                  PASS
+  s13f_activation_binding_json_parses_as_object                               PASS
+  s13f_kernel_plan_binding_json_parses_as_object                              PASS
+
+----------------------------------------------------------------
+Aggregate test outcome
+----------------------------------------------------------------
+
+  test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured;
+                   0 filtered out
+
+Default-state verifier run:
+
+  verify_s1_3f(default_chain, &[] /* no body claims */,
+               default_summary, default_audit, default_context,
+               default_kernel_plan, contraindication_hash,
+               challenge_hash, coverage_hole_hash)
+    → Vec::new()  (zero errors)

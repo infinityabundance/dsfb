@@ -1,0 +1,19 @@
+=== R.9.b.3 D64 full-pipeline timing (one-shot, K=1) ===
+Hardware: RTX 4080 SUPER, CUDA 13.2. Bench is per-iter wall median.
+
+  scale                 | D16 compact (us) | D64 compact (us) | ratio D16/D64
+  --------------------- | ---------------- | ---------------- | -------------
+  canonical 16x128      |             2333 |             2682 |          0.87x
+  mid-scale 64x512      |             7721 |            29906 |          0.26x
+  full-scale 256x4096   |           118183 |          1833862 |          0.06x
+
+Notes:
+  * D16 = R.11 compact path (canonical 16-motif court).
+  * D64 = R.9.b.3 wide path: 16 motifs x 4 variants, with on-device
+    OR projection to canonical 16-bit mask before consensus +
+    candidate. Bank ABI unchanged.
+  * Wide cells (264 B each) stay on-device; only candidates +
+    counts + 4 x 32-byte stage digests cross PCIe.
+  * The D64 case file commits to DetectorProfile::D64.registry_hash
+    in its `detector_registry` chain link; D16 commits to the
+    canonical motif registry hash. Receipts cannot be confused.

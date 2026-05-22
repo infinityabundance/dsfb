@@ -1,0 +1,226 @@
+T.12.PROV Scientific Provenance Credit Pass — Summary Receipt
+==============================================================
+
+Panel verdict: post-identity-commit panel directive
+(2026-05-17). Sealed under the 10-step per-section discipline
+ritual.
+
+Commit identity (panel-locked):
+
+    T.12.PROV verifies that every T.12.a..T.12.p
+    CanonicalAddition preserves visible scientific provenance:
+    named scientist / author lineage, SourceRef linkage,
+    contribution note, and DSFB-specific non-claim. It does
+    not claim DSFB invented the underlying detector families.
+    It records that DSFB-GPU-Atlas canonizes, deduplicates,
+    contracts, activates, and maps prior detector science
+    into a deterministic evidence court.
+
+Panel-locked verdict (verbatim):
+
+    The identity commit says what DSFB-GPU is; T.12.PROV
+    makes sure the scientists whose methods became court
+    witnesses are visibly credited.
+
+Core doctrine:
+
+    DSFB-GPU-Atlas does not erase prior detector science.
+    It preserves named scientific lineage while converting
+    detector primitives into deterministic, replayable
+    witness records.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+T.12.PROV is derivation-only: it walks the live T.12.a..T.12.p
+proposal set through `consolidate::load_all_t12_proposals` and
+emits three artifacts without mutating any prior hash.
+
+  - ScientistCreditIndex
+    One ScientistCredit row per CanonicalAddition (98 total),
+    sorted ascending by canonical id. Each row carries:
+    detector_name, source_class_wire_name, origin_proposal_id,
+    source_ref_keys list, contribution text (from the dedup
+    record's reason), motivation text (from the matching
+    ProposedPrimitive), and the panel-locked DSFB credit
+    note.
+
+  - SourceBibliographyIndex
+    One bibliography entry per unique (citation_key,
+    source_class) pair (133 total), sorted ascending by
+    (source_class_wire_name, citation_key). Records the
+    citation key, title, year, venue, source class, and
+    origin proposal id.
+
+  - ProvenanceCreditReport (top-level wrapper)
+    META-hashes both indexes plus corpus_hash_v1, SEED.len(),
+    proposal_count, rejection_record_count,
+    parameterization_record_count, and the panel-locked
+    credit note. One hash pins the entire T.12.PROV
+    provenance pass.
+
+----------------------------------------------------------------
+Production walk shape (panel-pinned)
+----------------------------------------------------------------
+
+  proposal_count                  : 17
+  canonical_addition_count        : 98
+  unique_bibliography_entry_count : 133
+  rejection_record_count          : 24
+  parameterization_record_count   : 49
+
+The 98 canonical additions resolve T.12.a's 2 legacy
+"Canonical" wire-name records (MEWMA + MCUSUM at ids 5001 /
+5002) AND every post-T.12.b "CanonicalAddition" record across
+T.12.b..T.12.p. The `is_canonical_addition` helper recognises
+both wire names so credit aggregation matches the
+T.12.consolidate expansion index exactly.
+
+The 133 bibliography entries dedupe by
+(source_class_wire_name, citation_key); cross-class reuse of
+the same citation key (e.g. SEED 12 FFT band-energy used as
+spectral ancestor in T.12.e, biosignal ancestor in T.12.j,
+chemometric ancestor in T.12.l, and RF ancestor in T.12.m)
+correctly emits four bibliography entries because each
+appears under a different source class.
+
+----------------------------------------------------------------
+Three new own-namespace hashes
+----------------------------------------------------------------
+
+  scientist_credit_index_hash_v1
+    = 5a55f0340085505125f1f9ca355d7a0555470da2e1c9b215e8e201417bc9189a
+    domain: DSFB-GPU-ATLAS:SCIENTIST-CREDIT-INDEX:v1\0
+
+  source_bibliography_index_hash_v1
+    = 0db6afc6ac68bcbebef68e028b58f84eec938def558a30890b439c25dba9e49a
+    domain: DSFB-GPU-ATLAS:SOURCE-BIBLIOGRAPHY-INDEX:v1\0
+
+  provenance_credit_report_hash_v1
+    = 8b4f0f83dc7c5c0c0b876e5b5003f12e09507348fc3caf7066c84d94d16af961
+    domain: DSFB-GPU-ATLAS:PROVENANCE-CREDIT-REPORT:v1\0
+
+All three deterministic across two consecutive builds; pairwise
+distinct; distinct from every prior corpus / T.11 / T.12.x /
+T.12.consolidate / FF.x / S1.3.x hash.
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. t12_prov_rejects_canonical_addition_without_scientist_credit
+       — every CanonicalAddition dedup record MUST have a
+         matching ProposedPrimitive in the same batch.
+  2. t12_prov_rejects_canonical_addition_without_source_ref
+       — every CanonicalAddition's batch MUST carry at least
+         one ProposedSourceRef.
+  3. t12_prov_rejects_scientist_credit_without_contribution_note
+       — every CanonicalAddition's reason text MUST be
+         non-empty.
+  4. t12_prov_rejects_source_ref_key_not_in_proposal_sources
+       — every source_ref_key on a credit row MUST appear in
+         the originating proposal's proposed_source_refs list.
+  5. t12_prov_rejects_dsfb_invention_claim_for_prior_detector
+       — case-insensitive scanner forbids phrases like
+         "dsfb invented", "dsfb-gpu-atlas invented",
+         "we invented", "atlas invented", "originally /
+         first introduced/proposed by dsfb" in any
+         CanonicalAddition motivation or contribution text.
+  6. t12_prov_rejects_engineering_practice_record_without_provenance_note
+       — every ProposedSourceRef with year=0 (engineering
+         practice) MUST carry a non-empty venue / provenance
+         note.
+  7. t12_prov_rejects_rejected_record_without_method_family_credit
+       — every RejectedNotDeterministic dedup record MUST
+         carry a non-empty reason (the reason credits the
+         method family being refused, even though not
+         admitted).
+  8. t12_prov_rejects_parameterization_without_parent_lineage_note
+       — every ParameterizationOf dedup record MUST carry a
+         non-empty reason (the reason names the parent
+         canonical the parameterization collapses into).
+
+----------------------------------------------------------------
+Panel-locked DSFB credit note (every credit row carries it
+verbatim)
+----------------------------------------------------------------
+
+    DSFB-GPU-Atlas canonizes, deduplicates, normalizes,
+    contracts, and activates this detector primitive into a
+    deterministic, replayable witness record. DSFB-GPU-Atlas
+    does not claim invention of this primitive; named
+    scientists and source papers above carry the original
+    credit.
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/t12_prov_invariants.rs : 65 tests
+    - 8 panel-required load-bearing negatives (above)
+    - 6 production walk-shape pins (98 / 133 / 24 / 49 / 17 /
+      seed=54)
+    - 3 corpus_hash_v1 invariance tests
+    - 8 determinism tests (3 hash builders + 4 renderers +
+      proposal-set repeat)
+    - 3 sensitivity tests (added credit / added source ref /
+      added proposal changes each hash)
+    - 3 structural defect tests (corpus_hash mismatch,
+      credit sort, bibliography sort)
+    - 3 domain-separator + 3 schema-id distinctness tests
+    - 2 sort-order pins (credit ascending by canonical id,
+      bibliography ascending by (class, key))
+    - 6 reserved-id-band / origin-proposal-id tests
+    - 6 rendering smoke tests (text + JSON for all 3
+      artifacts contain pinned headers / schema ids)
+    - misc invariants (panel-locked credit note carried by
+      every row, forbidden-substring set non-empty,
+      case-insensitive scanner)
+
+  Corpus suite (53 groups / 2034 tests) green.
+  Workspace serial (92 groups / 2349 tests) green.
+  Delta vs identity commit: +1 group, +65 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                          UNCHANGED
+  corpus_hash_v2                          UNCHANGED
+  consolidation_report_hash_v1            UNCHANGED
+  t12_expansion_index_hash_v1             UNCHANGED
+  ff1_passport_index_hash_v1              UNCHANGED
+  ff1_materialisation_report_hash_v1      UNCHANGED
+  ff2_activation_ratification_gate_hash_v1  UNCHANGED
+  ff3_registry_generation_gate_hash_v1    UNCHANGED
+  ff4_readme_authority_boundary_policy_hash_v1 UNCHANGED
+  ff5_proposal_schema_upgrade_policy_hash_v1 UNCHANGED
+  every prior T.11 / S1.3 / T.12.x hash   UNCHANGED
+  every DetectorPassport hash             UNCHANGED
+  SEED.len()                              54 (UNCHANGED)
+  R.12b episodes (13 / 89 / 1917)         BYTE-STABLE
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in receipt + README +
+paper)
+----------------------------------------------------------------
+
+T.12.PROV does NOT:
+
+  - claim that DSFB-GPU-Atlas invented any of the detector
+    primitives it canonizes;
+  - mutate any T.12.x / T.12.consolidate / FF.x / S1.3.x
+    hash anchor;
+  - alter SEED.len() (stays at 54);
+  - change S1.3a / FF.2 / FF.3 / S1.3d / S1.3e / S1.3f /
+    S1.3g court decisions;
+  - emit detector outputs, witness records, fusion tensors,
+    candidate intervals, or episodes;
+  - generate CUDA kernels;
+  - decide contraindications or challenges;
+  - modify the registry crate.
+
+T.12.PROV records scientific provenance. It changes
+documentation surface (README + paper provenance sections);
+it does NOT change court state.

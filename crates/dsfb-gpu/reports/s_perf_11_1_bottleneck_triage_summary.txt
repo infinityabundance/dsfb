@@ -1,0 +1,133 @@
+S-PERF.11.1 --- post-S-PERF.11 bottleneck triage (summary)
+==========================================================
+
+Panel-locked thesis (verbatim)
+------------------------------
+
+  S-PERF.11.1 re-profiles the device wall on the committed
+  post-S-PERF.11 kernel and records the dominant stage
+  classification + chosen `next_strike` recommendation under
+  one own-namespace hash. It does not change kernels, does not
+  claim bandwidth improvement, and does not execute the next
+  strike.
+
+Panel-locked decision rule (verbatim)
+-------------------------------------
+
+  Question: Did digest remain the dominant wall, or did the
+  bottleneck move?
+
+  - If digest still dominates: proceed with S-PERF.12 ---
+    CompactDensorDigestV1 throughput mode.
+  - If host `compute_features` surfaced: re-rank toward
+    S-PERF.13 --- device-side deterministic feature
+    construction.
+  - If detector_motif / consensus / candidate collapse
+    surfaced: attack the new measured wall instead, and defer
+    S-PERF.12 until that stage no longer dominates.
+
+Panel-locked one-line verdict (verbatim)
+----------------------------------------
+
+  S-PERF.11 proves the saturation campaign can move the
+  scoreboard while preserving deterministic evidence roots;
+  S-PERF.11.1 re-profiles the device wall and records the
+  panel-locked next strike under one hashable triage receipt.
+
+Per-section Track B bandwidth report
+------------------------------------
+
+=== S-PERF Track B bandwidth report ===
+Section landed       : S-PERF.11.1 (post-S-PERF.11 bottleneck triage, receipt-only)
+K=1 full-scale bandwidth (pinned post-S-PERF.11) : 16.38 GB/s (unchanged)
+Triage-run bandwidth (this run)                  : 9.14 GB/s @ 256x4096 K=1 D64 (RTX 4080 SUPER, CUDA 13.2)
+Dominant device stage                            : tree_digest (4-stage aggregate) (5063 bp / 50.63% of device_total_us)
+Bottleneck category                              : DigestStillDominant
+Next strike recommendation                       : SPerf12CompactDensorDigestV1
+Saturation gate                                  : 572.8 GB/s (8000 bp / 80% of peak)
+Distance to gate                                 : ~556.4 GB/s remaining (~77.72 percentage points; live triage run is slower than pinned post-S-PERF.11 due to host-load / thermal variance)
+Honest note          : S-PERF.11.1 records the post-rewrite device-wall
+                       distribution and the panel-locked next-strike
+                       choice. It does NOT change kernels and does NOT
+                       claim a bandwidth improvement. The next commit
+                       (S-PERF.12 --- CompactDensorDigestV1 throughput
+                       mode) executes the recommendation.
+
+Triage source-report
+--------------------
+
+  reports/d64_stage_timing_256x4096_K1_post_s_perf_11_triage.txt
+
+  Captured live on the committed post-S-PERF.11 kernel
+  (S-PERF.11 sealed at 3e67cb4; D64 dispatcher uses
+  tree_digest_leaf_kernel_v2 with LEAVES_PER_BLOCK = 32).
+
+Per-stage device timings (live, us)
+-----------------------------------
+
+  h2d (WindowFeature[] H2D)                2520
+  residual_field_kernel                     549
+  drift_slew_sign_kernel                   2281
+  detector_motif_kernel_wide_d64           6077
+  consensus_grid_kernel_wide                657
+  axis5_grid_sum_kernel_wide (R.10a)         83
+  candidate_collapse_kernel_wide           1712
+  tree_digest residual                     3208
+  tree_digest sign                         3650
+  tree_digest detector (wide cells)        3426
+  tree_digest consensus                    5050
+  d2h (candidates+counts+4*32B)              25
+  host: compute_features                   7821
+  host: bank admit + case finalize         2262
+
+  digest aggregate (4-stage)              15334  (dominant)
+  device_total_us                         30283
+  host_wall_median_us                     40418
+
+Classification (panel-locked)
+-----------------------------
+
+  dominant_stage_label              : tree_digest (4-stage aggregate)
+  dominant_stage_us                 : 15334
+  dominant_stage_pct_basis_points   : 5063  (50.63% of device_total_us)
+  bottleneck_category               : DigestStillDominant
+  next_strike_recommendation        : SPerf12CompactDensorDigestV1
+
+R.12b episode pins (panel-locked, byte-stable)
+----------------------------------------------
+
+  canonical_w16h128                 : 13
+  mid_w64h512                       : 89
+  full_w256h4096                    : 1917
+
+Upstream anchor hashes
+----------------------
+
+  s_perf_11_bandwidth_delta_report_hash_v1 : 1a27154e335c27df6db939d4c8ff0f36f8baf75871be06c750f0853f2268adc8
+
+Own-namespace hash
+------------------
+
+  s_perf_11_1_bottleneck_triage_hash_v1    : 70dd967b47bb0830249f1e5122975bf7ab53a76473fa5241451b01e93014a4fa
+
+  Domain separator: DSFB-GPU-ATLAS:S-PERF-11-1-BOTTLENECK-TRIAGE:v1\0
+
+  Deterministic across two builds against the same triage
+  source-report; pairwise distinct from the S-PERF.11
+  measurement anchor; pinned by
+  `pinned_triage_hash_matches_live_disk_seed` test.
+
+Panel-locked non-claims
+-----------------------
+
+- Does NOT change kernels.
+- Does NOT claim bandwidth improvement.
+- Does NOT mutate the pinned post-S-PERF.11 source-report
+  file `reports/d64_stage_timing_256x4096_K1_post_s_perf_11.txt`.
+- Does NOT mutate any prior S-PERF / T.11 / T.12.x / FF.x /
+  S1.3.x / T.12.PROV hash anchor.
+- Does NOT alter `SEED.len()` (stays 54).
+- Does NOT rebaseline R.12b episodes.
+- Does NOT execute the next strike --- that is the commit
+  after S-PERF.11.1 (named in the triage receipt's
+  `next_strike_recommendation` field).

@@ -1,0 +1,144 @@
+================================================================
+S1.3a - ActivationPlanV1 summary receipt
+================================================================
+Schema:         DSFB-GPU-ATLAS:ACTIVATION-PLAN:v1
+Domain sep:     DSFB-GPU-ATLAS:ACTIVATION-PLAN:v1\0
+Hash:           activation_plan_hash_v1 =
+                5a81da473a5eedd46bf5f0037ce7e233d527c7dccda8d50aabb7410b1dc69b02
+                (against pinned KNOWN_S12_REGISTRY_HASH_V2)
+
+Panel-locked thesis (commit identity):
+
+  S1.3 makes detector activation a deterministic court decision,
+  not a heuristic filter.
+
+S1.3a is the first real legal bridge from the sealed T.11 court
+surfaces to detector activation. It does not run GPU kernels;
+it selects detectors deterministically with categorical reason
+codes and citation back to the court artifact(s) that drove
+each decision.
+
+Upstream hash anchors UNCHANGED (panel-locked):
+  corpus_hash_v1                            = 35c276c7...
+  registry_hash_v2                          = d3cf6300...
+  precedent_hash_v1                         = 6721f511...
+  admissibility_grammar_hash_v1             = ff66706a...
+  trial_transcript_hash_v1                  = 37618a45...
+  execution_attestation_receipt_hash_v1     = (per build)
+  challenge_docket_hash_v1                  = dde4ecb4...
+  detector_contraindication_hash_v1         = 1b899f5d...
+  coverage_hole_hash_v1                     = 671e2164...
+  Every DetectorPassport hash               = unchanged
+
+Seed plan (54 SEED records x KNOWN_S12_REGISTRY_HASH_V2):
+  Status histogram:
+    Enabled    :  0
+    Disabled   : 49   (all DisabledByWeakLBand — L0/L1/L2 detectors)
+    WarnOnly   :  5   (the GPU-implemented surface, IDs 14,15,41,42,43)
+    Deferred   :  0
+
+  Reason histogram:
+    DisabledByWeakLBand               : 49
+    EnabledByRoleSeededGpuSurface     :  5
+
+The all-Disabled-by-weak-L-band outcome is HONEST, not defective.
+The corpus currently sits at L0-L2 for 49 of 54 records
+(literature primitives without host implementations) and L6 for
+5 (the dsfb-gpu-debug-core bank surface). S1.3a admits the five
+L6 detectors via EnabledByRoleSeededGpuSurface and correctly
+blocks the 49 literature-only records until host implementations
+land. The plan is a deterministic snapshot of "what the court
+admits today" — not a wishful "everything is on" baseline.
+
+Per-detector decision shape:
+  DetectorActivationDecision {
+      canonical_id,
+      display_name,
+      activation_status   : Enabled | Disabled | WarnOnly | Deferred,
+      enabled_reason      | disabled_reason,   // categorical enums
+      blocking_receipt_hashes,                 // 32-byte court hashes
+      warning_receipt_hashes,
+      cited_challenge_ids,
+      cited_contraindication_ids,
+      cited_coverage_hole_ids,
+      cited_passport_hash,
+  }
+
+Disable-reason enum (11 variants, panel-locked):
+  DisabledByCoverageHole
+  DisabledByContraindication        (reserved for S1.3 evidence contracts)
+  DisabledByUnresolvedChallenge
+  DisabledByWeakLBand               (the seed's emitted disable)
+  DisabledByMissingSamplingLaw
+  DisabledByMissingUnitSemantics
+  DisabledByMissingConfuser
+  DisabledByThinPrecedentSupport
+  DisabledByDomainMismatch
+  DisabledByBudgetDeferred
+  DisabledByUnimplementedSurface
+
+Enable-reason enum (8 variants, priority order):
+  EnabledByRoleSeededGpuSurface > EnabledAsPrimaryWitness >
+  EnabledAsBoundaryWitness > EnabledAsConfuserWitness >
+  EnabledByNoBlockingCoverageHole > EnabledByPassportComplete >
+  EnabledByContraindicationSatisfied > EnabledByChallengeClear
+
+14 verifier reject kinds (each pinned by an acceptance test;
+four panel-required load-bearing negatives):
+   1. *EnabledDetectorWithBlockingCoverageHole (load-bearing #1)
+   2. *EnabledDetectorWithBlockingContraindication (load-bearing #2)
+   3. *DisabledWithoutDisabledReason (load-bearing #3)
+   4. *activation_plan_hash sensitivity to one-decision change
+      (load-bearing #4)
+   5.  EnabledWithoutEnabledReason
+   6.  EnabledDetectorWithBlockingChallenge
+   7.  DisabledDecisionWithoutBlockingHash
+   8.  DuplicateDecisionForCanonicalId
+   9.  DecisionForUnknownDetector
+  10.  DecisionCitesUnknownChallenge
+  11.  DecisionCitesUnknownCoverageHole
+  12.  DecisionCitesUnknownContraindication
+  13.  PlanMissingCorpusHash
+  14.  PlanMissingRegistryHash
+  (plus DecisionPassportHashMismatch as a 15th structural rule)
+
+CLI surface:
+  dsfb-corpus activation-plan      [--json] [--out PATH] [--registry-hash HEX]
+  dsfb-corpus activation-plan-emit --out-dir <DIR>        [--registry-hash HEX]
+
+  --registry-hash HEX accepts a 64-char hex string; default is the
+  pinned KNOWN_S12_REGISTRY_HASH_V2 constant tied to S1.2 seal
+  8ccd522.
+
+Bulk artifacts:
+  crates/dsfb-gpu-atlas-corpus/out/activation_plan_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/activation_plan_v1.json
+
+Test suite: 37 acceptance tests at
+  crates/dsfb-gpu-atlas-corpus/tests/activation_invariants.rs
+
+Panel-locked non-claims:
+  - Does NOT run GPU kernels.
+  - Does NOT execute 2,000 detectors.
+  - Does NOT change corpus_hash_v1, registry_hash_v2, or any
+    T.11a-T.11h hash anchor.
+  - Does NOT mutate any DetectorPassport hash.
+  - Does NOT fix any coverage hole, resolve any challenge, or
+    retire any detector.
+  - Does NOT claim empirical usefulness (T.8 stays passive at
+    NotScored).
+  - Does NOT implement budget optimisation, redundancy
+    suppression, or T.8 ledger consumption (S1.3 proper).
+  - Does NOT bind OpenTelemetry semantics (S1.3a OTel binding
+    receipt is a separate later commit).
+  - Does NOT claim datasheet / model-card / NIST AI RMF / OPA
+    / CUE / SLSA / in-toto / SPDX / CycloneDX compatibility on
+    activation_plan_hash_v1.
+
+R.12b D64 baseline NOT rebaselined; pinned R.12b episode counts
+(13/89/1917 for canonical/mid/full at K=1) byte-stable.
+
+T.11h surfaced where the court is thin. S1.3a is what makes
+that surface operational: every coverage hole, contraindication,
+and challenge can now influence an enable/disable decision via
+its declared reason code.

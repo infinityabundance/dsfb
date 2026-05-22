@@ -1,0 +1,180 @@
+================================================================
+T.12.consolidate - amendment review + corpus_hash_v2 freeze
+                   summary receipt
+================================================================
+
+Panel-locked thesis. T.12.consolidate reviews every T.12
+amendment proposal, verifies that all dedup-court deltas are
+internally consistent, freezes the admitted expansion set, and
+emits corpus_hash_v2. It does not add new literature primitives
+except through explicitly rejected late-amendment handling. Its
+purpose is ratification, not expansion.
+
+Panel-locked non-claim (verbatim):
+
+> T.12.consolidate closes the literature expansion arc. The
+> Atlas no longer treats the T.12.x proposals as isolated
+> source-class filings; it ratifies them as one deduplicated
+> expansion set and freezes corpus_hash_v2. corpus_hash_v1
+> remains the historical seed-corpus anchor, while
+> corpus_hash_v2 becomes the first post-amendment corpus
+> authority.
+
+----------------------------------------------------------------
+Three new own-namespace hashes (panel-locked)
+----------------------------------------------------------------
+
+T.12.consolidate emitted values:
+
+  consolidation_report_hash_v1    :
+    2842f6ae24bacb99c3922ca59d66358d19b5d550209f1a5adbf7c2bd747edeb0
+    Domain: DSFB-GPU-ATLAS:T12-CONSOLIDATION-REPORT:v1\0
+
+  t12_expansion_index_hash_v1     :
+    11fe6543d9d3002edc34220e3b1936948cbef9224519a1c843f31e7db6517fc4
+    Domain: DSFB-GPU-ATLAS:T12-EXPANSION-INDEX:v1\0
+
+  corpus_hash_v2                  :
+    f1d132eba43795c3087f1e388ba040357c6a0779fe22bd29de24c885ca98383f
+    Domain: DSFB-GPU-ATLAS:LITERATURE-CORPUS:v2\0
+
+corpus_hash_v2 is the ratified-corpus AUTHORITY anchor.
+META-hashes corpus_hash_v1 + consolidation_report_hash_v1 +
+t12_expansion_index_hash_v1 + sorted admitted canonical ids +
+SEED length. Does NOT mutate SEED; does NOT mutate
+corpus_hash_v1. All three hashes distinct from every prior
+T.11 / S1.3 / T.12.x hash.
+
+----------------------------------------------------------------
+Loaded proposal set (17 total)
+----------------------------------------------------------------
+
+  T.12.0  proof-of-life          (0 records)
+  T.12.a  StatisticalProcessControl
+  T.12.b  SequentialChangeDetection
+  T.12.c  DriftDetection
+  T.12.d  RobustStatistics
+  T.12.e  SpectralAndWavelet
+  T.12.f  TimeSeriesStructure
+  T.12.g  GraphAnomalyDetection
+  T.12.h  DataQualityRules
+  T.12.i  ObservabilityDebugging
+  T.12.j  MedicalBiosignal
+  T.12.k  FaultDetectionDiagnostics
+  T.12.l  Chemometrics
+  T.12.m  RfCommunications
+  T.12.n  Econometrics (combined with ReliabilitySurvival)
+  T.12.o  StreamingSketches
+  T.12.p  InformationTheory
+
+  Real proposals (T.12.a..T.12.p): 16
+  Proposal hashes verified by recomputation: 17/17
+  Batch hashes verified by recomputation: 17/17
+  Dedup-delta hashes verified by recomputation: 17/17
+
+----------------------------------------------------------------
+Aggregate court delta (across T.12.a..T.12.p)
+----------------------------------------------------------------
+
+  CanonicalAddition                       :  98
+    (includes 2 T.12.a-era "Canonical" historical
+     wire-name records — the post-T.12.b panel-locked
+     era uses "CanonicalAddition")
+  ExistingCanonicalAuthorityResolution    :  76
+  DomainTransferOf                        :  23
+  ParameterizationOf                      :  49
+  RejectedNotDeterministic                :  24
+  T.12.a-era AliasOf                      :   1
+  T.12.a-era CompositionOf                :   2
+
+  Total dedup-court records               : 273
+
+----------------------------------------------------------------
+T.12 expansion index (98 entries, sorted by canonical_id)
+----------------------------------------------------------------
+
+  Reserved id bands per source class:
+
+    5001..=5199 StatisticalProcessControl  (T.12.a)
+    5201..=5299 SequentialChangeDetection  (T.12.b)
+    5301..=5399 DriftDetection             (T.12.c)
+    5401..=5499 RobustStatistics           (T.12.d)
+    5501..=5599 SpectralAndWavelet         (T.12.e)
+    5601..=5699 TimeSeriesStructure        (T.12.f)
+    5701..=5799 GraphAnomalyDetection      (T.12.g)
+    5801..=5899 DataQualityRules           (T.12.h)
+    5901..=5999 ObservabilityDebugging     (T.12.i)
+    6001..=6099 MedicalBiosignal           (T.12.j)
+    6101..=6199 FaultDetectionDiagnostics  (T.12.k)
+    6201..=6299 Chemometrics               (T.12.l)
+    6301..=6399 RfCommunications           (T.12.m)
+    6401..=6499 Econometrics + Reliability (T.12.n)
+    6501..=6599 StreamingSketches          (T.12.o)
+    6601..=6699 InformationTheory          (T.12.p)
+
+  Total expansion-index entries           : 98
+  Sorted ascending by canonical_id        : YES
+  Every entry has display_name            : YES
+  Every entry has source_class            : YES
+  Every entry has origin_proposal_id      : YES
+  No collision with SEED 0..=53           : YES
+
+Notable pinned reserved-id gaps (panel-required guards):
+
+  6301, 6302 — deliberately unused in T.12.m after the
+              SEED-walk-first restructure caught the SEED 53
+              (CFO) + SEED 54 (EVM) collisions. Pinned by
+              T.12.m guards
+              t12_m_cfo_authority_resolves_seed_53_with_morelli_reference
+              + t12_m_evm_authority_resolves_seed_54_with_shafik_reference.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                            : unchanged
+                                              35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  registry_hash_v2                          : unchanged
+  Every prior T.11/S1.3/T.12.0-T.12.p hash  : unchanged
+  Every DetectorPassport hash               : unchanged
+  SEED.len()                                : 54 (unchanged)
+  R.12b episodes (canonical/mid/full)       : 13/89/1917
+                                              (byte-stable)
+  R.12b D64 baseline                        : NOT rebaselined
+                                              (pinned receipt
+                                              restored before
+                                              commit)
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.consolidate does NOT:
+
+  - Add new literature primitives. The expansion records still
+    live in their T.12.x proposal modules; consolidate
+    ratifies them as a deduplicated set.
+  - Mutate SEED. The 54-record historical seed stays at 54.
+  - Mutate corpus_hash_v1. The historical anchor stays
+    canonical; corpus_hash_v1 becomes the historical seed-
+    corpus anchor while corpus_hash_v2 becomes the first
+    post-amendment corpus authority.
+  - Mutate any prior T.11 / S1.3 / T.12.x hash. Every
+    proposal's stored hash is verified by recomputation, not
+    rewritten.
+  - Promote individual proposals to Accepted. Every proposal
+    stays at Open status; future per-proposal ratification
+    commits change status.
+  - Rebaseline R.12b D64 baseline. Pinned receipt restored
+    from HEAD before commit; episodes byte-stable at
+    13/89/1917.
+
+corpus_hash_v2 is a META-hash over the ratified-expansion set;
+it is NOT a full re-hash of a new SEED table. The migration
+into a new SEED table is a separate future commit (gated on
+per-proposal ProposalStatus::Accepted ratifications + FF.1
+passport materialisation + FF.3 registry gate).
+
+----------------------------------------------------------------
+End of T.12.consolidate summary
+----------------------------------------------------------------

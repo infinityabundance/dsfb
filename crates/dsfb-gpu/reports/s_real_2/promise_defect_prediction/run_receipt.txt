@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 promise_defect_prediction
+display_name:            PROMISE Ant 1.3 CK metrics (Sayyad Shirabad, Menzies)
+license:                 no-upstream-license
+upstream_doi_or_url:     github.com/ssea-lab/PROMISE
+
+Input
+  vendored_path:         data/fixtures/promise_defect_prediction.tsv
+  fixture_sha256:        14856ef507c9ef8ff6b7120a8c50177d76b492bbff0653b1e635312eadba4461
+  fixture_byte_size:     8219
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               750
+  nan_cells_skipped:          0
+  events_emitted:             750
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 6
+  n_windows  (= observed_num_windows): 125
+  contract_hash:         sha256:d8bbf40a2bc12554e3210176a7ea413396fcbb37578694511faf86e7d0eb4188
+  bank_hash:             sha256:95008ee17677f850b9fdfbdde9b3bb553846b881db62f9cc53e8847335012d08
+  detector_registry_hash: sha256:0fd4a2e5279fd0d08eb6f3f79f7fa42d09e5767679b6276856d38134019224ab
+
+Result
+  episodes_admitted:     5
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:2cd73eceef0f89f2586acec2c76c78f86dd819212a5046f13567de495b52a35e

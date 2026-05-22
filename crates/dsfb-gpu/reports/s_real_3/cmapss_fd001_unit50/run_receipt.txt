@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 cmapss_fd001_unit50
+display_name:            NASA C-MAPSS FD001 unit 50
+license:                 Public-Domain
+upstream_doi_or_url:     NASA PCoE PHM08
+
+Input
+  vendored_path:         data/fixtures/cmapss_fd001_unit50.tsv
+  fixture_sha256:        d4920f9801bf1e27104387702f17e2413194201578ed9434e7a4f1a5b84fe5da
+  fixture_byte_size:     27396
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               2772
+  nan_cells_skipped:          0
+  events_emitted:             2772
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 14
+  n_windows  (= observed_num_windows): 198
+  contract_hash:         sha256:85a1acc47c64716b1c8cf5afc95b350ed4394fc5054a184414423db55f91d645
+  bank_hash:             sha256:2a504994ec9dbdb55a693ec5c7a8ee7483cd02b606f3c99d77aa79bbd2d4a2b3
+  detector_registry_hash: sha256:8e2ad549135effaede4f1dbb1ed990a7bec51988f69734fcd1a653e02bd0b95b
+
+Result
+  episodes_admitted:     33
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:aac75f765e5c87361ea83310991378590f8fcd12f73b85647fd12af6b5f15b83

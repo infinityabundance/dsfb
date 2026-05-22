@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "promise_ant_1_4"
+display_name        = "PROMISE Apache Ant 1.4 CK metrics"
+upstream_doi_or_url = "github.com/ssea-lab/PROMISE"
+license             = "no-upstream-license"
+source_class        = "SoftwareDefects"
+vendored_path       = "data/fixtures/promise_ant_1_4.tsv"
+
+[fixture]
+sha256_hex          = "f965a049b98d69ade3391c5f7a777c4ea37089c386cd886b05012cc86748024c"
+byte_size           = 11393

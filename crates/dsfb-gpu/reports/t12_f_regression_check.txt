@@ -1,0 +1,149 @@
+================================================================
+T.12.f - Time-Series Structure / Control Residuals
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Zero warnings.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 926 tests pass (T.12.e baseline 889 + 37 new T.12.f
+  acceptance tests). The new T.12.f surface contributes
+  tests/t12_f_timeseries_invariants.rs with 10 panel-required
+  load-bearing negatives + 3 per-named collision tests + AR-
+  residual contract test + lag-correlation declaration test +
+  burstiness-index ParameterizationOf test + unidentified-
+  model rejection contract test + 19 shape / determinism /
+  rendering invariants.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 71 test groups, 1241 tests PASS, 0 FAIL. Delta from
+  T.12.e seal (6586ded): +1 test group, +37 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered AND repaired:
+    - README.md: new "T.12.f — Time-Series Structure / Control
+      Residuals" section between T.12.e and the scaling ladder.
+      Front-door + Layout + Paper-section refreshed from
+      "T.1–T.12.e" to "T.1–T.12.f".
+    - archived prior-art manuscript source: new \\textbf{T.12.f} bullet in
+      the Atlas Continuation enumeration; lead sentence
+      refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs: "Current state
+      through T.12.e" -> "through T.12.f" with a new T.12.f
+      bullet; CLI list refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs: Usage block +
+      dispatch include t12-f-timeseries-proposal /
+      t12-f-timeseries-proposal-emit.
+    - crates/dsfb-gpu-atlas-corpus/src/t12_f_timeseries.rs:
+      every pub item AND every private helper carries a doc
+      comment whose first sentence states the WHY for a
+      future engineer, per the [[no-silent-court-logic]]
+      doctrine.
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new T.12.f section added in this commit.
+    - Plan-file: T.12.e sealed at 6586ded recorded in previous
+      turn. Post-commit plan touch-up will mark T.12.f sealed.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_f_timeseries.rs (new, ~635 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_f_timeseries_invariants.rs (new, 37 tests
+      including 10 panel-required load-bearing negatives)
+    - out/t12_f_timeseries_proposal_v1.{txt,json} (new bulk
+      artifacts)
+    - reports/t12_f_timeseries_proposal_summary.txt (new)
+    - reports/t12_f_timeseries_proposal_verification.txt (new)
+    - reports/t12_f_regression_check.txt (new)
+    - README.md (T.12.f section + front-door refresh)
+    - archived prior-art manuscript source (T.12.f bullet)
+    - .gitignore (3 new whitelist lines)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every T.11/S1.3 hash                         : unchanged
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  T.12.b SCD corpus_amendment_proposal_hash_v1: unchanged (ac10e27c...)
+  T.12.c drift corpus_amendment_proposal_hash_v1: unchanged (0ffb0639...)
+  T.12.d robust corpus_amendment_proposal_hash_v1: unchanged (7b51703f...)
+  T.12.e spectral corpus_amendment_proposal_hash_v1: unchanged (0036435f...)
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  T.12.f time-series literature_expansion_batch_hash_v1 (NEW) :
+    4b54d67b8cfbad5b698db85c070ea6a576568cd6ab5952bdfa0256e6d77f0d77
+  T.12.f time-series dedup_court_delta_hash_v1 (NEW) :
+    e807688693b1740d0c435ea4efc3bbd63e5705182bbdd7545a2e9edb016d66dc
+  T.12.f time-series corpus_amendment_proposal_hash_v1 (NEW) :
+    76717e0232019595922fa8258599084c22d8c5d566d0734f4b476507fa204802
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom: only the bank module's private
+    BankAdmissionToken constructor mints admitted episodes.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions (scrub clean).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+  - [[no-silent-court-logic]] doctrine applied: every pub item
+    AND every private helper in t12_f_timeseries.rs carries
+    WHY commentary.
+  - Model-and-decision-law contract discipline: every
+    CanonicalAddition and ExistingCanonicalAuthorityResolution
+    record declares its specific model + residual + envelope +
+    decision-law contract. Each declaration is pinned by a
+    dedicated panel-required load-bearing negative.
+  - Unidentified-model honesty: 'ARIMA with auto-determined
+    order', 'Kalman without declared Q/R', 'STL with adaptive
+    seasonality', and 'observer with fit-during-deployment'
+    are randomized / unidentified in origin. Acknowledged in
+    proposed_primitives but explicitly NOT promoted to
+    new_canonical_records. The five reduction requirements
+    (model-order-search seed + identification algorithm +
+    fit-data anchor + tie-break law + numeric mode) must be
+    declared in a future T.12.x.
+  - Innovation sequence is ParameterizationOf(Observer
+    residual): the Kalman-specific parameterization with
+    declared Q/R covariances + filter gain K, not a new
+    canonical primitive.
+
+T.12.f is sealed. The amendment court has admitted the sixth
+real expansion proposal: 8 new canonical time-series + control-
+residual primitives (AR / ARIMA / STL residual, lag-correlation
+break, variance-ratio shift, run-length anomaly, observer
+residual, parity-space residual), 6 existing-canonical cross-
+class authority resolutions (residual envelope exit, sensor
+bias, actuator stiction, valve hunting, autocorrelation break,
+Error burst), 1 DomainTransferOf (residual envelope exit as
+shared residual-witness ancestor for TimeSeriesStructure), 3
+ParameterizationOf records (innovation sequence, periodicity
+break, burstiness index), 1 RejectedNotDeterministic
+(unidentified-model anomaly), 10 genealogy edges, 8 source
+refs - all WITHOUT mutating SEED or corpus_hash_v1.
+
+Next campaign (panel-authorized post-T.12.f): T.12.g - Graph /
+Topology Anomaly. Graph degree spike, betweenness shift,
+PageRank residual, community boundary shift, cascade
+precursor, motif-count anomaly. Same SEED-walk-first
+discipline.

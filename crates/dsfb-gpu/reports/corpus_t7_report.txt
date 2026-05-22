@@ -1,0 +1,206 @@
+=== DSFB-GPU-Atlas literature detector corpus report ===
+(T.1a-T.7 populated: schema/seed/TOML/identity/court/genealogy/witness-law/L-band;
+ T.8 adds the usefulness-ledger section; T.9 lands the publication-grade dedup report)
+
+(1) Totals
+  total records              : 54
+  canonical primitives       : 54
+  alias / duplicate records  : 0  (schema-level duplicate_group rollup; the authoritative dedup tally lives in (1b), produced by the T.4 court)
+
+(1b) Dedup-court decision summary (T.4)
+  source              : crate::court::classify_all() over SEED + CLAIMS
+  court subjects             : 66
+  canonical decisions        : 52
+  alias decisions            : 12
+  parameterisation decisions : 0
+  composition decisions      : 2
+  stochastic-reduction decs. : 0
+  rejected records           : 0
+  deferred records           : 0
+
+(2) Per-primitive-family histogram
+  ScalarThreshold : 6
+  WindowStatistic : 6
+  SequentialRecurrence : 6
+  DistributionDistance : 11
+  RankStatistic : 2
+  Spectral : 3
+  Wavelet : 1
+  TabularConstraint : 3
+  CategoricalHistogram : 1
+  Missingness : 2
+  ResidualObserver : 2
+  ProjectionResidual : 3
+  MultivariateHypothesis : 1
+  OperabilityDiagnostic : 2
+  DebugObservability : 4
+  NegativeWitness : 1
+
+(3) Per-domain coverage matrix
+  Debug           : 5
+  Telemetry       : 16
+  Tabular         : 25
+  TimeSeries      : 37
+  Graph           : 1
+  Industrial      : 26
+  Categorical     : 6
+  Missingness     : 2
+  EventStream     : 3
+  Medical         : 7
+  RFComms         : 5
+  Chemometrics    : 5
+  Database        : 7
+
+(4) Implementation-level (L-band) histogram
+  L0 CitedOnly                 : 0
+  L1 Canonicalised             : 49
+  L2 DeterministicFormula      : 0
+  L3 CpuImplemented            : 0
+  L4 CpuVerified               : 0
+  L5 GpuImplemented            : 0
+  L6 CpuGpuByteEquivalent      : 5
+  L7 BenchmarkCharacterised    : 0
+  L8 LedgerCharacterised       : 0
+
+(5) Lifecycle-state histogram
+  Active                       : 54
+  Dormant                      : 0
+  RetiredRedundant             : 0
+  RetiredHighFalsePositive     : 0
+  RetiredTooExpensive          : 0
+  QuarantinedUnstable          : 0
+  ResurrectedForDomain         : 0
+
+(6) Witness-role histogram
+  Primary              : 40
+  Corroborating        : 0
+  Confuser             : 1
+  Boundary             : 0
+  CleanWindow          : 0
+  Recovery             : 0
+  Timing               : 0
+  Distribution         : 12
+  Topology             : 1
+  CausalityProxy       : 0
+
+(7) Negative-witness histogram (T.6)
+  SmallSampleConfuser              : 0
+  SingleWindowSpikeConfuser        : 1
+  PeriodicBoundaryConfuser         : 0
+  MissingnessArtifactConfuser      : 0
+  SchemaChangeConfuser             : 0
+  UnitScaleChangeConfuser          : 0
+  DeploymentMarkerConfuser         : 0
+  ClockSkewConfuser                : 0
+  BatchBoundaryConfuser            : 0
+  NotANegativeWitness              : 53
+
+(8) Fusion-plane histogram (T.6)
+  (each detector contributes to one or more planes)
+  ProvenanceAdmissibility          : 0
+  NumericStrength                  : 25
+  TemporalStructure                : 17
+  CrossSignalStructure             : 6
+  DistributionStructure            : 14
+  SemanticBankStructure            : 0
+  ReliabilityConfuserControl       : 1
+  TaskUtility                      : 0
+
+(9) Witness-role x fusion-plane coverage matrix (T.6)
+  rows = WitnessRole; columns = FusionPlane; cell = count of detectors with that role bound to that plane.
+                    Prov   Num  Temp  XSig  Dist  Bank   Rel  Util
+  Primary              0    25    17     5     2     0     0     0
+  Corroborating        0     0     0     0     0     0     0     0
+  Confuser             0     0     0     0     0     0     1     0
+  Boundary             0     0     0     0     0     0     0     0
+  CleanWindow          0     0     0     0     0     0     0     0
+  Recovery             0     0     0     0     0     0     0     0
+  Timing               0     0     0     0     0     0     0     0
+  Distribution         0     0     0     0    12     0     0     0
+  Topology             0     0     0     1     0     0     0     0
+  CausalityProxy       0     0     0     0     0     0     0     0
+
+(10) Witness-law coverage (T.6 invariants)
+  detectors_missing_roles                  : 0
+  detectors_missing_axis_bindings          : 0
+  detectors_missing_fusion_planes          : 0
+  primary_witnesses_with_negative_kind     : 0  (invariant: must be 0)
+  confuser_witnesses_without_negative_kind : 0  (invariant: must be 0)
+
+(11) Primary-witness detector list (T.6)
+  [  1] Shewhart control chart
+  [  2] EWMA control chart
+  [  3] CUSUM (cumulative sum) chart
+  [  4] Page-Hinkley test
+  [  5] Hotelling T-squared
+  [  6] Robust z-score (median / MAD)
+  [  7] Hampel filter
+  [ 11] Mann-Kendall trend test
+  [ 12] FFT band-energy anomaly
+  [ 13] Missingness spike
+  [ 14] Latency ramp
+  [ 16] Western Electric SPC rules
+  [ 17] Nelson SPC rules
+  [ 18] Tukey fences
+  [ 19] PCA T-squared (on score vector)
+  [ 20] PCA SPE / Q residual
+  [ 21] PLS residual / Q on PLS
+  [ 22] Residual envelope exit
+  [ 23] Sensor bias detector
+  [ 24] Actuator stiction detector
+  [ 25] Valve hunting (control-loop oscillation) detector
+  [ 34] Pettitt change-point test
+  [ 35] Standard Normal Homogeneity Test (SNHT)
+  [ 36] MOSUM (moving-sum-of-residuals) test
+  [ 37] Buishand range test
+  [ 38] Spectral entropy
+  [ 39] Wavelet coefficient energy
+  [ 40] Autocorrelation-coefficient break
+  [ 41] Error burst
+  [ 42] Slew shock
+  [ 44] Missingness coupling
+  [ 45] Schema drift
+  [ 47] Uniqueness violation
+  [ 48] Functional-dependency violation
+  [ 49] R-peak interval anomaly (RR-interval)
+  [ 50] HRV time-domain shift
+  [ 51] QRS width anomaly
+  [ 52] ST-segment deviation proxy
+  [ 53] Carrier-frequency-offset residual
+  [ 54] Error Vector Magnitude (EVM) anomaly
+
+(12) Confuser detector list (T.6)
+  [ 15] Single-window spike confuser  (kind: SingleWindowSpikeConfuser)
+
+(13) L-band honesty invariants (T.7)
+  L-band is an honesty marker, not a quality score. A detector
+  at L1 is cited and canonicalised; it is not inferior to L6.
+
+  Histogram (records per L-band):
+    L0_CitedOnly                  : 0
+    L1_Canonicalised              : 49
+    L2_DeterministicFormula       : 0
+    L3_CpuImplemented             : 0
+    L4_CpuVerified                : 0
+    L5_GpuImplemented             : 0
+    L6_CpuGpuByteEquivalent       : 5
+    L7_BenchmarkCharacterised     : 0  (forbidden at T.7)
+    L8_LedgerCharacterised        : 0  (forbidden at T.7)
+    total                         : 54
+
+  GPU-implemented canonical IDs (load-bearing whitelist):
+    [ 14] Latency ramp
+    [ 15] Single-window spike confuser
+    [ 41] Error burst
+    [ 42] Slew shock
+    [ 43] Fanout cascade
+
+  Verifier result:
+    records_inspected             : 54
+    errors                        : 0
+
+
+T.7 note: witness-law sections (T.6) and L-band honesty invariants
+(T.7) populated. Dedup-court (T.4) and genealogy-edge (T.5) details
+live in their own dedicated reports. Usefulness-ledger (T.8) and the
+full dedup report (T.9) populate in later sections.

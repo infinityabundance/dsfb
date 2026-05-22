@@ -1,0 +1,172 @@
+================================================================
+FF.3 - RegistryGenerationGate
+       regression-check receipt (10-step ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Initial pass hit:
+  - too_many_arguments on the private `classify` helper (8
+    args: candidate + 3 BTreeSet refs + 4 anchor-hash byte
+    arrays). The argument count is intentional and pins the
+    classifier to a closed-over input contract; adding a
+    struct wrapper would obscure the rule. Resolved by adding
+    `#[allow(clippy::too_many_arguments)]` to the helper with
+    a comment explaining the intent.
+  - unused_variable on a seed_ids BTreeSet declared in the
+    verifier; resolved by removing the unused declaration.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 46 groups / 1601 tests pass (FF.2 baseline
+  45 groups / 1534 tests + 1 new group + 67 new
+  ff3_registry_generation_gate_invariants tests). The 67 new
+  tests include the 8 panel-required load-bearing negatives,
+  every shape + determinism + sensitivity invariant, every
+  upstream-anchor invariance witness, every field-level + wire-
+  name + domain-separator pin, every count-shape regression
+  sentinel, every hash-namespace distinctness assertion, and
+  every renderer-coverage check.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 85 test groups, 1916 tests PASS, 0 FAIL. Delta from
+  FF.2 seal (054a8cc): +1 test group, +67 tests. No known-flake
+  retries needed.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined. The saturation test
+  rewrites reports/r12_d64_saturation.txt as part of its run;
+  the pinned baseline was restored from HEAD-equivalent backup
+  before commit (also for reports/d64_stage_timing_256x4096_K1.txt,
+  reports/r9_b3_d64_timing.txt, reports/r9_b_d64_timing.txt).
+
+Step 8. Stale-doc scan
+  Result: clean. src/lib.rs module docstring header refreshed
+  through FF.3; new FF.3 enumeration bullet inserted after
+  FF.2; CLI list extended with 4 new ff3-gate / ff3-gate-emit
+  / ff3-gate-summary / ff3-gate-summary-emit subcommands.
+  README + paper get extended in this same commit.
+
+Step 9. README / plan refresh
+  Result: README front-door title bumped through FF.3; test
+  count bumped to 1601/46 groups; paper section enumeration
+  bumped; new FF.3 section between FF.2 and the scaling-ladder
+  header; Layout block extended with FF.3 descriptor. Plan-file
+  post-commit will mark FF.3 sealed and rotate the Quick Start
+  "Active campaign (next)" anchor to S1.3d (budget pruning +
+  redundancy suppression).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/ff3_registry_generation_gate.rs (new, ~1080 lines
+      fully commented: schema + 4-variant Ff3SourceAuthority
+      enum + 7-variant Ff3RegistryGenerationEligibility enum
+      + per-candidate + per-decision records + top-level gate
+      + gate-summary shell + verifier with 16 reject kinds (8
+      panel-required negatives + 7 structural rules + SEED
+      invariance) + classifier + text + JSON renderers for
+      both gate and summary)
+    - src/lib.rs (module export + docstring header bump to
+      "Current state through FF.3" + new FF.3 enumeration
+      bullet + 4 new CLI list entries)
+    - src/main.rs (4 CLI subcommands: ff3-gate{,-emit} +
+      ff3-gate-summary{,-emit} + usage block)
+    - tests/ff3_registry_generation_gate_invariants.rs (new,
+      67 tests including 8 panel-required load-bearing
+      negatives)
+    - out/ff3_registry_generation_gate_v1.{txt,json} (new)
+    - out/ff3_registry_generation_gate_summary_v1.{txt,json}
+      (new)
+    - reports/ff3_registry_generation_gate_summary.txt (new)
+    - reports/ff3_registry_generation_gate_verification.txt
+      (new)
+    - reports/ff3_registry_generation_gate_regression_check.txt
+      (new)
+    - .gitignore (3 new whitelist lines)
+    - README.md (front-door + test-count + paper-section +
+      new FF.3 section + Layout block extension)
+    - archived prior-art manuscript source (lead sentence + paragraph
+      header + new \item \textbf{FF.3} bullet)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged
+                                                (35c276c7...)
+  corpus_hash_v2                              : unchanged
+                                                (f1d132eb...)
+  consolidation_report_hash_v1                : unchanged
+                                                (2842f6ae...)
+  t12_expansion_index_hash_v1                 : unchanged
+                                                (11fe6543...)
+  ff1_passport_index_hash_v1                  : unchanged
+                                                (1ad2dc2d...)
+  ff1_materialisation_report_hash_v1          : unchanged
+                                                (5edacbc4...)
+  ff2_activation_ratification_gate_hash_v1    : unchanged
+                                                (05c1b552...)
+  ff2_activation_ratification_gate_summary_hash_v1 : unchanged
+                                                     (e671cfc0...)
+  Every prior T.11/S1.3/T.12.0-T.12.p hash    : unchanged
+  Every T.11a SEED-DetectorPassport hash      : unchanged
+  Every T.12.consolidate hash                 : unchanged
+  Every FF.1 per-passport passport_hash_v1    : unchanged
+  SEED.len()                                  : 54 (unchanged)
+
+  FF.3 NEW ff3_registry_generation_gate_hash_v1 :
+    2ffd02229a4e0f99023a5791ed27e097346d29c14c9eeebd7a2ee8d26caf0d41
+    Domain: DSFB-GPU-ATLAS:FF3-REGISTRY-GENERATION-GATE:v1\0
+
+  FF.3 NEW ff3_registry_generation_gate_summary_hash_v1 :
+    c66f81745d939f38d81ed4c78b80009d998422796e8698c4993e3cb64f7e8494
+    Domain:
+    DSFB-GPU-ATLAS:FF3-REGISTRY-GENERATION-GATE-SUMMARY:v1\0
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in ff3_registry_generation_gate.rs carries a
+  doc comment whose first sentence states the WHY for a future
+  engineer.
+- Panel-locked discipline: FF.3 is the second META-discipline-
+  gate layer above S1.3a + FF.1 + FF.2. It does NOT add new
+  detectors, does NOT mutate any upstream hash, does NOT
+  promote any open proposal to Accepted, does NOT change
+  S1.3a SEED activation decisions or FF.2 ratification
+  decisions, does NOT itself emit DetectorSpec records, does
+  NOT modify dsfb-gpu-atlas-registry's existing 162-spec
+  registry_hash_v2, does NOT decide contraindications or
+  challenges, does NOT generate CUDA kernels.
+
+Panel-locked one-line verdict enforced:
+  > FF.2 blocks unratified activation;
+  > FF.3 blocks unratified registry generation.
+
+FF.3 is sealed. Registry / DetectorSpec generation may now
+consume ONLY ratified corpus records under corpus_hash_v1 +
+corpus_hash_v2 + FF.1 passport authority. No unratified
+proposal, missing-passport record, stale corpus row, or
+ad-hoc detector may enter generated registry output.
+
+Next campaign (panel-authorized post-FF.3): S1.3d budget
+pruning + redundancy suppression. Consumes
+ActivationContextV1, T.8 usefulness ledger, contraindications,
+coverage holes, and task budget; emits reason-coded
+DisabledByBudget / DisabledByRedundancy decisions. With FF.2
++ FF.3 in place, the post-S1.3a activation arc continues into
+the full S1.3d/e/f maturity sequence. See plan-file
+"Post-T.12.consolidate scaling + framing roadmap" for the
+full panel-locked sequence.

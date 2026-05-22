@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 cmapss_fd001_unit1
+display_name:            NASA C-MAPSS FD001 unit 1 (run-to-failure, z-residual)
+license:                 Public-Domain
+upstream_doi_or_url:     Saxena, Goebel, Simon, Eklund (PHM08); NASA PCoE Prognostics Data Repository
+
+Input
+  vendored_path:         data/fixtures/cmapss_fd001_unit1.tsv
+  fixture_sha256:        633442bb93f128bb44e82f4b09d0dd0f175933107bc9c0c3e1fc6bd6b040c93e
+  fixture_byte_size:     26740
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               2688
+  nan_cells_skipped:          0
+  events_emitted:             2688
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 14
+  n_windows  (= observed_num_windows): 192
+  contract_hash:         sha256:a20d4d3e8894ee06ed2c85c0824fd76e2b10c6d3ed0169532be97d2d4acd5f21
+  bank_hash:             sha256:dfd7ce28792397d1a0bea228eb4776f0768b0278bfdf84d4c51950d49aa96bc6
+  detector_registry_hash: sha256:72424aa8de9cba54dc3fc1fcc6b1364e5ae663e06169ed8a56847544603da7b1
+
+Result
+  episodes_admitted:     26
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:396af2610c4dbaaa438142baf4c4ecf8705de0bbc2bcf6d4640da2f236d1c2fa

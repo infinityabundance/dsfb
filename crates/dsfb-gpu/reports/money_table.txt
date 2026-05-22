@@ -1,0 +1,106 @@
+# R.13 Money Table — DSFB-GPU-Debug D64 headline (post-R.11c)
+#
+# Hardware:        RTX 4080 SUPER
+# CUDA toolkit:    13.2
+# Commit (head):   99a0f3b (R.9.d.1 D128 separately committed; D128 NOT in this table)
+# Profile:         D64 (16 motifs * 4 variants = 64 detectors)
+# Path:            GPU Layer B compact verdict (throughput, pinned-async, tree-digest)
+# Fixture:         courthouse-factory scale-large 256 entities * 4096 windows
+#
+# FRAMING (panel-locked overclaim guardrail):
+#   This table reports the D64 full-pipeline campaign reduction across the
+#   R.9-R.11 optimization campaign. It is NOT a "GPU is N x faster than CPU"
+#   claim. reports/r12_d64_saturation.txt records:
+#       "CPU Layer B D64 comparison is deferred to R.12b.1 (no CPU
+#        consensus_wide / candidate_collapse_wide path in core); recorded
+#        as '-'."
+#   The 'spd_vs_cpub' column stays '-' until R.12b.1 lands the missing CPU
+#   wide path. Until then, all rows are campaign-reduction GPU-only numbers.
+#
+# Pre-R.11c R.7 D16 baseline preserved at reports/money_table_r7_baseline.txt.
+# Full per-(scale,K) sweep table at reports/r12_d64_saturation.txt.
+#
+# ============================================================
+# (A) Campaign trajectory at full 256x4096 K=1 (D64 throughput)
+# ============================================================
+#
+# Measured commit-by-commit reduction across the R.9-R.11 optimization
+# campaign on the same fixture and same scale point.
+#
+  commit    | section              | per_cat_us | cat/sec | compound_reduction
+  --------- | -------------------- | ---------- | ------- | ------------------
+  122139e   | R.9.b.3 baseline     |  1,820,000 |    0.55 | 1.0 x
+  80303a2   | R.10a axis-5 hoist   |    128,893 |    7.76 |  14.1 x
+  fd71dc3   | R.10b compact digest |     84,946 |   11.77 |  21.4 x
+  e084075   | R.10c parallel cand. |     75,329 |   13.27 |  24.2 x
+  31e6b49   | R.11b GPU features   |     42,513 |   23.52 |  42.8 x
+  086e209   | R.11c compact events |     33,144 |   30.18 |  54.9 x
+#
+# Panel-safe sentence (verbatim, panel-locked):
+#
+#   On the RTX 4080 SUPER / CUDA 13.2 scale-large courthouse-factory
+#   workload, the D64 throughput path improved from approximately
+#   1.82 s per catalog to 33.1 ms per catalog across the R.9-R.11
+#   optimization campaign, a measured ~55x full-pipeline reduction
+#   while preserving deterministic replay, audit-mode golden hashes,
+#   and the Semantic Non-Bypass Axiom.
+#
+# Run-to-run variance: a fresh R.12b sweep (this run) measured the
+# full K=1 cell at 28,644 us/cat (28.6 ms) vs the campaign-table 33.1 ms;
+# both are post-R.11c. The 33.1 ms number is preserved as the headline
+# for continuity with paper section 14; the 28-33 ms range is the
+# honest measured envelope.
+#
+# ===========================================================
+# (B) D64 K-sweep at full 256x4096 (post-R.11c, R.12b refresh)
+# ===========================================================
+#
+# How sustained per-catalog throughput scales when K consecutive single-
+# catalog dispatches share one GpuWorkspace. Batched K>1 dispatches
+# (a single kernel processing K catalogs in parallel) are R.9.d+ work.
+#
+  scale         |   K | per_cat_us | cat/sec | cells/sec | det_evals/sec | episodes/cat | spd_vs_cpub
+  ------------- | --- | ---------- | ------- | --------- | ------------- | ------------ | -----------
+  full 256x4096 |   1 |     28,644 |    34.9 |   3.66e7  |       2.34e9  |         1917 | -
+  full 256x4096 |   4 |     27,714 |    36.1 |   3.78e7  |       2.42e9  |         1917 | -
+  full 256x4096 |  16 |     27,731 |    36.1 |   3.78e7  |       2.42e9  |         1917 | -
+  full 256x4096 |  32 |     27,833 |    35.9 |   3.77e7  |       2.41e9  |         1917 | -
+  full 256x4096 |  64 |     27,781 |    36.0 |   3.77e7  |       2.42e9  |         1917 | -
+  full 256x4096 | 128 |     27,770 |    36.0 |   3.78e7  |       2.42e9  |         1917 | -
+#
+# R.12b finally measures R.11c K=64 full-scale (previously only R.11b had a
+# K=64 number, which read 1.59e9 det_evals/sec; the R.11c K=64 number above
+# is 2.42e9 det_evals/sec, materially higher).
+#
+# ===========================================
+# (C) D64 K-sweep at mid 64x512 (post-R.11c)
+# ===========================================
+#
+  scale         |   K | per_cat_us | cat/sec | cells/sec | det_evals/sec | episodes/cat | spd_vs_cpub
+  ------------- | --- | ---------- | ------- | --------- | ------------- | ------------ | -----------
+  mid 64x512    |   1 |      2,420 |   413.2 |   1.35e7  |       8.64e8  |           89 | -
+  mid 64x512    |  16 |      2,432 |   411.0 |   1.35e7  |       8.62e8  |           89 | -
+  mid 64x512    |  64 |      2,432 |   411.1 |   1.35e7  |       8.62e8  |           89 | -
+  mid 64x512    | 128 |      2,434 |   410.8 |   1.35e7  |       8.61e8  |           89 | -
+#
+# ================================================
+# (D) Doctrine invariants held across this sweep
+# ================================================
+#
+# - Episode count is byte-identical across the entire R.9-R.11 trajectory
+#   and across this K-sweep: canonical K=1 admits 13, mid K=1 admits 89,
+#   full K=1 admits 1917. Episodes do not depend on K.
+# - Audit mode is untouched. D16 audit golden hashes unchanged.
+# - Semantic Non-Bypass Axiom holds: BankAdmissionToken constructor stays
+#   private to the bank module; GPU emits evidence + digests + compact
+#   candidate descriptors only, never an admitted Episode.
+# - No probabilistic component anywhere; no fast-math, no atomics for
+#   accumulation, no warp shuffles for reduction; deterministic replay
+#   preserved across two runs.
+#
+# Scaling-ladder note: D128 (16 motifs * 8 variants = 128 detectors)
+# landed as a separate commit (99a0f3b, R.9.d.1) as a scaling-ladder
+# proof; the D128 throughput path deliberately omits R.10b compact-pack
+# and digests the full 264-byte wide stride. D128 is NOT in this table by
+# design. D205 / D512 / D1024 / D2000 and D128-compact-pack are deferred
+# to paper section 16 future work.

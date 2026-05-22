@@ -1,0 +1,166 @@
+================================================================
+FF.1 - DetectorPassport materialisation summary receipt
+       (for corpus_hash_v2-ratified Accepted entries)
+================================================================
+
+Panel-locked opening guard. FF.1 materializes DetectorPassport
+records for Accepted T.12 expansion entries ratified by
+corpus_hash_v2. It does not reopen T.12 dedup decisions, add
+new literature primitives, alter corpus_hash_v1, alter
+corpus_hash_v2, or rewrite historical proposal hashes.
+
+Panel-locked thesis (verbatim):
+
+> T.12.consolidate ratified the expansion.
+> FF.1 gives the accepted records passports.
+
+----------------------------------------------------------------
+Three new own-namespace hash layers (panel-locked)
+----------------------------------------------------------------
+
+FF.1 emitted values:
+
+  per-passport passport_hash_v1 (98 values, sorted by
+    canonical_id) under domain
+    DSFB-GPU-ATLAS:FF1-T12-RATIFIED-PASSPORT:v1\0
+
+  ff1_passport_index_hash_v1   :
+    1ad2dc2d9137320b942c17a6f5c8440b5caad03de5a92c9ae5d88f3069db2717
+    Domain: DSFB-GPU-ATLAS:FF1-PASSPORT-INDEX:v1\0
+    META-hashes pinned upstream anchors + sorted per-passport
+    hashes + SEED length.
+
+  ff1_materialisation_report_hash_v1 :
+    5edacbc42832cd64547197fc6eef31e46a6137db6dccdbdc30cd8c572de4d2b9
+    Domain: DSFB-GPU-ATLAS:FF1-MATERIALISATION-REPORT:v1\0
+    META-hashes the passport index + per-source-class counts
+    + total passport count.
+
+All three hashes distinct from every prior T.11 / S1.3 /
+T.12.x / T.12.consolidate hash.
+
+----------------------------------------------------------------
+Pinned upstream anchors (FF.1 does NOT mutate any of these)
+----------------------------------------------------------------
+
+  corpus_hash_v1                  :
+    35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+    (historical seed-corpus anchor; unchanged across FF.1
+     materialisation)
+
+  corpus_hash_v2                  :
+    f1d132eba43795c3087f1e388ba040357c6a0779fe22bd29de24c885ca98383f
+    (ratified-corpus authority anchor from T.12.consolidate;
+     unchanged across FF.1 materialisation)
+
+  consolidation_report_hash_v1    :
+    2842f6ae24bacb99c3922ca59d66358d19b5d550209f1a5adbf7c2bd747edeb0
+    (T.12.consolidate report hash; unchanged)
+
+  t12_expansion_index_hash_v1     :
+    11fe6543d9d3002edc34220e3b1936948cbef9224519a1c843f31e7db6517fc4
+    (T.12 expansion index hash; unchanged)
+
+  SEED.len()                      : 54 (unchanged)
+
+----------------------------------------------------------------
+Passport materialisation
+----------------------------------------------------------------
+
+  total_passport_count            : 98
+  one passport per ratified CanonicalAddition record in the
+  T.12 expansion index (5001..=6699 reserved bands).
+
+  T.12.m's 6301 + 6302 deliberately-unused slots verified
+  absent (pinned by T.12.m SEED-walk-first guards).
+
+----------------------------------------------------------------
+Per-passport operational fields (panel-locked schema)
+----------------------------------------------------------------
+
+Each T12RatifiedPassport carries:
+
+  canonical_id                : u32 in 5001..=6699
+  display_name                : from originating ProposedPrimitive
+  source_class_wire_name      : from origin proposal
+  origin_proposal_id          : e.g. t12_p_information_theory_first_proposal
+  gpu_family_wire_name        : derived via source_class_to_gpu_family
+                                 (panel-locked SourceClass->GpuFamilyKernel)
+  activation_applicability_tags: derived via source_class_to_activation_tags
+                                 (panel-locked SourceClass->tag-set)
+  contraindication_linkage_stub: ContraindicationStub { declared=true, linked=[] }
+  challenge_surface_stub      : ChallengeStub { declared=true, linked=[] }
+  passport_hash_v1            : per-passport SHA-256 under the FF.1
+                                 T.12-ratified-passport domain separator
+
+The contraindication + challenge stubs are panel-locked at
+empty-but-declared at FF.1 time. Later FF.1.x or post-FF.3
+commits populate them via the T.11g ContraindicationReceipt
++ T.11f ChallengeDocketV1 crosswalks. FF.1 reserves the field
+shape so the per-passport hash binds the stub presence even
+when the stub is empty.
+
+----------------------------------------------------------------
+SourceClass -> GpuFamilyKernel mapping (panel-locked)
+----------------------------------------------------------------
+
+  StatisticalProcessControl     -> WindowStatisticFamily
+  SequentialChangeDetection     -> SequentialRecurrenceFamily
+  DriftDetection                -> DistributionDistanceFamily
+  RobustStatistics              -> WindowStatisticFamily
+  DistributionDistance          -> DistributionDistanceFamily
+  InformationTheory             -> DistributionDistanceFamily
+  SignalProcessing              -> SpectralFamily
+  SpectralAndWavelet            -> SpectralFamily
+  TimeSeriesStructure           -> SequentialRecurrenceFamily
+  ControlResiduals              -> ResidualObserverFamily
+  FaultDetectionDiagnostics     -> ResidualObserverFamily
+  ConditionMonitoring           -> SpectralFamily
+  IndustrialProcessMonitoring   -> ProjectionResidualFamily
+  GraphAnomalyDetection         -> GraphLocalFamily
+  StreamingSketches             -> DistributionDistanceFamily
+  DataQualityRules              -> TabularConstraintFamily
+  DatabaseIntegrityConstraints  -> TabularConstraintFamily
+  ObservabilityDebugging        -> WindowStatisticFamily
+  MedicalBiosignal              -> SpectralFamily
+  RfCommunications              -> SpectralFamily
+  Chemometrics                  -> ProjectionResidualFamily
+  Econometrics                  -> SequentialRecurrenceFamily
+  ReliabilitySurvival           -> ResidualObserverFamily
+
+The mapping is fixed at FF.1 time; re-routing requires a
+future FF.1.x schema-upgrade commit with a new domain
+separator and a migration receipt. A later
+`gpu_family_split` schema upgrade may admit per-passport
+overrides; FF.1 ships the deterministic one-to-one fallback.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+FF.1 does NOT:
+
+  - Reopen T.12 dedup decisions. The expansion index is
+    consumed read-only.
+  - Add new literature primitives. Every passport materialised
+    refers to a canonical id already in the T.12 expansion
+    index (5001..=6699 reserved bands).
+  - Alter corpus_hash_v1 (stays at 35c276c7...).
+  - Alter corpus_hash_v2 (stays at f1d132eb...).
+  - Rewrite any historical T.12 proposal / batch / dedup-delta
+    hash.
+  - Rewrite any T.12.consolidate hash (consolidation_report
+    _hash_v1, t12_expansion_index_hash_v1, corpus_hash_v2).
+  - Mutate SEED.len() (stays at 54).
+  - Activate any detector. Activation is S1.3a's job; FF.1
+    only materialises the passport so the activation planner
+    has a target to read.
+  - Decide contraindications or challenges. The stub fields
+    reserve the space; population is a later commit.
+  - Generate CUDA kernels. The GPU family mapping is a
+    declaration of which family the passport would route to;
+    kernel generation is a much later commit.
+
+----------------------------------------------------------------
+End of FF.1 summary
+----------------------------------------------------------------

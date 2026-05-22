@@ -1,0 +1,8 @@
+=== R.9.b.2 D64 wide-kernel timing (one-shot, K=1) ===
+Hardware: RTX 4080 SUPER, CUDA 13.2. Bench is per-iter wall median.
+
+  scale                 |   CPU D64 (us) |  GPU D64 (us) | speedup
+  --------------------- | -------------- | ------------- | -------
+  canonical 16x128      |           2627 |           311 |  8.45x
+  mid-scale 64x512      |          43707 |          3460 | 12.63x
+  full-scale 256x4096   |        1386850 |        156169 |  8.88x

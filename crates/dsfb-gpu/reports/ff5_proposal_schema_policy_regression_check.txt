@@ -1,0 +1,181 @@
+================================================================
+FF.5 - ProposalSchemaUpgradePolicy
+       regression-check receipt (10-step ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Initial pass hit:
+  - redundant_guards on `Some(id) if id.is_empty()` inside
+    verify_schema_upgrade_receipt; resolved by using
+    `Some("")` directly.
+  - too_many_arguments on `build_schema_upgrade_receipt` (9
+    args: each is a declared receipt field). The argument
+    count is intentional (one per receipt field) and pins
+    the public construction API; adding a struct wrapper
+    would obscure the contract. Resolved by adding
+    `#[allow(clippy::too_many_arguments)]` to the builder
+    with a comment explaining the intent.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 48 groups / 1701 tests pass (FF.4 baseline
+  47 groups / 1643 tests + 1 new group + 58 new
+  proposal_schema_policy_invariants tests). The 58 new
+  tests include the 9 panel-required load-bearing negatives,
+  every structural defect rule, every determinism +
+  sensitivity invariant, every upstream-anchor invariance
+  witness, every pinned-constant assertion, every field-
+  level + wire-name + domain-separator pin, every hash-
+  namespace distinctness assertion, and every renderer-
+  coverage check.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 87 test groups, 2016 tests PASS, 0 FAIL. Delta from
+  FF.4 seal (a39bb7d): +1 test group, +58 tests. No
+  known-flake retries needed.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined. The saturation test
+  rewrites reports/r12_d64_saturation.txt as part of its run;
+  the pinned baseline was restored from HEAD-equivalent backup
+  before commit (also for reports/d64_stage_timing_256x4096_K1.txt,
+  reports/r9_b3_d64_timing.txt, reports/r9_b_d64_timing.txt).
+
+Step 8. Stale-doc scan
+  Result: clean. src/lib.rs module docstring header refreshed
+  through FF.5; new FF.5 enumeration bullet inserted after
+  FF.4; CLI list extended with 3 new ff5-policy / ff5-policy-emit
+  / ff5-migration-table subcommands. README + paper get
+  extended in this same commit.
+
+Step 9. README / plan refresh
+  Result: README front-door title bumped through FF.5; test
+  count bumped to 1701/48 groups; paper section enumeration
+  bumped; new FF.5 section between FF.4 and the scaling-ladder
+  header; Layout block extended with FF.5 descriptor. Plan-
+  file post-commit will mark FF.5 sealed and rotate the Quick
+  Start "Active campaign (next)" anchor to S1.3d (budget
+  pruning + redundancy suppression).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/proposal_schema_policy.rs (new, ~900 lines fully
+      commented: 10-line panel-locked doctrine + 4 record
+      types (MigrationRow, ProposalSchemaMigrationTable,
+      ProposalSchemaUpgradeReceipt,
+      ProposalSchemaUpgradePolicy) + 3 builders + 2 verifiers
+      with 14 reject kinds (9 panel-required negatives + 5
+      structural rules) + text + JSON renderers for both
+      policy and migration table)
+    - src/lib.rs (module export + docstring header bump to
+      "Current state through FF.5" + new FF.5 enumeration
+      bullet + 3 new CLI list entries)
+    - src/main.rs (3 CLI subcommands: ff5-policy{,-emit} +
+      ff5-migration-table + usage block)
+    - tests/proposal_schema_policy_invariants.rs (new, 58
+      tests including 9 panel-required negatives)
+    - out/proposal_schema_upgrade_policy_v1.{txt,json} (new)
+    - out/proposal_schema_migration_table_v1.{txt,json} (new)
+    - reports/ff5_proposal_schema_policy_summary.txt (new)
+    - reports/ff5_proposal_schema_policy_verification.txt (new)
+    - reports/ff5_proposal_schema_policy_regression_check.txt
+      (new)
+    - .gitignore (3 new whitelist lines)
+    - README.md (front-door + test-count + paper-section +
+      new FF.5 section + Layout block extension)
+    - archived prior-art manuscript source (lead sentence + paragraph
+      header + new \item \textbf{FF.5} bullet)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged
+                                                (35c276c7...)
+  corpus_hash_v2                              : unchanged
+                                                (f1d132eb...)
+  consolidation_report_hash_v1                : unchanged
+                                                (2842f6ae...)
+  t12_expansion_index_hash_v1                 : unchanged
+                                                (11fe6543...)
+  ff1_passport_index_hash_v1                  : unchanged
+                                                (1ad2dc2d...)
+  ff1_materialisation_report_hash_v1          : unchanged
+                                                (5edacbc4...)
+  ff2_activation_ratification_gate_hash_v1    : unchanged
+                                                (05c1b552...)
+  ff2_activation_ratification_gate_summary_hash_v1 : unchanged
+                                                     (e671cfc0...)
+  ff3_registry_generation_gate_hash_v1        : unchanged
+                                                (2ffd0222...)
+  ff3_registry_generation_gate_summary_hash_v1 : unchanged
+                                                 (c66f8174...)
+  ff4_readme_authority_boundary_policy_hash_v1 : unchanged
+                                                 (22b9dcb5...)
+  Every prior T.11/S1.3/T.12.0-T.12.p hash    : unchanged
+  Every T.11a SEED-DetectorPassport hash      : unchanged
+  Every T.12.consolidate hash                 : unchanged
+  Every FF.1 per-passport passport_hash_v1    : unchanged
+  SEED.len()                                  : 54 (unchanged)
+
+  FF.5 NEW proposal_schema_upgrade_policy_hash_v1 :
+    94e00ab1403801ab56c87570a96d86dcc338e523c05eaf9ba6b334d2a2492212
+    Domain:
+    DSFB-GPU-ATLAS:PROPOSAL-SCHEMA-UPGRADE-POLICY:v1\0
+
+  FF.5 NEW proposal_schema_migration_table_hash_v1 :
+    625824d0aa720fcd7aea367d0156315baebb141af7aecc0ac146cb05c150d9c8
+    Domain:
+    DSFB-GPU-ATLAS:PROPOSAL-SCHEMA-MIGRATION-TABLE:v1\0
+    (empty table at FF.5 baseline state)
+
+  FF.5 NEW schema_upgrade_receipt_hash_v1 (per-receipt) :
+    Domain: DSFB-GPU-ATLAS:SCHEMA-UPGRADE-RECEIPT:v1\0
+    Type + verifier shipped; no receipt at FF.5 baseline
+    (the deliverable is the receipt shape and the verifier).
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in proposal_schema_policy.rs carries a doc
+  comment whose first sentence states the WHY for a future
+  engineer.
+- Panel-locked discipline: FF.5 is a forward-looking
+  GOVERNANCE artifact, not an authority mutation. It does NOT
+  add new detectors, does NOT mutate any upstream hash, does
+  NOT itself perform any schema upgrade, does NOT change
+  S1.3a / FF.2 / FF.3 / FF.4 court decisions, does NOT
+  generate CUDA kernels, does NOT decide contraindications or
+  challenges.
+
+Panel-locked one-line verdict enforced:
+  > Schema upgrade != silent artifact rewrite.
+
+FF.5 is sealed. The proposal-schema upgrade policy is now
+codified as enforceable doctrine, the migration-table type
++ verifier are shipped, and the empty baseline migration
+table is byte-stable. Every future schema-upgrade commit
+must emit a ProposalSchemaUpgradeReceipt that passes
+verify_schema_upgrade_receipt — the 9 panel-required
+negatives + 5 structural rules block any silent re-render.
+
+Next campaign (panel-authorized post-FF.5): S1.3d Budget
+pruning + redundancy suppression. Consumes ActivationContextV1,
+T.8 usefulness ledger, contraindications, coverage holes, and
+task budget; emits reason-coded DisabledByBudget /
+DisabledByRedundancy decisions. With FF.2 + FF.3 + FF.4 +
+FF.5 in place, the post-S1.3a activation arc continues into
+the full S1.3d/e/f maturity sequence.

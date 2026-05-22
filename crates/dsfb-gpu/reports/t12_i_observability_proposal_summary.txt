@@ -1,0 +1,224 @@
+================================================================
+T.12.i - Observability / Debugging amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.i files the Observability / Debugging
+amendment proposal. It admits only deterministic software-
+observability witnesses whose trace / span / log / metric field,
+aggregation window, topology scope, baseline, decision law, and
+confuser semantics are declared; resolves collisions with the
+existing DSFB-GPU-Debug bank surface; classifies deployment /
+runtime variants as parameterizations or domain transfers;
+rejects learned APM anomaly scores or underspecified vendor
+heuristics; and preserves the frozen T.10 corpus hash.
+
+Main panel warning: "An observability symptom is not a detector
+until the telemetry field, aggregation law, baseline, topology
+scope, and confuser semantics are declared."
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.i emitted values:
+
+  literature_expansion_batch_hash_v1 :
+    115aa30f9d9f9a178b036f85a0878597652100c20ebca6810430768e73f7ee63
+  dedup_court_delta_hash_v1          :
+    b3c80c74b4a64474d0d63c73666b560a6c9dcdd3260227ab7f700d9a950b42fa
+  corpus_amendment_proposal_hash_v1  :
+    9776c1b9d87fa2fd389df933513904c9cf47b703dae18f343508b58628540611
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found FIVE T.12.i-relevant primitives already
+canonical -- exactly the dsfb-gpu-debug-core L6 bank surface:
+
+  14 Latency ramp                  (sustained latency rise)
+  15 Single-window spike confuser  (debug bank negative witness)
+  41 Error burst                   (per-window error count)
+  42 Slew shock                    (sudden metric-derivative)
+  43 Fanout cascade                (call-graph amplification)
+
+All five become ExistingCanonicalAuthorityResolution records.
+Re-adding any of these as new canonicals would inflate the
+corpus AND erase the L6 honesty marker; the court refuses.
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  14  (8 canonical + 4 parameterization
+                                 + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  21  (panel-locked headline)
+  proposed_genealogy_edges: 12
+  proposed_source_refs   :   9
+
+  new_canonical_records (in delta): 8
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised, with
+TWO rejections - THIRD T.12.x with two, following T.12.g and
+T.12.h)
+----------------------------------------------------------------
+
+  CanonicalAddition (x8) with declared telemetry contracts:
+    5901 Retry storm
+         (retry-event field + counting law + window + scope +
+         threshold + confuser profile)
+    5902 Queue-depth pressure
+         (queue-depth metric + capacity contract + aggregation
+         law + threshold + confuser profile)
+    5903 Saturation precursor
+         (resource capacity contract + utilisation aggregation
+         + slope/threshold law + USE-method confuser discipline)
+    5904 Cold-start transient
+         (deployment/warm-up marker + warmup window +
+         suppression law + decision law)
+    5905 Timeout burst
+         (timeout-event field + counting law + window + scope
+         + threshold) -- distinct from Error burst (SEED 41)
+    5906 GC pause spike
+         (language runtime + GC pause-duration metric + window
+         + quantile/max law + threshold)
+    5907 Thread-pool exhaustion
+         (pool source + capacity contract + active-count metric
+         + saturation law) DerivedFrom(Saturation precursor)
+    5908 Backpressure propagation
+         (producer-consumer scope + queue/buffer occupancy +
+         flow-control signal + propagation law) DerivedFrom
+         (Fanout cascade)
+
+  ExistingCanonicalAuthorityResolution (x5) with declared laws:
+    SEED 14 Latency ramp                 (L6 bank surface)
+    SEED 15 Single-window spike confuser (L6 bank surface)
+    SEED 41 Error burst                  (L6 bank surface)
+    SEED 42 Slew shock                   (L6 bank surface)
+    SEED 43 Fanout cascade               (L6 bank surface)
+
+  DomainTransferOf (x2):
+    SEED 43 Fanout cascade as shared cascade ancestor for
+            ObservabilityDebugging (also seen under T.12.g
+            GraphAnomalyDetection)
+    SEED 41 Error burst as shared rate-burst ancestor for
+            service telemetry
+
+  ParameterizationOf (x4):
+    5909 HTTP 5xx burst -> ParameterizationOf(Error burst, 41)
+    5910 p95/p99 latency ramp ->
+         ParameterizationOf(Latency ramp, 14)
+    5911 k-hop dependency fanout ->
+         ParameterizationOf(Fanout cascade, 43)
+    5912 Retry-rate burst -> ParameterizationOf(Retry storm,
+         5901)
+
+  RejectedNotDeterministic (x2):
+    5913 Vendor APM black-box anomaly score (Datadog anomaly
+         detection, New Relic AI-applied intelligence, Dynatrace
+         Davis, Splunk MLTK, AWS DevOps Guru) -- rejected
+         unless reduced to a Deterministic_APM_Score_Proxy with
+         deterministic formula + model-identification anchor +
+         training-data anchor + feature schema + tie-break +
+         numeric mode declared
+    5914 Learned incident classifier (PagerDuty intelligent
+         triage, Splunk On-Call ML classifiers, ServiceNow
+         AIOps) -- rejected unless reduced to a
+         Deterministic_Incident_Classifier_Proxy with
+         model-identification seed + training-data anchor +
+         label schema + tie-break + numeric mode declared
+
+----------------------------------------------------------------
+Bank-surface non-duplication discipline (panel-locked)
+----------------------------------------------------------------
+
+The dsfb-gpu-debug bank surface IDs (14, 15, 41, 42, 43) are L6
+GPU-implemented per lband::GPU_IMPLEMENTED_CANONICAL_IDS. T.12.i
+ratifies them under the observability source class WITHOUT re-
+canonicalising any. Inflating the corpus with renamed duplicates
+of these would erase the L6 honesty marker. Pinned by
+t12_i_existing_seed_collision_requires_authority_resolution
+(parametric loop over all five bank-surface IDs).
+
+----------------------------------------------------------------
+Vendor-APM non-claim (panel-locked, most-important load-bearing
+negative)
+----------------------------------------------------------------
+
+Vendor APM anomaly scores (Datadog / New Relic / Dynatrace /
+Splunk MLTK / AWS DevOps Guru) expose numeric "anomaly scores"
+without stable public decision functionals. The court does NOT
+launder those as deterministic witnesses. Pinned by
+t12_i_rejects_vendor_apm_score_without_deterministic_formula
+which asserts the reason text requires a "deterministic formula"
+AND names at least one vendor explicitly.
+
+----------------------------------------------------------------
+Genealogy edges (proposed)
+----------------------------------------------------------------
+
+  5901 Retry storm           DerivedFrom Error burst (41)
+  5902 Queue-depth pressure  DerivedFrom Slew shock (42)
+  5903 Saturation precursor  DerivedFrom Slew shock (42)
+  5904 Cold-start transient  DerivedFrom Latency ramp (14)
+  5905 Timeout burst         DerivedFrom Error burst (41)
+  5906 GC pause spike        DerivedFrom Latency ramp (14)
+  5907 Thread-pool exhaust   DerivedFrom Saturation precursor (5903)
+  5908 Backpressure          DerivedFrom Fanout cascade (43)
+  5909 HTTP 5xx burst        ParameterVariantOf Error burst (41)
+  5910 p95/p99 latency ramp  ParameterVariantOf Latency ramp (14)
+  5911 k-hop fanout          ParameterVariantOf Fanout cascade (43)
+  5912 Retry-rate burst      ParameterVariantOf Retry storm (5901)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives
+----------------------------------------------------------------
+
+   1. t12_i_does_not_mutate_seed_len
+   2. t12_i_rejects_latency_ramp_duplicate_without_existing_authority_resolution
+   3. t12_i_rejects_retry_storm_without_retry_field_and_window_law
+   4. t12_i_rejects_queue_pressure_without_queue_depth_metric_and_capacity_law
+   5. t12_i_rejects_saturation_precursor_without_resource_capacity_contract
+   6. t12_i_rejects_gc_pause_without_runtime_and_pause_metric_law
+   7. t12_i_rejects_fanout_variant_without_topology_scope_and_hop_law
+   8. t12_i_rejects_cold_start_without_deployment_marker_or_warmup_law
+   9. t12_i_rejects_vendor_apm_score_without_deterministic_formula
+      (MOST IMPORTANT - includes panel-locked requirement that
+       the reason text demand a "deterministic formula" AND
+       name at least one vendor)
+  10. t12_i_hash_changes_when_telemetry_field_law_changes
+  11. t12_i_existing_seed_collision_requires_authority_resolution
+      (parametric loop over all 5 bank-surface IDs - protects
+       the L6 honesty marker)
+
+Plus 1 learned-incident-classifier rejection contract test,
+3 per-canonical contract / DerivedFrom assertion tests, 4
+ParameterizationOf family tests, 2 DomainTransferOf assertion
+tests, an authority-resolution-covers-all-bank-surface witness,
+reserved-id-range tests for all three buckets (5901..=5908,
+5909..=5912, 5913..=5914), shape / determinism / rendering
+invariants. Total: 45 acceptance tests.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.i does NOT:
+- mutate corpus_hash_v1 or any prior T.11/S1.3/T.12.x hash;
+- create corpus_hash_v2;
+- duplicate Latency ramp / Single-window spike confuser /
+  Error burst / Slew shock / Fanout cascade;
+- promote HTTP 5xx burst / p95/p99 latency ramp / k-hop
+  dependency fanout / retry-rate burst to new_canonical_records;
+- promote vendor APM black-box anomaly score or learned
+  incident classifier to new_canonical_records;
+- claim any canonical's L-band (every new canonical's
+  implementation level remains an open question for future
+  T.12.x work);
+- activate new detectors;
+- execute on GPU;
+- claim empirical usefulness (T.8 ledger stays NotScored).

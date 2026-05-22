@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "cmapss_fd003_unit1"
+display_name        = "NASA C-MAPSS FD003 unit 1 (multi-fault)"
+upstream_doi_or_url = "NASA PCoE PHM08"
+license             = "Public-Domain"
+source_class        = "ReliabilityIndustrial"
+vendored_path       = "data/fixtures/cmapss_fd003_unit1.tsv"
+
+[fixture]
+sha256_hex          = "8eeb96ec624782e06f5abc4f77dc62f11e714634c6b6e520221432a2be4a87b1"
+byte_size           = 37791

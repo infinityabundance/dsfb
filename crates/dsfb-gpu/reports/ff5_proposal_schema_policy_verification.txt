@@ -1,0 +1,189 @@
+================================================================
+FF.5 - ProposalSchemaUpgradePolicy
+       verification receipt
+================================================================
+
+Verifier coverage table — every reject kind, the rule it
+encodes, the panel-required negative or structural rule it
+satisfies, and the acceptance test that exercises it.
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (9)
+----------------------------------------------------------------
+
+R.1  SchemaRerenderWithoutOldHash
+     Reject any migration row whose old_artifact_hash is the
+     all-zero sentinel.
+     Test: ff5_rejects_schema_rerender_without_old_hash
+
+R.2  SchemaRerenderWithoutNewSchemaHash
+     Reject any receipt with empty new_schema_version OR any
+     migration row with all-zero new_artifact_hash.
+     Test: ff5_rejects_schema_rerender_without_new_schema_hash
+
+R.3  SchemaRerenderWithoutMigrationTable
+     Reject any receipt with empty migration_rows.
+     Test: ff5_rejects_schema_rerender_without_migration_table
+
+R.4  SchemaRerenderWithoutReason
+     Reject any receipt with empty semantic_reason OR any
+     migration row with empty reason_byte_diff.
+     Test: ff5_rejects_schema_rerender_without_reason
+
+R.5  MigrationTableWithDuplicateOldHash
+     Reject any migration table (across receipt rows or the
+     whole rolling table) with two rows sharing the same
+     old_artifact_hash.
+     Test: ff5_rejects_migration_table_with_duplicate_old_hash
+
+R.6  MigrationTableWithDuplicateNewHash
+     Reject any migration table with two rows sharing the same
+     new_artifact_hash.
+     Test: ff5_rejects_migration_table_with_duplicate_new_hash
+
+R.7  ClaimThatOldArtifactHashWasInvalid
+     Reject any receipt with declares_old_artifact_hash_valid
+     = false. A migration is a schema evolution, not a
+     correction; the old hash was valid at filing time.
+     Test: ff5_rejects_claim_that_old_artifact_hash_was_invalid
+
+R.8  SchemaUpgradeThatMutatesCorpusHashV1
+     Reject any receipt with preserves_corpus_hash_v1 = false.
+     corpus_hash_v1 is the historical seed-corpus anchor
+     frozen at T.10; no schema upgrade may mutate it.
+     Test: ff5_rejects_schema_upgrade_that_mutates_corpus_hash_v1
+
+R.9  SchemaUpgradeThatMutatesCorpusHashV2WithoutFreezeCampaign
+     Reject any receipt with preserves_corpus_hash_v2 = false
+     and freeze_campaign_id = None. corpus_hash_v2 mutation
+     requires a declared freeze campaign.
+     Test: ff5_rejects_schema_upgrade_that_mutates_corpus_hash_v2_without_freeze_campaign
+
+Plus admit-with-freeze-campaign test:
+  ff5_admits_schema_upgrade_that_mutates_corpus_hash_v2_with_freeze_campaign
+
+----------------------------------------------------------------
+Structural defect rules (5)
+----------------------------------------------------------------
+
+R.10 MigrationRowWithIdenticalSchemaVersions
+     Reject any row whose old_schema_version equals
+     new_schema_version (no actual schema change).
+     Test: ff5_rejects_migration_row_with_identical_schema_versions
+
+R.11 ReceiptWithEmptyUpgradeId
+     Reject any receipt with empty upgrade_id.
+     Test: ff5_rejects_receipt_with_empty_upgrade_id
+
+R.12 ReceiptFreezeCampaignIdEmpty
+     Reject any receipt with preserves_corpus_hash_v2 = false
+     and Some("") freeze_campaign_id.
+     Test: ff5_rejects_receipt_with_empty_freeze_campaign_id
+
+R.13 MigrationRowWithEmptyArtifactId
+     Reject any row with empty old_artifact_id.
+     Test: ff5_rejects_migration_row_with_empty_artifact_id
+
+R.14 MigrationRowWithEmptySchemaVersion
+     Reject any row with empty old_schema_version or
+     new_schema_version.
+     Test: ff5_rejects_migration_row_with_empty_schema_version
+
+----------------------------------------------------------------
+Default-build invariants + canonical-good admissibility
+----------------------------------------------------------------
+
+  ff5_canonical_good_receipt_verifies
+  ff5_empty_migration_table_verifies
+  ff5_default_build_admissible_under_table_verifier
+  ff5_default_policy_has_empty_migration_table
+  ff5_default_policy_has_canonical_doctrine
+  ff5_doctrine_lines_non_empty
+  ff5_doctrine_first_line_is_core_rule
+
+----------------------------------------------------------------
+Determinism + sensitivity invariants
+----------------------------------------------------------------
+
+  ff5_policy_hash_is_deterministic_across_two_builds
+  ff5_migration_table_hash_is_deterministic_across_two_builds
+  ff5_receipt_hash_is_deterministic_across_two_builds
+  ff5_policy_text_render_byte_stable
+  ff5_policy_json_render_byte_stable
+  ff5_migration_table_text_render_byte_stable
+  ff5_migration_table_json_render_byte_stable
+  ff5_migration_table_hash_changes_when_rows_added
+  ff5_receipt_hash_changes_when_freeze_campaign_added
+
+----------------------------------------------------------------
+Upstream-anchor invariance (FF.5 mutates nothing)
+----------------------------------------------------------------
+
+  ff5_does_not_mutate_corpus_hash_v1
+  ff5_does_not_mutate_corpus_hash_v2
+  ff5_does_not_mutate_ff1_passport_index_hash_v1
+  ff5_does_not_mutate_ff2_gate_hash
+  ff5_does_not_mutate_ff3_gate_hash
+  ff5_does_not_mutate_ff4_policy_hash
+  ff5_does_not_mutate_seed_len
+
+----------------------------------------------------------------
+Pinned anchor cross-checks
+----------------------------------------------------------------
+
+  ff5_policy_pins_live_corpus_hash_v1
+  ff5_policy_pins_live_corpus_hash_v2
+  ff5_policy_pins_live_ff1_passport_index_hash_v1
+  ff5_policy_pins_live_ff2_gate_hash
+  ff5_policy_pins_live_ff3_gate_hash
+  ff5_policy_pins_live_ff4_policy_hash
+
+----------------------------------------------------------------
+Pinned constants
+----------------------------------------------------------------
+
+  ff5_policy_domain_pin
+  ff5_policy_schema_pin
+  ff5_migration_table_domain_pin
+  ff5_migration_table_schema_pin
+  ff5_receipt_domain_pin
+  ff5_receipt_schema_pin
+
+----------------------------------------------------------------
+Hash-namespace distinctness
+----------------------------------------------------------------
+
+  ff5_policy_hash_distinct_from_migration_table_hash
+  ff5_policy_hash_distinct_from_corpus_hash_v1
+  ff5_policy_hash_distinct_from_corpus_hash_v2
+  ff5_policy_hash_distinct_from_ff4_policy_hash
+  ff5_receipt_hash_distinct_from_policy_hash
+
+----------------------------------------------------------------
+Render coverage
+----------------------------------------------------------------
+
+  ff5_render_text_contains_pinned_anchors_and_doctrine
+  ff5_render_json_contains_schema_field
+  ff5_migration_table_render_text_indicates_zero_rows_at_baseline
+
+----------------------------------------------------------------
+Summary
+----------------------------------------------------------------
+
+  Total FF.5 acceptance tests              : 58
+  Panel-required load-bearing negatives    : 9  (R.1..R.9)
+  Structural defect rules                  : 5  (R.10..R.14)
+  Determinism + sensitivity invariants     : 9
+  Default-build + canonical-good           : 7
+  Upstream-anchor invariance witnesses     : 7
+  Pinned anchor cross-checks               : 6
+  Pinned constants                         : 6
+  Hash-namespace distinctness assertions   : 5
+  Render coverage assertions               : 3
+  Freeze-campaign admit + structural extras: 1
+
+  Corpus crate test count change           : 1643 -> 1701
+                                            (47 -> 48 groups)
+  Workspace serial test count change       : 1958 -> 2016
+                                            (86 -> 87 groups)

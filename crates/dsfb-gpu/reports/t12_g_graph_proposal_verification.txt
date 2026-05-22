@@ -1,0 +1,104 @@
+================================================================
+T.12.g - Graph / Topology Anomaly verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_g_graph::seed_t12_g_graph_proposal()
+
+----------------------------------------------------------------
+Positive verification (the proposal IS admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+  ProposalIdEmpty                                          : not fired
+  BatchIdEmpty                                             : not fired
+  UnknownSourceClass                                       : not fired (GraphAnomalyDetection)
+  AmendmentProposalHashMismatch                            : not fired
+  BatchHashMismatch                                        : not fired
+  DedupDeltaHashMismatch                                   : not fired
+  DedupDeltaCollidesWithExistingSeedCanonicalId            : not fired (reserved ids 5701..=5713 outside SEED's 1..54 range)
+  AcceptedProposalWithoutBodyOrDelta                       : not fired
+  AcceptedProposalWithoutFutureFreezeGate                  : not fired
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage (all passing)
+----------------------------------------------------------------
+
+  1. t12_g_does_not_mutate_seed_len
+     - SEED.len() == 54 after seed_t12_g_graph_proposal().
+
+  2. t12_g_rejects_degree_spike_without_baseline_and_graph_update_law
+     - Degree spike reason declares graph type, node identity,
+       edge identity, baseline, threshold.
+
+  3. t12_g_rejects_betweenness_shift_without_shortest_path_and_normalization_law
+     - Betweenness shift reason declares shortest-path law,
+       weighted vs unweighted, normalization, tie-handling.
+
+  4. t12_g_rejects_pagerank_residual_without_damping_and_dangling_node_law
+     - PageRank reason declares damping factor, iteration /
+       convergence, dangling-node handling.
+
+  5. t12_g_rejects_community_shift_without_deterministic_partition_law
+     (MOST IMPORTANT)
+     - Community boundary shift NOT in new_canonical_records;
+       RejectedNotDeterministic record declares algorithm,
+       sample seed, tie-break, modularity rule, resolution
+       parameter, convergence law requirements.
+
+  6. t12_g_rejects_motif_count_without_motif_enumeration_law
+     - Motif-count reason declares motif definition,
+       enumeration law, count normalization.
+
+  7. t12_g_rejects_cascade_precursor_without_temporal_edge_order_law
+     - Cascade precursor reason declares temporal-edge-ordering,
+       causal-adjacency, hop limit, clock-skew confuser.
+
+  8. t12_g_rejects_bridge_node_without_connectivity_definition
+     - Bridge-node reason declares connectivity definition,
+       DFS-based articulation, tie-break.
+
+  9. t12_g_hash_changes_when_graph_metric_law_changes
+     - Mutated PageRank residual reason; proposal hash differs
+       from canonical seed.
+
+ 10. t12_g_existing_seed_collision_requires_authority_resolution
+     - Defective variant promoting Fanout cascade (SEED 43)
+       to new_canonical_records fires the
+       DedupDeltaCollidesWithExistingSeedCanonicalId rule.
+
+Plus random-walk embedding RejectedNotDeterministic contract
+test (declares walk seed + walk length + walk count + tie-break
++ embedding-projection matrix anchor + numeric mode), edge-cut +
+clustering contract tests, 3 ParameterizationOf family tests,
+the two-rejection-records witness, shape + determinism +
+rendering invariants. Total: 36 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every T.11/S1.3 hash                         : unchanged
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  T.12.b SCD corpus_amendment_proposal_hash_v1: unchanged (ac10e27c...)
+  T.12.c drift corpus_amendment_proposal_hash_v1: unchanged (0ffb0639...)
+  T.12.d robust corpus_amendment_proposal_hash_v1: unchanged (7b51703f...)
+  T.12.e spectral corpus_amendment_proposal_hash_v1: unchanged (0036435f...)
+  T.12.f time-series corpus_amendment_proposal_hash_v1: unchanged (76717e02...)
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.g graph literature_expansion_batch_hash_v1 (NEW):
+    0358c53be687c24c5eed965dfde8b8ef28f013a48bed098917f3d6b063348528
+  T.12.g graph dedup_court_delta_hash_v1 (NEW):
+    37a2d159a60fa2d655acccef97307496f3cd9c76e01f86393e2ad3e80afadbe1
+  T.12.g graph corpus_amendment_proposal_hash_v1 (NEW):
+    1bc142666cdf680f352ee8327ec53a4699f63601b5371db284600f75bde81ddd

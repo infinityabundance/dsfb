@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>S-REAL.1 audit — NASA C-MAPSS FD001 unit 50</title>
+<style>
+
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+       margin: 2rem; max-width: 1100px; color: #222; }
+h1 { border-bottom: 2px solid #444; padding-bottom: .25rem; }
+h2 { margin-top: 2rem; border-bottom: 1px solid #aaa; padding-bottom: .15rem; }
+h3 { margin-top: 1.25rem; color: #444; }
+p.subhead { color: #555; font-size: .95rem; margin-top: -.25rem; }
+p.note { color: #555; font-size: .9rem; max-width: 75ch; }
+table { border-collapse: collapse; margin: .5rem 0 1rem 0; }
+table.kv th { text-align: left; padding: .25rem .75rem .25rem 0; vertical-align: top; font-weight: 600; color: #333; }
+table.kv td { padding: .25rem 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9rem; }
+table.episodes, table.hashes { width: 100%; font-size: .85rem; }
+table.episodes th, table.episodes td,
+table.hashes th, table.hashes td { border-bottom: 1px solid #ddd; padding: .35rem .5rem; text-align: left; }
+table.episodes th, table.hashes th { background: #f4f4f4; font-weight: 600; }
+table.hashes td.hex { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .82rem; word-break: break-all; }
+table.hashes td.label { font-weight: 600; white-space: nowrap; }
+pre.law { background: #f8f8f8; border: 1px solid #ddd; padding: .75rem; font-size: .85rem;
+          overflow-x: auto; max-width: 100%; }
+ul.nonclaims li { margin: .25rem 0; color: #333; }
+code { background: #eee; padding: 1px 4px; border-radius: 3px; font-size: .9em; }
+</style>
+</head>
+<body>
+<h1>DSFB-GPU S-REAL.1 audit — NASA C-MAPSS FD001 unit 50</h1>
+<p class="subhead">Deterministic residual-densor audit on real public dataset bytes. Apache-2.0 reference implementation. Background IP: Invariant Forge LLC.</p>
+<div class="summary-card">
+<h2 class="summary-title">Dataset summary</h2>
+<table class="kv summary-kv">
+<tr><th>dataset</th><td>NASA C-MAPSS FD001 unit 50</td></tr>
+<tr><th>source class</th><td>ReliabilityIndustrial</td></tr>
+<tr><th>shape (entities × windows)</th><td>14 × 198</td></tr>
+<tr><th>finite cells (events emitted)</th><td>2772</td></tr>
+<tr><th>NaN cells skipped</th><td>0</td></tr>
+<tr><th>episodes admitted</th><td>33</td></tr>
+<tr><th>byte-identical replay</th><td>YES</td></tr>
+<tr><th>final_case_file_hash (first 16 hex)</th><td>aac75f765e5c8736</td></tr>
+<tr><th>final_verdict</th><td>GpuReplayAdmissible</td></tr>
+</table>
+</div>
+<div class="replay-proof-card">
+<h2 class="summary-title">Replay proof</h2>
+<table class="kv summary-kv">
+<tr><th>byte-identical replay</th><td>YES</td></tr>
+<tr><th>casefile.json SHA-256</th><td>b502424efe79d4f33185e9ac22deda1764e65e32a1588aac9501ec466ea3b38c</td></tr>
+<tr><th>episodes.jsonl SHA-256</th><td>be93c5ebb7f6a9d4c60b4bf84b324dbd653c739ce826fdae9fb15cec3fb976ed</td></tr>
+<tr><th>audit_report.html SHA-256</th><td>(externally pinned in replay_verification.txt — not embedded here because a self-referential hash is computationally infeasible)</td></tr>
+<tr><th>final_case_file_hash (full)</th><td>aac75f765e5c87361ea83310991378590f8fcd12f73b85647fd12af6b5f15b83</td></tr>
+<tr><th>episode count (run 1)</th><td>33</td></tr>
+<tr><th>episode count (run 2)</th><td>33</td></tr>
+</table>
+</div>
+<h2>1. Input provenance</h2>
+<table class="kv">
+<tr><th>dataset_id</th><td>cmapss_fd001_unit50</td></tr>
+<tr><th>display_name</th><td>NASA C-MAPSS FD001 unit 50</td></tr>
+<tr><th>upstream_doi_or_url</th><td>NASA PCoE PHM08</td></tr>
+<tr><th>license</th><td>Public-Domain</td></tr>
+<tr><th>source_class</th><td>ReliabilityIndustrial</td></tr>
+<tr><th>vendored_path</th><td>data/fixtures/cmapss_fd001_unit50.tsv</td></tr>
+<tr><th>fixture_sha256</th><td>d4920f9801bf1e27104387702f17e2413194201578ed9434e7a4f1a5b84fe5da</td></tr>
+<tr><th>fixture_byte_size</th><td>27396</td></tr>
+</table>
+<p class="note">The fixture bytes were SHA-256-verified before parsing. Any divergence from the pinned hash would have aborted the audit before any event was emitted.</p>
+<h2>2. Residual-projection lowering law</h2>
+<p>The upstream fixture is in <code>residual-projection v2</code> form (window-major × signal-minor TSV with NaN cells). The audit deterministically lowers each finite cell into one <code>TraceEvent</code> via the rule below:</p>
+<pre class="law">For each (window_idx, signal_idx, value) in fixture.rows.iter().enumerate()
+                                            .flat_map(|(w, row)| row.iter().enumerate()
+                                                                  .map(move |(s, v)| (w, s, v))):
+  if value is None (nan): skip; no event emitted for this cell
+  else:
+    ts_ns         = window_idx * window_size_ns
+    entity_id     = signal_idx
+    route_id      = 0
+    span_id       = window_idx * 65536 + signal_idx
+    parent_span_id = 0
+    latency_us    = clamp(value * value_to_microsecond_scale, 0, latency_clamp_us)
+    status_code   = 200
+    error_code    = 0
+    event_kind    = 0
+    flags         = 0
+</pre>
+<table class="kv">
+<tr><th>declared_num_windows</th><td>198</td></tr>
+<tr><th>declared_num_signals</th><td>14</td></tr>
+<tr><th>declared_healthy_window_end</th><td>30</td></tr>
+<tr><th>observed_num_windows</th><td>198</td></tr>
+<tr><th>observed_num_signals</th><td>14</td></tr>
+<tr><th>nan_cell_count</th><td>0</td></tr>
+<tr><th>finite_cell_count</th><td>2772</td></tr>
+<tr><th>emitted_event_count</th><td>2772</td></tr>
+<tr><th>value_to_microsecond_scale</th><td>1000</td></tr>
+<tr><th>latency_clamp_us</th><td>32767000</td></tr>
+<tr><th>window_size_ns</th><td>1000000000</td></tr>
+</table>
+<p class="note">NaN cells produce no event. The audit does not claim DSFB-GPU saw the upstream's original trace events; it claims DSFB-GPU saw exactly the events the rule above produces from these bytes.</p>
+<h2>3. Run configuration</h2>
+<table class="kv">
+<tr><th>casefile_version</th><td>DSFB-GPU-DEBUG-CASE-0.1</td></tr>
+<tr><th>backend</th><td>cuda</td></tr>
+<tr><th>n_entities (= observed_num_signals)</th><td>14</td></tr>
+<tr><th>n_windows (= observed_num_windows)</th><td>198</td></tr>
+<tr><th>events_dispatched</th><td>2772</td></tr>
+<tr><th>episodes_admitted</th><td>33</td></tr>
+<tr><th>final_verdict</th><td>GpuReplayAdmissible</td></tr>
+</table>
+<h2>4. Admitted episodes</h2>
+<p class="note">Episodes are listed in canonical order by <code>(entity_id, start_window, end_window)</code>. Each row reports the bank motif, reason code, and peak Q16.16 magnitudes the bank used to admit.</p>
+<table class="episodes">
+<thead><tr><th>idx</th><th>entity_id</th><th>start_window</th><th>end_window</th><th>motif</th><th>reason</th><th>peak_state</th><th>peak_residual_q</th><th>peak_drift_q</th><th>peak_slew_q</th><th>detector_bit_count</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>0</td><td>135</td><td>138</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>201588</td><td>82232</td><td>159645</td><td>2</td></tr>
+<tr><td>1</td><td>1</td><td>7</td><td>13</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>47513</td><td>10552</td><td>2</td></tr>
+<tr><td>2</td><td>1</td><td>173</td><td>176</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>192937</td><td>132725</td><td>57802</td><td>2</td></tr>
+<tr><td>3</td><td>2</td><td>5</td><td>9</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>39830</td><td>7078</td><td>2</td></tr>
+<tr><td>4</td><td>2</td><td>85</td><td>88</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>53521</td><td>101712</td><td>2</td></tr>
+<tr><td>5</td><td>2</td><td>157</td><td>165</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>342491</td><td>200837</td><td>156762</td><td>2</td></tr>
+<tr><td>6</td><td>3</td><td>5</td><td>9</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>32484</td><td>44303</td><td>2</td></tr>
+<tr><td>7</td><td>4</td><td>26</td><td>32</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>107020</td><td>58919</td><td>46269</td><td>2</td></tr>
+<tr><td>8</td><td>4</td><td>57</td><td>60</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>57717</td><td>6489</td><td>2</td></tr>
+<tr><td>9</td><td>4</td><td>112</td><td>115</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>59758</td><td>22283</td><td>2</td></tr>
+<tr><td>10</td><td>4</td><td>130</td><td>133</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>58519</td><td>6489</td><td>2</td></tr>
+<tr><td>11</td><td>4</td><td>179</td><td>182</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>178913</td><td>143229</td><td>23986</td><td>2</td></tr>
+<tr><td>12</td><td>5</td><td>22</td><td>26</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>102498</td><td>60564</td><td>42271</td><td>2</td></tr>
+<tr><td>13</td><td>5</td><td>30</td><td>33</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>56546</td><td>11863</td><td>2</td></tr>
+<tr><td>14</td><td>5</td><td>120</td><td>126</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>139264</td><td>72137</td><td>76743</td><td>2</td></tr>
+<tr><td>15</td><td>5</td><td>135</td><td>139</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>316014</td><td>155233</td><td>225837</td><td>3</td></tr>
+<tr><td>16</td><td>5</td><td>140</td><td>198</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>1050017</td><td>874413</td><td>311623</td><td>7</td></tr>
+<tr><td>17</td><td>6</td><td>6</td><td>13</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>44466</td><td>36111</td><td>2</td></tr>
+<tr><td>18</td><td>6</td><td>140</td><td>144</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>298647</td><td>173092</td><td>129958</td><td>2</td></tr>
+<tr><td>19</td><td>6</td><td>158</td><td>198</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>734920</td><td>598630</td><td>278462</td><td>7</td></tr>
+<tr><td>20</td><td>8</td><td>188</td><td>191</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>241631</td><td>141995</td><td>87491</td><td>2</td></tr>
+<tr><td>21</td><td>8</td><td>194</td><td>198</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>294060</td><td>175567</td><td>87425</td><td>2</td></tr>
+<tr><td>22</td><td>9</td><td>13</td><td>17</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>50845</td><td>9765</td><td>2</td></tr>
+<tr><td>23</td><td>9</td><td>52</td><td>55</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>71630</td><td>59357</td><td>8519</td><td>2</td></tr>
+<tr><td>24</td><td>9</td><td>126</td><td>134</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>252051</td><td>138293</td><td>135266</td><td>2</td></tr>
+<tr><td>25</td><td>9</td><td>139</td><td>198</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>1217396</td><td>991052</td><td>218104</td><td>5</td></tr>
+<tr><td>26</td><td>10</td><td>7</td><td>10</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>38913</td><td>10748</td><td>2</td></tr>
+<tr><td>27</td><td>10</td><td>22</td><td>26</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>52974</td><td>18220</td><td>2</td></tr>
+<tr><td>28</td><td>10</td><td>96</td><td>100</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>158859</td><td>64487</td><td>98173</td><td>2</td></tr>
+<tr><td>29</td><td>10</td><td>165</td><td>168</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>245956</td><td>153978</td><td>53215</td><td>2</td></tr>
+<tr><td>30</td><td>11</td><td>98</td><td>101</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>105054</td><td>50439</td><td>67371</td><td>2</td></tr>
+<tr><td>31</td><td>12</td><td>7</td><td>12</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>42412</td><td>33031</td><td>2</td></tr>
+<tr><td>32</td><td>13</td><td>25</td><td>31</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>65536</td><td>54840</td><td>18023</td><td>2</td></tr>
+</tbody>
+</table>
+<h3>4a. Motif histogram</h3>
+<table class="histogram">
+<thead><tr><th>motif</th><th>count</th><th>percent</th></tr></thead>
+<tbody>
+<tr><td>LatencyRamp</td><td>3</td><td>9.09 %</td></tr>
+<tr><td>OscillationInstability</td><td>30</td><td>90.90 %</td></tr>
+</tbody>
+</table>
+<h3>4b. Reason-code histogram</h3>
+<table class="histogram">
+<thead><tr><th>reason_code</th><th>count</th><th>percent</th><th>plain-English meaning</th></tr></thead>
+<tbody>
+<tr><td>SustainedOutwardDrift</td><td>3</td><td>9.09 %</td><td>Drift remained above the violation threshold for multiple windows; DSFB interprets this structurally, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td>RecurrentBoundaryGrazing</td><td>30</td><td>90.90 %</td><td>Multiple boundary cells with no clear violation — repeated graze without commitment; DSFB interprets this structurally, not as a ground-truth causal diagnosis.</td></tr>
+</tbody>
+</table>
+<h3>4c. Entity summary</h3>
+<table class="summary">
+<thead><tr><th>entity_id</th><th>episode_count</th><th>first_window</th><th>last_window</th><th>max_detector_bit_count</th><th>dominant_motif</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>1</td><td>135</td><td>138</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>1</td><td>2</td><td>7</td><td>176</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>2</td><td>3</td><td>5</td><td>165</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>3</td><td>1</td><td>5</td><td>9</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>4</td><td>5</td><td>26</td><td>182</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>5</td><td>5</td><td>22</td><td>198</td><td>7</td><td>OscillationInstability</td></tr>
+<tr><td>6</td><td>3</td><td>6</td><td>198</td><td>7</td><td>OscillationInstability</td></tr>
+<tr><td>8</td><td>2</td><td>188</td><td>198</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>9</td><td>4</td><td>13</td><td>198</td><td>5</td><td>OscillationInstability</td></tr>
+<tr><td>10</td><td>4</td><td>7</td><td>168</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>11</td><td>1</td><td>98</td><td>101</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>12</td><td>1</td><td>7</td><td>12</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>13</td><td>1</td><td>25</td><td>31</td><td>2</td><td>OscillationInstability</td></tr>
+</tbody>
+</table>
+<h3>4d. Episode timeline (per-entity, time-ordered)</h3>
+<table class="timeline">
+<thead><tr><th>entity_id</th><th>start_window</th><th>end_window</th><th>motif</th><th>reason</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>135</td><td>138</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>1</td><td>7</td><td>13</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>1</td><td>173</td><td>176</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>2</td><td>5</td><td>9</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>2</td><td>85</td><td>88</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>2</td><td>157</td><td>165</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>3</td><td>5</td><td>9</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>4</td><td>26</td><td>32</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>4</td><td>57</td><td>60</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>4</td><td>112</td><td>115</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>4</td><td>130</td><td>133</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>4</td><td>179</td><td>182</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>5</td><td>22</td><td>26</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>5</td><td>30</td><td>33</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>5</td><td>120</td><td>126</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>5</td><td>135</td><td>139</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>5</td><td>140</td><td>198</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>6</td><td>6</td><td>13</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>6</td><td>140</td><td>144</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>6</td><td>158</td><td>198</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>8</td><td>188</td><td>191</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>8</td><td>194</td><td>198</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>9</td><td>13</td><td>17</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>9</td><td>52</td><td>55</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>9</td><td>126</td><td>134</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>9</td><td>139</td><td>198</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>10</td><td>7</td><td>10</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>10</td><td>22</td><td>26</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>10</td><td>96</td><td>100</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>10</td><td>165</td><td>168</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>11</td><td>98</td><td>101</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>12</td><td>7</td><td>12</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>13</td><td>25</td><td>31</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+</tbody>
+</table>
+<h3>4e. Top structural spans</h3>
+<h4>4e(a). Longest spans</h4>
+<table class="summary">
+<thead><tr><th>rank</th><th>length_windows</th><th>entity_id</th><th>start</th><th>end</th><th>motif</th><th>detector_bit_count</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>59</td><td>9</td><td>139</td><td>198</td><td>LatencyRamp</td><td>5</td></tr>
+<tr><td>2</td><td>58</td><td>5</td><td>140</td><td>198</td><td>LatencyRamp</td><td>7</td></tr>
+<tr><td>3</td><td>40</td><td>6</td><td>158</td><td>198</td><td>LatencyRamp</td><td>7</td></tr>
+<tr><td>4</td><td>8</td><td>2</td><td>157</td><td>165</td><td>OscillationInstability</td><td>2</td></tr>
+<tr><td>5</td><td>8</td><td>9</td><td>126</td><td>134</td><td>OscillationInstability</td><td>2</td></tr>
+<tr><td>6</td><td>7</td><td>6</td><td>6</td><td>13</td><td>OscillationInstability</td><td>2</td></tr>
+<tr><td>7</td><td>6</td><td>1</td><td>7</td><td>13</td><td>OscillationInstability</td><td>2</td></tr>
+<tr><td>8</td><td>6</td><td>4</td><td>26</td><td>32</td><td>OscillationInstability</td><td>2</td></tr>
+<tr><td>9</td><td>6</td><td>5</td><td>120</td><td>126</td><td>OscillationInstability</td><td>2</td></tr>
+<tr><td>10</td><td>6</td><td>13</td><td>25</td><td>31</td><td>OscillationInstability</td><td>2</td></tr>
+</tbody>
+</table>
+<h4>4e(b). Highest-repeated entities</h4>
+<table class="summary">
+<thead><tr><th>rank</th><th>entity_id</th><th>episode_count</th><th>dominant_motif</th><th>dominant_reason_code</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>4</td><td>5</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>2</td><td>5</td><td>5</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>3</td><td>9</td><td>4</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>4</td><td>10</td><td>4</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>5</td><td>2</td><td>3</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+</tbody>
+</table>
+<h4>4e(c). Most-recurrent reason codes</h4>
+<table class="summary">
+<thead><tr><th>rank</th><th>reason_code</th><th>count</th><th>severity</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>RecurrentBoundaryGrazing</td><td>30</td><td>3</td></tr>
+<tr><td>2</td><td>SustainedOutwardDrift</td><td>3</td><td>6</td></tr>
+</tbody>
+</table>
+<h3>4f. Plain-English motif glossary</h3>
+<p class="note">Every DSFB motif describes a STRUCTURAL residual shape. DSFB interprets each motif structurally, not as a ground-truth causal diagnosis. The glossary covers all eight motifs even if some did not fire on this dataset.</p>
+<table class="summary glossary">
+<thead><tr><th>motif</th><th>structural interpretation</th></tr></thead>
+<tbody>
+<tr><td class="label">LatencyRamp</td><td>Sustained directional increase in residual latency-projection cells across a contiguous window span; DSFB interprets this as recurrent directional latency structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">ErrorBurst</td><td>Concentrated burst of error-projection cells in a short window range; DSFB interprets this as locally concentrated error structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">SlewShockRecovery</td><td>Abrupt slew shock followed by a recovery edge in the same entity; DSFB interprets this as transient slew + recovery structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">SustainedDegradation</td><td>Persistent elevation of residual magnitude over many windows without recovery; DSFB interprets this as sustained structural degradation, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">OscillationInstability</td><td>Repeated alternation across the boundary band without sustained commitment; DSFB interprets this as oscillatory structural pattern, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">LocalizedRouteFault</td><td>Episode bounded to a specific entity/route locality with neighbouring entities admissible; DSFB interprets this as locality-confined structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">FanoutCascadeCandidate</td><td>Co-occurrence pattern across multiple entities consistent with fan-out cascade structure; DSFB interprets this as multi-entity structural co-firing, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">ConfuserTransient</td><td>Confuser-like transient that fired but did not sustain into a full motif; DSFB interprets this structurally as transient near-violation, not as a ground-truth causal diagnosis.</td></tr>
+</tbody>
+</table>
+<h2>5. Stage digest / hash chain</h2>
+<p class="note">Every per-stage hash links into the next via the canonical DSFB-GPU chain. A reader can replay the dispatch and confirm every hex value below byte-for-byte.</p>
+<table class="hashes">
+<thead><tr><th>chain link</th><th>sha256 (hex)</th></tr></thead>
+<tbody>
+<tr><td class="label">h_input_catalog</td><td class="hex">bf3840c3ad6648a88576e682416e7f28559ed8f093236c6825c3dcd343267a1b</td></tr>
+<tr><td class="label">h_contract</td><td class="hex">85a1acc47c64716b1c8cf5afc95b350ed4394fc5054a184414423db55f91d645</td></tr>
+<tr><td class="label">h_bank</td><td class="hex">2a504994ec9dbdb55a693ec5c7a8ee7483cd02b606f3c99d77aa79bbd2d4a2b3</td></tr>
+<tr><td class="label">h_detector_registry</td><td class="hex">8e2ad549135effaede4f1dbb1ed990a7bec51988f69734fcd1a653e02bd0b95b</td></tr>
+<tr><td class="label">h_kernel_sequence</td><td class="hex">c3351cfe7e7e31ae696ef17830f210d415056840da354b292f3a2783791bc723</td></tr>
+<tr><td class="label">h_window_feature</td><td class="hex">abce01556fd7f05126036e83c08395aa6967c8de5fc8b45f87dfa79a24965ae6</td></tr>
+<tr><td class="label">h_residual_field</td><td class="hex">34b1a13a28d7a57d916b2da89928d2b22535a55d602895e90e243f6d92c17013</td></tr>
+<tr><td class="label">h_sign_field</td><td class="hex">4c0e47d15194e7a06c18b5b199171e415a0ab3f90eca8e8ea09e19bb425cf595</td></tr>
+<tr><td class="label">h_detector_cell</td><td class="hex">fe7b30c92bb603ae251f6e228bed6e77d7079c1e7ee00097c22439b0fe73bc6a</td></tr>
+<tr><td class="label">h_consensus_grid</td><td class="hex">2aa038f72bde3bcb1b9602fbacf6941c6adcbb8a0d03236c90c301c1a86e6c6b</td></tr>
+<tr><td class="label">h_candidate_interval</td><td class="hex">684a3bdbd0585e1b095a0d368b9fe5d09ca6d9fb565d26548742d079e130056e</td></tr>
+<tr><td class="label">h_episode</td><td class="hex">bfa06c80586742f5c36beb5c1475bb3edd58353bb4979e9763be0012a33dcdb5</td></tr>
+<tr><td class="label">final_case_file_hash</td><td class="hex">aac75f765e5c87361ea83310991378590f8fcd12f73b85647fd12af6b5f15b83</td></tr>
+</tbody>
+</table>
+<h2>6. Replay verification</h2>
+<table class="kv">
+<tr><th>run_count</th><td>2</td></tr>
+<tr><th>casefile_json_sha256_run1</th><td>b502424efe79d4f33185e9ac22deda1764e65e32a1588aac9501ec466ea3b38c</td></tr>
+<tr><th>casefile_json_sha256_run2</th><td>b502424efe79d4f33185e9ac22deda1764e65e32a1588aac9501ec466ea3b38c</td></tr>
+<tr><th>episodes_jsonl_sha256_run1</th><td>be93c5ebb7f6a9d4c60b4bf84b324dbd653c739ce826fdae9fb15cec3fb976ed</td></tr>
+<tr><th>episodes_jsonl_sha256_run2</th><td>be93c5ebb7f6a9d4c60b4bf84b324dbd653c739ce826fdae9fb15cec3fb976ed</td></tr>
+<tr><th>final_case_file_hash_run1</th><td>aac75f765e5c87361ea83310991378590f8fcd12f73b85647fd12af6b5f15b83</td></tr>
+<tr><th>final_case_file_hash_run2</th><td>aac75f765e5c87361ea83310991378590f8fcd12f73b85647fd12af6b5f15b83</td></tr>
+<tr><th>episode_count_run1</th><td>33</td></tr>
+<tr><th>episode_count_run2</th><td>33</td></tr>
+<tr><th>byte_identical_replay</th><td>true</td></tr>
+</table>
+<h3>Toolchain identity</h3>
+<table class="kv">
+<tr><th>backend</th><td>cuda</td></tr>
+<tr><th>cuda_version</th><td>13.2</td></tr>
+<tr><th>dsfb_gpu_debug_demo_version</th><td>0.1.0</td></tr>
+<tr><th>gpu_name</th><td>RTX 4080 SUPER</td></tr>
+</table>
+<p class="note">Replay determinism is asserted only for the recorded toolchain. The audit does not claim replay byte-identity across different driver, CUDA, or hardware versions.</p>
+<h2>7. Limitations and non-claims</h2>
+<ul class="nonclaims">
+<li>Does NOT claim DSFB has identified the &quot;real&quot; anomaly in the dataset.</li>
+<li>Does NOT claim DSFB outperforms any other anomaly detector.</li>
+<li>Does NOT claim DSFB has discovered causality.</li>
+<li>Does NOT claim DSFB has measured remediation effectiveness.</li>
+<li>Does NOT claim fitness-for-purpose on regulated or safety-critical use.</li>
+<li>Does NOT claim the dataset is &quot;correctly labeled&quot; or &quot;ground truth&quot;; the audit report describes deterministic structure DSFB-GPU saw, not labels.</li>
+<li>Does NOT claim the corpus or registry is exhaustive.</li>
+<li>Does NOT claim replay determinism across different driver / CUDA / hardware versions; the replay receipt records the toolchain explicitly.</li>
+</ul>
+</body>
+</html>

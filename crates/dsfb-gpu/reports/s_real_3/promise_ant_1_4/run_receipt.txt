@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 promise_ant_1_4
+display_name:            PROMISE Apache Ant 1.4 CK metrics
+license:                 no-upstream-license
+upstream_doi_or_url:     github.com/ssea-lab/PROMISE
+
+Input
+  vendored_path:         data/fixtures/promise_ant_1_4.tsv
+  fixture_sha256:        f965a049b98d69ade3391c5f7a777c4ea37089c386cd886b05012cc86748024c
+  fixture_byte_size:     11393
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               1068
+  nan_cells_skipped:          0
+  events_emitted:             1068
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 6
+  n_windows  (= observed_num_windows): 178
+  contract_hash:         sha256:6da35b2da3b121b553bf677a7265e216c4917f0df802d59288ad11010beb3a52
+  bank_hash:             sha256:e2ef2497122d0b9a1bafd40e29f154b0bc2cc8578fdadc17782332baad2f2764
+  detector_registry_hash: sha256:34485bbdf444e43f00b7b42f6de6316cdc885793bbae688a64abd2e9f4966694
+
+Result
+  episodes_admitted:     11
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:379f34d0768c0e4f82b039f00fe0615b64325f72e7a3ae01c602b6665c13721f

@@ -1,0 +1,28 @@
+[package]
+name        = "dsfb-gpu-debug-cuda"
+version     = "0.1.0"
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+publish.workspace      = true
+authors.workspace      = true
+repository.workspace   = true
+keywords.workspace     = true
+readme.workspace       = true
+description = "CUDA FFI bridge and kernel dispatch for dsfb-gpu-debug. Builds without nvcc unless the `cuda` feature is set."
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = []
+# Compiles `cuda/*.cu` via nvcc and links the kernel archive. Requires `nvcc`
+# on PATH at build time. Absent this feature the crate still builds; the
+# Rust-side dispatcher returns `GpuError::CudaUnavailable`.
+cuda    = []
+
+[dependencies]
+dsfb-gpu-debug-core = { version = "0.1.0", path = "../dsfb-gpu-debug-core", features = ["std"] }
+
+[lints]
+workspace = true

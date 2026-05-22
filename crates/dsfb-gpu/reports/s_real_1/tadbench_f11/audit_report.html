@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>S-REAL.1 audit — TADBench TrainTicket F11</title>
+<style>
+
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+       margin: 2rem; max-width: 1100px; color: #222; }
+h1 { border-bottom: 2px solid #444; padding-bottom: .25rem; }
+h2 { margin-top: 2rem; border-bottom: 1px solid #aaa; padding-bottom: .15rem; }
+h3 { margin-top: 1.25rem; color: #444; }
+p.subhead { color: #555; font-size: .95rem; margin-top: -.25rem; }
+p.note { color: #555; font-size: .9rem; max-width: 75ch; }
+table { border-collapse: collapse; margin: .5rem 0 1rem 0; }
+table.kv th { text-align: left; padding: .25rem .75rem .25rem 0; vertical-align: top; font-weight: 600; color: #333; }
+table.kv td { padding: .25rem 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9rem; }
+table.episodes, table.hashes { width: 100%; font-size: .85rem; }
+table.episodes th, table.episodes td,
+table.hashes th, table.hashes td { border-bottom: 1px solid #ddd; padding: .35rem .5rem; text-align: left; }
+table.episodes th, table.hashes th { background: #f4f4f4; font-weight: 600; }
+table.hashes td.hex { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .82rem; word-break: break-all; }
+table.hashes td.label { font-weight: 600; white-space: nowrap; }
+pre.law { background: #f8f8f8; border: 1px solid #ddd; padding: .75rem; font-size: .85rem;
+          overflow-x: auto; max-width: 100%; }
+ul.nonclaims li { margin: .25rem 0; color: #333; }
+code { background: #eee; padding: 1px 4px; border-radius: 3px; font-size: .9em; }
+</style>
+</head>
+<body>
+<h1>DSFB-GPU S-REAL.1 audit — TADBench TrainTicket F11</h1>
+<p class="subhead">Deterministic residual-densor audit on real public dataset bytes. Apache-2.0 reference implementation. Background IP: Invariant Forge LLC.</p>
+<div class="summary-card">
+<h2 class="summary-title">Dataset summary</h2>
+<table class="kv summary-kv">
+<tr><th>dataset</th><td>TADBench TrainTicket F11</td></tr>
+<tr><th>source class</th><td>DebuggingSoftwareTelemetry</td></tr>
+<tr><th>shape (entities × windows)</th><td>16 × 431</td></tr>
+<tr><th>finite cells (events emitted)</th><td>656</td></tr>
+<tr><th>NaN cells skipped</th><td>6240</td></tr>
+<tr><th>episodes admitted</th><td>90</td></tr>
+<tr><th>byte-identical replay</th><td>YES</td></tr>
+<tr><th>final_case_file_hash (first 16 hex)</th><td>23a8975841995421</td></tr>
+<tr><th>final_verdict</th><td>GpuReplayAdmissible</td></tr>
+</table>
+</div>
+<div class="replay-proof-card">
+<h2 class="summary-title">Replay proof</h2>
+<table class="kv summary-kv">
+<tr><th>byte-identical replay</th><td>YES</td></tr>
+<tr><th>casefile.json SHA-256</th><td>878430515e4b3fe2a5b77316a77ecaaf764e1b74fb85e798e25156775dde73ea</td></tr>
+<tr><th>episodes.jsonl SHA-256</th><td>15c1f0f40181192be037874f07f79cc01f7c327e42aeb3f366d6ee99303768de</td></tr>
+<tr><th>audit_report.html SHA-256</th><td>(externally pinned in replay_verification.txt — not embedded here because a self-referential hash is computationally infeasible)</td></tr>
+<tr><th>final_case_file_hash (full)</th><td>23a8975841995421e840b7d368f951206d99477c2c1146667c4fcaf88d5f70cc</td></tr>
+<tr><th>episode count (run 1)</th><td>90</td></tr>
+<tr><th>episode count (run 2)</th><td>90</td></tr>
+</table>
+</div>
+<h2>1. Input provenance</h2>
+<table class="kv">
+<tr><th>dataset_id</th><td>tadbench_f11</td></tr>
+<tr><th>display_name</th><td>TADBench TrainTicket F11</td></tr>
+<tr><th>upstream_doi_or_url</th><td>10.5281/zenodo.6979726</td></tr>
+<tr><th>license</th><td>CC-BY-4.0</td></tr>
+<tr><th>source_class</th><td>DebuggingSoftwareTelemetry</td></tr>
+<tr><th>vendored_path</th><td>data/fixtures/tadbench_trainticket_F11.tsv</td></tr>
+<tr><th>fixture_sha256</th><td>cdebdab01e310d4d02241b694b3771acfa9beca3060b0cee0e19fb237f65dc97</td></tr>
+<tr><th>fixture_byte_size</th><td>32806</td></tr>
+</table>
+<p class="note">The fixture bytes were SHA-256-verified before parsing. Any divergence from the pinned hash would have aborted the audit before any event was emitted.</p>
+<h2>2. Residual-projection lowering law</h2>
+<p>The upstream fixture is in <code>residual-projection v2</code> form (window-major × signal-minor TSV with NaN cells). The audit deterministically lowers each finite cell into one <code>TraceEvent</code> via the rule below:</p>
+<pre class="law">For each (window_idx, signal_idx, value) in fixture.rows.iter().enumerate()
+                                            .flat_map(|(w, row)| row.iter().enumerate()
+                                                                  .map(move |(s, v)| (w, s, v))):
+  if value is None (nan): skip; no event emitted for this cell
+  else:
+    ts_ns         = window_idx * window_size_ns
+    entity_id     = signal_idx
+    route_id      = 0
+    span_id       = window_idx * 65536 + signal_idx
+    parent_span_id = 0
+    latency_us    = clamp(value * value_to_microsecond_scale, 0, latency_clamp_us)
+    status_code   = 200
+    error_code    = 0
+    event_kind    = 0
+    flags         = 0
+</pre>
+<table class="kv">
+<tr><th>declared_num_windows</th><td>431</td></tr>
+<tr><th>declared_num_signals</th><td>16</td></tr>
+<tr><th>declared_healthy_window_end</th><td>172</td></tr>
+<tr><th>observed_num_windows</th><td>431</td></tr>
+<tr><th>observed_num_signals</th><td>16</td></tr>
+<tr><th>nan_cell_count</th><td>6240</td></tr>
+<tr><th>finite_cell_count</th><td>656</td></tr>
+<tr><th>emitted_event_count</th><td>656</td></tr>
+<tr><th>value_to_microsecond_scale</th><td>1000</td></tr>
+<tr><th>latency_clamp_us</th><td>32767000</td></tr>
+<tr><th>window_size_ns</th><td>1000000000</td></tr>
+</table>
+<p class="note">NaN cells produce no event. The audit does not claim DSFB-GPU saw the upstream's original trace events; it claims DSFB-GPU saw exactly the events the rule above produces from these bytes.</p>
+<h2>3. Run configuration</h2>
+<table class="kv">
+<tr><th>casefile_version</th><td>DSFB-GPU-DEBUG-CASE-0.1</td></tr>
+<tr><th>backend</th><td>cuda</td></tr>
+<tr><th>n_entities (= observed_num_signals)</th><td>16</td></tr>
+<tr><th>n_windows (= observed_num_windows)</th><td>431</td></tr>
+<tr><th>events_dispatched</th><td>656</td></tr>
+<tr><th>episodes_admitted</th><td>90</td></tr>
+<tr><th>final_verdict</th><td>GpuReplayAdmissible</td></tr>
+</table>
+<h2>4. Admitted episodes</h2>
+<p class="note">Episodes are listed in canonical order by <code>(entity_id, start_window, end_window)</code>. Each row reports the bank motif, reason code, and peak Q16.16 magnitudes the bank used to admit.</p>
+<table class="episodes">
+<thead><tr><th>idx</th><th>entity_id</th><th>start_window</th><th>end_window</th><th>motif</th><th>reason</th><th>peak_state</th><th>peak_residual_q</th><th>peak_drift_q</th><th>peak_slew_q</th><th>detector_bit_count</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>0</td><td>37</td><td>58</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>2147352576</td><td>268476006</td><td>2147287040</td><td>10</td></tr>
+<tr><td>1</td><td>0</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>13455261</td><td>22291861</td><td>13389725</td><td>7</td></tr>
+<tr><td>2</td><td>0</td><td>66</td><td>91</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td><td>Violation</td><td>13038059</td><td>10282941</td><td>11894390</td><td>8</td></tr>
+<tr><td>3</td><td>0</td><td>108</td><td>121</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>6757875</td><td>2807764</td><td>6692339</td><td>9</td></tr>
+<tr><td>4</td><td>0</td><td>122</td><td>130</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>9433317</td><td>3347834</td><td>6525812</td><td>8</td></tr>
+<tr><td>5</td><td>0</td><td>138</td><td>143</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>4638900</td><td>1215680</td><td>4573364</td><td>6</td></tr>
+<tr><td>6</td><td>0</td><td>190</td><td>191</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>829095</td><td>162091</td><td>763559</td><td>4</td></tr>
+<tr><td>7</td><td>0</td><td>242</td><td>252</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>18564186</td><td>5755859</td><td>13551010</td><td>9</td></tr>
+<tr><td>8</td><td>0</td><td>286</td><td>296</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td><td>Violation</td><td>4805033</td><td>933383</td><td>4739497</td><td>7</td></tr>
+<tr><td>9</td><td>0</td><td>371</td><td>373</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>870711</td><td>249974</td><td>805175</td><td>4</td></tr>
+<tr><td>10</td><td>0</td><td>386</td><td>392</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>6415122</td><td>961263</td><td>6349586</td><td>6</td></tr>
+<tr><td>11</td><td>0</td><td>410</td><td>415</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>6060834</td><td>856478</td><td>5995298</td><td>7</td></tr>
+<tr><td>12</td><td>0</td><td>422</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>99701751</td><td>12679372</td><td>99636215</td><td>8</td></tr>
+<tr><td>13</td><td>2</td><td>38</td><td>48</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>570187120</td><td>81616533</td><td>570121584</td><td>10</td></tr>
+<tr><td>14</td><td>2</td><td>52</td><td>58</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>12984647</td><td>18546590</td><td>12919111</td><td>7</td></tr>
+<tr><td>15</td><td>2</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>6356533</td><td>8834100</td><td>6290997</td><td>7</td></tr>
+<tr><td>16</td><td>2</td><td>67</td><td>85</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>7119372</td><td>4057666</td><td>7053836</td><td>9</td></tr>
+<tr><td>17</td><td>2</td><td>108</td><td>115</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5940117</td><td>1540549</td><td>5229117</td><td>9</td></tr>
+<tr><td>18</td><td>2</td><td>116</td><td>117</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>1016266</td><td>887739</td><td>950730</td><td>4</td></tr>
+<tr><td>19</td><td>2</td><td>122</td><td>126</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>1255014</td><td>659358</td><td>1189478</td><td>6</td></tr>
+<tr><td>20</td><td>2</td><td>138</td><td>139</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>1254424</td><td>318732</td><td>1188888</td><td>3</td></tr>
+<tr><td>21</td><td>2</td><td>245</td><td>252</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>12320309</td><td>3400993</td><td>12254773</td><td>8</td></tr>
+<tr><td>22</td><td>2</td><td>286</td><td>287</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>796590</td><td>175176</td><td>731054</td><td>4</td></tr>
+<tr><td>23</td><td>2</td><td>423</td><td>428</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>4624351</td><td>710272</td><td>4558815</td><td>7</td></tr>
+<tr><td>24</td><td>4</td><td>37</td><td>48</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>1363336298</td><td>316915197</td><td>1363270762</td><td>10</td></tr>
+<tr><td>25</td><td>4</td><td>52</td><td>58</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>19977076</td><td>68085041</td><td>19911540</td><td>7</td></tr>
+<tr><td>26</td><td>4</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>16744775</td><td>29978447</td><td>16679239</td><td>7</td></tr>
+<tr><td>27</td><td>4</td><td>67</td><td>85</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td><td>Violation</td><td>91228798</td><td>19406624</td><td>91163262</td><td>9</td></tr>
+<tr><td>28</td><td>4</td><td>108</td><td>121</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>12647006</td><td>3753534</td><td>6415843</td><td>8</td></tr>
+<tr><td>29</td><td>4</td><td>122</td><td>130</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>7040729</td><td>3172405</td><td>6975193</td><td>8</td></tr>
+<tr><td>30</td><td>4</td><td>138</td><td>143</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>6911688</td><td>1468859</td><td>6846152</td><td>7</td></tr>
+<tr><td>31</td><td>4</td><td>245</td><td>252</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>104397144</td><td>16339142</td><td>104331608</td><td>8</td></tr>
+<tr><td>32</td><td>4</td><td>286</td><td>291</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5346885</td><td>814788</td><td>5281349</td><td>7</td></tr>
+<tr><td>33</td><td>4</td><td>422</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>20098121</td><td>3013028</td><td>20032585</td><td>8</td></tr>
+<tr><td>34</td><td>6</td><td>38</td><td>58</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>281661734</td><td>35264702</td><td>281596198</td><td>10</td></tr>
+<tr><td>35</td><td>6</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5529468</td><td>4656024</td><td>5463932</td><td>6</td></tr>
+<tr><td>36</td><td>6</td><td>66</td><td>91</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>29110697</td><td>9023275</td><td>29045161</td><td>10</td></tr>
+<tr><td>37</td><td>6</td><td>108</td><td>119</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>5365956</td><td>954272</td><td>5054595</td><td>9</td></tr>
+<tr><td>38</td><td>6</td><td>121</td><td>127</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5420941</td><td>982922</td><td>5355405</td><td>9</td></tr>
+<tr><td>39</td><td>6</td><td>242</td><td>252</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>12788563</td><td>4300175</td><td>12723027</td><td>8</td></tr>
+<tr><td>40</td><td>6</td><td>253</td><td>261</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>15468724</td><td>3812511</td><td>15403188</td><td>8</td></tr>
+<tr><td>41</td><td>6</td><td>264</td><td>280</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td><td>Violation</td><td>16858611</td><td>5283177</td><td>16793075</td><td>8</td></tr>
+<tr><td>42</td><td>6</td><td>291</td><td>296</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>2693791</td><td>1059523</td><td>2628255</td><td>7</td></tr>
+<tr><td>43</td><td>6</td><td>412</td><td>417</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>4137287</td><td>683089</td><td>4071751</td><td>8</td></tr>
+<tr><td>44</td><td>6</td><td>427</td><td>431</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>8135704</td><td>1566418</td><td>8070168</td><td>8</td></tr>
+<tr><td>45</td><td>8</td><td>41</td><td>48</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>923868594</td><td>115540678</td><td>923803058</td><td>9</td></tr>
+<tr><td>46</td><td>8</td><td>52</td><td>58</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>13079150</td><td>30240961</td><td>13013614</td><td>7</td></tr>
+<tr><td>47</td><td>8</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>19039715</td><td>14970226</td><td>18974179</td><td>6</td></tr>
+<tr><td>48</td><td>8</td><td>67</td><td>85</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>34948186</td><td>9547252</td><td>34882650</td><td>8</td></tr>
+<tr><td>49</td><td>8</td><td>108</td><td>121</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td><td>Violation</td><td>6211567</td><td>1777575</td><td>6146031</td><td>8</td></tr>
+<tr><td>50</td><td>8</td><td>138</td><td>143</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>12310478</td><td>1680288</td><td>12244942</td><td>7</td></tr>
+<tr><td>51</td><td>8</td><td>246</td><td>252</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>9905831</td><td>2000419</td><td>9840295</td><td>7</td></tr>
+<tr><td>52</td><td>8</td><td>286</td><td>291</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5606932</td><td>768802</td><td>5541396</td><td>7</td></tr>
+<tr><td>53</td><td>8</td><td>423</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5981732</td><td>1340965</td><td>5916196</td><td>7</td></tr>
+<tr><td>54</td><td>10</td><td>39</td><td>58</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>58825900</td><td>10573012</td><td>58760364</td><td>10</td></tr>
+<tr><td>55</td><td>10</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>2943352</td><td>2270600</td><td>2877816</td><td>6</td></tr>
+<tr><td>56</td><td>10</td><td>66</td><td>91</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td><td>Violation</td><td>6636503</td><td>2415330</td><td>6570967</td><td>8</td></tr>
+<tr><td>57</td><td>10</td><td>108</td><td>129</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>12510101</td><td>2739523</td><td>12444565</td><td>10</td></tr>
+<tr><td>58</td><td>10</td><td>244</td><td>249</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>2321481</td><td>445495</td><td>2255945</td><td>10</td></tr>
+<tr><td>59</td><td>10</td><td>291</td><td>296</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5022351</td><td>745138</td><td>4956815</td><td>8</td></tr>
+<tr><td>60</td><td>10</td><td>324</td><td>335</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td><td>Violation</td><td>32452116</td><td>5383691</td><td>32386580</td><td>7</td></tr>
+<tr><td>61</td><td>10</td><td>371</td><td>372</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>660668</td><td>162216</td><td>595132</td><td>4</td></tr>
+<tr><td>62</td><td>10</td><td>387</td><td>392</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>6724386</td><td>909307</td><td>6658850</td><td>7</td></tr>
+<tr><td>63</td><td>10</td><td>410</td><td>411</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>846004</td><td>202215</td><td>780468</td><td>4</td></tr>
+<tr><td>64</td><td>10</td><td>423</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5773590</td><td>1011840</td><td>5708054</td><td>7</td></tr>
+<tr><td>65</td><td>10</td><td>430</td><td>431</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>1219624</td><td>634494</td><td>1154088</td><td>4</td></tr>
+<tr><td>66</td><td>12</td><td>40</td><td>48</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>353875001</td><td>44291444</td><td>353809465</td><td>10</td></tr>
+<tr><td>67</td><td>12</td><td>52</td><td>58</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5682692</td><td>10462880</td><td>5617156</td><td>7</td></tr>
+<tr><td>68</td><td>12</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>6442450</td><td>5260764</td><td>6376914</td><td>6</td></tr>
+<tr><td>69</td><td>12</td><td>67</td><td>83</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>12633309</td><td>3678859</td><td>12567773</td><td>9</td></tr>
+<tr><td>70</td><td>12</td><td>126</td><td>131</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>12341215</td><td>1642739</td><td>12275679</td><td>7</td></tr>
+<tr><td>71</td><td>12</td><td>138</td><td>139</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>696909</td><td>462133</td><td>631373</td><td>4</td></tr>
+<tr><td>72</td><td>12</td><td>245</td><td>252</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>12489392</td><td>2538490</td><td>12423856</td><td>9</td></tr>
+<tr><td>73</td><td>12</td><td>371</td><td>376</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5687083</td><td>768233</td><td>5621547</td><td>7</td></tr>
+<tr><td>74</td><td>12</td><td>387</td><td>388</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>1726349</td><td>356103</td><td>1660813</td><td>6</td></tr>
+<tr><td>75</td><td>12</td><td>413</td><td>420</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>12215975</td><td>1984217</td><td>12150439</td><td>8</td></tr>
+<tr><td>76</td><td>12</td><td>423</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5415436</td><td>1740896</td><td>5349900</td><td>6</td></tr>
+<tr><td>77</td><td>12</td><td>430</td><td>431</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>6258556</td><td>1591558</td><td>6193020</td><td>6</td></tr>
+<tr><td>78</td><td>14</td><td>41</td><td>58</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>459023122</td><td>57434994</td><td>458957586</td><td>10</td></tr>
+<tr><td>79</td><td>14</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>10041163</td><td>8968365</td><td>9975627</td><td>6</td></tr>
+<tr><td>80</td><td>14</td><td>67</td><td>85</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>115043794</td><td>21223674</td><td>114978258</td><td>10</td></tr>
+<tr><td>81</td><td>14</td><td>108</td><td>115</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>5414518</td><td>1288938</td><td>5348982</td><td>9</td></tr>
+<tr><td>82</td><td>14</td><td>116</td><td>117</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>717488</td><td>729806</td><td>651952</td><td>5</td></tr>
+<tr><td>83</td><td>14</td><td>245</td><td>261</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>27782283</td><td>6665242</td><td>27716747</td><td>9</td></tr>
+<tr><td>84</td><td>14</td><td>264</td><td>280</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td><td>Violation</td><td>20946223</td><td>7700997</td><td>20880687</td><td>9</td></tr>
+<tr><td>85</td><td>14</td><td>294</td><td>300</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>6361120</td><td>2074877</td><td>6295584</td><td>7</td></tr>
+<tr><td>86</td><td>14</td><td>307</td><td>312</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>11999510</td><td>1961998</td><td>11933974</td><td>7</td></tr>
+<tr><td>87</td><td>14</td><td>317</td><td>322</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>25442844</td><td>3736612</td><td>25377308</td><td>7</td></tr>
+<tr><td>88</td><td>14</td><td>423</td><td>425</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>790036</td><td>209383</td><td>724500</td><td>4</td></tr>
+<tr><td>89</td><td>14</td><td>427</td><td>431</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>8226078</td><td>1846457</td><td>8160542</td><td>10</td></tr>
+</tbody>
+</table>
+<h3>4a. Motif histogram</h3>
+<table class="histogram">
+<thead><tr><th>motif</th><th>count</th><th>percent</th></tr></thead>
+<tbody>
+<tr><td>ConfuserTransient</td><td>11</td><td>12.22 %</td></tr>
+<tr><td>LatencyRamp</td><td>20</td><td>22.22 %</td></tr>
+<tr><td>SlewShockRecovery</td><td>52</td><td>57.77 %</td></tr>
+<tr><td>SustainedDegradation</td><td>7</td><td>7.77 %</td></tr>
+</tbody>
+</table>
+<h3>4b. Reason-code histogram</h3>
+<table class="histogram">
+<thead><tr><th>reason_code</th><th>count</th><th>percent</th><th>plain-English meaning</th></tr></thead>
+<tbody>
+<tr><td>SustainedOutwardDrift</td><td>27</td><td>30.00 %</td><td>Drift remained above the violation threshold for multiple windows; DSFB interprets this structurally, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td>AbruptSlewViolation</td><td>52</td><td>57.77 %</td><td>Single-window slew shock crossed the violation threshold; DSFB interprets this structurally, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td>SingleCrossing</td><td>11</td><td>12.22 %</td><td>One-shot boundary crossing that did not re-enter on the next cell; DSFB interprets this structurally, not as a ground-truth causal diagnosis.</td></tr>
+</tbody>
+</table>
+<h3>4c. Entity summary</h3>
+<table class="summary">
+<thead><tr><th>entity_id</th><th>episode_count</th><th>first_window</th><th>last_window</th><th>max_detector_bit_count</th><th>dominant_motif</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>13</td><td>37</td><td>429</td><td>10</td><td>SlewShockRecovery</td></tr>
+<tr><td>2</td><td>11</td><td>38</td><td>428</td><td>10</td><td>SlewShockRecovery</td></tr>
+<tr><td>4</td><td>10</td><td>37</td><td>429</td><td>10</td><td>SlewShockRecovery</td></tr>
+<tr><td>6</td><td>11</td><td>38</td><td>431</td><td>10</td><td>SlewShockRecovery</td></tr>
+<tr><td>8</td><td>9</td><td>41</td><td>429</td><td>9</td><td>SlewShockRecovery</td></tr>
+<tr><td>10</td><td>12</td><td>39</td><td>431</td><td>10</td><td>SlewShockRecovery</td></tr>
+<tr><td>12</td><td>12</td><td>40</td><td>431</td><td>10</td><td>SlewShockRecovery</td></tr>
+<tr><td>14</td><td>12</td><td>41</td><td>431</td><td>10</td><td>SlewShockRecovery</td></tr>
+</tbody>
+</table>
+<h3>4d. Episode timeline (per-entity, time-ordered)</h3>
+<table class="timeline">
+<thead><tr><th>entity_id</th><th>start_window</th><th>end_window</th><th>motif</th><th>reason</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>37</td><td>58</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>0</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>0</td><td>66</td><td>91</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>0</td><td>108</td><td>121</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>0</td><td>122</td><td>130</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>0</td><td>138</td><td>143</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>0</td><td>190</td><td>191</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>0</td><td>242</td><td>252</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>0</td><td>286</td><td>296</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>0</td><td>371</td><td>373</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>0</td><td>386</td><td>392</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>0</td><td>410</td><td>415</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>0</td><td>422</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>2</td><td>38</td><td>48</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>2</td><td>52</td><td>58</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>2</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>2</td><td>67</td><td>85</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>2</td><td>108</td><td>115</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>2</td><td>116</td><td>117</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>2</td><td>122</td><td>126</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>2</td><td>138</td><td>139</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>2</td><td>245</td><td>252</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>2</td><td>286</td><td>287</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>2</td><td>423</td><td>428</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>4</td><td>37</td><td>48</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>4</td><td>52</td><td>58</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>4</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>4</td><td>67</td><td>85</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>4</td><td>108</td><td>121</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>4</td><td>122</td><td>130</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>4</td><td>138</td><td>143</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>4</td><td>245</td><td>252</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>4</td><td>286</td><td>291</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>4</td><td>422</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>6</td><td>38</td><td>58</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>6</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>6</td><td>66</td><td>91</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>6</td><td>108</td><td>119</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>6</td><td>121</td><td>127</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>6</td><td>242</td><td>252</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>6</td><td>253</td><td>261</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>6</td><td>264</td><td>280</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>6</td><td>291</td><td>296</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>6</td><td>412</td><td>417</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>6</td><td>427</td><td>431</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>8</td><td>41</td><td>48</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>8</td><td>52</td><td>58</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>8</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>8</td><td>67</td><td>85</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>8</td><td>108</td><td>121</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>8</td><td>138</td><td>143</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>8</td><td>246</td><td>252</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>8</td><td>286</td><td>291</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>8</td><td>423</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>10</td><td>39</td><td>58</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>10</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>10</td><td>66</td><td>91</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>10</td><td>108</td><td>129</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>10</td><td>244</td><td>249</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>10</td><td>291</td><td>296</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>10</td><td>324</td><td>335</td><td>SustainedDegradation</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>10</td><td>371</td><td>372</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>10</td><td>387</td><td>392</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>10</td><td>410</td><td>411</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>10</td><td>423</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>10</td><td>430</td><td>431</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>12</td><td>40</td><td>48</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>12</td><td>52</td><td>58</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>12</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>12</td><td>67</td><td>83</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>12</td><td>126</td><td>131</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>12</td><td>138</td><td>139</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>12</td><td>245</td><td>252</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>12</td><td>371</td><td>376</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>12</td><td>387</td><td>388</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>12</td><td>413</td><td>420</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>12</td><td>423</td><td>429</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>12</td><td>430</td><td>431</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>14</td><td>41</td><td>58</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>14</td><td>59</td><td>64</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>14</td><td>67</td><td>85</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>14</td><td>108</td><td>115</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>14</td><td>116</td><td>117</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>14</td><td>245</td><td>261</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>14</td><td>264</td><td>280</td><td>LatencyRamp</td><td>SustainedOutwardDrift</td></tr>
+<tr><td>14</td><td>294</td><td>300</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>14</td><td>307</td><td>312</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>14</td><td>317</td><td>322</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>14</td><td>423</td><td>425</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>14</td><td>427</td><td>431</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+</tbody>
+</table>
+<h3>4e. Top structural spans</h3>
+<h4>4e(a). Longest spans</h4>
+<table class="summary">
+<thead><tr><th>rank</th><th>length_windows</th><th>entity_id</th><th>start</th><th>end</th><th>motif</th><th>detector_bit_count</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>25</td><td>6</td><td>66</td><td>91</td><td>LatencyRamp</td><td>10</td></tr>
+<tr><td>2</td><td>25</td><td>0</td><td>66</td><td>91</td><td>SustainedDegradation</td><td>8</td></tr>
+<tr><td>3</td><td>25</td><td>10</td><td>66</td><td>91</td><td>SustainedDegradation</td><td>8</td></tr>
+<tr><td>4</td><td>21</td><td>0</td><td>37</td><td>58</td><td>LatencyRamp</td><td>10</td></tr>
+<tr><td>5</td><td>21</td><td>10</td><td>108</td><td>129</td><td>LatencyRamp</td><td>10</td></tr>
+<tr><td>6</td><td>20</td><td>6</td><td>38</td><td>58</td><td>LatencyRamp</td><td>10</td></tr>
+<tr><td>7</td><td>19</td><td>10</td><td>39</td><td>58</td><td>LatencyRamp</td><td>10</td></tr>
+<tr><td>8</td><td>18</td><td>14</td><td>67</td><td>85</td><td>LatencyRamp</td><td>10</td></tr>
+<tr><td>9</td><td>18</td><td>2</td><td>67</td><td>85</td><td>LatencyRamp</td><td>9</td></tr>
+<tr><td>10</td><td>18</td><td>4</td><td>67</td><td>85</td><td>SustainedDegradation</td><td>9</td></tr>
+</tbody>
+</table>
+<h4>4e(b). Highest-repeated entities</h4>
+<table class="summary">
+<thead><tr><th>rank</th><th>entity_id</th><th>episode_count</th><th>dominant_motif</th><th>dominant_reason_code</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>0</td><td>13</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>2</td><td>10</td><td>12</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>3</td><td>12</td><td>12</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>4</td><td>14</td><td>12</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>5</td><td>2</td><td>11</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+</tbody>
+</table>
+<h4>4e(c). Most-recurrent reason codes</h4>
+<table class="summary">
+<thead><tr><th>rank</th><th>reason_code</th><th>count</th><th>severity</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>AbruptSlewViolation</td><td>52</td><td>5</td></tr>
+<tr><td>2</td><td>SustainedOutwardDrift</td><td>27</td><td>6</td></tr>
+<tr><td>3</td><td>SingleCrossing</td><td>11</td><td>1</td></tr>
+</tbody>
+</table>
+<h3>4f. Plain-English motif glossary</h3>
+<p class="note">Every DSFB motif describes a STRUCTURAL residual shape. DSFB interprets each motif structurally, not as a ground-truth causal diagnosis. The glossary covers all eight motifs even if some did not fire on this dataset.</p>
+<table class="summary glossary">
+<thead><tr><th>motif</th><th>structural interpretation</th></tr></thead>
+<tbody>
+<tr><td class="label">LatencyRamp</td><td>Sustained directional increase in residual latency-projection cells across a contiguous window span; DSFB interprets this as recurrent directional latency structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">ErrorBurst</td><td>Concentrated burst of error-projection cells in a short window range; DSFB interprets this as locally concentrated error structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">SlewShockRecovery</td><td>Abrupt slew shock followed by a recovery edge in the same entity; DSFB interprets this as transient slew + recovery structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">SustainedDegradation</td><td>Persistent elevation of residual magnitude over many windows without recovery; DSFB interprets this as sustained structural degradation, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">OscillationInstability</td><td>Repeated alternation across the boundary band without sustained commitment; DSFB interprets this as oscillatory structural pattern, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">LocalizedRouteFault</td><td>Episode bounded to a specific entity/route locality with neighbouring entities admissible; DSFB interprets this as locality-confined structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">FanoutCascadeCandidate</td><td>Co-occurrence pattern across multiple entities consistent with fan-out cascade structure; DSFB interprets this as multi-entity structural co-firing, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">ConfuserTransient</td><td>Confuser-like transient that fired but did not sustain into a full motif; DSFB interprets this structurally as transient near-violation, not as a ground-truth causal diagnosis.</td></tr>
+</tbody>
+</table>
+<h2>5. Stage digest / hash chain</h2>
+<p class="note">Every per-stage hash links into the next via the canonical DSFB-GPU chain. A reader can replay the dispatch and confirm every hex value below byte-for-byte.</p>
+<table class="hashes">
+<thead><tr><th>chain link</th><th>sha256 (hex)</th></tr></thead>
+<tbody>
+<tr><td class="label">h_input_catalog</td><td class="hex">9489eca2af629ce6f38f5fe27ad7e479bb395b399bf1e46823cf092817f93f0e</td></tr>
+<tr><td class="label">h_contract</td><td class="hex">cc26f4c210c91f65fa416d1bb988d0b97c2e816c6e17ad252539535d4295c9a8</td></tr>
+<tr><td class="label">h_bank</td><td class="hex">6ded620900fefc94468a6f0952a51a750b8eb8a32407bf801909494f8754d184</td></tr>
+<tr><td class="label">h_detector_registry</td><td class="hex">1cfe825c9a445ab7ec98d480e80af8e7ff42b6f8af545d1f03d6648c6997390d</td></tr>
+<tr><td class="label">h_kernel_sequence</td><td class="hex">475480b4ccc9ff465b9208aed1a8e6895fd5637106650fc73889bb682800effb</td></tr>
+<tr><td class="label">h_window_feature</td><td class="hex">09158a50620e338e1ca25422cefe89d51f54fbbba93e1bfd7ae067b8ed18b8e4</td></tr>
+<tr><td class="label">h_residual_field</td><td class="hex">5c69a808f03717336e0c22a6ad7260960d7270a54075816f63708119208fe67d</td></tr>
+<tr><td class="label">h_sign_field</td><td class="hex">2e4fae4f5822676d47b6075d212e29f74b4cfea24a7a05ca1c8943a311a84a16</td></tr>
+<tr><td class="label">h_detector_cell</td><td class="hex">32ddc0700d3c370adac7d8dbbc981aa069544521e3d9201496c6bdbd15701410</td></tr>
+<tr><td class="label">h_consensus_grid</td><td class="hex">dac42ef769d85d4405a8b19d512c183959f8ea7063e263a052a0c7503fa34d73</td></tr>
+<tr><td class="label">h_candidate_interval</td><td class="hex">663ab15e51028c0823b0647661c7ea1696ad83e9d0d8ced1e69e0bbf32b7a9f4</td></tr>
+<tr><td class="label">h_episode</td><td class="hex">5c7a0cd0e9aebcc358e9af1af229caa5b53c68645a56c767dd3e184a18628a05</td></tr>
+<tr><td class="label">final_case_file_hash</td><td class="hex">23a8975841995421e840b7d368f951206d99477c2c1146667c4fcaf88d5f70cc</td></tr>
+</tbody>
+</table>
+<h2>6. Replay verification</h2>
+<table class="kv">
+<tr><th>run_count</th><td>2</td></tr>
+<tr><th>casefile_json_sha256_run1</th><td>878430515e4b3fe2a5b77316a77ecaaf764e1b74fb85e798e25156775dde73ea</td></tr>
+<tr><th>casefile_json_sha256_run2</th><td>878430515e4b3fe2a5b77316a77ecaaf764e1b74fb85e798e25156775dde73ea</td></tr>
+<tr><th>episodes_jsonl_sha256_run1</th><td>15c1f0f40181192be037874f07f79cc01f7c327e42aeb3f366d6ee99303768de</td></tr>
+<tr><th>episodes_jsonl_sha256_run2</th><td>15c1f0f40181192be037874f07f79cc01f7c327e42aeb3f366d6ee99303768de</td></tr>
+<tr><th>final_case_file_hash_run1</th><td>23a8975841995421e840b7d368f951206d99477c2c1146667c4fcaf88d5f70cc</td></tr>
+<tr><th>final_case_file_hash_run2</th><td>23a8975841995421e840b7d368f951206d99477c2c1146667c4fcaf88d5f70cc</td></tr>
+<tr><th>episode_count_run1</th><td>90</td></tr>
+<tr><th>episode_count_run2</th><td>90</td></tr>
+<tr><th>byte_identical_replay</th><td>true</td></tr>
+</table>
+<h3>Toolchain identity</h3>
+<table class="kv">
+<tr><th>backend</th><td>cuda</td></tr>
+<tr><th>cuda_version</th><td>13.2</td></tr>
+<tr><th>dsfb_gpu_debug_demo_version</th><td>0.1.0</td></tr>
+<tr><th>gpu_name</th><td>RTX 4080 SUPER</td></tr>
+</table>
+<p class="note">Replay determinism is asserted only for the recorded toolchain. The audit does not claim replay byte-identity across different driver, CUDA, or hardware versions.</p>
+<h2>7. Limitations and non-claims</h2>
+<ul class="nonclaims">
+<li>Does NOT claim DSFB has identified the &quot;real&quot; anomaly in the dataset.</li>
+<li>Does NOT claim DSFB outperforms any other anomaly detector.</li>
+<li>Does NOT claim DSFB has discovered causality.</li>
+<li>Does NOT claim DSFB has measured remediation effectiveness.</li>
+<li>Does NOT claim fitness-for-purpose on regulated or safety-critical use.</li>
+<li>Does NOT claim the dataset is &quot;correctly labeled&quot; or &quot;ground truth&quot;; the audit report describes deterministic structure DSFB-GPU saw, not labels.</li>
+<li>Does NOT claim the corpus or registry is exhaustive.</li>
+<li>Does NOT claim replay determinism across different driver / CUDA / hardware versions; the replay receipt records the toolchain explicitly.</li>
+</ul>
+</body>
+</html>

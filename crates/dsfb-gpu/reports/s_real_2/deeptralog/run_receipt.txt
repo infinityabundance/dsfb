@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 deeptralog
+display_name:            DeepTraLog F01-02 (Zhang et al. ICSE 2022)
+license:                 no-upstream-license
+upstream_doi_or_url:     github.com/FudanSELab/DeepTraLog
+
+Input
+  vendored_path:         data/fixtures/deeptralog.tsv
+  fixture_sha256:        90f2625258b4f823e317a331a8b800dbc0c13c4ee3182b81be6c06a9aaef1853
+  fixture_byte_size:     17657
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               1672
+  nan_cells_skipped:          56
+  events_emitted:             1672
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 16
+  n_windows  (= observed_num_windows): 108
+  contract_hash:         sha256:5ce0b8c96cce545f7264a61e0c795697daffb62c099b402d30b717350c720e1e
+  bank_hash:             sha256:379ae475400106411ea8ab681808b871dca7cd380d8a00bfeba88a76997d1672
+  detector_registry_hash: sha256:0a06b0a49fddb2c4f14000426c85690e05ea55e6bd7ce404983f8a5f522a31a5
+
+Result
+  episodes_admitted:     3
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:99430c33871d13dd53ad6580d9f886372311869e6e5cbcc89504433a555c9b01

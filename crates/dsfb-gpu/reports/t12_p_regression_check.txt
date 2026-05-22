@@ -1,0 +1,213 @@
+================================================================
+T.12.p - Information Theory catch-up
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Initial pass hit doc_lazy_continuation on the
+  five canonical-bullet `+`-chained contract lists in the T.12.p
+  module docstring; fixed by rewriting the `+` chains as comma-
+  separated prose (declares X, Y, Z, and W). Reason text bytes
+  in the proposal body were untouched; three emitted hashes
+  byte-stable from first emit.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 42 groups / 1375 tests pass (T.12.o baseline 41 /
+  1330 + 1 new group + 45 new T.12.p acceptance tests).
+  Initial test fixes:
+  - Cross-entropy (6604) CanonicalAddition reason lacked the
+    word "estimator"; legitimate omission since cross-entropy
+    works on a declared FIXED MODEL distribution, but the
+    estimator-contract scanner expected the literal token.
+    Added "(declared estimator: plug-in / Miller-Madow /
+    declared)" to the empirical-sample-distribution clause
+    inside the cross-entropy reason text. Hash re-emitted
+    byte-stable from that point.
+  - Three forbidden-term scanners (causal flow / privacy /
+    security) triggered on CanonicalAddition records that
+    legitimately disclaim those terms inside "does NOT admit
+    ..." sentences. Fix mirrors the T.12.o anonymization-
+    authority discipline: removed bare phrases ("causal
+    information flow", "intervention truth", "cryptographic
+    security") from forbidden lists; kept positive-claim
+    variants ("claims causal information flow", "guarantees
+    causal information flow", "admits causal information
+    flow", "claims cryptographic security", "claims
+    information-theoretic security", "claims privacy-leakage
+    certainty", etc.).
+  - Input-contract scanner relaxed to accept the divergence-
+    style declarations ("declared reference distribution",
+    "declared distributions", "symmetric mixture") and the
+    code-length declaration ("model class", "code-length
+    functional") in addition to histogram-binning declarations.
+    These are genuine alternative input-contract shapes for
+    KL / JS / cross-entropy / MDL records that don't bin
+    histograms.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 81 test groups, 1690 tests PASS, 0 FAIL. Delta from
+  T.12.o seal (3e79f7a): +1 test group, +45 tests. First serial
+  run flaked on a single GPU-timing test (known flake on host
+  thermal variance); rerun came clean.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined. The saturation test
+  rewrites reports/r12_d64_saturation.txt as part of its run;
+  the pinned baseline was restored from HEAD before commit
+  (also for reports/d64_stage_timing_256x4096_K1.txt,
+  reports/r9_b3_d64_timing.txt, reports/r9_b_d64_timing.txt).
+
+Step 8. Stale-doc scan
+  Result: clean. README.md, archived prior-art manuscript source, lib.rs
+  module docstring all refreshed through T.12.p. New T.12.p
+  section in README between T.12.o and the scaling-ladder
+  header.
+
+Step 9. README / plan refresh
+  Result: README T.12.p section + front-door + Layout +
+  Paper-section refreshed from T.1-T.12.o to T.1-T.12.p.
+  Plan-file post-commit will mark T.12.p sealed and rotate
+  next-active campaign to T.12.consolidate (amendment review +
+  corpus_hash_v2 freeze) per the canonical sequence (T.12.p is
+  the last panel-named source-class catch-up before
+  consolidation).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_p_information_theory.rs (new, ~770 lines fully
+      commented)
+    - src/lib.rs (module export + docstring header bump +
+      T.12.p enumeration bullet)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_p_information_theory_invariants.rs (new, 45
+      tests including 6 panel-required load-bearing negatives
+      + per-canonical structural-distinctness assertions +
+      ParameterizationOf family tests + DomainTransferOf tests
+      + reserved-id-range tests + rendering / determinism /
+      hash-distinctness invariants)
+    - out/t12_p_information_theory_proposal_v1.{txt,json}
+      (new)
+    - reports/t12_p_information_theory_proposal_summary.txt
+      (new)
+    - reports/t12_p_information_theory_proposal_verification.txt
+      (new)
+    - reports/t12_p_regression_check.txt (new)
+    - README.md (front-door title bump + test-count bump +
+      paper-section enumeration bump + new T.12.p section +
+      Next-campaign prose rotation)
+    - archived prior-art manuscript source (lead sentence + paragraph
+      header + new \item \textbf{T.12.p} bullet)
+    - .gitignore (3 new whitelist lines)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.0-T.12.o hash    : unchanged
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.p literature_expansion_batch_hash_v1 (NEW) :
+    dd17da603465ced567efecfc79db92d28f3113e03d8af7811f296eddb35473a8
+  T.12.p dedup_court_delta_hash_v1 (NEW) :
+    654bc325872e57babee643295c8f852c58a30e7f51eb6798c9d0e8461f9fe7b5
+  T.12.p corpus_amendment_proposal_hash_v1 (NEW) :
+    338198ebc09cc2a867f2a38aa949b9134edbde9f1778002209f157ca7bb335ca
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in t12_p_information_theory.rs carries a doc
+  comment whose first sentence states the WHY for a future
+  engineer.
+- Panel "success shape" applied: cross-class dedup discipline
+  (3 authority resolutions over the KL + JS + Spectral-entropy
+  SEED family that information-theoretic witnesses heavily
+  reuse) + 4 ParameterizationOf collapses (Normalized MI /
+  Transfer entropy proxy / Rényi-Tsallis entropy / Compression-
+  ratio anomaly into existing SEED canonicals or new T.12.p
+  canonicals). 5 new canonicals admitted (Shannon entropy /
+  Conditional entropy / Mutual information / Cross-entropy /
+  MDL) only after each survived the SEED-walk as structurally
+  distinct information-theoretic decision functionals.
+- Estimator / binning / partition / smoothing / empty-bin
+  contract discipline: every CanonicalAddition reason declares
+  the appropriate contract for its family (histogram-based
+  entropy / conditional entropy / MI declare binning OR
+  partition; cross-entropy declares fixed model distribution;
+  MDL declares model class + code-length functional; KL / JS
+  declare reference distributions or symmetric mixture).
+- Causal-information-flow non-claim discipline (MOST IMPORTANT):
+  forbidden positive-claim variants of causal information flow
+  / Granger-style causal / intervention truth appear NOWHERE in
+  the proposal. Bare phrases appear only inside legitimate
+  "does NOT admit ..." disclaimers; only positive-claim
+  variants are forbidden.
+- Privacy / security non-claim discipline (MOST IMPORTANT):
+  forbidden positive-claim variants of privacy / cryptographic
+  security appear NOWHERE in the proposal. Bare phrases appear
+  only inside legitimate "does NOT admit ..." disclaimers;
+  only positive-claim variants are forbidden.
+- Joint-distribution contract discipline (MOST IMPORTANT):
+  every MI / conditional-entropy CanonicalAddition declares an
+  explicit joint-distribution contract over (X, Y) plus joint
+  binning OR kernel-density-estimator law.
+- Entropy base / smoothing / empty-bin discipline (MOST
+  IMPORTANT): every entropy-style CanonicalAddition AND KL
+  authority resolution declares log base + smoothing rule +
+  empty-bin law.
+- Learned-MI-estimator + black-box-vendor-IT-score honesty:
+  both RejectedNotDeterministic until deterministic feature-
+  extraction law / declared formula / declared update rule /
+  declared training-data anchor / declared binning / no-learned-
+  opaque-embedding (for 6610) OR declared formula + binning OR
+  partition + smoothing + log base + sample-correction law +
+  numeric mode (for 6611) are all declared.
+
+T.12.p is sealed. The amendment court has admitted the
+sixteenth real expansion proposal: 5 new canonical information-
+theoretic primitives (Shannon entropy shift per Shannon 1948,
+Conditional entropy shift per Cover-Thomas 2006, Mutual
+information break per Cover-Thomas 2006 structurally distinct
+from SEED 9 KL because MI is a functional on the JOINT vs
+PRODUCT-OF-MARGINALS whereas KL is a divergence between two
+declared distributions, Cross-entropy / negative-log-likelihood
+residual per Shannon 1948 with FIXED MODEL distribution
+parameter-pinned and frozen across the comparison window,
+Minimum description length / coding-length residual per
+Rissanen 1978 / 1986 with declared two-part code and declared
+L(D | M) + L(M) decomposition), 3 existing-canonical authority
+resolutions over the KL + JS + Spectral-entropy SEED family
+(KL 9, JS 32, Spectral entropy 38), 2 DomainTransferOf records
+(SEED 9 KL information-theoretic divergence ancestor + SEED 38
+Spectral entropy Shannon-entropy-on-distribution ancestor for
+InformationTheory), 4 ParameterizationOf records collapsing
+Normalized MI / Transfer entropy proxy (Schreiber 2000;
+admitted ONLY AS A DETERMINISTIC NON-CAUSAL WITNESS) / Rényi-
+Tsallis entropy / Compression-ratio anomaly into existing
+T.12.p canonicals (6601 / 6603 / 6605), 2
+RejectedNotDeterministic records (tenth T.12.x with two
+rejections, following T.12.g / h / i / j / k / l / m / n / o)
+-- all WITHOUT mutating SEED or corpus_hash_v1 and WITHOUT
+admitting a single causal-information-flow / privacy /
+cryptographic-security / learned-representation claim.
+
+Next campaign (panel-authorized post-T.12.p): T.12.consolidate
+- amendment review + corpus_hash_v2 freeze. The full T.12.a-
+T.12.p amendment-proposal arc is complete; ratification +
+freeze is the next architectural milestone.

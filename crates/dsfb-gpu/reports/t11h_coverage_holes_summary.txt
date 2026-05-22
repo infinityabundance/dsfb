@@ -1,0 +1,119 @@
+================================================================
+T.11h - CoverageHoleReportV1 summary receipt
+================================================================
+Schema:          DSFB-GPU-ATLAS:COVERAGE-HOLES:v1
+Domain sep:      DSFB-GPU-ATLAS:COVERAGE-HOLES:v1\0
+Hash:            coverage_hole_hash_v1 =
+                 671e2164001a6cb16024f7ece8f6217dc0fad7d251521f8dbd2f3da023f96d32
+
+Audit posture:   AUDIT-ONLY. The receipt surfaces structural
+                 coverage gaps; it does NOT repair them, does
+                 NOT mutate any upstream hash anchor, does NOT
+                 issue verdicts.
+
+Upstream hash anchors UNCHANGED (panel-locked):
+  corpus_hash_v1                            = 35c276c7...
+  registry_hash_v2                          = d3cf6300...
+  precedent_hash_v1                         = 6721f511...
+  admissibility_grammar_hash_v1             = ff66706a...
+  trial_transcript_hash_v1                  = 37618a45...
+  execution_attestation_receipt_hash_v1     = (per build; recorded in T.11e)
+  challenge_docket_hash_v1                  = dde4ecb4...
+  detector_contraindication_hash_v1         = (per build; recorded in T.11g)
+  Every DetectorPassport hash               = unchanged (separate crosswalk)
+
+Roster (deterministically derived from SEED + every T.11 surface):
+  Total holes        : 224
+  Severity Critical  :   0
+  Severity High      :   0
+  Severity Medium    :  34
+  Severity Low       : 190
+
+Hole-kind histogram:
+  DetectorCoverage             : 162
+  WitnessLawCoverage           :  29
+  ImplementationCoverage       :  21
+  SemanticsCoverage            :   0   (honest-empty; T.11g
+                                        derivation populates
+                                        sampling-law + unit
+                                        semantics for every
+                                        receipt by construction)
+  JurisprudenceCoverage        :   1
+  SourceProvenanceCoverage     :  11
+  ReasonCodeCoverage entries   :   7 surfaces tallied (headline metric)
+
+Status histogram:
+  Open             :   0
+  Acknowledged     :  13
+  DeferredToGate   : 211
+  Resolved         :   0
+
+Reason-Code Coverage (headline metric, per surface):
+  Attestation        :   1 /   1   (100%)
+  ChallengeDocket    :  10 /  10   (100%)
+  Contraindication   :  54 /  54   (100%)
+  Corpus             :  54 /  54   (100%)
+  Grammar            :  18 /  18   (100%)
+  Precedent          :  83 /  83   (100%)
+  Transcript         :   1 /   1   (100%)
+
+  Every T.11 surface is 100% reason-coded by construction. The
+  headline metric exists to make that fact auditable in one
+  place rather than asking a reader to trust the implementation.
+
+13 verifier reject kinds (each pinned by an acceptance test;
+three load-bearing negatives panel-required):
+   1. CriticalHoleWithoutResolutionGate (load-bearing #1)
+   2. MissingContraindicationClaimWhenDetectorLacksCrosswalk
+      (load-bearing #2)
+   3. ReasonCoverageRowWithImpossibleDenominator
+      (load-bearing #3)
+   4. DuplicateHoleId
+   5. HoleSubjectDetectorMissing
+   6. SubjectFamilyMissing
+   7. EvidenceSeedRecordMissing
+   8. EvidencePrecedentMissing
+   9. EvidenceChallengeMissing
+  10. ReasonCoverageRowCoveredExceedsRequired
+  11. MissingReasonCoverageSurface
+  12. UnknownReasonCoverageSurface
+  13. EmptyHoleRosterButReasonCoverageNonZero
+
+CLI surface:
+  dsfb-corpus coverage-holes        [--json] [--out PATH]
+  dsfb-corpus coverage-holes-emit   --out-dir <DIR>
+
+Bulk artifacts:
+  crates/dsfb-gpu-atlas-corpus/out/coverage_holes_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/coverage_holes_v1.json
+
+Test suite: 52 acceptance tests at
+  crates/dsfb-gpu-atlas-corpus/tests/coverage_hole_invariants.rs
+
+Panel-locked non-claims:
+  - Does NOT mutate corpus_hash_v1, registry_hash_v2,
+    precedent_hash_v1, admissibility_grammar_hash_v1,
+    trial_transcript_hash_v1,
+    execution_attestation_receipt_hash_v1,
+    challenge_docket_hash_v1, detector_contraindication_hash_v1,
+    or any DetectorPassport hash.
+  - Does NOT resolve any T.11f ChallengeDocket entry.
+  - Does NOT implement S1.3 ActivationPlanner, S1.3a OTel
+    binding, or T.11i NullVerdict / CorpusAmendment /
+    RetirementCase.
+  - Does NOT repair any hole (resolution gates are markers,
+    not actions).
+  - Does NOT change D16 / D64 / D128 / D205 GPU behaviour.
+  - Does NOT claim datasheet-for-datasets / model-card /
+    NIST AI RMF / SLSA / in-toto / SPDX / CycloneDX
+    compatibility on coverage_hole_hash_v1.
+
+R.12b D64 baseline NOT rebaselined; pinned R.12b episode
+counts (13/89/1917 for canonical/mid/full at K=1) byte-stable.
+
+The Atlas court records coverage gaps as deterministic
+evidence. It does not pretend they don't exist; it does not
+silently repair them. The next surfaces (S1.3 activation
+planner; T.11i NullVerdict / CorpusAmendment / RetirementCase;
+future hand-curated contraindication overrides) consume this
+audit baseline as input.

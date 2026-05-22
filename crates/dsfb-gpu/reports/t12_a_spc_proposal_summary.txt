@@ -1,0 +1,162 @@
+================================================================
+T.12.a - Statistical Process Control: first real corpus
+expansion proposal summary receipt
+================================================================
+Filed through:    T.12.0 amendment court (sealed at c5cfe5a)
+Schema:           DSFB-GPU-ATLAS:CORPUS-AMENDMENT-PROPOSAL:v1
+Hash:             corpus_amendment_proposal_hash_v1 =
+                  ae493a850c77ef681ef15ba5a5e11d77bc09446618ed6b1f6e6155feb1a8e92a
+
+Panel-locked thesis (commit identity):
+
+  T.12.a files the first real corpus expansion proposal:
+  Statistical Process Control. It proposes canonical SPC
+  primitives, collapses known aliases and rule-set
+  compositions, emits a dedup-court delta, and proves the
+  literature corpus can grow without mutating the frozen
+  T.10 corpus hash.
+
+This is a proposal, NOT a corpus mutation. SEED.len() stays
+at 54 records. A future formal freeze campaign produces
+corpus_hash_v2 once the court has ratified.
+
+Upstream hash anchors UNCHANGED (panel-locked):
+  corpus_hash_v1                              = 35c276c7...
+  registry_hash_v2                            = d3cf6300...
+  precedent_hash_v1                           = 6721f511...
+  admissibility_grammar_hash_v1               = ff66706a...
+  trial_transcript_hash_v1                    = 37618a45...
+  execution_attestation_receipt_hash_v1       = (per build)
+  challenge_docket_hash_v1                    = dde4ecb4...
+  detector_contraindication_hash_v1           = 1b899f5d...
+  coverage_hole_hash_v1                       = 671e2164...
+  activation_plan_hash_v1                     = 5a81da47...
+  activation_diff_hash_v1                     = 469536e7...
+  task_manifest_hash_v1                       = 88a33338...
+  dataset_manifest_hash_v1                    = 3864db34...
+  activation_context_hash_v1                  = 4948bf45...
+  T.12.0 proof-of-life proposal hash          = 325bbf3d...
+  Every DetectorPassport hash                 = unchanged
+  SEED.len()                                  = 54 (unchanged)
+
+NEW (this commit, T.12.a):
+  corpus_amendment_proposal_hash_v1 (SPC) =
+    ae493a850c77ef681ef15ba5a5e11d77bc09446618ed6b1f6e6155feb1a8e92a
+  literature_expansion_batch_hash_v1 (SPC batch) = (folded
+    into proposal hash above)
+  dedup_court_delta_hash_v1 (SPC delta) = (folded into
+    proposal hash above)
+
+Proposed primitives (2 new canonical reservations, IDs above
+SEED range):
+  5001: MEWMA  (Multivariate Exponentially Weighted Moving
+                Average chart; Lowry et al. 1992)
+  5002: MCUSUM (Multivariate CUSUM chart; Crosier 1988)
+
+Proposed aliases (3 collapses against existing SEED
+canonicals):
+  Alias 5101: "Q statistic (PCA / PLS literature)" -> SEED id 20
+              (PCA SPE / Q residual)
+  Alias 5102: "Squared Prediction Error (SPE)"     -> SEED id 20
+              (PCA SPE / Q residual)
+  Alias 5103: "Hotelling T-square chart"           -> SEED id 5
+              (Hotelling T-squared)
+
+Proposed dedup-court records (5):
+  1. Canonical (MEWMA reservation, id 5001)
+  2. Canonical (MCUSUM reservation, id 5002)
+  3. CompositionOf (Western Electric, SEED id 16, comp of
+     Shewhart)
+  4. CompositionOf (Nelson, SEED id 17, comp of Shewhart +
+     Western Electric)
+  5. AliasOf (PCA_SPE_Q_RESIDUAL, SEED id 20; documents
+     the 3 new alias collapses court-side)
+
+Proposed genealogy edges (4):
+  MEWMA            DerivedFrom EWMA            (5001 -> 2)
+  MCUSUM           DerivedFrom CUSUM           (5002 -> 3)
+  Western Electric Composes    Shewhart        (16 -> 1)
+  Nelson           Composes    Western Electric (17 -> 16)
+
+Proposed source refs (4):
+  lowry_mewma_1992       Technometrics 34(1)
+  crosier_mcusum_1988    Technometrics 30(3)
+  western_electric_1956  Western Electric Company
+  nelson_runs_1984       Journal of Quality Technology 16(4)
+
+Dedup-court delta summary:
+  new_canonical_records   : 2 (MEWMA, MCUSUM)
+  new_alias_records       : 3 (Q-stat, SPE, Hotelling-Tsq)
+  new_composition_records : 2 (Western Electric, Nelson)
+  rejection_records       : 0
+  deferred_records        : 0
+
+Page-Hinkley note (panel-locked guidance):
+  Page-Hinkley is already canonical in SEED at id 4. The
+  panel verdict cautioned that Page-Hinkley is SPC-adjacent
+  and sequential-change-detection-adjacent. T.12.a takes the
+  "leave final authority to T.12.b" path — Page-Hinkley is
+  NOT touched by this proposal. Pinned by the
+  `t12_a_does_not_touch_page_hinkley` acceptance test. T.12.b
+  authors: surface Page-Hinkley in your dedup court delta as
+  the cross-class authority resolution.
+
+CLI surface (new):
+  dsfb-corpus t12-a-spc-proposal      [--json] [--out PATH]
+  dsfb-corpus t12-a-spc-proposal-emit [--out-dir DIR]
+
+Bulk artifacts (two builds produce byte-identical bytes):
+  crates/dsfb-gpu-atlas-corpus/out/t12_a_spc_proposal_v1.txt   (~1.8 KB)
+  crates/dsfb-gpu-atlas-corpus/out/t12_a_spc_proposal_v1.json  (~1.3 KB)
+
+Test suite: 26 acceptance tests at
+  crates/dsfb-gpu-atlas-corpus/tests/t12_a_spc_invariants.rs
+
+4 panel-required load-bearing negatives:
+  1. spc_rejects_duplicate_canonical_name_without_alias_decision
+  2. spc_rejects_western_electric_as_canonical_when_marked_composition
+  3. spc_rejects_q_statistic_alias_without_pca_spe_target
+  4. spc_amendment_hash_changes_when_one_source_ref_changes
+
+5 panel-required shape / non-mutation invariants:
+  - spc_proposal_does_not_mutate_seed_len
+  - spc_delta_lists_every_alias_with_reason_code
+  - spc_delta_lists_every_composition_with_components
+  - spc_source_refs_are_nonempty_for_every_claim
+  - spc_render_is_byte_stable_across_two_builds
+
+Plus Page-Hinkley deferral + SEED-ID stability guards.
+
+Panel-locked non-claims:
+  - Does NOT mutate SEED (the 54-record T.10 baseline).
+  - Does NOT mutate corpus_hash_v1.
+  - Does NOT create corpus_hash_v2 (a future formal freeze
+    does that).
+  - Does NOT change registry_hash_v2 or any T.11/S1.3 hash.
+  - Does NOT activate the new detectors — they remain
+    reserved canonical ids pending the formal freeze.
+  - Does NOT touch Page-Hinkley (deferred to T.12.b).
+  - Does NOT claim empirical usefulness.
+  - Does NOT execute on GPU.
+  - Does NOT claim datasheet / model-card / NIST AI RMF /
+    SLSA / in-toto / SPDX / CycloneDX compatibility on the
+    new amendment proposal hash.
+
+R.12b D64 baseline NOT rebaselined; pinned R.12b episode counts
+(13/89/1917 for canonical/mid/full at K=1) byte-stable.
+
+Sub-campaign sequence (panel iteration 9):
+  T.12.0 (sealed) -> T.12.a (this) -> T.12.b (sequential
+  change detection) -> T.12.c (drift / distribution distance)
+  -> T.12.d (robust statistics) -> T.12.e (signal / spectral
+  / wavelet) -> T.12.f (time-series) -> T.12.g (graph /
+  topology) -> T.12.h (data quality / tabular / DB
+  constraints) -> T.12.i (observability / debugging) ->
+  T.12.j (industrial / FDD) -> T.12.k (chemometrics / RF /
+  medical) -> T.12.l (econometrics / reliability / streaming
+  sketches) -> T.12.m (consolidation + amendment review).
+
+The amendment court has admitted its first real proposal.
+T.12.b authors: the same scaffold + same hash discipline
+applies. File a CorpusAmendmentProposal targeting
+SourceClass::SequentialChangeDetection.

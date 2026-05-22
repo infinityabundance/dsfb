@@ -1,0 +1,126 @@
+================================================================
+DSFB-GPU-Atlas — T.11c admissibility verification
+================================================================
+Verifier      : crate::admissibility::verify_grammar_snapshot +
+                the 38 acceptance tests in
+                tests/admissibility_invariants.rs
+Input         : crate::admissibility::collect_admissibility_grammar()
+Domain        : DSFB-GPU-ATLAS:ADMISSIBILITY-GRAMMAR:v1\0
+
+----------------------------------------------------------------
+Result
+----------------------------------------------------------------
+Grammar rules inspected : 18 (9 admission + 9 confuser)
+Failures                :  0
+Verdict                 : the live grammar snapshot passes every
+                          structural invariant the T.11c verifier
+                          enforces.
+
+admissibility_grammar_hash_v1 :
+    ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7
+
+corpus_hash_v1    : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7 (UNCHANGED)
+registry_hash_v2  : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08 (UNCHANGED)
+precedent_hash_v1 : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14 (UNCHANGED)
+
+----------------------------------------------------------------
+Verifier rules enforced (per grammar rule)
+----------------------------------------------------------------
+1.  Every rule (admission + confuser-suppression) MUST link at
+    least one T.11b precedent. Empty linked_precedent_ids ⇒
+    RuleWithoutPrecedentLink rejection.
+2.  Every linked precedent id MUST resolve to an entry in the
+    live T.11b PrecedentSet (rejection: LinkedPrecedentMissing).
+3.  Every EpisodeAdmission rule MUST forbid confuser-only
+    admission, either via the WitnessRequirement
+    `forbids_confuser_only` flag OR via the
+    `NoConfuserOnlyAdmission` evidence-requirement clause.
+    Failure ⇒ EpisodeAdmissionAllowsConfuserOnly rejection.
+    This is the load-bearing Semantic Non-Bypass invariant.
+4.  Rule ids MUST be unique across admission + confuser rules
+    (rejection: DuplicateRuleId).
+
+----------------------------------------------------------------
+Acceptance-test list (38 invariants)
+----------------------------------------------------------------
+Determinism + hash sensitivity (4):
+    grammar_snapshot_is_deterministic
+    grammar_hash_is_deterministic
+    grammar_hash_changes_when_rule_changes
+    grammar_hash_changes_when_precedent_link_changes
+
+Precedent linkage coverage (3):
+    every_grammar_rule_links_precedent
+    every_witness_law_precedent_is_consumed
+    every_negative_witness_law_precedent_is_consumed
+
+Panel-required rule presence (9):
+    primary_witness_rule_requires_positive_structural_support
+    clean_window_witness_cannot_admit_alone
+    confuser_witness_cannot_admit_alone
+    boundary_witness_cannot_classify_episode_alone
+    recovery_witness_cannot_originate_episode_alone
+    negative_witness_blocks_or_downgrades_admission
+    gpu_evidence_cannot_mint_admission
+    semantic_non_bypass_rule_is_present
+    bank_admission_token_rule_is_present
+    unknown_or_deferred_outcome_is_explicit
+
+Renderer determinism (3):
+    grammar_text_render_is_deterministic
+    grammar_json_render_is_deterministic
+    crosswalk_is_deterministic
+
+Crosswalk coverage (1):
+    crosswalk_covers_every_passport
+                            (54 rows; every passport links at
+                             least one grammar rule via global
+                             laws)
+
+Hash-stability cross-checks (3):
+    corpus_hash_v1_unchanged
+    precedent_hash_v1_unchanged
+    passport_hashes_unchanged_by_t11c   (pins Shewhart's
+                                         passport_hash from
+                                         T.11b byte-for-byte)
+
+Verifier (positive + 4 negative paths, 5 total):
+    verify_grammar_snapshot_admits_live_collection
+    grammar_verifier_rejects_rule_without_precedent_link
+        (panel-required negative)
+    grammar_verifier_rejects_episode_admission_rule_that_allows_confuser_only_admission
+        (panel-required negative; load-bearing Semantic Non-Bypass)
+    verifier_rejects_linked_precedent_outside_known_set
+    verifier_rejects_duplicate_rule_id
+
+Structural / coverage (8):
+    deferred_unknown_rule_severity_is_deferred
+    admission_rule_ids_precede_confuser_rule_ids
+    no_admission_rule_uses_global_witness_flags_alone
+    confuser_rule_for_single_window_spike_blocks_admission
+    confuser_suppression_rules_cover_every_named_negative_witness_kind
+    grammar_panel_locked_counts_at_t11c   (9 + 9 = 18)
+    grammar_rule_ids_are_unique_and_dense
+    no_publication_language_in_t11c_reports
+
+Plus 1 import-only sanity test → 38 total.
+
+----------------------------------------------------------------
+Non-claims (T.11c verification scope)
+----------------------------------------------------------------
+This verification attests ONLY that the live grammar snapshot:
+- is internally consistent (every rule cites a valid precedent)
+- is byte-stable across two builds
+- forbids confuser-only admission on every EpisodeAdmission rule
+- consumes every WitnessLaw + NegativeWitnessLaw precedent at
+  least once
+- pairs to every SEED passport via the crosswalk
+- does NOT change any prior hash receipt
+
+It does NOT attest empirical episode admission, S1.3 activation
+behavior, CaseFileV2 episode-body correctness (T.11d), execution
+attestation (T.11e), challenge-docket resolution (T.11f),
+detector-contraindication completeness (T.11g), or any external
+provenance interoperability.
+
+================================================================

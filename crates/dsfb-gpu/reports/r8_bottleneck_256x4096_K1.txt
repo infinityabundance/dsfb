@@ -1,0 +1,25 @@
+=== R.8 Bottleneck Profile — full-scale 256x4096 K=1 ===
+scale: n_entities=256 n_windows=4096 K=1
+median wall (host Instant): 2767243 us
+sum of timed segments       : 2767142.0 us
+
+  Stage                       us         % of wall
+  -------------------------- ---------- -----------
+  feature generation (host)     44181.3       1.6%
+  H2D                             958.2       0.0%
+  residual                        177.7       0.0%
+  sign (drift/slew EWMA)         1175.2       0.0%
+  detector                        294.9       0.0%
+  consensus                       305.2       0.0%
+  candidate collapse             4198.4       0.2%
+  digests (4 kernels)         2163165.8      78.2%
+  D2H                              23.3       0.0%
+  bank + case finalize (host)   552662.1      20.0%
+  -------------------------- ---------- -----------
+  total (timed segments)      2767142.0     100.0%
+  total_device_us (event)     2170292.0      78.4%
+
+Top 3 stages by absolute time:
+  1. digests (4 kernels) — 2163165.8 us (78.2% of wall)
+  2. bank + case finalize (host) — 552662.1 us (20.0% of wall)
+  3. feature generation (host) — 44181.3 us (1.6% of wall)

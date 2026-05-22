@@ -1,0 +1,149 @@
+S1.3e KernelPlanV1 — Verification Receipt
+==========================================
+
+Verifier coverage summary for the S1.3e kernel-plan module.
+
+----------------------------------------------------------------
+Verifier surface
+----------------------------------------------------------------
+
+Public verifier function:
+
+  pub fn verify_s1_3e(
+      plan: &KernelPlanV1,
+      schedule: &KernelFamilyScheduleV1,
+      parameter_table: &KernelParameterTableV1,
+      summary: &BudgetedActivationSummary,
+      passport_index: &Ff1PassportIndex,
+  ) -> Vec<S13eVerifyError>
+
+Sixteen reject kinds in `S13eVerifyErrorKind`:
+
+  Panel-required (8):
+    R.1  KernelPlanUsingBudgetDisabledDetector
+    R.2  KernelPlanUsingFf3RejectedRecord
+    R.3  KernelPlanWithoutGpuFamilyMapping
+    R.4  ParameterTableWithoutStableOrder
+    R.5  FamilyScheduleWithoutDeclaredCostModel
+    R.6  KernelPlanThatMutatesActivationOrBudgetHash
+    R.7  CudaExecutionClaimInsideKernelPlan
+    R.8  NondeterministicTieBreakInFamilyOrder
+
+  Structural defects (8):
+    R.9   DuplicateFamilyLane
+    R.10  LaneActiveCountMismatch
+    R.11  LaneDetectorIdsNotSortedAscending
+    R.12  TotalActiveCountMismatch
+    R.13  CorpusHashV1Mismatch
+    R.14  SeedLengthMutated
+    R.15  ParameterTableRowReferencesUnknownCanonicalId
+    R.16  ParameterTableRowFamilyMismatch
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives — outcome
+----------------------------------------------------------------
+
+  s13e_rejects_kernel_plan_using_budget_disabled_detector       PASS
+  s13e_rejects_kernel_plan_using_ff3_rejected_record            PASS
+  s13e_rejects_kernel_plan_without_gpu_family_mapping           PASS
+  s13e_rejects_parameter_table_without_stable_order             PASS
+  s13e_rejects_family_schedule_without_declared_cost_model      PASS
+  s13e_rejects_kernel_plan_that_mutates_activation_or_budget_hash PASS
+  s13e_rejects_cuda_execution_claim_inside_kernel_plan          PASS
+  s13e_rejects_nondeterministic_tie_break_in_family_order       PASS
+
+----------------------------------------------------------------
+Structural-defect rule coverage — outcome
+----------------------------------------------------------------
+
+  s13e_rejects_duplicate_family_lane                            PASS
+  s13e_rejects_lane_active_count_mismatch                       PASS
+  s13e_rejects_total_active_count_mismatch                      PASS
+  s13e_rejects_parameter_table_row_references_unknown_canonical_id PASS
+
+----------------------------------------------------------------
+Baseline + determinism invariants — outcome
+----------------------------------------------------------------
+
+  s13e_default_plan_has_152_active_across_14_lanes              PASS
+  s13e_default_plan_passes_verifier                             PASS
+  s13e_default_schedule_has_14_lanes_summing_to_152             PASS
+  s13e_seed_len_pinned_at_54                                    PASS
+  s13e_plan_pins_corpus_hash_v1_live_value                      PASS
+  s13e_plan_pins_corpus_hash_v2_from_consolidation_report       PASS
+  s13e_plan_pins_s1_3d_budget_pruning_plan_hash                 PASS
+  s13e_plan_pins_s1_3d_budgeted_activation_summary_hash         PASS
+  s13e_plan_pins_ff2_gate_hash                                  PASS
+  s13e_plan_pins_ff3_gate_hash                                  PASS
+  s13e_plan_pins_seed_len_54                                    PASS
+  s13e_plan_hash_is_deterministic_across_two_builds             PASS
+  s13e_schedule_hash_is_deterministic_across_two_builds         PASS
+  s13e_parameter_table_hash_is_deterministic_across_two_builds  PASS
+  s13e_plan_text_is_byte_stable_across_two_renders              PASS
+  s13e_plan_json_is_byte_stable_across_two_renders              PASS
+  s13e_schedule_text_is_byte_stable_across_two_renders          PASS
+  s13e_schedule_json_is_byte_stable_across_two_renders          PASS
+  s13e_parameter_table_text_is_byte_stable_across_two_renders   PASS
+  s13e_parameter_table_json_is_byte_stable_across_two_renders   PASS
+  s13e_plan_hash_changes_when_budget_pressure_changes_active_set PASS
+  s13e_schedule_hash_changes_when_budget_pressure_changes_active_set PASS
+  s13e_parameter_table_hash_changes_when_budget_pressure_changes_active_set PASS
+
+----------------------------------------------------------------
+GPU-family-mapping invariants — outcome
+----------------------------------------------------------------
+
+  s13e_resolves_gpu_family_for_every_active_seed_id             PASS
+  s13e_resolves_gpu_family_for_every_active_ratified_id         PASS
+  s13e_unknown_canonical_id_resolves_to_none                    PASS
+  s13e_baseline_lanes_contain_no_unknown_family_strings         PASS
+
+----------------------------------------------------------------
+Domain-separator + schema-id pins — outcome
+----------------------------------------------------------------
+
+  s13e_plan_domain_separator_is_pinned                          PASS
+  s13e_plan_schema_id_is_pinned                                 PASS
+  s13e_schedule_domain_separator_is_pinned                      PASS
+  s13e_schedule_schema_id_is_pinned                             PASS
+  s13e_parameter_table_domain_separator_is_pinned               PASS
+  s13e_parameter_table_schema_id_is_pinned                      PASS
+  s13e_three_hash_namespaces_are_distinct                       PASS
+
+----------------------------------------------------------------
+Forbidden-substring scanner — outcome
+----------------------------------------------------------------
+
+  s13e_cost_model_table_carries_no_forbidden_substring          PASS
+  s13e_forbidden_substring_set_is_non_empty_and_lowercase       PASS
+
+----------------------------------------------------------------
+Pressure-bearing scenarios — outcome
+----------------------------------------------------------------
+
+  s13e_max_active_detectors_50_produces_50_active_in_plan       PASS
+  s13e_max_active_detectors_50_lane_total_equals_50             PASS
+  s13e_max_active_detectors_zero_produces_empty_schedule        PASS
+
+----------------------------------------------------------------
+Upstream anchor invariance witnesses — outcome
+----------------------------------------------------------------
+
+  s13e_does_not_alter_corpus_hash_v1                            PASS (35c276c7...)
+  s13e_does_not_alter_corpus_hash_v2                            PASS (f1d132eb...)
+  s13e_does_not_alter_s1_3d_budget_pruning_plan_hash            PASS (82be2289...)
+  s13e_does_not_alter_s1_3d_budgeted_activation_summary_hash    PASS (5feab238...)
+
+----------------------------------------------------------------
+Aggregate test outcome
+----------------------------------------------------------------
+
+  test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured;
+                   0 filtered out
+
+Default-state verifier run:
+
+  verify_s1_3e(default_plan, default_schedule,
+               default_parameter_table, default_summary,
+               default_passport_index)
+    → Vec::new()  (zero errors)

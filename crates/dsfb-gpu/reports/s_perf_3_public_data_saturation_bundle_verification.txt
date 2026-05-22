@@ -1,0 +1,202 @@
+S-PERF.3 PublicDataSaturationBundleV1 — Verification
+====================================================
+
+Pinned corpus anchors
+  corpus_hash_v1 : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  SEED.len()     : 54
+
+S-PERF.3 baseline bundle
+  bundle_id                              : s_perf_3_baseline_bundle_v1
+  manifest_count                         : 5
+  dataset_materialization_policy_hash_v1 : 84854f81e1d0625d052db175d20e898313226b11870261ba3efbb5e2a3d1e82f
+  public_data_saturation_bundle_hash_v1  : 532892b217251491c1af354e57446b398b53b2185eaf9348d87582773395ccd8
+
+Per-manifest hashes are pairwise distinct (verified by
+`manifests_all_have_distinct_hashes` test).
+
+S-PERF.2 reference
+  layer_a_traffic_receipt_hash_v1 (panel-locked baseline) :
+    3415013763ec033ae248285a38654a94e24b2dcbd742cf0f7f5ce56fb4c0b18c
+  layer_a_resident_pipeline_hash_v1 (panel-locked baseline) :
+    6269773e81f3cd2634d12188eb7570bfbfa0098ae5c3bf820774917631e7d7fa
+
+S-PERF.1 reference
+  device_traffic_receipt_hash_v1 (panel-locked baseline) :
+    09e96f17c2b56697a0af8ff55d4d209b9067d72fa445951110f1a5a47cdf0fb7
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives — verifier result
+----------------------------------------------------------------
+
+When the baseline bundle is fed to
+`verify_public_data_saturation_bundle`, the verifier returns
+ZERO errors. Each panel-required negative is exercised in
+`tests/s_perf_3_public_data_saturation_bundle_invariants.rs`
+by synthesising a defective record, then asserting the
+matching verifier-error kind appears.
+
+  1. DatasetWithoutSourceOrAccessNote
+       synthesise manifest with empty access_note
+       (and a separate test with empty source_url_or_doi)
+       -> verifier surfaces the missing-source-or-access
+       error.
+       Result: PASS (both variants).
+
+  2. ArtifactWithoutHashPolicy
+       synthesise manifest with HashPolicyKind::Unknown
+       -> verifier surfaces the missing-hash-policy error.
+       Result: PASS.
+
+  3. BundleWithSyntheticOnlyData
+       synthesise bundle with single is_synthetic=true
+       manifest (and a separate test with zero manifests)
+       -> verifier surfaces the synthetic-only-data error.
+       Result: PASS (both variants).
+
+  4. DatasetWithoutMaterializationRecipe
+       synthesise manifest with empty local_path_template
+       (and variants for empty materialization_steps,
+       MeasuredFixture with expected_bytes=0)
+       -> verifier surfaces the defective-recipe error.
+       Result: PASS (all three variants).
+
+  5. LicenseOrAccessStatusMissing
+       synthesise manifest with
+       LicenseOrAccessStatus::UnknownLicense
+       -> verifier surfaces the missing-license error.
+       Result: PASS.
+
+  6. UnpinnedDownloadOrLiveRemoteDependency
+       synthesise recipe with
+       requires_live_remote_fetch=true
+       -> verifier surfaces the live-remote-fetch error.
+       Result: PASS.
+
+  7. DatasetRoleWithoutLayerAMapping
+       synthesise manifest with LayerARoleMapping::Unmapped
+       -> verifier surfaces the missing-role-mapping error.
+       Result: PASS.
+
+  8. BenchmarkClaimInsideBundleDefinition
+       synthesise manifest with "outperforms" in
+       access_note; separate variants for forbidden
+       substring in bundle_id ("petaflops") and uppercase
+       ("ACHIEVES SATURATION")
+       -> verifier surfaces the benchmark-claim error in
+       all three variants (case-insensitive scanner).
+       Result: PASS.
+
+----------------------------------------------------------------
+Structural defect tests — verifier result
+----------------------------------------------------------------
+
+  DatasetIdEmpty                                       : PASS
+  NonDeterministicMaterializationRecipe                : PASS
+  PerArtifactSha256CountInconsistentWithHashPolicyKind : PASS
+  BundleIdEmpty                                        : PASS
+  DuplicateDatasetIdInBundle                           : PASS
+  MaterializationPolicyNotPanelLocked                  : PASS
+
+----------------------------------------------------------------
+Baseline coverage verification
+----------------------------------------------------------------
+
+  All 5 panel-named dataset classes present: PASS
+    DebugObservabilityTrace (TADBench)
+    SoftwareDefectTable (Defects4J)
+    DataScienceTabular (ADBench subset)
+    TimeSeriesAnomaly (TSB-UAD)
+    IndustrialPublicFixture (NASA C-MAPSS)
+
+  All 5 baseline manifests are usage_mode=CitationOnly: PASS
+  All 5 baseline manifests are is_synthetic=false:    PASS
+  Manifests sorted ascending by dataset_id:           PASS
+  Bundle carries panel-locked 8-line policy:          PASS
+
+----------------------------------------------------------------
+Determinism + sensitivity verification
+----------------------------------------------------------------
+
+  Two consecutive `seed_baseline_public_data_saturation_bundle()`
+  calls produce byte-identical bundle hashes
+  (532892b2...).
+  Two consecutive `build_panel_locked_dataset_materialization_policy()`
+  calls produce byte-identical policy hashes (84854f81...).
+  All baseline manifest hashes byte-stable across two
+  builds.
+  All 6 renderers (text + JSON for manifest, policy, bundle)
+  are byte-stable.
+
+  Sensitivity (every test mutates ONE hashable field and
+  asserts the hash changes):
+    dataset_id                           -> manifest hash differs
+    license_or_access_status             -> manifest hash differs
+    recipe.materialization_steps         -> manifest hash differs
+    is_synthetic                         -> manifest hash differs
+    layer_a_role_mapping                 -> manifest hash differs
+    bundle add manifest                  -> bundle hash differs
+    policy mutation                      -> bundle hash differs
+  Result: PASS (all sensitivity tests).
+
+----------------------------------------------------------------
+Production walk: no forbidden benchmark substring on any
+baseline free-text field
+----------------------------------------------------------------
+
+  production_manifests_carry_no_forbidden_benchmark_substring
+    -> PASS (scanned every baseline manifest's display_name +
+       access_note + recipe steps against the 12-entry
+       forbidden set; zero hits)
+
+----------------------------------------------------------------
+Bulk artifacts emitted
+----------------------------------------------------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_3_public_data_saturation_bundle_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_3_public_data_saturation_bundle_v1.json
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_3_dataset_materialization_policy_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_3_dataset_materialization_policy_v1.json
+
+Two consecutive `dsfb-corpus s-perf-3-bundle-emit`
+invocations produced byte-identical files (verified via
+`diff -q`).
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/s_perf_3_public_data_saturation_bundle_invariants.rs : 71 PASS / 0 FAIL
+  cargo test -p dsfb-gpu-atlas-corpus : 56 groups / 2233 PASS
+  cargo test --workspace --features cuda -- --test-threads=1 :
+    95 groups / 2548 PASS
+
+  Delta vs S-PERF.2: +1 group, +71 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+Every prior corpus / T.11 / T.12.x / T.12.consolidate /
+FF.x / S1.3.x / T.12.PROV / S-PERF.1 / S-PERF.2 hash
+anchor: BYTE-IDENTICAL.
+
+  corpus_hash_v1                                : 35c276c7... UNCHANGED
+  device_traffic_receipt_hash_v1                : 09e96f17... UNCHANGED
+  layer_a_resident_pipeline_hash_v1             : 6269773e... UNCHANGED
+  layer_a_traffic_receipt_hash_v1               : 34150137... UNCHANGED
+  SEED.len()                                    : 54         UNCHANGED
+  R.12b episodes                                : 13 / 89 / 1917 BYTE-STABLE
+
+R.12b pinned baselines NOT REBASELINED; restored from
+/tmp/s_perf_3_backup before commit.
+
+----------------------------------------------------------------
+Schema discipline
+----------------------------------------------------------------
+
+  3 domain separators pairwise distinct: PASS
+  3 domain separators end with \0 byte: PASS
+  3 schema ids pairwise distinct: PASS
+  Panel-locked materialization policy: 8 lines verbatim.
+  Forbidden benchmark-claim substring set: 12 entries (case-
+    insensitive scanner).

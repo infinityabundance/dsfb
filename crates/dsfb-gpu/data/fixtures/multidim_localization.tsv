@@ -1,0 +1,32 @@
+# residual-projection v2
+# upstream_doi=NetManAIOps/MultiDimension-Localization
+# upstream_url=https://github.com/NetManAIOps/MultiDimension-Localization
+# upstream_archive=part1.zip
+# upstream_archive_path=data/upstream/multidim_localization/part1.zip
+# fault_case=part1 first-N timestamps (high-dim service-graph drift)
+# extraction_recipe=see crates/dsfb-debug/data/README.md
+# extracted_at=2026-05-06T18:33:48.321228Z
+# license=no-upstream-license
+# attribution=Tsinghua NetMan Lab. 2019 AIOps Challenge match 2.
+# num_windows=12
+# num_signals=4
+# healthy_window_end=4
+# fault_labels=
+# window_timestamps=1544630400000,1544630700000,1544631000000,1544631300000,1544631600000,1544631900000,1544632200000,1544632500000,1544632800000,1544633100000,1544633400000,1544633700000
+# levels=l1,l2,l3,l4
+# channels=level_l1_mean_value,level_l2_mean_value,level_l3_mean_value,level_l4_mean_value
+# notes=Aggregate-by-level projection from upstream
+#       21-services x 19-metrics tabular CSVs. One signal
+#       per categorical level; window = one timestamp tick.
+2.542481	25.853948	343.488480	151.820777
+2.329987	22.837696	286.826450	131.926369
+2.259906	23.506085	248.674272	120.632946
+1.916081	21.247506	221.498754	110.898003
+1.906987	20.548652	195.667027	96.018142
+1.698565	21.458202	177.466865	85.029160
+1.473293	19.717818	162.272542	78.949350
+1.302575	19.292158	147.117544	74.199954
+1.321238	19.112604	133.968789	67.476928
+1.197340	17.273736	123.020314	61.685432
+1.224631	17.241645	113.904378	56.045892
+1.024605	18.028447	106.750030	54.500414

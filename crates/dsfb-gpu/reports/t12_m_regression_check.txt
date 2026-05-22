@@ -1,0 +1,200 @@
+================================================================
+T.12.m - RF / Communications
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 39 groups / 1239 tests pass (T.12.l baseline 38 /
+  1189 + 1 new group + 50 new T.12.m acceptance tests).
+  Initial test-layer fix: the constellation-enumeration
+  assertion was relaxed so that only the EVM record (now SEED
+  54 ExistingCanonicalAuthorityResolution after the SEED-walk-
+  first restructure) carries the explicit BPSK / QPSK / QAM
+  enumeration; constellation spread (6303) inherits the
+  constellation declaration via SECOND-MOMENT framing.
+
+  CRITICAL SEED-walk-first restructure caught mid-execution
+  before commit: the initial proposal admitted 6301 CFO and
+  6302 EVM as CanonicalAddition records, duplicating SEED 53
+  (Morelli & Mengali 1999 OFDM CFO estimator) and SEED 54
+  (Shafik / Rahman / Islam 2006 EVM-BER-SNR relations) — a
+  textbook dedup-court violation the campaign exists to
+  prevent. Restructured to SIX new canonicals at 6303..=6308
+  (reserved ids 6301 / 6302 deliberately unused) + SIX
+  ExistingCanonicalAuthorityResolution records (SEED 12 / 22
+  / 38 / 40 / 53 / 54). Two new acceptance tests
+  (t12_m_cfo_authority_resolves_seed_53_with_morelli_reference
+  and t12_m_evm_authority_resolves_seed_54_with_shafik_reference)
+  pin the SEED-walk-first guard so the discipline cannot
+  silently regress.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 78 test groups, 1554 tests PASS, 0 FAIL. Delta from
+  T.12.l seal (e507e4b): +1 test group, +50 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined. The saturation test
+  rewrites reports/r12_d64_saturation.txt as part of its run;
+  the pinned baseline was restored from HEAD before commit
+  (also for reports/d64_stage_timing_256x4096_K1.txt,
+  reports/r9_b3_d64_timing.txt, reports/r9_b_d64_timing.txt).
+
+Step 8. Stale-doc scan
+  Result: clean. README.md, archived prior-art manuscript source, lib.rs
+  module docstring, and main.rs usage block all refreshed
+  through T.12.m. New T.12.m section in README between
+  T.12.l and the scaling-ladder header. Seven Explore-agent-
+  identified stale spots fixed in this same commit (README
+  line 18 front-door title, line 495 test-count anchor, line
+  502 paper-section enumeration, line ~4020 new T.12.m
+  section + "Next campaign" prose rotation; lib.rs line 12
+  "Current state through" header bump; paper line 458 Atlas
+  Continuation lead sentence + line 462 "What is landed"
+  enumeration + new \item \textbf{T.12.m} bullet).
+
+Step 9. README / plan refresh
+  Result: README T.12.m section + front-door + Layout +
+  Paper-section refreshed from T.1-T.12.l to T.1-T.12.m.
+  Plan-file post-commit will mark T.12.m sealed and rotate
+  next-active campaign to T.12.n (Econometrics).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_m_rf.rs (new, ~770 lines fully commented;
+      reflects the SIX CanonicalAddition + SIX
+      ExistingCanonicalAuthorityResolution shape after the
+      SEED-walk-first restructure caught SEED 53 / 54
+      collisions before commit)
+    - src/lib.rs (module export + docstring "through T.12.m"
+      header bump + T.12.m enumeration bullet)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_m_rf_invariants.rs (new, 50 tests including
+      8 panel-required load-bearing negatives + the MOST
+      IMPORTANT signal-or-sampling contract scanner + emitter-
+      identification / geolocation / spectrum-enforcement
+      claim-language scanners + black-box-RF-classifier +
+      learned-RF-fingerprinting rejection contracts +
+      CFO-authority-resolves-SEED-53 / EVM-authority-resolves-
+      SEED-54 SEED-walk-first guards + per-canonical
+      structural-distinctness assertions + ParameterizationOf
+      family tests + DomainTransferOf tests + reserved-id-
+      range tests + rendering / determinism / hash-distinctness
+      invariants)
+    - out/t12_m_rf_proposal_v1.{txt,json} (new)
+    - reports/t12_m_rf_proposal_summary.txt (new)
+    - reports/t12_m_rf_proposal_verification.txt (new)
+    - reports/t12_m_regression_check.txt (new)
+    - README.md (front-door title bump + test-count bump +
+      paper-section enumeration bump + new T.12.m section +
+      Next-campaign prose rotation)
+    - archived prior-art manuscript source (lead sentence + paragraph
+      header + new \item \textbf{T.12.m} bullet)
+    - .gitignore (3 new whitelist lines)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.0-T.12.l hash    : unchanged
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.m RF literature_expansion_batch_hash_v1 (NEW) :
+    437e6f91b28ba041928f2b8654eeff63e7ae8f41f56b4688d2d985586174aa5b
+  T.12.m RF dedup_court_delta_hash_v1 (NEW) :
+    669e0b6ad9f96f365f05b302b9ef758f28c8a6a34c9500ac802c9931a9c8557d
+  T.12.m RF corpus_amendment_proposal_hash_v1 (NEW) :
+    3263e87b2beca1e98eb390ab6642ae8a66728faa5405b8dff67fea05abda243b
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in t12_m_rf.rs carries a doc comment whose
+  first sentence states the WHY for a future engineer.
+- Panel "success shape" applied: cross-class dedup discipline
+  (6 authority resolutions over the spectral + envelope +
+  entropy + correlation + carrier-offset + modulation-quality
+  SEED family that RF reuses heavily) + 4 ParameterizationOf
+  collapses (spectral mask / SNR / burst preamble / frame-
+  error burst into existing SEED records). 6 new canonicals
+  admitted only after each survived the SEED-walk as
+  structurally distinct decision functionals; reserved ids
+  6301 / 6302 deliberately unused because their CFO / EVM
+  ideas collapsed onto SEED 53 / 54.
+- Signal-or-sampling contract discipline: every CanonicalAddition
+  reason declares signal representation + sampling law +
+  carrier-or-channel assumption + window-or-transform law +
+  decision functional.
+- Emitter-identification-claim discipline (MOST IMPORTANT):
+  every CanonicalAddition / ExistingCanonicalAuthorityResolution
+  reason is scanned for forbidden emitter / transmitter-
+  identification terms; forbidden terms appear ONLY in
+  RejectedNotDeterministic reason text. Every qualifying
+  reason ends with a panel-locked RF signal-witness self-
+  description AND a "not emitter attribution ..." disclaimer.
+- Geolocation-claim discipline (MOST IMPORTANT): forbidden
+  geolocation / transmitter-location terms appear ONLY in
+  6313 RejectedNotDeterministic reason text.
+- Spectrum-enforcement-claim discipline (MOST IMPORTANT):
+  forbidden regulatory-enforcement / illegal-transmission /
+  SIGINT / COMINT terms appear ONLY in 6314
+  RejectedNotDeterministic reason text.
+- Learned-RF-fingerprinting and black-box-modulation-classifier
+  honesty: both RejectedNotDeterministic until deterministic
+  feature-extraction law + declared formula + training-data
+  anchor + tie-break + numeric mode are all declared, AND
+  with NO transmitter identity claim allowed for the
+  fingerprinting path.
+- SEED-walk-first discipline guard (MOST IMPORTANT, learned
+  from this campaign's own near-miss): the CFO and EVM
+  authority-resolution records assert reserved ids 6301 and
+  6302 stay unused; future T.12.m revisions cannot silently
+  re-introduce duplicates of SEED 53 / 54.
+
+T.12.m is sealed. The amendment court has admitted the
+thirteenth real expansion proposal: 6 new canonical RF /
+communications primitives, 6 existing-canonical authority
+resolutions over the spectral + envelope + entropy +
+correlation + carrier-offset + modulation-quality SEED family
+RF heavily reuses (FFT band-energy 12, Residual envelope
+exit 22, Spectral entropy 38, Autocorrelation break 40,
+Carrier-frequency-offset residual 53, EVM anomaly 54), 2
+DomainTransferOf records (SEED 12 spectral + SEED 22
+envelope-boundary ancestors for RfCommunications), 4
+ParameterizationOf records collapsing spectral-mask /
+SNR-drop / burst-preamble-miss / frame-error-burst into
+existing SEED canonicals, 2 RejectedNotDeterministic records
+(seventh T.12.x with two rejections, following T.12.g / h /
+i / j / k / l) — all WITHOUT mutating SEED or corpus_hash_v1
+and WITHOUT admitting a single emitter-attribution,
+transmitter-identification, geolocation, spectrum-enforcement,
+military-classification, or communications-intelligence claim.
+
+Next campaign (panel-authorized post-T.12.m): T.12.n -
+Econometrics (reserved id band 6401..=6499). Same SEED-walk-
+first discipline. Candidate primitives include CUSUM-of-
+recursive-residuals, fluctuation tests (Quandt / Chow), GARCH
+volatility residual anomalies, cointegration-break detector,
+Hausman-test residual, structural-break detector. The SEED-
+walk should pay special attention to SEED 4 Page-Hinkley,
+SEED 11 Mann-Kendall, and T.12.b-ratified Pettitt / SNHT /
+MOSUM / Buishand which are commonly invoked in econometric
+structural-break detection.

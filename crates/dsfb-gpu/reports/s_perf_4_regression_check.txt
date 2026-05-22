@@ -1,0 +1,111 @@
+S-PERF.4 ActiveFamilyCompaction
+       Regression Check — 10-step per-section discipline ritual
+============================================================
+
+Commit identity (panel-locked):
+
+  S-PERF.4 defines how the 152 active detectors are
+  compacted into GPU-family benchmark lanes for Layer-A
+  measurement. It does not run the benchmark, claim
+  saturation, change CUDA kernels, or alter activation /
+  corpus authority.
+
+Panel-locked one-line verdict (verbatim):
+
+  S-PERF.3 gives the evidence factory public data;
+  S-PERF.4 packs the active court witnesses into
+  benchmarkable GPU-family lanes.
+
+----------------------------------------------------------------
+Step 1: cargo fmt --all --check       : CLEAN
+Step 2: cargo clippy (--features cuda
+         -- -D warnings)              : CLEAN
+Step 3: scripts/scrub.sh              : CLEAN
+Step 4: scripts/docs_freshness.sh     : CLEAN
+----------------------------------------------------------------
+
+Step 5: cargo test -p dsfb-gpu-atlas-corpus
+  Outcome: 57 groups / 2297 tests PASS
+  Delta vs S-PERF.3: +1 group, +64 tests
+    new group: tests/s_perf_4_active_family_compaction_invariants.rs
+    new tests: 64 (8 panel-required negatives + 2 variants
+               + 14 baseline admission + 9 determinism +
+               4 sensitivity + 6 structural defects + 3
+               hash distinctness + 3 domain separator +
+               3 nul-termination + 2 schema id +
+               3 panel-locked constants + 6 rendering
+               smoke + 2 production-walk no-forbidden-
+               substring + 2 cross-verifier + 3 non-zero-
+               hash guards)
+
+Step 6: cargo test --workspace --features cuda
+                   -- --test-threads=1
+  Outcome: 96 groups / 2612 tests PASS
+  Delta vs S-PERF.3: +1 group, +64 tests
+
+  FF.4 live README sweep
+  (`ff4_live_readme_satisfies_policy`) passes after the
+  README S-PERF.4 section insertion. The new section was
+  placed AFTER the S-PERF.3 public-data bundle section and
+  BEFORE "What this is", preserving every FF.4 required
+  substring and avoiding every FF.4 forbidden substring.
+
+Step 7: R.12b D64 saturation byte-stability check
+  Pre-run backup: 4 receipts → /tmp/s_perf_4_backup/
+  Post-run restoration: byte-identical (`diff -q` clean).
+  Episodes: 13 / 89 / 1917 (byte-stable, unchanged).
+  Pinned R.12b baseline: NOT REBASELINED.
+
+Step 8: Stale-doc grep scan
+  README: new S-PERF.4 section inserted.
+  archived prior-art manuscript source: new
+    \section{Active-Detector Family Compaction}
+    \label{sec:active-family-compaction} inserted after
+    Public-Data Saturation Bundle.
+  lib.rs: docstring "Current state through S-PERF.3" →
+    "Current state through S-PERF.4" plus S-PERF.4 bullet;
+    CLI list extended with 4 s-perf-4-* subcommands.
+
+Step 9: Atomic commit under the 10-step ritual; no
+        --no-verify.
+
+Step 10: Plan-file Quick Start rotation + memory file +
+         MEMORY.md index entry.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  Every prior court anchor: UNCHANGED.
+  SEED.len() : 54 (UNCHANGED).
+  Three NEW own-namespace hashes:
+
+    active_family_compaction_plan_hash_v1
+      = 76e28c927cde8deb967874c5c87f2d25ef31a9b526d64f5559758a3cc62cdcfc
+    compacted_parameter_table_receipt_hash_v1
+      = bf87574ed2a63b989744238347761f7bf9dedd768a69c6d68592ddd616b7437f
+    family_compaction_benchmark_schema_hash_v1
+      = 5c2dac74ee3bdf305fdd187fe9ada5532d89cdc43d540536f401be17ed7a311b
+
+  All three deterministic across two consecutive builds;
+  pairwise distinct; distinct from every prior corpus /
+  T.11 / T.12.x / T.12.consolidate / FF.x / S1.3.x /
+  T.12.PROV / S-PERF.1 / S-PERF.2 / S-PERF.3 hash anchor.
+
+R.12b episodes 13/89/1917 byte-stable; pinned baseline NOT
+rebaselined.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+S-PERF.4 does NOT run any benchmark; does NOT claim memory-
+bandwidth saturation; does NOT emit any timing receipt;
+does NOT change any CUDA kernel; does NOT change any court
+decision; does NOT alter activation outcomes (active set
+read verbatim from S1.3d); does NOT mutate any upstream
+hash anchor; does NOT alter SEED.len() (stays at 54); does
+NOT emit detector outputs / episodes; does NOT decide
+contraindications or challenges; does NOT modify the
+registry crate; does NOT download or fetch any dataset
+bytes.

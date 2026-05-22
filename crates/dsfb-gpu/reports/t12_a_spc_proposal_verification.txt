@@ -1,0 +1,90 @@
+================================================================
+T.12.a - Statistical Process Control verification receipt
+================================================================
+
+Verifier: verify_amendment_proposal (inherited from T.12.0
+scaffold; T.12.a does not extend the verifier — it tests the
+seed proposal against the existing rules).
+
+Test family               | count
+--------------------------+------
+Seed shape + admissibility|  10
+Hash determinism + sens.  |   4
+Load-bearing negatives    |   3 explicit + 1 hash-sensitivity
+Rendering                 |   2
+Upstream-anchor preserve  |   5
+Page-Hinkley deferral     |   1
+--------------------------+------
+Total acceptance tests    |  26
+
+Load-bearing negatives (panel-required):
+  *spc_rejects_duplicate_canonical_name_without_alias_decision
+   — synthetic proposal reserves canonical_id 1 (Shewhart),
+     verifier's DedupDeltaCollidesWithExistingSeedCanonicalId
+     rule fires.
+  *spc_rejects_western_electric_as_canonical_when_marked_composition
+   — synthetic delta declares Western Electric (SEED id 16)
+     as new_canonical_records; verifier's collision rule
+     fires.
+  *spc_rejects_q_statistic_alias_without_pca_spe_target
+   — synthetic alias targets canonical_id 99_999 which does
+     not exist; shape-test surfaces the unresolved target.
+  *spc_amendment_hash_changes_when_one_source_ref_changes
+   — mutate one source_ref's title; proposal hash changes.
+
+Shape + non-mutation invariants (panel-required):
+  - spc_proposal_does_not_mutate_seed_len
+    (SEED.len() == 54 before AND after building proposal)
+  - spc_delta_lists_every_alias_with_reason_code
+    (each alias target resolves to SEED or batch new
+    canonical)
+  - spc_delta_lists_every_composition_with_components
+    (each CompositionOf record carries composition-language
+    reason)
+  - spc_source_refs_are_nonempty_for_every_claim
+    (every source ref has non-empty citation_key, title,
+    venue, and 1900 <= year <= 2099)
+  - spc_render_is_byte_stable_across_two_builds (text + JSON)
+
+Upstream-anchor preservation (panel-required):
+  - t12_a_does_not_mutate_corpus_hash_v1
+    (compute_corpus_hash_v1() byte-identical before and
+    after building the proposal)
+  - t12_a_does_not_add_records_to_seed (SEED.len() == 54)
+  - spc_proposal_hash_is_distinct_from_proof_of_life_hash
+    (SPC hash != T.12.0 proof-of-life hash)
+  - spc_seed_ids_remain_canonical (Shewhart, Hotelling T²,
+    Western Electric, Nelson, PCA SPE/Q all still in SEED)
+  - spc_reserved_ids_are_above_seed_range
+    (5001/5002/5101/5102/5103 all above the SEED canonical
+    range and the existing 1xxx alias range in claims.rs)
+
+Page-Hinkley deferral pin:
+  - t12_a_does_not_touch_page_hinkley
+    (no new_canonical_records / new_composition_records /
+    proposed_primitives / proposed_aliases /
+    proposed_dedup_records / proposed_genealogy_edges
+    references SEED id 4)
+
+Verifier result on the SPC proposal:
+  Errors                  : 0
+  Status                  : Open (as expected for an
+                            unratified proposal)
+  Body                    : 2 proposed primitives, 3 aliases,
+                            5 dedup records, 4 genealogy
+                            edges, 4 source refs
+  Dedup-court delta       : 2 new canonical, 3 new alias,
+                            2 new composition, 0 rejection,
+                            0 deferred
+  All three hashes        : non-zero, deterministic
+
+Two builds against the seed_t12_a_spc_proposal produce
+byte-identical:
+  - t12_a_spc_proposal_v1.txt
+  - t12_a_spc_proposal_v1.json
+  - corpus_amendment_proposal_hash_v1 = ae493a85...
+
+The amendment court has admitted the first real proposal
+filed through the T.12.0 scaffold. SEED is unchanged;
+corpus_hash_v1 is unchanged. The proposal is ready for
+review by the panel + by future T.12.x sub-campaigns.

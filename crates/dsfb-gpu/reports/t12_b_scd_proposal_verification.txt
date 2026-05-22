@@ -1,0 +1,131 @@
+================================================================
+T.12.b - Sequential Change Detection verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_b_scd::seed_t12_b_scd_proposal()
+
+----------------------------------------------------------------
+Positive verification (the proposal IS admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+  ProposalIdEmpty                                          : not fired
+  BatchIdEmpty                                             : not fired
+  UnknownSourceClass                                       : not fired (target_source_class = SequentialChangeDetection, panel-locked enum variant)
+  AmendmentProposalHashMismatch                            : not fired (canonical-byte recomputation matches stored hash)
+  BatchHashMismatch                                        : not fired
+  DedupDeltaHashMismatch                                   : not fired
+  DedupDeltaCollidesWithExistingSeedCanonicalId            : not fired (reserved ids 5201..5209 are outside SEED's 1..54 range)
+  AcceptedProposalWithoutBodyOrDelta                       : not fired (status = Open; body + delta are non-trivial)
+  AcceptedProposalWithoutFutureFreezeGate                  : not fired (status = Open; rule only fires for Accepted status)
+
+----------------------------------------------------------------
+Load-bearing negative coverage (14 panel-required, all passing)
+----------------------------------------------------------------
+
+  1. t12_b_does_not_mutate_seed_len
+     - SEED.len() == 54 after seed_t12_b_scd_proposal().
+  2. t12_b_rejects_duplicate_cusum_without_domain_transfer_or_existing_target
+     - constructed defective variant with id 3 in new_canonical_records;
+       verifier fired DedupDeltaCollidesWithExistingSeedCanonicalId.
+  3. t12_b_rejects_duplicate_page_hinkley_without_cross_class_resolution
+     - constructed defective variant with id 4; verifier fired the
+       same rule.
+  4. t12_b_rejects_mann_kendall_as_new_canonical_when_seed_id_exists
+     - constructed defective variant with id 11; verifier fired the
+       same rule.
+  5. t12_b_rejects_duplicate_pettitt_when_seed_id_exists
+     - constructed defective variant with id 34; verifier fired the
+       same rule.  (NEW guard introduced during T.12.b design after
+       a walk of SEED found Pettitt already canonical at id 34.)
+  6. t12_b_rejects_duplicate_snht_when_seed_id_exists
+     - constructed defective variant with id 35; verifier fired the
+       same rule.  (NEW guard, same reason.)
+  7. t12_b_rejects_duplicate_mosum_when_seed_id_exists
+     - constructed defective variant with id 36; verifier fired the
+       same rule.  (NEW guard, same reason.)
+  8. t12_b_rejects_duplicate_buishand_when_seed_id_exists
+     - constructed defective variant with id 37; verifier fired the
+       same rule.  (NEW guard, same reason.)
+  9. t12_b_rejects_bocpd_as_canonical_without_deterministic_reduction_status
+     - asserted that BOCPD's reserved id 5209 does NOT appear in
+       new_canonical_records of the canonical seed.
+ 10. t12_b_bocpd_present_in_proposed_primitives_but_not_in_new_canonical_records
+     - asserted BOCPD IS in proposed_primitives (literature record
+       acknowledged) but NOT in new_canonical_records.
+ 11. t12_b_rejects_alias_without_existing_target
+     - vacuous on T.12.b (zero alias claims) but encodes the
+       invariant for every future T.12.x sub-campaign.
+ 12. t12_b_rejects_domain_transfer_without_existing_target
+     - asserted every DomainTransferOf record's canonical_id is in
+       SEED.  T.12.b's single DomainTransferOf record targets
+       CUSUM (SEED id 3).
+ 13. t12_b_every_new_canonical_has_source_ref
+     - 6 source refs >= 4 new canonicals; each source ref has a
+       non-empty citation_key + title + venue.
+ 14. t12_b_every_rejection_has_reason_code
+     - the RejectedNotDeterministic record for BOCPD has a
+       non-empty reason citing Adams & MacKay 2007 and naming the
+       four reduction-disclosure requirements (hazard, prior,
+       update law, truncation, numeric mode).
+
+----------------------------------------------------------------
+Additional invariants (20 in the suite; all passing)
+----------------------------------------------------------------
+
+  scd_proposal_is_admissible_under_t12_0_verifier
+  scd_proposal_has_open_status
+  scd_proposal_targets_sequential_change_detection
+  scd_proposal_proposes_five_primitives
+  scd_proposal_proposes_zero_aliases
+  scd_proposal_proposes_thirteen_dedup_records
+  scd_proposal_proposes_six_genealogy_edges
+  scd_proposal_proposes_six_source_refs
+  scd_delta_has_four_new_canonical_records
+  scd_proposal_emits_four_court_delta_categories
+  scd_proposal_court_delta_category_counts
+  scd_proposal_hash_is_deterministic_across_two_builds
+  recomputed_scd_proposal_hash_matches_stored
+  scd_proposal_hash_is_distinct_from_t12_0_and_t12_a
+  t12_b_hash_changes_when_cross_class_authority_changes
+  t12_b_bocpd_has_rejected_not_deterministic_dedup_record
+  t12_b_existing_canonical_authority_resolution_targets_must_be_in_seed
+  t12_b_canonical_addition_ids_are_in_5201_to_5208_range
+  scd_proposal_text_rendering_byte_stable
+  scd_proposal_json_rendering_byte_stable
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  precedent_hash_v1                           : unchanged (6721f511...)
+  admissibility_grammar_hash_v1               : unchanged (ff66706a...)
+  trial_transcript_hash_v1                    : unchanged (37618a45...)
+  execution_attestation_receipt_hash_v1       : unchanged
+  challenge_docket_hash_v1                    : unchanged (dde4ecb4...)
+  detector_contraindication_hash_v1           : unchanged (1b899f5d...)
+  coverage_hole_hash_v1                       : unchanged (671e2164...)
+  activation_plan_hash_v1                     : unchanged (5a81da47...)
+  activation_diff_hash_v1                     : unchanged (469536e7...)
+  task_manifest_hash_v1                       : unchanged (88a33338...)
+  dataset_manifest_hash_v1                    : unchanged (3864db34...)
+  activation_context_hash_v1                  : unchanged (4948bf45...)
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  Every DetectorPassport hash                 : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.b SCD literature_expansion_batch_hash_v1 (NEW):
+    8d043a5c4694015216e57c61f5240fe04477b3fe0b535f4188a461076adc6d13
+  T.12.b SCD dedup_court_delta_hash_v1 (NEW):
+    6ba7a7810d2d801472c16efec9f0aae958e0a262eeb2bddb15a1bb50e713ce0f
+  T.12.b SCD corpus_amendment_proposal_hash_v1 (NEW):
+    ac10e27cdc9286b44e18ac8ae29a46143571ecf89ca55e0283cf97ea2c19525f

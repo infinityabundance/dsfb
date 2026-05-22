@@ -1,0 +1,42 @@
+[package]
+name        = "dsfb-gpu-atlas-registry"
+version     = "0.1.0"
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+publish.workspace      = true
+authors.workspace      = true
+repository.workspace   = true
+keywords.workspace     = true
+readme.workspace       = true
+description = "Atlas detector algebra + S1.2 registry generator for DSFB-GPU-Atlas (162-spec literature-bound registry; registry_hash_v2 over the T.10-frozen corpus; no GPU coupling)."
+
+[lib]
+crate-type = ["rlib"]
+
+# A tiny binary that re-emits the canonical registry artifacts
+# under `out/`. Run with:
+#     cargo run --bin dsfb-registry-emit -p dsfb-gpu-atlas-registry
+# Two invocations against the same corpus + family mapping + grid
+# produce byte-identical files. The pinned receipt artifacts
+# committed under `crates/dsfb-gpu-atlas-registry/out/` MUST match
+# the bin's output on a fresh build, byte-for-byte.
+[[bin]]
+name = "dsfb-registry-emit"
+path = "src/bin/dsfb_registry_emit.rs"
+
+# S1.2 ships the type system, post-T.10 cross-field verifier, AND
+# the literature-bound registry generator. Two workspace deps:
+# - dsfb-gpu-atlas-corpus: canonical DetectorCanonicalId + the
+#   frozen `compute_corpus_hash_v1` bytes the generator binds to.
+# - dsfb-gpu-debug-core: audited SHA-256 implementation only,
+#   for parameter_hash + registry_hash_v2 computation. The
+#   registry crate explicitly does NOT inherit the GPU/CUDA
+#   surface area; it stays host-only with zero external Rust
+#   dependencies.
+[dependencies]
+dsfb-gpu-atlas-corpus = { version = "0.1.0", path = "../dsfb-gpu-atlas-corpus" }
+dsfb-gpu-debug-core   = { version = "0.1.0", path = "../dsfb-gpu-debug-core", features = ["std"] }
+
+[lints]
+workspace = true

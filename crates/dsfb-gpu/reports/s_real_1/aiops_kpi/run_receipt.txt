@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 aiops_kpi
+display_name:            AIOps Challenge 2018 KPI (Bagel sample)
+license:                 no-upstream-license
+upstream_doi_or_url:     Li, Chen, Pei. IPCCC 2018; github.com/NetManAIOps/Bagel
+
+Input
+  vendored_path:         data/fixtures/aiops_challenge.tsv
+  fixture_sha256:        be17110ebe6647d00fad79dc1ca69b1b01b22788773202bad6e3322e97b0602e
+  fixture_byte_size:     2073
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               128
+  nan_cells_skipped:          0
+  events_emitted:             128
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 4
+  n_windows  (= observed_num_windows): 32
+  contract_hash:         sha256:26fb52fa7b939034d49394a010069ff4cdcdcafa6d013d1604dfbb7f420322a4
+  bank_hash:             sha256:fcd724fa9d9c623aa39798a4e14e9de8ea6abace43429f3fca360b80f345eaf1
+  detector_registry_hash: sha256:90c0955193094c0f20ee045efe3d3d81db7f9eead96f076c1356b406c97a7cdb
+
+Result
+  episodes_admitted:     3
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:06a26a61c4dde60e44274eb6c521079edd00e2113c0c4e8e151a4b552b4e5082

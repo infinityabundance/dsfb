@@ -1,0 +1,120 @@
+S-PERF.8 --- regression check (10-step ritual receipt, S-PERF.8.1 hardening pass)
+==================================================================================
+
+Section identity
+----------------
+
+  Section : S-PERF.8 --- batched-K saturation receipt (S-PERF.8.1 hardening pass)
+  Commit  : (this atomic commit)
+  Date    : 2026-05-18
+  Track   : Track B leg 2 (verification-infrastructure hardening above S-PERF.8 baseline)
+
+Per-section bandwidth report
+----------------------------
+
+=== S-PERF Track B bandwidth report ===
+Section landed       : S-PERF.8.1 (batched-K saturation receipt hardening pass, 2026-05-18)
+K=1 full-scale bandwidth  : 13.33 GB/s @ 256x4096 K=1 D64 (RTX 4080 SUPER, CUDA 13.2)
+K-amortisation gain at full scale : 1.03x (28644 us/cat K=1 -> 27770 us/cat K=128)
+K-amortisation gain at canonical  : 1.76x (3061 us/cat K=1  -> 1738 us/cat K=64)
+K-amortisation gain at mid        : 1.00x (no measurable gain; workload device-bound)
+Effective bandwidth at full K=128 : ~13.78 GB/s (modest +3.43% from amortisation)
+Saturation gate      : 572.8 GB/s (8000 bp / 80% of peak)
+Distance to gate     : ~559.0 GB/s remaining (~78.07 percentage points)
+Honest note          : S-PERF.8.1 does NOT change kernels and does NOT
+                       change the measured bandwidth. It hardens the
+                       receipt schema (+4 panel-pinned execution-mode
+                       labels, +device identity, +3 R.12b episode pins,
+                       +per-scale pre/post bandwidth + delta + interpretation
+                       label) and the verifier (14 panel-required
+                       negatives, +6 integrity rules; CAMPAIGN IDENTITY
+                       negative rejects "canonical 1.76x gain
+                       generalized to full-scale"). The real bandwidth
+                       lever is S-PERF.10 (digest lane compaction;
+                       4 tree_digest stages = ~57% of device time).
+
+10-step ritual gate results
+---------------------------
+
+  1. cargo fmt --all --check                                 PASS
+  2. cargo clippy --workspace --all-targets --features cuda  PASS
+        -- -D warnings
+  3. bash scripts/scrub.sh                                   PASS (exit 0)
+  4. bash scripts/docs_freshness.sh                          PASS (exit 0)
+  5. cargo test -p dsfb-gpu-atlas-corpus                     PASS
+        S-PERF.8 group: 43 tests pass (was 18; +25 tests for
+        hardening pass; +4 from S-PERF.8 baseline kept).
+  6. cargo test --workspace --features cuda                  PASS
+        -- --test-threads=1
+        Workspace serial: see scripts/scrub.sh + corpus
+        receipts; S-PERF.8 corpus group passes byte-stable.
+  7. R.12b episodes byte-stable                              PASS
+        canonical 16x128 = 13
+        mid 64x512       = 89
+        full 256x4096    = 1917
+        pinned R.12b baseline NOT rebaselined.
+  8. FF.4 live README authority-boundary sweep               PASS
+  9. S-PERF.6 public-language regression check               PASS
+ 10. Plan-file Quick Start refresh + memory rotation         PASS
+        (this commit rotates S-PERF.8.1 to Current state;
+        S-PERF.7 moves to Prior current state; S-PERF.10
+        becomes Active campaign (next).)
+
+Hash posture (verified)
+-----------------------
+
+  - SEED.len() = 54                            UNCHANGED
+  - corpus_hash_v1                             UNCHANGED
+  - corpus_hash_v2                             UNCHANGED
+  - every prior T.11 / T.12.x / FF.x / S1.3.x
+    / T.12.PROV hash                           UNCHANGED
+  - S-PERF.1 device_traffic_receipt_hash_v1    UNCHANGED
+  - S-PERF.1 device_bandwidth_claim_policy_hash_v1 UNCHANGED
+  - S-PERF.2 (3 hashes)                        UNCHANGED
+  - S-PERF.3 (3 hashes + 5 manifests)          UNCHANGED
+  - S-PERF.4 (3 hashes)                        UNCHANGED
+  - S-PERF.5 (3 hashes)                        UNCHANGED
+  - S-PERF.6 (3 hashes)                        UNCHANGED
+  - S-PERF.7 (1 hash)                          UNCHANGED
+  - S-PERF.8 batched_k_saturation_receipt_hash_v1
+       (REBASELINED under S-PERF.8.1; receipt schema gained
+        +4 labels + device identity + 3 episode pins + per-
+        scale pre/post bandwidth + delta + interpretation
+        label; new hash 37212c42b4fdf06069c019e34474cf0d
+        6660843bad7cd4a9cbc92020a7b9f201; panel-required
+        and panel-acknowledged.)
+
+  - R.12b episodes 13/89/1917                  BYTE-STABLE
+  - pinned R.12b baseline                      NOT REBASELINED
+
+Test surface delta
+------------------
+
+  Before (S-PERF.8 baseline):
+    corpus s_perf_8 group: 18 tests
+  After (S-PERF.8.1 hardening pass):
+    corpus s_perf_8 group: 43 tests (+25)
+      - 8 measured-shape pin tests
+      - 14 panel-required load-bearing negatives
+      - 8 structural defect tests
+      - 6 sensitivity tests
+      - 3 determinism / renderer / distinctness tests
+      - 3 parser unit tests
+      - 1 pinned-hash back-stop
+
+Atomic commit
+-------------
+
+  This receipt is part of a single atomic commit landing the
+  S-PERF.8.1 hardening pass. No --no-verify; pre-commit
+  hook runs all four gates; failures block the commit.
+
+One-line verdict
+----------------
+
+  S-PERF.8.1 hardens the K-amortisation receipt without
+  changing the measured bandwidth: 14 panel-required
+  negatives mechanically prevent overclaiming the canonical
+  1.76x small-fixture gain as a full-scale solution; the
+  campaign-identity negative pins the result publicly and
+  in the hash chain.

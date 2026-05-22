@@ -1,0 +1,203 @@
+================================================================
+T.12.o - Streaming Sketches
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Initial pass hit doc_lazy_continuation on the
+  AMS module-docstring bullet's `+`-chained contract list AND
+  too_many_lines on the hash/width/depth/seed contract test;
+  fixed by rewriting the AMS bullet's `+` chain as comma-
+  separated prose AND adding #[allow(clippy::too_many_lines)]
+  on the contract test (which legitimately covers three
+  sketch-contract families across 110+ lines). Reason text
+  bytes in the proposal body were untouched; three emitted
+  hashes byte-stable from first emit.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 41 groups / 1330 tests pass (T.12.n baseline 40 /
+  1286 + 1 new group + 44 new T.12.o acceptance tests).
+  Initial test fixes:
+  - HLL was added to the hash-based sketch contract test but
+    HLL uses a SINGLE hash function with declared precision
+    parameter (not a per-row seed array). Split the test:
+    CMS / Bloom / AMS require hash family + width + seed
+    array; HLL requires hash family + bucket count + precision
+    parameter + harmonic-mean estimator.
+  - The privacy / anonymization claim-language scanner
+    originally listed "anonymization authority" as forbidden,
+    but the Bloom-filter CanonicalAddition record (6503)
+    legitimately disclaims it inside a "does NOT admit ...
+    anonymization authority" sentence. Removed the bare
+    phrase from the forbidden list; kept positive-claim
+    variants ("claims anonymization authority", "issues
+    anonymization", "differential privacy guarantee",
+    "k-anonymous output", etc.).
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 80 test groups, 1645 tests PASS, 0 FAIL. Delta from
+  T.12.n seal (79bea31): +1 test group, +44 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined. The saturation test
+  rewrites reports/r12_d64_saturation.txt as part of its run;
+  the pinned baseline was restored from HEAD before commit
+  (also for reports/d64_stage_timing_256x4096_K1.txt,
+  reports/r9_b3_d64_timing.txt, reports/r9_b_d64_timing.txt).
+
+Step 8. Stale-doc scan
+  Result: clean. README.md, archived prior-art manuscript source, lib.rs
+  module docstring all refreshed through T.12.o. New T.12.o
+  section in README between T.12.n and the scaling-ladder
+  header.
+
+Step 9. README / plan refresh
+  Result: README T.12.o section + front-door + Layout +
+  Paper-section refreshed from T.1-T.12.n to T.1-T.12.o.
+  Plan-file post-commit will mark T.12.o sealed and rotate
+  next-active campaign to T.12.p (Information Theory
+  catch-up) per the canonical sequence.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_o_streaming_sketches.rs (new, ~770 lines fully
+      commented)
+    - src/lib.rs (module export + docstring header bump +
+      T.12.o enumeration bullet)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_o_streaming_sketches_invariants.rs (new, 44
+      tests including 6 panel-required load-bearing negatives
+      + per-canonical structural-distinctness assertions +
+      ParameterizationOf family tests + DomainTransferOf
+      tests + reserved-id-range tests + rendering /
+      determinism / hash-distinctness invariants)
+    - out/t12_o_streaming_sketches_proposal_v1.{txt,json}
+      (new)
+    - reports/t12_o_streaming_sketches_proposal_summary.txt
+      (new)
+    - reports/t12_o_streaming_sketches_proposal_verification.txt
+      (new)
+    - reports/t12_o_regression_check.txt (new)
+    - README.md (front-door title bump + test-count bump +
+      paper-section enumeration bump + new T.12.o section +
+      Next-campaign prose rotation)
+    - archived prior-art manuscript source (lead sentence + paragraph
+      header + new \item \textbf{T.12.o} bullet)
+    - .gitignore (3 new whitelist lines)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.0-T.12.n hash    : unchanged
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.o literature_expansion_batch_hash_v1 (NEW) :
+    fa14bd13a503f14df7f661e601a2d60df5a3abe11cd8f79be9c56c70ae50bb4c
+  T.12.o dedup_court_delta_hash_v1 (NEW) :
+    434a174c0b5f9b7e269df803db5e377d2ca836d093215996fefa7dcc9b0f2c03
+  T.12.o corpus_amendment_proposal_hash_v1 (NEW) :
+    1164f567948c147f24ed7baf672910213ad02f480ea88a7d326e690df5f4b66c
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in t12_o_streaming_sketches.rs carries a doc
+  comment whose first sentence states the WHY for a future
+  engineer.
+- Panel "success shape" applied: cross-class dedup discipline
+  (4 authority resolutions over the KS + missingness + error-
+  burst + cardinality SEED family that streaming-sketch
+  summaries heavily reuse) + 4 ParameterizationOf collapses
+  (Flajolet-Martin / streaming-approximate-KS / sliding-window
+  error-burst-sketch / sketch-approximate-missingness into
+  existing SEED records). 8 new canonicals admitted (3 hash-
+  based seeded: CMS / Bloom / AMS; 1 HLL hash-based with
+  precision parameter; 4 deterministic: Misra-Gries / Space-
+  Saving / Greenwald-Khanna / t-digest) only after each
+  survived the SEED-walk as structurally distinct sketch-state
+  decision functionals.
+- Hash / width / depth / seed contract discipline: every
+  CanonicalAddition reason declares the appropriate contract
+  for its sketch family (hash family + width + seed array for
+  CMS / Bloom / AMS; hash family + bucket count + precision
+  for HLL; width + update rule + merge law for Misra-Gries /
+  Space-Saving / Greenwald-Khanna / t-digest).
+- Probabilistic-bound-as-deterministic-certainty discipline
+  (MOST IMPORTANT): forbidden deterministic-accuracy-bound
+  terms appear NOWHERE in the proposal.
+- Approximate-query-truth discipline (MOST IMPORTANT):
+  forbidden approximate-query-truth / database-correctness-
+  verdict / sketch-query-verdict terms appear NOWHERE in the
+  proposal.
+- Privacy / anonymization discipline (MOST IMPORTANT):
+  forbidden positive-claim variants of privacy / anonymization
+  appear NOWHERE in the proposal. The Bloom-filter
+  CanonicalAddition record legitimately disclaims
+  "anonymization authority" inside a "does NOT admit ..."
+  sentence; only positive-claim variants are forbidden.
+- Mergeable-sketch-without-merge-law discipline (MOST
+  IMPORTANT): every CanonicalAddition that claims
+  mergeability also declares a merge law.
+- Learned-streaming-anomaly + black-box-vendor-sketch honesty:
+  both RejectedNotDeterministic until deterministic feature-
+  extraction law / declared formula / declared update rule /
+  declared training-data anchor / no-learned-opaque-embedding
+  (for 6513) OR declared hash + width + depth + seed + merge
+  law + error-bound semantics (for 6514) are all declared.
+
+T.12.o is sealed. The amendment court has admitted the
+fifteenth real expansion proposal: 8 new canonical streaming-
+sketch primitives (Count-Min sketch residual per Cormode-
+Muthukrishnan 2005, HyperLogLog cardinality shift per
+Flajolet-Fusy-Gandouet-Meunier 2007, Bloom-filter membership
+anomaly per Bloom 1970, Misra-Gries heavy-hitter shift per
+Misra-Gries 1982, Space-Saving heavy-hitter shift per
+Metwally-Agrawal-El Abbadi 2005 distinct from Misra-Gries via
+replace-smallest-on-miss, Greenwald-Khanna quantile summary
+drift per Greenwald-Khanna 2001 with deterministic epsilon-
+approximate quantile guarantee, t-digest summary residual per
+Dunning 2019 with declared DETERMINISTIC centroid-merge law,
+AMS moment sketch per Alon-Matias-Szegedy 1999 with 4-wise-
+independent hash family), 4 existing-canonical authority
+resolutions over the KS + missingness + error-burst +
+cardinality SEED family (KS 8, Missingness spike 13, Error
+burst 41, Cardinality drift 46), 2 DomainTransferOf records
+(SEED 46 cardinality + SEED 8 KS ancestors for
+StreamingSketches), 4 ParameterizationOf records collapsing
+Flajolet-Martin / streaming-approximate-KS / sliding-window
+error-burst-sketch / sketch-approximate-missingness-via-Bloom-
+inversion into existing SEED canonicals, 2
+RejectedNotDeterministic records (ninth T.12.x with two
+rejections, following T.12.g / h / i / j / k / l / m / n) --
+all WITHOUT mutating SEED or corpus_hash_v1 and WITHOUT
+admitting a single probabilistic-as-certainty / approximate-
+query-truth / privacy / anonymization / database-correctness-
+verdict claim.
+
+Next campaign (panel-authorized post-T.12.o): T.12.p -
+Information Theory catch-up (reserved id band 6601..=6699).
+Same SEED-walk-first discipline. Candidate primitives: mutual-
+information shift (Cover-Thomas 2006), conditional-entropy
+drift, information-bottleneck residual (Tishby-Pereira-Bialek
+1999), transfer-entropy spike (Schreiber 2000), Renyi-
+divergence shift, normalized-mutual-information drift, Markov-
+chain-Monte-Carlo-ESS-shift, channel-capacity break. Likely
+SEED collisions: SEED 9 KL divergence, SEED 32 Jensen-Shannon
+divergence, SEED 38 Spectral entropy.

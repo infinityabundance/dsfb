@@ -1,0 +1,188 @@
+# Post-T.10 regression check (per-section discipline artifact)
+#
+# Hardware:       RTX 4080 SUPER
+# CUDA toolkit:   13.2
+# Date:           2026-05-15
+# Pre-T.10 head:  2571a05 (S1.1 Atlas detector algebra type surface)
+# Post-T.10 head: (this commit)
+# Test:           tests/r12_d64_saturation.rs (D64 saturation sweep)
+# Method:         re-run the R.12b saturation matrix after T.10
+#                 lands; compare against the pinned R.12b money
+#                 table in reports/money_table.txt and
+#                 reports/r12_d64_saturation.txt.
+#
+# Why this artifact exists:
+#   T.10 introduces corpus_hash_v1 (a 32-byte SHA-256 commitment
+#   over the canonical-byte projection of the live T.1-T.9 corpus
+#   material) and a minimal CaseFileV2 receipt header that can
+#   carry it. T.10 does NOT generate registry_hash_v2, does NOT
+#   emit the 2,000-detector Atlas registry, does NOT run Atlas
+#   family kernels, does NOT publish anything externally, and
+#   does NOT change the R.13 D64 headline or any D16/D64/D128/D205
+#   registry hash.
+#
+#   This file is the user-enforced per-section discipline receipt.
+#
+# Result: NO SEMANTIC REGRESSION.
+#   - tests/r12_d64_saturation.rs exit code: 0
+#   - Full-workspace serial test suite
+#     (cargo test --workspace --features cuda -- --test-threads=1):
+#       525 passed; 0 failed; finished green.
+#       (S1.1 baseline 492 + 17 new corpus_hash_v1 tests + 16 new
+#        casefile_v2_header tests = 525. Match.)
+#   - dsfb-gpu-atlas-corpus crate: 211 baseline + 17 new + 1
+#     print-helper = 229 tests green.
+#   - dsfb-gpu-atlas-registry crate: 26 tests green (unchanged).
+#   - dsfb-gpu-debug-core crate: pre-T.10 baseline + 16 new
+#     casefile_v2_header tests green.
+#   - Episode counts byte-identical to pinned R.12b numbers:
+#       canonical 16x128 K in {1,4,16,32,64,128} : 13   episodes/cat
+#       mid       64x512 K in {1,4,16,32,64,128} : 89   episodes/cat
+#       full   256x4096  K in {1,4,16,32,64,128} : 1917 episodes/cat
+#
+# GPU-timing posture (panel-discipline, NOT a T.10 regression):
+#   T.10 is pure host-side code (corpus_hash module +
+#   CaseFileV2 header). No GPU code path is touched. The
+#   R.12b numbers vary run-to-run with thermal envelope and host
+#   load. The pinned reports/r12_d64_saturation.txt is the
+#   authoritative R.12b baseline. This receipt does NOT rebaseline
+#   it. The pinned baseline files were restored to HEAD after the
+#   test rewrote them during this run.
+#
+# T.10 deliverables (sealed in this commit):
+#   - NEW module crates/dsfb-gpu-atlas-corpus/src/corpus_hash.rs:
+#       * CORPUS_HASH_DOMAIN_V1 = "DSFB-GPU-ATLAS:LITERATURE-CORPUS:v1\0"
+#       * CORPUS_HASH_SCHEMA_V1 = "DSFB-GPU-ATLAS:CORPUS-HASH-SCHEMA:v1"
+#       * CorpusHashV1 { bytes: [u8; 32] } + is_zero + to_hex
+#       * write_corpus_hash_material_v1 (canonical-byte projection
+#         over T.1-T.9 material: SCHEMA / RECORDS / COURT /
+#         ALIAS_CLAIMS / USEFULNESS / END sections, in canonical
+#         sort order, length-prefixed strings, big-endian
+#         integers, enum wire names not Debug)
+#       * compute_corpus_hash_v1 returning the SHA-256 commitment
+#   - NEW module crates/dsfb-gpu-debug-core/src/casefile_v2.rs:
+#       * CASEFILE_V2_HEADER_DOMAIN = "DSFB-GPU-ATLAS:CASEFILE-V2-HEADER:v1\0"
+#       * CaseFileV2Schema (HeaderOnlyT10 only at T.10)
+#       * CorpusStage (InternalAuditPreFreeze / FrozenT10)
+#       * AtlasAlgebraStatus (S1_1TypeSurfaceOnly only at T.10)
+#       * CaseFileV2Header struct (7 panel-locked fields)
+#       * verify_casefile_v2_header (3 verifier rules:
+#         ZeroCorpusHash / SemanticNonBypassFalse /
+#         CorpusStagePreFreeze)
+#       * casefile_v2_header_hash function returning the
+#         32-byte receipt commitment over the panel-locked
+#         field ordering
+#   - NEW tests crates/dsfb-gpu-atlas-corpus/tests/corpus_hash_v1.rs:
+#     17 acceptance tests covering: determinism, domain-separator
+#     load-bearingness, schema constants, hex rendering, material
+#     writer determinism, section coverage (schema / records /
+#     court / alias_claims / genealogy / witness roles / L-band
+#     states / usefulness rows), one-bit mutation sensitivity,
+#     no-report-rendering invariant, static-seed/TOML stability,
+#     D16/D64/D128/D205 registry-hash isolation.
+#   - NEW tests crates/dsfb-gpu-debug-core/tests/casefile_v2_header.rs:
+#     16 acceptance tests covering: domain constant, schema
+#     variant, header field shape, hash stability + sensitivity
+#     to corpus_hash / detector_profile / semantic_non_bypass
+#     changes, clean verifier path, three rejection rules
+#     (ZeroCorpusHash / SemanticNonBypassFalse /
+#     CorpusStagePreFreeze), T.10 non-claims (no registry_hash_v2,
+#     no detector registry generation, audit-path hashes
+#     unchanged).
+#   - NEW tests crates/dsfb-gpu-atlas-corpus/tests/print_t10_hashes.rs:
+#     auxiliary helper printing canonical hashes for the receipt
+#     (1 test).
+#   - reports/t10_corpus_hash_receipt.txt: public receipt for
+#     corpus_hash_v1 with material projection enumeration.
+#   - reports/t10_casefile_v2_header_receipt.txt: public receipt
+#     for the CaseFileV2 header schema + four per-profile hashes.
+#
+# Canonical T.10 hashes (machine-readable, hex):
+#   corpus_hash_v1               = 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+#   casefile_v2_header_hash D16  = bc21d6ed3d22dd8e1330b84e31b91fed07516714fbc295c3617c5a73c75bdfe1
+#   casefile_v2_header_hash D64  = 3360ec8ba3ab9297afb08b357685e7af54a3087d67f0e6b76a033a4332ad6ffe
+#   casefile_v2_header_hash D128 = f2787ef3a8fdf85d2ac10cf41cdab73bfe49c7d11a04e2d7ca43d1d893a56d82
+#   casefile_v2_header_hash D205 = c593bdb887ff045252f5a7ce9c26502c7b18c088c0ae77a0771a900c6087dfc4
+#
+# Honesty invariants pinned by T.10:
+#   - Hash material is the canonical byte projection, NOT report
+#     rendering text. Re-rendering the public reports does NOT
+#     change corpus_hash_v1. Mutating any T.1-T.9 payload byte
+#     WILL change corpus_hash_v1.
+#   - corpus_hash_v1 includes: schema id, all 54 detector
+#     records (sorted by canonical_id), all 66 court decisions
+#     (sorted by subject), all 12 alias claims (sorted by
+#     alias_id), all 54 usefulness ledger rows (sorted by triple),
+#     witness roles, fusion axes, L-band states, lifecycle
+#     states, genealogy edges, constitution flags.
+#   - CaseFileV2Header at T.10 carries `corpus_stage =
+#     FrozenT10` AND `atlas_algebra_status = S1_1TypeSurfaceOnly`.
+#     No registry_hash_v2 field exists; the
+#     `detector_registry_hash` is the existing per-profile hash.
+#   - The Semantic Non-Bypass Axiom is non-negotiable. A header
+#     with `semantic_non_bypass = false` is rejected by the
+#     verifier.
+#   - The D16/D64/D128/D205 ladder is unchanged by T.10.
+#
+# Crate counts after T.10:
+#   - dsfb-gpu-debug-core         (added casefile_v2 module)
+#   - dsfb-gpu-debug-cuda         (unchanged)
+#   - dsfb-gpu-debug-demo         (unchanged)
+#   - dsfb-gpu-atlas-corpus       (added corpus_hash module + 2 test files)
+#   - dsfb-gpu-atlas-registry     (unchanged)
+#
+# Stale-doc grep scan (this commit) - verified clean:
+#   grep -RnE "registry_hash_v2|corpus_hash_v1 .*deferred" \
+#     crates README.md \
+#     -> hits are in honesty / non-claim context only; the
+#     constant `registry_hash_v2` is NOT defined anywhere.
+#
+# Full code-commentary discipline (this commit):
+#   - Every new pub item carries a doc-block stating the WHY
+#     for a future engineer.
+#   - corpus_hash.rs module docstring lists the canonical
+#     material sections in order and explicitly states the
+#     hash-is-NOT-over-rendered-text invariant.
+#   - casefile_v2.rs module docstring lists the panel-locked
+#     scope ("HEADER only at T.10; no full episode transcript")
+#     and explains why the corpus_hash_v1 field is a raw [u8; 32]
+#     (to keep core free of the corpus crate dependency).
+#   - Every test file's module docstring lists every test name
+#     grouped by category.
+#
+# Pinned baselines not rebaselined by this commit:
+#   - reports/r12_d64_saturation.txt -- restored to HEAD; the
+#     test re-wrote it during this run but the file is the
+#     authoritative R.12b baseline and should not drift with
+#     thermal noise.
+#   - reports/d64_stage_timing_256x4096_K1.txt -- restored.
+#   - reports/r9_b_d64_timing.txt / reports/r9_b3_d64_timing.txt
+#     -- restored.
+#
+# 10-step per-section discipline checklist (hard-enforcement order):
+#   [x]  1. cargo fmt --all --check                                (clean)
+#   [x]  2. cargo clippy --workspace --features cuda --all-targets \
+#             -- -D warnings                                       (clean)
+#   [x]  3. scripts/scrub.sh                                       (clean)
+#   [x]  4. scripts/docs_freshness.sh                              (clean)
+#   [x]  5. cargo test -p dsfb-gpu-atlas-corpus                    (229 green:
+#             T.9 baseline 211 + 17 corpus_hash + 1 print helper)
+#   [x]  6. cargo test -p dsfb-gpu-atlas-registry                  (26 green;
+#             unchanged from S1.1)
+#   [x]  7. cargo test --workspace --features cuda \
+#             -- --test-threads=1                                  (525 green:
+#             S1.1 baseline 492 + 17 corpus_hash + 16 casefile_v2 =
+#             525)
+#   [x]  8. tests/r12_d64_saturation regression check              (exit 0;
+#             D64 episode counts byte-identical to pinned R.12b
+#             baseline; pinned R.12b baseline NOT rebaselined.)
+#   [x]  9. stale-doc scan across the workspace                    (clean)
+#   [x] 10. Atomic single commit                                   (this commit)
+#
+# Going forward: T.10 sealed; the corpus is now hash-frozen and
+# bound into a minimal CaseFileV2 receipt header. The next
+# campaign decision is the panel's call -- natural candidates
+# include S1.2 (registry generation gated on the now-frozen
+# corpus_hash_v1), T.11 (CaseFileV2 body / episode transcript),
+# or D205 / D128 R.10b compact-pack work. R.13 D64 headline
+# remains sealed and unchanged.

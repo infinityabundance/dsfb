@@ -1,0 +1,156 @@
+S-PERF.12 — CompactDensorDigestV1 throughput-mode promotion seal
+================================================================
+
+Panel-locked thesis (verbatim from the post-S-PERF.14c panel directive):
+
+  S-PERF.12 promotion records that CompactDensorDigestV1 throughput mode
+  is now admitted as part of the measured combined Track B path. The
+  promoted path clears the >20 GB/s gate after S-PERF.13 host-staging
+  correction and S-PERF.14a/b/c launch-geometry repair, while preserving
+  R.12b episodes 13 / 89 / 1917 and the declared digest-mode
+  non-aliasing law.
+
+This is a RECEIPT-ONLY commit. No new CUDA kernels. No new optimization.
+No new measurement parser. The CUDA work was sealed across S-PERF.11 +
+S-PERF.12a + S-PERF.13 + S-PERF.14a/b/c; this commit emits the
+admissible-result META-receipt that binds the whole chain.
+
+Promoted bandwidth chain
+------------------------
+
+  leg                                | centi-GB/s | GB/s   | commit
+  -----------------------------------|-----------:|-------:|---------
+  pre-S-PERF.11 baseline             |       1333 | 13.33  | 598c188 / 2656e11 (S-PERF.6)
+  post-S-PERF.11 leaf-batching       |       1638 | 16.38  | 3e67cb4
+  S-PERF.12a warp-coop candidate     |       1872 | 18.72  | 42cce81
+  post-S-PERF.14c band min           |       2002 | 20.02  | 795d0f9 run #1
+  post-S-PERF.14c band median        |       2016 | 20.16  | 795d0f9 run #2
+  post-S-PERF.14c band max           |       2122 | 21.22  | 795d0f9 run #3
+
+Promotion-gate verdict
+----------------------
+
+  promotion_gate         : 2000 centi-GB/s (= 20.00 GB/s)
+  band_min vs gate       : 2002 > 2000 — CLEARED by 0.02 GB/s
+  band_median vs gate    : 2016 > 2000 — CLEARED by 0.16 GB/s
+  promotion_gate_passed  : true
+  saturation_admitted    : false  (panel-locked non-claim;
+                                   20 GB/s ≈ 2.8% of 716 GB/s vendor peak;
+                                   saturation gate is 80% = 572.8 GB/s)
+
+R.12b episode-count invariants (preserved by every commit in the chain)
+-----------------------------------------------------------------------
+
+  canonical 16x128 K=1   : 13
+  mid 64x512 K=1         : 89
+  full 256x4096 K=1      : 1917
+
+Digest-mode discipline
+----------------------
+
+  digest_mode                    : CompactDensorDigestV1
+  tree_sha256v1_root_aliasing    : false  (panel-locked S-PERF.10
+                                           digest_mode_non_aliasing_law)
+  audit_mode_unchanged           : true   (SerialSha256 path byte-identical
+                                           end-to-end; Audit-mode golden
+                                           hashes unchanged from R.7 through
+                                           every S-PERF.x commit)
+
+Own-namespace hashes (panel-locked)
+-----------------------------------
+
+  s_perf_12_promotion_fields_hash_v1 :
+    61a7620ec9cafba82eeb6108a16a1faacce23e1e31a1d24049fa903828028fd8
+    (domain: DSFB-GPU-ATLAS:S-PERF-12-PROMOTION-FIELDS:v1\0; pins 14
+    panel-locked promotion fields)
+
+  s_perf_12_promotion_report_hash_v1 :
+    36a68b225ccdc1ab87863edcf31de545e81fd72a305076eba2f2528fad0d4b4e
+    (domain: DSFB-GPU-ATLAS:S-PERF-12-PROMOTION-REPORT:v1\0; top-level
+    META-hash binding fields hash + 3 upstream anchor hashes + 6 commit-sha
+    provenance strings)
+
+Upstream anchors bound
+----------------------
+
+  s_perf_11_bandwidth_delta_report_hash_v1  (S-PERF.11 measured-result, live)
+  s_perf_11_1_bottleneck_triage_hash_v1     (S-PERF.11.1 triage, live)
+  corpus_hash_v1                            (literature-corpus identity)
+
+CUDA-side commit-sha provenance chain
+-------------------------------------
+
+  S-PERF.11  (digest-lane compaction; leaf-kernel-v2)     : 3e67cb4
+  S-PERF.12a (CompactDensorDigestV1 warp-coop CUDA)       : 42cce81  (bundled)
+  S-PERF.13  (host input-staging label rename + AVX2)     : 42cce81
+  S-PERF.14a (drift_slew_sign Pre-Alpha + cellpar)        : dac489f
+  S-PERF.14b (compact_densor root cooperative-staging)    : e1dcf54
+  S-PERF.14c (candidate_boundary Pre-Alpha + cellpar)     : 795d0f9
+
+Acceptance suite
+----------------
+
+  31 tests in crates/dsfb-gpu-atlas-corpus/tests/
+  s_perf_12_compact_densor_digest_v1_promotion_invariants.rs:
+
+  8 panel-required campaign-identity negatives:
+    s_perf_12_rejects_promotion_seal_when_bandwidth_below_gate
+    s_perf_12_rejects_promotion_seal_with_saturation_claim
+    s_perf_12_rejects_promotion_seal_with_tree_sha256v1_aliasing_claim
+    s_perf_12_rejects_promotion_seal_with_r12b_episode_drift
+    s_perf_12_rejects_promotion_seal_without_s_perf_11_anchor
+    s_perf_12_rejects_promotion_seal_without_s_perf_11_1_anchor
+    s_perf_12_rejects_promotion_seal_without_audit_mode_unchanged_flag
+    s_perf_12_rejects_promotion_seal_without_compact_densor_digest_v1_mode_identity
+
+  4 structural-defect rules:
+    structural_rejects_empty_report_id
+    structural_rejects_corpus_hash_missing
+    structural_rejects_promotion_gate_value_drifted
+    structural_rejects_promotion_gate_passed_arithmetic_mismatch
+
+  8 panel-required positives + 4 hash sensitivity + 3 render byte-stability
+  + 3 panel-pinned value cross-checks + 1 live-disk-seed back-stop. All 31
+  pass post-S-PERF.14c codebase.
+
+CLI surface
+-----------
+
+  dsfb-corpus s-perf-12-promotion       [--json] [--out PATH]
+  dsfb-corpus s-perf-12-promotion-emit  [--out-dir DIR]
+
+  Exits 3 on any panel-locked drift; 0 on admit.
+
+Bulk artifacts (byte-stable across two emits)
+--------------------------------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_12_compact_densor_digest_v1_promotion_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_12_compact_densor_digest_v1_promotion_v1.json
+
+Panel-locked non-claims (MUST appear in README + paper + commit body)
+---------------------------------------------------------------------
+
+  - Does NOT claim memory-bandwidth saturation (20 GB/s ~ 2.8% of 716 GB/s
+    vendor peak; panel-locked saturation gate is 8000 bp / 80% per S-PERF.1).
+  - Does NOT claim CompactDensorDigestV1 roots are byte-identical to
+    TreeSha256V1 roots (S-PERF.10 digest_mode_non_aliasing_law).
+  - Does NOT change Audit mode (SerialSha256 path unchanged; golden hashes
+    byte-identical).
+  - Does NOT introduce new CUDA kernels (the kernels were sealed in
+    S-PERF.11 + S-PERF.12a + S-PERF.13 + S-PERF.14a/b/c).
+  - Does NOT mutate any prior corpus / T.11 / T.12.x / FF.x / S1.3.x /
+    T.12.PROV / S-PERF.1-S-PERF.11.1 hash anchor.
+  - Does NOT alter SEED.len() (stays at 54).
+  - Does NOT rebaseline R.12b episode pins (13 / 89 / 1917 byte-stable).
+  - Does NOT seal S-PERF.14b.1 streaming SHA-256 (Path 1b deferred).
+  - Does NOT open S-PERF.15 broad DRAM/L2/layout campaign (deferred until
+    a clean ratified scoreboard exists).
+
+Panel one-line verdict (verbatim from the post-S-PERF.14c directive)
+--------------------------------------------------------------------
+
+  S-PERF.14 completed the launch-geometry repair arc and pushed the
+  combined CompactDensorDigestV1 path over the >20 GB/s promotion gate.
+  The next correct move is not more optimization; it is to seal S-PERF.12
+  promotion as the admissible Track B throughput-mode result, then
+  continue to S-PERF.14b.1 or S-PERF.15 from a ratified scoreboard.

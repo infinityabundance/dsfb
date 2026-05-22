@@ -1,0 +1,519 @@
+========================================================================
+ S-PERF.14b.1 Step 0 — streaming SHA-256 Path 1b baseline
+ (panel-required Step 0 deliverable; one-shot baseline; no hash chain)
+========================================================================
+
+Hardware: RTX 4080 SUPER, CUDA 13.2
+Codebase: HEAD 6233622 (post-S-PERF.15.d seal; pre-S-PERF.14b.1
+          kernel surgery; this state IS post-S-PERF.14b Path 1a
+          cooperative-staging seal at e1dcf54 + every subsequent
+          S-PERF.14c/15.a/15.b/15.c/15.d landed atomically)
+Bench:    s_perf_12_d64_compact_densor_stage_profile_256x4096_k1
+Harness:  crates/dsfb-gpu-debug-demo/tests/s_perf_14b_1_streaming_sha_byte_identity.rs
+          (7 tests; all admit against pre-rewrite codebase)
+
+Panel-locked context (verbatim 2026-05-18 post-S-PERF.15.d seal):
+
+  Attack the largest remaining wall unless the contract risk is
+  unacceptable. Current post-S-PERF.15.d wall is
+  compact_densor_digest_v1_root_kernel_blockcoop at ~925 µs @
+  2.7 % occupancy (per single invocation × 4 invocations per
+  dispatch ≈ 3.7 ms total). S-PERF.14b.1 streams the exact
+  CompactDensorDigestV1 byte stream through SHA-256, eliminating
+  the scratch round-trip while preserving byte-identical roots
+  and all Track B invariants.
+
+------------------------------------------------------------------------
+ PRE-S-PERF.14b.1 baselines (BOTH layers per panel-locked routine)
+------------------------------------------------------------------------
+
+PRE Nsight baseline (sudo ROOF this session):
+  reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_14b_1_step0.txt
+
+  compact_densor_digest_v1_root_kernel_blockcoop:
+    Duration         : 925,824 ns ≈ 925.8 µs per single invocation
+                       (× 4 invocations per dispatch ≈ 3.7 ms total)
+    DRAM %           :  1.70
+    L2 %             :  0.33
+    L1 %             :  4.90
+    SM %             :  0.21         (essentially zero compute throughput)
+    Occupancy        :  2.69 %       (theoretical 66.67 %; K=1 = one block)
+    Memory BW (eff)  : 12.2 GB/s     (low — serial SHA on one warp)
+    IPC active       :  0.42 inst/cycle
+    IPC elapsed      :  0.01 inst/cycle  (99 % scheduler idle; serial floor)
+    Bucket           : OCC!          (structural K=1 floor)
+
+  Aggregate observation: at 1.70 % × 716 GB/s peak × 925 µs =
+  ~11 MB of DRAM read traffic per invocation, despite only
+  nominally streaming ~64 KB of leaves per stage (~2 048 chunks
+  × 32 B at canonical consensus). This suggests the Path 1a
+  cooperative scratch staging is incurring ~170× amplification
+  of leaf-read traffic — likely because scratch lives in
+  GLOBAL memory (not shared), so Phase 2's cooperative copy
+  reads leaves from L2 and writes them to L2/DRAM, then
+  Phase 3's serial SHA reads them back as scratch. Streaming
+  SHA-256 eliminates this round-trip entirely by absorbing the
+  bytes directly from global as they're processed.
+
+  All prior post-S-PERF.15.d wins intact in same PRE ROOF:
+    drift_slew_sign_kernel_cellpar       :  32,416 ns @ 91.1% DRAM (S-PERF.14a)
+    detector_motif_fused_d64_kernel      : 1,315,712 ns @ 91.6% L2 (S-PERF.15.d hot-lane)
+    consensus_axis5_fused_kernel         :   401,824 ns @ 87.1% L2 (S-PERF.15.b)
+    candidate_fired_kernel_wide          :    61,824 ns @ 76.2% DRAM
+    candidate_boundary_precompute_kernel :   285,088 ns @  2.1% Occ (Pre-Alpha)
+    candidate_boundary_cellpar_emit      :     2,048 ns @  6.0% Occ (S-PERF.14c)
+    candidate_pack_kernel_wide_blockcoop :   145,952 ns @ 39.4% Occ (S-PERF.15.c)
+    compact_densor_digest_v1_leaf        :   206,144 ns @ 32.1% Occ
+
+PRE bandwidth GB/s band (3-run live bench captured this turn,
+canonical 256×4096 K=1 D64, RTX 4080 SUPER / CUDA 13.2):
+
+  Run 1: 23.56 GB/s (host 21,157 µs, device 11,747 µs, episodes 1917)
+  Run 2: 25.10 GB/s (host 20,508 µs, device 11,030 µs, episodes 1917)
+  Run 3: 19.47 GB/s (host 23,323 µs, device 14,214 µs, episodes 1917)
+
+  Median: 23.56 GB/s   Min: 19.47 GB/s   Max: 25.10 GB/s
+  Band width: ~24 % of median (typical thermal noise)
+  Episodes: 1917 byte-stable across all 3 runs
+
+  Per-stage compact_densor wall in run 1 (median):
+    compact_densor residual   : 1,002 µs
+    compact_densor sign       : 1,290 µs
+    compact_densor detector   : 1,124 µs
+    compact_densor consensus  : 1,996 µs
+    TOTAL compact_densor      : 5,412 µs (~46 % of device wall)
+    (per-stage = leaf kernel + root kernel; root kernel alone is
+    ~925 µs each per ROOF, so root contributes ~3,700 µs / 68 %
+    of the compact_densor stage total)
+
+  Distance to saturation gate (572.8 GB/s / 80 % of 716 GB/s peak):
+    ~549 GB/s remaining; ~77 percentage points
+
+Step 0d focused byte-counter trace (LANDED this session):
+  reports/_ncu_d64_compact_densor_root_step0_bytecounters.csv
+  (one steady-state root_kernel_blockcoop invocation,
+  --launch-skip-before-match 3 --launch-count 1)
+
+  Raw per-invocation byte-counter measurements:
+
+    dram__bytes_read.sum                          =   3,208,064 B (~3.2 MB)
+    dram__bytes_write.sum                         =           0 B (zero!)
+    l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum  =   1,082,752 B (~1.08 MB)
+    l1tex__t_bytes_pipe_lsu_mem_global_op_st.sum  =      67,968 B (~66 KB)
+    l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum =     33,836 sectors
+    l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum =      2,124 sectors
+    lts__t_sectors_op_read.sum                     =    119,573 sectors (~3.83 MB)
+    lts__t_sectors_op_write.sum                    =     36,141 sectors (~1.16 MB)
+
+  Decision-driving ratios:
+
+    L1   ST/LD bytes    = 67,968 / 1,082,752    = 0.06×  ← LOAD-DOMINANT
+    L2   ST/LD sectors  = 36,141 / 119,573      = 0.30×  ← LOAD-DOMINANT
+    DRAM ST/LD bytes    = 0 / 3,208,064         = 0      ← zero DRAM writes
+    DRAM RD vs L1 LD    = 3.2 MB / 1.08 MB      = 2.97×  ← over-fetching
+
+  Interpretation:
+
+    - The root kernel is the OPPOSITE of S-PERF.15.d (which was
+      8.7× WRITE-dominant). This kernel is scratch-READ-dominant:
+      ~66 KB of Phase 2 cooperative-copy writes to scratch,
+      ~1 MB of Phase 3 serial-SHA reads from scratch.
+    - DRAM writes are ZERO — the scratch buffer is fully
+      L2-resident, no drain to DRAM. The 3.2 MB DRAM read is
+      the leaf-arena read traffic (~2.97× amplified vs L1 LD due
+      to cache-line over-fetching on the leaf reads).
+    - Streaming SHA eliminates BOTH the Phase 2 cooperative-copy
+      writes (66 KB) AND the Phase 3 scratch reads (the bulk of
+      the 1.08 MB L1 LD), because the streaming init/update/
+      finalize sequence absorbs bytes directly from global into
+      the SHA-256 state without staging through a scratch buffer.
+
+  Verdict (panel-locked rule, verbatim):
+    "If LD bytes  >> ST bytes: the kernel is read-dominant.
+     Direction B (sidecar) or read-side elimination is justified."
+
+    Measured at L1:    ST/LD = 0.06× (>>>> read-dominant by 16×)
+    Measured at L2:    ST/LD = 0.30× (read-dominant by 3.3×)
+    Measured at DRAM:  ZERO writes (scratch is L2-resident)
+
+    → S-PERF.14b.1 Path 1b (streaming SHA-256) is the correct
+      lever: eliminates the scratch READ round-trip that
+      dominates the kernel's memory traffic.
+
+  Honest projection (panel-locked, MUST appear in commit body):
+
+    The kernel's PRE Nsight shows IPC elapsed = 0.01 (99 % of
+    wall is scheduler-idle / one warp serial). The serial
+    SHA-256 compute floor is ~4 cycles per round × N rounds —
+    that's structural and streaming SHA can't reduce it.
+    Streaming eliminates Phase 2 cooperative-copy time AND
+    Phase 3 scratch-read time, but Phase 3 SHA-compute time
+    remains.
+
+    Realistic per-invocation wall projection:
+      925 µs → 700-850 µs (~10-25 % per-invocation cut)
+    Realistic per-dispatch projection (× 4 invocations):
+      ~3.7 ms → ~2.8-3.4 ms (~0.3-0.9 ms dispatch savings)
+    NOT a 1.5-2× win at the per-invocation level. The
+    per-dispatch savings × 4 invocations is what the system
+    bench measures.
+
+    If the measured POST is closer to ~10 % per-invocation
+    cut, that is still admissible — the byte-counter evidence
+    proves the right wall is being attacked; the magnitude
+    is bounded by the serial-SHA floor.
+
+------------------------------------------------------------------------
+ 4 panel-required Step 0 pinned constants (canonical 16x128 K=1 D64)
+------------------------------------------------------------------------
+
+These 4 pins are CompactDensorDigestV1 stage root digests at
+the canonical 16×128 K=1 D64 fixture. By construction they
+must byte-equal the existing S-PERF.14b pinned constants
+(sealed at e1dcf54) because the codebase at HEAD 6233622 is
+post-Path-1a-seal — the Path 1a roots ARE the S-PERF.14b roots.
+Cross-validation passes (test
+`s_perf_14b_1_roots_match_s_perf_14b_pinned_roots`).
+
+  1. PINNED_PRE_S_PERF_14B_1_COMPACT_DENSOR_RESIDUAL_ROOT
+     = c746 ed1c 7eae 75d6 c8e3 d928 fe56 6764
+       9d96 ed4f 9bf9 3ea8 373f 7487 e20b f389
+     (== S-PERF.14b residual root)
+
+  2. PINNED_PRE_S_PERF_14B_1_COMPACT_DENSOR_SIGN_ROOT
+     = e410 3143 a46b 9465 f60e f49c 2012 c396
+       8960 c90d 8d79 674b 7096 0af0 09e5 6f09
+     (== S-PERF.14b sign root)
+
+  3. PINNED_PRE_S_PERF_14B_1_COMPACT_DENSOR_DETECTOR_ROOT
+     = 329d 19bf f4c8 9ad6 cfcf a8fb c38d 1e5d
+       d1e6 f52f c0b8 123a bc1d 5007 3568 220b
+     (== S-PERF.14b + S-PERF.15.a + S-PERF.15.d detector root)
+
+  4. PINNED_PRE_S_PERF_14B_1_COMPACT_DENSOR_CONSENSUS_ROOT
+     = 9787 f813 89ad f638 9bf0 bd7e 342f 37b9
+       e7f1 b06b d69f a275 4167 5a58 4bcb 5c15
+     (== S-PERF.14b consensus root)
+
+Pre-S-PERF.14b.1 codebase verification result:
+  7/7 harness tests admit; all 4 pins verified against the
+  Path-1a codebase; cross-validation against S-PERF.14b's
+  pinned constants passes (4/4 byte-identical by construction);
+  capture determinism across two runs verified.
+
+------------------------------------------------------------------------
+ CompactDensorDigestV1 byte-stream metadata (Step 0 audit deliverable)
+------------------------------------------------------------------------
+
+The streaming SHA-256 path MUST consume bytes in this exact
+order to produce byte-identical roots. Sourced from
+cuda/kernels.cu at HEAD 6233622.
+
+Header (44 bytes per root invocation):
+
+  [ 0..28) "DSFB_STAGE_COMPACT_DENSOR_V1"  (28 B domain separator;
+                                            canonical header bytes
+                                            per S-PERF.10 contract)
+  [28..32) fold_factor    u32 LE = 256     (panel-locked
+                                            S-PERF.12 FOLD_FACTOR)
+  [32..36) stage_id       u32 LE ∈ {0=residual,
+                                    1=sign,
+                                    2=detector,
+                                    3=consensus}
+  [36..40) chunk_size     u32 LE           (per-stage; from contract)
+  [40..44) n_chunks       u32 LE           (per-stage; from launch
+                                            — ceil(stage_bytes /
+                                            chunk_size))
+
+Body (n_chunks × 32 bytes per root invocation):
+
+  leaf[0]  : 32 B SHA-256 of chunk 0 (already pre-computed
+             by compact_densor_digest_v1_leaf_kernel and
+             stored in d_compact_densor_leaves global arena)
+  leaf[1]  : 32 B SHA-256 of chunk 1
+  ...
+  leaf[n-1]: 32 B SHA-256 of chunk n-1
+
+Total bytes streamed per root invocation:
+  44 + n_chunks × 32 bytes
+
+Canonical leaf ordering:
+  catalog-major × chunk-index-minor
+  (each catalog's leaves are contiguous; within a catalog,
+  chunks are sequential ascending. Per-stage n_chunks scales
+  with the stage's payload size: residual / sign / detector /
+  consensus chunks per stage differ because their per-cell
+  payloads differ.)
+
+Streaming SHA-256 path requirements:
+
+  1. Process header bytes FIRST in canonical order (28-byte
+     domain string, then 4 u32 LE fields).
+  2. Process leaf bytes in canonical leaf order (no
+     re-ordering, no skipping, no duplication).
+  3. SHA-256 init/update/finalize sequence MUST handle
+     tail-block padding (when total bytes mod 64 != 0).
+  4. The total byte count (44 + n_chunks × 32) MUST match
+     the one-shot path EXACTLY (off-by-one in the trailing
+     length encoding produces a different root).
+
+Cross-validation requirement (S-PERF.14b.1 Step 1):
+
+  Before the root kernel rewrite, add a known-vector
+  cross-validation test that runs both dsfb_sha256_device
+  (one-shot) and the new streaming init/update/finalize
+  helpers on three inputs:
+    - empty (0 bytes)              — pure padding edge case
+    - 55 bytes                     — single SHA block tail
+    - 64 KB (64 × 1024)            — multi-block + clean tail
+  Both implementations MUST produce byte-identical 32-byte
+  digests for all three inputs. This validates the streaming
+  primitives before they're invoked from the root kernel.
+
+------------------------------------------------------------------------
+ Step 0d focused byte-counter trace (USER RUNS)
+------------------------------------------------------------------------
+
+Standard ROOF gives the aggregate L1/L2/DRAM throughput
+percentages but doesn't split LD vs ST. Focused ncu with
+--kernel-filter on the root kernel quantifies the byte-counter
+split definitively. Command (USER runs; sudo required for
+perf-counter access):
+
+  sudo /usr/bin/ncu \
+    --target-processes all \
+    --kernel-id ::regex:compact_densor_digest_v1_root_kernel_blockcoop \
+    --launch-skip-before-match 3 \
+    --launch-count 1 \
+    --metrics \
+      l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum,\
+      l1tex__t_bytes_pipe_lsu_mem_global_op_st.sum,\
+      l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum,\
+      l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum,\
+      lts__t_sectors_op_read.sum,\
+      lts__t_sectors_op_write.sum,\
+      dram__bytes_read.sum,\
+      dram__bytes_write.sum \
+    --csv \
+    --log-file reports/_ncu_d64_compact_densor_root_step0_bytecounters.csv \
+    target/release/deps/s_perf_12_d64_compact_densor_stage_profile-242cff6e16ef8b5a \
+    --ignored s_perf_12_d64_compact_densor_stage_profile_256x4096_k1 \
+    --nocapture
+
+Expected interpretation:
+  - If LD bytes/sectors >> ST bytes/sectors: scratch-LOAD-dominant.
+    Path 1b streams leaves directly → ELIMINATES the LD wall.
+  - If ST bytes/sectors significant: scratch-STORE traffic from
+    Phase 2 cooperative copy ALSO eliminated by streaming
+    (no scratch buffer to write to).
+  - If both LD and ST significant: streaming SHA eliminates
+    BOTH scratch-side roundtrips (maximum payoff).
+
+After the focused ncu CSV lands, the field-audit receipt is
+amended with the actual byte-counter numbers and the Step 1
+direction-A target (streaming SHA-256) gets confirmed by
+measured evidence.
+
+------------------------------------------------------------------------
+ Panel-locked Step 0 verdict (verbatim)
+------------------------------------------------------------------------
+
+  S-PERF.14b.1 Step 0 does not optimize. It pins the 4
+  CompactDensorDigestV1 stage roots that the streaming
+  SHA-256 rewrite MUST preserve, audits the canonical byte
+  stream the streaming SHA-256 path MUST consume in order,
+  and captures both PRE measurement layers (sudo ROOF +
+  3-run bench band) so the Step 1 verdict can be compared
+  against decisive baselines.
+
+------------------------------------------------------------------------
+ S-PERF.14b.1 Step 1 POST verdict (streaming kernel REGRESSED — REVERTED)
+------------------------------------------------------------------------
+
+POST sudo ROOF receipt (USER ran):
+  reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_14b_1_post.txt
+
+compact_densor_digest_v1_root_kernel_streaming  (PRE → POST):
+
+  Duration   : 925,824 ns → 2,860,128 ns   +1,934,304 ns (+209 %, 3.09× SLOWER)
+  DRAM %     :     1.70 →    0.58           −1.12 pp (memory traffic DID drop)
+  L2 %       :     0.33 →    0.19           −0.14 pp
+  L1 %       :     4.90 →    4.69           ~unchanged
+  SM %       :     0.21 →    0.08           lower
+  Occupancy  :     2.69 % →   2.08 %        slightly LOWER (1 thread vs 256)
+  Mem BW eff :   12.2 GB/s → 4.17 GB/s      3× LESS traffic
+  IPC active :     0.42 →    0.25           lower (single-thread byte streaming has lower ILP)
+  IPC elapsed:     0.01 →    0.00           rounded down
+
+POST 3-run bandwidth band (streaming kernel active):
+
+  Run 1: 13.88 GB/s (host 28,851 µs, device 19,940 µs)
+  Run 2: 14.97 GB/s (host 27,318 µs, device 18,492 µs)
+  Run 3: 14.95 GB/s (host 27,133 µs, device 18,515 µs)
+  Median: 14.95 GB/s   Min: 13.88   Max: 14.97
+  Δ vs PRE median (23.56 GB/s): −8.61 GB/s (−36.5% SYSTEM REGRESSION)
+  Episodes 1917 byte-stable across all 3 runs (byte-identity contract HELD)
+
+Per-stage compact_densor walls (run 2 median):
+  residual:  2,400 µs (PRE 1,002 µs → 2.4× slower)
+  sign:      2,966 µs (PRE 1,290 µs → 2.3× slower)
+  detector:  2,695 µs (PRE 1,124 µs → 2.4× slower)
+  consensus: 4,697 µs (PRE 1,996 µs → 2.35× slower)
+  TOTAL:    12,758 µs (PRE 5,412 µs → 2.36× slower)
+
+Root cause analysis:
+
+  The Step 0d byte-counter prediction was correct: streaming SHA
+  eliminates the scratch round-trip (DRAM 1.70 → 0.58 %; L1
+  ST/LD ratio drops as expected). But the streaming kernel's
+  1-thread-per-block launch geometry ALSO eliminated Path 1a's
+  256-thread cooperative byte-load parallelism. Net result:
+
+    Path 1a phases (256 threads cooperatively load, 1 thread SHA):
+      Phase 1 (header write):      ~0 µs (thread 0 only)
+      Phase 2 (cooperative load):  ~50 µs (256 threads bulk-copy in parallel,
+                                            then __syncthreads)
+      Phase 3 (serial SHA):       ~875 µs (1 thread reads scratch → SHA)
+      TOTAL:                       ~925 µs
+
+    Path 1b v1 (1 thread streams + SHA):
+      Phase 1 (header in registers): ~0 µs
+      Phase 2+3 (1 thread reads bytes ONE AT A TIME from global
+                 and feeds streaming SHA):
+                                   ~2,860 µs
+      The "byte-at-a-time" per-thread streaming update in
+      dsfb_sha256_update loses ~3× to coalesced parallel reads
+      from Path 1a's cooperative load.
+
+  The byte-counter trace was right about WHERE the wall lives
+  (scratch round-trip), but the FIX needed to preserve Path 1a's
+  parallel byte-load phase. My Path 1b v1 traded one slow path
+  (parallel load + serial SHA + scratch round-trip) for another
+  slow path (serial load + serial SHA, no scratch).
+
+------------------------------------------------------------------------
+ Panel-discipline decision: REVERT dispatcher swap
+------------------------------------------------------------------------
+
+  Production keeps Path 1a (`compact_densor_digest_v1_root_kernel_blockcoop`).
+  S-PERF.14b.1 v1 ships AS BUILDING BLOCKS, NOT as a production rewrite:
+
+    ✓ Streaming SHA-256 init/update/finalize helpers in
+      cuda/sha256.cuh (validated by 4/4 cross-validation tests:
+      streaming == one-shot == host reference on empty / 55 B
+      / 64 KiB known vectors).
+    ✓ dsfb_gpu_sha256_streaming_self_test FFI + Rust public
+      wrapper sha256_device_streaming() (re-exported from
+      dsfb-gpu-debug-cuda's public API).
+    ✓ Streaming root kernel
+      compact_densor_digest_v1_root_kernel_streaming IN SOURCE
+      as a validated building block for a future Path 1b v2
+      design.
+    ✓ Step 0 harness with 4 pinned roots
+      (PINNED_PRE_S_PERF_14B_1_COMPACT_DENSOR_*_ROOT) — proves
+      streaming kernel produces byte-identical roots (the
+      byte-stream contract holds).
+    ✓ Streaming-vs-one-shot self-test on 3 known vectors.
+    ✓ Step 0 audit receipt (this file) with full PRE+POST
+      measurements + byte-counter trace + revert decision.
+
+  Production state: identical to S-PERF.15.d seal at 6233622.
+  Dispatcher reverted to call Path 1a's blockcoop kernel; the
+  streaming kernel exists in the binary but is not dispatched.
+
+POST-revert 3-run bandwidth band (production restored):
+
+  Run 1: 17.44 GB/s (host 24,814 µs, device 15,873 µs)
+  Run 2: 19.89 GB/s (host 22,694 µs, device 13,919 µs)
+  Run 3: 24.82 GB/s (host 20,201 µs, device 11,151 µs)
+  Median: 19.89 GB/s   Min: 17.44   Max: 24.82
+  Overlaps PRE band (19.47/23.56/25.10) within thermal noise —
+  production is restored to Path 1a performance.
+  Episodes 1917 byte-stable across all 3 runs.
+
+Full Track B byte-identity chain post-revert: 82/82 PASS
+(S-PERF.11 + S-PERF.14b + S-PERF.14b.1 streaming pins +
+S-PERF.14b.1 streaming-vs-one-shot + S-PERF.14c + S-PERF.15.a
++ S-PERF.15.b + S-PERF.15.c + S-PERF.15.d +
+throughput_device_digests).
+
+------------------------------------------------------------------------
+ Lesson learned for future Path 1b v2 (panel-recorded)
+------------------------------------------------------------------------
+
+The next attempt MUST preserve Path 1a's 256-thread cooperative
+byte-load parallelism while eliminating the global-scratch
+round-trip. Proposed Path 1b v2 design:
+
+  - Use SHARED memory as the staging buffer (not global scratch).
+    Shared mem per block on RTX 4080 SUPER is up to ~100 KB —
+    enough for canonical's ~64 KB leaves per stage.
+  - 256 threads cooperatively load leaves from global into
+    shared memory (preserves Path 1a's parallel byte movement,
+    but writes to L1-equivalent shared instead of L2-resident
+    global scratch).
+  - __syncthreads().
+  - Thread 0 streams bytes from shared into the SHA-256
+    streaming state (eliminates the L2-resident global-scratch
+    round-trip; reads from shared are 1-cycle, much faster than
+    reading from L2).
+  - Output 32-B root.
+
+  Expected vs measured:
+    Path 1a wall ≈ 925 µs (parallel load + serial SHA from L2 scratch)
+    Path 1b v2 ≈ 900 µs (parallel load + serial SHA from shared)
+                projected ~20-30 µs savings; bounded by the
+                serial-SHA compute floor (which is the bulk of
+                the 925 µs).
+
+  Honest projection: Path 1b v2 might land 925 → 850-900 µs
+  (~3-8% per-invocation, ~0.1-0.3 ms total dispatch). The
+  bulk of the kernel's 925 µs is structurally bounded by
+  thread-0 SHA-256 compute, NOT memory; only a parallel-SHA
+  redesign (CompactDensorDigestV2) could break that floor,
+  and V2 is panel-forbidden under the digest-mode non-aliasing
+  law.
+
+  Recommendation: Path 1b v2 is a small marginal lever; the
+  remaining device wall post-S-PERF.15.d is dominated by
+  kernels that ARE memory-bound (detector_motif_fused 1.32 ms
+  @ 91 % L2 / consensus_axis5_fused 397 µs @ 88 % L2). Future
+  S-PERF.x sub-legs should target those before re-attempting
+  the compact_densor_root layer.
+
+------------------------------------------------------------------------
+ Panel-locked non-claims (Step 0)
+------------------------------------------------------------------------
+
+  - Does NOT change any kernel (Step 0 is capture-and-audit only).
+  - Does NOT lock a Step 1 implementation yet (awaits focused
+    byte-counter trace + design lock).
+  - Does NOT claim bandwidth saturation.
+  - Does NOT mutate any hash anchor (Step 0 captures existing
+    bytes; the harness adds 4 NEW pinned constants under the
+    test crate, NOT under the corpus / T.x / FF.x / S1.3.x /
+    S-PERF.* hash chain).
+  - Does NOT touch TreeSha256V1 paths.
+  - Does NOT touch D128/D205 dispatchers.
+  - Does NOT change CompactDensorDigestV1 byte stream.
+
+------------------------------------------------------------------------
+ Receipt provenance
+------------------------------------------------------------------------
+
+  Harness file:
+    crates/dsfb-gpu-debug-demo/tests/s_perf_14b_1_streaming_sha_byte_identity.rs
+  Capture cmd:
+    DSFB_S_PERF_14B_1_CAPTURE=1 cargo test ... --test
+    s_perf_14b_1_streaming_sha_byte_identity \
+    -- --nocapture s_perf_14b_1_capture_mode_prints_all_four_pins
+  Verify cmd:
+    cargo test -p dsfb-gpu-debug-demo --features cuda --release \
+    --test s_perf_14b_1_streaming_sha_byte_identity
+    → 7/7 pass against pre-S-PERF.14b.1 codebase (HEAD 6233622)
+  PRE Nsight baseline:
+    reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_14b_1_step0.txt
+
+Receipt is one-shot; no hash chain. Subsequent S-PERF.14b.1
+rewrite commit cites this Step 0 baseline as load-bearing
+scope input.

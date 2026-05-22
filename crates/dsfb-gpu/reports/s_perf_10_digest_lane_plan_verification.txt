@@ -1,0 +1,130 @@
+S-PERF.10 --- DigestLanePlanV1 / digest-cost audit (verification)
+=================================================================
+
+Acceptance suite
+----------------
+
+  Module : crates/dsfb-gpu-atlas-corpus/src/s_perf_10_digest_lane_plan.rs
+  Tests  : crates/dsfb-gpu-atlas-corpus/tests/s_perf_10_digest_lane_plan_invariants.rs
+  Count  : 42 tests
+  Result : 42 passed, 0 failed
+  Refreshed under the S-PERF.11 atomic commit (2026-05-18)
+    after the panel-acknowledged contract wording
+    clarification (4 law renames + 2 law-text rewrites).
+
+Verifier coverage matrix
+------------------------
+
+The receipt verifier exercises 8 panel-required
+negatives + 6 structural defect rules. Every reject kind
+is covered by at least one acceptance test.
+
+| #  | reject_kind                                                | covered_by_test                                                                  |
+|----|------------------------------------------------------------|----------------------------------------------------------------------------------|
+|  1 | DigestOptimisationClaimWithoutByteIdenticalDigestRoots (ID)| s_perf_10_rejects_digest_optimisation_claim_without_byte_identical_digest_roots  |
+|  2 | DigestPlanWithoutFourTreeDigestStageTimings                | s_perf_10_rejects_digest_plan_without_four_tree_digest_stage_timings             |
+|  3 | DigestPlanWithoutTotalDigestShare                          | s_perf_10_rejects_digest_plan_without_total_digest_share                         |
+|  4 | DigestPlanWithoutSPerf81Anchor                             | s_perf_10_rejects_digest_plan_without_s_perf_8_1_anchor                          |
+|  5 | DigestPlanWithoutSPerf6MeasuredBaselineAnchor              | s_perf_10_rejects_digest_plan_without_s_perf_6_measured_baseline_anchor          |
+|  6 | DigestPlanThatClaimsBandwidthImprovement                   | s_perf_10_rejects_digest_plan_that_claims_bandwidth_improvement                  |
+|  7 | DigestPlanWithoutFutureRewriteContract                     | s_perf_10_rejects_digest_plan_without_future_rewrite_contract                    |
+|  8 | DigestPlanWithEpisodeCountDrift                            | s_perf_10_rejects_digest_plan_with_episode_count_drift                           |
+| S1 | PlanIdEmpty                                                | structural_rejects_empty_plan_id                                                 |
+| S2 | SourceReportPathEmpty                                      | structural_rejects_empty_source_report_path                                      |
+| S3 | StageLabelMismatch                                         | structural_rejects_stage_label_mismatch                                          |
+| S4 | DigestTotalUsArithmeticMismatch                            | structural_rejects_digest_total_us_arithmetic_mismatch                           |
+| S5 | DigestTotalPctArithmeticMismatch                           | structural_rejects_digest_total_pct_arithmetic_mismatch                          |
+| S6 | DigestPlanWithoutSPerf7VerifierAnchor                      | structural_rejects_missing_s_perf_7_anchor                                       |
+
+Live-disk seed admission
+------------------------
+
+  - seed_digest_lane_plan_from_disk(repo_root()) OK
+    (verifier admits).
+  - source_report_path resolved to:
+      reports/d64_stage_timing_256x4096_K1.txt
+  - All four `tree_digest` rows parsed:
+      tree_digest residual               =  2364 us   11.40%
+      tree_digest sign                   =  2684 us   12.90%
+      tree_digest detector (wide cells)  =  2509 us   12.10%
+      tree_digest consensus              =  4338 us   20.90%
+      digest_total_us                    = 11895 us
+      digest_total_pct                   = 5730 bp (57.30%)
+  - Panel-locked share band [50%, 65%] satisfied.
+  - R.12b full-scale episode pin = 1917 (panel-locked).
+  - Upstream anchor bindings:
+      s_perf_6_baseline_report_hash_v1
+        = d44c9ec5447f05fb6c40567dcb56502c17c14f00ad100f81d30900c1c15a1533
+      s_perf_7_source_report_import_verifier_hash_v1
+        = 99cc8a71cdceb7db7c37754fc494b51f33a7ccefeeab95175095bee73883d5c9
+      s_perf_8_batched_k_saturation_receipt_hash_v1
+        = 37212c42b4fdf06069c019e34474cf0d6660843bad7cd4a9cbc92020a7b9f201
+
+Contract wording (panel-acknowledged clarification, S-PERF.11 atomic commit)
+----------------------------------------------------------------------------
+
+  Four preservation laws on `DigestCompactionContractV1`,
+  renamed + (where ambiguous) rewritten to remove the
+  "cross-mode root identity" reading:
+
+    same_mode_digest_root_law            (was digest_root_law; text rewritten)
+    canonical_fragment_merge_order_law   (was fragment_merge_order_law; rename only)
+    digest_mode_non_aliasing_law         (was digest_mode_identity_law; text rewritten)
+    casefile_chain_preservation_law      (was casefile_chain_law; rename only)
+
+  Hash impact:
+    digest_stage_cost_audit_hash_v1      UNCHANGED (audit content unchanged)
+    digest_compaction_contract_hash_v1   REBASELINED (4 law renames + 2 rewrites)
+    digest_lane_plan_hash_v1             REBASELINED (META-hash binds rebaselined
+                                          contract hash)
+
+Hash determinism + sensitivity
+------------------------------
+
+  - Two seed_digest_lane_plan_from_disk() invocations
+    produce byte-identical digest_lane_plan_hash_v1.
+  - Changing any one of:
+      consensus us
+      same_mode_digest_root_law text
+      episode count
+      S-PERF.8.1 anchor hash
+      source_report_path
+    changes the plan hash deterministically.
+  - Pinned hash (post-clarification):
+      e9cf5c3418015044a03e4b369fefdf284908f4b63412fe372187de670db07811
+    Backed by pinned_plan_hash_matches_live_disk_seed so
+    any silent rebaseline fails CI immediately.
+
+Renderer byte-stability
+-----------------------
+
+  - render_digest_lane_plan_text() byte-stable across two
+    invocations.
+  - render_digest_lane_plan_json() byte-stable across two
+    invocations.
+  - Text renderer contains the panel-pinned summary prose
+    and all four `tree_digest` stage labels.
+
+Cross-anchor distinctness
+-------------------------
+
+  - digest_stage_cost_audit_hash_v1,
+    digest_compaction_contract_hash_v1, and
+    digest_lane_plan_hash_v1 pairwise-distinct.
+  - digest_lane_plan_hash_v1 distinct from every prior
+    S-PERF anchor (S-PERF.6 baseline + S-PERF.7 verifier
+    + S-PERF.8.1 receipt).
+
+Test result summary
+-------------------
+
+  cargo test -p dsfb-gpu-atlas-corpus --test
+  s_perf_10_digest_lane_plan_invariants
+
+  42 tests pass; 0 fail; 0 ignored. Acceptance suite
+  covers parser, classifier-equivalent contract, verifier
+  (all 14 reject kinds), hash determinism, hash
+  sensitivity, renderer byte-stability, cross-anchor
+  binding, and pinned-hash back-stop. Audit posture:
+  every receipt field is exercised by at least one
+  positive AND at least one negative test.

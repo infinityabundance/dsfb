@@ -1,0 +1,333 @@
+================================================================
+T.12.o - Streaming Sketches amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.o files the Streaming Sketches
+amendment proposal. It admits only deterministic streaming-
+sketch witnesses: bounded-memory, mergeable or update-order-
+declared summaries for frequency, cardinality, quantile,
+heavy-hitter, membership, and moment / variance evidence
+whose hash family, width, depth, seed, bucket count, merge
+law, update order, error-bound semantics, residual definition,
+decision functional, confuser profile, and numeric mode are
+declared; resolves SEED collisions with KS / Missingness
+spike / Error burst / Cardinality drift; classifies variants
+as parameterizations or domain transfers; rejects learned
+streaming-anomaly scores and black-box approximate-streaming
+proprietary sketches without declared hash / width / depth /
+seed / merge contract; and preserves the frozen T.10 corpus
+hash.
+
+Main panel warning: "A streaming-sketch witness is admissible
+only when the hash family, width, depth, seed, bucket count,
+merge law, update order, error-bound semantics, residual
+definition, decision functional, confuser profile, and numeric
+mode are declared."
+
+Panel-locked non-claim (MUST appear verbatim):
+
+> T.12.o admits deterministic streaming-sketch witnesses:
+> bounded-memory, mergeable or update-order-declared
+> summaries for frequency, cardinality, quantile, heavy-
+> hitter, membership, and moment / variance evidence. It does
+> not admit probabilistic accuracy as certainty, randomized
+> sketch behavior without seed / width / depth / hash-family
+> declaration, privacy claims, database correctness authority,
+> or approximate-query truth.
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.o emitted values:
+
+  literature_expansion_batch_hash_v1 :
+    fa14bd13a503f14df7f661e601a2d60df5a3abe11cd8f79be9c56c70ae50bb4c
+  dedup_court_delta_hash_v1          :
+    434a174c0b5f9b7e269df803db5e377d2ca836d093215996fefa7dcc9b0f2c03
+  corpus_amendment_proposal_hash_v1  :
+    1164f567948c147f24ed7baf672910213ad02f480ea88a7d326e690df5f4b66c
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found four T.12.o-relevant primitives already
+canonical:
+
+  8  Kolmogorov-Smirnov two-sample test (shared distribution-
+     distance ancestor; streaming-approximate KS variants
+     reduce to a sketch-parameterization)
+  13 Missingness spike (Bloom-filter-based missingness
+     inversion reduces to a sketch-parameterization)
+  41 Error burst (sliding-window heavy-hitter sketches over
+     error-event streams reduce to a sketch-parameterization)
+  46 Cardinality drift (pre-HLL cardinality estimators reduce
+     to a sketch-parameterization)
+
+All four become ExistingCanonicalAuthorityResolution records.
+Panel-locked success-shape: the campaign's strength comes from
+cross-class dedup discipline (4 authority resolutions over the
+KS + missingness + error-burst + cardinality SEED family that
+streaming-sketch summaries heavily reuse).
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  14  (8 canonical + 4 parameterization
+                                 + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  20  (panel-locked headline)
+  proposed_genealogy_edges: 12
+  proposed_source_refs   :  10
+
+  new_canonical_records (in delta): 8
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised, with
+TWO rejections - NINTH T.12.x with two, following T.12.g /
+T.12.h / T.12.i / T.12.j / T.12.k / T.12.l / T.12.m / T.12.n)
+----------------------------------------------------------------
+
+  CanonicalAddition (x8) - SEED-walk-survivors with
+  structurally distinct sketch-state decision functionals:
+    6501 Count-Min sketch residual witness (Cormode-
+         Muthukrishnan 2005) — hash family + width + depth +
+         per-row seed + min-over-d collision rule
+    6502 HyperLogLog cardinality shift witness (Flajolet /
+         Fusy / Gandouet / Meunier 2007) — hash family +
+         bucket count m = 2^precision + harmonic-mean
+         estimator + bias correction
+    6503 Bloom-filter membership anomaly witness (Bloom 1970)
+         — hash family + bit-array size m + hash count k +
+         seed array + declared FALSE-POSITIVE-RATE envelope
+         (probabilistic; explicitly NOT deterministic
+         certainty)
+    6504 Misra-Gries heavy-hitter shift witness (Misra-Gries
+         1982) — k counter slots + decrement-on-miss law (no
+         hash; deterministic counts)
+    6505 Space-Saving heavy-hitter shift witness (Metwally /
+         Agrawal / El Abbadi 2005) — k counter slots +
+         replace-smallest-on-miss law; structurally distinct
+         from Misra-Gries because the bookkeeping rule
+         differs
+    6506 Greenwald-Khanna quantile summary drift witness
+         (Greenwald-Khanna 2001) — epsilon error bound +
+         tuple-insertion rule + tuple-merging law +
+         deterministic epsilon-approximate quantile guarantee
+    6507 t-digest summary residual witness (Dunning 2019) —
+         compression delta + centroid scale function + buffer-
+         size + DETERMINISTIC centroid-merge law (commutative
+         merge of centroids ordered by mean; explicitly NOT
+         randomized)
+    6508 Alon-Matias-Szegedy AMS moment sketch witness (Alon-
+         Matias-Szegedy 1999) — 4-wise-independent hash family
+         + per-sketch seed + sketch width + moment order p +
+         signed-update rule
+
+  ExistingCanonicalAuthorityResolution (x4):
+    SEED 8  Kolmogorov-Smirnov two-sample test
+    SEED 13 Missingness spike
+    SEED 41 Error burst
+    SEED 46 Cardinality drift
+
+  DomainTransferOf (x2):
+    SEED 46 Cardinality drift as shared cardinality ancestor
+            for StreamingSketches (HLL 6502 and pre-HLL
+            Flajolet-Martin 6509 are descendants)
+    SEED 8 KS as shared distribution-distance ancestor for
+           StreamingSketches (streaming-approximate KS 6510 is
+           the streaming descendant)
+
+  ParameterizationOf (x4) - panel-candidate primitives that
+  collapsed on closer inspection:
+    6509 Flajolet-Martin / probabilistic counting / LogLog
+         cardinality estimator (Flajolet-Martin 1985; Durand-
+         Flajolet 2003) -> ParameterizationOf(Cardinality
+         drift, SEED 46). HLL 6502 is the structurally-
+         distinct successor admitted separately as new
+         canonical because the harmonic-mean estimator with
+         bias correction is a different decision functional
+         from the pre-HLL geometric / arithmetic-mean
+         estimators.
+    6510 Streaming approximate KS via quantile sketch ->
+         ParameterizationOf(Kolmogorov-Smirnov two-sample
+         test, SEED 8) with declared quantile-sketch
+         (Greenwald-Khanna 6506 or t-digest 6507).
+    6511 Sliding-window error-burst sketch ->
+         ParameterizationOf(Error burst, SEED 41) with
+         declared sliding-window CMS or heavy-hitter sketch.
+    6512 Sketch-approximate missingness via Bloom inversion
+         -> ParameterizationOf(Missingness spike, SEED 13)
+         with declared Bloom-filter contract.
+
+  RejectedNotDeterministic (x2):
+    6513 Learned streaming-anomaly score / online-learning
+         detector (Datadog Watchdog AI, DataRobot Streaming
+         AutoML, Splunk Stream ML, AWS Lookout for Metrics,
+         Azure Anomaly Detector streaming endpoint) --
+         rejected unless reduced to a Deterministic_Streaming
+         _Anomaly_Proxy with deterministic feature-extraction
+         law + declared formula + declared update rule with
+         fixed step size and clipping law + declared training-
+         data anchor + feature schema + tie-break + numeric
+         mode + no learned opaque embedding.
+    6514 Black-box approximate-streaming proprietary sketch
+         without declared hash / width / depth / seed / merge
+         contract (Snowflake APPROX_*, BigQuery APPROX_*,
+         Druid approximate aggregators, ClickHouse uniqHLL12 /
+         quantileTDigest / topK, AWS Athena APPROX_*) --
+         rejected unless reduced to a Deterministic_Vendor
+         _Sketch_Proxy with declared hash family + width +
+         depth + seed + merge law + error-bound semantics
+         (either via vendor publication or user deployment-
+         time configuration pinned in a fixed receipt).
+
+----------------------------------------------------------------
+Probabilistic-bound / approximate-query-truth / privacy /
+anonymization discipline (panel-locked, MOST IMPORTANT)
+----------------------------------------------------------------
+
+Every CanonicalAddition AND
+ExistingCanonicalAuthorityResolution reason text describes its
+record as a "streaming-sketch witness" with explicit
+declaration that sketch-state outputs are PROBABILISTIC
+ESTIMATES under a declared error-bound contract -- NEVER as
+deterministic-certainty / approximate-query-truth / privacy-
+preserving / anonymization-authority claims. Pinned by FOUR
+parametric scanners:
+- t12_o_rejects_probabilistic_error_bound_as_deterministic_certainty
+- t12_o_rejects_approximate_query_truth_claim_language
+- t12_o_rejects_privacy_or_anonymization_claim_language
+- t12_o_rejects_mergeable_sketch_without_merge_law
+
+Forbidden terms appear ONLY in RejectedNotDeterministic
+reason text (where they describe what is NOT admitted).
+
+----------------------------------------------------------------
+Hash / width / depth / seed contract discipline (panel-locked,
+MOST IMPORTANT load-bearing negative)
+----------------------------------------------------------------
+
+t12_o_rejects_sketch_without_hash_family_width_depth_or_seed_contract
+asserts hash-based seeded CanonicalAddition records (CMS 6501,
+Bloom 6503, AMS 6508) declare hash family + width / bucket
+count / bit-array size + seed array; HLL 6502 declares hash
+family + bucket count m = 2^precision + precision parameter +
+harmonic-mean estimator (single hash function, no per-row seed
+array); deterministic-counts / deterministic-tuple sketches
+(Misra-Gries 6504, Space-Saving 6505, Greenwald-Khanna 6506,
+t-digest 6507) declare width contract (k counter slots /
+epsilon error bound / compression delta) + update rule
+(decrement-on-miss / replace-smallest-on-miss / tuple-
+insertion / centroid scale function) + merge law.
+
+----------------------------------------------------------------
+Genealogy edges (12 proposed)
+----------------------------------------------------------------
+
+  6501 CMS DerivedFrom Error burst (41)
+  6502 HLL DerivedFrom Cardinality drift (46)
+  6503 Bloom DerivedFrom Missingness spike (13)
+  6504 Misra-Gries DerivedFrom Error burst (41)
+  6505 Space-Saving DerivedFrom Misra-Gries (6504)
+  6506 Greenwald-Khanna DerivedFrom KS (8)
+  6507 t-digest DerivedFrom Greenwald-Khanna (6506)
+  6508 AMS DerivedFrom CMS (6501)
+  6509 Flajolet-Martin ParameterVariantOf Cardinality drift (46)
+  6510 Streaming KS ParameterVariantOf KS (8)
+  6511 Sliding-window error-burst sketch ParameterVariantOf Error burst (41)
+  6512 Bloom-inversion missingness ParameterVariantOf Missingness spike (13)
+
+----------------------------------------------------------------
+Source refs (10)
+----------------------------------------------------------------
+
+  Cormode-Muthukrishnan 2005 (Count-Min sketch canonical
+    reference)
+  Flajolet / Fusy / Gandouet / Meunier 2007 (HyperLogLog
+    canonical reference)
+  Bloom 1970 (Bloom filter canonical reference)
+  Misra-Gries 1982 (Misra-Gries heavy-hitter canonical
+    reference)
+  Metwally / Agrawal / El Abbadi 2005 (Space-Saving canonical
+    reference)
+  Greenwald-Khanna 2001 (Greenwald-Khanna quantile-summary
+    canonical reference)
+  Dunning 2019 (t-digest canonical reference)
+  Alon-Matias-Szegedy 1999 (AMS frequency-moments sketch
+    canonical reference)
+  Flajolet-Martin 1985 (pre-HLL cardinality-estimation
+    canonical reference; rejection / parameterization shell)
+  Vendor streaming pipelines + approximate aggregators
+    (Datadog / DataRobot / Splunk / AWS Lookout / Azure
+    Anomaly Detector + Snowflake / BigQuery / Druid /
+    ClickHouse / AWS Athena APPROX_*; rejection-shell
+    reference)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (6)
+----------------------------------------------------------------
+
+   1. t12_o_does_not_mutate_seed_len
+   2. t12_o_rejects_sketch_without_hash_family_width_depth_or_seed_contract
+      (MOST IMPORTANT)
+   3. t12_o_rejects_probabilistic_error_bound_as_deterministic_certainty
+      (MOST IMPORTANT)
+   4. t12_o_rejects_approximate_query_truth_claim_language
+      (MOST IMPORTANT)
+   5. t12_o_rejects_privacy_or_anonymization_claim_language
+      (MOST IMPORTANT)
+   6. t12_o_rejects_mergeable_sketch_without_merge_law
+      (MOST IMPORTANT)
+   Plus t12_o_rejects_black_box_streaming_anomaly_score_without_formula
+   (vendor-naming + deterministic-feature-extraction-law +
+   declared update rule + declared training-data anchor + no
+   learned opaque embedding for 6513; declared hash + width +
+   depth + seed + merge law for 6514).
+
+Plus per-canonical structural-distinctness assertions (Space-
+Saving distinct-from-Misra-Gries via replace-vs-decrement;
+HLL distinct-from-pre-HLL-Flajolet-Martin via harmonic-mean
+estimator; t-digest declares deterministic centroid-merge
+law; Greenwald-Khanna declares deterministic epsilon-
+approximate quantile guarantee; AMS declares 4-wise-
+independent hash family + moment order), 4 ParameterizationOf
+family tests, 2 DomainTransferOf tests, per-SEED duplicate-
+rejection tests for all 4 SEED IDs (8, 13, 41, 46),
+authority-coverage-of-all-T.12.o-SEED-ids witness, reserved-
+id-range tests for all three buckets (6501..=6508 for
+CanonicalAddition; 6509..=6512 for ParameterizationOf;
+6513..=6514 for RejectedNotDeterministic), shape /
+determinism / rendering invariants, hash distinctness from
+every prior T.12.x. Total: 44 acceptance tests.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.o does NOT:
+- admit probabilistic accuracy as deterministic certainty;
+- admit approximate-query truth, sketch-query verdicts, or
+  database correctness verdicts;
+- admit privacy claims, anonymization authority, differential-
+  privacy guarantees, or k-anonymous-output guarantees;
+- admit randomized sketch behavior without declared seed /
+  width / depth / hash-family contract;
+- admit mergeable sketches without a declared merge law;
+- mutate corpus_hash_v1 or any prior T.11/S1.3/T.12.x hash;
+- create corpus_hash_v2;
+- duplicate KS / Missingness spike / Error burst / Cardinality
+  drift;
+- promote Flajolet-Martin / streaming-approximate KS / sliding-
+  window error-burst sketch / sketch-approximate missingness
+  to new_canonical_records;
+- promote learned streaming-anomaly scores or black-box
+  vendor approximate-streaming aggregators to
+  new_canonical_records;
+- activate new detectors;
+- execute on GPU;
+- claim empirical usefulness (T.8 ledger stays NotScored).

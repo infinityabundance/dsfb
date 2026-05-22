@@ -1,0 +1,95 @@
+================================================================
+T.11h - CoverageHoleReportV1 verification receipt
+================================================================
+Schema:   DSFB-GPU-ATLAS:COVERAGE-HOLES:v1
+Hash:     coverage_hole_hash_v1 =
+          671e2164001a6cb16024f7ece8f6217dc0fad7d251521f8dbd2f3da023f96d32
+
+The seed roster is built deterministically from the corpus
+SEED metadata + every sealed T.11 surface, so two builds
+against the same upstream produce byte-identical artifacts.
+This receipt records the verifier walk over the emitted
+roster.
+
+Verifier:    verify_coverage_hole_report
+Reject kinds covered by the suite (each pinned by an acceptance
+test; * marks panel-required load-bearing negatives):
+
+   1. *CriticalHoleWithoutResolutionGate
+   2. *MissingContraindicationClaimWhenDetectorLacksCrosswalk
+   3. *ReasonCoverageRowWithImpossibleDenominator
+   4.  DuplicateHoleId
+   5.  HoleSubjectDetectorMissing
+   6.  SubjectFamilyMissing
+   7.  EvidenceSeedRecordMissing
+   8.  EvidencePrecedentMissing
+   9.  EvidenceChallengeMissing
+  10.  ReasonCoverageRowCoveredExceedsRequired
+  11.  MissingReasonCoverageSurface
+  12.  UnknownReasonCoverageSurface
+  13.  EmptyHoleRosterButReasonCoverageNonZero
+
+Test family               | count
+--------------------------+------
+Schema constants          |   3
+Hash determinism          |   8
+Sensitivity               |   8
+Positive admission        |   2
+Verifier reject coverage  |  10
+Wire-name stability       |   7
+Rendering                 |   8
+Seed-shape invariants     |   6
+--------------------------+------
+Total acceptance tests    |  52
+
+Hash determinism family pins:
+  - coverage_hole_hash_v1_is_deterministic_across_two_builds
+  - coverage_hole_hash_changes_when_a_hole_severity_changes
+  - coverage_hole_hash_changes_when_a_hole_status_changes
+  - coverage_hole_hash_changes_when_a_hole_subject_changes
+  - coverage_hole_hash_changes_when_a_hole_evidence_changes
+  - coverage_hole_hash_changes_when_a_hole_reason_changes
+  - coverage_hole_hash_changes_when_a_resolution_gate_changes
+  - coverage_hole_hash_changes_when_a_reason_code_row_changes
+
+Sensitivity family pins:
+  - reason_code_coverage_is_100pct_on_every_surface
+  - dropping_a_seed_record_changes_the_roster
+  - dropping_a_precedent_changes_the_roster
+  - dropping_a_challenge_changes_the_roster
+  - dropping_a_grammar_rule_changes_the_roster
+  - dropping_a_transcript_changes_the_roster
+  - dropping_an_attestation_changes_the_roster
+  - dropping_a_contraindication_changes_the_roster
+
+Render determinism (text + JSON):
+  - render_text_is_byte_stable_across_two_calls
+  - render_json_is_byte_stable_across_two_calls
+  - render_text_records_hash_value_and_hex_form
+  - render_json_records_hash_value_and_hex_form
+  - render_text_lists_every_severity_in_histogram
+  - render_text_lists_every_status_in_histogram
+  - render_text_lists_every_kind_in_histogram
+  - render_text_sorts_entries_by_hole_id_ascending
+
+Roster admission (positive cases):
+  - empty_roster_is_admissible_with_consistent_reason_coverage
+  - seed_snapshot_admissible_under_verifier
+
+Audit boundary panel-locks (assertions inside acceptance tests):
+  - corpus_hash_v1                          UNCHANGED
+  - registry_hash_v2                        UNCHANGED
+  - precedent_hash_v1                       UNCHANGED
+  - admissibility_grammar_hash_v1           UNCHANGED
+  - trial_transcript_hash_v1                UNCHANGED
+  - execution_attestation_receipt_hash_v1   UNCHANGED
+  - challenge_docket_hash_v1                UNCHANGED
+  - detector_contraindication_hash_v1       UNCHANGED
+  - Every DetectorPassport hash             UNCHANGED
+
+Verifier result on emitted seed snapshot:
+  Records inspected         : 224 holes + 7 reason-coverage rows
+  Verifier errors           : 0
+
+The T.11h verifier passes on the seed snapshot deterministically
+across two builds.

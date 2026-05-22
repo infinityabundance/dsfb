@@ -1,0 +1,92 @@
+S-PERF.6 --- RTX 4080 SUPER measured CUDA pipeline (verification)
+=================================================================
+
+Acceptance suite
+----------------
+
+  Module : crates/dsfb-gpu-atlas-corpus/src/s_perf_6_rtx4080_super_measured_cuda_pipeline.rs
+  Tests  : crates/dsfb-gpu-atlas-corpus/tests/s_perf_6_rtx4080_super_measured_cuda_pipeline_invariants.rs
+  Count  : 49 tests
+  Result : 49 passed, 0 failed
+
+14 panel-required load-bearing negatives (all green)
+----------------------------------------------------
+
+   1. s_perf_6_rejects_zero_measured_bandwidth                          PASS
+   2. s_perf_6_rejects_zero_device_total_time                           PASS
+   3. s_perf_6_rejects_missing_source_report_path                       PASS
+   4. s_perf_6_rejects_missing_rtx4080_super_identity                   PASS
+   5. s_perf_6_rejects_percent_of_peak_arithmetic_mismatch              PASS
+   6. s_perf_6_rejects_saturation_claim_below_8000_bp                   PASS
+   7. s_perf_6_rejects_claim_that_13_33_gbps_is_saturation              PASS
+   8. s_perf_6_rejects_claim_that_result_is_b300_or_gb300               PASS
+   9. s_perf_6_rejects_claim_that_result_is_production_performance      PASS
+  10. s_perf_6_rejects_rebaseline_of_r12b_episode_counts                PASS
+  11. s_perf_6_rejects_missing_tree_digest_stage_timing                 PASS
+  12. s_perf_6_rejects_missing_host_segment_disclosure                  PASS
+  13. s_perf_6_rejects_empty_claim_kind                                 PASS
+  14. s_perf_6_rejects_no_claim_baseline_for_measured_result            PASS
+
+Panel-required positive tests (sample)
+--------------------------------------
+
+  measured_cuda_pipeline_result_admits                                  PASS
+  percent_of_peak_computes_from_13_33_and_716                           PASS
+  saturation_false_because_186_or_187_bp_below_8000                     PASS
+  source_report_path_is_declared                                        PASS
+  tree_digest_consensus_stage_is_declared                               PASS
+  host_compute_features_segment_is_declared                             PASS
+  host_bank_admit_case_finalize_segment_is_declared                     PASS
+  r12b_episode_count_pins_remain_13_89_1917                             PASS
+  renderers_byte_stable                                                 PASS
+  hashes_deterministic_across_two_builds                                PASS
+  changing_measured_bandwidth_changes_hash                              PASS
+  changing_device_total_us_changes_hash                                 PASS
+  changing_source_report_path_changes_hash                              PASS
+  three_hashes_are_pairwise_distinct                                    PASS
+  three_hashes_distinct_from_every_upstream_anchor                      PASS
+  baseline_measurement_hash_matches_pinned_constant                     PASS
+  baseline_claim_hash_matches_pinned_constant                           PASS
+  baseline_report_hash_matches_pinned_constant                          PASS
+
+Arithmetic verification (FLOOR rounding)
+----------------------------------------
+
+  percent_of_peak_basis_points
+    = measured_centi_gbps * 10000 / (theoretical_gbps * 100)
+    = 1333 * 10000 / (716 * 100)
+    = 13_330_000 / 71_600
+    = 186.17...
+    -> floor 186  (integer division)
+
+Pinned hashes (back-stop against silent rebaselining)
+-----------------------------------------------------
+
+  PINNED_MEASURED_CUDA_PIPELINE_HASH_V1
+    = a5b58bc8744c93bffe4c10b930c741809053483244823e01dd872f9e9a1f21f2
+  PINNED_MEASURED_BANDWIDTH_CLAIM_HASH_V1
+    = 4fdf8699798db9db150e2cef40090e418907974667983794fb5dfe50e21cbab
+  PINNED_MEASURED_BASELINE_REPORT_HASH_V1
+    = d44c9ec5447f05fb6c40567dcb56502c17c14f00ad100f81d30900c1c15a1533
+
+All three pinned constants match the seed-built receipts.
+
+Hash posture (must hold; verified)
+----------------------------------
+
+  - corpus_hash_v1            : UNCHANGED (35c276c7...)
+  - corpus_hash_v2            : UNCHANGED
+  - SEED.len()                : 54  (UNCHANGED)
+  - Every T.11 / T.12.x / FF.x / S1.3.x / T.12.PROV hash : UNCHANGED
+  - Every S-PERF.1 / S-PERF.2 / S-PERF.3 / S-PERF.4 / S-PERF.5 hash : UNCHANGED
+  - R.12b episodes 13 / 89 / 1917 : BYTE-STABLE
+  - Pinned R.12b baseline NOT rebaselined
+
+Three new own-namespace hashes (S-PERF.6 measured)
+--------------------------------------------------
+
+  rtx4080_super_measured_cuda_pipeline_hash_v1     deterministic, distinct
+  rtx4080_super_measured_bandwidth_claim_hash_v1   deterministic, distinct
+  rtx4080_super_measured_baseline_report_hash_v1   deterministic, distinct
+
+All three pairwise distinct, distinct from every upstream anchor.

@@ -1,0 +1,292 @@
+================================================================
+T.12.l - Chemometrics amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.l files the Chemometrics amendment
+proposal. It admits only deterministic chemometric witnesses
+whose chemometric model class, preprocessing law (baseline /
+scatter / derivative / mean-centering), latent-space contract
+(component-selection law, cross-validation policy), calibration
+contract (reference quantity, calibration model, validation
+law), residual definition, decision functional, and confuser /
+nuisance profile are declared; resolves SEED collisions with
+PCA T² / PCA SPE / PLS residual / Residual envelope exit;
+classifies score-space outliers / latent-variable control
+charts / spectral preprocessing artifacts as parameterizations;
+records two domain transfers (PCA latent-space ancestor +
+residual envelope-boundary ancestor); rejects black-box
+spectroscopy classifiers and adaptive-AutoML chemometric
+pipelines without deterministic seed / training-artifact /
+cross-validation-policy anchors; and preserves the frozen T.10
+corpus hash.
+
+Main panel warning: "A chemometric witness is not a chemical
+diagnosis, material identification, or regulatory-compliance
+verdict unless the preprocessing law, model class, latent-space
+contract, calibration contract, residual law, and decision
+functional are declared."
+
+Panel-locked non-claim (MUST appear verbatim):
+
+> T.12.l admits deterministic chemometric residual / latent-
+> space / calibration / concentration-structure witnesses. It
+> does not admit chemical causation, material identification
+> certainty, regulatory compliance, lab diagnosis, or process-
+> control authority.
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.l emitted values:
+
+  literature_expansion_batch_hash_v1 :
+    c9f4116515f9a27333ba0658ad36003308068a3121b30c1202fd2391df742f78
+  dedup_court_delta_hash_v1          :
+    e4226efe9b964efe8d06490d52950447437d0f5ef355bcf89324cc3b52cc57d1
+  corpus_amendment_proposal_hash_v1  :
+    8b3e95115e5e99e3e4f87f735c928ab0923fe32fd43f2237438fc64e09c1737d
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found four T.12.l-relevant primitives already
+canonical:
+
+  19 PCA T² on score vector (latent-space ancestor)
+  20 PCA SPE / Q residual
+  21 PLS residual / Q on PLS
+  22 Residual envelope exit (envelope-boundary ancestor)
+
+All four become ExistingCanonicalAuthorityResolution records.
+Panel-locked success-shape: the campaign's strength comes from
+cross-class dedup discipline (4 authority resolutions over
+the latent-space + envelope family) rather than canonical
+count (only 5 new primitives admitted).
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  11  (5 canonical + 4 parameterization
+                                 + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  17  (panel-locked headline)
+  proposed_genealogy_edges: 12
+  proposed_source_refs   :   9
+
+  new_canonical_records (in delta): 5
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised, with
+TWO rejections - SIXTH T.12.x with two, following T.12.g /
+T.12.h / T.12.i / T.12.j / T.12.k)
+----------------------------------------------------------------
+
+  CanonicalAddition (x5) - SEED-walk-survivors with structurally
+  distinct decision functionals:
+    6201 Calibration residual witness
+         (residual against chemistry reference - distinct from
+         PCA SPE because residual is against an external
+         chemistry reference quantity, NOT against PCA
+         reconstruction)
+    6202 Leverage outlier witness
+         (hat-matrix diagonal sample-influence - distinct from
+         PCA T² because leverage is the SAMPLE INFLUENCE law
+         on the hat matrix, NOT score-space Mahalanobis)
+    6203 Concentration drift witness
+         (predicted-concentration shift law against PLS
+         calibration - distinct from generic drift detectors
+         because the law is bound to a calibration model)
+    6204 SIMCA class-distance witness (Wold & Sjostrom 1977)
+         (per-class PCA models with class-distance decision
+         functional - distinct from PCA SPE because the law
+         is per-class)
+    6205 VIP shift witness (Wold 1995)
+         (temporal shift in Variable-Importance-in-Projection
+         scores - distinct from the static VIP score itself)
+
+  ExistingCanonicalAuthorityResolution (x4):
+    SEED 19 PCA T² on score vector
+    SEED 20 PCA SPE / Q residual
+    SEED 21 PLS residual / Q on PLS
+    SEED 22 Residual envelope exit
+
+  DomainTransferOf (x2):
+    SEED 19 PCA T² as shared latent-space ancestor for
+            Chemometrics (PCA score outlier 6206, Mahalanobis-
+            on-scores 6207, and latent-variable control chart
+            6208 are descendants)
+    SEED 22 Residual envelope exit as shared envelope-boundary
+            ancestor for Chemometrics (spectral preprocessing
+            artifact 6209 is the descendant)
+
+  ParameterizationOf (x4) - panel-candidate canonicals that
+  collapsed on closer inspection:
+    6206 PCA score outlier ->
+         ParameterizationOf(PCA T², SEED 19) with score-space
+         outlier parameterization
+    6207 Mahalanobis distance on PCA / PLS scores ->
+         ParameterizationOf(PCA T², SEED 19) with covariance-
+         inverse parameterization on latent scores
+    6208 Latent-variable control chart ->
+         ParameterizationOf(PCA SPE / Q, SEED 20) with control-
+         chart parameterization (warmup, control-limit,
+         alpha-level)
+    6209 Spectral preprocessing artifact (baseline / scatter /
+         derivative residual) ->
+         ParameterizationOf(Residual envelope exit, SEED 22)
+         with preprocessing-law parameterization (Savitzky-
+         Golay derivative, asymmetric least squares baseline,
+         standard normal variate scatter)
+
+  RejectedNotDeterministic (x2):
+    6210 Black-box spectroscopy classifier (Bruker AI-IDENT,
+         Mettler-Toledo Spectraline, Thermo Scientific OMNIC
+         ML, Agilent MicroLab AI) -- rejected unless reduced
+         to a Deterministic_Spectroscopy_Classifier_Proxy with
+         deterministic formula + model-identification anchor +
+         training-data anchor + feature schema + tie-break +
+         numeric mode declared. The court does NOT issue
+         material identification certainty or regulatory-
+         compliance verdicts.
+    6211 Adaptive-AutoML / stochastic-CV chemometric pipeline
+         (auto-sklearn, H2O AutoML, TPOT) -- rejected unless
+         reduced to a Deterministic_AutoML_Pipeline_Proxy with
+         model-identification seed + training-data anchor
+         (pinned dataset record-hash) + cross-validation
+         policy (pinned fold partition) + tie-break + numeric
+         mode declared. The court does NOT issue lab diagnosis
+         or process-control authority.
+
+----------------------------------------------------------------
+Material-identification / regulatory-compliance discipline
+(panel-locked, MOST IMPORTANT)
+----------------------------------------------------------------
+
+Every CanonicalAddition AND ExistingCanonicalAuthorityResolution
+reason text describes its record as "chemometric signal witness"
+/ "chemometric residual witness" / "chemometric latent-space
+witness" / "chemometric calibration witness" - NEVER as a
+material-identification claim, chemical-causation claim,
+regulatory-compliance verdict, lab diagnosis, or process-control
+authority. Pinned by t12_l_rejects_material_identification_claim_language
+and t12_l_rejects_regulatory_compliance_claim_language which scan
+every such reason for forbidden terms AND assert every qualifying
+reason ends with the panel-locked non-claim "chemometric signal
+witness, not a material identification or a regulatory
+compliance verdict". Forbidden terms appear ONLY in
+RejectedNotDeterministic reason text (where they describe what
+is NOT admitted).
+
+----------------------------------------------------------------
+Preprocessing-or-latent-model contract discipline (panel-locked,
+MOST IMPORTANT load-bearing negative)
+----------------------------------------------------------------
+
+t12_l_rejects_chemometric_detector_without_preprocessing_or_latent_model_contract
+asserts every CanonicalAddition reason text declares at least
+one math-structure term (preprocessing / latent / calibration /
+residual / score / hat-matrix / per-class / VIP / model) AND
+at least one decision-functional term (decision law / decision
+functional / decision predicate / shift law / control limit /
+threshold). This is the campaign identity: the court refuses
+chemometric witnesses without a declared mathematical structure
+and decision rule.
+
+----------------------------------------------------------------
+Genealogy edges (12 proposed)
+----------------------------------------------------------------
+
+  6201 Calibration residual DerivedFrom PCA SPE / Q (20)
+  6201 Calibration residual DerivedFrom PLS residual (21)
+  6202 Leverage outlier DerivedFrom PCA T² (19)
+  6203 Concentration drift DerivedFrom PLS residual (21)
+  6204 SIMCA class-distance DerivedFrom PCA T² (19)
+  6204 SIMCA class-distance DerivedFrom PCA SPE / Q (20)
+  6205 VIP shift DerivedFrom PLS residual (21)
+  6206 PCA score outlier ParameterVariantOf PCA T² (19)
+  6207 Mahalanobis-on-scores ParameterVariantOf PCA T² (19)
+  6208 LV control chart ParameterVariantOf PCA SPE / Q (20)
+  6209 Spectral preprocessing artifact
+       ParameterVariantOf Residual envelope exit (22)
+
+----------------------------------------------------------------
+Source refs (9)
+----------------------------------------------------------------
+
+  Pearson 1901 (PCA canonical reference)
+  Hotelling 1933 (T² statistic)
+  Jackson & Mudholkar 1979 (SPE / Q residual)
+  Wold & Sjostrom 1977 (SIMCA per-class PCA)
+  Geladi & Kowalski 1986 (PLS regression in chemometrics)
+  Wold 1995 (VIP score)
+  Savitzky & Golay 1964 (smoothing / derivative preprocessing)
+  Barnes et al. 1989 (SNV scatter correction)
+  Eilers & Boelens 2005 (asymmetric least squares baseline)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (16)
+----------------------------------------------------------------
+
+   1. t12_l_does_not_mutate_seed_len
+   2. t12_l_rejects_chemometric_detector_without_preprocessing_or_latent_model_contract
+      (MOST IMPORTANT - preprocessing / latent / calibration /
+       residual / score / hat-matrix / per-class / VIP / model
+       contract AND decision-law / functional / predicate /
+       shift-law / control-limit / threshold)
+   3. t12_l_rejects_material_identification_claim_language
+      (MOST IMPORTANT - parametric scanner; forbidden-term
+       blacklist plus mandatory non-claim phrase)
+   4. t12_l_rejects_regulatory_compliance_claim_language
+      (MOST IMPORTANT - parametric scanner; forbidden regulatory
+       terms (FDA approval, ISO certification, compliance
+       verdict) plus mandatory non-claim phrase)
+   5. t12_l_rejects_pca_t2_duplicate_without_existing_authority_resolution
+   6. t12_l_rejects_pca_spe_duplicate_without_existing_authority_resolution
+   7. t12_l_rejects_pls_residual_duplicate_without_existing_authority_resolution
+   8. t12_l_rejects_residual_envelope_duplicate_without_existing_authority_resolution
+   9. t12_l_rejects_calibration_residual_without_chemistry_reference_and_calibration_model_law
+  10. t12_l_rejects_simca_without_per_class_pca_model
+  11. t12_l_vip_declares_temporal_shift_distinct_from_static_score
+  12. t12_l_rejects_pls_or_pca_detector_without_component_selection_law
+  13. t12_l_rejects_black_box_spectroscopy_classifier_without_deterministic_formula
+      (requires reason text to demand "deterministic formula"
+       AND name at least one vendor)
+  14. t12_l_rejects_adaptive_automl_without_seed_and_training_artifact_and_cv_policy
+  15. t12_l_hash_changes_when_calibration_contract_or_residual_definition_changes
+  16. t12_l_existing_seed_collision_requires_authority_resolution
+      (parametric loop over all 4 SEED IDs 19, 20, 21, 22)
+
+Plus per-canonical structural-distinctness assertions,
+ParameterizationOf family tests, DomainTransferOf assertion
+tests, authority-coverage-of-all-SEED-chemometric-IDs witness,
+reserved-id-range tests for all three buckets (6201..=6205,
+6206..=6209, 6210..=6211), shape / determinism / rendering
+invariants. Total: 44 acceptance tests.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.l does NOT:
+- admit chemical causation, material identification certainty,
+  regulatory compliance, lab diagnosis, or process-control
+  authority (the court emits chemometric signal witnesses);
+- mutate corpus_hash_v1 or any prior T.11/S1.3/T.12.x hash;
+- create corpus_hash_v2;
+- duplicate PCA T² / PCA SPE/Q / PLS residual / Residual
+  envelope exit;
+- promote PCA score outlier / Mahalanobis-on-scores / LV
+  control chart / spectral preprocessing artifact to
+  new_canonical_records;
+- promote black-box spectroscopy classifiers or adaptive
+  AutoML chemometric pipelines to new_canonical_records;
+- claim FDA approval, ISO certification, regulatory verdict,
+  or lab diagnostic interpretation of any witness;
+- activate new detectors;
+- execute on GPU;
+- claim empirical usefulness (T.8 ledger stays NotScored).

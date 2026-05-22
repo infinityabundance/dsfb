@@ -1,0 +1,133 @@
+================================================================
+DSFB-GPU-Atlas — T.11d regression-check receipt (10-step ritual)
+================================================================
+Commit         : (this commit) — atomic; HEAD-before = f3d951a (T.11c)
+Timestamp      : 2026-05-15T03:44:32Z
+Scope          : T.11d TrialTranscriptV1 — minimal real CaseFileV2
+                 trial-transcript body for the panel-locked
+                 synthetic LatencyRamp fixture. NO GPU-derived
+                 transcripts, NO ActivationPlanner, NO
+                 ChallengeDocket, NO Contraindications, NO PROV /
+                 attestation / Arrow.
+
+----------------------------------------------------------------
+1.  cargo fmt --all --check
+----------------------------------------------------------------
+    Status : clean (exit code 0).
+
+----------------------------------------------------------------
+2.  cargo clippy --workspace --all-targets --features cuda -- -D warnings
+----------------------------------------------------------------
+    Status : clean (exit code 0).
+    Notes  : surfaced + resolved:
+             - `expect()` on Options in build_t11d_latency_ramp_fixture
+               (resolved by switching to `let Some(_) = _ else { panic!(...) }`
+               with `# Panics` doc).
+             - clippy `too_many_lines` on render_*_text and
+               render_*_json (each behind a single tight
+               #[allow(...)] — the linear rendering is exactly
+               what a reviewer wants to read).
+
+----------------------------------------------------------------
+3.  bash scripts/scrub.sh
+----------------------------------------------------------------
+    Status : "scrub: clean" (exit code 0).
+
+----------------------------------------------------------------
+4.  bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+    Status : "docs_freshness: clean" (exit code 0).
+
+----------------------------------------------------------------
+5.  cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+    Status : 355 passed, 0 failed.
+    Detail : T.11c baseline 309 + 46 new T.11d tests in
+             tests/trial_transcript_invariants.rs.
+
+----------------------------------------------------------------
+6.  cargo test --workspace --features cuda -- --test-threads=1
+----------------------------------------------------------------
+    Status : 57 result groups, 670 passed, 0 failed, 0 ignored.
+              (exit code 0)
+    Notes  : full workspace serial green. D16/D64/D128/D205
+             golden hashes unchanged. Audit mode untouched.
+
+----------------------------------------------------------------
+7.  tests/r12_d64_saturation (R.12b episode-byte stability)
+----------------------------------------------------------------
+    Status : episode counts byte-identical to the pinned R.12b
+             baseline.
+    Pinned : canonical 16x128  episodes/cat = 13
+             mid 64x512        episodes/cat = 89
+             full 256x4096     episodes/cat = 1917
+    Action : `git restore` drops test-time perf jitter from
+             pinned baselines. NOT rebaselined.
+
+----------------------------------------------------------------
+8.  cargo run -p dsfb-gpu-atlas-corpus -- trial-transcript-emit
+----------------------------------------------------------------
+    Status : exit code 0.
+    Emit   : crates/dsfb-gpu-atlas-corpus/out/trial_transcript_v1.txt
+                 (1 484 bytes; rendered text packet)
+             crates/dsfb-gpu-atlas-corpus/out/trial_transcript_v1.json
+                 (1 336 bytes; deterministic JSON object)
+    Notes  : two invocations produce byte-identical output.
+             Rendered text is NOT in the transcript hash.
+
+----------------------------------------------------------------
+9.  README + plan refresh
+----------------------------------------------------------------
+    README.md  : new "Trial transcript body (T.11d)" section
+                 under "Admissibility grammar" naming the CLI,
+                 the synthetic fixture (LatencyRamp episode), the
+                 16-direction verifier, the two artifacts, the
+                 trial_transcript_hash_v1, and the panel-locked
+                 non-claims.
+    Plan       : T.11a / T.11b / T.11c / T.11d marked sealed in
+                 the active-campaign section. Next campaign per
+                 panel iteration 4: T.11e
+                 ExecutionAttestationReceipt — SLSA / in-toto-
+                 style unsigned attestation.
+
+----------------------------------------------------------------
+10. Atomic commit
+----------------------------------------------------------------
+    Files  :
+        crates/dsfb-gpu-atlas-corpus/src/trial_transcript.rs                  (A)
+        crates/dsfb-gpu-atlas-corpus/src/lib.rs                               (M)
+        crates/dsfb-gpu-atlas-corpus/src/main.rs                              (M)
+        crates/dsfb-gpu-atlas-corpus/tests/trial_transcript_invariants.rs     (A)
+        crates/dsfb-gpu-atlas-corpus/out/trial_transcript_v1.txt              (A)
+        crates/dsfb-gpu-atlas-corpus/out/trial_transcript_v1.json             (A)
+        README.md                                                             (M)
+        reports/t11d_trial_transcript_summary.txt                             (A)
+        reports/t11d_trial_transcript_verification.txt                        (A)
+        reports/t11d_regression_check.txt                                     (A — this file)
+        .gitignore                                                            (M — whitelist 3 new receipts)
+
+================================================================
+Pinned hashes
+================================================================
+- corpus_hash_v1              : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7 (UNCHANGED)
+- registry_hash_v2            : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08 (UNCHANGED)
+- precedent_hash_v1           : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14 (UNCHANGED)
+- admissibility_grammar_hash_v1: ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7 (UNCHANGED)
+- trial_transcript_hash_v1    : 37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee (NEW)
+
+================================================================
+Pinned non-claims (T.11d)
+================================================================
+- T.11d does NOT derive transcripts from GPU-produced CaseFileV1.
+- T.11d does NOT implement ActivationPlanner / OTel binding /
+  ChallengeDocket / Contraindications / PROV export /
+  attestation / Arrow layout.
+- T.11d does NOT change `corpus_hash_v1`, `registry_hash_v2`,
+  `precedent_hash_v1`, `admissibility_grammar_hash_v1`, or any
+  passport hash.
+- T.11d does NOT change D16 / D64 / D128 / D205 GPU behavior.
+- T.11d does NOT include S1.2 registry-spec linkage anywhere.
+- T.11d's `trial_transcript_hash_v1` is DSFB-native; no in-toto /
+  SLSA / SPDX / CycloneDX compatibility claim.
+
+================================================================

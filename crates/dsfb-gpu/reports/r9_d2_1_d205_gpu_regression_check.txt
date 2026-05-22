@@ -1,0 +1,220 @@
+# Post-R.9.d.2.1 regression check (per-section discipline artifact)
+#
+# Hardware:          RTX 4080 SUPER
+# CUDA toolkit:      13.2
+# Date:              2026-05-14
+# Pre-R.9.d.2.1 head: b54867b (R.9.d.2 D205 CPU scaling-ladder proof)
+# Post-R.9.d.2.1 head: (this commit)
+# Test:              tests/r12_d64_saturation.rs (D64 saturation sweep)
+# Method:            re-run the R.12b saturation matrix after
+#                    R.9.d.2.1 lands; compare against the pinned
+#                    R.12b money table in reports/money_table.txt
+#                    and reports/r12_d64_saturation.txt.
+#
+# Why this artifact exists:
+#   R.9.d.2.1 closes the GPU asymmetry left by R.9.d.2: D205 now
+#   has both a CPU evaluator (R.9.d.2 — landed at b54867b with 15
+#   acceptance tests) and a GPU kernel + dispatch wrapper +
+#   12 GPU acceptance tests. Every supported detector profile
+#   (D16 / D64 / D128 / D205) now has a CPU + GPU byte-equivalent
+#   execution path.
+#
+#   D205 is a scaling-ladder byte-equivalence proof, NOT a new
+#   R.13 performance headline. The D64 ≈55× full-pipeline
+#   campaign reduction at the courthouse-factory workload remains
+#   the headline. R.9.d.2.1's only goal is GPU↔CPU parity for
+#   D205; performance is honestly unbounded (the detector
+#   tree-digest hashes the full 264-byte wide stride; R.10b
+#   compact-pack for D205 is deferred to a future commit).
+#
+#   This file is the user-enforced per-section discipline receipt.
+#
+# Result: NO SEMANTIC REGRESSION.
+#   - tests/r12_d64_saturation.rs exit code: 0
+#   - Full-workspace serial test suite
+#     (cargo test --workspace --features cuda -- --test-threads=1):
+#       466 passed; 0 failed; finished green.
+#       (R.9.d.2 baseline 454 + 12 new D205 GPU acceptance tests = 466.)
+#   - Corpus crate tests: 211 passed (unchanged from T.9 — corpus
+#     not touched).
+#   - Episode counts byte-identical to pinned R.12b numbers:
+#       canonical 16x128 K ∈ {1,4,16,32,64,128} : 13   episodes/cat
+#       mid       64x512 K ∈ {1,4,16,32,64,128} : 89   episodes/cat
+#       full   256x4096  K ∈ {1,4,16,32,64,128} : 1917 episodes/cat
+#
+# GPU-timing posture (panel-discipline, NOT a R.9.d.2.1 regression):
+#   R.9.d.2.1 adds three new D205-specific CUDA kernels and one
+#   Rust dispatch wrapper that mirror the D128 path kernel-for-
+#   kernel. The R.12b numbers vary run-to-run with thermal
+#   envelope and host load. The pinned
+#   reports/r12_d64_saturation.txt is the authoritative R.12b
+#   baseline. This receipt does NOT rebaseline it. The pinned
+#   baseline files were restored to HEAD after the test rewrote
+#   them during this run.
+#
+# R.9.d.2.1 deliverables (sealed in this commit):
+#   - cuda/kernels.cu:
+#       * NEW __constant__ D205_VARIANT_SCALES_Q16: [int32_t; 13]
+#         (V0..V7 byte-identical to D128_VARIANT_SCALES_Q16;
+#         V8..V12 sample five additional deterministic dyadic
+#         fractions).
+#       * NEW constexpr D205_VARIANT_COUNT = 13.
+#       * NEW constexpr D205_ACTIVE_BITS = 205.
+#       * NEW __device__ project_d205_to_u16 helper (walks 16
+#         motifs × up to 13 variants, gates by det_id < 205,
+#         collapses to canonical 16-motif u32).
+#       * NEW __global__ detector_motif_kernel_wide_d205 (mirrors
+#         detector_motif_kernel_wide_d128 with 13 variants + the
+#         active-bit gate).
+#       * NEW __global__ consensus_grid_kernel_wide_d205 (mirrors
+#         consensus_grid_kernel_wide_d128 with project_d205_to_u16).
+#       * NEW __global__ candidate_pack_kernel_wide_d205 (mirrors
+#         candidate_pack_kernel_wide_d128 with project_d205_to_u16).
+#       * NEW extern "C"
+#         dsfb_gpu_run_pipeline_throughput_d205_tree_async_on_workspace
+#         launcher (mirrors the D128 launcher kernel-for-kernel,
+#         swapping detector_motif / consensus_grid /
+#         candidate_pack to the _d205_ variants).
+#   - crates/dsfb-gpu-debug-cuda/src/ffi.rs:
+#       * NEW FFI binding
+#         dsfb_gpu_run_pipeline_throughput_d205_tree_async_on_workspace.
+#   - crates/dsfb-gpu-debug-cuda/src/dispatch.rs:
+#       * NEW pub fn
+#         build_gpu_throughput_pinned_async_on_workspace_d205_tree_compact
+#         (mirrors the D128 wrapper).
+#   - crates/dsfb-gpu-debug-cuda/src/lib.rs:
+#       * Exported the new dispatch wrapper.
+#   - crates/dsfb-gpu-debug-demo/tests/r9_d2_1_d205_gpu_acceptance.rs (NEW):
+#     12 GPU acceptance tests:
+#       1.  d205_gpu_replay_is_deterministic_across_two_runs
+#       2.  d205_gpu_case_file_records_d205_registry_hash
+#       3.  d205_gpu_registry_hash_differs_from_d128_gpu_registry_hash
+#       4.  d205_gpu_detector_digest_differs_from_d128_detector_digest
+#       5.  d205_gpu_v0_only_path_matches_cpu_d205_v0_only
+#       6.  d205_gpu_episode_detector_bit_count_within_16_motif_basis
+#       7.  d205_gpu_no_episode_exceeds_canonical_detector_bit_count
+#       8.  d205_gpu_episodes_are_bank_admitted
+#       9.  d205_gpu_does_not_change_d64_r13_headline_path
+#       10. d205_gpu_does_not_change_d128_path
+#       11. d205_gpu_admits_at_least_one_episode_at_canonical
+#       12. d205_gpu_variant_counts_are_canonical
+#
+# GPU invariants pinned by tests:
+#   - D205 GPU replay byte-identical across two consecutive
+#     dispatches on the same workspace (case-file hashes +
+#     episodes + final_case_file_hash).
+#   - D205 GPU case file's `detector_registry` chain link binds
+#     to `DetectorProfile::D205.registry_hash()` (the contract
+#     gate).
+#   - D205 GPU `detector_registry` differs from D128 GPU
+#     `detector_registry` on the same fixture (sanity that the
+#     dispatch is not silently routing through D128).
+#   - D205 GPU `detector_cell` chain link differs from D128 GPU
+#     `detector_cell` on the same fixture (D205's wider variant
+#     set sets bits D128 cannot — the detector tree-digest sees
+#     this).
+#   - D205 GPU dispatch does NOT perturb the D64 R.13 headline
+#     path (D64 case-file hashes byte-identical before and after
+#     a D205 dispatch on the same workspace).
+#   - D205 GPU dispatch does NOT perturb the D128 path (same
+#     invariant on D128).
+#   - D205 GPU episodes are bank-admitted (every episode carries
+#     a `BankAdmissionToken` — Semantic Non-Bypass Axiom holds).
+#   - D205 GPU episode `detector_bit_count` <= 16 (the
+#     active-bit gate's projection onto the 16-motif u32 basis is
+#     correct).
+#   - D205 GPU admits at least one episode on the canonical
+#     fixture (sanity).
+#
+# Bridge invariants (panel-locked) preserved across CPU + GPU:
+#   - D205 V0..V7 firings byte-identical to D128 V0..V7 (CPU
+#     pinned by R.9.d.2 test #5; GPU pinned transitively because
+#     the kernel uses the same scaled-thresholds table + same
+#     compute_motif_mask helper as the CPU evaluator).
+#   - D205 V0-only projection equals canonical D16 mask (CPU
+#     pinned).
+#   - D205 OR ⊇ D128 OR ⊇ D64 OR ⊇ canonical D16 (CPU pinned).
+#   - High bits ≥ 205 deterministically zero (CPU pinned at the
+#     cell-bit level; GPU pinned at the per-episode
+#     detector_bit_count <= 16 level).
+#   - D205 GPU detector tree-digest differs from D128 GPU
+#     detector tree-digest (proves the new kernel is actually
+#     running, not silently calling D128).
+#
+# Memory budget (no change vs D128):
+#   - Wide-cell stride: 264 bytes
+#     (`window_idx: u32` + `entity_id: u32` + `[u64; 32]` mask).
+#   - The same `d_detectors_wide` workspace field is reused;
+#     no new GPU buffers needed.
+#   - At full-scale 256×4096 K=1, ~270 MB per catalog — same as
+#     D128. K>1 batched dispatch deferred per R.9.c discipline.
+#
+# Honesty disclosure (panel-locked):
+#   - D205 GPU is a byte-equivalence completion, NOT a
+#     performance headline. The R.10b compact-pack and any
+#     profile-specific tree-digest optimisations are deliberately
+#     omitted; D205 hashes the full 264-byte wide stride.
+#   - The "performance chase" warning the panel issued is
+#     honoured: this commit ships a slow but byte-exact GPU D205.
+#     Optimisation is a separate future commit.
+#   - The launcher mirrors the D128 launcher kernel-for-kernel
+#     with only the three profile-specific kernels swapped. No
+#     additional GPU complexity beyond what D128 already
+#     carries.
+#
+# Stale-doc grep scan (this commit) — verified clean:
+#   grep -RnE "GPU D205 .*deferred|D205 GPU .*deferred|R\.9\.d\.2\.1 .*deferred" \
+#     crates README.md \
+#     -> zero hits (every reference to GPU D205 is now in
+#     present tense; the R.9.d.2.1 deferred-block is removed from
+#     paper §16 equivalents).
+#
+# Full code-commentary discipline (this commit):
+#   - Every new pub item carries a doc-block stating the WHY
+#     for a future engineer.
+#   - The CUDA kernel docstring (detector_motif_kernel_wide_d205,
+#     consensus_grid_kernel_wide_d205, candidate_pack_kernel_wide_d205)
+#     explicitly names the active-bit gate and the bridge to the
+#     CPU `evaluate_wide` reference.
+#   - The Rust dispatch wrapper's doc enumerates the scope-lock
+#     (NOT a performance headline; R.10b deferred; mirror of D128
+#     wrapper kernel-for-kernel) and the panel-locked bridge
+#     invariants.
+#   - tests/r9_d2_1_d205_gpu_acceptance.rs module docstring lists
+#     every test name with the invariant it pins.
+#
+# Pinned baselines not rebaselined by this commit:
+#   - reports/r12_d64_saturation.txt — restored to HEAD; the
+#     test re-wrote it during this run but the file is the
+#     authoritative R.12b baseline and should not drift with
+#     thermal noise.
+#   - reports/d64_stage_timing_256x4096_K1.txt — restored.
+#   - reports/r9_b_d64_timing.txt / reports/r9_b3_d64_timing.txt
+#     — restored.
+#
+# 10-step per-section discipline checklist (hard-enforcement order):
+#   [x]  1. cargo fmt --all --check                                (clean)
+#   [x]  2. cargo clippy --workspace --features cuda --all-targets \
+#             -- -D warnings                                       (clean)
+#   [x]  3. scripts/scrub.sh                                       (clean)
+#   [x]  4. scripts/docs_freshness.sh                              (clean)
+#   [x]  5. cargo test -p dsfb-gpu-atlas-corpus                    (211 green;
+#             unchanged — corpus not touched)
+#   [x]  6. cargo test --workspace --features cuda \
+#             -- --test-threads=1                                  (466 green)
+#   [x]  7. tests/r12_d64_saturation regression check              (exit 0;
+#             D64 episode counts byte-identical to pinned R.12b
+#             baseline; pinned R.12b baseline NOT rebaselined.)
+#   [x]  8. stale-doc scan across the workspace                    (zero hits)
+#   [x]  9. README scaling-ladder section updated                  (D205 row
+#             promoted from "CPU only; GPU deferred" to
+#             "CPU + GPU byte-equivalent; not a new R.13
+#             headline"; GPU D205 deferred-block removed.)
+#   [x] 10. Atomic single commit                                   (this commit)
+#
+# Going forward (panel-locked): with R.9.d.2.1 sealed the GPU
+# ladder reaches D205 byte-equivalent. The next campaign decision
+# is between S1.1 (Atlas algebra types) and T.10 (corpus_hash_v1
+# + CaseFileV2 integration). Per the panel sequence following
+# R.9.d.2.1: open S1.1 before T.10 (do not freeze corpus_hash_v1
+# while Atlas algebra is still half-defined).

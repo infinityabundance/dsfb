@@ -1,0 +1,110 @@
+================================================================
+T.12.j - Medical / Biosignal verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_j_biosignal::seed_t12_j_biosignal_proposal()
+
+----------------------------------------------------------------
+Positive verification (admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+All T.12.0 verifier rules pass: BatchIdEmpty, ProposalIdEmpty,
+UnknownSourceClass, AmendmentProposalHashMismatch,
+BatchHashMismatch, DedupDeltaHashMismatch,
+DedupDeltaCollidesWithExistingSeedCanonicalId (reserved ids
+6001..=6014 outside SEED's 1..=54 range),
+AcceptedProposalWithoutBodyOrDelta,
+AcceptedProposalWithoutFutureFreezeGate.
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage
+----------------------------------------------------------------
+
+All 13 panel-required negatives pass plus 1 clinician-label-
+only rejection contract test + 4 per-canonical contract tests
++ 4 ParameterizationOf family tests + 2 DomainTransferOf tests
++ bank-surface coverage witness + per-bucket reserved-id-range
+tests + shape / determinism / rendering invariants.
+Total: 48 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Diagnostic-claim discipline coverage
+----------------------------------------------------------------
+
+The t12_j_rejects_diagnostic_claim_language test runs a
+parametric scanner over every CanonicalAddition AND
+ExistingCanonicalAuthorityResolution reason text. For each
+qualifying record it asserts:
+  - The reason text does NOT contain any of: arrhythmia,
+    fibrillation, infarction, ischemia, ischaemia, tachycardia,
+    bradycardia, "diagnoses ", "diagnostic verdict".
+  - The reason text DOES end with the panel-locked non-claim
+    "signal witness, not a medical diagnosis".
+
+Diagnostic terms appear only inside RejectedNotDeterministic
+reason text (where they describe what is NOT admitted) and
+the rejection display name "Learned arrhythmia classifier -
+rejected shell".
+
+----------------------------------------------------------------
+SEED bank-surface coverage (parametric)
+----------------------------------------------------------------
+
+The t12_j_existing_seed_collision_requires_authority_resolution
+test runs a parametric loop over all four SEED biosignal IDs
+(49 / 50 / 51 / 52). Each iteration constructs a defective
+proposal duplicating one biosignal ID and asserts the verifier
+rejects it with DedupDeltaCollidesWithExistingSeedCanonicalId.
+
+----------------------------------------------------------------
+Learned-arrhythmia rejection contract coverage
+----------------------------------------------------------------
+
+The t12_j_rejects_learned_arrhythmia_classifier_without_
+deterministic_formula test asserts:
+  - 6013 NOT in new_canonical_records
+  - reason text contains "hannun" OR "deep-learning"
+  - reason text contains "model-" + "identification seed"
+    (continuation-joined)
+  - reason text contains "training-data anchor" (or
+    continuation-joined "training-" + "data anchor")
+  - reason text contains "pinned physionet"
+  - reason text contains "label schema"
+  - reason text contains "tie-break"
+  - reason text contains "numeric mode"
+  - reason text contains "does not issue diagnostic verdicts"
+  - reason text contains "only to describe what is not admitted"
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.x hash           : unchanged
+    T.12.0 proof-of-life          : 325bbf3d...
+    T.12.a SPC                    : ae493a85...
+    T.12.b SCD                    : ac10e27c...
+    T.12.c drift                  : 0ffb0639...
+    T.12.d robust                 : 7b51703f...
+    T.12.e spectral               : 0036435f...
+    T.12.f time-series            : 76717e02...
+    T.12.g graph                  : 1bc14266...
+    T.12.h data-quality           : d4566a74...
+    T.12.i observability          : 9776c1b9...
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.j biosignal literature_expansion_batch_hash_v1 (NEW):
+    4f7fb0b440d3d41d26f537648781357a0b1498fd07ef923585cc7faeab3898dc
+  T.12.j biosignal dedup_court_delta_hash_v1 (NEW):
+    12069c59524bf11df9fbae443d7acbe28eae683110bd2b46af626c93e483c96d
+  T.12.j biosignal corpus_amendment_proposal_hash_v1 (NEW):
+    e64b603b82a383c891655423e320119f32bb80380572874ae5edffa9fa57f7b2

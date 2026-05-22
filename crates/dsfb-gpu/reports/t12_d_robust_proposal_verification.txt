@@ -1,0 +1,138 @@
+================================================================
+T.12.d - Robust Statistics verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_d_robust::seed_t12_d_robust_proposal()
+
+----------------------------------------------------------------
+Positive verification (the proposal IS admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+  ProposalIdEmpty                                          : not fired
+  BatchIdEmpty                                             : not fired
+  UnknownSourceClass                                       : not fired (target_source_class = RobustStatistics)
+  AmendmentProposalHashMismatch                            : not fired
+  BatchHashMismatch                                        : not fired
+  DedupDeltaHashMismatch                                   : not fired
+  DedupDeltaCollidesWithExistingSeedCanonicalId            : not fired (reserved ids 5401..=5408 outside SEED's 1..54 range)
+  AcceptedProposalWithoutBodyOrDelta                       : not fired
+  AcceptedProposalWithoutFutureFreezeGate                  : not fired
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage (all passing)
+----------------------------------------------------------------
+
+  1. t12_d_does_not_mutate_seed_len
+     - SEED.len() == 54 after seed_t12_d_robust_proposal().
+
+  2. t12_d_rejects_robust_z_duplicate_without_existing_authority_resolution
+     - defective variant promoting robust-z (id 6) to
+       new_canonical_records fires
+       DedupDeltaCollidesWithExistingSeedCanonicalId.
+
+  3. t12_d_seed_collision_loop_fires_for_every_authority_resolved_id
+     - parametric loop over 3 SEED ids (robust-z 6, Hampel 7,
+       Tukey fences 18) all fire the collision rule.
+
+  4. t12_d_rejects_hampel_as_canonical_without_windowed_local_median_law
+     - Hampel's ExistingCanonicalAuthorityResolution reason text
+       declares 'windowed' + 'local median' + 'MAD' +
+       'replacement' / 'rejection' law.
+
+  5. t12_d_rejects_tukey_fence_without_quartile_law
+     - Tukey fences' reason text declares 'quartile' + 'IQR' /
+       'multiplier' + 'inclusive' / 'exclusive' / 'fence'
+       semantics.
+
+  6. t12_d_rejects_theil_sen_without_pair_selection_law
+     - Theil-Sen's CanonicalAddition reason text declares
+       'pair-selection' + 'slope-median' / 'median' + 'tie-break'
+       laws.
+
+  7. t12_d_rejects_ransac_without_deterministic_seed_and_schedule
+     - RANSAC's id 5408 NOT in new_canonical_records; the
+       RejectedNotDeterministic record reason declares 'seed' +
+       'schedule' + 'iteration budget' + 'tie-break'
+       requirements.
+
+  8. t12_d_rejects_trimmed_mean_without_trim_fraction_law
+     - Trimmed mean's reason declares 'trim fraction' +
+       'symmetric' / 'one-sided' semantics.
+
+  9. t12_d_rejects_winsorized_mean_without_winsor_limit_law
+     - Winsorized mean's reason declares 'winsor limit' +
+       'replace' / 'replacement' semantics.
+
+ 10. t12_d_hash_changes_when_robust_statistic_law_changes
+     - mutated Theil-Sen's CanonicalAddition reason text;
+       proposal hash differs from canonical seed.
+
+Plus 2 per-named-SEED-id collision tests (Hampel, Tukey
+fences), 4 ParameterizationOf family-relationship tests
+(modified z → robust-z; rolling Hampel → Hampel; k×IQR → Tukey;
+RANSAC absent-from-canonical), 1 biweight-midvariance
+estimator-law test, plus shape + determinism + rendering
+invariants.
+
+----------------------------------------------------------------
+Additional invariants (passing)
+----------------------------------------------------------------
+
+  robust_proposal_is_admissible_under_t12_0_verifier
+  robust_proposal_has_open_status
+  robust_proposal_targets_robust_statistics
+  robust_proposal_proposes_eight_primitives
+  robust_proposal_proposes_zero_aliases
+  robust_proposal_proposes_twelve_dedup_records
+  robust_proposal_proposes_seven_genealogy_edges
+  robust_proposal_proposes_eight_source_refs
+  robust_delta_has_four_new_canonical_records
+  robust_proposal_emits_all_five_court_delta_categories
+  robust_proposal_court_delta_category_counts (4 / 3 / 1 / 3 / 1)
+  robust_proposal_hash_is_deterministic_across_two_builds
+  recomputed_robust_proposal_hash_matches_stored
+  robust_proposal_hash_is_distinct_from_t12_0_a_b_c
+  t12_d_rejects_duplicate_hampel_when_seed_id_exists
+  t12_d_rejects_duplicate_tukey_when_seed_id_exists
+  t12_d_rejects_biweight_midvariance_without_tuning_and_convergence_law
+  t12_d_modified_z_is_parameterizationof_robust_z
+  t12_d_rolling_hampel_is_parameterizationof_hampel
+  t12_d_k_iqr_fence_is_parameterizationof_tukey
+  t12_d_ransac_present_in_proposed_primitives_but_not_in_new_canonical_records
+  t12_d_existing_canonical_authority_resolution_targets_must_be_in_seed
+  t12_d_rejects_domain_transfer_without_existing_target
+  t12_d_every_new_canonical_has_source_ref
+  t12_d_every_dedup_record_has_reason_code
+  t12_d_canonical_addition_ids_are_in_5401_to_5404_range
+  robust_proposal_text_rendering_byte_stable
+  robust_proposal_json_rendering_byte_stable
+
+Total: 38 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every T.11/S1.3 hash                         : unchanged
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  T.12.b SCD corpus_amendment_proposal_hash_v1: unchanged (ac10e27c...)
+  T.12.c drift corpus_amendment_proposal_hash_v1: unchanged (0ffb0639...)
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.d robust literature_expansion_batch_hash_v1 (NEW):
+    7fffd93ab387b101626aad84c950915b4c43c3f514b37e5c14ad671f8c2509e9
+  T.12.d robust dedup_court_delta_hash_v1 (NEW):
+    182000af0592fd6ff992b0bb8b22abf602562db417859089be2dfc788aac759b
+  T.12.d robust corpus_amendment_proposal_hash_v1 (NEW):
+    7b51703fae33c53ee438bdcc8b4fef796d7da736025416bc81e6318f4b426eff

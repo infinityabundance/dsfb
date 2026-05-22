@@ -1,0 +1,202 @@
+S-PERF.1 DeviceTrafficReceiptV1 — Verification
+==============================================
+
+Pinned corpus anchors
+  corpus_hash_v1 : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  SEED.len()     : 54
+
+S-PERF.1 baseline receipt
+  device_traffic_receipt_hash_v1    : 09e96f17c2b56697a0af8ff55d4d209b9067d72fa445951110f1a5a47cdf0fb7
+  device_bandwidth_claim_policy_hash_v1 : 5b4d43601ac6f2902c0b02905cb6fac3f004a77a92b16cd68c72713387ceee40
+
+Baseline declaration (every measurement field zero):
+  device_name                       : RTX 4080 SUPER
+  sm_arch                           : 89
+  theoretical_memory_bandwidth_gbps : 716 (vendor datasheet)
+  measured_kernel_time_us           : 0   (no measurement taken)
+  timing_method                     : CudaEvent
+  layer                             : LayerA
+  total_accounted_device_bytes      : 0
+  effective_bandwidth_gbps          : 0
+  percent_of_peak_basis_points      : 0
+  contract_hashes                   : [corpus_hash_v1]
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives — verifier result
+----------------------------------------------------------------
+
+When the baseline receipt is fed to
+`verify_device_traffic_receipt`, the verifier returns ZERO
+errors. Each panel-required negative is exercised in
+`tests/s_perf_1_device_traffic_receipt_invariants.rs` by
+synthesising a defective receipt, then asserting the matching
+verifier-error kind appears.
+
+  1. BandwidthClaimWithoutByteAccounting
+       synthesise effective_bandwidth_gbps=100 +
+       percent_of_peak=500 with total_bytes=0
+       -> verifier surfaces the missing-byte-accounting error.
+       Result: PASS.
+
+  2. PeakPercentageWithoutDeviceBandwidthDeclared
+       synthesise percent_of_peak=2000 with
+       theoretical_memory_bandwidth_gbps=0
+       -> verifier surfaces the missing-peak-anchor error.
+       Result: PASS.
+
+  3. LayerAClaimWithHostJsonInclusiveTime
+       synthesise Layer=LayerA + timing=HostJsonInclusiveTime
+       -> verifier surfaces the Layer-A trip wire.
+       Result: PASS.
+
+  4. SaturationClaimWithoutCudaEventTiming
+       synthesise percent_of_peak=9000 (90 %) +
+       timing=HostInstantOnly
+       -> verifier surfaces the missing-CUDA-event-timing
+       error.
+       Result: PASS.
+
+  5. CrossDeviceComparisonWithoutDeviceIdentity
+       synthesise device_uuid_or_identity_hash=[0; 32]
+       -> verifier surfaces the missing-device-identity
+       error on single-receipt verification AND on the
+       DeviceTrafficReceiptComparison helper.
+       Result: PASS.
+
+  6. EffectiveBandwidthWhenTotalBytesZero
+       synthesise effective_bandwidth_gbps=100 +
+       total_bytes=0 (percent_of_peak=0 to isolate the path)
+       -> verifier surfaces the arithmetic-mismatch error.
+       Result: PASS.
+
+  7. PercentOfPeakAbove100WithoutErrorFlag
+       synthesise percent_of_peak=12500 (125 %) +
+       accounting_overflow_acknowledged=false
+       -> verifier surfaces the unacknowledged-overflow
+       error.
+       Acknowledged variant (`percent_of_peak_above_100_admitted_with_explicit_flag`)
+       confirms the flag suppresses the rule.
+       Result: PASS.
+
+  8. ReceiptMissingContractHashes
+       synthesise contract_hashes=Vec::new()
+       -> verifier surfaces the empty-contract-hashes error.
+       Result: PASS.
+
+----------------------------------------------------------------
+Cross-device comparison verifier
+----------------------------------------------------------------
+
+  ComparisonRequiresAtLeastTwoReceipts
+    single-receipt comparison -> rejected.
+    Result: PASS.
+
+  ComparisonReceiptsShareDeviceIdentity
+    two receipts with identical (non-zero) UUID -> rejected.
+    Result: PASS.
+
+  Two distinct-UUID receipts (RTX 4080 SUPER + H100) admit
+  the cross-device comparison.
+    Result: PASS.
+
+----------------------------------------------------------------
+Structural defect tests — verifier result
+----------------------------------------------------------------
+
+  DeviceNameEmpty                          : PASS
+  DriverVersionEmpty                       : PASS
+  CudaVersionEmpty                         : PASS
+  SmArchZero                               : PASS
+  TimingMethodUnknownWithNonZeroTime       : PASS
+  AccountedBytesMismatchSumOfFields        : PASS (claimed 999 vs computed 700)
+
+----------------------------------------------------------------
+Determinism + sensitivity verification
+----------------------------------------------------------------
+
+  Two consecutive `seed_baseline_uninstrumented_receipt()`
+  calls produce byte-identical receipts
+  (device_traffic_receipt_hash_v1 = 09e96f17...).
+  Two consecutive `build_panel_locked_bandwidth_claim_policy()`
+  calls produce byte-identical policies
+  (device_bandwidth_claim_policy_hash_v1 = 5b4d4360...).
+  All four renderers (text + JSON for receipt + policy) are
+  byte-stable.
+
+  Sensitivity (every test mutates ONE field and asserts the
+  hash changes):
+    sm_arch                              -> hash differs
+    timing_method                        -> hash differs
+    layer                                -> hash differs
+    measured_kernel_time_us              -> hash differs
+    accounting_overflow_acknowledged     -> hash differs
+    contract_hashes                      -> hash differs
+  Result: PASS (all six sensitivity tests).
+
+  Device identity hash:
+    same (name, sm_arch) -> same hash
+    different sm_arch    -> different hash
+    different name       -> different hash
+    output is non-zero by construction
+  Result: PASS.
+
+----------------------------------------------------------------
+Panel-locked saturation threshold
+----------------------------------------------------------------
+
+  S_PERF_1_SATURATION_BP = 8000 (80.00 % of peak)
+  Result: PASS.
+
+  Saturation backed by CudaEvent       -> admit. Result: PASS.
+  Saturation backed by CudaStreamSync  -> admit. Result: PASS.
+  Saturation backed by HostInstantOnly -> reject (negative #4). Result: PASS.
+
+----------------------------------------------------------------
+Bulk artifacts emitted
+----------------------------------------------------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_1_device_traffic_receipt_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_1_device_traffic_receipt_v1.json
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_1_bandwidth_claim_policy_v1.txt
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_1_bandwidth_claim_policy_v1.json
+
+Two consecutive `dsfb-corpus s-perf-1-receipt-emit`
+invocations produced byte-identical files (verified via
+`diff -q`).
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/s_perf_1_device_traffic_receipt_invariants.rs : 61 PASS / 0 FAIL
+  cargo test -p dsfb-gpu-atlas-corpus : 54 groups / 2095 PASS
+  cargo test --workspace --features cuda -- --test-threads=1 :
+    93 groups / 2410 PASS
+
+  Delta vs T.12.PROV: +1 group, +61 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+Every prior corpus / T.11 / T.12.x / T.12.consolidate / FF.x /
+S1.3.x / T.12.PROV hash anchor: BYTE-IDENTICAL.
+
+  corpus_hash_v1                  : 35c276c7... UNCHANGED
+  scientist_credit_index_hash_v1  : 5a55f034... UNCHANGED
+  provenance_credit_report_hash_v1: 8b4f0f83... UNCHANGED
+  SEED.len()                      : 54         UNCHANGED
+  R.12b episodes                  : 13 / 89 / 1917 BYTE-STABLE
+
+R.12b pinned baselines NOT REBASELINED; restored from
+/tmp/s_perf_1_backup before commit.
+
+----------------------------------------------------------------
+Schema discipline
+----------------------------------------------------------------
+
+  3 domain separators pairwise distinct: PASS
+  3 domain separators end with \0 byte: PASS
+  2 schema ids pairwise distinct: PASS
+  Panel-locked policy lines: 8 (matches in-built policy)
+  Panel-locked saturation threshold: 8000 bp (80.00 %)

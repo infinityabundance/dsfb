@@ -1,0 +1,91 @@
+================================================================
+T.12.i - Observability / Debugging verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_i_observability::seed_t12_i_observability_proposal()
+
+----------------------------------------------------------------
+Positive verification (admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+All T.12.0 verifier rules pass: BatchIdEmpty, ProposalIdEmpty,
+UnknownSourceClass, AmendmentProposalHashMismatch,
+BatchHashMismatch, DedupDeltaHashMismatch,
+DedupDeltaCollidesWithExistingSeedCanonicalId (reserved ids
+5901..=5914 outside SEED's 1..54 range),
+AcceptedProposalWithoutBodyOrDelta,
+AcceptedProposalWithoutFutureFreezeGate.
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage
+----------------------------------------------------------------
+
+All 11 panel-required negatives pass plus 1 learned-classifier
+rejection contract test + 3 per-canonical contract tests + 4
+ParameterizationOf family tests + 2 DomainTransferOf tests +
+bank-surface coverage test + per-bucket reserved-id-range tests
++ shape / determinism / rendering invariants.
+Total: 45 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Bank-surface non-duplication coverage
+----------------------------------------------------------------
+
+The t12_i_existing_seed_collision_requires_authority_resolution
+test runs a parametric loop over all five dsfb-gpu-debug bank
+surface IDs (14, 15, 41, 42, 43). Each iteration constructs a
+defective proposal duplicating one bank-surface ID and asserts
+the verifier rejects it with DedupDeltaCollidesWithExistingSeed
+CanonicalId. This is what protects the L6 honesty marker.
+
+----------------------------------------------------------------
+Vendor-APM rejection contract coverage
+----------------------------------------------------------------
+
+The t12_i_rejects_vendor_apm_score_without_deterministic_formula
+test asserts:
+  - 5913 NOT in new_canonical_records
+  - reason text contains "deterministic formula"
+  - reason text contains "model-identification anchor"
+  - reason text contains "training-data anchor"
+  - reason text contains "feature schema"
+  - reason text contains "tie-break"
+  - reason text contains "numeric mode"
+  - reason text names at least one of: datadog, new relic,
+    dynatrace, splunk, devops guru
+
+This is the most-important load-bearing negative; vendor APM
+products must not be laundered as canonical witnesses.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.x hash           : unchanged
+    T.12.0 proof-of-life          : 325bbf3d...
+    T.12.a SPC                    : ae493a85...
+    T.12.b SCD                    : ac10e27c...
+    T.12.c drift                  : 0ffb0639...
+    T.12.d robust                 : 7b51703f...
+    T.12.e spectral               : 0036435f...
+    T.12.f time-series            : 76717e02...
+    T.12.g graph                  : 1bc14266...
+    T.12.h data-quality           : d4566a74...
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.i observability literature_expansion_batch_hash_v1 (NEW):
+    115aa30f9d9f9a178b036f85a0878597652100c20ebca6810430768e73f7ee63
+  T.12.i observability dedup_court_delta_hash_v1 (NEW):
+    b3c80c74b4a64474d0d63c73666b560a6c9dcdd3260227ab7f700d9a950b42fa
+  T.12.i observability corpus_amendment_proposal_hash_v1 (NEW):
+    9776c1b9d87fa2fd389df933513904c9cf47b703dae18f343508b58628540611

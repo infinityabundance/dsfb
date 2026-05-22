@@ -1,0 +1,26 @@
+[package]
+name        = "dsfb-gpu-debug-core"
+version     = "0.1.0"
+edition.workspace     = true
+rust-version.workspace = true
+license.workspace     = true
+publish.workspace     = true
+authors.workspace     = true
+repository.workspace  = true
+keywords.workspace    = true
+readme.workspace      = true
+description = "Deterministic CPU reference, hash chain, and semantic authority for dsfb-gpu-debug."
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = []
+# Pulls in the `std` library; required by anything that allocates (Vec, String).
+# Core algorithms in this crate are `no_std`-compatible scalar code, but the
+# pipeline drivers and case-file emitter need allocation.
+std     = []
+demo    = ["std"]
+
+[lints]
+workspace = true

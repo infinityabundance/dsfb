@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 tadbench_f04
+display_name:            TADBench TrainTicket F04
+license:                 CC-BY-4.0
+upstream_doi_or_url:     10.5281/zenodo.6979726
+
+Input
+  vendored_path:         data/fixtures/tadbench_trainticket_F04.tsv
+  fixture_sha256:        b3e7ba260617b4496aa5b09f7d399fecae2cc60dbb2002f6405e65a5f37cb1d7
+  fixture_byte_size:     3406
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               72
+  nan_cells_skipped:          288
+  events_emitted:             72
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 12
+  n_windows  (= observed_num_windows): 30
+  contract_hash:         sha256:069adb75531518e01ec397ef141ed3509ddf34c291ddb2b724ffba2015303121
+  bank_hash:             sha256:b5998e34f56b8b747f25645e032a9f49850b54d5e73509151c7187665fef52f6
+  detector_registry_hash: sha256:105b45e0ec2643c15533a7fac4c37f225aa1b2c2d3d4e33d2755a9399d704b4a
+
+Result
+  episodes_admitted:     6
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:e8ab40737df0b5aafeefb03f59a694a231d5335b8115a90cf484505e384cb6b8

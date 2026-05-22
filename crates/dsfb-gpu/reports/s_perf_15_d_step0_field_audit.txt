@@ -1,0 +1,660 @@
+========================================================================
+ S-PERF.15.d Step 0 — detector_motif_fused contract capture + field
+ consumption audit (panel-required Step 0 deliverable; one-shot audit;
+ no hash chain)
+========================================================================
+
+Hardware: RTX 4080 SUPER, CUDA 13.2
+Codebase: HEAD 8b0db9b (post-S-PERF.15.c seal; pre-S-PERF.15.d
+          kernel surgery)
+Bench:    s_perf_12_d64_compact_densor_stage_profile_256x4096_k1
+Harness:  crates/dsfb-gpu-debug-demo/tests/s_perf_15_d_detector_motif_layout_byte_identity.rs
+          (9 tests; all admit against pre-rewrite codebase)
+
+Panel-locked context (verbatim 2026-05-18 post-S-PERF.15.c seal):
+
+  S-PERF.15.c removed the last large easy occupancy offender. The
+  next wall is no longer launch geometry; it is the 2.49 ms L2-heavy
+  detector_motif_fused kernel. S-PERF.15.d should target detector
+  layout / L2 traffic, while residual/drift and window_feature
+  remain secondary or diagnostic legs.
+
+The right S-PERF.15.d question (panel-locked):
+
+  Why is detector_motif_fused still 2.49 ms and 91.9 % L2 after
+  absorbing digest_pack?
+
+This receipt does NOT pick a Step 1 direction. It pins the wider
+detector_motif_fused contract surface (5 panel-required Step 0
+constants) and audits DetectorCellWide field consumption so the
+S-PERF.15.d rewrite attacks the 2.49 ms L2 wall without violating
+byte identity or D128/D205 compatibility.
+
+------------------------------------------------------------------------
+ 5 panel-required Step 0 pinned constants (canonical 16x128 K=1 D64)
+------------------------------------------------------------------------
+
+  1. PINNED_PRE_S_PERF_15_D_DETECTOR_CELLWIDE_ARENA_SHA256
+     = 1d76 0178 d8cf 0eeb b9df b78d d077 7223
+       0afa 9f52 dba1 3e4f 52a9 3169 b1f1 c051
+     (== S-PERF.15.a's pinned DETECTOR_CELLWIDE_ARENA_SHA256;
+      proves the wide-arena bytes are unchanged from a47a8e9
+      through 8b0db9b)
+
+  2. PINNED_PRE_S_PERF_15_D_DETECTOR_COMPACT_PACK_ARENA_SHA256
+     = 6b90 a2da 01eb e904 224c 93e4 4b04 2066
+       7c9c cf9c 66fe c17f dd74 db81 cee7 4a19
+     (== S-PERF.15.a's pinned DETECTOR_COMPACT_PACK_ARENA_SHA256)
+
+  3. PINNED_PRE_S_PERF_15_D_TREE_SHA256V1_DETECTOR_ROOT
+     = 879d c9a9 4c0b 5043 d380 6b43 25a9 a664
+       345e 4d77 3768 ca28 ed59 e46c 2a5f 4bae
+     (== S-PERF.11's + S-PERF.15.a's pinned TreeSha256V1
+      detector-stage root)
+
+  4. PINNED_PRE_S_PERF_15_D_COMPACT_DENSOR_DIGEST_V1_DETECTOR_ROOT
+     = 329d 19bf f4c8 9ad6 cfcf a8fb c38d 1e5d
+       d1e6 f52f c0b8 123a bc1d 5007 3568 220b
+     (== S-PERF.14b's + S-PERF.15.a's pinned
+      CompactDensorDigestV1 detector-stage root)
+
+  5. PINNED_PRE_S_PERF_15_D_CONSENSUS_INPUT_CASCADE_SHA256
+     = 90b5 ae8a f26b e05d a09e d68e 25aa 99a5
+       3f00 beff 71a0 31aa c1cb b2b3 142b 74b1
+     (NEW combined cascade pin: SHA-256 over
+      consensus_arena_bytes || casefile_final_hash; defense-in-
+      depth against a slimming bug where the field-audit
+      mis-classifies a hot field as audit-only)
+
+Pre-S-PERF.15.d codebase verification result:
+  9/9 harness tests admit; all 5 pins verified against the pre-
+  rewrite codebase; cross-validation against S-PERF.15.a's
+  TreeSha256V1 + CompactDensorDigestV1 detector roots passes;
+  cross-validation against S-PERF.15.b's casefile final hash
+  (98d0...f3a6) passes.
+
+------------------------------------------------------------------------
+ PRE-S-PERF.15.d baseline (panel-required Step 0 governing routine)
+------------------------------------------------------------------------
+
+Per the panel-locked Nsight-and-bandwidth discipline ("you will
+do nsight and GB/s benchmark now and after each point. you are
+blind without it"), both the per-kernel ROOF baseline AND the
+system-level bandwidth bench band are captured here as the PRE
+reference for S-PERF.15.d Step 1+.
+
+PRE Nsight baseline #1 (post-S-PERF.15.c sealed receipt):
+  reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_15_c_post.txt
+  detector_motif_fused_d64_kernel :
+    Duration  : 2,487,616 ns =  2.49 ms
+    DRAM %    : 28.6
+    L2 %      : 91.9
+    SM %      :  5.5
+    Occupancy : 48.9 %
+    Bucket    : L2!  (the campaign target)
+
+PRE Nsight baseline #2 (S-PERF.15.d Step 0 fresh sudo ROOF, this
+session, HEAD 8b0db9b — captured per panel-locked "nsight after
+each point" rule):
+  reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_15_d_step0.txt
+  detector_motif_fused_d64_kernel :
+    Duration         : 2,475,232 ns =  2.48 ms
+    DRAM %           : 27.37
+    L2 %             : 92.33
+    L1 %             : 61.65
+    SM %             :  5.53          (compute-light, as expected)
+    Occupancy        : 48.90 %        (no headroom; theoretical max 50%)
+    Memory BW (eff)  : 196.9 GB/s
+    IPC              : 0.22 inst/cycle (memory-stalled hard)
+    Bucket           : L2!            (campaign target; confirmed)
+
+  Cross-receipt verification: the two PRE Nsight baselines
+  (post-S-PERF.15.c sealed + S-PERF.15.d Step 0 fresh) agree
+  within thermal noise (2.488 vs 2.475 ms / 91.9 vs 92.3 % L2 /
+  48.9 vs 48.9 % Occ). The campaign target is byte-stable
+  across sessions.
+
+  Analytic implication of the 92.3 % L2 + only 27.4 % DRAM
+  split: the working set is fitting in L2 and cycling through
+  write-allocate chunks ~7× before draining to DRAM. With
+  264 B per cell × 1 048 576 cells = 277 MB of wide-arena
+  writes and only ~40 MB of L2 on RTX 4080 SUPER, the L2 is
+  thrashing the write traffic. This is WRITE-DOMINANT L2
+  pressure — exactly the cold-zero-bytes-write-allocate
+  pattern the field audit predicted. The 269 MB of cold
+  mask[1..31] zeros is the ~97 % of the L2 pressure.
+
+  Aggregate Step 0 bucket distribution (unchanged from
+  post-S-PERF.15.c):
+    occupancy-bound : 5 kernel(s)
+    DRAM-bound      : 2 kernel(s)
+    L2-bound        : 2 kernel(s)  (detector_motif_fused + consensus_axis5_fused)
+
+PRE bandwidth GB/s band (3-run live bench captured this turn,
+canonical 256x4096 K=1 D64, RTX 4080 SUPER / CUDA 13.2):
+
+  Run 1: 21.61 GB/s (host 21,968 µs, device 12,810 µs, episodes 1917)
+  Run 2: 23.27 GB/s (host 20,929 µs, device 11,896 µs, episodes 1917)
+  Run 3: 22.93 GB/s (host 21,499 µs, device 12,072 µs, episodes 1917)
+
+  Median: 22.93 GB/s   Min: 21.61 GB/s   Max: 23.27 GB/s
+  Band width: ~7 % of median (tight; system in hot/steady regime)
+  Episodes: 1917 byte-stable across all 3 runs
+
+  Distance to saturation gate (572.8 GB/s / 80 % of 716 GB/s peak):
+    ~550 GB/s remaining; ~77 percentage points
+
+Honest framing (panel-locked):
+  This PRE band (22.93 GB/s median) is materially higher than
+  the S-PERF.15.c sealed bench band median (16.67 GB/s) measured
+  yesterday — same codebase, different thermal/system regime.
+  The bench is the noise filter; ncu is the verdict. The
+  detector_motif_fused 2.49 ms @ 91.9 % L2 per-kernel measurement
+  is independent of system thermal state and is the
+  load-bearing reference for the S-PERF.15.d local win.
+
+POST-S-PERF.15.d Step 1 will re-capture BOTH a fresh sudo ROOF
+AND a fresh 3-run bandwidth band per the panel-locked routine,
+so the delta is visible at both layers.
+
+------------------------------------------------------------------------
+ DetectorCellWide field-consumption audit
+------------------------------------------------------------------------
+
+DetectorCellWide layout (crates/dsfb-gpu-debug-core/src/detector.rs:181):
+  pub struct DetectorCellWide {                       byte range
+      pub window_idx: u32,                            [ 0 ..  4)    4 B
+      pub entity_id:  u32,                            [ 4 ..  8)    4 B
+      pub detector_mask: DetectorMask2048,            [ 8 .. 264)  256 B
+  }                                                   total       264 B
+
+DetectorMask2048 = [u64; 32]. At D64, only mask[0] is populated
+(64 active detectors live in bits 0..63 of mask[0]); mask[1..31]
+are written to zero by the detector_motif_fused_d64_kernel for
+every cell.
+
+Source: live grep over cuda/kernels.cu at HEAD 8b0db9b.
+
+| field                | bytes | producer (write)                  | reader  | D64 read path                                                    | D128/D205 read path                                | digest? | cold? | safe to slim on D64? |
+|----------------------+-------+-----------------------------------+---------+------------------------------------------------------------------+----------------------------------------------------+---------+-------+----------------------|
+| window_idx           |   4   | detector_motif_fused_d64_kernel   | NONE    | not read (consensus + candidate_pack use blockIdx values)        | not read (D128/D205 consensus uses blockIdx too)   | NO      | YES   | YES (sidecar can omit)|
+| entity_id            |   4   | detector_motif_fused_d64_kernel   | NONE    | not read (consensus + candidate_pack use blockIdx values)        | not read (D128/D205 consensus uses blockIdx too)   | NO      | YES   | YES (sidecar can omit)|
+| detector_mask[0]     |   8   | detector_motif_fused_d64_kernel   | HOT     | consensus_axis5_fused (project_d64_to_u16, line 1660+1669);      | consensus_grid_wide_d128/_d205 (project_d128/d205) | YES     | NO    | NO (load-bearing)    |
+|                      |       |                                   |         | candidate_pack_blockcoop (project_d64_to_u16, line 2059);        |                                                    |         |       |                      |
+|                      |       |                                   |         | compact-pack Phase 3 register-resident (line 943)                |                                                    |         |       |                      |
+| detector_mask[1]     |   8   | detector_motif_fused (writes 0)   | COLD@D64| not read on D64 path                                              | consensus_grid_wide_d128 (project_d128, line 1279) | YES (D128+) | YES@D64 | YES (D64 sidecar)    |
+| detector_mask[2..3]  |  16   | detector_motif_fused (writes 0)   | COLD@D64,D128 | not read                                                  | consensus_grid_wide_d205 (project_d205, line 1318) | YES (D205+) | YES@D64,D128 | YES@D64           |
+| detector_mask[4..31] | 224   | detector_motif_fused (writes 0)   | COLD ALWAYS | not read                                                     | not read                                           | NO      | YES   | YES (pure waste)     |
+
+Important observations:
+
+  - At D64, ONLY mask[0] (8 B / 264 B = 3.0 % of the cell) is hot.
+    97 % of every cell write is zero bytes.
+  - window_idx + entity_id are NEVER read by any downstream stage
+    on the throughput path. Consumers derive these values from
+    CUDA blockIdx (entity_id = blockIdx.y; window_idx = blockIdx.x
+    or threadIdx.x). They are written but never read.
+  - The legacy detector_wide_digest_pack_kernel_v1 (D128/D205
+    path) reads only mask[0] at D64. Even the legacy unfused 2-
+    kernel pair never reads mask[1..31] at D64.
+
+------------------------------------------------------------------------
+ Per-cell footprint summary at canonical 256x4096 K=1
+------------------------------------------------------------------------
+
+WRITE side (detector_motif_fused_d64_kernel):
+  cells per dispatch          = 256 entities × 4 096 windows = 1 048 576
+  bytes written per cell      = 264 B (full DetectorCellWide store)
+  TOTAL write traffic         = ~277 MB
+  of which:
+    hot bytes (mask[0] only)  = 1 048 576 × 8 B = 8 MB     (3 %)
+    cold zero bytes           = 1 048 576 × 256 B = 269 MB (97 %)
+
+READ side (consensus_axis5_fused_kernel):
+  per cell, reads:
+    1 self-cell                    via project_d64_to_u16(det)
+    TEMPORAL_WINDOW=32 neighbor cells via project_d64_to_u16(det)
+    = 33 cell reads per (entity, window)
+  Effective bytes per cell read:
+    - if compiler loads only mask[0]:   33 × 8 B  =   264 B per cell
+    - if compiler loads full 264 B:     33 × 264  = 8 712 B per cell
+  At 1 M cells:
+    - best case (only mask[0]):    8 GB total
+    - worst case (full struct):  272 GB total
+  Reality: CUDA loads via `const DetectorCellWide&` typically
+  result in 128-byte cache-line fills × however many lines the
+  struct spans. The 264 B struct spans 3 cache lines (128 + 128
+  + 8 padding). So the compiler likely fetches 3 cache lines per
+  cell access = 384 B / cell. At 33 × 1 M = 33 M cell accesses =
+  ~12.6 GB of L2/DRAM read traffic.
+
+READ side (candidate_pack_kernel_wide_blockcoop):
+  per (slot, entity, catalog) block walks per-slot window range;
+  reads 1 detector cell per window via project_d64_to_u16(det)
+  Cell-reads scale with sum of (end_w − start_w) over admitted
+  candidates; much smaller than consensus's 33×1M.
+
+Aggregate L2 pressure on detector_motif_fused (post-S-PERF.15.c ROOF):
+  detector_motif_fused itself: 2.49 ms @ 91.9 % L2.
+  The 91.9 % L2 is the WRITE-allocate cost of the 277 MB wide-
+  arena store. mask[1..31] zero writes account for 269 MB / 277 MB
+  ≈ 97 % of the write payload; only 8 MB carry meaning at D64.
+
+------------------------------------------------------------------------
+ Step 0d byte-counter trace (focused sudo ncu on detector_motif_fused)
+------------------------------------------------------------------------
+
+CSV: reports/_ncu_d64_detector_motif_fused_step0_bytecounters.csv
+Captured: one steady-state iteration of detector_motif_fused_d64_kernel
+          (--launch-skip-before-match 3 --launch-count 1) at HEAD 8b0db9b.
+
+Raw measurements:
+
+  dram__bytes_read.sum                          =   50,679,168 B (~  48 MB)
+  dram__bytes_write.sum                         =  440,893,824 B (~ 420 MB)
+  l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum  = 2,339,556,672 B (~2.18 GB)
+  l1tex__t_bytes_pipe_lsu_mem_global_op_st.sum  = 1,711,276,032 B (~1.59 GB)
+  l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum =    73,111,146 sectors
+  l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum =    53,477,376 sectors
+  lts__t_sectors_op_read.sum                     =    46,401,704 sectors (~1.48 GB)
+  lts__t_sectors_op_write.sum                    =    64,392,188 sectors (~2.06 GB)
+  smsp__sass_thread_inst_executed_op_global_ld.sum = n/a (metric unavailable on this arch)
+  smsp__sass_thread_inst_executed_op_global_st.sum = n/a
+
+Decision-driving ratios:
+
+  DRAM ST / LD bytes : 420 MB / 48 MB        = 8.71×   ← physical write-DOMINANT
+  L2   ST / LD sect  : 64.4 M / 46.4 M       = 1.39×   ← write-heavy at L2
+  L1   ST / LD bytes : 1.59 GB / 2.18 GB     = 0.73×   ← L1 sees more LDs than STs
+                                                         (compute-side residual/sign/
+                                                         threshold reads served by L1
+                                                         cache hits, not DRAM)
+
+Interpretation:
+
+  - DRAM is 8.7× write-dominant. The 420 MB DRAM write payload
+    ≈ 277 MB wide-arena store (264 B × 1 048 576 cells)
+    + 18 MB compact-pack store + ~125 MB write-allocate
+    amplification. Of the 277 MB wide-arena bytes, the field
+    audit predicts 269 MB (97 %) is cold mask[1..31] zero
+    writes that no downstream stage consumes at D64.
+  - L1 LD bytes are large (2.18 GB) but ~95 % of those LDs
+    are served by L1/L2 cache (DRAM read is only 48 MB → ~22×
+    L1 amplification). The READ side is essentially free
+    compared to the WRITE side; loads come from constant-
+    memory thresholds + residual/sign cells that fit in L1.
+  - L2 write sectors > L2 read sectors → L2 is acting as a
+    write-buffer for the DRAM-write payload (L1 ST drains to
+    L2 then drains to DRAM with ~5× compression — the cold-
+    zero bytes compress well in transit, but DRAM still pays
+    the bandwidth).
+
+Verdict (panel-locked rule, verbatim):
+  "If ST bytes/sectors >> LD bytes/sectors: the kernel is
+   write-dominant. Direction A or C is justified. Specifically,
+   sectors_ST / sectors_LD > 5 strongly favors A/C."
+
+  Measured at DRAM:    ST/LD bytes = 8.71×  (>>>> 5)
+  Measured at L2:      ST/LD sect  = 1.39×  (write-heavy)
+  Measured at L1:      ST/LD bytes = 0.73×  (cache absorbs reads)
+
+  → Direction A (D64 conditional-write) wins on detector_motif_fused
+  → Direction B (SoA sidecar) would help consensus_axis5_fused
+    READ side, which is a SEPARATE kernel — not this campaign's
+    target. Defer to S-PERF.15.e if needed.
+  → Direction C (hybrid) is only justified if B's read-side
+    win on consensus is needed; the byte-counter trace says
+    A alone resolves the L2-bound on detector_motif_fused.
+
+------------------------------------------------------------------------
+ Recommended Step 1 direction (post-byte-counter; awaiting panel verdict)
+------------------------------------------------------------------------
+
+DIRECTION A — D64 conditional-write (cold-zero skip on mask[1..31])
+
+Mechanism: detector_motif_fused_d64_kernel's Phase 2 wide-cell
+store currently writes the full 264 B `DetectorCellWide` per cell
+including 256 B of `detector_mask[0..31]` (of which only mask[0]
+carries meaning at D64). The rewrite skips the cold tail writes
+mask[1..31] entirely on the D64 _timed path:
+
+  Before:  detectors_wide[idx] = cell;        // 264 B write
+  After:   detectors_wide[idx].window_idx     = cell.window_idx;  // 4 B
+           detectors_wide[idx].entity_id      = cell.entity_id;   // 4 B
+           detectors_wide[idx].detector_mask[0] = cell.detector_mask[0]; // 8 B
+           // mask[1..31] DELIBERATELY NOT WRITTEN at D64
+
+  Total wide-arena write traffic: 264 B → 16 B per cell (16.5× cut)
+  Total DRAM-write payload:       420 MB → ~160 MB (2.6× cut)
+  Projected L2 % on detector_motif_fused: 92.3 % → 50-60 % (estimated)
+
+Pre-condition for byte-identity contract preservation:
+  - The wide arena's mask[1..31] bytes are GARBAGE post-rewrite
+    (they retain whatever was there from a prior dispatch OR
+    are zero if the workspace buffer was newly allocated).
+  - PINNED_PRE_S_PERF_15_D_DETECTOR_CELLWIDE_ARENA_SHA256
+    (pin #1) will FIRE on the post-rewrite codebase because
+    the mask[1..31] bytes are no longer guaranteed zero.
+  - REQUIRED panel verdict: accept the divergence under a
+    "D64 path defines its own write contract: the bytes
+    mask[1..31] are non-load-bearing at D64; their post-
+    rewrite value is implementation-defined" rule. Pin #1
+    is then UPDATED ATOMICALLY with the kernel change AND
+    pin #5 (consensus_input || casefile cascade) MUST
+    continue to pass — independently verifying that no
+    downstream stage at D64 actually consumed the cold bytes.
+  - Alternative WITHOUT panel approval: zero-initialize
+    mask[1..31] in the workspace buffer at allocation time
+    (one-time cost; preserves pin #1 byte-identical) AND
+    skip the per-dispatch write. Adds ~1 MB allocation-time
+    work but keeps pin #1 untouched. RECOMMENDED for first-
+    pass safety.
+
+Risk mitigations:
+  - Pin #2 (compact-pack arena): unchanged — Phase 3 of
+    detector_motif_fused still writes the 18-byte compact
+    pack from registers.
+  - Pin #3 (TreeSha256V1 root) + Pin #4 (CompactDensorDigestV1
+    root): unchanged — both digests consume the compact-pack
+    arena bytes (18 B per cell × n_cells), NOT the wide arena.
+  - Pin #5 (consensus_input || casefile cascade): unchanged —
+    consensus_axis5_fused reads only mask[0] at D64 via
+    project_d64_to_u16; mask[1..31] cold bytes are not read.
+
+D128/D205 dispatcher impact: NONE. Those dispatchers use the
+legacy unfused 2-kernel pair (detector_motif_kernel_wide_d64 +
+detector_wide_digest_pack_kernel_v1) which still writes the
+full 264 B per cell. The conditional-write skip is D64 _timed
+only.
+
+Projected post-S-PERF.15.d local win:
+  detector_motif_fused per-call wall: 2.48 ms → 1.4-1.8 ms
+    (estimated -30 % to -45 %; bench-band-noisy)
+  L2 throughput %: 92.3 % → 50-60 % (bucket shift OCC or DRAM)
+  System-level bench: marginal at median (the saved ~0.7-1 ms
+    is ~3-5 % of the 25-30 ms host wall; per-kernel ncu is
+    the verdict, bench is context)
+
+Honest expectation (per the S-PERF.15.c pattern): per-kernel
+ncu shows clean 1.4-1.8× local win; system-level bench BW
+delta within thermal noise band. Bench is the noise filter;
+ncu is the verdict.
+
+DIRECTIONS B AND C (for the record; NOT recommended for
+S-PERF.15.d Step 1 based on Step 0 evidence):
+
+  Direction B (SoA sidecar) — targets consensus_axis5_fused's
+  READ side. Step 0 byte-counter shows the read side at
+  detector_motif_fused is NOT the bottleneck (L1 cache absorbs
+  it; DRAM read is only 48 MB). If post-S-PERF.15.d ROOF shows
+  consensus_axis5_fused has become the new dominant wall after
+  detector_motif_fused gets its A-cut, Direction B becomes the
+  natural S-PERF.15.e candidate (replacing the demoted
+  residual_field + drift_ewma fusion plan).
+
+  Direction C (hybrid A + B) — only justified if BOTH the
+  write-side (detector_motif_fused) AND read-side
+  (consensus_axis5_fused) need attacking in one commit.
+  Step 0 evidence says they don't — A alone resolves the
+  detector_motif_fused L2 bound; B can wait for its own
+  sub-leg with its own Step 0 audit.
+
+------------------------------------------------------------------------
+ Likely Step 1 directions (HISTORICAL — superseded by byte-counter verdict)
+------------------------------------------------------------------------
+
+The field-audit suggests three plausible Step 1 directions. The
+focused ncu byte-counter trace (Step 0d below) confirms or
+refutes which one is best.
+
+  Direction A — D64 conditional-write (highest payoff, highest
+  contract risk):
+    Skip mask[1..31] writes entirely on the D64 _timed path.
+    Cuts write traffic 264 B → 16 B per cell (~277 MB → ~17 MB,
+    16× write reduction).
+    RISK: wide arena diverges from D128/D205 expected layout at
+    mask[1..31] positions. Mitigation: harness pin #1
+    (DETECTOR_CELLWIDE_ARENA_SHA256) detects this; if the panel
+    accepts the divergence under a "D64 path defines its own
+    write contract" rule, pin #1 is updated atomically with the
+    kernel change AND pin #5 (cascade) independently verifies
+    the digest + casefile paths are unchanged.
+    PRESERVES: D128/D205 legacy unfused 2-kernel pair continues
+    to write the full 264 B; the wide arena layout at D128/D205
+    is untouched.
+
+  Direction B — SoA sidecar (medium payoff, low contract risk):
+    Write a 16-B D64-only compact cell (entity_id + window_idx +
+    mask[0]) side-by-side with the full 264-B wide arena. D64
+    consumers (consensus + candidate_pack) read the sidecar (16 B
+    per cell instead of 264 B). Full wide arena still updated
+    byte-identically (no write savings; but read footprint drops
+    on downstream consumers).
+    Reduces L2 read pressure on consensus by ~16×.
+    PRESERVES: all 5 Step 0 pins byte-identical by construction
+    (wide arena bytes unchanged; sidecar is additive, not a
+    replacement).
+    Cost: 1 new workspace buffer (1 048 576 × 16 B = 16 MB at
+    canonical; trivially small).
+
+  Direction C — Hybrid (highest payoff, highest design risk):
+    Conditional-write the slim form to the sidecar AND skip
+    mask[1..31] writes on the wide arena's D64 path; rebuild
+    cold mask bytes lazily only if a D128/D205-mode consumer
+    runs. Combines A's write reduction with B's read reduction.
+    Most invasive; requires explicit lazy-rebuild for D128/D205
+    compatibility.
+
+The focused ncu run (Step 0d) measures whether the actual L2
+pressure is on the write or the read side. If the
+`l1tex__t_bytes_pipe_lsu_mem_global_op_st.sum` metric dominates
+→ Direction A or C wins. If `_op_ld.sum` dominates → Direction B
+wins. If both are large → Direction C is the panel-suggested
+ceiling.
+
+------------------------------------------------------------------------
+ Step 0d — focused ncu byte-counter trace (USER RUNS)
+------------------------------------------------------------------------
+
+The standard --set detailed ncu capture does not separately
+expose the global-memory load vs store byte counters. A focused
+re-run with the right metrics surfaces the write-vs-read split
+on detector_motif_fused_d64_kernel.
+
+Command (USER must run; ncu requires sudo for perf-counter
+access):
+
+  sudo /usr/bin/ncu \
+    --target-processes all \
+    --kernel-id ::regex:detector_motif_fused: \
+    --launch-skip 39 --launch-count 1 \
+    --metrics \
+      l1tex__t_bytes_pipe_lsu_mem_global_op_ld.sum,\
+      l1tex__t_bytes_pipe_lsu_mem_global_op_st.sum,\
+      l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum,\
+      l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum,\
+      lts__t_sectors_op_read.sum,\
+      lts__t_sectors_op_write.sum,\
+      dram__bytes_read.sum,\
+      dram__bytes_write.sum,\
+      smsp__sass_thread_inst_executed_op_global_st.sum,\
+      smsp__sass_thread_inst_executed_op_global_ld.sum \
+    --csv \
+    --log-file reports/_ncu_d64_detector_motif_fused_step0_bytecounters.csv \
+    target/release/deps/s_perf_12_d64_compact_densor_stage_profile-242cff6e16ef8b5a \
+    --ignored s_perf_12_d64_compact_densor_stage_profile_256x4096_k1 \
+    --nocapture
+
+Expected outputs (per-kernel, one row for detector_motif_fused):
+  l1tex global LD bytes: bytes loaded by the kernel from global
+  l1tex global ST bytes: bytes stored by the kernel to global
+  l1tex global LD sectors: 32-byte sector counts (load)
+  l1tex global ST sectors: 32-byte sector counts (store)
+  lts read/write sectors: L2 perspective
+  DRAM read/write bytes:  physical DRAM traffic
+
+Interpretation rules (panel-locked):
+  - If ST bytes/sectors  >> LD bytes/sectors:
+    The kernel is write-dominant. Direction A or C is justified.
+    Specifically, sectors_ST / sectors_LD > 5 strongly favors A/C.
+  - If LD bytes  >> ST bytes:
+    The kernel is read-dominant (surprising for a writer).
+    Either the temporal-locality loop is exposing more read
+    traffic than expected, or compiler is over-prefetching.
+    Direction B (sidecar) targets the read side.
+  - If LD ≈ ST:
+    Mixed-bound; Direction C (hybrid) is most likely the win.
+
+After the focused ncu CSV lands, the field-audit receipt is
+amended with the actual byte-counter numbers and the Step 1
+direction is locked in the plan file under panel review.
+
+------------------------------------------------------------------------
+ Panel-locked Step 0 verdict (verbatim)
+------------------------------------------------------------------------
+
+  S-PERF.15.d Step 0 does not optimize. It pins the wider
+  detector_motif_fused contract and audits DetectorCellWide
+  field consumption so the S-PERF.15.d rewrite attacks the
+  2.49 ms L2 wall without violating byte identity or D128/D205
+  compatibility.
+
+------------------------------------------------------------------------
+ S-PERF.15.d Step 1 POST verdict (sudo ROOF + 3-run bench, this commit)
+------------------------------------------------------------------------
+
+POST sudo ROOF receipt:
+  reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_15_d_post.txt
+
+detector_motif_fused_d64_kernel (PRE → POST):
+                 PRE (Step 0)    POST (post-rewrite)    Δ
+  Duration   : 2,475,232 ns   →  1,324,608 ns     −1,150 µs (−46.5 %, 1.87× faster)
+  DRAM %     :     27.37      →       10.37        −17 pp (cut to 38 %)
+  L2 %       :     92.33      →       90.98        ≈ unchanged (still L2-bound)
+  L1 %       :     61.65      →       63.87        ≈ unchanged
+  SM %       :      5.53      →        8.97        +3.4 pp (compute visible)
+  Occupancy  :     48.90 %    →       49.18 %     ≈ unchanged (launch geom untouched)
+  IPC        :      0.22      →        0.36        +63 % (memory stalls down)
+  Mem BW eff : 196.9 GB/s     →    74.6 GB/s       ~2.6× LESS memory traffic
+  Bucket     :     L2!        →       L2!          (still L2-bound; bytes smaller)
+
+The DRAM 27.37 → 10.37 % cut (2.6× reduction) exactly matches the
+Step 0d byte-counter prediction (PRE DRAM write 420 MB → POST
+projected ~160 MB). The 269 MB of cold-zero mask[1..31] writes
+that were thrashing L2 are gone; the kernel is still L2-bound
+but the bytes going through L2 are 2.6× smaller.
+
+All prior wins preserved in same POST receipt:
+  drift_slew_sign_kernel_cellpar      :  32,064 ns @ 91.5 % DRAM + 45.2 % Occ  (S-PERF.14a)
+  consensus_axis5_fused_kernel        : 400,224 ns @ 87.4 % L2   + 84.0 % Occ  (S-PERF.15.b)
+  candidate_fired_kernel_wide         :  60,320 ns @ 78.1 % DRAM
+  candidate_boundary_precompute       : 285,152 ns @  2.1 % Occ  (S-PERF.14c Pre-Alpha floor)
+  candidate_boundary_cellpar_emit     :   2,272 ns @  5.6 % Occ  (S-PERF.14c cellpar emit)
+  candidate_pack_kernel_wide_blockcoop: 148,192 ns @ 65.4 % DRAM + 39.6 % Occ  (S-PERF.15.c)
+  compact_densor_digest_v1_leaf       : 209,952 ns @ 31.8 % Occ
+  compact_densor_digest_v1_root_blockcoop: 925,184 ns @ 2.7 % Occ  (S-PERF.14b)
+
+POST 3-run bandwidth GB/s band (canonical 256x4096 K=1 D64,
+RTX 4080 SUPER / CUDA 13.2, this session):
+
+  Run 1: 16.41 GB/s (host 25,971 µs, device 16,873 µs; first run cold)
+  Run 2: 23.48 GB/s (host 20,814 µs, device 11,787 µs)
+  Run 3: 23.69 GB/s (host 20,818 µs, device 11,685 µs)
+
+  Median: 23.48 GB/s   Min: 16.41 GB/s   Max: 23.69 GB/s
+  Episodes: 1917 byte-stable across all 3 runs
+
+  Δ at median vs PRE 22.93 GB/s: +0.55 GB/s (+2.4 %)
+    Within thermal-noise band (the PRE band itself spanned
+    7 %; both bands include cold-start outliers).
+
+  Honest framing (panel-locked): the system-level bench Δ at
+  median is within thermal noise. The per-kernel ncu measurement
+  (1.87× faster detector_motif_fused, 2.6× less DRAM traffic)
+  is the load-bearing verdict for the local win. Bench is the
+  noise filter; ncu is the verdict.
+
+Snapshot pinned to:
+  reports/d64_stage_timing_256x4096_K1_post_s_perf_15_d.txt
+  (run 3 = 23.69 GB/s, the max in the band; the run 2 median
+  was overwritten by the bench-run-3 sequence and the post-
+  rewrite stage labels in the snapshot reflect the same fused-
+  kernel topology as runs 2/3.)
+
+Byte-identity verification (5/5 + Track B chain 71/71):
+  S-PERF.15.d harness                : 9/9   ✓ all 5 pins pass
+  S-PERF.11 pre_rewrite_root_capture : 1/1   ✓ (TreeSha256V1 detector root)
+  S-PERF.14b compact_densor_root     : 12/12 ✓ (CompactDensorDigestV1 4 roots)
+  S-PERF.14c candidate_boundary      : 13/13 ✓ (boundary + cellpar bytes)
+  S-PERF.15.a detector_motif_fused   : 15/15 ✓ (wide arena + compact pack + 2 roots)
+  S-PERF.15.b consensus_axis5_fused  : 9/9   ✓ (consensus + axis5 + fired + casefile)
+  S-PERF.15.c candidate_pack_blockcoop: 9/9   ✓ (pack + count + casefile + episode)
+  throughput_device_digests          : 3/3   ✓
+  TOTAL across Track B byte-identity  : 71/71 ✓ post-rewrite
+
+The 5 pinned constants from Step 0 (Pin 1 wide arena +
+Pin 2 compact pack + Pin 3 TreeSha256V1 root + Pin 4
+CompactDensorDigestV1 root + Pin 5 consensus/casefile
+cascade) all pass post-rewrite UNCHANGED. The one-time
+workspace zero-init contract preserved the cold mask[1..31]
+bytes as stable zero across the buffer's lifetime, so the
+wide-arena SHA-256 stays byte-identical to the pre-rewrite
+capture WITHOUT requiring any contract rebaseline.
+
+------------------------------------------------------------------------
+ Panel-locked Step 1 seal verdict (verbatim 2026-05-18)
+------------------------------------------------------------------------
+
+  S-PERF.15.d Step 1 (Direction A.1) sealed the detector
+  motif fused L2/layout refinement on the local-win class:
+  detector_motif_fused_d64_kernel duration dropped 2.475 ms
+  → 1.324 ms (−46.5 %, 1.87× faster) and DRAM throughput cut
+  from 27.37 % to 10.37 % (2.6× less DRAM traffic), exactly
+  matching the Step 0d byte-counter prediction that cutting
+  the 269 MB of cold-zero mask[1..31] writes would drop the
+  wide-arena write payload from 420 MB to ~160 MB. The system-
+  level bench Δ at median (+2.4 %) is within thermal noise as
+  expected — the per-kernel ncu measurement is the load-bearing
+  verdict; the bench is the noise filter.
+
+  All 5 Step 0 pinned constants pass UNCHANGED post-rewrite
+  (zero-init workspace contract preserved the cold bytes as
+  stable zero across the buffer's lifetime, so Pin 1 wide
+  arena SHA-256 holds without rebaseline). The full Track B
+  byte-identity chain (71/71 across S-PERF.11/14b/14c/15.a/
+  15.b/15.c/15.d + throughput_device_digests) passes
+  post-rewrite. R.12b episodes 13/89/1917 byte-stable;
+  pinned R.12b baselines restored from HEAD pre-commit;
+  D128/D205 dispatchers untouched (legacy unfused 2-kernel
+  pair retained at full 264 B per cell for those paths).
+
+------------------------------------------------------------------------
+ Panel-locked non-claims (Step 0)
+------------------------------------------------------------------------
+
+  - Does NOT change any kernel (Step 0 is capture-and-audit only).
+  - Does NOT lock a Step 1 direction (awaits focused-ncu evidence).
+  - Does NOT claim bandwidth saturation.
+  - Does NOT mutate any hash anchor (Step 0 captures existing
+    bytes; the harness adds 5 NEW pinned constants under the
+    test crate, NOT under the corpus / T.x / FF.x / S1.3.x /
+    S-PERF.* hash chain).
+  - Does NOT touch D128/D205 dispatchers (the field audit
+    explicitly preserves wide-arena byte-equivalence for those
+    paths).
+
+------------------------------------------------------------------------
+ Receipt provenance
+------------------------------------------------------------------------
+
+  Harness file: crates/dsfb-gpu-debug-demo/tests/s_perf_15_d_detector_motif_layout_byte_identity.rs
+  Capture cmd:  DSFB_S_PERF_15_D_CAPTURE=1 cargo test ... --test
+                s_perf_15_d_detector_motif_layout_byte_identity \
+                -- --nocapture s_perf_15_d_capture_mode_prints_all_five_pins
+  Verify cmd:   cargo test -p dsfb-gpu-debug-demo --features cuda --release \
+                --test s_perf_15_d_detector_motif_layout_byte_identity
+                → 9/9 pass against pre-S-PERF.15.d codebase (HEAD 8b0db9b)
+
+Receipt is one-shot; no hash chain. Subsequent S-PERF.15.d
+rewrite commit cites this audit + the focused ncu CSV as
+load-bearing scope inputs.

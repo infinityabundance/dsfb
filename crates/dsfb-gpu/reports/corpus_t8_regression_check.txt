@@ -1,0 +1,214 @@
+# Post-T.8 regression check (per-section discipline artifact)
+#
+# Hardware:        RTX 4080 SUPER
+# CUDA toolkit:    13.2
+# Date:            2026-05-14
+# Pre-T.8 head:    e13addd (T.6.1 audit-repair + court summary block)
+# Post-T.8 head:   (this commit)
+# Test:            tests/r12_d64_saturation.rs (D64 saturation sweep)
+# Method:          re-run the R.12b saturation matrix after T.8
+#                  lands; compare against the pinned R.12b money
+#                  table in reports/money_table.txt and
+#                  reports/r12_d64_saturation.txt.
+#
+# Why this artifact exists:
+#   T.8 introduces the deterministic detector usefulness ledger
+#   shell — schema, evidence-level ladder, score policy, verifier,
+#   conservative seed (54 rows, all NotScored, all empirical fields
+#   zero), and a public report Section 14. It is host-only
+#   schema-and-data code; it touches no GPU code path, kernel,
+#   FFI signature, contract field, or workspace layout. Audit
+#   mode and the D16 / D64 / D128 golden hashes are unchanged.
+#
+#   This file is the user-enforced per-section discipline receipt.
+#
+# Result: NO SEMANTIC REGRESSION.
+#   - tests/r12_d64_saturation.rs exit code: 0
+#   - Full-workspace serial test suite
+#     (cargo test --workspace --features cuda -- --test-threads=1):
+#       408 passed; 0 failed; finished green.
+#       (T.6.1 baseline 371 + 37 new T.8 acceptance tests = 408.)
+#   - Corpus crate tests: 180 passed
+#     (T.6.1 baseline 143 + 37 new T.8 tests = 180).
+#   - Episode counts byte-identical to pinned R.12b numbers:
+#       canonical 16x128 K ∈ {1,4,16,32,64,128} : 13   episodes/cat
+#       mid       64x512 K ∈ {1,4,16,32,64,128} : 89   episodes/cat
+#       full   256x4096  K ∈ {1,4,16,32,64,128} : 1917 episodes/cat
+#
+# GPU-timing posture (panel-discipline, NOT a T.8 regression):
+#   T.8 is pure host-side schema + verifier + seed-data work. The
+#   R.12b numbers vary run-to-run with thermal envelope and host
+#   load. The pinned reports/r12_d64_saturation.txt is the
+#   authoritative R.12b baseline. This receipt does NOT rebaseline
+#   it. The pinned baseline files were restored to HEAD after the
+#   test rewrote them during this run; T.8 does not adjust any
+#   pinned GPU report.
+#
+# T.8 deliverables (sealed in this commit):
+#   - src/types.rs: rename embedded UsefulnessLedgerRow ->
+#     UsefulnessLedgerSnapshot. Name-only rename; field layout
+#     and field types unchanged. The embedded snapshot is now a
+#     per-detector prior summary, not the authoritative ledger.
+#   - src/usefulness.rs (NEW): TaskId / DatasetId newtypes;
+#     UsefulnessEvidenceLevel (7-variant ladder); UsefulnessScoreKind
+#     (3 variants); UsefulnessReason (12 variants);
+#     LedgerSource (3 variants, including ExternalBenchmark with
+#     embedded name); UsefulnessLedgerRow with 17 fields including
+#     canonical_id + task_id + domain + dataset_id + evidence_level
+#     + lifecycle_state + score_kind + 8 empirical fields + reason
+#     + source; deterministic usefulness_score(...) policy;
+#     verify_usefulness_ledger(...) with 11 hard rules;
+#     compute_evidence_histogram, compute_lifecycle_histogram
+#     helpers.
+#   - src/usefulness_seed.rs (NEW): conservative USEFULNESS_LEDGER
+#     static — 54 rows (one per canonical detector). The 5
+#     dsfb-gpu-debug-core whitelisted IDs (14, 15, 41, 42, 43) are
+#     RoleSeeded / Active / GpuSurfaceSeededFromDsfbGpuDebugCore;
+#     the remaining 49 are LiteraturePrior / Dormant /
+#     LiteraturePriorOnly. Every row carries score_kind=NotScored
+#     and zero empirical fields. The 11 verifier rules pass on
+#     this seed with zero errors.
+#   - src/report.rs: new section_usefulness_ledger emits Section
+#     14 — header + evidence-level histogram + lifecycle-state
+#     histogram (cross-check with Section 5) + no-fabricated-claims
+#     invariant counter + verifier result. The panel-locked
+#     "audit surface, not a learned ranking model" framing is
+#     reproduced verbatim. The runtime header refreshes from
+#     "T.1a-T.7 populated" to "T.1a-T.8 populated".
+#   - src/lib.rs: refresh module docstring to add the T.8 bullet
+#     and the new doctrine line ("Audits usefulness, does not
+#     learn it. The T.8 ledger is an audit surface, not a ranking
+#     model"). Export `pub mod usefulness`.
+#   - src/loader.rs + src/seed.rs + tests/genealogy_invariants.rs:
+#     mechanical rename UsefulnessLedgerRow -> UsefulnessLedgerSnapshot
+#     at every call site of the type and the `::unmeasured()`
+#     constructor. No field-layout change.
+#   - tests/usefulness_invariants.rs (NEW): 37 acceptance tests
+#     covering coverage / shape / report-rendering / verifier
+#     rejection (10 rules) / score policy / conservative seed
+#     posture.
+#
+# Verifier rejection rules covered by the new tests (one or more
+# tests per rule):
+#   1. DetectorMissingLedgerRow   — every_canonical_detector_has_usefulness_row
+#   2. UnmeasuredRowClaimsEmpiricalGain — 4 tests covering each empirical field
+#   3. L8RecordWithoutMeasuredLedgerEvidence — l8_requires_measured_ledger_evidence
+#   4. RetiredStateWithoutMeasuredEvidence — retired_state_requires_measured_negative_evidence
+#   5. GpuActiveClaimWithoutWhitelistOrLBand — gpu_active_claim_requires_l5_or_l6
+#   6. NotScoredButScoreReturnedSome — notscored_blocks_nonzero_score (implicit)
+#   7. ReasonInconsistentWithEvidenceLevel — reason_inconsistent_with_evidence_level_rejected
+#   8. SameTripleBothActiveAndRetired — same_triple_detector_cannot_be_active_and_retired
+#   9. RequiredFieldMissing — 3 tests (missing_task_id / dataset_id / domain)
+#  10. DuplicateTriple — verifier_rejects_duplicate_triple
+#  11. UnknownDetectorId — verifier_rejects_unknown_detector_id
+#
+# Corpus test counts after T.8:
+#   -  6 parser unit tests
+#   - 28 T.1a/T.1b seed_invariants tests
+#   - 14 T.2 toml_equivalence tests
+#   - 18 T.3 identity_invariants tests
+#   - 18 T.4 court_invariants tests
+#   - 18 T.5 genealogy_invariants tests
+#   - 24 T.6 witness_invariants tests
+#   - 17 T.7 lband_invariants tests
+#   - 37 T.8 usefulness_invariants tests   <-- NEW
+#   Total: 180 corpus-crate tests green.
+#
+# Full-workspace test count after T.8: 408 passed; 0 failed.
+#   (T.6.1 baseline 371 + 37 new = 408. Match.)
+#
+# Usefulness ledger histogram on the conservative T.8 seed:
+#   rows loaded                 : 54
+#   Unmeasured                  : 0
+#   LiteraturePrior             : 49
+#   RoleSeeded                  : 5
+#   SyntheticFixtureMeasured    : 0   (forbidden without pinned fixture)
+#   RealDatasetMeasured         : 0   (forbidden without hashed dataset)
+#   CrossDomainReplicated       : 0   (forbidden without 2+ domain runs)
+#   RetiredByEvidence           : 0   (forbidden without measured negative)
+#
+#   Lifecycle:
+#     Active                    : 5
+#     Dormant                   : 49
+#     all Retired* / Quarantined / Resurrected : 0
+#
+#   No-fabricated-claims invariant:
+#     rows at Unmeasured/Literature/Role with nonzero empirical fields : 0
+#
+#   Verifier result:
+#     records_inspected         : 54
+#     rows_inspected            : 54
+#     errors                    : 0
+#
+# Honesty disclosure (panel-locked, reproduced from src/usefulness.rs
+# docstring and Section 14):
+#   The Atlas does not learn detector usefulness. T.8 records
+#   declared evidence levels and conservative contribution fields;
+#   empirical usefulness remains unclaimed until a row is backed by
+#   a named benchmark artifact. The 5 GPU-whitelisted rows are
+#   honest claims that a CUDA kernel exists for the detector; they
+#   are NOT claims about measured usefulness. The 49 LiteraturePrior
+#   rows are honest claims that the detector is cited; they are
+#   NOT claims about activity or measured contribution.
+#
+# Stale-doc grep scan (this commit) — verified clean:
+#   grep -RInE 'T\.1a stub|stub at T\.1a|lands in T\.[345]|At T\.1a (this commit)|densores' \
+#     README.md crates/dsfb-gpu-atlas-corpus/src crates/dsfb-gpu-atlas-corpus/tests reports \
+#     -> zero hits.
+#   grep -RnE "T\.8 will|T\.8 lands" crates/dsfb-gpu-atlas-corpus/src \
+#     -> zero hits (every reference is now in present tense).
+#
+# Full code-commentary discipline (this commit):
+#   - Every new pub item in src/usefulness.rs carries a doc-block
+#     stating the WHY for a future engineer. The module docstring
+#     opens with the panel-locked thesis verbatim ("The Atlas does
+#     not learn detector usefulness. ...") and lists the schema-
+#     evolution decision so a reader sees the rename + new module
+#     relationship at a glance.
+#   - UsefulnessEvidenceLevel doc comment lists every variant in
+#     ascending evidence-strength order with a one-line WHY per
+#     variant. forbids_empirical_claims() doc names the verifier
+#     rule that depends on it.
+#   - UsefulnessReason::is_consistent_with carries an inline doc
+#     naming rule 7 of the verifier.
+#   - verify_usefulness_ledger doc explicitly names the
+#     intentional too_many_lines clippy allow and the design
+#     reason (one large rule-by-rule walker so a reviewer can
+#     read every rule in source order).
+#   - usefulness_seed.rs's USEFULNESS_LEDGER static carries a
+#     prose doc explaining the seeding policy + the two cases
+#     (GPU-whitelisted vs literature-only) + the helper constructors.
+#   - tests/usefulness_invariants.rs module docstring lists every
+#     test name + the invariant it pins so a future reader of a
+#     failing test understands the broken rule immediately.
+#
+# Pinned baselines not rebaselined by this commit:
+#   - reports/r12_d64_saturation.txt — restored to HEAD; the test
+#     re-wrote it during this run but the file is the authoritative
+#     R.12b baseline and should not drift with thermal noise.
+#   - reports/d64_stage_timing_256x4096_K1.txt — restored to HEAD.
+#   - reports/r9_b_d64_timing.txt / reports/r9_b3_d64_timing.txt —
+#     restored to HEAD.
+#
+# 10-step per-section discipline checklist (hard-enforcement order):
+#   [x]  1. cargo fmt --all --check                                (clean)
+#   [x]  2. cargo clippy --workspace --features cuda --all-targets \
+#             -- -D warnings                                       (clean)
+#   [x]  3. scripts/scrub.sh                                       (clean)
+#   [x]  4. scripts/docs_freshness.sh                              (clean)
+#   [x]  5. cargo test -p dsfb-gpu-atlas-corpus                    (180 green)
+#   [x]  6. cargo test --workspace --features cuda \
+#             -- --test-threads=1                                  (408 green)
+#   [x]  7. tests/r12_d64_saturation regression check              (exit 0;
+#             episodes byte-identical; per_catalog_us within real-
+#             world thermal/host-load drift band; pinned R.12b
+#             baseline NOT rebaselined.)
+#   [x]  8. stale-doc scan across the workspace                    (zero hits)
+#   [x]  9. README + plan-file Quick Start refreshed               (T.8 bullet
+#             + "What is NOT yet" paragraph promotes T.8 into landed)
+#   [x] 10. Atomic single commit                                   (this commit)
+#
+# Going forward (user-locked): every T-commit ships its own
+# corpus_tN_regression_check.txt receipt. T.9 (publication-grade
+# 10-section dedup report + Zenodo artifact) is the next commit
+# per the panel-locked sequence.

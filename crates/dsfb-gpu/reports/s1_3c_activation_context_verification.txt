@@ -1,0 +1,72 @@
+================================================================
+S1.3c - TaskManifestV1 + DatasetManifestV1 + ActivationContextV1
+verification receipt
+================================================================
+
+Verifier:  verify_task_manifest / verify_dataset_manifest /
+           verify_activation_context /
+           verify_activation_against_context
+
+12 reject kinds (each pinned; * = panel-required
+load-bearing negatives):
+
+   1. *FixedArtifactMissingSourceHash
+   2. *TimeSeriesTaskWithoutTimestampLaw
+   3. *UnitSensitiveDetectorWithoutUnits
+   4. *activation_context_hash sensitivity (one-byte mutation)
+   5.  ContextMissingCorpusHash
+   6.  ContextMissingRegistryHash
+   7.  TaskManifestMissingTaskId
+   8.  DatasetManifestMissingDatasetId
+   9.  TaskManifestDomainTagsEmpty
+  10.  DatasetManifestSchemaHashZero
+  11.  SpectralDetectorWithoutSamplingLaw
+  12.  ManifestHashMismatch (structural)
+  13.  DecisionCitesContextFactNotPresent (reserved for S1.3d
+       per-decision crosscheck; placeholder)
+
+Test family               | count
+--------------------------+------
+Schema constants          |   2
+Seed shape                |   4
+Hash determinism + sens.  |   7
+Verifier reject coverage  |  10
+Rendering                 |   6
+Wire-name stability       |   4
+Upstream-anchor preserve  |   1
+Spectral activation cross |   1
+--------------------------+------
+Total acceptance tests    |  35
+
+Hash determinism + sensitivity family pins:
+  - task_manifest_hash_is_deterministic
+  - dataset_manifest_hash_is_deterministic
+  - recomputed_task_manifest_hash_matches_stored
+  - recomputed_dataset_manifest_hash_matches_stored
+  - recomputed_context_hash_matches_stored
+  - activation_context_hash_changes_when_sampling_law_changes
+    (panel-required load-bearing negative #4)
+  - context_hash_changes_when_task_changes
+
+Audit boundary panel-locks (asserted by
+building_contexts_does_not_mutate_upstream_anchors):
+  - corpus_hash_v1                            UNCHANGED
+  - registry_hash_v2                          UNCHANGED
+  - coverage_hole_hash_v1                     UNCHANGED
+  - detector_contraindication_hash_v1         UNCHANGED
+  - challenge_docket entry count              UNCHANGED
+
+Verifier result on the seed manifests:
+  Task manifest errors      :  0
+  Dataset manifest errors   :  0
+  Activation context errors :  0
+  Activation crosscheck errors (against canonical seed
+    + empty enabled-list)                     :  0
+
+Two builds against the same SEED produce byte-identical:
+  - task_manifest_v1.{txt,json}
+  - dataset_manifest_v1.{txt,json}
+  - activation_context_v1.{txt,json}
+  - task_manifest_hash_v1
+  - dataset_manifest_hash_v1
+  - activation_context_hash_v1

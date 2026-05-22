@@ -1,0 +1,28 @@
+[package]
+name        = "dsfb-gpu-atlas-corpus"
+version     = "0.1.0"
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+publish.workspace      = true
+authors.workspace      = true
+repository.workspace   = true
+keywords.workspace     = true
+readme.workspace       = true
+description = "Literature detector corpus and canonicalisation court for DSFB-GPU-Atlas."
+
+[lib]
+crate-type = ["rlib"]
+
+[[bin]]
+name = "dsfb-corpus"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace-internal dep for the audited SHA-256 implementation only;
+# we explicitly do NOT inherit the GPU/CUDA surface area. The corpus
+# crate remains host-only and zero-external-deps.
+dsfb-gpu-debug-core = { version = "0.1.0", path = "../dsfb-gpu-debug-core", features = ["std"] }
+
+[lints]
+workspace = true

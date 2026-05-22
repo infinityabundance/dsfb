@@ -1,0 +1,236 @@
+================================================================
+T.12.e - Signal Processing / Spectral / Wavelet
+        amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.e files the Signal Processing /
+Spectral / Wavelet amendment proposal. It admits only
+deterministic transform-based primitives whose sampling,
+windowing, normalization, band, boundary, and template laws
+are declared; resolves collisions with existing SEED records;
+classifies transform variants as parameterizations; rejects
+randomized or learned spectral claims unless deterministically
+reduced; and preserves the frozen T.10 corpus hash.
+
+Main panel warning: "In spectral detectors, the transform law
+is the detector. No transform law, no canonical admission."
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.e emitted values (byte-identical across two builds):
+
+  literature_expansion_batch_hash_v1 :
+    fbb3a3b80a71cf8940bce7e2fd2cc3733a78f7af27602c316644874bdb31c526
+  dedup_court_delta_hash_v1          :
+    dc2b6d828fd478c81a899c0b4e8bf5ebb539371ded6d9e99e1ce85c7baae4896
+  corpus_amendment_proposal_hash_v1  :
+    0036435fb1b000557c75d4a7ae418560a0117761fe7ea874b00ecc30b12ac2f8
+
+Distinct from T.12.0 (325bbf3d...), T.12.a (ae493a85...),
+T.12.b (ac10e27c...), T.12.c (0ffb0639...), T.12.d (7b51703f...).
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs for every spectral candidate found FIVE
+signal / spectral primitives already canonical:
+
+  12  FFT band-energy anomaly (most fundamental power-spectrum-
+      based primitive; shared spectral-transform ancestor)
+  22  Residual envelope exit
+  38  Spectral entropy
+  39  Wavelet coefficient energy
+  40  Autocorrelation-coefficient break
+
+All five become ExistingCanonicalAuthorityResolution records.
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  10  (6 canonical + 3 parameterization
+                                 + 1 randomized-projection
+                                 rejection shell)
+  proposed_aliases       :   0
+  proposed_dedup_records :  16  (panel-locked headline; see
+                                 court-delta categories below)
+  proposed_genealogy_edges:  9
+  proposed_source_refs   :   7
+
+  new_canonical_records (in delta): 6
+  new_alias_records      (in delta): 0
+  new_composition_records (in delta): 0
+  rejection_records      (in delta): 0
+  deferred_records       (in delta): 0
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised)
+----------------------------------------------------------------
+
+  CanonicalAddition (x6) with declared transform laws:
+    5501 Spectral centroid shift (power-spectrum convention +
+         frequency-bin mapping + first-moment formula +
+         sampling law)
+    5502 Wavelet packet energy (wavelet family + packet-tree
+         depth + energy convention + boundary handling +
+         sampling law)
+    5503 STFT ridge shift (window function + window length +
+         hop / overlap law + ridge selection law +
+         extrapolation handling + sampling law)
+    5504 Cepstral anomaly (FFT convention + log base +
+         real-cepstrum vs complex-cepstrum + sampling rate)
+    5505 Matched filter residual (template provenance +
+         sampling-rate match + normalization convention)
+    5506 Hilbert amplitude anomaly (analytic-signal extraction
+         method + sampling law)
+
+  ExistingCanonicalAuthorityResolution (x5) with declared
+  transform laws:
+    SEED 12 FFT band-energy anomaly (window function + window
+            length + FFT normalization + frequency-bin mapping
+            + band definition + boundary handling + power /
+            amplitude convention + sampling law)
+    SEED 22 Residual envelope exit (envelope-extraction method
+            + threshold + sampling law)
+    SEED 38 Spectral entropy (bin definition + power-mass
+            normalization + log base + sampling law)
+    SEED 39 Wavelet coefficient energy (wavelet family +
+            decomposition level + boundary handling + energy
+            convention + sampling law)
+    SEED 40 Autocorrelation-coefficient break (lag set +
+            normalization + window)
+
+  DomainTransferOf (x1):
+    SEED 12 FFT band-energy as shared spectral-transform
+            ancestor for SignalProcessing
+
+  ParameterizationOf (x3):
+    5507 FFT bandpower variant -> ParameterizationOf(FFT band-
+         energy, SEED 12) -- band-edge / window-function /
+         normalization parameterization
+    5508 Wavelet family variant -> ParameterizationOf(wavelet
+         coefficient energy, SEED 39) -- family (Daubechies-N
+         / Symlets / Coiflets / Haar) + level parameterization
+    5509 STFT window/hop variant -> ParameterizationOf(STFT
+         ridge shift, 5503) -- window (Hann / Hamming /
+         Blackman) + hop fraction parameterization
+
+  RejectedNotDeterministic (x1):
+    5510 Randomized spectral projection (Rahimi & Recht 2007
+         random Fourier features and family) -- randomized in
+         origin. Rejected unless future T.12.x proposal admits
+         a Deterministic_Spectral_Projection_Proxy with seed +
+         projection matrix definition + dimension + numeric
+         mode declared.
+
+----------------------------------------------------------------
+Transform-law contract discipline (panel-required)
+----------------------------------------------------------------
+
+Per the panel's main warning ("the transform law is the
+detector"), every CanonicalAddition and
+ExistingCanonicalAuthorityResolution record declares its
+specific transform-law contract in the reason text. Each
+declaration is pinned by a dedicated load-bearing negative:
+
+  FFT band-energy (SEED 12) + FFT bandpower variant (5507) ->
+    pinned by t12_e_rejects_fft_variant_without_window_and_
+    normalization_law (MOST IMPORTANT for spectral)
+  Spectral entropy (SEED 38) ->
+    pinned by t12_e_rejects_spectral_entropy_without_bin_or_
+    power_normalization_law
+  Wavelet coefficient energy (SEED 39) + Wavelet packet
+    energy (5502) -> pinned by t12_e_rejects_wavelet_detector_
+    without_wavelet_family_and_boundary_law
+  STFT ridge shift (5503) -> pinned by t12_e_rejects_stft_
+    ridge_without_window_hop_and_ridge_selection_law
+  Matched filter residual (5505) -> pinned by t12_e_rejects_
+    matched_filter_without_template_provenance
+  Hilbert amplitude anomaly (5506) -> pinned by t12_e_rejects_
+    hilbert_amplitude_without_sampling_law
+  Randomized spectral projection (5510 rejection) -> pinned by
+    t12_e_rejects_randomized_spectral_projection_without_
+    deterministic_reduction
+
+----------------------------------------------------------------
+Genealogy edges (proposed)
+----------------------------------------------------------------
+
+  5501 Spectral centroid       DerivedFrom FFT band-energy (12)
+  5502 Wavelet packet energy   Generalizes wavelet coefficient
+                               energy (39)
+  5503 STFT ridge shift        DerivedFrom FFT band-energy (12)
+  5504 Cepstral anomaly        DerivedFrom FFT band-energy (12)
+  5505 Matched filter residual DerivedFrom Autocorrelation break (40)
+  5506 Hilbert amplitude       DerivedFrom Residual envelope exit (22)
+  5507 FFT bandpower variant   ParameterVariantOf FFT band-energy (12)
+  5508 Wavelet family variant  ParameterVariantOf wavelet coefficient energy (39)
+  5509 STFT window/hop variant ParameterVariantOf STFT ridge shift (5503)
+
+----------------------------------------------------------------
+Source refs (proposed)
+----------------------------------------------------------------
+
+  klapuri_spectral_centroid_2006  (Springer)
+  wickerhauser_wavelet_packet_1994 (A K Peters)
+  portnoff_stft_1980              (IEEE TASSP 28(1))
+  bogert_healy_tukey_cepstrum_1963 (Symposium on Time Series Analysis)
+  turin_matched_filter_1960       (IRE Trans Info Theory 6(3))
+  huang_hilbert_amplitude_1998    (Proc Royal Society A 454)
+  rahimi_recht_rff_2007           (NeurIPS 2007; rejection-shell ref)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives
+----------------------------------------------------------------
+
+   1. t12_e_does_not_mutate_seed_len
+   2. t12_e_rejects_fft_variant_without_window_and_normalization_law
+      (MOST IMPORTANT)
+   3. t12_e_rejects_spectral_entropy_without_bin_or_power_normalization_law
+   4. t12_e_rejects_wavelet_detector_without_wavelet_family_and_boundary_law
+   5. t12_e_rejects_stft_ridge_without_window_hop_and_ridge_selection_law
+   6. t12_e_rejects_matched_filter_without_template_provenance
+   7. t12_e_rejects_hilbert_amplitude_without_sampling_law
+   8. t12_e_rejects_randomized_spectral_projection_without_deterministic_reduction
+   9. t12_e_hash_changes_when_transform_law_changes
+  10. t12_e_existing_seed_collision_requires_authority_resolution
+      (parametric loop over 5 SEED ids)
+
+Plus 3 per-named-record collision tests, 4 ParameterizationOf
+family-relationship tests, 2 per-CanonicalAddition transform-
+law declarations (spectral centroid, cepstral), and shape /
+determinism / rendering invariants. Total: 39 acceptance tests
+in tests/t12_e_spectral_invariants.rs.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.e does NOT:
+- mutate corpus_hash_v1 (35c276c7...);
+- mutate any prior T.11/S1.3/T.12.x hash or any
+  DetectorPassport hash;
+- create corpus_hash_v2;
+- duplicate FFT band-energy / residual envelope exit /
+  spectral entropy / wavelet coefficient energy /
+  autocorrelation break (the five authority resolutions +
+  the parametric collision-loop test prevent it);
+- promote FFT bandpower variant / wavelet family variant /
+  STFT window/hop variant to new_canonical_records (each is
+  ParameterizationOf);
+- promote randomized spectral projection to
+  new_canonical_records (rejected as
+  RejectedNotDeterministic);
+- claim a spectral primitive without declared transform law
+  (every record declares its specific transform-law contract;
+  the panel-locked warning was "in spectral detectors, the
+  transform law is the detector");
+- duplicate the SCD / drift / robust primitives T.12.b /
+  T.12.c / T.12.d admitted;
+- activate new detectors (S1.3a planner not re-emitted);
+- execute on GPU (corpus crate stays host-only and zero-dep);
+- claim empirical usefulness for the new primitives (T.8
+  ledger stays NotScored for the 6 new canonicals).

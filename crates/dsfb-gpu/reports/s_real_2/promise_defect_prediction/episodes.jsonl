@@ -1,0 +1,5 @@
+{"idx":0,"entity_id":0,"start_window":16,"end_window":20,"motif":"OscillationInstability","reason":"RecurrentBoundaryGrazing","peak_state":"Boundary","peak_residual_q":83623,"peak_drift_q":55015,"peak_slew_q":28966,"detector_bit_count":2}
+{"idx":1,"entity_id":2,"start_window":78,"end_window":80,"motif":"SlewShockRecovery","reason":"AbruptSlewViolation","peak_state":"Recovery","peak_residual_q":1393950,"peak_drift_q":249103,"peak_slew_q":1329922,"detector_bit_count":6}
+{"idx":2,"entity_id":2,"start_window":116,"end_window":117,"motif":"ConfuserTransient","reason":"SingleCrossing","peak_state":"Boundary","peak_residual_q":1014235,"peak_drift_q":182512,"peak_slew_q":965346,"detector_bit_count":5}
+{"idx":3,"entity_id":3,"start_window":78,"end_window":82,"motif":"SlewShockRecovery","reason":"AbruptSlewViolation","peak_state":"Recovery","peak_residual_q":3323658,"peak_drift_q":486939,"peak_slew_q":3258122,"detector_bit_count":8}
+{"idx":4,"entity_id":3,"start_window":120,"end_window":122,"motif":"SlewShockRecovery","reason":"AbruptSlewViolation","peak_state":"Recovery","peak_residual_q":2442330,"peak_drift_q":359387,"peak_slew_q":2376794,"detector_bit_count":9}

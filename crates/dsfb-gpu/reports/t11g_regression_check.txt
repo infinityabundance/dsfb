@@ -1,0 +1,212 @@
+================================================================
+DSFB-GPU-Atlas — T.11g regression-check receipt (10-step ritual)
+================================================================
+Commit         : (this commit) — atomic; HEAD-before = 909184c (T.11f)
+Timestamp      : 2026-05-15T07:39:01Z
+Scope          : T.11g DetectorContraindicationReceiptV1 — the
+                 court's datasheet / model-card / safety-label
+                 layer. One receipt per canonical SEED record
+                 answering nine panel-locked questions plus an
+                 adversarial-twin layer. 11 verifier reject kinds.
+                 57 acceptance tests including 3 panel-required
+                 load-bearing negatives. Does NOT mutate corpus /
+                 registry / precedent / grammar / transcript /
+                 receipt / docket / passport hashes; passport ↔
+                 contraindication binding lives in a separate
+                 crosswalk artifact. Two hygiene fold-ins panel-
+                 approved in the same commit (lib.rs docstring
+                 refresh through T.11g; lband.rs L7/L8 reason
+                 text refresh post-T.8).
+
+----------------------------------------------------------------
+Step 1 — cargo fmt --all --check
+----------------------------------------------------------------
+$ cargo fmt --all --check
+  (no output; exit 0)
+
+----------------------------------------------------------------
+Step 2 — cargo clippy --workspace --all-targets --features cuda
+         -- -D warnings
+----------------------------------------------------------------
+$ cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Finished `dev` profile [unoptimized + debuginfo] target(s)
+  (zero warnings; exit 0)
+
+Workspace-pedantic lints handled at the call site (not relaxed):
+  - clippy::too_many_lines on verify_contraindications +
+    render_contraindications_text + render_contraindications_json
+    (panel-acknowledged with `#[allow]` and rationale: 11 reject
+    kinds + nine receipt sections each demand a linear walk).
+  - clippy::redundant_closure_for_method_calls fixed at the call
+    site (`sort_by_key(NegativeWitnessKind::as_str)`).
+  - clippy::match_same_arms fixed by collapsing two identical
+    `Some(RequiredUnitSemantics { DimensionlessRatio, ... })`
+    arms into a `_ =>` fallback (with a comment naming the
+    covered families).
+  - clippy::expect_used / clippy::unwrap_used handled in the
+    integration test file via `#![allow]` at the crate root
+    (integration tests are separate compilation units and do not
+    inherit `lib.rs`'s `#[cfg_attr(test, allow(...))]`).
+  - clippy::map_unwrap_or fixed by `map_or(default, |x| ...)`.
+
+----------------------------------------------------------------
+Step 3 — bash scripts/scrub.sh
+----------------------------------------------------------------
+$ bash scripts/scrub.sh
+  (no forbidden strings; exit 0)
+
+----------------------------------------------------------------
+Step 4 — bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+$ bash scripts/docs_freshness.sh
+  Finished `dev` profile [unoptimized + debuginfo] target(s)
+  Documenting dsfb-gpu-atlas-corpus v0.1.0
+  (no missing-doc warnings; exit 0)
+
+----------------------------------------------------------------
+Step 5 — cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+$ cargo test -p dsfb-gpu-atlas-corpus --test contraindication_invariants
+  test result: ok. 57 passed; 0 failed; 0 ignored
+                   (contraindication_invariants)
+
+$ cargo test -p dsfb-gpu-atlas-corpus
+  All corpus suites: green (contraindication + challenge_docket
+  + execution_attestation + trial_transcript + admissibility +
+  passport + precedent + court + genealogy + l-band +
+  usefulness + verify + seed + corpus_hash + toml_equivalence).
+
+----------------------------------------------------------------
+Step 6 — cargo test --workspace --features cuda
+         -- --test-threads=1
+----------------------------------------------------------------
+$ cargo test --workspace --features cuda -- --test-threads=1
+  result groups : 60
+  passed        : 842
+  failed        : 0
+  ignored       : 0
+
+Delta vs T.11f (785 → 842): +57 new T.11g acceptance tests.
+
+----------------------------------------------------------------
+Step 7 — R.12b byte-stability check
+----------------------------------------------------------------
+Pinned episode counts (R.12b baseline) — byte-identical to
+T.11f:
+
+  canonical 16x128 : 13
+  mid 64x512       : 89
+  full 256x4096    : 1917
+
+Wall-time receipts (reports/{d64_stage_timing_256x4096_K1.txt,
+r12_d64_saturation.txt, r9_b3_d64_timing.txt,
+r9_b_d64_timing.txt}) were rewritten by the test harness with
+this session's measured times; episode counts byte-stable.
+RESTORED via `git restore` per the panel-locked discipline: the
+pinned R.12b baseline is NOT rebaselined by T.11g.
+
+----------------------------------------------------------------
+Step 8 — Stale-doc scan + hygiene fold-ins
+----------------------------------------------------------------
+Sweep across new + touched files for stale T.* / S.* references,
+TODO / FIXME / XXX markers, and broken intra-doc links:
+
+  - src/contraindication.rs                            clean
+  - tests/contraindication_invariants.rs               clean
+  - README.md (T.11g section added under T.11f)        clean
+  - src/lib.rs (HYGIENE FOLD-IN #1: docstring through T.7
+                → through T.11g; enumerates T.8 / T.9 /
+                T.10 / S1.2 / T.11a–T.11g)             clean
+  - src/lband.rs (HYGIENE FOLD-IN #2: L7/L8 reason text
+                  refreshed; L8 stays forbidden until
+                  measured (task × dataset) evidence)  clean
+
+Hygiene fold-ins eliminate two stale-doc defects the panel
+iteration-6 audit flagged. The `GrammarRuleId(0)` sentinel and
+the README front-door rebrand stay deferred to a later T.11x
+hygiene commit per the plan's locked next-arc.
+
+----------------------------------------------------------------
+Step 9 — README + plan refresh
+----------------------------------------------------------------
+README.md gains a "T.11g — Detector Contraindication Receipts V1"
+section under T.11f with: schema name + domain separator, 11
+reject kinds, CLI surface, nine-question receipt structure,
+adversarial-twin layer, scope-discipline lock, panel-locked
+non-claims, and the 3 load-bearing negatives explicitly named.
+
+Plan file (Active campaign + T.11g execution checkpoint +
+locked next-arc) refreshed with the panel iteration-6 audit:
+T.11h CoverageHoleReport elevated to next-arc step 6 (was a
+deferred optional bundle), T.11x hygiene reordered to step 7,
+S1.3 to step 8. Scope-discipline lock added to T.11g
+checkpoint. Deferrals named explicitly: Densor type aliases
+(post-S1.3), Columnar Densor ABI (post-S1.3 or S1.4), Detector
+Input-Contract Fuzzer (S1.3a), `DetectorSpec` →
+`DetectorPassport` handle (cycle-break commit).
+
+----------------------------------------------------------------
+Step 10 — Atomic commit
+----------------------------------------------------------------
+Pre-commit hook (fmt + clippy + scrub + docs_freshness) ran
+clean. No `--no-verify`. Commit subject:
+
+  T.11g: DetectorContraindicationReceiptV1 - the court's safety-label layer
+
+----------------------------------------------------------------
+Critical files (T.11g)
+----------------------------------------------------------------
+  + crates/dsfb-gpu-atlas-corpus/src/contraindication.rs (new, ~1100 lines)
+  + crates/dsfb-gpu-atlas-corpus/tests/contraindication_invariants.rs (new, 57 tests)
+  + crates/dsfb-gpu-atlas-corpus/out/contraindications_v1.txt (new)
+  + crates/dsfb-gpu-atlas-corpus/out/contraindications_v1.json (new)
+  + crates/dsfb-gpu-atlas-corpus/out/passport_contraindication_crosswalk.txt (new)
+  + crates/dsfb-gpu-atlas-corpus/out/passport_contraindication_crosswalk.json (new)
+  + reports/t11g_contraindication_summary.txt (new)
+  + reports/t11g_contraindication_verification.txt (new)
+  + reports/t11g_regression_check.txt (new)
+  M crates/dsfb-gpu-atlas-corpus/src/lib.rs       (+1 mod decl + HYGIENE
+                                                   FOLD-IN #1: docstring
+                                                   refresh through T.11g)
+  M crates/dsfb-gpu-atlas-corpus/src/main.rs      (+2 CLI subcommands + usage)
+  M crates/dsfb-gpu-atlas-corpus/src/lband.rs     (HYGIENE FOLD-IN #2:
+                                                   L7/L8 reason text)
+  M README.md                                      (+ T.11g section)
+  M .gitignore                                     (+3 whitelist lines)
+
+----------------------------------------------------------------
+Hash anchors carried unchanged (no prior chain mutated)
+----------------------------------------------------------------
+  corpus_hash_v1                : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+  registry_hash_v2              : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+  precedent_hash_v1             : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14
+  admissibility_grammar_hash_v1 : ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7
+  trial_transcript_hash_v1      : 37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee
+  challenge_docket_hash_v1      : dde4ecb4de491f93fe671b77d6ffd8567199f6d1a3f5cca51ea4facb21c10415
+
+NEW in this commit (lives in its own namespace; not folded into
+corpus_hash_v1):
+  detector_contraindication_hash_v1 :
+      1b899f5d5d6bcdd68d75cfbc19d6ce41ae256743f0a89126afb556d9dd001458
+
+Every DetectorPassport hash is byte-stable — the passport ↔
+contraindication binding lives in a separate crosswalk artifact.
+
+----------------------------------------------------------------
+End state
+----------------------------------------------------------------
+The Atlas now ships a per-detector safety-label layer that the
+verifier enforces. A detector is not fully admissible until the
+court knows when it should not be trusted. T.11h
+CoverageHoleReport is the next campaign per the panel
+iteration-6 locked next-arc: aggregate this commit's
+Reason-Code Coverage block across the T.11 stack, surface
+detectors without contraindications, families without confusers,
+weak L-band rows, missing unit-semantics / sampling-law
+declarations, and thin precedent support.
+
+Architectural rating after T.11g: 9.97 / 10 (panel-pinned ladder
+9.96 after T.11f → 9.97+ after T.11g → 9.975+ after T.11h →
+9.98+ after S1.3 → 9.99-class once CaseFileV2 carries activation
+decisions + contraindication links + challenge links + transcript
+lineage together).

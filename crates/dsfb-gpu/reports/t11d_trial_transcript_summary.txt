@@ -1,0 +1,144 @@
+================================================================
+DSFB-GPU-Atlas — T.11d Trial Transcript V1 summary
+================================================================
+Schema             : DSFB-GPU-ATLAS:TRIAL-TRANSCRIPT:v1
+Domain separator   : DSFB-GPU-ATLAS:TRIAL-TRANSCRIPT:v1\0
+HEAD-before        : f3d951a (T.11c)
+
+----------------------------------------------------------------
+Surface (new)
+----------------------------------------------------------------
+Module           : crates/dsfb-gpu-atlas-corpus/src/trial_transcript.rs
+Public surface   :
+    pub struct TrialTranscriptId
+    pub enum   TrialTranscriptSchema       (V1MinimalT11d)
+    pub struct EpisodeSubject
+    pub struct RejectedConfuser
+    pub enum   ConfuserRejectionReason     (NotFired / BankOverrideApplied /
+                                            Quarantined / PreconditionUnmet)
+    pub enum   DetectorDisabledReason      (7 variants incl. Unspecified)
+    pub struct DisabledRelevantDetector
+    pub struct ReasonCodeCoverage
+    pub struct TrialTranscriptV1
+    pub const  TRIAL_TRANSCRIPT_DOMAIN
+    pub const  TRIAL_TRANSCRIPT_SCHEMA_V1
+    pub fn     build_t11d_latency_ramp_fixture()
+    pub fn     compute_trial_transcript_hash_v1(&TrialTranscriptV1)
+    pub fn     verify_trial_transcript(&TrialTranscriptV1)
+                                      -> Vec<TranscriptVerifyError>
+    pub fn     render_trial_transcript_{text,json}(&TrialTranscriptV1)
+
+CLI subcommands  :
+    dsfb-corpus trial-transcript      [--json] [--out PATH]
+    dsfb-corpus trial-transcript-emit [--out-dir DIR]
+
+Bulk artifacts (committed; byte-identical across two builds):
+    crates/dsfb-gpu-atlas-corpus/out/trial_transcript_v1.txt
+        (1 484 bytes; rendered text packet)
+    crates/dsfb-gpu-atlas-corpus/out/trial_transcript_v1.json
+        (1 336 bytes; deterministic JSON object)
+
+----------------------------------------------------------------
+Hash chain bound by the transcript
+----------------------------------------------------------------
+trial_transcript_hash_v1 :
+    37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee
+
+corpus_hash_v1               : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7  (UNCHANGED)
+registry_hash_v2             : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08  (UNCHANGED)
+precedent_hash_v1            : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14  (UNCHANGED)
+admissibility_grammar_hash_v1: ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7  (UNCHANGED)
+
+Rendered text is NOT in the transcript hash material; canonical
+bytes only.
+
+----------------------------------------------------------------
+T.11d synthetic fixture: LatencyRamp episode
+----------------------------------------------------------------
+episode_subject:
+    motif        : LatencyRamp
+    entity_id    : 7
+    window range : [100 .. 131]
+
+admitted_by_rule       : 4   (PrimaryWitnessRequiresPositiveSupport,
+                              EpisodeAdmission kind)
+supporting_precedents  : 77, 83
+                        (the rule's panel-locked T.11b precedent
+                         linkage: PrimaryWitnessCannotBeNegativeOnly
+                         + NegativeWitnessVetoesAdmission)
+
+primary_witnesses      : 14    (LatencyRamp)
+corroborating_witnesses: 2, 3  (EWMA, CUSUM)
+boundary_witnesses     : 1, 4  (Shewhart, Page-Hinkley)
+recovery_witnesses     : (none)
+clean_window_witnesses : 6     (Robust-Z / median-MAD)
+
+rejected_confusers     :
+    - kind=SingleWindowSpikeConfuser suppression_rule=16 reason=NotFired
+
+disabled_but_relevant  :
+    - canonical_id=12 (FFT band-energy) reason=MissingSpectralProjection
+
+reason_code_coverage   : 100.00%  (all four flags true, 10 000 bp)
+
+----------------------------------------------------------------
+Verifier (16 panel-locked reject conditions)
+----------------------------------------------------------------
+verify_trial_transcript rejects:
+    ZeroCorpusHash
+    ZeroRegistryHash
+    ZeroPrecedentHash
+    ZeroGrammarHash
+    MissingAdmissibilityGrammarLink   (composite: zero hash + no rule)
+    AdmissionRuleMissing
+    AdmissionRuleNotInGrammar
+    PrimaryWitnessListEmpty           (rule requires min_primary >= 1)
+    ConfuserOnlyAdmissionAttempted    (load-bearing Semantic Non-Bypass)
+    WitnessIdMissingFromCorpus
+    AliasUsedAsPrimaryCanonicalWitness (forward-compat; no SEED record
+                                        currently classified AliasOf)
+    RejectedConfuserSuppressionRuleMissing
+    DisabledDetectorLacksReason       (Unspecified is the sentinel)
+    ReasonCodeCoverageEmpty
+    SupportingPrecedentMissing
+    TranscriptHashMismatch
+
+Pinned by tests/trial_transcript_invariants.rs (46 invariants):
+    fixture_verifies_clean
+    trial_transcript_verifier_rejects_confuser_only_admission
+        (panel-required load-bearing negative)
+    trial_transcript_verifier_rejects_missing_admissibility_grammar_link
+        (panel-required load-bearing negative)
+    verifier_rejects_zero_{corpus,registry,precedent}_hash
+    verifier_rejects_admission_rule_not_in_grammar
+    verifier_rejects_empty_primary_witness_when_rule_requires_one
+    verifier_rejects_witness_id_missing_from_corpus
+    verifier_rejects_rejected_confuser_with_unknown_suppression_rule
+    verifier_rejects_disabled_detector_with_unspecified_reason
+    verifier_rejects_empty_reason_code_coverage
+    verifier_rejects_transcript_hash_mismatch
+    verifier_rejects_supporting_precedent_missing
+
+----------------------------------------------------------------
+Panel-locked non-claims (T.11d)
+----------------------------------------------------------------
+T.11d does NOT:
+- derive transcripts from GPU-produced CaseFileV1 episodes
+  (the binding lands after CaseFileV2 body integration)
+- implement ActivationPlanner / OTel binding / ChallengeDocket /
+  Contraindications / PROV export / attestation / Arrow layout
+  (those are T.11e+ commits)
+- change `corpus_hash_v1`, `registry_hash_v2`,
+  `precedent_hash_v1`, `admissibility_grammar_hash_v1`, or any
+  passport hash
+- change D16 / D64 / D128 / D205 GPU behavior
+- include S1.2 registry-spec linkage anywhere
+- claim in-toto / SLSA / SPDX / CycloneDX compatibility on
+  `trial_transcript_hash_v1`
+
+T.11d ships ONE synthetic transcript fixture (LatencyRamp). It
+is real enough to prove the schema, the brutal verifier, and the
+hash-chain binding. Further fixtures + GPU-derived transcripts
+are downstream commits.
+
+================================================================

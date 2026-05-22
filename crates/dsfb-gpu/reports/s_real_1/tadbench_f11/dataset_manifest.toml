@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "tadbench_f11"
+display_name        = "TADBench TrainTicket F11"
+upstream_doi_or_url = "10.5281/zenodo.6979726"
+license             = "CC-BY-4.0"
+source_class        = "DebuggingSoftwareTelemetry"
+vendored_path       = "data/fixtures/tadbench_trainticket_F11.tsv"
+
+[fixture]
+sha256_hex          = "cdebdab01e310d4d02241b694b3771acfa9beca3060b0cee0e19fb237f65dc97"
+byte_size           = 32806

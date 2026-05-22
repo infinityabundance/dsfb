@@ -1,0 +1,195 @@
+S1.3g OTelBindingReceiptTypes — Summary Receipt
+================================================
+
+Panel verdict: post-S1.3f panel directive (2026-05-17). Sealed
+under the 10-step per-section discipline ritual.
+
+Commit identity (panel-locked):
+
+    S1.3g defines deterministic receipt types for mapping
+    OpenTelemetry spans, metrics, logs, and resources into
+    EvidenceDensor fields. It is receipt-only. It does not
+    ingest live OTLP streams, run collectors, open sockets,
+    depend on an OTel SDK, or claim runtime
+    interoperability.
+
+Panel-locked verdict (verbatim):
+
+    S1.3f binds court authority into CaseFileV2; S1.3g
+    defines how external OTel telemetry can be mapped into
+    EvidenceDensor fields without yet ingesting it.
+
+Core rule:
+
+    Mapping is not ingestion.
+    Receipt type is not adapter.
+    Binding schema is not telemetry collection.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+S1.3g closes the S1.3 series with the OTel mapping contract
+EVERY future ingest commit MUST satisfy. It produces four per-
+signal binding records plus a top-level wrapper:
+
+  - SpanToEvidenceDensorBindingV1
+    Declares laws for: trace_id / span_id identity,
+    timestamp, duration, service.name, operation / span.name,
+    status_code, error flag, attribute ordering. Maps onto
+    8 EvidenceDensor fields.
+
+  - MetricToEvidenceDensorBindingV1
+    Declares laws for: metric_name (canonical lowercase
+    NFC UTF-8), unit (UCUM unit codes), temporality
+    (Cumulative / Delta / Gauge wire enum), timestamp,
+    attribute ordering. Maps onto 5 EvidenceDensor fields.
+
+  - LogToEvidenceDensorBindingV1
+    Declares laws for: timestamp, severity (OTel
+    SeverityNumber 1-24 + SeverityText override), body
+    hash (SHA-256 over canonical body bytes; the receipt
+    carries the hash, never the body), attribute ordering.
+    Maps onto 3 EvidenceDensor fields.
+
+  - ResourceToEvidenceDensorBindingV1
+    Declares laws for: resource identity (service.name +
+    service.instance.id + service.version + host.id,
+    canonical lowercase NFC), timestamp (resource snapshot
+    capture), attribute ordering. Maps onto 5 EvidenceDensor
+    fields.
+
+  - OTelBindingReceiptTypesV1 (top-level)
+    Wraps the four per-signal bindings + corpus_hash_v1 +
+    SEED.len() so one hash pins the entire S1.3g mapping
+    contract.
+
+----------------------------------------------------------------
+Default production state (S1.3g baseline)
+----------------------------------------------------------------
+
+Every binding's `admits_live_ingestion` and
+`depends_on_otel_sdk_runtime` flags are `false`. Every
+binding's `attribute_ordering_law` contains the canonical
+substring "sorted ascending by attribute key". Every binding
+declares non-empty law strings.
+
+  span_fields     : 8
+  metric_fields   : 5
+  log_fields      : 3
+  resource_fields : 5
+
+----------------------------------------------------------------
+Five new own-namespace hash anchors
+----------------------------------------------------------------
+
+  otel_span_binding_hash_v1
+    domain : DSFB-GPU-ATLAS:OTEL-SPAN-BINDING:v1\0
+    value  : 09b83355f7378d9b49ce60673dc561b2c53658e7cb6a1643cf57b0aca0504cf8
+
+  otel_metric_binding_hash_v1
+    domain : DSFB-GPU-ATLAS:OTEL-METRIC-BINDING:v1\0
+    value  : 52d46e8648f91a76769a4eecfad62377284f799ecf331798f3016bc8b637563f
+
+  otel_log_binding_hash_v1
+    domain : DSFB-GPU-ATLAS:OTEL-LOG-BINDING:v1\0
+    value  : 2466a89977b2d432c786eceb0b93c072d6dc89e54e00afdad5cbb69ab252c27b
+
+  otel_resource_binding_hash_v1
+    domain : DSFB-GPU-ATLAS:OTEL-RESOURCE-BINDING:v1\0
+    value  : 82a7f2c9e5fe07da30e364f0c5f8ca3522cc3e8351742bcc8930bd1935ebe2e5
+
+  otel_binding_receipt_hash_v1
+    domain : DSFB-GPU-ATLAS:OTEL-BINDING-RECEIPT:v1\0
+    value  : 0cebab9f28a8aca23289b7f85672e7d29e8a85e29ae9ac7a23c19d836da144b3
+    binds  : the four per-binding hashes + corpus_hash_v1 +
+             SEED.len(). One hash pins the entire S1.3g
+             mapping contract.
+
+----------------------------------------------------------------
+Pinned upstream anchors (all byte-stable, unchanged)
+----------------------------------------------------------------
+
+  corpus_hash_v1 : 35c276c7...
+  SEED.len()     : 54
+
+S1.3g binds only `corpus_hash_v1` on the top-level receipt
+because the binding schema is independent of any post-T.12
+ratified-corpus surface: the OpenTelemetry signal shapes do
+not depend on which T.12-ratified detectors exist.
+
+----------------------------------------------------------------
+Ten panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. s13g_rejects_binding_without_timestamp_law
+       (fires per binding: span / metric / log / resource)
+  2. s13g_rejects_metric_binding_without_unit_or_temporality_law
+       (fires per missing law: unit / temporality)
+  3. s13g_rejects_span_binding_without_trace_or_span_identity_law
+  4. s13g_rejects_log_binding_without_body_hash_or_severity_law
+       (fires per missing law: body_hash / severity)
+  5. s13g_rejects_resource_binding_without_resource_identity_law
+  6. s13g_rejects_binding_that_claims_live_ingestion
+       (fires per `admits_live_ingestion = true` flag AND per
+        forbidden substring in any law string)
+  7. s13g_rejects_binding_that_depends_on_otel_sdk_runtime
+       (fires per `depends_on_otel_sdk_runtime = true` flag
+        AND per forbidden substring in any law string)
+  8. s13g_rejects_stale_s13a_otel_binding_references
+       (rename-discipline enforcer; scans every law string
+        for "S1.3a OTel binding" forbidden substrings)
+  9. s13g_rejects_nondeterministic_attribute_ordering
+       (verifies every attribute_ordering_law string contains
+        "sorted ascending by attribute key")
+ 10. s13g_rejects_binding_without_evidence_densor_field_mapping
+       (empty evidence_densor_fields slice)
+
+Plus structural defect rules (BindingIdEmpty,
+SeedLengthMutated, CorpusHashV1Mismatch, BindingHashCollision),
+determinism + sensitivity invariants, domain-separator +
+schema-id pins, five-namespace-distinctness assertion, default-
+state structural assertions, upstream-anchor invariance
+witnesses, forbidden-substring scanner boundary tests,
+renderer-coverage checks.
+
+Total: 66 acceptance tests in
+`tests/s1_3g_otel_binding_invariants.rs`.
+
+----------------------------------------------------------------
+Test counts (post-S1.3g)
+----------------------------------------------------------------
+
+Corpus crate    : 51 groups / 1903 tests → 52 groups / 1969 tests
+Workspace serial: 90 groups / 2218 tests → 91 groups / 2284 tests
+
+R.12b D64 saturation: episodes byte-stable (13/89/1917); the
+pinned baseline `reports/r12_d64_saturation.txt` was backed
+up before the workspace serial run and restored byte-
+identically afterward (no rebaseline).
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in README + paper + plan)
+----------------------------------------------------------------
+
+S1.3g does NOT:
+
+  - ingest live OTLP streams;
+  - run collectors, agents, or sidecars;
+  - open sockets;
+  - depend on an OTel SDK;
+  - claim runtime interoperability with the OTel
+    reference implementation;
+  - emit detector outputs, witness records, fusion
+    tensors, candidate intervals, or episodes;
+  - mutate any upstream hash anchor;
+  - alter SEED.len() (stays at 54);
+  - change S1.3a / FF.2 / FF.3 / S1.3d / S1.3e / S1.3f
+    court decisions;
+  - decide contraindications or challenges;
+  - modify the registry crate.
+
+S1.3g is the mapping contract. Any future OTel-ingest commit
+will ship its own runtime path, an `OTelIngestReceiptV1`
+emitter, and acceptance tests --- and that emitter's bytes
+MUST satisfy the binding receipt this seal pins.

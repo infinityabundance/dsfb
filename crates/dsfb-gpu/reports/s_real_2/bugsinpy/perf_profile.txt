@@ -1,0 +1,47 @@
+=== S-REAL.PERF performance profile ===
+dataset: bugsinpy
+iters:    15
+catalogs: 1
+
+Per-stage wall (microseconds, host Instant):
+  ingest_us              : 61
+  lowering_us            : 6
+  contract_setup_us      : 2
+  cuda_dispatch_run1_us  : 77575
+  cuda_dispatch_run2_us  : 658
+  cuda_dispatch_extra_us : [632, 627, 630, 632, 702, 743, 695, 631, 634, 650, 629, 624, 620]
+  casefile_emit_us       : 2
+  episodes_jsonl_emit_us : 3
+  audit_report_emit_us   : 44
+  total_us               : 86905
+
+Dispatch variance (across all recorded iters):
+  dispatch_median_us     : 632
+  dispatch_p50_us        : 632
+  dispatch_p95_us        : 743
+  dispatch_p99_us        : 743
+
+Throughput (end-to-end wall):
+  events_emitted             : 362
+  finite_cells               : 362
+  fixture_byte_size          : 7332
+  events_per_second          : 4165
+  finite_cells_per_second    : 4165
+  logical_bytes_per_second   : 84367
+
+Honest framing (panel-locked, MUST appear):
+  - Timing values are runtime-dependent. The byte-identical-replay
+    claim covers casefile.json + episodes.jsonl (the inference
+    chain), NOT this perf_profile.txt or the timing values inside
+    audit_report.html. Re-invoking s-real-1-audit will produce a
+    new perf_profile.txt with new timing values; the casefile +
+    episodes bytes will remain byte-identical to the sealed S-REAL.1.1.1
+    artifacts.
+  - At these small fixture sizes (128 / 192 / 656 events) the wall
+    is overhead-dominated. Real-data throughput numbers below are
+    honest measurements on this hardware at this scale; they are NOT
+    saturation claims, NOT production-deployment throughput, and NOT
+    detector-superiority benchmarks. CUDA timing is host-Instant
+    wall (not cudaEvent kernel time; that lives in S-PERF).
+  - Cross-driver / cross-CUDA / cross-hardware replay byte-identity
+    or throughput-identity is NOT claimed.

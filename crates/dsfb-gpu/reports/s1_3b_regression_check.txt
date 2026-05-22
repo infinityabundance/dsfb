@@ -1,0 +1,135 @@
+================================================================
+S1.3b - ActivationDecisionTranscript + ActivationDiffV1
+regression-check receipt
+(10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Zero warnings; workspace pedantic lints pass
+  on the new activation_audit module, the augmented main.rs,
+  lib.rs, and the new acceptance suite.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean. Zero attribution-string hits across the new
+  S1.3b surface (the scrub script enforces the forbidden-string
+  list at the repository root; see scripts/scrub.sh).
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean. Zero stale TODO / FIXME / XXX markers; zero
+  missing-doc warnings under `cargo doc --no-deps
+  --document-private-items` on the corpus crate.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 650 tests pass across 24 test groups. The new S1.3b
+  surface contributes 34 acceptance tests in
+  tests/activation_audit_invariants.rs, including four
+  panel-required load-bearing negatives:
+    1. explain_rejects_unknown_canonical_id
+    2. diff_rejects_plans_with_different_corpus_hash
+    3. transcript_disabled_decision_must_cite_at_least_one_artifact
+    4. transcript_hash_changes_when_one_contributing_fact_changes
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 63 test groups, 965 tests PASS, 0 FAIL. Serial run
+  (CUDA contention guard).
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable. Canonical 16x128
+  K=1..128 -> episodes/cat=13; mid 64x512 -> episodes/cat=89;
+  full 256x4096 -> episodes/cat=1917. Throughput fluctuates
+  per run (documented GPU thermal / host-load variance); the
+  pinned reports/r12_d64_saturation.txt baseline is NOT
+  rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered AND repaired:
+    - README.md: new "Activation Plan Audit V1 (S1.3b)" section
+      between the S1.3a section and the scaling ladder, with
+      schema body, sample explain output, diff semantics,
+      CLI surface, verifier reject kinds, and non-claims;
+    - archived prior-art manuscript source: new \\textbf{S1.3b} bullet in
+      the Atlas Continuation enumeration; lead sentence
+      refreshed to "through T.11h, with the first court-decision
+      surface (S1.3a) and its explanation-and-diff court (S1.3b)
+      landed on top." Paper rebuilt clean.
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs: "Current state
+      through S1.3a" -> "through S1.3b" with a new S1.3b
+      bullet; CLI list refreshed to include
+      activation-plan-explain / activation-plan-audit-emit /
+      activation-plan-diff;
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs: Usage block +
+      Subcommands block include the three new subcommands;
+    - crates/dsfb-gpu-atlas-corpus/src/activation_audit.rs:
+      every pub item AND every private helper carries a doc
+      comment whose first sentence states the WHY for a
+      future engineer, per the [[no-silent-court-logic]]
+      doctrine from T.11h.
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new S1.3b section added; the front-matter
+      already names the Atlas frontier (rebrand landed at
+      S1.3a).
+    - Plan-file: S1.3a sealed at c860f9f and S1.3b authorized
+      were recorded in the previous turn's plan refresh. The
+      S1.3b SEAL note follows this commit (a single small
+      post-commit edit).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/activation_audit.rs (new, ~1500 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (3 CLI subcommands)
+    - tests/activation_audit_invariants.rs (new, 34 tests)
+    - out/activation_plan_audit_v1.{txt,json} (new bulk artifacts)
+    - reports/s1_3b_activation_audit_summary.txt (new)
+    - reports/s1_3b_activation_audit_verification.txt (new)
+    - reports/s1_3b_regression_check.txt (new)
+    - README.md (S1.3b section)
+    - archived prior-art manuscript source (S1.3b bullet in Atlas
+      Continuation enumeration)
+    - .gitignore (3 new whitelist lines for the S1.3b receipts)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  precedent_hash_v1                           : unchanged (6721f511...)
+  admissibility_grammar_hash_v1               : unchanged (ff66706a...)
+  trial_transcript_hash_v1                    : unchanged (37618a45...)
+  execution_attestation_receipt_hash_v1       : unchanged
+  challenge_docket_hash_v1                    : unchanged (dde4ecb4...)
+  detector_contraindication_hash_v1           : unchanged (1b899f5d...)
+  coverage_hole_hash_v1                       : unchanged (671e2164...)
+  activation_plan_hash_v1                     : unchanged (5a81da47...)
+  Every DetectorPassport hash                 : unchanged
+  activation_decision_transcript_hash_v1 (NEW): per-detector
+    (sample: detector 14 -> 68240f6d...)
+  activation_diff_hash_v1 (NEW)               :
+    469536e7c06427d9f4fc9e82ad6093af943b5530567f9e2f63acee1538ed4e80
+    (self-diff of the live plan, empty by construction)
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom: only the bank module's private
+    BankAdmissionToken constructor mints admitted episodes.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions (scrub clean).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+  - [[no-silent-court-logic]] doctrine applied: every pub item
+    AND every private helper in activation_audit.rs carries
+    WHY commentary.
+
+S1.3b is sealed. The court can now answer, for every detector:
+why this decision, what would change it, and what differs
+between two plans — deterministically, with hash-bound
+citations back to every contributing artifact. T.11h's coverage
+holes, T.11g's contraindications, T.11f's challenges, T.11a's
+passports, and T.7's L-band ladder are all now operator-
+queryable through the same legal surface.

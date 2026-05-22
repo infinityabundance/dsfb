@@ -1,0 +1,204 @@
+S-PERF.3 PublicDataSaturationBundleV1
+       Regression Check — 10-step per-section discipline ritual
+============================================================
+
+----------------------------------------------------------------
+Commit identity (panel-locked)
+----------------------------------------------------------------
+
+S-PERF.3 defines the byte-pinned public artifact bundle used
+for future Layer-A saturation measurements. It does not
+claim saturation, does not benchmark throughput, and does
+not change kernels. It creates the reproducible public-data
+workload surface that S-PERF.4 / S-PERF.5 will measure.
+
+Panel-locked one-line verdict (verbatim):
+
+    S-PERF.2 isolated the evidence-factory path; S-PERF.3
+    gives that path a reproducible public workload to run
+    on.
+
+----------------------------------------------------------------
+Step 1: cargo fmt --all --check
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 2: cargo clippy --workspace --all-targets --features cuda
+                     -- -D warnings
+----------------------------------------------------------------
+
+  Outcome: CLEAN (no new lints; the S-PERF.3 module ships
+                  ~1100 lines with `no-silent-court-logic`
+                  doctrine applied to every pub item and every
+                  private helper)
+
+----------------------------------------------------------------
+Step 3: bash scripts/scrub.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN (scrub: clean)
+
+----------------------------------------------------------------
+Step 4: bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 5: cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+
+  Outcome: 56 groups / 2233 tests PASS
+  Delta vs S-PERF.2: +1 group, +71 tests
+    new group: tests/s_perf_3_public_data_saturation_bundle_invariants.rs
+    new tests: 71 (8 panel-required negatives + 3 variants
+               + 12 baseline admission + 9 determinism +
+               6 sensitivity + 6 structural defects + 3
+               hash distinctness + 3 domain separator +
+               3 schema id + 3 nul-termination + 4
+               panel-locked pins + 6 rendering smoke +
+               1 production-walk no-forbidden-substring +
+               5 wire-name stability + 3 non-zero-hash)
+
+----------------------------------------------------------------
+Step 6: cargo test --workspace --features cuda --
+                   --test-threads=1
+----------------------------------------------------------------
+
+  Outcome: 95 groups / 2548 tests PASS
+  Delta vs S-PERF.2: +1 group, +71 tests
+
+  FF.4 live README sweep (`ff4_live_readme_satisfies_policy`)
+  passes after the README S-PERF.3 section insertion. The
+  new section was placed AFTER the S-PERF.2 Layer-A pipeline
+  section and BEFORE "What this is", preserving every FF.4
+  required substring and avoiding every FF.4 forbidden
+  substring.
+
+----------------------------------------------------------------
+Step 7: R.12b D64 saturation byte-stability check
+----------------------------------------------------------------
+
+  Pre-run backup: reports/r12_d64_saturation.txt,
+                  reports/d64_stage_timing_256x4096_K1.txt,
+                  reports/r9_b3_d64_timing.txt,
+                  reports/r9_b_d64_timing.txt
+   → backed up to /tmp/s_perf_3_backup/ before workspace
+     serial.
+
+  Post-run restoration: byte-identical to backup
+                        (`diff -q` clean).
+
+  Episodes: 13 / 89 / 1917 (byte-stable, unchanged).
+  Pinned R.12b baseline: NOT REBASELINED.
+
+----------------------------------------------------------------
+Step 8: Stale-doc grep scan
+----------------------------------------------------------------
+
+  README:
+    - Inserted "## S-PERF.3 — Public-data saturation
+      bundle" section after the S-PERF.2 Layer-A pipeline
+      section and before "What this is".
+
+  archived prior-art manuscript source:
+    - Inserted dedicated `\section{Public-Data Saturation
+      Bundle}\label{sec:public-data-saturation-bundle}`
+      after the Layer-A Resident Densor Pipeline section.
+
+  crates/dsfb-gpu-atlas-corpus/src/lib.rs:
+    - Module decl `pub mod s_perf_3_public_data_saturation_bundle;`
+      already wired during build.
+    - Crate docstring "Current state through S-PERF.2" →
+      "Current state through S-PERF.3" with the S-PERF.3
+      bullet enumerating the 3 receipt types + 3
+      own-namespace hashes + 8 panel-required negatives +
+      5 dataset classes + 5 baseline manifests + the
+      panel-locked one-line verdict.
+
+  crates/dsfb-gpu-atlas-corpus/src/main.rs:
+    - 3 CLI subcommands wired:
+        s-perf-3-bundle              (text dump baseline bundle)
+        s-perf-3-policy              (text dump panel-locked policy)
+        s-perf-3-bundle-emit         (4 artifacts to out/)
+    - Usage block extended.
+
+----------------------------------------------------------------
+Step 9: Atomic commit under the 10-step ritual
+----------------------------------------------------------------
+
+  Pre-commit hook: fmt + clippy + scrub + docs_freshness
+  gates pass; no `--no-verify`.
+
+----------------------------------------------------------------
+Step 10: Plan-file Quick Start rotation + memory file +
+          MEMORY.md index entry
+----------------------------------------------------------------
+
+  Plan-file Quick Start: Current state → S-PERF.3 at the
+                          new commit hash; Prior current
+                          state → S-PERF.2 at `1c78ca4`;
+                          Active campaign (next) →
+                          S-PERF.4 active-detector family
+                          compaction benchmark per the
+                          post-T.12.consolidate scaling
+                          roadmap (Section H, leg 9).
+
+  New memory file: project_s_perf_3_public_data_saturation_bundle.md.
+  MEMORY.md: extended with the S-PERF.3 one-line hook.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  Every prior court anchor: UNCHANGED.
+  SEED.len()              : 54 (UNCHANGED).
+  Three NEW own-namespace hashes:
+
+    public_artifact_manifest_hash_v1
+      (one per dataset, pairwise distinct; domain
+      DSFB-GPU-ATLAS:PUBLIC-ARTIFACT-MANIFEST:v1\0)
+    dataset_materialization_policy_hash_v1
+      = 84854f81e1d0625d052db175d20e898313226b11870261ba3efbb5e2a3d1e82f
+    public_data_saturation_bundle_hash_v1
+      = 532892b217251491c1af354e57446b398b53b2185eaf9348d87582773395ccd8
+
+  All deterministic across two consecutive builds; pairwise
+  distinct; distinct from every prior corpus / T.11 /
+  T.12.x / T.12.consolidate / FF.x / S1.3.x / T.12.PROV /
+  S-PERF.1 / S-PERF.2 hash anchor.
+
+R.12b episodes 13/89/1917 byte-stable; pinned baseline NOT
+rebaselined.
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in README + paper)
+----------------------------------------------------------------
+
+S-PERF.3 does NOT:
+
+  - claim that DSFB-GPU has saturated memory bandwidth;
+  - benchmark throughput;
+  - emit any timing receipt;
+  - change any CUDA kernel;
+  - change any court decision;
+  - mutate any upstream hash anchor;
+  - alter SEED.len() (stays at 54);
+  - emit detector outputs / episodes;
+  - generate CUDA kernels;
+  - decide contraindications or challenges;
+  - modify the registry crate;
+  - download or fetch any dataset bytes (baseline is
+    citation-only; live-remote fetches forbidden by
+    negative #6).
+
+S-PERF.3 gives the Layer-A path a reproducible public
+workload. The first measurement against this workload is
+a later S-PERF.* commit.
+
+Panel-locked one-line verdict (verbatim):
+
+  S-PERF.2 isolated the evidence-factory path; S-PERF.3
+  gives that path a reproducible public workload to run on.

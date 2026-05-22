@@ -1,0 +1,90 @@
+================================================================
+ S-PERF.ROOF-PREFLIGHT VERDICT
+ (panel-verified 2026-05-18; post-S-PERF.13; one-shot audit)
+================================================================
+
+PANEL-LOCKED ONE-LINE VERDICT (verbatim):
+
+  The next lever is launch-geometry repair for occupancy-bound
+  per-entity-serial kernels. It is not digest fusion first.
+
+----------------------------------------------------------------
+ Measured per-kernel bucket distribution
+----------------------------------------------------------------
+
+occupancy-bound  (5 kernels; ~4.1 ms; >50% of device wall):
+  drift_slew_sign_kernel                 1.6  ms @ 2.1%  occupancy
+  compact_densor_digest_v1_root_kernel   1.2  ms @ 2.1%  occupancy
+  candidate_pack_kernel_wide             0.85 ms @ 5.7%  occupancy
+  candidate_boundary_kernel_wide         0.29 ms @ 2.1%  occupancy
+  compact_densor_digest_v1_leaf_kernel   0.18 ms @ 32.9% occupancy
+
+L2-bound  (4 kernels):
+  detector_motif_kernel_wide_d64         2.14 ms @ 81%  L2
+  detector_wide_digest_pack_kernel_v1    0.69 ms @ 84%  L2
+  consensus_grid_kernel_wide             0.38 ms @ 91%  L2
+  residual_field_kernel                  0.18 ms @ 97.7% L2
+
+DRAM-bound  (3 kernels):
+  axis5_grid_sum_kernel_wide             51   us @ 92%  DRAM
+  window_feature_kernel_structured       127  us @ 86.8% DRAM
+  candidate_fired_kernel_wide            62   us @ 75.4% DRAM
+
+----------------------------------------------------------------
+ Override of the earlier-default S-PERF.14 design
+----------------------------------------------------------------
+
+The S-PERF.13 plan + memory carried a panel-suggested default
+S-PERF.14 lever of "fuse the 4 compact_densor digest stages".
+That suggestion was based on the LOGICAL `wide bytes/sec`
+metric (264 B/cell x cells/sec) which does NOT measure
+physical fabric traffic.
+
+ROOF-PREFLIGHT measured the ACTUAL device-fabric distribution
+and found the dominant actionable bucket is OCCUPANCY-BOUND,
+not L2-bound. The single largest offender (drift_slew_sign_kernel)
+is also NOT a compact_densor stage. Five kernels expose only
+~8 blocks to an 80-SM RTX 4080 SUPER; ncu reports "The grid for
+this launch is configured to execute only 8 blocks, which is
+less than the 80 multiprocessors used."
+
+S-PERF.14 is therefore RETARGETED to launch-geometry repair
+for per-entity-serial kernels. Digest fusion is deferred to a
+later S-PERF.x once launch-geometry repair lands and the next
+ROOF measurement shows L2 (not occupancy) as the dominant
+bucket.
+
+----------------------------------------------------------------
+ Recommended S-PERF.14 sequence (panel-locked)
+----------------------------------------------------------------
+
+  1. Fix drift_slew_sign_kernel first (largest single-kernel
+     wall at 1.6 ms / 2.1% occupancy).
+  2. Expand grid geometry from per-entity serial shape to
+     tiled cell/window work.
+  3. Preserve deterministic indexed output slots via a thin
+     Pre-Alpha entity-serial precompute kernel for the EWMA
+     carry (matches the S-PERF.11 + S-PERF.12a discipline).
+  4. No completion-order merge; output bytes MUST be byte-
+     identical to the pre-S-PERF.14 path; episodes 13/89/1917
+     byte-stable.
+  5. Re-run S-PERF.ROOF-PREFLIGHT after the launch-geometry
+     fix to verify the dominant bucket shifted.
+  6. Only then revisit digest fusion if compact_densor stages
+     remain dominant.
+
+----------------------------------------------------------------
+ Panel-locked non-claims
+----------------------------------------------------------------
+
+  - Does NOT change any kernel.
+  - Does NOT claim bandwidth saturation; it measures it.
+  - Does NOT add Rust-side code or dependencies.
+  - Does NOT mutate any hash anchor.
+  - Does NOT pre-commit to a specific S-PERF.14 byte-identical
+    implementation; only the lever class is panel-locked.
+
+================================================================
+ Receipt is one-shot; no hash chain. Subsequent S-PERF.14 commit
+ cites this verdict as load-bearing scope-correction input.
+================================================================

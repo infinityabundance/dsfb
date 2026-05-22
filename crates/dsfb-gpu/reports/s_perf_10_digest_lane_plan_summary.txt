@@ -1,0 +1,212 @@
+S-PERF.10 --- DigestLanePlanV1 / digest-cost audit (summary)
+=============================================================
+
+Campaign identity
+-----------------
+
+S-PERF.10 is Track B leg 3 (receipt-only). It codifies
+the measured digest-lane bottleneck as a hashable receipt
+AND writes the byte-identical digest-root preservation
+contract that any future digest compaction kernel rewrite
+MUST satisfy. The corpus crate stays panel-locked
+host-only with zero CUDA dependency.
+
+This receipt was refreshed inside the S-PERF.11 atomic
+commit as part of the panel-acknowledged contract wording
+clarification (2026-05-18). The 4 preservation laws were
+renamed + the same_mode_digest_root_law and
+digest_mode_non_aliasing_law texts were rewritten to
+remove the ambiguous "cross-mode root identity" reading.
+The audit content (per-stage us + total + episode pin) is
+byte-identical; the contract hash + plan hash rebaseline
+accordingly. digest_stage_cost_audit_hash_v1 is unchanged.
+
+Panel-locked conclusion (verbatim, mirrored across the
+receipt + receipts/ + README + paper + lib.rs)
+------------------------------------------------
+
+  S-PERF.10 audits the measured digest-lane bottleneck
+  and emits DigestLanePlanV1. It does not claim bandwidth
+  improvement. It defines the preservation contract that
+  any future digest compaction kernel rewrite must
+  satisfy.
+
+What this DOES
+--------------
+
+  - Parses the four `tree_digest` rows from
+    reports/d64_stage_timing_256x4096_K1.txt (us +
+    percent-of-device-total) and computes digest_total_us
+    + digest_total_pct.
+  - Builds the panel-locked digest-root preservation
+    contract: four declared laws (same-mode digest root,
+    canonical fragment merge order, digest-mode
+    non-aliasing, casefile chain preservation) that any
+    future digest rewrite MUST satisfy.
+  - Binds the parsed audit + contract + upstream S-PERF.6
+    baseline hash + S-PERF.7 verifier hash + S-PERF.8.1
+    receipt hash + R.12b full-scale episode pin (1917)
+    into a single hashable DigestLanePlanV1 envelope.
+
+What this DOES NOT do
+---------------------
+
+  - Does NOT change kernels.
+  - Does NOT claim bandwidth improvement.
+  - Does NOT benchmark anything.
+  - Does NOT run any CUDA code.
+  - Does NOT compact digests (that is S-PERF.11).
+  - Does NOT mutate the S-PERF.6 / S-PERF.7 / S-PERF.8
+    receipts or any prior hash anchor.
+  - Does NOT alter SEED.len() (stays 54).
+  - Does NOT rebaseline R.12b.
+
+Honest measurement (live R.12b source report, RTX 4080
+SUPER, CUDA 13.2)
+-------------------
+
+Per-stage digest-lane share:
+
+  stage                              |    us  |  pct
+  ---------------------------------- | ------ | ------
+  tree_digest residual               |   2364 | 11.40%
+  tree_digest sign                   |   2684 | 12.90%
+  tree_digest detector (wide cells)  |   2509 | 12.10%
+  tree_digest consensus              |   4338 | 20.90%
+  ---------------------------------- | ------ | ------
+  digest_total                       |  11895 | 57.30%
+
+Preservation contract (panel-locked; folded into
+`digest_compaction_contract_hash_v1`)
+---------------------------------------
+
+  same_mode_digest_root_law:
+    Future digest compaction MUST preserve byte-identical
+    digest roots within the declared digest mode. A
+    TreeSha256V1 rewrite MUST preserve TreeSha256V1
+    roots. A SerialSha256 path MUST preserve SerialSha256
+    roots. Cross-mode root equality is NOT required.
+
+  canonical_fragment_merge_order_law:
+    Per-block digest fragments MUST be merged in canonical
+    order; completion-order merging is panel-forbidden.
+
+  digest_mode_non_aliasing_law:
+    Digest mode identifiers (SerialSha256 / TreeSha256V1
+    / TreeSha256V2 / ...) MUST NOT alias to roots from a
+    different mode; each declared mode owns its own
+    root-byte projection. Mode identity is preserved
+    within the mode; cross-mode roots are NOT required to
+    match.
+
+  casefile_chain_preservation_law:
+    CaseFile per-stage hash chain MUST stay byte-identical;
+    no digest rewrite may insert, remove, or reorder the
+    12 chain links.
+
+Hash posture
+------------
+
+Three own-namespace hashes (none folded upstream):
+
+  digest_stage_cost_audit_hash_v1
+    domain: DSFB-GPU-ATLAS:S-PERF-10-DIGEST-STAGE-COST-AUDIT:v1\0
+    UNCHANGED from S-PERF.10 first seal (audit content
+    bytes are identical; only contract wording changed).
+
+  digest_compaction_contract_hash_v1
+    domain: DSFB-GPU-ATLAS:S-PERF-10-DIGEST-COMPACTION-CONTRACT:v1\0
+    REBASELINED under panel-acknowledged contract wording
+    clarification (4 law-name renames + 2 law-text
+    rewrites).
+
+  digest_lane_plan_hash_v1
+    domain: DSFB-GPU-ATLAS:S-PERF-10-DIGEST-LANE-PLAN:v1\0
+    = e9cf5c3418015044a03e4b369fefdf284908f4b63412fe372187de670db07811
+    REBASELINED (top-level META-hash binds the rebaselined
+    contract hash).
+
+  Deterministic across two builds; pairwise distinct from
+  every prior S-PERF anchor; binds the live S-PERF.6
+  baseline (d44c9ec5...), the live S-PERF.7 verifier
+  (99cc8a71...), and the live S-PERF.8.1 receipt
+  (37212c42...).
+
+EIGHT panel-required load-bearing negatives
+-------------------------------------------
+
+   1. s_perf_10_rejects_digest_optimisation_claim_without_byte_identical_digest_roots
+      (CAMPAIGN IDENTITY --- any future digest rewrite
+      citing this plan MUST preserve digest roots
+      byte-identically within the declared digest mode;
+      the contract law text is folded into the hash so
+      future commits cannot smuggle around it)
+   2. s_perf_10_rejects_digest_plan_without_four_tree_digest_stage_timings
+   3. s_perf_10_rejects_digest_plan_without_total_digest_share
+      (digest_total_pct must lie in band [50%, 65%])
+   4. s_perf_10_rejects_digest_plan_without_s_perf_8_1_anchor
+   5. s_perf_10_rejects_digest_plan_without_s_perf_6_measured_baseline_anchor
+   6. s_perf_10_rejects_digest_plan_that_claims_bandwidth_improvement
+      (case-insensitive scanner over every label field
+      for forbidden phrasings: "bandwidth improvement",
+      "speedup", "saturation reached", etc.)
+   7. s_perf_10_rejects_digest_plan_without_future_rewrite_contract
+   8. s_perf_10_rejects_digest_plan_with_episode_count_drift
+
+Plus 6 structural defect rules: PlanIdEmpty,
+SourceReportPathEmpty, StageLabelMismatch,
+DigestTotalUsArithmeticMismatch,
+DigestTotalPctArithmeticMismatch,
+DigestPlanWithoutSPerf7VerifierAnchor.
+
+Parser strictness
+-----------------
+
+The parser asserts every panel-pinned label appears in
+the source report. The detector label is the long form
+`tree_digest detector (wide cells)`; the parser matches
+this prefix exactly so a future kernel rename surfaces
+as a stage-label-mismatch verifier rejection. Pct column
+is X.Y or X.YY decimal form; anything else surfaces as
+MalformedNumber.
+
+CLI surface
+-----------
+
+  dsfb-corpus s-perf-10-digest-lane          [--json] [--out PATH]
+  dsfb-corpus s-perf-10-digest-lane-emit     [--out-dir DIR]
+
+  s-perf-10-digest-lane exits 3 if any drift is found; 0
+  if the verifier admits.
+
+Bulk-emit artifacts
+-------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_10_digest_lane_plan_v1.{txt,json}
+
+  Byte-stable across two consecutive emits.
+
+Test surface (42-test acceptance suite)
+---------------------------------------
+
+  - 4 parser tests
+  - 8 measured-shape pin tests (per-stage us bands +
+    total us + total pct band + episode pin + verifier
+    admission)
+  - 8 panel-required load-bearing negatives
+  - 6 structural defect tests
+  - 6 hash determinism + sensitivity tests
+  - 3 renderer byte-stability + summary-prose checks
+  - 3 cross-anchor distinctness + binding tests
+  - 2 contract construction tests
+  - 1 pinned-hash back-stop (refreshed to the rebaselined
+    digest_lane_plan_hash_v1)
+   (= 41 + 1 pinned = 42)
+
+One-line verdict
+----------------
+
+S-PERF.10 records the digest-lane bottleneck and writes
+the byte-identical (within-mode) digest-root preservation
+contract. S-PERF.10 is the lock; S-PERF.11 is the
+surgery.

@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 bugsinpy
+display_name:            BugsInPy patch-line complexity (Widyasari et al.)
+license:                 no-upstream-license
+upstream_doi_or_url:     github.com/soarsmu/BugsInPy
+
+Input
+  vendored_path:         data/fixtures/bugsinpy.tsv
+  fixture_sha256:        1e9349f3a0e3c76f20681d4623ff0c0ee768943c07a814ef3c7b481021a57f94
+  fixture_byte_size:     7332
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               362
+  nan_cells_skipped:          652
+  events_emitted:             362
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 6
+  n_windows  (= observed_num_windows): 169
+  contract_hash:         sha256:fbccc5dc3531eb00c422fbea1d487c62ef292ca47d3d31eeacaba01760b4c806
+  bank_hash:             sha256:3688a56ee5a8d044a8064425a1f4c6d4d8bc24ee8a377cdfd0f8778f15230e78
+  detector_registry_hash: sha256:01ec150a714aed609c4271c09e8201ce8e9db3ac8f28a25ca676b67583c9567a
+
+Result
+  episodes_admitted:     1
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:8412fae131b8af27c7804aa46894ff53afabaa4d8a65b524e8c68687077a1564

@@ -1,0 +1,74 @@
+================================================================
+DSFB-GPU-Atlas — S1.2 registry verification
+================================================================
+Verifier      : crate::verify::verify_registry_spec
+Input         : generate_s1_2_specs()  ->  162 DetectorSpec records
+Corpus hash   : compute_corpus_hash_v1().bytes
+Canonical ids : SEED.iter().map(|r| r.canonical_id).collect::<Vec<_>>()
+                                          (54 ids, 1..=54)
+
+----------------------------------------------------------------
+Per-spec verifier rules applied
+----------------------------------------------------------------
+Base verifier (verify_spec):
+  - parameter_hash != [0; 32]
+  - cross-field rule: HashFrozenT10 <-> source_corpus_hash != [0; 32]
+  - axis_binding non-empty
+  - domain_tags non-empty
+  - window.cells >= 1
+  - persistence_windows >= 1
+  - canonical_name has 6 `__`-delimited tokens
+  - canonical_name has no empty tokens
+
+Registry-level verifier (verify_registry_spec) — on top of the base:
+  - corpus_binding_status == HashFrozenT10
+  - source_corpus_hash bytes match expected_corpus_hash
+  - primitive_id resolves to a known SEED canonical id
+
+----------------------------------------------------------------
+Result
+----------------------------------------------------------------
+  Specs inspected  : 162
+  Failures         : 0
+  Verdict          : every generated S1.2 spec passes the
+                     registry-level verifier against the live
+                     corpus snapshot
+
+  Pinned by acceptance test:
+    verify_registry_spec_admits_every_generated_s1_2_spec_against_live_corpus_hash
+
+----------------------------------------------------------------
+Rejection-path coverage (from algebra_verify.rs tests)
+----------------------------------------------------------------
+The S1.1.1 acceptance suite proves all four registry-level
+rejection paths fire under deliberate perturbation:
+
+  verify_registry_spec_admits_hash_frozen_t10_with_live_corpus_hash : ok
+  verify_registry_spec_rejects_stale_source_corpus_hash             : ok
+  verify_registry_spec_rejects_unknown_primitive_id                 : ok
+  verify_registry_spec_rejects_pre_hash_t9_status                   : ok
+
+----------------------------------------------------------------
+Determinism
+----------------------------------------------------------------
+Pinned by:
+  s1_2_registry_hash_v2_is_deterministic_across_two_builds
+  s1_2_specs_have_distinct_detector_ids
+  s1_2_specs_are_hash_frozen_t10
+  s1_2_specs_implementation_kind_is_scalar_cpu
+  s1_2_specs_have_primitive_id_pointing_at_corpus_canonical_id
+
+----------------------------------------------------------------
+Non-claims (S1.2 verification scope)
+----------------------------------------------------------------
+This verification result attests ONLY that:
+  - every generated S1.2 spec is internally consistent
+  - every spec binds to the canonical T.10 corpus snapshot
+  - every spec's primitive_id is in the live SEED set
+  - registry_hash_v2 is deterministic across builds
+
+It does NOT attest empirical detector usefulness, GPU
+byte-equivalence (no S1.2 GPU dispatch), CaseFileV2 body
+correctness (T.11 work), or activation-plan applicability
+(S1.3 work).
+================================================================

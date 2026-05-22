@@ -1,0 +1,47 @@
+=== S-PERF.12 D64 CompactDensorDigestV1 stage profile (256x4096 K=1) ===
+Hardware: RTX 4080 SUPER, CUDA 13.2. Median of 7 iters (post-warmup).
+Digest mode: CompactDensorDigestV1 (XOR-fold-by-256 compact projection, dynamic shared memory; panel-locked S-PERF.12 design lock)
+Domain: DSFB-GPU-ATLAS:S-PERF-12-COMPACT-DENSOR-DIGEST-V1 (canonical header bytes "DSFB_STAGE_COMPACT_DENSOR_V1")
+
+Host wall median (incl. host segments): 22987 us
+Device total_device_us (median):        13828 us
+Stage-sum / total_device coverage:        97.40%
+
+  stage                              |        us |     %
+  ---------------------------------- | --------- | -----
+  h2d (WindowFeature[] H2D)          |      2510 |  18.2
+  residual_field_kernel              |       318 |   2.3
+  drift_slew_sign_kernel             |       889 |   6.4
+  detector_motif_kernel_wide_d64     |      2728 |  19.7
+  consensus_grid_kernel_wide         |       382 |   2.8
+  axis5_grid_sum_kernel_wide (R.10a) |        40 |   0.3
+  candidate_collapse_kernel_wide     |      1115 |   8.1
+  compact_densor residual            |      1040 |   7.5
+  compact_densor sign                |      1285 |   9.3
+  compact_densor detector            |      1136 |   8.2
+  compact_densor consensus           |      2000 |  14.5
+  d2h (candidates+counts+4*32B)      |        19 |   0.1
+  ---------------------------------- | --------- | -----
+  stage sum (device side)            |     13469 |  97.4
+  total_device_us                    |     13828 | 100.0
+
+  host: input staging (S-PERF.13)     |      6931 us
+  host: bank admit + case finalize    |      2235 us
+
+Counters and derived throughput:
+  n_cells              : 1048576
+  episode_count        : 1917
+  cells/sec            : 7.58e7
+  detector_evals/sec   : 4.85e9
+  wide bytes/sec (264) : 20.02 GB/s
+
+S-PERF.12 non-claim block (panel-locked, verbatim):
+  - CompactDensorDigestV1 root bytes are NOT byte-identical to TreeSha256V1;
+    that is the declared mode identity (each digest mode owns its own root
+    projection per S-PERF.10's digest_mode_non_aliasing_law).
+  - Bank-admitted episodes are UNCHANGED: 1917 episodes at 256x4096, same as
+    TreeSha256V1 — the bank stage runs on candidate descriptors, not digest
+    bytes. R.12b episode counts 13 / 89 / 1917 are preserved.
+  - This profile is the input the S-PERF.12 corpus receipt parses to record
+    the post-S-PERF.11 vs post-S-PERF.12 bandwidth delta under the panel-
+    locked non-aliasing law.

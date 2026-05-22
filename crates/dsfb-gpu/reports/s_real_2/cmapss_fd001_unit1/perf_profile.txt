@@ -1,0 +1,47 @@
+=== S-REAL.PERF performance profile ===
+dataset: cmapss_fd001_unit1
+iters:    7
+catalogs: 1
+
+Per-stage wall (microseconds, host Instant):
+  ingest_us              : 174
+  lowering_us            : 50
+  contract_setup_us      : 3
+  cuda_dispatch_run1_us  : 76123
+  cuda_dispatch_run2_us  : 2502
+  cuda_dispatch_extra_us : [2471, 2461, 2553, 2655, 2502]
+  casefile_emit_us       : 10
+  episodes_jsonl_emit_us : 15
+  audit_report_emit_us   : 78
+  total_us               : 91804
+
+Dispatch variance (across all recorded iters):
+  dispatch_median_us     : 2502
+  dispatch_p50_us        : 2502
+  dispatch_p95_us        : 2655
+  dispatch_p99_us        : 2655
+
+Throughput (end-to-end wall):
+  events_emitted             : 2688
+  finite_cells               : 2688
+  fixture_byte_size          : 26740
+  events_per_second          : 29279
+  finite_cells_per_second    : 29279
+  logical_bytes_per_second   : 291272
+
+Honest framing (panel-locked, MUST appear):
+  - Timing values are runtime-dependent. The byte-identical-replay
+    claim covers casefile.json + episodes.jsonl (the inference
+    chain), NOT this perf_profile.txt or the timing values inside
+    audit_report.html. Re-invoking s-real-1-audit will produce a
+    new perf_profile.txt with new timing values; the casefile +
+    episodes bytes will remain byte-identical to the sealed S-REAL.1.1.1
+    artifacts.
+  - At these small fixture sizes (128 / 192 / 656 events) the wall
+    is overhead-dominated. Real-data throughput numbers below are
+    honest measurements on this hardware at this scale; they are NOT
+    saturation claims, NOT production-deployment throughput, and NOT
+    detector-superiority benchmarks. CUDA timing is host-Instant
+    wall (not cudaEvent kernel time; that lives in S-PERF).
+  - Cross-driver / cross-CUDA / cross-hardware replay byte-identity
+    or throughput-identity is NOT claimed.

@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "promise_defect_prediction"
+display_name        = "PROMISE Ant 1.3 CK metrics (Sayyad Shirabad, Menzies)"
+upstream_doi_or_url = "github.com/ssea-lab/PROMISE"
+license             = "no-upstream-license"
+source_class        = "SoftwareDefects"
+vendored_path       = "data/fixtures/promise_defect_prediction.tsv"
+
+[fixture]
+sha256_hex          = "14856ef507c9ef8ff6b7120a8c50177d76b492bbff0653b1e635312eadba4461"
+byte_size           = 8219

@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 multidim_localization
+display_name:            MultiDim Localization (2019 AIOps Challenge match 2)
+license:                 no-upstream-license
+upstream_doi_or_url:     github.com/NetManAIOps/MultiDimension-Localization
+
+Input
+  vendored_path:         data/fixtures/multidim_localization.tsv
+  fixture_sha256:        b1237ea1f26e380f6323c5a42f158f5c5ce8901b28d94c7d3aae281747d20926
+  fixture_byte_size:     1543
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               48
+  nan_cells_skipped:          0
+  events_emitted:             48
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 4
+  n_windows  (= observed_num_windows): 12
+  contract_hash:         sha256:79ede5d2607abc45b9a060e838749c55ea2cb487476e8148f71b953c49f21a41
+  bank_hash:             sha256:6c56c2a3d8983769f7fa0a0336d594881e928fc03857aec2f8bad883a3be1ea1
+  detector_registry_hash: sha256:70008847674591c67f8978ac8d7fabeb2a9d93feb2913591d825d7bc3ea0313c
+
+Result
+  episodes_admitted:     3
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:7c730edae4b1c3204d15a020c9251a90e9f8c78427603fad16a894ead66eba2b

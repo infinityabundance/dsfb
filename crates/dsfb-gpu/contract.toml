@@ -1,0 +1,57 @@
+# Deterministic execution contract for dsfb-gpu-debug.
+#
+# Every field here is part of the prior-art claim. Changing any value here
+# changes the contract hash, which changes the case-file hash, which is
+# detected by `compare`. This file is the single source of truth for the
+# numeric, windowing, kernel-ordering, and verdict-emission policy.
+
+[contract]
+name              = "dsfb-gpu-debug-demo"
+version           = "0.1"
+backend           = "cuda"
+determinism_level = "same_device_same_binary_byte_exact"
+
+[input]
+# Filled by `validate-contract` after hashing the fixture. The zero-hash here
+# means "to be computed"; the CLI rewrites this field.
+catalog_hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+[numeric]
+mode                = "fixed_q16"
+float_allowed       = false
+atomics_allowed     = false
+reduction_order     = "fixed_order"
+# 0.125 in Q16.16 = 0x2000 raw. Locked so the EWMA recurrence is byte-stable.
+ewma_alpha_q16_raw  = 8192
+# Latency values above this many ms are clamped before quantization. Documented
+# to avoid Q16.16 overflow on adversarial inputs.
+latency_clamp_ms    = 32767
+
+[windowing]
+window_size_ms   = 1000
+window_stride_ms = 1000
+n_windows        = 128
+n_entities       = 16
+
+[kernels]
+# Kernel sequence is hashed and compared. Reordering yields KernelSequenceMismatch.
+sequence = [
+    "residual_field",
+    "drift_slew_sign",
+    "detector_motif",
+    "consensus_grid",
+    "candidate_collapse",
+]
+
+[bank]
+# Filled by `validate-contract` after hashing the bank snapshot.
+bank_hash   = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+strict_mode = true
+
+[detector_registry]
+# Filled by `validate-contract` after hashing the 16-motif registry.
+registry_hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+[verdict]
+emit_case_file           = true
+emit_intermediate_hashes = true

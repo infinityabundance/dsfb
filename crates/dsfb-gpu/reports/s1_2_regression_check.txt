@@ -1,0 +1,177 @@
+================================================================
+DSFB-GPU-Atlas — S1.2 regression-check receipt (10-step ritual)
+================================================================
+Commit         : (this commit) — atomic; HEAD-before = 9cb1395 (S1.1.1)
+Timestamp      : 2026-05-15T01:13:24Z
+Scope          : literature-bound registry generator +
+                 registry_hash_v2 over the T.10-frozen corpus.
+                 NO 2,000-detector generation, NO activation
+                 planner, NO GPU execution, NO CaseFileV2 body.
+
+Each numbered step records the gate command and its observed
+outcome on the local workstation at the time of this commit.
+
+----------------------------------------------------------------
+1.  cargo fmt --all --check
+----------------------------------------------------------------
+    Status : clean (exit code 0).
+    Notes  : initial test+bin drafts triggered fmt fixes; the
+             committed source is post-fmt and stable.
+
+----------------------------------------------------------------
+2.  cargo clippy --workspace --all-targets --features cuda -- -D warnings
+----------------------------------------------------------------
+    Status : clean (exit code 0).
+    Notes  : 8 match_same_arms errors in family_mapping.rs (1)
+             and generator.rs::statistic_for_record (7) were
+             surfaced and resolved at the call site by merging
+             arms with `|` patterns (panel-allowed; the
+             collapsed mapping carries the same intent and is
+             documented as such). The new bin target
+             `dsfb-registry-emit` initially triggered
+             format_push_string + expect_used + unwrap_used
+             lints; resolved by rewriting with `write!` /
+             `writeln!` macros and propagating io::Result via
+             `?` in main.
+
+----------------------------------------------------------------
+3.  bash scripts/scrub.sh
+----------------------------------------------------------------
+    Status : "scrub: clean" (exit code 0).
+    Notes  : no forbidden-string regressions in any S1.2 file.
+
+----------------------------------------------------------------
+4.  bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+    Status : "docs_freshness: clean" (exit code 0).
+    Notes  : cargo doc --no-deps + missing_docs gate clean; no
+             TODO/FIXME/XXX markers in modified files; no
+             broken intra-doc-links.
+
+----------------------------------------------------------------
+5.  cargo test -p dsfb-gpu-atlas-registry
+----------------------------------------------------------------
+    Status : 44 passed, 0 failed.
+    Detail :
+        Lib unit tests              : 4 passed
+        algebra_canonical_name       : 4 passed
+        algebra_domain_axis          : 3 passed
+        algebra_family               : 1 passed
+        algebra_template_spec        : 8 passed
+        algebra_verify               : 12 passed
+        s1_2_generator               : 12 passed   (new at S1.2)
+            s1_2_generates_one_spec_per_corpus_record_times_grid_point   ok
+            s1_2_specs_have_distinct_detector_ids                        ok
+            s1_2_specs_carry_source_corpus_hash_equal_to_corpus_hash_v1  ok
+            s1_2_specs_are_hash_frozen_t10                               ok
+            s1_2_specs_have_primitive_id_pointing_at_corpus_canonical_id ok
+            s1_2_specs_implementation_kind_is_scalar_cpu                 ok
+            s1_2_registry_hash_v2_is_deterministic_across_two_builds     ok
+            s1_2_registry_hash_v2_changes_when_a_spec_byte_changes       ok
+            s1_2_registry_hash_v2_changes_when_family_mapping_changes    ok
+            s1_2_registry_hash_v2_changes_when_grid_window_changes       ok
+            verify_registry_spec_admits_every_generated_s1_2_spec_against_live_corpus_hash ok
+            registry_counts_match_panel_locked_four_tier_definition      ok
+
+----------------------------------------------------------------
+6.  cargo test --workspace --features cuda -- --test-threads=1
+----------------------------------------------------------------
+    Status : 53 result groups, 544 passed, 0 failed, 0 ignored.
+              (exit code 0)
+    Notes  : full workspace serial green; D16 / D64 / D128 / D205
+             golden hashes unchanged; Audit mode untouched.
+             Two additional result groups vs S1.1.1 reflect the
+             new s1_2_generator test file (12 tests).
+
+----------------------------------------------------------------
+7.  tests/r12_d64_saturation (R.12b episode-byte stability)
+----------------------------------------------------------------
+    Status : episode counts byte-identical to the pinned R.12b
+             baseline. Wall-time / throughput numbers shift with
+             hardware load; test rewrites the receipt file each
+             run.
+    Pinned : canonical 16x128  episodes/cat = 13
+             mid 64x512        episodes/cat = 89
+             full 256x4096     episodes/cat = 1917
+    Action : `git restore` was used to drop the test-time perf
+             jitter from reports/r12_d64_saturation.txt +
+             reports/d64_stage_timing_256x4096_K1.txt +
+             reports/r9_b3_d64_timing.txt +
+             reports/r9_b_d64_timing.txt. Pinned baselines NOT
+             rebaselined.
+
+----------------------------------------------------------------
+8.  cargo run --bin dsfb-registry-emit -p dsfb-gpu-atlas-registry
+----------------------------------------------------------------
+    Status : exit code 0.
+    Emit   : crates/dsfb-gpu-atlas-registry/out/detector_registry_v2.bin
+                 (42 286 bytes; canonical-byte material)
+             crates/dsfb-gpu-atlas-registry/out/detector_registry_v2.json
+                 (127 010 bytes; human-readable mirror)
+    Notes  : two invocations on the same corpus + family mapping
+             + grid produce byte-identical output. Pinned in
+             `s1_2_registry_hash_v2_is_deterministic_across_two_builds`.
+
+----------------------------------------------------------------
+9.  README + plan refresh
+----------------------------------------------------------------
+    README.md  : new "Atlas registry generation (S1.2 — 162
+                 specs)" section added between the T.10 section
+                 and the scaling-ladder section. Pinned counts,
+                 canonical hashes, the panel-locked 3-point grid,
+                 the non-claims list, and the regenerator
+                 command-line.
+    Plan       : Quick Start "Next two commits" line is now
+                 superseded by the S1.2 commit; the Unified
+                 post-S1.2 sequence (in the consolidated
+                 Post-S1.2 roadmap section) takes over.
+
+----------------------------------------------------------------
+10. Atomic commit
+----------------------------------------------------------------
+    Verb   : single commit; pre-commit hook runs steps 1-4 again
+             and must pass without --no-verify.
+    Files  :
+        crates/dsfb-gpu-atlas-registry/Cargo.toml                              (M)
+        crates/dsfb-gpu-atlas-registry/src/lib.rs                              (M)
+        crates/dsfb-gpu-atlas-registry/src/family_mapping.rs                   (A)
+        crates/dsfb-gpu-atlas-registry/src/generator.rs                        (A)
+        crates/dsfb-gpu-atlas-registry/src/hash.rs                             (A)
+        crates/dsfb-gpu-atlas-registry/src/registry.rs                         (A)
+        crates/dsfb-gpu-atlas-registry/src/bin/dsfb_registry_emit.rs           (A)
+        crates/dsfb-gpu-atlas-registry/tests/s1_2_generator.rs                 (A)
+        crates/dsfb-gpu-atlas-registry/out/detector_registry_v2.bin            (A)
+        crates/dsfb-gpu-atlas-registry/out/detector_registry_v2.json           (A)
+        Cargo.lock                                                             (M)
+        README.md                                                              (M)
+        reports/s1_2_registry_summary.txt                                      (A)
+        reports/s1_2_registry_verification.txt                                 (A)
+        reports/s1_2_regression_check.txt                                      (A — this file)
+        .gitignore                                                             (M — whitelist three new receipts)
+
+================================================================
+Pinned non-claims
+================================================================
+- S1.2 does NOT activate detectors. active_detectors = 0.
+- S1.2 does NOT execute GPU kernels. admitted_episodes = 0.
+- S1.2 does NOT generate 2,000 detectors. 162 = 54 x 3, panel-
+  bounded first pass; the wider grid lands as S1.2.1+.
+- S1.2 declares ImplementationKind::ScalarCpu on every spec
+  regardless of the corpus L-band. The five L6 corpus records
+  (canonical IDs 14, 15, 41, 42, 43) have GPU implementations in
+  dsfb-gpu-debug-core, but the S1.2 DetectorSpec declaration
+  does NOT inherit the GPU surface.
+- S1.2 does NOT emit CaseFileV2 bodies (T.11 work).
+- S1.2 does NOT touch the Detector Delta Ledger.
+- S1.2 does NOT change the R.13 D64 headline.
+- S1.2 does NOT change corpus_hash_v1 (35c276c7...).
+- S1.2 does NOT rebaseline any pinned R.12b / R.9.b / R.9.b3 /
+  D64-stage-timing receipt; episode counts byte-identical.
+
+================================================================
+Pinned hashes (T.10 forward + S1.2)
+================================================================
+- corpus_hash_v1   : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+- registry_hash_v2 : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+
+================================================================

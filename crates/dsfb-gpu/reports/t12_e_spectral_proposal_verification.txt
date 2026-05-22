@@ -1,0 +1,142 @@
+================================================================
+T.12.e - Signal Processing / Spectral / Wavelet verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_e_spectral::seed_t12_e_spectral_proposal()
+
+----------------------------------------------------------------
+Positive verification (the proposal IS admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+  ProposalIdEmpty                                          : not fired
+  BatchIdEmpty                                             : not fired
+  UnknownSourceClass                                       : not fired (SignalProcessing)
+  AmendmentProposalHashMismatch                            : not fired
+  BatchHashMismatch                                        : not fired
+  DedupDeltaHashMismatch                                   : not fired
+  DedupDeltaCollidesWithExistingSeedCanonicalId            : not fired (reserved ids 5501..=5510 outside SEED's 1..54 range)
+  AcceptedProposalWithoutBodyOrDelta                       : not fired
+  AcceptedProposalWithoutFutureFreezeGate                  : not fired
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage (all passing)
+----------------------------------------------------------------
+
+  1. t12_e_does_not_mutate_seed_len
+     - SEED.len() == 54 after seed_t12_e_spectral_proposal().
+
+  2. t12_e_existing_seed_collision_requires_authority_resolution
+     - parametric loop over 5 SEED ids (FFT band-energy 12,
+       residual envelope exit 22, spectral entropy 38, wavelet
+       coefficient energy 39, autocorrelation break 40) all
+       fire the DedupDeltaCollidesWithExistingSeedCanonicalId
+       rule on defective variants.
+
+  3. t12_e_rejects_fft_variant_without_window_and_normalization_law
+     - FFT band-energy SEED record + FFT bandpower variant
+       parameterization record both declare 'window function'
+       AND 'normalization' in reason text.
+
+  4. t12_e_rejects_spectral_entropy_without_bin_or_power_normalization_law
+     - Spectral entropy reason declares 'bin definition',
+       'power-mass normalization' / 'normalization', and
+       'log base'.
+
+  5. t12_e_rejects_wavelet_detector_without_wavelet_family_and_boundary_law
+     - Wavelet coefficient energy SEED record + wavelet packet
+       energy canonical addition both declare 'wavelet family'
+       AND 'boundary handling'. Packet energy additionally
+       declares 'packet-tree depth'.
+
+  6. t12_e_rejects_stft_ridge_without_window_hop_and_ridge_selection_law
+     - STFT ridge canonical declares 'window function', 'window
+       length', 'hop' / 'overlap', and 'ridge selection law'.
+
+  7. t12_e_rejects_matched_filter_without_template_provenance
+     - Matched filter canonical declares 'template provenance',
+       'sampling-rate match', and 'normalization'.
+
+  8. t12_e_rejects_hilbert_amplitude_without_sampling_law
+     - Hilbert amplitude canonical declares 'sampling law' AND
+       'analytic-signal extraction' method.
+
+  9. t12_e_rejects_randomized_spectral_projection_without_deterministic_reduction
+     - Randomized spectral projection (id 5510) NOT in
+       new_canonical_records; RejectedNotDeterministic record
+       declares 'seed', 'projection matrix', 'dimension', and
+       'numeric mode' requirements.
+
+ 10. t12_e_hash_changes_when_transform_law_changes
+     - Mutated STFT ridge transform-law text; proposal hash
+       differs from canonical seed.
+
+Plus 3 per-named-SEED-id collision tests (FFT band-energy,
+spectral entropy, wavelet coefficient energy), 4
+ParameterizationOf family-relationship tests, 2 per-canonical
+transform-law-declaration tests (spectral centroid, cepstral),
+plus shape + determinism + rendering invariants.
+
+----------------------------------------------------------------
+Additional invariants (passing)
+----------------------------------------------------------------
+
+  spectral_proposal_is_admissible_under_t12_0_verifier
+  spectral_proposal_has_open_status
+  spectral_proposal_targets_signal_processing
+  spectral_proposal_proposes_ten_primitives
+  spectral_proposal_proposes_zero_aliases
+  spectral_proposal_proposes_sixteen_dedup_records
+  spectral_proposal_proposes_nine_genealogy_edges
+  spectral_proposal_proposes_seven_source_refs
+  spectral_delta_has_six_new_canonical_records
+  spectral_proposal_emits_all_five_court_delta_categories
+  spectral_proposal_court_delta_category_counts (6 / 5 / 1 / 3 / 1)
+  spectral_proposal_hash_is_deterministic_across_two_builds
+  recomputed_spectral_proposal_hash_matches_stored
+  spectral_proposal_hash_is_distinct_from_t12_0_a_b_c_d
+  t12_e_rejects_duplicate_fft_band_energy
+  t12_e_rejects_duplicate_spectral_entropy
+  t12_e_rejects_duplicate_wavelet_coefficient_energy
+  t12_e_spectral_centroid_declares_first_moment_law
+  t12_e_cepstral_declares_fft_convention_and_log_base
+  t12_e_fft_bandpower_variant_is_parameterizationof_fft_band_energy
+  t12_e_wavelet_family_variant_is_parameterizationof_wavelet_coefficient_energy
+  t12_e_stft_window_hop_variant_is_parameterizationof_stft_ridge_shift
+  t12_e_randomized_spectral_projection_present_in_primitives_but_not_in_canonical
+  t12_e_existing_canonical_authority_resolution_targets_must_be_in_seed
+  t12_e_domain_transfer_target_must_be_in_seed
+  t12_e_every_dedup_record_has_reason
+  t12_e_canonical_addition_ids_are_in_5501_to_5506_range
+  spectral_proposal_text_rendering_byte_stable
+  spectral_proposal_json_rendering_byte_stable
+
+Total: 39 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every T.11/S1.3 hash                         : unchanged
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  T.12.b SCD corpus_amendment_proposal_hash_v1: unchanged (ac10e27c...)
+  T.12.c drift corpus_amendment_proposal_hash_v1: unchanged (0ffb0639...)
+  T.12.d robust corpus_amendment_proposal_hash_v1: unchanged (7b51703f...)
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.e spectral literature_expansion_batch_hash_v1 (NEW):
+    fbb3a3b80a71cf8940bce7e2fd2cc3733a78f7af27602c316644874bdb31c526
+  T.12.e spectral dedup_court_delta_hash_v1 (NEW):
+    dc2b6d828fd478c81a899c0b4e8bf5ebb539371ded6d9e99e1ce85c7baae4896
+  T.12.e spectral corpus_amendment_proposal_hash_v1 (NEW):
+    0036435fb1b000557c75d4a7ae418560a0117761fe7ea874b00ecc30b12ac2f8

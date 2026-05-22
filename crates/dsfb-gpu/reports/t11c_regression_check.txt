@@ -1,0 +1,144 @@
+================================================================
+DSFB-GPU-Atlas — T.11c regression-check receipt (10-step ritual)
+================================================================
+Commit         : (this commit) — atomic; HEAD-before = 8343331 (T.11b)
+Timestamp      : 2026-05-15T03:11:05Z
+Scope          : T.11c AdmissibilityGrammarSnapshot — versioned
+                 grammar of admissible episode forms, derived from
+                 T.6 witness laws + T.11b precedents. NO CaseFileV2
+                 body, NO UnitSemantics, NO SamplingLaw, NO PROV /
+                 attestation / challenge / contraindication
+                 (those are T.11d-T.11g+).
+
+----------------------------------------------------------------
+1.  cargo fmt --all --check
+----------------------------------------------------------------
+    Status : clean (exit code 0). Initial drafts triggered fmt
+             fixes; committed source is post-fmt.
+
+----------------------------------------------------------------
+2.  cargo clippy --workspace --all-targets --features cuda -- -D warnings
+----------------------------------------------------------------
+    Status : clean (exit code 0).
+    Notes  : surfaced + resolved:
+             - 2 unused-mut / dead-code warnings on the new
+               module (closure mut + private helper); fixed by
+               un-mut + making helper pub for the consumer-
+               coverage tests.
+             - vec_init_then_push + too_many_lines on
+               build_grammar — both behind a single tight
+               #[allow(...)] with a panel-acknowledged rationale
+               (nine literal rules in linear order is what a
+               reviewer wants to read).
+             - format_push_string in the test file's hex helper
+               (used std::fmt::Write to fix).
+             - uninlined_format_args in the test file's confuser
+               coverage assertion.
+
+----------------------------------------------------------------
+3.  bash scripts/scrub.sh
+----------------------------------------------------------------
+    Status : "scrub: clean" (exit code 0).
+
+----------------------------------------------------------------
+4.  bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+    Status : "docs_freshness: clean" (exit code 0).
+
+----------------------------------------------------------------
+5.  cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+    Status : 309 passed, 0 failed.
+    Detail : T.11b baseline 271 + 38 new T.11c tests in
+             tests/admissibility_invariants.rs.
+
+----------------------------------------------------------------
+6.  cargo test --workspace --features cuda -- --test-threads=1
+----------------------------------------------------------------
+    Status : 56 result groups, 624 passed, 0 failed, 0 ignored.
+              (exit code 0)
+    Notes  : full workspace serial green. D16/D64/D128/D205
+             golden hashes unchanged. Audit mode untouched.
+
+----------------------------------------------------------------
+7.  tests/r12_d64_saturation (R.12b episode-byte stability)
+----------------------------------------------------------------
+    Status : episode counts byte-identical to the pinned R.12b
+             baseline.
+    Pinned : canonical 16x128  episodes/cat = 13
+             mid 64x512        episodes/cat = 89
+             full 256x4096     episodes/cat = 1917
+    Action : `git restore` drops test-time perf jitter from
+             pinned baselines. NOT rebaselined.
+
+----------------------------------------------------------------
+8.  cargo run -p dsfb-gpu-atlas-corpus -- admissibility-emit
+----------------------------------------------------------------
+    Status : exit code 0.
+    Emit   : crates/dsfb-gpu-atlas-corpus/out/admissibility_grammar.txt
+                 ( 6 614 bytes; 18 rules sorted canonically)
+             crates/dsfb-gpu-atlas-corpus/out/admissibility_grammar.json
+                 (10 629 bytes; deterministic JSON)
+             crates/dsfb-gpu-atlas-corpus/out/passport_grammar_crosswalk.txt
+                 (12 760 bytes; 54 rows, one per SEED canonical)
+             crates/dsfb-gpu-atlas-corpus/out/passport_grammar_crosswalk.json
+                 (15 035 bytes; deterministic JSON array)
+    Notes  : two invocations produce byte-identical output.
+
+----------------------------------------------------------------
+9.  README + plan refresh
+----------------------------------------------------------------
+    README.md  : new "Admissibility grammar (T.11c)" section
+                 under "Court precedents" naming the CLI, the
+                 18-rule count, the four artifacts, the
+                 admissibility_grammar_hash_v1, and the
+                 panel-locked non-claims.
+    Plan       : T.11a / T.11b / T.11c marked sealed in the
+                 active-campaign section. Next campaign per panel
+                 iteration 4: T.11d CaseFileV2 TrialTranscript
+                 body (minimal but real) — the court starts
+                 showing trial records. After T.11d: T.11e
+                 ExecutionAttestationReceipt, T.11f ChallengeDocket
+                 (panel iteration 4's single-most-original
+                 addition), T.11g DetectorContraindicationReceipt.
+
+----------------------------------------------------------------
+10. Atomic commit
+----------------------------------------------------------------
+    Files  :
+        crates/dsfb-gpu-atlas-corpus/src/admissibility.rs                (A)
+        crates/dsfb-gpu-atlas-corpus/src/lib.rs                          (M)
+        crates/dsfb-gpu-atlas-corpus/src/main.rs                         (M)
+        crates/dsfb-gpu-atlas-corpus/tests/admissibility_invariants.rs   (A)
+        crates/dsfb-gpu-atlas-corpus/out/admissibility_grammar.txt       (A)
+        crates/dsfb-gpu-atlas-corpus/out/admissibility_grammar.json      (A)
+        crates/dsfb-gpu-atlas-corpus/out/passport_grammar_crosswalk.txt  (A)
+        crates/dsfb-gpu-atlas-corpus/out/passport_grammar_crosswalk.json (A)
+        README.md                                                        (M)
+        reports/t11c_admissibility_summary.txt                           (A)
+        reports/t11c_admissibility_verification.txt                      (A)
+        reports/t11c_regression_check.txt                                (A — this file)
+        .gitignore                                                       (M — whitelist three new receipts)
+
+================================================================
+Pinned hashes
+================================================================
+- corpus_hash_v1              : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7 (UNCHANGED)
+- registry_hash_v2            : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08 (UNCHANGED)
+- precedent_hash_v1           : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14 (UNCHANGED)
+- admissibility_grammar_hash_v1: ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7 (NEW)
+
+================================================================
+Pinned non-claims (T.11c)
+================================================================
+- T.11c does NOT emit CaseFileV2 episode-transcript bodies (T.11d).
+- T.11c does NOT implement UnitSemantics / SamplingLaw receipts.
+- T.11c does NOT implement external provenance export.
+- T.11c does NOT change `corpus_hash_v1`, `registry_hash_v2`,
+  `precedent_hash_v1`, or any passport hash.
+- T.11c does NOT change D16 / D64 / D128 / D205 GPU behavior.
+- T.11c does NOT include S1.2 registry-spec linkage anywhere.
+- T.11c's `admissibility_grammar_hash_v1` is DSFB-native; no
+  in-toto / SLSA / SPDX / CycloneDX compatibility claim.
+
+================================================================

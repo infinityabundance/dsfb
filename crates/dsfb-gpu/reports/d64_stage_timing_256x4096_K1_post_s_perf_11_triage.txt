@@ -1,0 +1,41 @@
+=== R.9.c-diagnostic D64 throughput stage profile (256x4096 K=1) ===
+Hardware: RTX 4080 SUPER, CUDA 13.2. Median of 3 iters (post-warmup).
+
+Host wall median (incl. host segments): 40418 us
+Device total_device_us (median):        30283 us
+Stage-sum / total_device coverage:        96.57%
+
+  stage                              |        us |     %
+  ---------------------------------- | --------- | -----
+  h2d (WindowFeature[] H2D)          |      2520 |   8.3
+  residual_field_kernel              |       549 |   1.8
+  drift_slew_sign_kernel             |      2281 |   7.5
+  detector_motif_kernel_wide_d64     |      6077 |  20.1
+  consensus_grid_kernel_wide         |       657 |   2.2
+  axis5_grid_sum_kernel_wide (R.10a) |        83 |   0.3
+  candidate_collapse_kernel_wide     |      1712 |   5.7
+  tree_digest residual               |      3208 |  10.6
+  tree_digest sign                   |      3650 |  12.1
+  tree_digest detector (wide cells)  |      3426 |  11.3
+  tree_digest consensus              |      5050 |  16.7
+  d2h (candidates+counts+4*32B)      |        25 |   0.1
+  ---------------------------------- | --------- | -----
+  stage sum (device side)            |     29244 |  96.6
+  total_device_us                    |     30283 | 100.0
+
+  host: compute_features              |      7821 us
+  host: bank admit + case finalize    |      2262 us
+
+Counters and derived throughput:
+  n_cells              : 1048576
+  episode_count        : 1917
+  cells/sec            : 3.46e7
+  detector_evals/sec   : 2.22e9
+  wide bytes/sec (264) : 9.14 GB/s
+
+Decision rule (per R.9.c-diagnostic plan):
+  If candidate_collapse_kernel_wide dominates → fix axis-5 / candidate flush next.
+  If detector_motif_kernel_wide_d64 dominates → predicate layout / register / occupancy.
+  If tree_digest detector dominates           → revisit digest mode (compaction surfaced ~wash earlier).
+  If host bank + finalize dominates           → extend R.11 compact verdict for D64.
+  If h2d / d2h dominates                      → inspect accidental wide-cell D2H or pageable fallback.

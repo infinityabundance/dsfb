@@ -1,0 +1,15 @@
+=== R.8.5 tree-digest comparison — canonical 16x128 K=1 ===
+scale: n_entities=16 n_windows=128 K=1
+
+  serial-digest median wall:       7988 us
+  tree-digest   median wall:       3916 us
+  wall-time ratio (serial / tree): 2.04x
+
+Notes:
+  * Both paths run the same 5 pipeline kernels (residual, sign, detector,
+    consensus, candidate). They differ only in the digest stage: serial
+    uses 4 single-thread `*_digest_kernel_batched` kernels; tree uses one
+    block per chunk (~2048 chunks at 256x4096 with 16 KiB chunks) feeding
+    a final root SHA-256 over the ordered leaf digests + domain separator.
+  * Stage hash bytes differ between modes by construction; case-file
+    metadata records `digest_mode` so replay catches a mode mismatch.

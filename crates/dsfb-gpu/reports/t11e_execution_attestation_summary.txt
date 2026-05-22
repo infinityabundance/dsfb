@@ -1,0 +1,260 @@
+================================================================
+DSFB-GPU-Atlas — T.11e Execution Attestation Receipt V1 summary
+================================================================
+Schema             : DSFB-GPU-ATLAS:EXECUTION-ATTESTATION:v1
+Domain separator   : DSFB-GPU-ATLAS:EXECUTION-ATTESTATION:v1\0
+HEAD-before        : 1c8238e (T.11d)
+
+----------------------------------------------------------------
+Scope (panel-locked)
+----------------------------------------------------------------
+T.11e introduces an UNSIGNED, LOCAL, DSFB-NATIVE
+ExecutionAttestationReceiptV1. It records the gates, toolchain,
+hash-chain anchors, build commands, verification commands,
+materials, subjects, and panel-locked non-claims for one
+reproducibility-oriented run of the corpus + registry + court
+stack. T.11e is NOT a SLSA / in-toto / SPDX / CycloneDX
+compliance claim; it is an internal court-record for the
+operator's own audit trail.
+
+----------------------------------------------------------------
+Surface (new)
+----------------------------------------------------------------
+Module           : crates/dsfb-gpu-atlas-corpus/src/execution_attestation.rs
+Public surface   :
+    pub const EXECUTION_ATTESTATION_DOMAIN
+    pub const EXECUTION_ATTESTATION_SCHEMA_V1
+    pub struct ExecutionReceiptId(u32)
+    pub enum   ExecutionAttestationSchema (V1UnsignedDsfbNative)
+    pub enum   CommandPurpose             (9 variants:
+                                           Build / Format / Clippy /
+                                           Scrub / DocsFreshness /
+                                           SinglePackageTest /
+                                           WorkspaceTest / BulkEmit /
+                                           RegressionCheck)
+    pub struct ExecutedCommand
+    pub enum   MaterialKind               (Corpus / Registry /
+                                           Precedent / Grammar /
+                                           SourceCode / InputArtifact)
+    pub struct MaterialDigest
+    pub enum   SubjectKind                (Transcript / Grammar /
+                                           PrecedentLedger /
+                                           PassportBulk / Receipt /
+                                           RegressionCheck)
+    pub struct SubjectDigest
+    pub struct TestSummary
+    pub struct GateSummary
+    pub struct R12bEpisodeCounts          (baseline 13/89/1917)
+    pub enum   AttestationNonClaim        (7 required variants;
+                                           verifier enforces
+                                           all_required())
+    pub struct ExecutionAttestationReceiptV1
+    pub fn     build_t11e_test_fixture()      -> ...
+    pub fn     build_t11e_live_attestation()  -> ...
+    pub fn     compute_execution_attestation_hash_v1(&...) -> [u8; 32]
+    pub struct AttestationVerifyError
+    pub enum   AttestationVerifyErrorKind (20 reject conditions)
+    pub fn     verify_execution_attestation(&...) -> Vec<...>
+    pub fn     render_execution_attestation_text(&...) -> String
+    pub fn     render_execution_attestation_json(&...) -> String
+
+CLI subcommands  :
+    dsfb-corpus execution-attestation [--json]
+    dsfb-corpus execution-attestation-emit --out-dir <DIR>
+
+----------------------------------------------------------------
+Pinned hash-chain anchors (test fixture)
+----------------------------------------------------------------
+corpus_hash_v1                : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+registry_hash_v2              : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+precedent_hash_v1             : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14
+admissibility_grammar_hash_v1 : ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7
+trial_transcript_hash_v1      : 37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee
+receipt_hash_v1 (live emit)   : 559a52f6f314b51fd9d4c635e3f850b2d8e11058b68c1b3cf8e435e6cab31050
+
+The test-fixture receipt hash is pinned in
+tests/execution_attestation_invariants.rs; the live emit hash
+depends on the operator's environment (rustc/cargo/nvcc/git).
+
+----------------------------------------------------------------
+Generated artifacts (deterministic)
+----------------------------------------------------------------
+crates/dsfb-gpu-atlas-corpus/out/execution_attestation_v1.txt
+    3433 bytes — operator-readable receipt rendering.
+crates/dsfb-gpu-atlas-corpus/out/execution_attestation_v1.json
+    3442 bytes — canonical JSON rendering.
+
+Both are produced by `dsfb-corpus execution-attestation-emit`
+using build_t11e_live_attestation() which queries
+git rev-parse HEAD, git status --porcelain, git rev-parse
+--abbrev-ref HEAD, rustc --version, cargo --version, nvcc
+--version. Test-fixture invariants pin determinism + structure
+across runs.
+
+----------------------------------------------------------------
+Verifier — 20 reject conditions
+----------------------------------------------------------------
+The 20-direction verifier rejects any receipt that:
+
+  1. ZeroCorpusHash              — corpus_hash_v1 == [0u8; 32]
+  2. ZeroRegistryHash            — registry_hash_v2 == [0u8; 32]
+  3. ZeroPrecedentHash           — precedent_hash_v1 == [0u8; 32]
+  4. ZeroGrammarHash             — admissibility_grammar_hash_v1
+                                   == [0u8; 32]
+  5. ZeroTranscriptHash          — trial_transcript_hash_v1
+                                   == [0u8; 32]
+  6. EmptyRepoCommit             — repo_commit is empty
+  7. InvalidRepoCommitFormat     — repo_commit not 40-char lowercase
+                                   hex
+  8. DirtyRepoWithoutOverride    — repo_dirty AND NOT
+                                   dirty_override_acknowledged
+  9. EmptyBuildCommands          — build_commands is empty
+ 10. MissingRequiredGateCommand  — verification_commands missing
+                                   any of Format / Clippy / Scrub /
+                                   DocsFreshness / WorkspaceTest
+ 11. GateNotClean                — any of the five GateSummary
+                                   booleans is false
+ 12. WorkspaceTestFailed         — workspace_failed > 0 OR
+                                   workspace_groups == 0
+ 13. R12bEpisodeCountsDrift      — pinned counts != 13 / 89 / 1917
+ 14. ClaimedSlsaLevelPresent     — claimed_slsa_level.is_some()
+ 15. ClaimedSignedAttestation    — claimed_signed_attestation == true
+ 16. SubjectDigestMissing        — any subject digest is [0u8; 32]
+ 17. MaterialDigestMissing       — any material digest is [0u8; 32]
+ 18. ReceiptHashMismatch         — receipt_hash_v1 disagrees with
+                                   compute_execution_attestation_hash_v1
+ 19. NonClaimsIncomplete         — non_claims missing any required
+                                   AttestationNonClaim variant
+ 20. HashChainCrossCheckFailed   — declared subject hashes do not
+                                   match the corresponding hash-chain
+                                   anchors
+
+----------------------------------------------------------------
+Panel-locked non-claims (verifier-enforced)
+----------------------------------------------------------------
+The receipt MUST carry every variant in AttestationNonClaim::
+all_required():
+
+  - UnsignedLocalReceipt
+  - NotSlsaComplianceClaim
+  - NotInTotoSignedStatement
+  - NotReleaseArtifact
+  - NotThirdPartyVerified
+  - NotReproducibleBuildProof
+  - RecordsObservedEnvironmentOnly
+
+T.11e is a deterministic operator-side reproducibility record. It
+does NOT claim:
+
+  - signed release artifact (no key, no detached signature);
+  - SLSA build-level compliance (no provenance predicate type);
+  - in-toto Statement layout (no DSSE envelope);
+  - third-party verification (operator-only court of record);
+  - reproducible-builds.org bit-for-bit binary reproducibility
+    (records environment metadata only);
+  - external-ecosystem interoperability (DSFB-native schema).
+
+Signed / detached-signature variants are deferred to a later
+commit; this is T.11e's "unsigned base" surface only.
+
+----------------------------------------------------------------
+Acceptance tests (53)
+----------------------------------------------------------------
+Acceptance suite: tests/execution_attestation_invariants.rs.
+
+Two load-bearing negatives (panel-required):
+  - execution_attestation_rejects_slsa_compliance_claim
+  - execution_attestation_rejects_dirty_repo_without_override
+
+Structural + determinism family:
+  - receipt_hash_is_deterministic_across_two_builds
+  - receipt_hash_changes_when_corpus_hash_changes
+  - receipt_hash_changes_when_registry_hash_changes
+  - receipt_hash_changes_when_precedent_hash_changes
+  - receipt_hash_changes_when_grammar_hash_changes
+  - receipt_hash_changes_when_transcript_hash_changes
+  - receipt_hash_changes_when_repo_commit_changes
+  - receipt_hash_changes_when_rustc_version_changes
+  - receipt_hash_changes_when_build_command_added
+  - receipt_hash_changes_when_verification_command_added
+  - receipt_hash_changes_when_material_digest_changes
+  - receipt_hash_changes_when_subject_digest_changes
+  - receipt_hash_changes_when_non_claim_set_changes
+  - receipt_hash_is_independent_of_text_rendering
+  - text_render_is_deterministic_across_two_calls
+  - json_render_is_deterministic_across_two_calls
+  - json_render_is_byte_stable_against_known_pin
+  - text_render_carries_receipt_hash_v1
+  - text_render_lists_all_required_non_claims
+  - json_render_lists_all_required_non_claims
+  - emit_outputs_byte_stable_two_runs_test_fixture
+
+Verifier reject family (one test per kind, all asserting
+exactly-one-error):
+  - verifier_rejects_zero_corpus_hash
+  - verifier_rejects_zero_registry_hash
+  - verifier_rejects_zero_precedent_hash
+  - verifier_rejects_zero_grammar_hash
+  - verifier_rejects_zero_transcript_hash
+  - verifier_rejects_empty_repo_commit
+  - verifier_rejects_invalid_repo_commit_format
+  - verifier_rejects_empty_build_commands
+  - verifier_rejects_missing_format_gate_command
+  - verifier_rejects_missing_clippy_gate_command
+  - verifier_rejects_missing_scrub_gate_command
+  - verifier_rejects_missing_docs_freshness_gate_command
+  - verifier_rejects_missing_workspace_test_gate_command
+  - verifier_rejects_gate_summary_dirty_when_flag_false
+  - verifier_rejects_workspace_test_failed_nonzero
+  - verifier_rejects_r12b_episode_counts_drift_canonical
+  - verifier_rejects_r12b_episode_counts_drift_mid
+  - verifier_rejects_r12b_episode_counts_drift_full
+  - verifier_rejects_claimed_signed_attestation
+  - verifier_rejects_subject_digest_missing
+  - verifier_rejects_material_digest_missing
+  - verifier_rejects_receipt_hash_mismatch
+  - verifier_rejects_non_claims_incomplete
+  - verifier_rejects_hash_chain_cross_check_failed_grammar
+  - verifier_rejects_hash_chain_cross_check_failed_precedent
+  - verifier_rejects_hash_chain_cross_check_failed_transcript
+
+Positive admission family:
+  - verifier_admits_clean_test_fixture
+  - verifier_admits_dirty_repo_with_override
+
+Pin-stability family:
+  - test_fixture_receipt_hash_matches_known_pin
+  - corpus_hash_anchor_matches_compute_corpus_hash_v1
+  - precedent_hash_anchor_matches_court_precedents_hash
+  - grammar_hash_anchor_matches_compute_grammar_snapshot_hash_v1
+  - transcript_hash_anchor_matches_compute_trial_transcript_hash_v1
+
+----------------------------------------------------------------
+What T.11e does NOT do (deferred)
+----------------------------------------------------------------
+  - Sign the receipt (no detached signature; no key material).
+  - Emit a SLSA Provenance v1.0 predicate.
+  - Emit an in-toto v1 Statement.
+  - Emit a DSSE envelope.
+  - Mint a CycloneDX BOM / SPDX SBOM.
+  - Cross-validate with third-party attestation services.
+  - Hash repo source-bytes (the corpus / registry / court
+    materials are already hashed via their respective v1 anchors;
+    the source-tree hash is left to T.11f+).
+  - Land ChallengeDocket (T.11f), DetectorContraindicationReceipt
+    (T.11g), or ActivationPlanner (S1.3).
+  - Change any of: D16/D64/D128/D205 GPU behavior, Audit-mode
+    golden hashes, corpus_hash_v1, registry_hash_v2,
+    precedent_hash_v1, admissibility_grammar_hash_v1,
+    trial_transcript_hash_v1, or any DetectorPassport hash.
+
+----------------------------------------------------------------
+References
+----------------------------------------------------------------
+SLSA framework         : https://slsa.dev/spec/v1.0
+in-toto attestations   : https://github.com/in-toto/attestation
+DSSE envelope          : https://github.com/secure-systems-lab/dsse
+Reproducible Builds    : https://reproducible-builds.org
+
+T.11e is structurally INSPIRED by these patterns. The schema is
+DSFB-native; no compatibility claim is made.

@@ -1,0 +1,198 @@
+# Post-R.9.d.2 regression check (per-section discipline artifact)
+#
+# Hardware:        RTX 4080 SUPER
+# CUDA toolkit:    13.2
+# Date:            2026-05-14
+# Pre-R.9.d.2 head: f7d0725 (T.9 internal corpus audit report)
+# Post-R.9.d.2 head: (this commit)
+# Test:            tests/r12_d64_saturation.rs (D64 saturation sweep)
+# Method:          re-run the R.12b saturation matrix after R.9.d.2
+#                  lands; compare against the pinned R.12b money
+#                  table in reports/money_table.txt and
+#                  reports/r12_d64_saturation.txt.
+#
+# Why this artifact exists:
+#   R.9.d.2 lands the CPU D205 scaling-ladder proof: a new
+#   DetectorProfile variant (D205, already declared at R.9.a), new
+#   constants (D205_VARIANT_COUNT = 13, D205_ACTIVE_BITS = 205,
+#   D205_TOTAL_SLOTS = 208, D205_VARIANT_SCALES_Q16: [i32; 13]),
+#   and a wiring of D205 into evaluate_wide() with the
+#   `det_id < 205` active-bit gate. The "205" canonical name
+#   mirrors the dsfb-debug mature taxonomy count — the bridge to
+#   DSFB-Debug's mature detector identity.
+#
+#   R.9.d.2 is a CPU-only scaling-ladder proof. GPU D205 (kernel
+#   `detector_motif_kernel_wide_d205` + dispatch wrapper
+#   `build_gpu_throughput_pinned_async_on_workspace_d205_tree_compact`)
+#   is honestly deferred to R.9.d.2.1.
+#
+#   D205 is NOT a new R.13 performance headline. The D64 ≈55×
+#   full-pipeline campaign reduction at the courthouse-factory
+#   workload remains the headline; D205 brings detector-count
+#   legitimacy, not optimization.
+#
+#   This file is the user-enforced per-section discipline receipt.
+#
+# Result: NO SEMANTIC REGRESSION.
+#   - tests/r12_d64_saturation.rs exit code: 0
+#   - Full-workspace serial test suite
+#     (cargo test --workspace --features cuda -- --test-threads=1):
+#       454 passed; 0 failed; finished green.
+#       (T.9 baseline 439 + 15 new D205 CPU acceptance tests = 454.)
+#   - Corpus crate tests: 211 passed (unchanged from T.9 — R.9.d.2
+#     does not touch corpus code).
+#   - Episode counts byte-identical to pinned R.12b numbers:
+#       canonical 16x128 K ∈ {1,4,16,32,64,128} : 13   episodes/cat
+#       mid       64x512 K ∈ {1,4,16,32,64,128} : 89   episodes/cat
+#       full   256x4096  K ∈ {1,4,16,32,64,128} : 1917 episodes/cat
+#
+# GPU-timing posture (panel-discipline, NOT a R.9.d.2 regression):
+#   R.9.d.2 touches only the CPU evaluate_wide path. The R.12b
+#   numbers vary run-to-run with thermal envelope and host load.
+#   The pinned reports/r12_d64_saturation.txt is the authoritative
+#   R.12b baseline. This receipt does NOT rebaseline it. The
+#   pinned baseline files were restored to HEAD after the test
+#   rewrote them during this run.
+#
+# R.9.d.2 deliverables (sealed in this commit):
+#   - crates/dsfb-gpu-debug-core/src/detector.rs:
+#       * NEW constants D205_VARIANT_COUNT = 13,
+#         D205_ACTIVE_BITS = 205, D205_TOTAL_SLOTS = 208.
+#       * NEW const D205_VARIANT_SCALES_Q16: [i32; 13] —
+#         V0..V7 byte-identical to D128_VARIANT_SCALES_Q16
+#         (preserving the bridge invariant); V8..V12 sample
+#         five additional deterministic dyadic fractions
+#         (0.375, 0.625, 0.875, 1.125, 1.75).
+#       * evaluate_wide() routes D205 with the active-bit gate
+#         `det_id < D205_ACTIVE_BITS`; the panic guard for D205
+#         is removed (D512+ still panic).
+#       * Docstring refreshed to reflect the D205 routing and
+#         the bridge-invariant chain
+#         `D205 OR ⊇ D128 OR ⊇ D64 OR ⊇ canonical D16`.
+#   - crates/dsfb-gpu-debug-demo/tests/r9_d2_d205_acceptance.rs (NEW):
+#     15 CPU acceptance tests covering:
+#       1.  d205_variant_counts_are_canonical
+#           (13 / 205 / 208 / scales-len)
+#       2.  d205_variant_scales_v0_through_v7_match_d128
+#       3.  d205_registry_hash_is_distinct_from_d16_d64_d128
+#       4.  d205_v0_projection_equals_canonical_d16_mask
+#       5.  d205_or_projection_is_superset_of_v0
+#       6.  d205_or_projection_is_superset_of_d128_or_projection
+#       7.  d205_or_projection_is_superset_of_d64_or_projection
+#       8.  d205_v0_through_v7_firings_match_d128_byte_for_byte
+#       9.  d205_high_bits_above_205_remain_zero
+#       10. d205_no_cell_has_active_count_above_205
+#       11. d205_v0_bits_are_at_motif_times_13
+#       12. d205_cpu_evaluation_is_deterministic_across_runs
+#       13. d205_total_interesting_cells_meets_or_exceeds_d128
+#       14. d205_admits_at_least_one_firing_at_canonical_fixture
+#       15. d205_silently_unused_for_d64_d128_paths
+#     The tests are CPU-only (no `#![cfg(feature = "cuda")]`
+#     gate); they import dsfb_gpu_debug_core::detector::evaluate_wide
+#     and run on any host without a GPU.
+#
+# Bridge invariants pinned by R.9.d.2:
+#   - D205 V0-only projection equals canonical D16 mask
+#     (per-cell, every cell).
+#   - D205 V0..V7 firings byte-identical to D128 V0..V7
+#     (per-cell, per-variant motif-mask equality).
+#   - D205 OR projection ⊇ D128 OR projection
+#     (per-cell superset; D205's additional V8..V12 can only add
+#     cells to the projection).
+#   - D205 OR projection ⊇ D64 OR projection (transitive).
+#   - D205 registry hash distinct from D16 / D64 / D128 (the
+#     contract chain link prevents profile confusion).
+#   - High bits 205..2047 deterministically zero (the active-bit
+#     gate is enforced cell-by-cell).
+#   - D205 popcount never exceeds 205 on any cell.
+#   - D205 V0 bits at slot `motif_id * 13` (the layout proof for
+#     the projection helpers).
+#   - D205 CPU evaluation byte-identical across two runs
+#     (determinism).
+#
+# D16 / D64 / D128 byte-stability invariants preserved:
+#   - D16 golden hashes unchanged (the legacy `evaluate` path is
+#     untouched; D205 only adds a new arm in `evaluate_wide`).
+#   - D64 / D128 firing patterns on the canonical fixture
+#     unchanged (the new D205 arm does not alter the D64/D128
+#     scales-slice selection nor the active-bit limit for those
+#     profiles — `active_bit_limit = u32::MAX` for D16/D64/D128).
+#   - The cross-profile sanity test
+#     `d205_silently_unused_for_d64_d128_paths` asserts D64 cells
+#     never touch words 1..31 and D128 cells never touch words
+#     2..31.
+#
+# Honesty disclosure (panel-locked):
+#   - D205 is a scaling-ladder proof, NOT a new R.13 headline.
+#   - GPU D205 (kernel + dispatch + GPU replay tests) is honestly
+#     deferred to R.9.d.2.1. The CPU bridge invariants in this
+#     commit are sufficient to prove the math; the GPU port
+#     extends the byte-equivalence guarantee to CUDA hardware.
+#   - The 208-slot iteration with a 3-slot reserved-not-fired
+#     gate is the cleanest decomposition of 205 = 16 × 13 − 3.
+#     The three reserved-not-fired slots (bits 205, 206, 207)
+#     are the deterministic bridge to the dsfb-debug 27-tier
+#     taxonomy, which has an uneven per-motif distribution. We
+#     do NOT split variants per motif (that would break the
+#     regular kernel iteration); we iterate the full grid and
+#     gate by `det_id < 205`.
+#
+# Memory budget (no change vs D128):
+#   - Wide-cell stride: 264 bytes
+#     (`window_idx: u32` + `entity_id: u32` + `[u64; 32]` mask).
+#   - Full-scale 256×4096 K=1: ~270 MB per catalog (same as
+#     D128). K>1 batched dispatch deferred per R.9.c discipline.
+#
+# Stale-doc grep scan (this commit) — verified clean:
+#   grep -RnE "D205 deferred to|D205.*not yet implemented" \
+#     crates/dsfb-gpu-debug-core/src crates/dsfb-gpu-debug-demo/src README.md \
+#     -> zero hits (every D205 reference is now in present tense
+#     for CPU; GPU references are explicitly tagged "R.9.d.2.1
+#     deferred").
+#
+# Full code-commentary discipline (this commit):
+#   - Every new pub const (D205_VARIANT_COUNT, D205_ACTIVE_BITS,
+#     D205_TOTAL_SLOTS, D205_VARIANT_SCALES_Q16) carries a
+#     doc-block explaining the WHY (canonical-name source,
+#     bridge-invariant link, deterministic-fraction motivation).
+#   - The evaluate_wide docstring explicitly enumerates the
+#     bridge-invariant chain and names the new `active_bit_limit`
+#     parameter as load-bearing for D205.
+#   - Test file's module docstring lists every test name with
+#     the invariant it pins, grouped by category (constants /
+#     registry / bridge / active-bit gate / layout / determinism /
+#     population).
+#
+# Pinned baselines not rebaselined by this commit:
+#   - reports/r12_d64_saturation.txt — restored to HEAD; the
+#     test re-wrote it during this run but the file is the
+#     authoritative R.12b baseline and should not drift with
+#     thermal noise.
+#   - reports/d64_stage_timing_256x4096_K1.txt — restored.
+#   - reports/r9_b_d64_timing.txt / reports/r9_b3_d64_timing.txt
+#     — restored.
+#
+# 10-step per-section discipline checklist (hard-enforcement order):
+#   [x]  1. cargo fmt --all --check                                (clean)
+#   [x]  2. cargo clippy --workspace --features cuda --all-targets \
+#             -- -D warnings                                       (clean)
+#   [x]  3. scripts/scrub.sh                                       (clean)
+#   [x]  4. scripts/docs_freshness.sh                              (clean)
+#   [x]  5. cargo test -p dsfb-gpu-atlas-corpus                    (211 green;
+#             unchanged — corpus not touched)
+#   [x]  6. cargo test --workspace --features cuda \
+#             -- --test-threads=1                                  (454 green)
+#   [x]  7. tests/r12_d64_saturation regression check              (exit 0;
+#             D64 episode counts byte-identical to pinned R.12b
+#             baseline; per_catalog_us within thermal/host-load
+#             drift band; pinned R.12b baseline NOT rebaselined.)
+#   [x]  8. stale-doc scan across the workspace                    (zero hits)
+#   [x]  9. README scaling-ladder section updated                  (D205 row
+#             added with "NOT a new R.13 headline" framing;
+#             GPU D205 honestly deferred to R.9.d.2.1)
+#   [x] 10. Atomic single commit                                   (this commit)
+#
+# Going forward (panel-locked): R.9.d.2.1 GPU D205 kernel +
+# dispatch is the next natural follow-on. S1.1 Atlas algebra
+# types and T.10 corpus_hash_v1 remain available as alternative
+# next campaigns per the post-T.9 panel decision tree.

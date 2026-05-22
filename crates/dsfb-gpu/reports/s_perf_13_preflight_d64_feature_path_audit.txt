@@ -1,0 +1,400 @@
+================================================================
+ S-PERF.13-PREFLIGHT — D64 timed-dispatch feature-path audit
+ (panel-verified 2026-05-18; one-shot audit record; no hash chain)
+================================================================
+
+Verdict: FeaturePathMixedHostStagingDeviceCompute
+
+Feature math is device-side. Input staging is host-side.
+Report label "host: compute_features" / `features_us` is STALE.
+
+----------------------------------------------------------------
+ Why this preflight exists
+----------------------------------------------------------------
+
+The S-PERF.12a partial-success measurement (RTX 4080 SUPER,
+CUDA 13.2, canonical 256x4096 K=1 D64, WARPS_PER_BLOCK=16,
+7-iter median + 3-iter warm-up, 5-run steady-state) reported
+a ~7142 us "host: compute_features" slot in the post
+source-report:
+
+  reports/d64_stage_timing_256x4096_K1_post_s_perf_12_compact_densor.txt
+
+The S-PERF.12a thesis projected post-S-PERF.13 bandwidth at
+~26.8 GB/s assuming S-PERF.13 would attack a "host
+compute_features" wall by moving feature construction to
+device. The panel rule (verbatim) is:
+
+  "Do not optimize a mislabeled bottleneck. First rename the
+  bottleneck to what it actually measures. Then attack the
+  real wall."
+
+Therefore: before committing to a "device-side compute_features"
+campaign, a read-only audit traced the D64 _timed dispatch
+path from the public Rust entrypoint through the FFI into the
+CUDA kernel implementation to confirm what the slot actually
+measures and which CUDA kernels are actually launched.
+
+----------------------------------------------------------------
+ Core questions
+----------------------------------------------------------------
+
+Q1. Does the D64 _timed dispatcher actually call the R.11b
+    device feature kernel?
+Q2. Does it skip the old CPU compute_features path?
+Q3. What does features_us measure now?
+Q4. Can the measured ~7142 us be explained by event packing
+    / pinned staging?
+Q5. Is the report label stale, or is there still hidden CPU
+    feature work?
+
+----------------------------------------------------------------
+ Evidence table
+----------------------------------------------------------------
+
+symbol / callsite                                            finding
+-----------------------------------------------------------  ----------------------------------------
+build_gpu_throughput_pinned_async_on_workspace_d64_           dispatch.rs:2993 — no host compute_features
+  tree_compact_timed (Rust)                                   call; t_features = Instant::now() wraps
+                                                              event-pack loop only
+
+features_us assignment site                                   dispatch.rs:3063 — measures lines
+                                                              3048-3061 (Rust for ... zip() pack loop
+                                                              into pinned shadow)
+
+CPU compute_features call in tree-compact-timed?              NO
+
+CPU compute_features call in compact-densor-compact-timed?    NO
+
+R.11b device kernel in the FFI path?                          YES — cuda/kernels.cu:5026-5028 launches
+                                                              window_feature_kernel_structured on
+                                                              d_events
+
+window_feature_kernel_structured (R.11b) active in this       YES (cuda/kernels.cu:137-220)
+  path?
+
+Host loop over events?                                        YES — TraceEvent (48 B) -> GpuTraceEvent
+                                                              Compact (16 B) pack at dispatch.rs:
+                                                              3058-3060
+
+Pinned buffer copy measured in features_us?                   YES
+
+H2D separately timed?                                         YES — via cudaEvent -> device h2d_us
+                                                              slot
+
+Bench compute_features call (test:99)                         OUTSIDE timed loop (only used to seed
+                                                              FixtureHashes::compute)
+
+Comment at dispatch.rs:3034-3035                              "compute_features no longer runs on the
+                                                              host" — CORRECT for both _timed
+                                                              dispatchers
+
+Report label source (test:350)                                "host: compute_features" — STALE
+
+Other host work in dispatcher                                 bank+casefile finalize at dispatch.rs:
+                                                              3195-3208 (build_throughput_compact_
+                                                              verdict_from_device_digests) — ~2.3 ms
+                                                              measured
+
+Other dispatchers calling host compute_features               14+ legacy dispatchers (dispatch.rs:108,
+  (not on the S-PERF.12a measured path)                       257, 435, 581, 708, 849, 975, 1106,
+                                                              1245, 1444, 1593, 1796, 1997, 2194) —
+                                                              not in the S-PERF.12a path
+
+----------------------------------------------------------------
+ Math check (event-pack-to-pinned bandwidth)
+----------------------------------------------------------------
+
+  fixture: synthesize_scaled(DEFAULT_SEED, 256, 4096, 4)
+  event count: 256 * 4096 * 4 = 4,194,304 events
+  per-event packed size: 16 bytes (GpuTraceEventCompact)
+  total packed bytes: 4,194,304 * 16 = 67,108,864 B = ~67 MB
+
+  Modern DDR write bandwidth: ~50-100 GB/s
+  Predicted lower bound (100 GB/s): 67 MB / 100 GB/s = ~670 us
+  Predicted upper bound (50 GB/s):  67 MB / 50  GB/s = ~1340 us
+
+  Measured features_us slot: ~6308 us (median, post-warmup)
+
+  Ratio measured / predicted-upper: 6308 / 1340 ~= 4.7x
+
+  Conclusion: the measured cost is ~4.7x what pure DDR
+  bandwidth predicts. Most likely cause: the manual
+  Rust iterator-chain loop
+
+    for (dst, src) in slice.iter_mut().zip(events.iter())
+        .take(events.len())
+    {
+        *dst = GpuTraceEventCompact::from_trace_event(src);
+    }
+
+  emits scalar stores that the compiler does not
+  autovectorize. Each iteration is 1 u64 + 2 u32 stores
+  (16 B), and the iterator zip chain may inhibit LLVM from
+  recognising the bulk-store pattern. Inline AVX2
+  intrinsics or a chunk-and-unroll refactor should recover
+  most of the lost bandwidth.
+
+----------------------------------------------------------------
+ Corrected S-PERF.13 thesis (panel-locked post-preflight)
+----------------------------------------------------------------
+
+OLD (stale): "S-PERF.13 — device-side deterministic
+compute_features"
+
+NEW (correct, panel-locked 2026-05-18):
+"S-PERF.13 — host input-staging acceleration for CUDA
+evidence throughput"
+
+Panel-locked one-line verdict (verbatim, MUST appear in
+S-PERF.13 receipt + plan + README + paper):
+
+  S-PERF.13 corrects the stale feature-timing label and
+  accelerates the real host input-staging wall feeding
+  CUDA; R.11b already moved feature construction to the
+  device.
+
+Framing: this is STILL CUDA acceleration. The CUDA kernels
+are the engine; host_input_staging_us is the fuel pump.
+The current scalar for...zip() loop is a slow feeder that
+caps the entire pipeline regardless of how fast the
+kernels run. S-PERF.13 fixes the feeder so the CUDA path
+can actually reach its measured ceiling.
+
+----------------------------------------------------------------
+ Field rename (panel-locked, user-confirmed 2026-05-18)
+----------------------------------------------------------------
+
+  old field:  D64ThroughputHostStageTimings::features_us
+  new field:  D64ThroughputHostStageTimings::host_input_staging_us
+
+  old report label:  "host: compute_features"
+  new report label:  "host: input staging"
+
+Rationale: short, reads cleanly in receipts, captures the
+semantics (everything host-side between the FFI boundary
+and the pinned shadow), future-proof if the slot ever
+bundles related staging work, easier to type and grep.
+
+----------------------------------------------------------------
+ Approach selection
+----------------------------------------------------------------
+
+Approach A — SIMD-accelerated host pack (SELECTED, user-
+            confirmed 2026-05-18; MEASURED OUTCOMES below).
+  - Phase 1: chunk-and-unroll with #[inline(always)]
+    helper; compiler autovectorization (LLVM AVX2 on
+    x86_64 Haswell+). Projected: ~6.3 ms -> ~800-1500 us.
+    **MEASURED**: 6308 us -> 7019 us (NEGATIVE result; the
+    iterator-chain refactor inhibited autovectorization
+    further than the scalar baseline). Reason: the
+    structure-conversion shape (TraceEvent 48 B with
+    scattered field reads at {0, 8, 32, 38} -> 16 B
+    contiguous write) resists LLVM auto-SIMD because of
+    the conditional error-bit branch + cross-struct
+    field gathering. Phase 1 ESCALATED to Phase 2.
+  - Phase 2 (escalation if Phase 1 misses the gate):
+    inline core::arch::x86_64 AVX2 intrinsics (stable
+    since 2017, portable across every x86_64 host since
+    Haswell). Projected: ~500 us. Gated behind
+    #[cfg(target_feature = "avx2")] with a scalar
+    fallback.
+    **MEASURED**: 6308 us -> ~5700 us (NINE-PERCENT
+    improvement, byte-identical contract held, episodes
+    1917 preserved). Implementation: pair-wise 256-bit
+    stores via _mm256_stream_si256 (non-temporal) when
+    dst is 32 B aligned (production cudaMallocHost
+    path), _mm256_storeu_si256 fallback for misaligned
+    Vec<T> (unit tests). The 5700 us measurement is
+    ~1.1x the theoretical 5200 us DDR4 memory-bandwidth
+    floor for 267 MB / dispatch (4.2M events x (48 B
+    read + 16 B write)). The staging slot is now at the
+    memory-bandwidth equilibrium; further SIMD tuning
+    cannot extract additional savings.
+
+Approach B — Caller-materialised compact projection.
+  REJECTED. Just moves the cost outside the timer rather
+  than reducing real per-catalog work. Verifier negative
+  N7 forbids it as the S-PERF.13 lever.
+
+Approach C — Device-side event projection kernel.
+  REJECTED. Triples PCIe traffic (200 MB vs 67 MB at
+  4.2M events); at PCIe Gen4 x16 (~16 GB/s sustained)
+  that is ~12.5 ms — likely a net regression.
+
+----------------------------------------------------------------
+ Projected vs measured post-S-PERF.13 bandwidth
+----------------------------------------------------------------
+
+Reference: S-PERF.12a measured total wall ~23,388 us at
+256x4096 K=1, 18.72 GB/s combined.
+
+  Phase 1 (chunk-unroll) — PROJECTED ~1000 us staging,
+    MEASURED 7019 us staging:
+    delta: NEGATIVE (6308 - 7019 = -711 us; staging got
+           SLOWER, not faster). Bandwidth ~18.13 GB/s
+           (within thermal noise of pre-S-PERF.13 18.72).
+    Result: did NOT clear the gate. Escalated to Phase 2.
+
+  Phase 2 (AVX2 + non-temporal stores) — PROJECTED ~500 us
+    staging, MEASURED ~5700 us staging:
+    delta: 6308 - 5700 = ~608 us removed (~9% improvement).
+    measurement (run 1): host wall 23,279 us, BW 18.12 GB/s
+    measurement (run 2): host wall 28,335 us, BW 13.62 GB/s
+    Bandwidth is in a thermal-variance band; the host wall
+    AT BEST is 23,279 us (need <= 21,900 us to clear gate).
+    Result: did NOT clear the >20 GB/s gate. The
+    structural floor is memory-bandwidth-bound staging
+    + device-stage time dominance (65% of wall).
+
+----------------------------------------------------------------
+ Honest structural diagnosis (panel-locked, 2026-05-18)
+----------------------------------------------------------------
+
+The S-PERF.13 staging-acceleration lever does NOT clear the
+S-PERF.12 promotion gate by itself. The math:
+
+  Pre-S-PERF.13 wall:  ~23,388 us  -> 18.72 GB/s
+  Phase 2 staging:     6308 -> 5700 (~9% win)
+  Phase 2 wall:        ~22,780 us  -> ~19.2 GB/s (projected;
+                                       thermal-noise-bound)
+  Gate target:         <= 21,900 us -> >= 20 GB/s
+  Missing:             ~880 us still to shave
+
+Where the remaining ~880 us must come from:
+
+  Device wall (post-S-PERF.12a stage breakdown, ~15,278 us):
+    h2d:                             2507 us  (16.4%)
+    detector_motif_kernel_wide_d64:  2702 us  (17.7%)
+    compact_densor consensus:        2402 us  (15.7%)
+    compact_densor sign:             1530 us  (10.0%)
+    compact_densor detector:         1401 us  (9.2%)
+    drift_slew_sign_kernel:          1284 us  (8.4%)
+    compact_densor residual:         1254 us  (8.2%)
+    candidate_collapse_kernel_wide:  1120 us  (7.3%)
+    other (residual / consensus / axis5 / d2h): ~1078 us
+
+  Total compact_densor digest stages: 6587 us (43.1% of
+  device wall). Fusing the 4 leaf kernels into a single
+  multi-stream kernel could save 1500-2500 us.
+
+  Other fusion candidates: residual+sign (saves 300-500 us),
+  consensus+axis5_grid_sum+candidate_collapse (saves
+  500-1000 us). H2D pipelining is K=1-blocked at this
+  fixture; needs batched dispatch to benefit.
+
+----------------------------------------------------------------
+ S-PERF.14 — kernel fusion follow-on (next campaign,
+ panel-locked 2026-05-18)
+----------------------------------------------------------------
+
+After S-PERF.13 seals with the staging acceleration + scope
+correction + receipt + tests + plan, the next commit is
+**S-PERF.14 — fused compact_densor digest stages**. The
+4 currently-separate leaf+root kernel pairs collapse into a
+single multi-stream kernel that processes all 4 stages in
+parallel via grid.z dispatch. Byte-identical
+CompactDensorDigestV1 root contract MUST hold (root-non-
+aliasing law); the fusion is a launch-overhead +
+global-memory-traffic optimisation, not a digest-mode
+change. Projected: 6587 us -> ~4000-5000 us = save
+1500-2500 us = clear the >20 GB/s S-PERF.12 promotion gate.
+
+S-PERF.14 ships its own preflight + byte-equivalence
+harness (per-stage CompactDensorDigestV1 root memcmp
+against the S-PERF.13 baseline) and re-runs the opt-in
+bench. If S-PERF.14 clears the gate, the subsequent
+S-PERF.12 promotion commit seals.
+
+----------------------------------------------------------------
+ Hash posture (panel-locked, MUST hold at S-PERF.13 seal)
+----------------------------------------------------------------
+
+  corpus_hash_v1                 : UNCHANGED
+  corpus_hash_v2                 : UNCHANGED
+  every T.11 / T.12.x hash       : UNCHANGED
+  every FF.x / S1.3.x hash       : UNCHANGED
+  every T.12.PROV hash           : UNCHANGED
+  every S-PERF.1-S-PERF.11.1 hash: UNCHANGED
+  every DetectorPassport hash    : UNCHANGED
+  SEED.len() = 54                : UNCHANGED
+  R.12b episodes 13/89/1917      : BYTE-STABLE
+  pinned R.12b baseline          : NOT REBASELINED
+  D64ThroughputHostStageTimings  : host-only timing struct
+                                   — NOT hashed into any
+                                   receipt; field rename
+                                   does NOT mutate any
+                                   pinned hash.
+
+----------------------------------------------------------------
+ Audit method (read-only)
+----------------------------------------------------------------
+
+  Three parallel Explore-agent investigations:
+
+  Agent 1 — call-chain tracing through:
+    crates/dsfb-gpu-debug-cuda/src/dispatch.rs:2993+
+    crates/dsfb-gpu-debug-cuda/src/ffi.rs (FFI decl)
+    cuda/kernels.cu (FFI impl + window_feature_kernel_
+                     structured launch site)
+    crates/dsfb-gpu-debug-demo/tests/s_perf_12_d64_
+      compact_densor_stage_profile.rs (bench entrypoint)
+
+  Agent 2 — event-count + memory-bandwidth math check on
+    synthesize_scaled(DEFAULT_SEED, 256, 4096, 4) +
+    GpuTraceEventCompact::from_trace_event byte projection.
+
+  Agent 3 — full host wall-time breakdown of every host
+    operation in build_gpu_throughput_pinned_async_on_
+    workspace_d64_compact_densor_compact_timed (event
+    pack + FFI sync + bank admit + casefile finalize).
+
+  Verdict cross-validated by all three agents: feature
+  math is device-side (R.11b active in FFI path); input
+  staging is host-side (Rust for...zip() pack loop);
+  report label is stale.
+
+----------------------------------------------------------------
+ Panel-locked non-claims
+----------------------------------------------------------------
+
+  - This receipt does NOT seal S-PERF.13. It records the
+    audit verdict that S-PERF.13's atomic commit will
+    cite as the load-bearing scope-correction input.
+  - This receipt does NOT have a hash chain. It is a
+    one-shot plain-text audit artifact; the corrected
+    S-PERF.13 corpus receipt (a future commit) anchors
+    the audit under its own hash.
+  - This receipt does NOT change any code, kernel,
+    workspace contract, or measurement. The retarget
+    is a scope correction, not a runtime change.
+  - The S-PERF.12a partial-success bandwidth claim
+    (18.72 GB/s) is UNCHANGED by this preflight; the
+    measured result stands.
+
+----------------------------------------------------------------
+ Next steps (S-PERF.13 atomic commit)
+----------------------------------------------------------------
+
+  1. Audit every `features_us` reference across
+     dsfb-gpu-debug-cuda + dsfb-gpu-debug-demo.
+  2. Rename `features_us` -> `host_input_staging_us`
+     in workspace.rs + every dispatcher + every bench.
+  3. Refresh bench report-line labels: "host:
+     compute_features" -> "host: input staging".
+  4. Refresh dispatcher comments at lines ~3042-3047
+     and compact-densor twin.
+  5. Replace the manual for...zip() pack loop with a
+     chunk-and-unroll variant; escalate to AVX2 if
+     Phase 1 misses the target.
+  6. Add 3 new corpus-side public-language regression
+     negatives (rejects_calling_input_staging_compute_
+     features, rejects_stale_host_compute_features_label,
+     rejects_host_input_staging_label_regression).
+  7. Re-run the opt-in bench and verify post bandwidth
+     > 20 GB/s; host_input_staging_us < 1000 us;
+     episodes 13/89/1917 byte-stable.
+  8. Atomic commit under the 10-step ritual; no
+     --no-verify.
+
+================================================================

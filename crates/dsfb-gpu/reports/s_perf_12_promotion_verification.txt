@@ -1,0 +1,93 @@
+S-PERF.12 promotion-seal verification
+=====================================
+
+CLI verifier output (admit-mode):
+
+  $ dsfb-corpus s-perf-12-promotion
+  → exit 0, full receipt printed (text)
+  → seeded from disk: S-PERF.11 + S-PERF.11.1 + corpus_hash_v1 anchors live
+
+Acceptance suite:
+
+  $ cargo test -p dsfb-gpu-atlas-corpus --test \
+      s_perf_12_compact_densor_digest_v1_promotion_invariants
+  test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured.
+
+Verifier rule coverage (12 panel-locked + 11 structural / determinism /
+render / sensitivity):
+
+| rule kind                                                     | result |
+|---------------------------------------------------------------|--------|
+| PromotionSealWhenBandwidthBelowGate (CAMPAIGN IDENTITY)       | PASS   |
+| PromotionSealWithSaturationClaim                              | PASS   |
+| PromotionSealWithTreeSha256V1AliasingClaim                    | PASS   |
+| PromotionSealWithR12bEpisodeDrift                             | PASS   |
+| PromotionSealWithoutSPerf11Anchor                             | PASS   |
+| PromotionSealWithoutSPerf11_1Anchor                           | PASS   |
+| PromotionSealWithoutAuditModeUnchangedFlag                    | PASS   |
+| PromotionSealWithoutCompactDensorDigestV1ModeIdentity         | PASS   |
+| ReportIdEmpty                                                 | PASS   |
+| CorpusHashMissing                                             | PASS   |
+| PromotionGateValueDrifted                                     | PASS   |
+| PromotionGatePassedArithmeticMismatch                         | PASS   |
+
+Bandwidth-pin cross-checks (8 panel-required positives):
+
+| pin                                                             | value  |
+|-----------------------------------------------------------------|-------:|
+| PRE_S_PERF_11_BANDWIDTH_CENTI_GBPS                              | 1333   |
+| POST_S_PERF_11_BANDWIDTH_CENTI_GBPS                             | 1638   |
+| S_PERF_12A_CANDIDATE_BANDWIDTH_CENTI_GBPS                       | 1872   |
+| POST_S_PERF_14C_BANDWIDTH_BAND_MIN_CENTI_GBPS                   | 2002   |
+| POST_S_PERF_14C_BANDWIDTH_BAND_MEDIAN_CENTI_GBPS                | 2016   |
+| POST_S_PERF_14C_BANDWIDTH_BAND_MAX_CENTI_GBPS                   | 2122   |
+| S_PERF_12_PROMOTION_GATE_CENTI_GBPS                             | 2000   |
+| promotion_gate_passed (band_min > gate)                         | true   |
+
+R.12b episode-pin cross-checks (preserved end-to-end):
+
+| pin                                              | value  |
+|--------------------------------------------------|-------:|
+| R12B_EPISODE_COUNT_CANONICAL_W16H128             |    13  |
+| R12B_EPISODE_COUNT_MID_W64H512                   |    89  |
+| R12B_EPISODE_COUNT_FULL_W256H4096                |  1917  |
+
+Digest-mode-discipline cross-checks:
+
+| field                                | value                       |
+|--------------------------------------|-----------------------------|
+| digest_mode_wire_name                | "CompactDensorDigestV1"     |
+| tree_sha256v1_root_aliasing          | false                        |
+| audit_mode_unchanged                 | true                         |
+| saturation_admitted                  | false                        |
+
+Hash determinism + sensitivity:
+
+| test                                                  | result |
+|-------------------------------------------------------|--------|
+| hashes_are_deterministic_across_two_seeds             | PASS   |
+| changing_post_s_perf_14c_band_min_changes_fields_hash | PASS   |
+| changing_digest_mode_wire_name_changes_fields_hash    | PASS   |
+| changing_audit_mode_unchanged_flag_changes_fields_hash| PASS   |
+| changing_any_anchor_changes_report_hash               | PASS   |
+| changing_commit_sha_provenance_changes_report_hash    | PASS   |
+
+Render byte-stability:
+
+| renderer                                | result |
+|-----------------------------------------|--------|
+| text_renderer_is_byte_stable            | PASS   |
+| json_renderer_is_byte_stable            | PASS   |
+| text_renderer_contains_panel_pinned_summary | PASS   |
+
+Live-disk seed (load-bearing back-stop):
+
+  seeds_from_disk_against_live_pinned_reports         : PASS
+  - reads reports/d64_stage_timing_256x4096_K1.txt (S-PERF.11 source report
+    pinned at S-PERF.6 commit)
+  - reads reports/d64_stage_timing_256x4096_K1_post_s_perf_11_triage.txt
+    (S-PERF.11.1 triage source report)
+  - computes corpus_hash_v1 live
+  - seeded report admits (zero verifier errors)
+  - all 3 anchor hashes non-zero
+  - top-level META hash non-zero

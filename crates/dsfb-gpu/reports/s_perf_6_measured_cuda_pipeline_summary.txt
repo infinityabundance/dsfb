@@ -1,0 +1,117 @@
+S-PERF.6 --- RTX 4080 SUPER measured CUDA pipeline baseline (summary)
+=====================================================================
+
+Campaign identity
+-----------------
+
+S-PERF.6 records the measured RTX 4080 SUPER CUDA pipeline result as
+a real bandwidth receipt. The corpus crate parses no CUDA itself; the
+measurement is captured by `dsfb-gpu-debug-cuda`'s existing D64
+throughput-pinned-async stage profiler
+(`tests/r9_c_d64_stage_profile.rs::r9_c_d64_stage_profile_256x4096_k1`)
+and written to `reports/d64_stage_timing_256x4096_K1.txt`. The
+S-PERF.6 receipt mirrors the values from that on-disk bench output.
+
+Live bench output (RTX 4080 SUPER, CUDA 13.2, D64 256x4096 K=1,
+median of 3 iters post-warmup)
+------------------------------
+
+  Hardware                : RTX 4080 SUPER
+  CUDA version            : 13.2
+  Theoretical peak        : 716 GB/s (vendor datasheet)
+  Measured wide bandwidth : 13.33 GB/s (1333 centi-GB/s)
+  Percent of peak         : 186 bp / 1.86 % (FLOOR rounding)
+  Saturation threshold    : 8000 bp / 80.00 %
+  Saturation admitted     : false
+
+Stage breakdown (microseconds)
+------------------------------
+
+  Host wall median (incl. host segments) : 30020 us
+  Device-side total                      : 20771 us
+
+  consensus_grid_kernel_wide  :   382 us
+  tree_digest consensus       :  4338 us (20.88 %)  <-- dominant device stage
+  host compute_features       :  7525 us            <-- host segment (NOT Layer-A)
+  host bank admit + finalize  :  2237 us            <-- host segment (NOT Layer-A)
+
+R.12b episode-count integrity pins (panel-locked)
+-------------------------------------------------
+
+  canonical 16x128 : 13   (unchanged from R.12b baseline)
+  mid       64x512 : 89   (unchanged from R.12b baseline)
+  full     256x4096: 1917 (unchanged from R.12b baseline)
+
+Three own-namespace hashes (none folded upstream)
+-------------------------------------------------
+
+  rtx4080_super_measured_cuda_pipeline_hash_v1
+    = a5b58bc8744c93bffe4c10b930c741809053483244823e01dd872f9e9a1f21f2
+    domain: DSFB-GPU-ATLAS:S-PERF-6-MEASURED-CUDA-PIPELINE:v1\0
+
+  rtx4080_super_measured_bandwidth_claim_hash_v1
+    = 4fdf8699798db9db150e2cef40090e418907974667983794fb5dfe50e21cbab
+    domain: DSFB-GPU-ATLAS:S-PERF-6-MEASURED-BANDWIDTH-CLAIM:v1\0
+
+  rtx4080_super_measured_baseline_report_hash_v1
+    = d44c9ec5447f05fb6c40567dcb56502c17c14f00ad100f81d30900c1c15a1533
+    domain: DSFB-GPU-ATLAS:S-PERF-6-MEASURED-BASELINE-REPORT:v1\0
+
+Panel-locked report sentence
+----------------------------
+
+The RTX 4080 SUPER measured CUDA pipeline baseline reports 13.33
+GB/s, approximately 1.86 % of the declared 716 GB/s theoretical
+memory-bandwidth anchor. This is an admissible measured CUDA
+pipeline bandwidth result, not a saturation claim.
+
+Panel-locked bottleneck sentence
+--------------------------------
+
+The profile does not indicate memory-bandwidth saturation. The
+measured path is dominated by pipeline structure including
+tree_digest consensus and host-side feature / admission /
+finalization segments.
+
+Panel-locked non-claims (must hold)
+-----------------------------------
+
+S-PERF.6 does NOT:
+
+  - claim memory-bandwidth saturation (186 bp << 8000 bp threshold);
+  - claim B300 / GB300 performance;
+  - claim production CUDA performance;
+  - claim Layer-A purity (host segments honestly disclosed);
+  - generate new detector results;
+  - change any CUDA kernel;
+  - change any court decision;
+  - mutate any upstream hash anchor;
+  - alter `SEED.len()` (stays at 54);
+  - emit detector outputs or episodes;
+  - decide contraindications or challenges;
+  - modify the registry crate;
+  - download any dataset bytes;
+  - rebaseline the R.12b D64 saturation pinned baseline.
+
+One-line verdict
+----------------
+
+S-PERF.6 measures 13.33 GB/s on the RTX 4080 SUPER. That is 1.86 %
+of the 716 GB/s vendor-datasheet peak, not saturation.
+
+CLI surface
+-----------
+
+  dsfb-corpus s-perf-6-measurement      [--json] [--out PATH]
+  dsfb-corpus s-perf-6-claim            [--json] [--out PATH]
+  dsfb-corpus s-perf-6-baseline         [--json] [--out PATH]
+  dsfb-corpus s-perf-6-receipts-emit    [--out-dir DIR]
+
+Bulk-emit artifacts
+-------------------
+
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_6_measured_cuda_pipeline_v1.{txt,json}
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_6_measured_bandwidth_claim_v1.{txt,json}
+  crates/dsfb-gpu-atlas-corpus/out/s_perf_6_measured_baseline_report_v1.{txt,json}
+
+All six byte-stable across two consecutive emits.

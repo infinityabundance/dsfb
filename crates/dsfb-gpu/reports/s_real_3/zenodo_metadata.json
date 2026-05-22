@@ -1,0 +1,82 @@
+{
+  "_comment": "Zenodo deposit metadata template for the DSFB-GPU S-REAL.3 publishable bundle. Submit this JSON via the Zenodo REST API or paste-edit into the Zenodo web form when creating the record.",
+
+  "title": "DSFB-GPU S-REAL Audit Gauntlet — 20 Real Public Datasets, 5 Source-Class Families, Byte-Identical Replay",
+
+  "creators": [
+    {
+      "name": "de Beer, Riaan",
+      "orcid": "0009-0006-1155-027X",
+      "affiliation": "Invariant Forge LLC"
+    }
+  ],
+
+  "description": "DSFB-GPU is a deterministic CUDA inference engine for densorial / tekmeric inference on residual evidence streams. This Zenodo deposit packages the S-REAL audit gauntlet: 20 byte-identical-replay-verified deterministic audits over real public datasets across five source-class families (DebuggingSoftwareTelemetry, ObservabilityTraces, TimeSeriesAnomaly, ReliabilityIndustrial, SoftwareDefects). Every fixture is SHA-256-pinned; every projection recipe is byte-deterministic; every audit's final case-file hash is replay-verified on two consecutive dispatches. The deposit does NOT claim domain truth, detector superiority, causality, or commercial redistribution rights for datasets with no upstream license. It is a breadth-and-replayability proof.",
+
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "Apache-2.0",
+  "keywords": [
+    "deterministic inference",
+    "CUDA",
+    "residual evidence",
+    "anomaly detection",
+    "audit replay",
+    "byte-identical replay",
+    "DSFB",
+    "densorial inference"
+  ],
+
+  "version": "S-REAL.3",
+  "publication_date": "2026-05-19",
+
+  "communities": [],
+
+  "related_identifiers": [
+    {
+      "relation": "documents",
+      "identifier": "10.5281/zenodo.20088863",
+      "resource_type": "publication-article",
+      "scheme": "doi",
+      "_note": "DSFB-Debug Structural Detector-Field Residual Semiotics Engine — original prior-art paper for the DSFB lineage."
+    },
+    {
+      "relation": "isDerivedFrom",
+      "identifier": "10.5281/zenodo.6979726",
+      "scheme": "doi",
+      "_note": "TADBench TrainTicket microservice anomaly corpus (Steidl 2022). Four fixtures derived (F11, F04, F19, F11b)."
+    },
+    {
+      "relation": "isDerivedFrom",
+      "identifier": "10.5281/zenodo.14257989",
+      "scheme": "doi",
+      "_note": "LO2: Microservice Dataset of Logs and Metrics (Bakhtin et al. 2025). One fixture derived."
+    },
+    {
+      "relation": "isDerivedFrom",
+      "identifier": "10.13012/B2IDB-6738796_V1",
+      "scheme": "doi",
+      "_note": "Illinois SocialNetwork (DeathStarBench). One fixture derived."
+    }
+  ],
+
+  "bundle_summary": {
+    "total_datasets": 20,
+    "total_source_class_families": 5,
+    "total_admitted_episodes": 316,
+    "byte_identical_replay_verified_count": 20,
+    "manifest_file": "bundle_manifest.toml",
+    "hash_chain_file": "bundle_hash_chain.txt",
+    "hash_chain_sha256": "42a4e234645bcdea3b3517118a80ca586c59b689572758b4a899dd86633e5bcd",
+    "bundle_manifest_sha256": "9d605f8584c37a88368719f4d74ca827e0a4ead638b692c65f2fa596f7ae5636"
+  },
+
+  "non_claims": [
+    "DSFB-GPU does not assert which admitted episodes correspond to real-world anomalies, faults, defects, or causal events. The audit reports structural residual evidence only.",
+    "DSFB-GPU does not claim detector superiority over any other anomaly-detection method. The admitted-episode counts are structural evidence, not benchmark verdicts.",
+    "For NASA C-MAPSS datasets, DSFB-GPU does not predict remaining useful life. It deterministically projects a public run-to-failure trajectory into a residual evidence stream and emits replayable structural episodes whose timing and motif distribution are consistent with degradation-shaped dynamics.",
+    "For software-defect datasets, DSFB-GPU does not classify bug severity. Patch line counts and CK metrics are projection inputs; the audit reports structural outliers, not defect predictions.",
+    "Datasets tagged 'no-upstream-license' are redistributed under academic research-use convention. No commercial-redistribution right is asserted.",
+    "Byte-identical replay is asserted only for the recorded toolchain (RTX 4080 SUPER, CUDA 13.2). Cross-driver / cross-CUDA / cross-hardware byte-identity is not claimed."
+  ]
+}

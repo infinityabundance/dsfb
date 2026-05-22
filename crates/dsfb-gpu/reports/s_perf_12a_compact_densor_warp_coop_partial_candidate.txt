@@ -1,0 +1,283 @@
+=== S-PERF.12a — CompactDensorDigestV1 warp-cooperative candidate (PARTIAL SUCCESS) ===
+
+Status            : PARTIAL SUCCESS (panel verdict 2026-05-18)
+Receipt identity  : S-PERF.12a — not full S-PERF.12 completion.
+Hardware          : RTX 4080 SUPER, CUDA 13.2
+Fixture           : canonical 256x4096 K=1 D64
+Date              : 2026-05-18
+Source report     : reports/d64_stage_timing_256x4096_K1_post_s_perf_12_compact_densor.txt
+
+=== Panel-locked one-line verdict (verbatim) ===
+
+> S-PERF.12a preserves a real measured gain without weakening the S-PERF.12
+> completion gate. CompactDensorDigestV1 warp-cooperative fold moves the
+> scoreboard from 16.38 to 18.72 GB/s, but remains below the >20 GB/s
+> threshold; therefore it is retained as measured throughput infrastructure
+> and the next strike proceeds to S-PERF.13 device-side compute_features.
+
+=== Panel-locked thesis (verbatim) ===
+
+> S-PERF.12a records a measured CompactDensorDigestV1 warp-cooperative fold
+> candidate. It improves the S-PERF.11 scoreboard from 16.38 to 18.72 GB/s
+> (+14.3%) and reduces digest cost, but does not clear the predeclared
+> >20 GB/s S-PERF.12 completion gate. Therefore it is retained as an
+> admissible partial-success measurement and carried forward as
+> infrastructure for later throughput mode work, while the next strike
+> moves to S-PERF.13 device-side compute_features.
+
+=== Receipt fields (panel-locked) ===
+
+pre_bandwidth_gbps              = 16.38       (S-PERF.11 pinned at `3e67cb4`)
+post_bandwidth_gbps             = 18.72       (steady-state median, 5 runs)
+bandwidth_delta_gbps            = +2.34
+bandwidth_delta_percent         = +14.3%
+
+pre_digest_total_us             = 8556        (S-PERF.11 pinned)
+post_digest_total_us            = ~6300       (~6,095 us live; tolerance band)
+digest_delta_us                 = ~-2256
+digest_speedup_x                = ~1.36
+
+completion_gate_gbps            = 20.00
+completion_gate_passed          = false       (18.72 < 20.00)
+
+episodes_canonical_w16h128      = 13
+episodes_mid_w64h512            = 89
+episodes_full_w256h4096         = 1917
+r12b_episodes_byte_stable       = true        (pinned baseline preserved)
+
+cuda_error_700_observed         = false
+compact_roots_distinct_from_tree_sha256v1 = true
+saturation_admitted             = false
+
+implementation_status           = warp_cooperative_coalesced_fold
+warps_per_block                 = 16
+fold_factor                     = 256         (SHA-256 block-aligned: 4 x 64)
+dyn_shared_memory_bytes_per_block = 33792     (16 warps x 2112 bytes/warp;
+                                              within 48 KiB default sm_89 limit)
+
+=== What S-PERF.12a is NOT (panel-locked non-claims) ===
+
+  * NOT a full S-PERF.12 completion. The predeclared completion gate
+    requires post_bandwidth_gbps > 20.00; 18.72 falls short by ~1.28 GB/s.
+  * NOT a saturation claim. 18.72 GB/s is ~2.6% of the 716 GB/s vendor
+    datasheet peak; saturation requires >= 8000 bp (80%) of peak per
+    S-PERF.1's law.
+  * NOT a rejection of CompactDensorDigestV1 as a viable throughput mode.
+    The warp-cooperative kernel is structurally correct and ready for
+    later recomposition once the host-side critical wall is removed.
+  * NOT a mutation of the S-PERF.11 pinned bandwidth. S-PERF.11's
+    1638 centi-GB/s receipt at `3e67cb4` remains the published Track B
+    headline; S-PERF.12a is a panel-acknowledged measured candidate,
+    not a replacement.
+  * NOT a rebaseline of any prior hash anchor.
+
+=== Trajectory across the S-PERF.12 design pass ===
+
+The panel-locked S-PERF.12 thesis (XOR-fold compact projection beats
+SHA-256 streaming at the canonical chunk geometry) was tested by two
+sequential implementations during this design pass:
+
+--- Variant 1: naive per-thread chunk fold (REJECTED) ---
+
+Geometry  : one thread per chunk; LEAVES_PER_BLOCK = 32 (mirroring
+            S-PERF.11 tree_digest_leaf_kernel_v2).
+Algorithm : each thread reads its own 16,384-byte chunk byte-by-byte
+            and XOR-folds into a per-thread 64-byte compact slot in
+            dynamic shared memory; thread 0 SHA-256s the slot.
+
+Measured  : wide bytes/sec 8.81 / 9.39 GB/s (2 runs, 3-iter median);
+            a ~42% REGRESSION vs S-PERF.11's pinned 16.38 GB/s.
+            Digest total rose from 8,556 us to 16,092 us.
+            R.12b episodes 1917 byte-stable; no CUDA 700;
+            non-aliasing law satisfied. Failed both
+            "beats S-PERF.11" and ">20 GB/s minimum useful" gates.
+
+Root cause: uncoalesced global-memory reads. With 32 threads in a warp
+            each reading bytes from chunks 16,384 bytes apart, every
+            byte read fetches a separate cache line — 32 transactions
+            per byte vs 1 transaction per 32 bytes for coalesced
+            access. The XOR-fold's added per-thread work (16,384
+            reads + 16,384 XORs per chunk) exceeded the SHA-256
+            savings (256 compress blocks -> 1).
+
+Status    : Rejected. Not shipped. Carried in this receipt as a
+            panel-recorded failed-implementation witness.
+
+--- Variant 2: warp-cooperative coalesced fold (S-PERF.12a) ---
+
+Geometry  : one warp (32 threads) per chunk; block dim
+            (WARP_SIZE=32, WARPS_PER_BLOCK=16, 1). Grid
+            (ceil(n_chunks / 16), 1, n_catalogs).
+
+Algorithm :
+  * Phase 0: each lane zeros its own 64-byte private accumulator slot
+    inside dynamic shared memory.
+  * Phase 1: 512 waves at chunk_size=16384. In wave w, lane t reads
+    chunk_ptr[w*32 + t] — COALESCED across the warp (one 128-byte
+    cache line per wave). The byte maps to compact index
+    (w*32 + t) / 256; with FOLD=256, every 32-byte wave fits in
+    ONE compact byte. Each lane XORs its byte into its own private
+    accumulator — no atomics, no shuffles, no cross-lane contention.
+  * Phase 2: parallel cross-lane reduction. Two passes of 32 lanes
+    each cover the 64 compact bytes. Each lane reads 32 source bytes
+    (one per lane's accumulator) and XORs them into its compact byte.
+    No shuffles, no atomics; XOR is order-independent.
+  * Phase 3: lane 0 SHA-256s the 64-byte compact slot into the
+    per-chunk leaf digest. Other lanes idle.
+
+Per-warp dynamic shared memory:
+    32 lanes x 64 bytes (lane locals) + 64 bytes (compact slot)
+    = 2112 bytes.
+Per-block: 16 x 2112 = 33,792 bytes (within 48 KiB default sm_89
+    limit; no opt-in needed).
+
+Measured  : steady-state median 18.72 GB/s across 5 runs (cold-start
+            outlier 12.78 excluded). Detail: 17.57 / 18.81 / 18.66
+            (restoration verification, 3 runs) plus 18.48 / 18.60 /
+            18.84 / 18.86 / 18.86 (initial 5-run stability check).
+
+Status    : PARTIAL SUCCESS. Beats S-PERF.11 (+14.3%); reduces
+            digest_total by ~26%; fully correct; satisfies every
+            S-PERF.12 gate EXCEPT the >20 GB/s minimum useful gate.
+            Recorded as S-PERF.12a candidate, NOT sealed as full
+            S-PERF.12 completion.
+
+Shipped infrastructure (this commit):
+  * cuda/kernels.cu — `compact_densor_digest_v1_leaf_kernel` +
+    `compact_densor_digest_v1_root_kernel` + canonical header
+    `DSFB_STAGE_COMPACT_DENSOR_V1` (28 bytes) + constant
+    `COMPACT_DENSOR_DIGEST_V1_FOLD_FACTOR = 256u`.
+  * crates/dsfb-gpu-debug-cuda/src/ffi.rs — extended D64 throughput
+    FFI signature with `digest_mode_id: i32` (0 = TreeSha256V1
+    default, 1 = CompactDensorDigestV1).
+  * crates/dsfb-gpu-debug-cuda/src/dispatch.rs —
+    `build_gpu_throughput_pinned_async_on_workspace_d64_compact_densor_compact_timed`
+    (~225 lines; near-clone of the TreeSha256V1 path with
+    `digest_mode_id = 1`).
+  * crates/dsfb-gpu-debug-cuda/src/lib.rs — re-export of the new
+    dispatcher.
+  * crates/dsfb-gpu-debug-demo/tests/s_perf_12_d64_compact_densor_stage_profile.rs
+    — CUDA-gated bench test (7-iter median + 3-iter warm-up) that
+    writes `reports/d64_stage_timing_256x4096_K1_post_s_perf_12_compact_densor.txt`.
+
+=== Panel-locked completion-gate check ===
+
+condition                                                  required    measured   pass
+---------------------------------------------------------- --------- ---------- ------
+beats S-PERF.11 (post_bandwidth_gbps > 16.38)              > 16.38     18.72     yes
+digest_total reduced (post_digest_total_us < 8556)         < 8556      ~6300     yes
+R.12b episodes 13 / 89 / 1917 byte-stable                  exact       1917      yes
+CompactDensorDigestV1 roots distinct from TreeSha256V1     distinct    distinct  yes
+no CUDA error 700                                          no error    no error  yes
+no saturation claim                                        n/a         n/a       yes
+**post_bandwidth_gbps > 20.00 (minimum useful gate)**      **> 20**    **18.72** **no**
+
+Six of seven gates cleared. The >20 GB/s minimum useful gate was
+missed by ~1.28 GB/s. Panel verdict: PARTIAL SUCCESS, not full
+completion.
+
+=== Panel-required verifier rules (for future receipt module) ===
+
+When the corpus-side receipt module
+`s_perf_12a_compact_densor_warp_coop_partial_candidate.rs`
+lands, it must enforce these five panel-locked verifier rules
+(verbatim from the panel directive):
+
+  rejects_calling_partial_candidate_full_s_perf_12_completion
+    — any caller, prose, or report that names this receipt as a
+    full S-PERF.12 completion (rather than the S-PERF.12a partial
+    candidate) is rejected. Forbidden phrases include
+    "S-PERF.12 completed", "S-PERF.12 sealed", "S-PERF.12
+    delivered". Required phrases include "S-PERF.12a partial",
+    "warp-cooperative candidate", "deferred-gate".
+
+  rejects_dropping_18_72_gbps_measurement
+    — any caller or receipt that fails to record the 18.72 GB/s
+    measurement (with the +2.34 / +14.3% delta) is rejected. The
+    measured gain must NOT be erased.
+
+  rejects_bandwidth_regression_claim_when_post_exceeds_pre
+    — any narrative that frames this receipt as a "bandwidth
+    regression" or "failed result" when post_bandwidth_gbps
+    strictly exceeds pre_bandwidth_gbps is rejected.
+
+  rejects_completion_gate_pass_when_below_20_gbps
+    — any report that flips `completion_gate_passed` to true
+    when post_bandwidth_gbps < 20.00 is rejected. The gate is
+    strict.
+
+  rejects_missing_next_strike_recommendation
+    — any receipt that omits the `next_strike_recommendation`
+    field (must point at S-PERF.13 device-side compute_features
+    per the structural diagnosis below) is rejected.
+
+The full corpus-side receipt module (with three new own-namespace
+hashes mirroring S-PERF.11's structure: a measurement hash, a
+root-non-aliasing hash, and a top-level META-hash binding both
+plus the S-PERF.11 + S-PERF.11.1 anchors) lands as a follow-on
+commit; the kernel infrastructure shipped here is the
+prerequisite.
+
+=== Structural diagnosis: why 20 GB/s requires S-PERF.13, not more digest work ===
+
+Full-scale stage breakdown at WPB=16, post-warm-up median:
+
+  h2d (WindowFeature[] H2D)             2.5 ms
+  host compute_features                 7.1 ms   <- dominant wall (S-PERF.13 lever)
+  detector_motif_kernel_wide_d64        2.7 ms
+  4x compact_densor digest stages       6.3 ms   <- S-PERF.12a reduction
+  drift_slew_sign / consensus /
+    candidate_collapse / axis5_grid     2.7 ms
+  host bank admit + case finalize       2.2 ms
+                                       ------
+  total host wall                      ~23.5 ms  ->  18.72 GB/s
+
+A hypothetical zero-cost digest (digest_total -> 0) would bring wall
+to ~17.2 ms = ~25.6 GB/s. S-PERF.12a already extracted ~26% of
+digest cost (8.6 -> 6.3 ms = -2.3 ms), which is most of the
+digest-side headroom available at this geometry. Further digest
+optimization yields diminishing returns.
+
+The dominant non-digest wall segment is host compute_features at
+~7.1 ms. Eliminating it (replacing with a device-side
+deterministic kernel under S-PERF.13) alone brings wall to
+~16.4 ms = ~26.8 GB/s, clearing the >20 GB/s gate without
+touching the digest path. S-PERF.13 is the panel-locked next
+strike (gate-3 lever per the saturation ladder).
+
+After S-PERF.13 lands, S-PERF.12a's infrastructure can be
+re-measured against the new post-S-PERF.13 stage breakdown; if
+digest still represents a measurable share of device_total, the
+S-PERF.12a warp-cooperative kernel can be re-evaluated against a
+revised completion gate.
+
+next_strike_recommendation       = SPerf13DeviceSideComputeFeatures
+next_strike_target_bandwidth_gbps = 25.00     (panel-projected
+                                              under zero-cost
+                                              compute_features)
+
+=== Hash posture (UNCHANGED) ===
+
+S-PERF.12a ships ZERO hash mutations to prior anchors. The
+repository state at this commit preserves:
+
+  * corpus_hash_v1, corpus_hash_v2 byte-identical.
+  * Every T.11 / T.12.x / FF.x / S1.3.x / T.12.PROV hash byte-identical.
+  * Every S-PERF.1-S-PERF.11.1 hash byte-identical.
+  * Every DetectorPassport hash unchanged.
+  * SEED.len() = 54 unchanged.
+  * R.12b episodes 13 / 89 / 1917 byte-stable; pinned R.12b
+    baseline NOT rebaselined.
+  * S-PERF.11 pinned post-rewrite bandwidth (1638 centi-GB/s) at
+    `3e67cb4` REMAINS the published Track B headline. S-PERF.12a's
+    1872 centi-GB/s measurement is a panel-acknowledged
+    partial-success candidate; it does NOT replace the headline.
+
+The kernel infrastructure (compact_densor_digest_v1_leaf_kernel,
+root_kernel, dispatcher, FFI extension) is NEW code in the working
+tree; it ships under this commit but introduces no own-namespace
+S-PERF.12a hash anchor at this revision. The follow-on corpus
+receipt module will introduce three S-PERF.12a hashes mirroring
+the S-PERF.11 structure.
+
+=== End of S-PERF.12a partial-candidate receipt ===

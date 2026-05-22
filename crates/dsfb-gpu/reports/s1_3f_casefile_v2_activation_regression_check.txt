@@ -1,0 +1,176 @@
+S1.3f — Regression Check (10-step ritual)
+==========================================
+
+Per-section discipline ritual outcome for the S1.3f seal.
+
+----------------------------------------------------------------
+Step 1: cargo fmt --all --check
+----------------------------------------------------------------
+
+  Outcome: CLEAN (no formatting drift after `cargo fmt --all`)
+
+----------------------------------------------------------------
+Step 2: cargo clippy --workspace --all-targets --features cuda
+                     -- -D warnings
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+  Lints addressed during execution:
+    - clippy::too_many_arguments  (verify_s1_3f takes 9 args;
+                                    each is a panel-locked
+                                    input the chain MUST
+                                    cross-check against; added
+                                    `#[allow(...)]` with a
+                                    WHY-comment)
+    - clippy::too_many_lines      (verify_s1_3f exceeds the
+                                    100-line cap; same reasoning,
+                                    keeps panel-rule numbering
+                                    contiguous;
+                                    render_authority_chain_text
+                                    same posture, all three
+                                    sections rendered in canonical
+                                    order)
+    - clippy::zero_sized_map_values (removed a dead-code
+                                    `BTreeMap<u32, ()>` helper;
+                                    swapped the BTreeMap import
+                                    for the actually-used
+                                    BTreeSet)
+    - clippy::no_effect            (replaced the `_registry_hash`
+                                    let-binding with a
+                                    `debug_assert!` that
+                                    documents the registry-hash
+                                    contract this binding pins)
+    - clippy::uninlined_format_args (inlined the test-only
+                                    assertion message
+                                    interpolation)
+
+----------------------------------------------------------------
+Step 3: bash scripts/scrub.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN (scrub: clean)
+
+----------------------------------------------------------------
+Step 4: bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN (no stale TODO/FIXME/XXX markers, docs build)
+
+----------------------------------------------------------------
+Step 5: cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+
+  Outcome: 51 groups / 1903 tests PASS
+  Delta vs S1.3e: +1 group / +55 tests
+
+----------------------------------------------------------------
+Step 6: cargo test --workspace --features cuda --
+                   --test-threads=1
+----------------------------------------------------------------
+
+  Outcome: 90 groups / 2218 tests PASS
+  Delta vs S1.3e: +1 group / +55 tests
+
+----------------------------------------------------------------
+Step 7: R.12b D64 saturation byte-stability check
+----------------------------------------------------------------
+
+  Pre-run backup:
+    reports/r12_d64_saturation.txt
+    reports/d64_stage_timing_256x4096_K1.txt
+    reports/r9_b3_d64_timing.txt
+    reports/r9_b_d64_timing.txt
+   → backed up to /tmp/s13f_backup/ before workspace serial.
+
+  Post-run restoration: byte-identical to backup
+                        (`diff -q` clean).
+
+  Episodes: 13 / 89 / 1917 (byte-stable, unchanged).
+  Pinned R.12b baseline: NOT REBASELINED.
+
+----------------------------------------------------------------
+Step 8: Stale-doc grep scan
+----------------------------------------------------------------
+
+  README front-door title updated:
+    T.1–S1.3e, S1.3a–S1.3e  →  T.1–S1.3f, S1.3a–S1.3f
+
+  README test-count line refreshed:
+    1848 acceptance tests / 50 groups
+    → 1903 acceptance tests / 51 groups
+
+  README paper-section anchor refreshed.
+
+  README Layout block (corpus crate) extended with S1.3f
+  one-liner descriptor.
+
+  README new ## S1.3f section inserted between S1.3e and the
+  scaling-ladder header.
+
+  archived prior-art manuscript source:
+    - lead sentence extended with S1.3f clause
+    - \paragraph{What is landed} enumeration includes S1.3f
+    - new \item \textbf{S1.3f} bullet appended at the end of
+      the Atlas Continuation itemize
+
+  src/lib.rs:
+    - "Current state through S1.3e" → "Current state through S1.3f"
+    - new S1.3f enumeration bullet inserted between S1.3e and CLI
+    - CLI list extended with the 4 new S1.3f subcommands
+
+----------------------------------------------------------------
+Step 9: Atomic commit under the 10-step ritual
+----------------------------------------------------------------
+
+  Pre-commit hook: fmt + clippy + scrub + docs_freshness gates
+  pass; no `--no-verify`.
+
+----------------------------------------------------------------
+Step 10: Plan-file Quick Start rotation + memory file +
+          MEMORY.md index entry
+----------------------------------------------------------------
+
+  Plan-file Quick Start: Current state → S1.3f at the new
+                          commit hash; Prior current state →
+                          S1.3e; Active campaign (next) →
+                          S1.3g OTelBindingReceiptTypes (per
+                          the post-T.11h locked next-arc
+                          sequence: OTel receipt-only mapping
+                          from spans / metrics / logs /
+                          resources into EvidenceDensor fields).
+
+  New memory file: project_s1_3f_casefile_v2_activation.md.
+  MEMORY.md: extended with the S1.3f one-line hook.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                               : 35c276c7... (UNCHANGED)
+  corpus_hash_v2                               : f1d132eb... (UNCHANGED)
+  ff1_passport_index_hash_v1                   : 1ad2dc2d... (UNCHANGED)
+  ff2_activation_ratification_gate_hash_v1     : 05c1b552... (UNCHANGED)
+  ff3_registry_generation_gate_hash_v1         : 2ffd0222... (UNCHANGED)
+  ff4_readme_authority_boundary_policy_hash_v1 : 22b9dcb5... (UNCHANGED)
+  proposal_schema_upgrade_policy_hash_v1       : 94e00ab1... (UNCHANGED)
+  budget_pruning_plan_hash_v1                  : 82be2289... (UNCHANGED)
+  budgeted_activation_summary_hash_v1          : 5feab238... (UNCHANGED)
+  kernel_plan_hash_v1                          : e48c89b9... (UNCHANGED)
+  kernel_family_schedule_hash_v1               : 8a58d3bc... (UNCHANGED)
+  kernel_parameter_table_hash_v1               : 6b27dcbe... (UNCHANGED)
+  detector_contraindication_hash_v1            : 1b899f5d... (UNCHANGED)
+  challenge_docket_hash_v1                     : dde4ecb4... (UNCHANGED)
+  coverage_hole_hash_v1                        : 671e2164... (UNCHANGED)
+  activation_plan_hash_v1                      : 5a81da47... (UNCHANGED)
+  activation_context_hash_v1                   : 4948bf45... (UNCHANGED)
+  SEED.len()                                   : 54         (UNCHANGED)
+
+  NEW own-namespace hashes:
+  casefile_v2_activation_binding_hash_v1       : fac45fea...
+  casefile_v2_kernel_plan_binding_hash_v1      : 5df9541c...
+  casefile_v2_authority_chain_hash_v1          : 52398079...
+
+R.12b episodes 13/89/1917 byte-stable; pinned baseline NOT
+rebaselined. Every prior T.11 / S1.3 / T.12.x / FF.x / S1.3d /
+S1.3e hash byte-identical.

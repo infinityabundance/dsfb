@@ -1,0 +1,177 @@
+S1.3d Budget Pruning + Redundancy Suppression — Summary Receipt
+================================================================
+
+Panel verdict: post-FF.5 panel directive (2026-05-16). Sealed
+under the 10-step per-section discipline ritual.
+
+Commit identity (panel-locked):
+
+    S1.3d turns the eligible, ratified, passported detector
+    surface into a budget-aware deployment plan by applying
+    deterministic budget pruning and redundancy suppression.
+
+Panel-locked verdict (verbatim):
+
+    Eligibility is not activation; activation is not budget
+    admission. Budget exclusion must be explicit, reason-coded,
+    and replayable.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+S1.3d is the budget pruning + redundancy suppression layer
+above S1.3a + FF.2 + FF.3. It consumes the FF.3-eligible
+detector surface (152 ratified candidates at S1.3d baseline =
+54 SEED + 98 T12-passported) plus a declared TaskBudget
+envelope plus an explicit set of RedundancyCluster
+declarations; emits per-candidate S13dBudgetDecision records.
+
+Each decision carries either:
+
+  - an Active outcome with a RetainedAsBudgetSurvivor or
+    RetainedAsRepresentativeWitness retain reason, OR
+  - a Disabled outcome with one of eight reason-coded budget
+    disable variants:
+      * DisabledByBudget
+      * DisabledByRedundancy
+      * DisabledByGpuFamilyQuota
+      * DisabledByTaskBudget
+      * DisabledByRuntimeBudget
+      * DisabledByMemoryBudget
+      * DisabledByContraindicationBudget
+      * DisabledByCoverageHoleBudget
+
+The reason-code separation is the load-bearing win:
+
+  DisabledByWeakLBand           (S1.3a activation reason)
+  ≠ DisabledUnratifiedProposal  (FF.2 activation reason)
+  ≠ RejectedUnratifiedProposal  (FF.3 registry rejection)
+  ≠ DisabledByBudget            (S1.3d budget pruning)
+  ≠ DisabledByRedundancy        (S1.3d redundancy suppression)
+
+Five different court failures the operator must be able to
+distinguish.
+
+----------------------------------------------------------------
+Default production state (S1.3d baseline)
+----------------------------------------------------------------
+
+The default task budget is panel-permissive:
+
+  max_active_detectors                 : 10_000
+  max_runtime_us                       : u64::MAX
+  max_memory_bytes                     : u64::MAX
+  per_detector_runtime_us              : 1_000
+  per_detector_memory_bytes            : 1_048_576
+  gpu_family_budgets                   : 0 declared
+  reject_open_contraindications        : false
+  reject_open_coverage_holes           : false
+
+Default redundancy cluster set: empty.
+
+Under these conditions every FF.3-eligible candidate flows
+through to Active with RetainedAsBudgetSurvivor:
+
+  active_count                         : 152
+  disabled_count                       : 0
+  total decisions                      : 152
+  tie-break transcript entries         : 0
+
+----------------------------------------------------------------
+Three new own-namespace hash anchors
+----------------------------------------------------------------
+
+  budget_pruning_plan_hash_v1
+    domain : DSFB-GPU-ATLAS:S13D-BUDGET-PRUNING-PLAN:v1\0
+    value  : 82be228982f0a2b203b27d3042c4eb321d5d76fc0e9e169288bf9d6c4fe91b6d
+    binds  : 7 upstream anchors + task budget + 152 sorted
+             decisions + per-reason counts + tie-break transcript
+
+  redundancy_suppression_hash_v1
+    domain : DSFB-GPU-ATLAS:S13D-REDUNDANCY-SUPPRESSION:v1\0
+    value  : 875b5b6024f29393d240f5c6ffac9ca764e362c55b156a1af74b3ab173abc531
+    binds  : cluster declarations + retained representatives
+             + suppression count (empty at S1.3d baseline)
+
+  budgeted_activation_summary_hash_v1
+    domain : DSFB-GPU-ATLAS:S13D-BUDGETED-ACTIVATION-SUMMARY:v1\0
+    value  : 5feab23853db68633a2ca364e15e7359c6db82ddbc0cab667ca9866e871a072f
+    binds  : top-level META-hash over plan + redundancy report
+
+----------------------------------------------------------------
+Pinned upstream anchors (all byte-stable, unchanged)
+----------------------------------------------------------------
+
+  corpus_hash_v1                               : 35c276c7...
+  corpus_hash_v2                               : f1d132eb...
+  ff1_passport_index_hash_v1                   : 1ad2dc2d...
+  ff2_activation_ratification_gate_hash_v1     : 05c1b552...
+  ff3_registry_generation_gate_hash_v1         : 2ffd0222...
+  ff4_readme_authority_boundary_policy_hash_v1 : 22b9dcb5...
+  proposal_schema_upgrade_policy_hash_v1       : 94e00ab1...
+  SEED.len()                                   : 54
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. s13d_rejects_budget_plan_that_uses_ff3_rejected_record
+  2. s13d_rejects_silent_detector_drop_without_suppression_reason
+  3. s13d_rejects_redundancy_suppression_without_surviving_representative
+  4. s13d_rejects_budget_overrun_without_reason_coded_pruning
+  5. s13d_rejects_nondeterministic_tie_break_between_equal_priority_detectors
+  6. s13d_rejects_gpu_family_budget_without_declared_cost_model
+  7. s13d_rejects_pruning_that_mutates_corpus_hash_v1_or_v2
+  8. s13d_rejects_schema_upgrade_side_effect_inside_budget_pruning
+
+Plus 7 structural defect rules (duplicate decisions, decisions
+not sorted ascending, corpus_hash_v1 mismatch, FF.3 gate hash
+mismatch, SEED length mutation, disabled-count mismatch,
+empty cluster member set, empty cluster selection rule),
+8 baseline-state assertions, 8 anchor-hash-pin tests, 9
+determinism + sensitivity invariants, 6 domain-separator +
+schema-id pins, 1 three-namespace-distinctness assertion,
+6 structural-discipline assertions (sorted, unique IDs, every
+decision reason-coded), 6 pressure-bearing budget scenarios
+(max_active_detectors=50, runtime budget, memory budget,
+redundancy cluster suppression, tie-break, representative-
+witness reason), 7 upstream-anchor invariance witnesses, 3
+fully-specified builder tests, 6 renderer-coverage checks.
+
+Total: 80 acceptance tests in `tests/s1_3d_budget_pruning_invariants.rs`.
+
+----------------------------------------------------------------
+Test counts (post-S1.3d)
+----------------------------------------------------------------
+
+Corpus crate    : 48 groups / 1701 tests → 49 groups / 1781 tests
+Workspace serial: 87 groups / 2016 tests → 88 groups / 2096 tests
+
+R.12b D64 saturation: episodes byte-stable (13/89/1917); the
+pinned baseline `reports/r12_d64_saturation.txt` was backed up
+before the workspace serial run and restored byte-identically
+afterward (no rebaseline).
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in README + paper + plan)
+----------------------------------------------------------------
+
+S1.3d does NOT:
+
+  - add new detectors;
+  - alter any upstream hash anchor (corpus_hash_v1,
+    corpus_hash_v2, every FF.1 / FF.2 / FF.3 / FF.4 / FF.5
+    hash unchanged);
+  - rewrite any prior T.11 / S1.3 / T.12.x / FF.x hash;
+  - mutate SEED.len() (stays at 54);
+  - change S1.3a SEED activation decisions, FF.2 ratification
+    decisions, or FF.3 registry-generation eligibility;
+  - generate CUDA kernels;
+  - itself emit KernelPlan records (that is S1.3e);
+  - decide contraindications or challenges;
+  - modify the registry crate.
+
+S1.3d is a deterministic decision layer above the eligibility
+court; the layer's only job is reason-coded budget admission +
+redundancy suppression with replayable tie-break transcripts.

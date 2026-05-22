@@ -1,0 +1,201 @@
+T.12.PROV Scientific Provenance Credit Pass
+       Regression Check — 10-step per-section discipline ritual
+============================================================
+
+----------------------------------------------------------------
+Commit identity (panel-locked)
+----------------------------------------------------------------
+
+T.12.PROV verifies that every T.12.a..T.12.p CanonicalAddition
+preserves visible scientific provenance: named scientist /
+author lineage, SourceRef linkage, contribution note, and
+DSFB-specific non-claim. It does not claim DSFB invented the
+underlying detector families. It records that DSFB-GPU-Atlas
+canonizes, deduplicates, contracts, activates, and maps prior
+detector science into a deterministic evidence court.
+
+Core doctrine:
+
+    DSFB-GPU-Atlas does not erase prior detector science.
+    It preserves named scientific lineage while converting
+    detector primitives into deterministic, replayable
+    witness records.
+
+----------------------------------------------------------------
+Step 1: cargo fmt --all --check
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 2: cargo clippy --workspace --all-targets --features cuda
+                     -- -D warnings
+----------------------------------------------------------------
+
+  Outcome: CLEAN (no new lints; the T.12.PROV module ships
+                  ~1100 lines with the `no-silent-court-logic`
+                  doctrine applied to every pub item and every
+                  private helper)
+
+----------------------------------------------------------------
+Step 3: bash scripts/scrub.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN (scrub: clean)
+
+----------------------------------------------------------------
+Step 4: bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 5: cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+
+  Outcome: 53 groups / 2034 tests PASS
+  Delta vs S1.3g identity commit: +1 group, +65 tests
+    new group: tests/t12_prov_invariants.rs
+    new tests: 65 (8 panel-required negatives + 6 production
+               walk-shape pins + 3 corpus_hash invariance +
+               8 determinism + 3 sensitivity + 3 structural
+               + 3 domain separator + 3 schema id + 2 sort
+               order + 6 reserved-id-band + 6 rendering +
+               misc invariants)
+
+----------------------------------------------------------------
+Step 6: cargo test --workspace --features cuda --
+                   --test-threads=1
+----------------------------------------------------------------
+
+  Outcome: 92 groups / 2349 tests PASS
+  Delta vs S1.3g identity commit: +1 group, +65 tests
+
+  FF.4 live README sweep (`ff4_live_readme_satisfies_policy`)
+  passes after the README T.12.PROV section insertion (the
+  new section was placed AFTER the FF.4 authority-boundary
+  block, preserving every FF.4 required substring and
+  avoiding every FF.4 forbidden substring).
+
+----------------------------------------------------------------
+Step 7: R.12b D64 saturation byte-stability check
+----------------------------------------------------------------
+
+  Pre-run backup: reports/r12_d64_saturation.txt,
+                  reports/d64_stage_timing_256x4096_K1.txt,
+                  reports/r9_b3_d64_timing.txt,
+                  reports/r9_b_d64_timing.txt
+   → backed up to /tmp/t12_prov_backup/ before workspace
+     serial.
+
+  Post-run restoration: byte-identical to backup
+                        (`diff -q` clean).
+
+  Episodes: 13 / 89 / 1917 (byte-stable, unchanged).
+  Pinned R.12b baseline: NOT REBASELINED.
+
+----------------------------------------------------------------
+Step 8: Stale-doc grep scan
+----------------------------------------------------------------
+
+  README:
+    - Inserted "## T.12.PROV — Scientific Provenance Credit
+      Pass (panel-locked, sealed)" section after the
+      densorial / tekmeric + CUDA Evidence Factory front-door
+      identity sections and before the scaling-ladder
+      header.
+
+  archived prior-art manuscript source:
+    - Inserted dedicated `\section{Scientific Provenance
+      Credit Pass}\label{sec:provenance-credit}` after the
+      CUDA Evidence Factory section.
+
+  crates/dsfb-gpu-atlas-corpus/src/lib.rs:
+    - Module decl `pub mod t12_prov_scientific_provenance;`
+      already wired during build.
+    - Crate docstring "Current state through ..." enumeration
+      extended with the T.12.PROV bullet noting the three
+      new own-namespace hashes and the 98 / 133 / 24 / 49
+      walk shape.
+
+  crates/dsfb-gpu-atlas-corpus/src/main.rs:
+    - 4 CLI subcommands wired:
+        t12-prov-report               (text dump)
+        t12-prov-report-emit          (6 artifacts to out/)
+        t12-prov-scientist-credit-index
+        t12-prov-source-bibliography-index
+    - Usage block extended.
+
+----------------------------------------------------------------
+Step 9: Atomic commit under the 10-step ritual
+----------------------------------------------------------------
+
+  Pre-commit hook: fmt + clippy + scrub + docs_freshness
+  gates pass; no `--no-verify`.
+
+----------------------------------------------------------------
+Step 10: Plan-file Quick Start rotation + memory file +
+          MEMORY.md index entry
+----------------------------------------------------------------
+
+  Plan-file Quick Start: Current state → T.12.PROV at the new
+                          commit hash; Prior current state →
+                          densorial / tekmeric + CUDA Evidence
+                          Factory front-door identity commit
+                          at `6dab121`; Active campaign
+                          (next) → S-PERF.1
+                          DeviceTrafficReceiptV1 (post-T.12.PROV
+                          scaling roadmap leg 6).
+
+  New memory file: project_t12_prov_scientific_provenance.md.
+  MEMORY.md: extended with the T.12.PROV one-line hook.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  Every prior court anchor: UNCHANGED.
+  SEED.len()              : 54 (UNCHANGED).
+  Three NEW own-namespace hashes:
+
+    scientist_credit_index_hash_v1
+      = 5a55f0340085505125f1f9ca355d7a0555470da2e1c9b215e8e201417bc9189a
+    source_bibliography_index_hash_v1
+      = 0db6afc6ac68bcbebef68e028b58f84eec938def558a30890b439c25dba9e49a
+    provenance_credit_report_hash_v1
+      = 8b4f0f83dc7c5c0c0b876e5b5003f12e09507348fc3caf7066c84d94d16af961
+
+  All three deterministic across two consecutive builds;
+  pairwise distinct; distinct from every prior corpus / T.11 /
+  T.12.x / T.12.consolidate / FF.x / S1.3.x hash anchor.
+
+R.12b episodes 13/89/1917 byte-stable; pinned baseline NOT
+rebaselined.
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in README + paper)
+----------------------------------------------------------------
+
+T.12.PROV does NOT:
+
+  - claim that DSFB-GPU-Atlas invented any of the detector
+    primitives it canonizes;
+  - mutate any T.12.x / T.12.consolidate / FF.x / S1.3.x
+    hash anchor;
+  - alter SEED.len() (stays at 54);
+  - change S1.3a / FF.2 / FF.3 / S1.3d / S1.3e / S1.3f /
+    S1.3g court decisions;
+  - emit detector outputs, witness records, fusion tensors,
+    candidate intervals, or episodes;
+  - generate CUDA kernels;
+  - decide contraindications or challenges;
+  - modify the registry crate.
+
+T.12.PROV records scientific provenance. It changes
+documentation surface; it does not change court state.
+
+Panel-locked one-line verdict (verbatim):
+
+  The identity commit says what DSFB-GPU is; T.12.PROV
+  makes sure the scientists whose methods became court
+  witnesses are visibly credited.

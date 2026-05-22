@@ -1,0 +1,68 @@
+cff-version: 1.2.0
+message: "If you use DSFB-GPU, please cite the v1.0 Zenodo software record (DOI 10.5281/zenodo.20338027)."
+title: "DSFB-GPU - Clear-Box Pure Deterministic Inference CUDA Acceleration for Replayable Trace-Event Verdicts - A Prior-Art Architecture for non-probabilistic, non-stochastic, non-weighted, GPU-Accelerated Residual Signs, Detector Motifs, Bank-Governed Fusion, and Byte-Exact Case Files Without Probabilistic Models"
+type: software
+version: "1.0"
+date-released: "2026-05-22"
+license: Apache-2.0
+doi: "10.5281/zenodo.20338027"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.20338027"
+    description: "Zenodo concept DOI for the v1.0 deposit of the DSFB-GPU-Debug prior-art paper."
+authors:
+  - family-names: "de Beer"
+    given-names: "Riaan"
+    orcid: "https://orcid.org/0009-0006-1155-027X"
+    affiliation: "Invariant Forge LLC"
+    email: "riaan@invariantforge.net"
+repository-code: "https://github.com/infinityabundance/dsfb"
+url: "https://doi.org/10.5281/zenodo.20338027"
+abstract: >
+  DSFB-GPU is a bounded prior-art proof of clear-box
+  deterministic inference accelerated on GPU hardware. The pipeline
+  maps the seven canonical stages of DSFB debug inference --- residual
+  extraction, drift / slew sign construction, detector motif scoring,
+  consensus grid formation, candidate collapse, bank-governed episode
+  emission, and replayable case-file assembly --- onto fixed-point
+  CUDA kernels and a Rust-resident heuristics bank. The GPU
+  accelerates only the evidence-production stages; the bank retains
+  semantic authority. No neural network is used, no probability
+  distribution is consulted, no learned weight is invoked, no
+  stochastic sample is drawn. The result is not a prediction; it is a
+  replayable verdict case file whose hash chain anchors every
+  intermediate artifact back to the input catalog. The inference mode
+  is named endoduction --- deterministic adjudication of internal
+  evidence-field relations into a replayable structural verdict,
+  distinct from induction, deduction, and abduction.
+keywords:
+  - "deterministic inference"
+  - "pure deterministic inference"
+  - "non-probabilistic"
+  - "non-stochastic"
+  - "non-weighted"
+  - "CUDA"
+  - "evidence court"
+  - "endoduction"
+  - "densor"
+  - "tekmeric inference"
+  - "replayable case file"
+  - "semantic non-bypass"
+  - "fixed-point Q16.16"
+  - "byte-exact replay"
+  - "prior art"
+  - "clear-box artificial inference"
+preferred-citation:
+  type: software
+  title: "DSFB-GPU - Clear-Box Pure Deterministic Inference CUDA Acceleration for Replayable Trace-Event Verdicts - A Prior-Art Architecture for non-probabilistic, non-stochastic, non-weighted, GPU-Accelerated Residual Signs, Detector Motifs, Bank-Governed Fusion, and Byte-Exact Case Files Without Probabilistic Models"
+  authors:
+    - family-names: "de Beer"
+      given-names: "Riaan"
+      orcid: "https://orcid.org/0009-0006-1155-027X"
+      affiliation: "Invariant Forge LLC"
+  year: 2026
+  version: "1.0"
+  publisher:
+    name: "Zenodo"
+  doi: "10.5281/zenodo.20338027"
+  url: "https://doi.org/10.5281/zenodo.20338027"

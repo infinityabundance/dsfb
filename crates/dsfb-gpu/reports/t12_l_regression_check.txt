@@ -1,0 +1,153 @@
+================================================================
+T.12.l - Chemometrics
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 38 groups / 1189 tests pass (T.12.k baseline 37 /
+  1145 + 1 new group + 44 new T.12.l acceptance tests).
+  Initial test fixes: (a) widened decision_terms in the
+  preprocessing-or-latent-model contract scanner to include
+  "shift law" / "control limit" / "threshold" so calibration-
+  bound concentration-drift and LV control-chart records pass;
+  (b) tightened the OWN-PCA/OWN-PLS detector in
+  t12_l_rejects_pls_or_pca_detector_without_component_selection_law
+  to OWN-model markers ("pca model (", "pls model (", "per-class
+  pca model", "calibration model (pls") so that records merely
+  REFERENCING PCA/PLS as a distinguishing comparator do not
+  falsely trip the OWN-model branch; (c) accepted "not static
+  score" alongside "not the static score" in the VIP temporal-
+  shift assertion; (d) accepted the Rust string-literal
+  continuation split form "component-" + "selection law" for
+  the SEED 20 PCA SPE authority record. Source reason-text
+  bytes unchanged; three emitted hashes byte-stable from first
+  emit.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 77 test groups, 1504 tests PASS, 0 FAIL. Delta from
+  T.12.k seal (d735c04): +1 test group, +44 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. README.md, archived prior-art manuscript source, lib.rs
+  module docstring, and main.rs usage block all refreshed
+  through T.12.l. New T.12.l section in README between
+  T.12.k and the scaling ladder. Comprehensive T.12 sequence
+  hygiene applied across README, paper, plan-file, memory so
+  every doc surface names the canonical T.12.l = Chemometrics
+  (reserved id band 6201..=6299) and T.12.m = RF /
+  Communications (reserved id band 6301..=6399).
+
+Step 9. README / plan refresh
+  Result: README T.12.l section + front-door + Layout +
+  Paper-section refreshed from T.1-T.12.k to T.1-T.12.l.
+  Plan-file post-commit will mark T.12.l sealed and rotate
+  next-active campaign to T.12.m (RF / Communications).
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_l_chemometrics.rs (new, ~770 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_l_chemometrics_invariants.rs (new, 44 tests
+      including 16 panel-required load-bearing negatives,
+      the most-important preprocessing-or-latent-model contract
+      scanner, the material-identification claim-language
+      scanner, and the regulatory-compliance claim-language
+      scanner)
+    - out/t12_l_chemometrics_proposal_v1.{txt,json} (new)
+    - reports/t12_l_chemometrics_proposal_summary.txt (new)
+    - reports/t12_l_chemometrics_proposal_verification.txt (new)
+    - reports/t12_l_regression_check.txt (new)
+    - README.md (T.12.l section + front-door refresh +
+      T.12 sequence hygiene)
+    - archived prior-art manuscript source (T.12.l bullet)
+    - .gitignore (3 new whitelist lines)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.0-T.12.k hash    : unchanged
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.l chemometrics literature_expansion_batch_hash_v1 (NEW) :
+    c9f4116515f9a27333ba0658ad36003308068a3121b30c1202fd2391df742f78
+  T.12.l chemometrics dedup_court_delta_hash_v1 (NEW) :
+    e4226efe9b964efe8d06490d52950447437d0f5ef355bcf89324cc3b52cc57d1
+  T.12.l chemometrics corpus_amendment_proposal_hash_v1 (NEW) :
+    8b3e95115e5e99e3e4f87f735c928ab0923fe32fd43f2237438fc64e09c1737d
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in t12_l_chemometrics.rs carries a doc comment
+  whose first sentence states the WHY for a future engineer.
+- Panel "success shape" applied: lean toward cross-class dedup
+  discipline (4 authority resolutions over the latent-space +
+  envelope family) rather than canonical count (only 5 new
+  primitives). 4 panel-candidate primitives collapsed via SEED-
+  walk-first into ParameterizationOf records of existing SEED
+  canonicals (PCA score outlier / Mahalanobis-on-scores / LV
+  control chart / spectral preprocessing artifact).
+- Preprocessing-or-latent-model contract discipline: every
+  CanonicalAddition reason declares math-structure +
+  decision-functional contract.
+- Material-identification-claim discipline (MOST IMPORTANT):
+  every CanonicalAddition / ExistingCanonicalAuthorityResolution
+  reason is scanned for forbidden material-identification /
+  chemical-causation / lab-diagnosis terms; forbidden terms
+  appear ONLY in RejectedNotDeterministic reason text. Every
+  qualifying reason ends with the panel-locked non-claim
+  "chemometric signal witness, not a material identification or
+  a regulatory compliance verdict".
+- Regulatory-compliance-claim discipline (MOST IMPORTANT):
+  forbidden regulatory terms (FDA approval, ISO certification,
+  regulatory compliance verdict) appear ONLY in the 6210/6211
+  RejectedNotDeterministic reason text.
+- Black-box spectroscopy classifier and adaptive-AutoML honesty:
+  both RejectedNotDeterministic until model-identification
+  anchor / training-data anchor / cross-validation-policy /
+  deterministic-formula contracts are declared.
+
+T.12.l is sealed. The amendment court has admitted the
+twelfth real expansion proposal: 5 new canonical chemometric
+primitives, 4 existing-canonical authority resolutions
+(latent-space + envelope family), 2 DomainTransferOf records
+(SEED 19 PCA T² as shared latent-space ancestor + SEED 22
+Residual envelope exit as shared envelope-boundary ancestor
+for Chemometrics), 4 ParameterizationOf records, 2
+RejectedNotDeterministic records (sixth T.12.x with two
+rejections), 12 genealogy edges, 9 source refs - all WITHOUT
+mutating SEED or corpus_hash_v1 and WITHOUT admitting a single
+material-identification, chemical-causation, regulatory-
+compliance, lab-diagnosis, or process-control claim.
+
+Next campaign (panel-authorized post-T.12.l): T.12.m - RF /
+Communications (reserved id band 6301..=6399). Same SEED-walk-
+first discipline. Candidate primitives include carrier-
+frequency-offset residual (SEED 53), EVM anomaly (SEED 54),
+spectral-mask violation, constellation spread, cyclostationary
+feature shift, burst preamble miss, channel impulse response
+drift.

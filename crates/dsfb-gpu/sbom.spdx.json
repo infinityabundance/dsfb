@@ -1,0 +1,74 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "DSFB-GPU-Debug-SBOM",
+  "documentNamespace": "https://github.com/infinityabundance/dsfb/crates/dsfb-gpu/sbom/v0.1",
+  "creationInfo": {
+    "created": "2026-05-21T00:00:00Z",
+    "creators": [
+      "Person: Riaan de Beer (riaan@invariantforge.net)",
+      "Organization: Invariant Forge LLC",
+      "Tool: dsfb-gpu-debug PA.1 prior-art evidence package"
+    ],
+    "licenseListVersion": "3.23"
+  },
+  "documentDescribes": [
+    "SPDXRef-Package-dsfb-gpu-debug"
+  ],
+  "packages": [
+    {
+      "name": "dsfb-gpu-debug",
+      "SPDXID": "SPDXRef-Package-dsfb-gpu-debug",
+      "downloadLocation": "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-gpu",
+      "filesAnalyzed": false,
+      "versionInfo": "0.1",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Copyright (c) 2026 Invariant Forge LLC",
+      "supplier": "Organization: Invariant Forge LLC",
+      "homepage": "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-gpu",
+      "comment": "DSFB-GPU-Debug is a bounded prior-art proof of clear-box deterministic inference accelerated on GPU hardware. Apache-2.0 reference implementation; Background IP belongs to Invariant Forge LLC (Delaware LLC No. 10529072). Commercial deployment requires a separate written license; contact licensing@invariantforge.net.",
+      "primaryPackagePurpose": "SOURCE"
+    },
+    {
+      "name": "dsfb-gpu-debug-paper",
+      "SPDXID": "SPDXRef-Package-dsfb-gpu-debug-paper",
+      "downloadLocation": "https://doi.org/10.5281/zenodo.20338027",
+      "filesAnalyzed": false,
+      "versionInfo": "PAPER.1e",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Copyright (c) 2026 Invariant Forge LLC",
+      "supplier": "Organization: Invariant Forge LLC",
+      "comment": "DSFB-GPU-Debug archived prior-art PDF, 140 pages, SHA-256 9b352c74a0cac631f2d53474e211757ca71d0e2abf490b8b5ef3b4bdf3dac7fa.",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "9b352c74a0cac631f2d53474e211757ca71d0e2abf490b8b5ef3b4bdf3dac7fa"
+        }
+      ],
+      "primaryPackagePurpose": "DOCUMENTATION"
+    },
+    {
+      "name": "dsfb-gpu-debug-bundle",
+      "SPDXID": "SPDXRef-Package-dsfb-gpu-debug-bundle",
+      "downloadLocation": "https://github.com/infinityabundance/dsfb/blob/main/crates/dsfb-gpu/reports/s_real_3/bundle_manifest.toml",
+      "filesAnalyzed": false,
+      "versionInfo": "S-REAL.3 sealed at a8aaa04",
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Copyright (c) 2026 Invariant Forge LLC",
+      "supplier": "Organization: Invariant Forge LLC",
+      "comment": "Sealed S-REAL.3 20-dataset bundle manifest; per-dataset upstream licenses are recorded inside the manifest's license field (CC-BY-4.0, CC0-1.0, MIT, Public-Domain, no-upstream-license).",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "9d605f8584c37a88368719f4d74ca827e0a4ead638b692c65f2fa596f7ae5636"
+        }
+      ],
+      "primaryPackagePurpose": "DATA"
+    }
+  ],
+  "hasExtractedLicensingInfos": []
+}

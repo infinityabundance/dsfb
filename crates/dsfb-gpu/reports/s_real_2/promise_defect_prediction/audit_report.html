@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>S-REAL.1 audit — PROMISE Ant 1.3 CK metrics (Sayyad Shirabad, Menzies)</title>
+<style>
+
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+       margin: 2rem; max-width: 1100px; color: #222; }
+h1 { border-bottom: 2px solid #444; padding-bottom: .25rem; }
+h2 { margin-top: 2rem; border-bottom: 1px solid #aaa; padding-bottom: .15rem; }
+h3 { margin-top: 1.25rem; color: #444; }
+p.subhead { color: #555; font-size: .95rem; margin-top: -.25rem; }
+p.note { color: #555; font-size: .9rem; max-width: 75ch; }
+table { border-collapse: collapse; margin: .5rem 0 1rem 0; }
+table.kv th { text-align: left; padding: .25rem .75rem .25rem 0; vertical-align: top; font-weight: 600; color: #333; }
+table.kv td { padding: .25rem 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9rem; }
+table.episodes, table.hashes { width: 100%; font-size: .85rem; }
+table.episodes th, table.episodes td,
+table.hashes th, table.hashes td { border-bottom: 1px solid #ddd; padding: .35rem .5rem; text-align: left; }
+table.episodes th, table.hashes th { background: #f4f4f4; font-weight: 600; }
+table.hashes td.hex { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .82rem; word-break: break-all; }
+table.hashes td.label { font-weight: 600; white-space: nowrap; }
+pre.law { background: #f8f8f8; border: 1px solid #ddd; padding: .75rem; font-size: .85rem;
+          overflow-x: auto; max-width: 100%; }
+ul.nonclaims li { margin: .25rem 0; color: #333; }
+code { background: #eee; padding: 1px 4px; border-radius: 3px; font-size: .9em; }
+</style>
+</head>
+<body>
+<h1>DSFB-GPU S-REAL.1 audit — PROMISE Ant 1.3 CK metrics (Sayyad Shirabad, Menzies)</h1>
+<p class="subhead">Deterministic residual-densor audit on real public dataset bytes. Apache-2.0 reference implementation. Background IP: Invariant Forge LLC.</p>
+<div class="summary-card">
+<h2 class="summary-title">Dataset summary</h2>
+<table class="kv summary-kv">
+<tr><th>dataset</th><td>PROMISE Ant 1.3 CK metrics (Sayyad Shirabad, Menzies)</td></tr>
+<tr><th>source class</th><td>SoftwareDefects</td></tr>
+<tr><th>shape (entities × windows)</th><td>6 × 125</td></tr>
+<tr><th>finite cells (events emitted)</th><td>750</td></tr>
+<tr><th>NaN cells skipped</th><td>0</td></tr>
+<tr><th>episodes admitted</th><td>5</td></tr>
+<tr><th>byte-identical replay</th><td>YES</td></tr>
+<tr><th>final_case_file_hash (first 16 hex)</th><td>2cd73eceef0f89f2</td></tr>
+<tr><th>final_verdict</th><td>GpuReplayAdmissible</td></tr>
+</table>
+</div>
+<div class="replay-proof-card">
+<h2 class="summary-title">Replay proof</h2>
+<table class="kv summary-kv">
+<tr><th>byte-identical replay</th><td>YES</td></tr>
+<tr><th>casefile.json SHA-256</th><td>20265450b8406e1b520c8512d583842bb22ecadeb7fba08ce578f73826803c8a</td></tr>
+<tr><th>episodes.jsonl SHA-256</th><td>9166da708ed97f7461f043ab70932daedb16adbd6c3bd18fc0c52528e5a09416</td></tr>
+<tr><th>audit_report.html SHA-256</th><td>(externally pinned in replay_verification.txt — not embedded here because a self-referential hash is computationally infeasible)</td></tr>
+<tr><th>final_case_file_hash (full)</th><td>2cd73eceef0f89f2586acec2c76c78f86dd819212a5046f13567de495b52a35e</td></tr>
+<tr><th>episode count (run 1)</th><td>5</td></tr>
+<tr><th>episode count (run 2)</th><td>5</td></tr>
+</table>
+</div>
+<h2>1. Input provenance</h2>
+<table class="kv">
+<tr><th>dataset_id</th><td>promise_defect_prediction</td></tr>
+<tr><th>display_name</th><td>PROMISE Ant 1.3 CK metrics (Sayyad Shirabad, Menzies)</td></tr>
+<tr><th>upstream_doi_or_url</th><td>github.com/ssea-lab/PROMISE</td></tr>
+<tr><th>license</th><td>no-upstream-license</td></tr>
+<tr><th>source_class</th><td>SoftwareDefects</td></tr>
+<tr><th>vendored_path</th><td>data/fixtures/promise_defect_prediction.tsv</td></tr>
+<tr><th>fixture_sha256</th><td>14856ef507c9ef8ff6b7120a8c50177d76b492bbff0653b1e635312eadba4461</td></tr>
+<tr><th>fixture_byte_size</th><td>8219</td></tr>
+</table>
+<p class="note">The fixture bytes were SHA-256-verified before parsing. Any divergence from the pinned hash would have aborted the audit before any event was emitted.</p>
+<h2>2. Residual-projection lowering law</h2>
+<p>The upstream fixture is in <code>residual-projection v2</code> form (window-major × signal-minor TSV with NaN cells). The audit deterministically lowers each finite cell into one <code>TraceEvent</code> via the rule below:</p>
+<pre class="law">For each (window_idx, signal_idx, value) in fixture.rows.iter().enumerate()
+                                            .flat_map(|(w, row)| row.iter().enumerate()
+                                                                  .map(move |(s, v)| (w, s, v))):
+  if value is None (nan): skip; no event emitted for this cell
+  else:
+    ts_ns         = window_idx * window_size_ns
+    entity_id     = signal_idx
+    route_id      = 0
+    span_id       = window_idx * 65536 + signal_idx
+    parent_span_id = 0
+    latency_us    = clamp(value * value_to_microsecond_scale, 0, latency_clamp_us)
+    status_code   = 200
+    error_code    = 0
+    event_kind    = 0
+    flags         = 0
+</pre>
+<table class="kv">
+<tr><th>declared_num_windows</th><td>125</td></tr>
+<tr><th>declared_num_signals</th><td>6</td></tr>
+<tr><th>declared_healthy_window_end</th><td>20</td></tr>
+<tr><th>observed_num_windows</th><td>125</td></tr>
+<tr><th>observed_num_signals</th><td>6</td></tr>
+<tr><th>nan_cell_count</th><td>0</td></tr>
+<tr><th>finite_cell_count</th><td>750</td></tr>
+<tr><th>emitted_event_count</th><td>750</td></tr>
+<tr><th>value_to_microsecond_scale</th><td>1000</td></tr>
+<tr><th>latency_clamp_us</th><td>32767000</td></tr>
+<tr><th>window_size_ns</th><td>1000000000</td></tr>
+</table>
+<p class="note">NaN cells produce no event. The audit does not claim DSFB-GPU saw the upstream's original trace events; it claims DSFB-GPU saw exactly the events the rule above produces from these bytes.</p>
+<h2>3. Run configuration</h2>
+<table class="kv">
+<tr><th>casefile_version</th><td>DSFB-GPU-DEBUG-CASE-0.1</td></tr>
+<tr><th>backend</th><td>cuda</td></tr>
+<tr><th>n_entities (= observed_num_signals)</th><td>6</td></tr>
+<tr><th>n_windows (= observed_num_windows)</th><td>125</td></tr>
+<tr><th>events_dispatched</th><td>750</td></tr>
+<tr><th>episodes_admitted</th><td>5</td></tr>
+<tr><th>final_verdict</th><td>GpuReplayAdmissible</td></tr>
+</table>
+<h2>4. Admitted episodes</h2>
+<p class="note">Episodes are listed in canonical order by <code>(entity_id, start_window, end_window)</code>. Each row reports the bank motif, reason code, and peak Q16.16 magnitudes the bank used to admit.</p>
+<table class="episodes">
+<thead><tr><th>idx</th><th>entity_id</th><th>start_window</th><th>end_window</th><th>motif</th><th>reason</th><th>peak_state</th><th>peak_residual_q</th><th>peak_drift_q</th><th>peak_slew_q</th><th>detector_bit_count</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>0</td><td>16</td><td>20</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td><td>Boundary</td><td>83623</td><td>55015</td><td>28966</td><td>2</td></tr>
+<tr><td>1</td><td>2</td><td>78</td><td>80</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>1393950</td><td>249103</td><td>1329922</td><td>6</td></tr>
+<tr><td>2</td><td>2</td><td>116</td><td>117</td><td>ConfuserTransient</td><td>SingleCrossing</td><td>Boundary</td><td>1014235</td><td>182512</td><td>965346</td><td>5</td></tr>
+<tr><td>3</td><td>3</td><td>78</td><td>82</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>3323658</td><td>486939</td><td>3258122</td><td>8</td></tr>
+<tr><td>4</td><td>3</td><td>120</td><td>122</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td><td>Recovery</td><td>2442330</td><td>359387</td><td>2376794</td><td>9</td></tr>
+</tbody>
+</table>
+<h3>4a. Motif histogram</h3>
+<table class="histogram">
+<thead><tr><th>motif</th><th>count</th><th>percent</th></tr></thead>
+<tbody>
+<tr><td>ConfuserTransient</td><td>1</td><td>20.00 %</td></tr>
+<tr><td>OscillationInstability</td><td>1</td><td>20.00 %</td></tr>
+<tr><td>SlewShockRecovery</td><td>3</td><td>60.00 %</td></tr>
+</tbody>
+</table>
+<h3>4b. Reason-code histogram</h3>
+<table class="histogram">
+<thead><tr><th>reason_code</th><th>count</th><th>percent</th><th>plain-English meaning</th></tr></thead>
+<tbody>
+<tr><td>AbruptSlewViolation</td><td>3</td><td>60.00 %</td><td>Single-window slew shock crossed the violation threshold; DSFB interprets this structurally, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td>RecurrentBoundaryGrazing</td><td>1</td><td>20.00 %</td><td>Multiple boundary cells with no clear violation — repeated graze without commitment; DSFB interprets this structurally, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td>SingleCrossing</td><td>1</td><td>20.00 %</td><td>One-shot boundary crossing that did not re-enter on the next cell; DSFB interprets this structurally, not as a ground-truth causal diagnosis.</td></tr>
+</tbody>
+</table>
+<h3>4c. Entity summary</h3>
+<table class="summary">
+<thead><tr><th>entity_id</th><th>episode_count</th><th>first_window</th><th>last_window</th><th>max_detector_bit_count</th><th>dominant_motif</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>1</td><td>16</td><td>20</td><td>2</td><td>OscillationInstability</td></tr>
+<tr><td>2</td><td>2</td><td>78</td><td>117</td><td>6</td><td>ConfuserTransient</td></tr>
+<tr><td>3</td><td>2</td><td>78</td><td>122</td><td>9</td><td>SlewShockRecovery</td></tr>
+</tbody>
+</table>
+<h3>4d. Episode timeline (per-entity, time-ordered)</h3>
+<table class="timeline">
+<thead><tr><th>entity_id</th><th>start_window</th><th>end_window</th><th>motif</th><th>reason</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>16</td><td>20</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+<tr><td>2</td><td>78</td><td>80</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>2</td><td>116</td><td>117</td><td>ConfuserTransient</td><td>SingleCrossing</td></tr>
+<tr><td>3</td><td>78</td><td>82</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>3</td><td>120</td><td>122</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+</tbody>
+</table>
+<h3>4e. Top structural spans</h3>
+<h4>4e(a). Longest spans</h4>
+<table class="summary">
+<thead><tr><th>rank</th><th>length_windows</th><th>entity_id</th><th>start</th><th>end</th><th>motif</th><th>detector_bit_count</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>4</td><td>3</td><td>78</td><td>82</td><td>SlewShockRecovery</td><td>8</td></tr>
+<tr><td>2</td><td>4</td><td>0</td><td>16</td><td>20</td><td>OscillationInstability</td><td>2</td></tr>
+<tr><td>3</td><td>2</td><td>3</td><td>120</td><td>122</td><td>SlewShockRecovery</td><td>9</td></tr>
+<tr><td>4</td><td>2</td><td>2</td><td>78</td><td>80</td><td>SlewShockRecovery</td><td>6</td></tr>
+<tr><td>5</td><td>1</td><td>2</td><td>116</td><td>117</td><td>ConfuserTransient</td><td>5</td></tr>
+</tbody>
+</table>
+<h4>4e(b). Highest-repeated entities</h4>
+<table class="summary">
+<thead><tr><th>rank</th><th>entity_id</th><th>episode_count</th><th>dominant_motif</th><th>dominant_reason_code</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>2</td><td>2</td><td>ConfuserTransient</td><td>AbruptSlewViolation</td></tr>
+<tr><td>2</td><td>3</td><td>2</td><td>SlewShockRecovery</td><td>AbruptSlewViolation</td></tr>
+<tr><td>3</td><td>0</td><td>1</td><td>OscillationInstability</td><td>RecurrentBoundaryGrazing</td></tr>
+</tbody>
+</table>
+<h4>4e(c). Most-recurrent reason codes</h4>
+<table class="summary">
+<thead><tr><th>rank</th><th>reason_code</th><th>count</th><th>severity</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>AbruptSlewViolation</td><td>3</td><td>5</td></tr>
+<tr><td>2</td><td>RecurrentBoundaryGrazing</td><td>1</td><td>3</td></tr>
+<tr><td>3</td><td>SingleCrossing</td><td>1</td><td>1</td></tr>
+</tbody>
+</table>
+<h3>4f. Plain-English motif glossary</h3>
+<p class="note">Every DSFB motif describes a STRUCTURAL residual shape. DSFB interprets each motif structurally, not as a ground-truth causal diagnosis. The glossary covers all eight motifs even if some did not fire on this dataset.</p>
+<table class="summary glossary">
+<thead><tr><th>motif</th><th>structural interpretation</th></tr></thead>
+<tbody>
+<tr><td class="label">LatencyRamp</td><td>Sustained directional increase in residual latency-projection cells across a contiguous window span; DSFB interprets this as recurrent directional latency structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">ErrorBurst</td><td>Concentrated burst of error-projection cells in a short window range; DSFB interprets this as locally concentrated error structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">SlewShockRecovery</td><td>Abrupt slew shock followed by a recovery edge in the same entity; DSFB interprets this as transient slew + recovery structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">SustainedDegradation</td><td>Persistent elevation of residual magnitude over many windows without recovery; DSFB interprets this as sustained structural degradation, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">OscillationInstability</td><td>Repeated alternation across the boundary band without sustained commitment; DSFB interprets this as oscillatory structural pattern, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">LocalizedRouteFault</td><td>Episode bounded to a specific entity/route locality with neighbouring entities admissible; DSFB interprets this as locality-confined structure, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">FanoutCascadeCandidate</td><td>Co-occurrence pattern across multiple entities consistent with fan-out cascade structure; DSFB interprets this as multi-entity structural co-firing, not as a ground-truth causal diagnosis.</td></tr>
+<tr><td class="label">ConfuserTransient</td><td>Confuser-like transient that fired but did not sustain into a full motif; DSFB interprets this structurally as transient near-violation, not as a ground-truth causal diagnosis.</td></tr>
+</tbody>
+</table>
+<h2>5. Stage digest / hash chain</h2>
+<p class="note">Every per-stage hash links into the next via the canonical DSFB-GPU chain. A reader can replay the dispatch and confirm every hex value below byte-for-byte.</p>
+<table class="hashes">
+<thead><tr><th>chain link</th><th>sha256 (hex)</th></tr></thead>
+<tbody>
+<tr><td class="label">h_input_catalog</td><td class="hex">77f884d36a0ba6eeec3d61b60461f5b370f6783877f9ec2d4f0d68c473ed8940</td></tr>
+<tr><td class="label">h_contract</td><td class="hex">d8bbf40a2bc12554e3210176a7ea413396fcbb37578694511faf86e7d0eb4188</td></tr>
+<tr><td class="label">h_bank</td><td class="hex">95008ee17677f850b9fdfbdde9b3bb553846b881db62f9cc53e8847335012d08</td></tr>
+<tr><td class="label">h_detector_registry</td><td class="hex">0fd4a2e5279fd0d08eb6f3f79f7fa42d09e5767679b6276856d38134019224ab</td></tr>
+<tr><td class="label">h_kernel_sequence</td><td class="hex">1c3f2cb0708206cfba11b8ad1a9fb13b470c73ecc7be9cfc05b9a23c360e0a67</td></tr>
+<tr><td class="label">h_window_feature</td><td class="hex">1575b51e58608de852482c1c00657e4d6e3ad5ab86c3a071e1505901564ec771</td></tr>
+<tr><td class="label">h_residual_field</td><td class="hex">51f083fced9837384ddddfeffb3211f635a1ac1b75e4ea3012473ab233ea6b87</td></tr>
+<tr><td class="label">h_sign_field</td><td class="hex">a97d894ce9e09ad5c11c59613078b3cc8a5213cce241f7fd51e4d4ab1c2b6108</td></tr>
+<tr><td class="label">h_detector_cell</td><td class="hex">d7a624f609be6a85124aea155c28ebd293627f457c00387274fa78b172a148fe</td></tr>
+<tr><td class="label">h_consensus_grid</td><td class="hex">a916f228b34d3bcc5325d6693c89370ff17b816f2e238ff638954e380dc593ff</td></tr>
+<tr><td class="label">h_candidate_interval</td><td class="hex">76157873a0f86ed83d84170bf5cb91cc1a42696725db69f581132f3b6f1541dd</td></tr>
+<tr><td class="label">h_episode</td><td class="hex">207da8ee26b28a96e7a7a9b68f5979a7c5df456433ff59bff2e863d8b5e88981</td></tr>
+<tr><td class="label">final_case_file_hash</td><td class="hex">2cd73eceef0f89f2586acec2c76c78f86dd819212a5046f13567de495b52a35e</td></tr>
+</tbody>
+</table>
+<h2>6. Replay verification</h2>
+<table class="kv">
+<tr><th>run_count</th><td>2</td></tr>
+<tr><th>casefile_json_sha256_run1</th><td>20265450b8406e1b520c8512d583842bb22ecadeb7fba08ce578f73826803c8a</td></tr>
+<tr><th>casefile_json_sha256_run2</th><td>20265450b8406e1b520c8512d583842bb22ecadeb7fba08ce578f73826803c8a</td></tr>
+<tr><th>episodes_jsonl_sha256_run1</th><td>9166da708ed97f7461f043ab70932daedb16adbd6c3bd18fc0c52528e5a09416</td></tr>
+<tr><th>episodes_jsonl_sha256_run2</th><td>9166da708ed97f7461f043ab70932daedb16adbd6c3bd18fc0c52528e5a09416</td></tr>
+<tr><th>final_case_file_hash_run1</th><td>2cd73eceef0f89f2586acec2c76c78f86dd819212a5046f13567de495b52a35e</td></tr>
+<tr><th>final_case_file_hash_run2</th><td>2cd73eceef0f89f2586acec2c76c78f86dd819212a5046f13567de495b52a35e</td></tr>
+<tr><th>episode_count_run1</th><td>5</td></tr>
+<tr><th>episode_count_run2</th><td>5</td></tr>
+<tr><th>byte_identical_replay</th><td>true</td></tr>
+</table>
+<h3>Toolchain identity</h3>
+<table class="kv">
+<tr><th>backend</th><td>cuda</td></tr>
+<tr><th>cuda_version</th><td>13.2</td></tr>
+<tr><th>dsfb_gpu_debug_demo_version</th><td>0.1.0</td></tr>
+<tr><th>gpu_name</th><td>RTX 4080 SUPER</td></tr>
+</table>
+<p class="note">Replay determinism is asserted only for the recorded toolchain. The audit does not claim replay byte-identity across different driver, CUDA, or hardware versions.</p>
+<h2>7. Limitations and non-claims</h2>
+<ul class="nonclaims">
+<li>Does NOT claim DSFB has identified the &quot;real&quot; anomaly in the dataset.</li>
+<li>Does NOT claim DSFB outperforms any other anomaly detector.</li>
+<li>Does NOT claim DSFB has discovered causality.</li>
+<li>Does NOT claim DSFB has measured remediation effectiveness.</li>
+<li>Does NOT claim fitness-for-purpose on regulated or safety-critical use.</li>
+<li>Does NOT claim the dataset is &quot;correctly labeled&quot; or &quot;ground truth&quot;; the audit report describes deterministic structure DSFB-GPU saw, not labels.</li>
+<li>Does NOT claim the corpus or registry is exhaustive.</li>
+<li>Does NOT claim replay determinism across different driver / CUDA / hardware versions; the replay receipt records the toolchain explicitly.</li>
+</ul>
+</body>
+</html>

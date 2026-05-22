@@ -1,0 +1,290 @@
+================================================================
+T.12.k - Industrial / Fault Detection and Diagnostics /
+        Condition Monitoring amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.k files the Industrial / FDD /
+Condition Monitoring amendment proposal. It admits only
+deterministic condition-monitoring / FDD witnesses whose plant
+or sensor model, physical quantity, unit law, sampling law,
+operating regime, baseline / nominal envelope, residual
+definition, fault-signature decision law, and confuser /
+nuisance-process profile are declared; resolves SEED
+collisions; classifies variants as parameterizations or domain
+transfers; rejects proprietary PdM black-box scores and learned
+fault classifiers without training-artifact anchors; and
+preserves the frozen T.10 corpus hash.
+
+Main panel warning: "An industrial fault witness is not a
+diagnosis of machine cause unless the plant model, residual
+law, sensor law, operating regime, and confuser profile are
+declared."
+
+Panel-locked non-claim (MUST appear verbatim):
+
+> T.12.k admits deterministic condition-monitoring / FDD
+> witnesses, not root-cause certainty and not maintenance
+> recommendations.
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.k emitted values:
+
+  literature_expansion_batch_hash_v1 :
+    5c952a60f4f51fec2c28b49b268638d887a7a360eccf1f30506a4bdf99b562bf
+  dedup_court_delta_hash_v1          :
+    3c32085d5d333c39d3d77e8fb8885a6499ceb48e322b10d4c71aeae5c70105fa
+  corpus_amendment_proposal_hash_v1  :
+    22f06c769daad5472255edce97cbe9e419b5aa22c6d07345a5c667c23ce93565
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found EIGHT T.12.k-relevant primitives already
+canonical — the largest SEED-collision set of any T.12.x to
+date:
+
+  12 FFT band-energy anomaly (shared spectral ancestor)
+  19 PCA T² on score vector
+  20 PCA SPE / Q residual
+  21 PLS residual / Q on PLS
+  22 Residual envelope exit (shared envelope-boundary ancestor)
+  23 Sensor bias detector
+  24 Actuator stiction detector
+  25 Valve hunting (control-loop oscillation)
+
+All eight become ExistingCanonicalAuthorityResolution records.
+Panel-locked success-shape: the campaign's strength comes from
+cross-class dedup discipline (8 authority resolutions) rather
+than canonical count (only 6 new primitives admitted).
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  12  (6 canonical + 4 parameterization
+                                 + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  22  (panel-locked headline)
+  proposed_genealogy_edges: 12
+  proposed_source_refs   :   9
+
+  new_canonical_records (in delta): 6
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised, with
+TWO rejections - FIFTH T.12.x with two, following T.12.g /
+T.12.h / T.12.i / T.12.j)
+----------------------------------------------------------------
+
+  CanonicalAddition (x6) — SEED-walk-survivors with structurally
+  distinct decision functionals:
+    6101 Kalman innovation whiteness witness
+         (Mehra & Peschon 1971 whiteness test on Kalman
+         innovations; autocorrelation-of-innovations equals
+         zero, NOT magnitude — distinct from T.12.f 5609
+         innovation-sequence anomaly)
+    6102 Operating-regime transition witness
+         (process state-machine baseline switch — no existing
+         ancestor in SEED or T.12.f)
+    6103 Condition-indicator drift
+         (derived CI rate-of-change — distinct from SEED 23
+         Sensor bias which is raw-sensor drift)
+    6104 Fault signature angle
+         (angular direction in PCA score space — distinct from
+         SEED 19 T² magnitude and SEED 20 SPE magnitude)
+    6105 Contribution-plot spike
+         (per-variable contribution series — distinct from
+         aggregate T² / SPE scalars)
+    6106 Spectral kurtosis (Antoni 2006)
+         (fourth-moment shape in frequency bands — distinct
+         from SEED 12 FFT band-energy magnitude)
+
+  ExistingCanonicalAuthorityResolution (x8):
+    SEED 12 FFT band-energy anomaly
+    SEED 19 PCA T² on score vector
+    SEED 20 PCA SPE / Q residual
+    SEED 21 PLS residual / Q on PLS
+    SEED 22 Residual envelope exit
+    SEED 23 Sensor bias detector
+    SEED 24 Actuator stiction detector
+    SEED 25 Valve hunting
+
+  DomainTransferOf (x2):
+    SEED 12 FFT band-energy as shared spectral ancestor for
+            FaultDetectionDiagnostics (bearing vibration 6107,
+            motor current signature 6108, and spectral
+            kurtosis 6106 are descendants)
+    SEED 22 Residual envelope exit as shared envelope-
+            boundary ancestor for FaultDetectionDiagnostics
+            (temperature envelope excursion 6109 is the
+            descendant)
+
+  ParameterizationOf (x4) — panel-candidate canonicals that
+  collapsed on closer inspection:
+    6107 Bearing vibration band-energy ->
+         ParameterizationOf(FFT band-energy, SEED 12) with
+         BPFO / BPFI / BSF / FTF bearing-defect-frequency
+         parameterization per McFadden & Smith 1984
+    6108 Motor current signature anomaly (MCSA) ->
+         ParameterizationOf(FFT band-energy, SEED 12) with
+         motor-current spectral parameterization (broken-
+         rotor-bar sidebands, eccentricity harmonics) per
+         Thomson 2001
+    6109 Temperature envelope excursion ->
+         ParameterizationOf(Residual envelope exit, SEED 22)
+         with thermal-time-constant parameterization
+    6110 Pressure transient witness ->
+         ParameterizationOf(Slew shock, SEED 42) with
+         pressure-physics parameterization
+
+  RejectedNotDeterministic (x2):
+    6111 Proprietary PdM black-box score (GE Predix, Siemens
+         MindSphere, IBM Maximo Predict, Honeywell Forge,
+         Aspen Mtell) -- rejected unless reduced to a
+         Deterministic_PdM_Score_Proxy with deterministic
+         formula + model-identification anchor + training-
+         data anchor + feature schema + tie-break + numeric
+         mode declared. The court does NOT issue maintenance
+         recommendations or remaining-useful-life predictions.
+    6112 Learned fault classifier (Wen et al. 2017 CNN
+         bearing classifier; Khan & Yairi 2018 deep-learning
+         fault classifier review) -- rejected unless reduced
+         to a Deterministic_Fault_Classifier_Proxy with
+         model-identification seed + training-data anchor
+         (pinned dataset record-hash, e.g. CWRU bearing) +
+         label schema + tie-break + numeric mode declared.
+         The court does NOT issue failure-mode
+         classifications.
+
+----------------------------------------------------------------
+Root-cause-claim discipline (panel-locked, MOST IMPORTANT)
+----------------------------------------------------------------
+
+Every CanonicalAddition AND ExistingCanonicalAuthorityResolution
+reason text describes its record as "condition-monitoring
+witness" / "FDD witness" / "fault-signature witness" /
+"envelope-exit witness" / "spectral witness" — NEVER as a
+root-cause claim, maintenance recommendation, RUL prediction,
+or failure-mode classification. Pinned by
+t12_k_rejects_root_cause_claim_language which scans every such
+reason for forbidden terms (root cause, diagnosis of machine
+cause, remaining useful life, predicted rul, failure mode
+classification) AND asserts every qualifying reason ends with
+the panel-locked non-claim "condition-monitoring witness, not a
+maintenance recommendation". Forbidden terms appear ONLY in
+RejectedNotDeterministic reason text (where they describe what
+is NOT admitted).
+
+----------------------------------------------------------------
+Plant-or-residual contract discipline (panel-locked, MOST IMPORTANT
+load-bearing negative)
+----------------------------------------------------------------
+
+t12_k_rejects_fault_detector_without_plant_or_residual_contract
+asserts every CanonicalAddition reason text declares at least
+one math-structure term (plant / observer / residual / model /
+state-machine / latent-space / estimator / envelope /
+computation) AND at least one decision-functional term
+(decision law / decision functional / decision predicate). This
+is the campaign identity: the court refuses fault witnesses
+without a declared mathematical structure and decision rule.
+
+----------------------------------------------------------------
+Genealogy edges (12 proposed)
+----------------------------------------------------------------
+
+  6101 Kalman innovation whiteness DerivedFrom Sensor bias (23)
+  6102 Operating-regime transition Generalizes Valve hunting (25)
+  6103 Condition-indicator drift DerivedFrom Sensor bias (23)
+  6104 Fault signature angle DerivedFrom PCA T² (19)
+  6104 Fault signature angle DerivedFrom PLS residual (21)
+  6105 Contribution-plot spike DerivedFrom PCA SPE/Q (20)
+  6105 Contribution-plot spike DerivedFrom PCA T² (19)
+  6106 Spectral kurtosis Generalizes FFT band-energy (12)
+  6107 Bearing vibration ParameterVariantOf FFT band-energy (12)
+  6108 Motor current signature ParameterVariantOf FFT band-energy (12)
+  6109 Temperature envelope ParameterVariantOf Residual envelope (22)
+  6110 Pressure transient ParameterVariantOf Slew shock (42)
+
+----------------------------------------------------------------
+Source refs (9)
+----------------------------------------------------------------
+
+  Kalman 1960 (canonical state-space + innovation)
+  Mehra & Peschon 1971 (innovation whiteness FDD reference)
+  McFadden & Smith 1984 (bearing vibration spectral)
+  Thomson 2001 (motor current signature analysis)
+  Antoni 2006 (spectral kurtosis canonical reference)
+  Isermann 2006 (Fault-Diagnosis Systems textbook canonical)
+  ISO 13373 (vibration condition monitoring standard)
+  ISO 17359 (general condition-monitoring framework)
+  Wen 2017 + Khan & Yairi 2018 (deep-learning fault
+    classifier rejection-shell references)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (16)
+----------------------------------------------------------------
+
+   1. t12_k_does_not_mutate_seed_len
+   2. t12_k_rejects_fault_detector_without_plant_or_residual_contract
+      (MOST IMPORTANT - plant/observer/residual/model/state-
+       machine/latent-space/estimator/envelope/computation
+       contract AND decision-law / functional / predicate)
+   3. t12_k_rejects_root_cause_claim_language
+      (MOST IMPORTANT - parametric scanner; forbidden-term
+       blacklist plus mandatory non-claim phrase)
+   4. t12_k_rejects_pca_t2_duplicate_without_existing_authority_resolution
+   5. t12_k_rejects_pca_spe_duplicate_without_existing_authority_resolution
+   6. t12_k_rejects_pls_residual_duplicate_without_existing_authority_resolution
+   7. t12_k_rejects_sensor_bias_duplicate_without_existing_authority_resolution
+   8. t12_k_rejects_actuator_stiction_duplicate_without_existing_authority_resolution
+   9. t12_k_rejects_valve_hunting_duplicate_without_existing_authority_resolution
+  10. t12_k_rejects_kalman_innovation_without_observer_and_whiteness_law
+  11. t12_k_rejects_bearing_vibration_without_sensor_and_defect_frequency_band_law
+  12. t12_k_rejects_motor_current_signature_without_sensor_and_spectral_band_law
+  13. t12_k_rejects_proprietary_pdm_score_without_deterministic_formula
+      (requires reason text to demand "deterministic formula"
+       AND name at least one vendor - same pattern as T.12.i
+       vendor APM rejection)
+  14. t12_k_rejects_learned_fault_classifier_without_training_artifact
+  15. t12_k_hash_changes_when_plant_model_or_residual_definition_changes
+  16. t12_k_existing_seed_collision_requires_authority_resolution
+      (parametric loop over all 8 SEED IDs 12, 19, 20, 21, 22,
+       23, 24, 25)
+
+Plus per-canonical structural-distinctness assertions,
+ParameterizationOf family tests, DomainTransferOf assertion
+tests, authority-coverage-of-all-SEED-industrial-IDs witness,
+reserved-id-range tests for all three buckets (6101..=6106,
+6107..=6110, 6111..=6112), shape / determinism / rendering
+invariants. Total: 49 acceptance tests.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.k does NOT:
+- admit medical diagnoses, root-cause certainty, maintenance
+  recommendations, remaining-useful-life predictions, or
+  failure-mode classifications (the court emits condition-
+  monitoring witnesses);
+- mutate corpus_hash_v1 or any prior T.11/S1.3/T.12.x hash;
+- create corpus_hash_v2;
+- duplicate FFT band-energy / PCA T² / PCA SPE/Q / PLS residual
+  / Residual envelope exit / Sensor bias / Actuator stiction /
+  Valve hunting;
+- promote bearing vibration / MCSA / temperature envelope /
+  pressure transient to new_canonical_records;
+- promote proprietary PdM scores or learned fault classifiers
+  to new_canonical_records;
+- claim clinical, operational, or maintenance interpretation
+  of any witness;
+- activate new detectors;
+- execute on GPU;
+- claim empirical usefulness (T.8 ledger stays NotScored).

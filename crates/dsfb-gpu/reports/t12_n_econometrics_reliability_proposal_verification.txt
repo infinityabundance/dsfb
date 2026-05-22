@@ -1,0 +1,174 @@
+================================================================
+T.12.n - Econometrics + Reliability / Survival verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_n_econometrics_reliability::
+      seed_t12_n_econometrics_reliability_proposal()
+
+----------------------------------------------------------------
+Positive verification (admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+All T.12.0 verifier rules pass: BatchIdEmpty, ProposalIdEmpty,
+UnknownSourceClass, AmendmentProposalHashMismatch,
+BatchHashMismatch, DedupDeltaHashMismatch,
+DedupDeltaCollidesWithExistingSeedCanonicalId (reserved ids
+6401..=6414 outside SEED's 1..=54 range),
+AcceptedProposalWithoutBodyOrDelta,
+AcceptedProposalWithoutFutureFreezeGate.
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage
+----------------------------------------------------------------
+
+All 6 panel-required negatives pass plus per-canonical
+structural-distinctness assertions + ParameterizationOf family
+tests + DomainTransferOf assertion tests + authority-coverage
+witness + per-bucket reserved-id-range tests + shape /
+determinism / rendering invariants + hash distinctness from
+every prior T.12.x.
+Total: 47 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Market-prediction claim-language discipline coverage
+----------------------------------------------------------------
+
+The t12_n_rejects_market_prediction_claim_language test runs a
+parametric scanner over every CanonicalAddition AND
+ExistingCanonicalAuthorityResolution reason text. For each
+qualifying record it asserts the reason text does NOT contain
+any of: stock price prediction, market return forecast, trading
+signal, buy signal, sell signal, alpha generation, predicts the
+market.
+
+Forbidden terms appear only inside the 6413 / 6414
+RejectedNotDeterministic reason text (where they describe what
+is NOT admitted).
+
+----------------------------------------------------------------
+Investment / credit-decision / actuarial-pricing claim-language
+discipline coverage
+----------------------------------------------------------------
+
+The t12_n_rejects_investment_or_credit_decision_claim_language
+test asserts the campaign refuses credit-decision verdicts,
+investment-advice verdicts, fiduciary-recommendation verdicts,
+and actuarial-pricing verdicts. For each qualifying record it
+asserts the reason text does NOT contain any of: credit
+approval verdict, credit denial verdict, loan approval verdict,
+investment advice verdict, fiduciary recommendation verdict,
+investment recommendation verdict, issues credit decisions,
+issues investment advice.
+
+----------------------------------------------------------------
+RUL / failure-time / maintenance-recommendation claim-language
+discipline coverage
+----------------------------------------------------------------
+
+The t12_n_rejects_rul_or_failure_time_certainty_claim_language
+test asserts the campaign refuses RUL certainty, failure-time
+prediction, warranty-extension recommendations, and maintenance
+recommendations. For each qualifying record it asserts the
+reason text does NOT contain any of: rul prediction, remaining
+useful life certainty, failure time prediction, predicted
+failure date, guaranteed lifetime, warranty extension
+recommendation, issues maintenance recommendations, issues rul
+predictions.
+
+----------------------------------------------------------------
+Survival-without-censoring-or-time-origin contract coverage
+----------------------------------------------------------------
+
+The t12_n_rejects_survival_witness_without_censoring_or_time_
+origin_contract test asserts every survival / reliability
+CanonicalAddition record (KM survival 6405, Cox / Schoenfeld
+6406, Weibull failure-rate 6407) declares a censoring law
+(censoring law / right-censoring) AND a time-origin law
+(time-origin law / time origin).
+
+----------------------------------------------------------------
+Econometric-without-stationarity-or-window contract coverage
+----------------------------------------------------------------
+
+The t12_n_rejects_econometric_witness_without_stationarity_or_
+window_contract test asserts every econometric CanonicalAddition
+record (GARCH 6401, cointegration-break 6402, Hausman 6403,
+Bai-Perron 6404) declares a stationarity contract AND a window
+contract.
+
+----------------------------------------------------------------
+SEED collision coverage (parametric)
+----------------------------------------------------------------
+
+The t12_n_existing_seed_collision_requires_authority_resolution
+test runs a parametric loop over all four SEED IDs (3, 4, 11,
+22). Each iteration constructs a defective proposal duplicating
+one SEED ID and asserts the verifier rejects it with
+DedupDeltaCollidesWithExistingSeedCanonicalId.
+
+----------------------------------------------------------------
+Black-box-forecaster rejection contract coverage
+----------------------------------------------------------------
+
+The t12_n_rejects_black_box_forecaster_without_formula test
+asserts BOTH rejection records 6413 (market) + 6414 (RUL):
+  - NOT in new_canonical_records
+  - reason text contains "deterministic feature-" +
+    "extraction law" (continuation-joined)
+  - reason text contains "declared formula"
+  - reason text contains "declared training-" + "data anchor"
+    (continuation-joined)
+  - reason text contains "feature schema"
+  - reason text contains "tie-break"
+  - reason text contains "numeric mode"
+
+For 6413 (market) the reason text additionally names at least
+one of bloomberg / alphasense / kavout / goldman / jp morgan,
+and contains the four no-claim guards (no market-prediction
+claim, no investment-recommendation claim, no credit-decision
+claim, no actuarial-pricing claim).
+
+For 6414 (RUL) the reason text additionally names at least one
+of uptake ai / c3.ai / senseye / ibm maximo / siemens
+mindsphere, and contains the three no-claim guards (no RUL-
+certainty claim, no failure-time-prediction claim, no
+maintenance-recommendation claim).
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.x hash           : unchanged
+    T.12.0 proof-of-life          : 325bbf3d...
+    T.12.a SPC                    : ae493a85...
+    T.12.b SCD                    : ac10e27c...
+    T.12.c drift                  : 0ffb0639...
+    T.12.d robust                 : 7b51703f...
+    T.12.e spectral               : 0036435f...
+    T.12.f time-series            : 76717e02...
+    T.12.g graph                  : 1bc14266...
+    T.12.h data-quality           : d4566a74...
+    T.12.i observability          : 9776c1b9...
+    T.12.j biosignal              : e64b603b...
+    T.12.k industrial             : 22f06c76...
+    T.12.l chemometrics           : 8b3e9511...
+    T.12.m RF                     : 3263e87b...
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.n econometrics + reliability / survival
+  literature_expansion_batch_hash_v1 (NEW):
+    ea8d7fb5f04d04d48df63370c22a3ce249247ef2bc522150ad098ab8b2c92e70
+  T.12.n dedup_court_delta_hash_v1 (NEW):
+    eef41dca3e49e025b1f989747a218e59b707264f7c0c5d9a7ceb64fa0fed988c
+  T.12.n corpus_amendment_proposal_hash_v1 (NEW):
+    b1c5ea455064b232251147d116de8cc38af91ee9a1b5b412f625dd2b4a2d2670

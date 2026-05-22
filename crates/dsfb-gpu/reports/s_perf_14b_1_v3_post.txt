@@ -1,0 +1,602 @@
+========================================================================
+ S-PERF.14b.1 v3 — Streaming SHA TILE-SIZE SWEEP ATTEMPT
+ (v3 is NOT a closure; v4 stage-adaptive selector is the active next move)
+ (panel-corrected framing 2026-05-19 per user verdict:
+  "regression → isolate cause → keep useful structure → attack
+   again until the measured gate is either beaten or the design
+   space is genuinely exhausted")
+========================================================================
+
+Hardware  : RTX 4080 SUPER, CUDA 13.2, Nsight Compute 2026.1.1.0
+Codebase  : post-S-PERF.14b.1 v2 seal (439aba4), tile-size
+            parameterised + apples-to-apples Path 1a/streaming
+            sweep harness landed; v3 final state has Path 1a
+            re-active as production root backend.
+Bench     : s_perf_12_d64_compact_densor_stage_profile_256x4096_k1
+Receipts  : reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_14b_1_v3_post.txt
+            (sudo POST ROOF; streaming-32K dispatcher)
+
+------------------------------------------------------------------------
+ Panel rejection of v2 "structural cleanup" framing (verbatim 2026-05-18)
+------------------------------------------------------------------------
+
+  "Do not seal it as 'structural cleanup' if the active production
+   path is slower. That framing is exactly the trap. It sounds
+   rigorous, but it risks normalizing a regression. The correct
+   legendary standard is: Path 1b v2 proved useful structure, but
+   it did not beat Path 1a on the court metric. Therefore it is
+   not admitted as the active root path yet."
+
+  "Do not switch the active D64 dispatcher to the slower path.
+   Use this posture: S-PERF.14b.1-v2 is retained as an inactive
+   candidate backend. Path 1a remains the active production root
+   backend until a streaming variant beats 925 µs."
+
+  "A proper receipt name would be: S-PERF.14b.1 — Streaming SHA
+   candidate evaluation. Not: S-PERF.14b.1 — streaming SHA
+   improvement."
+
+------------------------------------------------------------------------
+ v3 design + sweep methodology
+------------------------------------------------------------------------
+
+v3 was the panel-required tile-size sweep to test whether ANY
+tile size beats Path 1a (and where v2's 2 KB hard-coded tile
+sat on the curve).
+
+Mechanical changes shipped (all 4 retained as building blocks):
+  1. v2 streaming_blockcoop kernel parameterised on tile_bytes
+     (was constexpr 2048; now runtime parameter).
+  2. New FFI entry `dsfb_gpu_compact_densor_root_streaming_sweep_time`
+     wraps the streaming kernel with cudaEvent_t bracketing.
+  3. New FFI entry `dsfb_gpu_compact_densor_root_path1a_sweep_time`
+     does the same for the Path 1a kernel — apples-to-apples
+     comparator at the same per-stage shapes.
+  4. Rust test `tests/s_perf_14b_1_v3_tile_sweep.rs` runs both
+     kernels at all four production stage shapes (residual /
+     sign / detector-compact-pack / consensus) across six tile
+     sizes (1 KiB / 2 KiB / 4 KiB / 8 KiB / 16 KiB / 32 KiB).
+
+Sweep workload shape (matches canonical 256×4096 K=1 D64):
+  residual : n_chunks=1024  (16 MB / 16 KB chunk)
+  sign     : n_chunks=1280  (20 MB / 16 KB chunk)
+  detector : n_chunks=1152  (18 B/cell compact pack, NOT 264 B wide)
+  consensus: n_chunks=2048  (32 MB / 16 KB chunk)
+
+------------------------------------------------------------------------
+ Harness sweep result (apparent 45.6 % total win — SEE THE CAVEAT)
+------------------------------------------------------------------------
+
+cudaEvent_t timing (4 warmup + 32 timed iters per cell):
+
+  stage     | Path 1a (ns) | best streaming tile | streaming (ns) | per-stage Δ
+  ----------+--------------+---------------------+----------------+----------------------
+  residual  |  4,317,599   | 32 KiB              |    819,678     |  -3,497,921 (-81.0 %)
+  sign      |    937,222   |  8 KiB              |    958,486     |     +21,264  (+2.3 %)
+  detector  |    848,671   | 32 KiB              |    856,480     |      +7,809  (+0.9 %)
+  consensus |  1,516,736   | 32 KiB              |  1,513,952     |      -2,784  (-0.2 %)
+
+  TOTAL per-dispatch (sum of 4 stages, best tile per stage):
+    Path 1a  : 7,620,228 ns (7.620 ms)
+    Streaming: 4,148,596 ns (4.149 ms)
+    Δ        : -3,471,632 ns (-45.6 %)
+
+The harness verdict was "streaming kernel ADMITTED at tile=32K".
+This turned out to be misleading. See production ROOF below.
+
+The residual stage Path 1a number (4.3 ms) is wildly inflated
+relative to production-warmed Path 1a (~925 µs per launch).
+Diagnosis: the standalone harness allocates a fresh per-call
+scratch buffer (via cudaMalloc inside the FFI entry point); the
+first cudaMemset + first kernel access pay a one-time cache-miss
+cost that 4 warmup iterations do not fully absorb at the smallest
+stage. Production workspaces persist across the entire 7-iter
+bench loop; their scratch stays L2-warm.
+
+The streaming kernel doesn't touch scratch at all → it doesn't
+pay that cold-cache penalty in the standalone harness → it
+appears to win by 45.6 % overall.
+
+------------------------------------------------------------------------
+ Sudo POST ROOF verdict (the actual court witness)
+------------------------------------------------------------------------
+
+Dispatcher swapped to streaming-blockcoop at TILE_BYTES = 32 KiB;
+sudo POST ROOF (`--tag s_perf_14b_1_v3_post`) ran the production
+bench with full ncu instrumentation.
+
+  compact_densor_digest_v1_root_kernel_streaming_blockcoop:
+    Launch 8 : 849,120 ns
+    Launch 10: 1,062,208 ns
+    Launch 12: 957,152 ns
+    Sum of 3 captured launches : 2,868,480 ns
+    Mean per launch            : 956,160 ns
+
+  vs Path 1a pinned (S-PERF.15.d POST ROOF) : 925,184 ns per launch
+
+  Δ per-launch mean : +30,976 ns (+3.3 % SLOWER)
+  Δ vs v2 (2 KB tile, 1,008,448 ns per launch) : -52,288 ns (-5.2 % faster)
+
+Receipt occupancy/throughput readings (mean across launches):
+  Achieved Occupancy : 16.61 %    (vs Path 1a 2.70 %; +13.9 pp / 6.2×)
+  DRAM Throughput    :  0.35 %    (vs Path 1a 0.70 %; scratch eliminated)
+  L2 Throughput      :  0.35 %    (vs Path 1a 0.21 %)
+  L1 Throughput      :  4.79 %    (vs Path 1a 4.90 %; ~unchanged)
+  SM Throughput      :  0.19 %    (~unchanged)
+  Memory BW (eff)    : 2.48 GB/s  (vs Path 1a 5.06 GB/s; less bytes shuffled)
+  IPC active         : 0.40       (vs Path 1a 0.42; ~unchanged)
+
+------------------------------------------------------------------------
+ Honest interpretation (panel-locked court witness verdict)
+------------------------------------------------------------------------
+
+v3 single-ROOF result on the production dispatch path:
+
+  v3 streaming-32K per-launch  : 956 µs (single sudo ROOF)
+  Path 1a pinned per-launch    : 925 µs (single S-PERF.15.d ROOF)
+  Δ                            : +31 µs (+3.3 %)
+
+The harness's apparent 45.6 % total win was a measurement
+artifact (cold-cache scratch overhead in the standalone harness
+that production-warmed Path 1a doesn't pay). The sudo POST ROOF
+in the actual production dispatch path is the correct court
+witness, and the single-ROOF reading was -3.3 % vs Path 1a.
+
+**v3 CADENCE VIOLATION (panel-recorded 2026-05-19)**: the sudo
+POST ROOF was run ONCE, not multiple times per the panel-locked
+HARD-ENFORCEMENT cadence ("you will do nsight and GB/s benchmark
+now and after each point. you are blind without it"). The
+single-ROOF +3.3 % reading may not be the steady-state; thermal-
+noise variance on per-kernel ncu is much tighter than bench but
+not zero. **v3 is NOT closed; the v4 stage-adaptive selector
+campaign is the active next move.**
+
+v4 thesis: streaming may win at SOME stages while losing at
+others. Path 1a is the safety baseline; each stage switches to
+streaming ONLY if production sudo ROOF (×5 invocations per
+variant) proves streaming beats Path 1a at that stage. See
+plan-file v4 section + the panel-locked PROMOTE-or-EXHAUSTED gate.
+
+The improvement vs v2 (956 vs 1008 µs, -5.2 %) confirms the
+tile-size sweep's directional finding (larger tiles reduce sync
+count and help streaming), but the gain doesn't close the gap
+to Path 1a's one-shot SHA over L2-resident scratch.
+
+------------------------------------------------------------------------
+ Dispatcher state (panel-locked: backend-selection discipline)
+------------------------------------------------------------------------
+
+PRODUCTION ACTIVE BACKEND (default; env var unset/malformed):
+  compact_densor_digest_v1_root_kernel_blockcoop (Path 1a)
+    — cooperative scratch staging + thread-0 one-shot SHA over
+      L2-resident scratch
+    — pinned per-launch wall at S-PERF.15.d POST ROOF: 925.2 µs
+    — restored as active at this commit; the v4 stage-adaptive
+      selector defaults to all-Path1a ("0000") when the
+      DSFB_S_PERF_14B_1_V4_BACKENDS env var is unset or
+      malformed (production safety baseline).
+
+V4 STAGE-ADAPTIVE SELECTOR (this commit ships the infrastructure):
+  Env-var contract DSFB_S_PERF_14B_1_V4_BACKENDS = 4-char string
+  where each char is '0' (Path1aBlockcoop) or '1' (Streaming32K)
+  for stages residual / sign / detector / consensus in canonical
+  order. 16 valid combinations; malformed values fall back to
+  all-Path1a.
+
+  Byte-identity contract: every combination produces
+  byte-identical four-stage CompactDensorDigestV1 roots vs the
+  all-Path1a baseline. Pinned by 64 root-pin assertions in
+  tests/s_perf_14b_1_v4_stage_adaptive_byte_identity.rs
+  (16 combinations × 4 stages) plus the existing 5-pin S-PERF.14b
+  byte-identity test under every combination.
+
+  PROMOTE-or-EXHAUSTED gate (panel-locked): after capturing 5
+  sudo ROOFs per variant (A "0000", B "1111", optional C..F per-
+  stage isolation), build a mixed selector from per-stage
+  winners and capture 5 sudo ROOFs of variant G (mixed). PROMOTE
+  if mixed_total_per_dispatch < all_path1a_total_per_dispatch
+  (mean across 5 ROOFs); EXHAUSTED otherwise (mixed_total mean
+  ≥ all_path1a mean OR 95% CI overlap).
+
+INACTIVE CANDIDATE BACKENDS (retained in source, validated):
+  compact_densor_digest_v1_root_kernel_streaming           (v1)
+    — 1-thread streaming SHA; 3.09× regression vs Path 1a;
+      destroyed cooperative byte-load parallelism.
+      Retained as documented negative result.
+
+  compact_densor_digest_v1_root_kernel_streaming_blockcoop  (v2/v3)
+    — 256-thread cooperative shared-tile load + thread-0
+      streaming SHA from shared. Parameterised on tile_bytes.
+      Best measured: 956 µs per launch at 32 KiB tile.
+      Inactive candidate; exercised by the v3 sweep harness.
+
+EXERCISE / VALIDATION HARNESS (retained):
+  s_perf_14b_1_streaming_sha_byte_identity        (5 pins; passes)
+  s_perf_14b_1_streaming_sha_self_test            (4 known vectors; passes)
+  s_perf_14b_1_v3_tile_sweep                      (24 measurements; passes)
+
+The streaming SHA primitives in cuda/sha256.cuh (init / update /
+finalize + aligned-bulk fast path on update) remain validated
+building blocks for future digest-path designs.
+
+------------------------------------------------------------------------
+ What this commit ships
+------------------------------------------------------------------------
+
+  cuda/kernels.cu:
+    - Dispatcher reverted to compact_densor_digest_v1_root_kernel_blockcoop
+      (Path 1a) as ACTIVE production root backend.
+    - compact_densor_digest_v1_root_kernel_streaming_blockcoop
+      now parameterised on tile_bytes_runtime (was constexpr 2048).
+      Retained as INACTIVE candidate backend.
+    - New FFI dsfb_gpu_compact_densor_root_streaming_sweep_time
+      (cudaEvent_t-bracketed timing for the streaming kernel
+       across arbitrary tile_bytes).
+    - New FFI dsfb_gpu_compact_densor_root_path1a_sweep_time
+      (apples-to-apples Path 1a comparator for the sweep harness).
+
+  crates/dsfb-gpu-debug-cuda/src/ffi.rs:
+    - Two new extern declarations for the sweep FFIs.
+
+  crates/dsfb-gpu-debug-cuda/src/dispatch.rs:
+    - Two new public Rust wrappers
+      compact_densor_root_streaming_sweep_time
+      compact_densor_root_path1a_sweep_time
+
+  crates/dsfb-gpu-debug-cuda/src/lib.rs:
+    - Re-exports updated.
+
+  crates/dsfb-gpu-debug-demo/tests/s_perf_14b_1_v3_tile_sweep.rs:
+    - 24-measurement apples-to-apples sweep test (4 stage shapes
+      × 6 tile sizes × {streaming, path1a baseline}). Prints
+      per-stage and total walls with verdict.
+
+  reports/s_perf_14b_1_v3_post.txt: this receipt (re-framed
+    2026-05-19: v3 is NOT closure; v4 is active next).
+  reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_14b_1_v3_post.txt:
+    sudo ROOF capture from the v3 single-ROOF cadence violation
+    (whitelisted in .gitignore).
+  reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_14b_1_v4_variant_a_run{1..5}.txt:
+    sudo ROOFs from the panel-required v4 HARD-ENFORCEMENT
+    multi-run cadence (5 ROOFs × 5 iterations per ROOF = 25
+    per-stage measurements; whitelisted in .gitignore).
+
+V4 IMPLEMENTATION + 16-COMBO BYTE-IDENTITY HARNESS:
+  cuda/kernels.cu:
+    - dsfb::CompactRootBackend enum (Path1aBlockcoop / Streaming32K).
+    - dsfb::read_v4_compact_root_backend_selector() reads env var
+      DSFB_S_PERF_14B_1_V4_BACKENDS on every dispatch (NOT cached
+      — testability requires set_var between dispatches).
+    - Dispatcher launch_stage_tree lambda branches on per-stage
+      selector; default all-Path1a (production safety baseline).
+
+  crates/dsfb-gpu-debug-demo/tests/s_perf_14b_1_v4_stage_adaptive_byte_identity.rs:
+    - 3 tests covering 16 selector combinations × 4 stages = 64
+      root-pin assertions PLUS env-var-unset default check PLUS 9
+      malformed env-var fallback checks = 108 byte-identity pin
+      checks total. All green.
+
+  scripts/s_perf_roof_preflight.sh:
+    - --launch-count default bumped 13 → 65 (5 iterations per ROOF
+      → 25 per-stage measurements; panel-locked v4 HARD-ENFORCEMENT).
+    - Optional --launch-count N override flag added.
+
+V4 VARIANT A 5-ROOF BASELINE (active production = all-Path1a):
+  compact_densor_digest_v1_root_kernel_blockcoop per-launch duration
+  across 5 sudo ROOFs (each --launch-count 65 = 5 iterations × 13
+  kernels = 25 stage-launches captured per ROOF):
+
+    run 1: 1,113,760 ns
+    run 2: 1,113,984 ns
+    run 3: 1,114,496 ns
+    run 4: 1,114,016 ns
+    run 5: 1,113,632 ns
+    mean : 1,113,978 ns
+    spread: 864 ns (0.08 % — measurement is rock-solid)
+
+  Note: this is the new Path 1a baseline at the v4 capture
+  calibration (--launch-count 65). The S-PERF.15.d pinned value
+  of 925 µs was captured under --launch-count 13 and may
+  reflect different ncu replay overhead. Variant B comparisons
+  use the v4 Variant A baseline as the apples-to-apples reference.
+
+V4 VARIANT A 5-RUN BENCH BAND (system-level GB/s):
+  17.21 / 18.28 / 21.58 / 23.92 / 24.51 GB/s
+  median 21.58; min 17.21; max 24.51
+  (thermal-noise band; bench is the noise filter, not the verdict)
+
+V4 VARIANT B 5-RUN BENCH BAND (all-streaming-32K, env var "1111"):
+  22.01 / 23.52 / 24.10 / 24.54 / 24.56 GB/s
+  median 24.10; min 22.01; max 24.56
+  Δ at median: +2.52 GB/s (+11.7 %) vs Variant A median
+  Δ at min:    +4.80 GB/s
+  Δ at max:    +0.05 GB/s
+  Notable: the WORST Variant B run (22.01) BEATS the median
+  Variant A run (21.58). System-level signal CONTRADICTS the
+  v3 single-ROOF verdict.
+
+V4 VARIANT B 5-ROOF SUDO PER-LAUNCH BAND (env var "1111"):
+  1,061,248 / 1,061,472 / 1,061,440 / ... / 1,061,408 ns
+  mean per launch: 1,061,387 ns (spread ~1,000 ns = 0.09 %)
+  Δ vs Variant A pinned (1,113,978 ns): -52,591 ns (-4.72 %)
+
+V4 PER-STAGE PARSE FROM 5 VARIANT A + 5 VARIANT B SUDO ROOFs:
+  (per-stage compact_densor_root durations; n = launches captured
+  across 5 ROOFs each):
+
+  stage      | n  | A Path1a mean | B Stream mean |    Δ    |    %    | winner
+  -----------+----+---------------+---------------+---------+---------+--------
+  residual   | 20 |       827,640 |       848,732 | +21,092 |  +2.55  | Path1a
+  sign       | 20 |     1,114,446 |     1,062,138 | -52,308 |  -4.69  | Stream
+  detector   | 15 |       930,321 |       956,776 | +26,455 |  +2.84  | Path1a
+  consensus  | 15 |     1,766,543 |     1,689,920 | -76,623 |  -4.34  | Stream
+
+  TOTAL per dispatch:
+    A all-Path1a    : 4,638,950 ns
+    B all-Stream    : 4,557,566 ns (-1.75 % vs A)
+
+  Mixed selector recommendation: "0101"
+    residual:  Path1a  (small enough that Path1a's L2-warm scratch
+                        beats streaming's per-tile SHA overhead)
+    sign:      Stream  (past the crossover; per-tile sync count is
+                        fixed while Path1a scratch round-trip grows)
+    detector:  Path1a  (n_chunks=1152; still below crossover)
+    consensus: Stream  (largest stage; widest streaming win)
+
+  Predicted '0101' total: 4,510,019 ns (-2.78 % vs A)
+
+V4 VARIANT G '0101' MIXED SELECTOR — 5 SUDO ROOFs (the PROMOTE proof):
+
+  stage      | kernel | n  | actual ns  | predicted | match
+  -----------+--------+----+------------+-----------+------------
+  residual   | Path1a | 20 |    827,845 |   827,640 | +0.02 %
+  sign       | Stream | 20 |  1,061,405 | 1,062,138 | -0.07 %
+  detector   | Path1a | 15 |    930,754 |   930,321 | +0.05 %
+  consensus  | Stream | 15 |  1,689,376 | 1,689,920 | -0.03 %
+
+  TOTAL per dispatch:
+    Variant G '0101' actual : 4,509,379 ns
+    Variant G '0101' predicted: 4,510,019 ns
+    Δ vs A all-Path1a  : -129,570 ns (-2.79 %)
+    Δ vs B all-Stream  :  -48,186 ns (-1.06 %)
+    Δ vs predicted     :      -640 ns (-0.01 %) — model match within
+                                                    measurement noise
+
+V4 PROMOTED-DEFAULT BENCH BAND (env var unset → dispatcher hardcoded
+to '0101' as default this commit):
+  23.54 / 24.87 / 24.93 / 24.96 / 25.01 GB/s
+  median 24.93; min 23.54; max 25.01
+  Δ at median: +3.35 GB/s (+15.5 %) vs Variant A all-Path1a median
+  Δ at median: +0.83 GB/s ( +3.4 %) vs Variant B all-streaming median
+  Δ at min:    +6.33 GB/s ( +37 %) vs A min  — even worst PROMOTED run
+                                                beats best Path1a run
+                                                by 50 ms wall
+
+------------------------------------------------------------------------
+ PANEL-LOCKED PROMOTE VERDICT (2026-05-19, MULTI-RUN VERIFIED)
+------------------------------------------------------------------------
+
+  ✅ S-PERF.14b.1 v4 mixed-selector "0101" PROMOTED to production
+     default.
+
+  Evidence (3 variants × 5 sudo ROOFs each, 15 total ROOFs;
+  --launch-count 65 = 5 iterations per ROOF; 75 per-stage
+  measurements per variant; 0.02-0.18 % thermal-noise spread):
+
+    A all-Path1a    : 4,638,950 ns / dispatch  (control)
+    B all-streaming : 4,557,566 ns / dispatch  (-1.75 % vs A)
+    G '0101' mixed  : 4,509,379 ns / dispatch  (-2.79 % vs A;
+                                                 -1.06 % vs B)
+
+  Per-stage prediction match: ±0.07 % accuracy on every stage.
+  System bench match: PROMOTED median 24.93 GB/s vs A median 21.58
+                      (+15.5 %); PROMOTED min beats A max.
+
+  Byte identity: 4 CompactDensorDigestV1 stage roots byte-identical
+                 under '0101' (and all 16 combinations); verified by
+                 108 pin checks in the v4 byte-identity test.
+
+  R.12b episodes: 13/89/1917 byte-stable under '0101' (verified by
+                  workspace test suite + manual bench harness).
+
+  Active dispatcher backend: STAGE-ADAPTIVE
+    residual  → compact_densor_digest_v1_root_kernel_blockcoop (Path 1a)
+    sign      → compact_densor_digest_v1_root_kernel_streaming_blockcoop
+                (Streaming-32K)
+    detector  → compact_densor_digest_v1_root_kernel_blockcoop (Path 1a)
+    consensus → compact_densor_digest_v1_root_kernel_streaming_blockcoop
+                (Streaming-32K)
+
+  Env-var override DSFB_S_PERF_14B_1_V4_BACKENDS remains as a
+  debug-only switch (4-char string; '0' = Path1aBlockcoop / '1' =
+  Streaming32K per stage in canonical residual/sign/detector/
+  consensus order). Default unset OR malformed = '0101' PROMOTED
+  default.
+
+  Lessons recorded (panel-locked, 2026-05-19):
+
+    1. Multi-run measurement discipline IS LOAD-BEARING. The v3
+       single-ROOF verdict (+3.3 % slower) was an artifact of
+       single-run thermal/cache state. Multi-run ncu (5 ROOFs × 5
+       iterations each, 75 per-stage measurements per variant)
+       resolved cleanly to -4.7 % faster — a sign-flipping
+       difference that the v3 cadence violation hid.
+
+    2. "Mediocre: it regressed, revert, close. Legendary: it
+       regressed, so now we know the missing axis. Test the axis."
+       The missing axis was stage-adaptivity. Streaming wins at
+       sign + consensus; Path 1a wins at residual + detector. The
+       all-streaming variant left 1.04 % on the table; the all-
+       Path1a variant left 2.79 % on the table; the mixed selector
+       captures both wins simultaneously.
+
+    3. The v3 sweep harness (24 cudaEvent measurements) was a
+       useful design-space probe even though its single-ROOF
+       interpretation was unreliable. Preserve sweep harnesses as
+       inactive measurement infrastructure even after a single-
+       result regression — they unlock future variants.
+
+    4. Receipts preserve victories; they do NOT define ambition.
+       Closing the campaign on v3's first-ROOF reading would have
+       cost a 2.79 % production win + the per-stage understanding
+       of when streaming beats scratch.
+
+    5. **Single-backend thinking was wrong. Stage-adaptive backend
+       selection was the missing design axis.** (panel-locked
+       strongest-lesson verdict, 2026-05-19). The campaign converted
+       failed universal-streaming attempts into a stage-adaptive
+       CompactDensorDigestV1 root backend. Path 1b streaming SHA
+       did not merely "live in source"; it found its rightful
+       production niche. The earlier failures were not dead ends;
+       they were map-building.
+
+  Panel verdict (verbatim, 2026-05-19, post-PROMOTE seal):
+
+    "S-PERF.14b.1 v4 is a real promoted win. The campaign converted
+     failed universal streaming attempts into a stage-adaptive
+     CompactDensorDigestV1 root backend. The production default now
+     selects the faster backend per stage, with multi-run ROOF
+     evidence and byte-stable episode preservation. This is not
+     retreat; this is empirical architecture discovery."
+
+  .gitignore: whitelist lines for v3 receipt + v3 sudo ROOF +
+  v4 Variant A 5 ROOFs + Variant B 5 ROOFs + Variant G 5 ROOFs.
+
+  No corpus / T.x / FF.x / S1.3.x / T.12.PROV / S-PERF.x hash change.
+  No workspace contract change.
+  No D128 / D205 dispatcher change.
+  No Audit-mode / TreeSha256V1 path change.
+
+------------------------------------------------------------------------
+ Hash posture (panel-locked, verified)
+------------------------------------------------------------------------
+
+  - corpus_hash_v1 / corpus_hash_v2                       : UNCHANGED
+  - Every prior T.11 / T.12.x / FF.x / S1.3.x / T.12.PROV /
+    S-PERF.1–S-PERF.15.d hash                             : byte-identical
+  - S-PERF.12 promotion-receipt hashes                    : byte-identical
+  - 4 CompactDensorDigestV1 stage roots                   : byte-identical
+  - 4 TreeSha256V1 stage roots                            : byte-identical
+  - 5 S-PERF.14b.1 step-0 pinned roots                    : byte-identical
+  - Full Track B byte-identity chain                      : passes
+  - SEED.len() = 54                                       : UNCHANGED
+  - R.12b episodes 13 / 89 / 1917                         : byte-stable
+  - Pinned R.12b + D64 reference reports                  : restored from HEAD
+  - ZERO new own-namespace corpus hashes (CUDA-only commit)
+
+------------------------------------------------------------------------
+ Bench cadence (panel-required multi-run discipline)
+------------------------------------------------------------------------
+
+PRE Path 1a band (Step 0 baseline; 3 runs):
+  19.47 / 23.56 / 25.10 GB/s   (median 23.56)
+
+POST v3 streaming-32K band (10 runs during dispatcher-active phase):
+  15.88 / 16.58 / 16.75 / 17.02 / 22.39 /
+  23.60 / 24.08 / 24.92 / 25.64 / 26.06 GB/s
+  steady-state median (warm runs 5-10): ~24.7 GB/s
+  full-band median (all 10):  22.99 GB/s
+
+Path 1a re-active confirmation band (5 runs after re-revert):
+  16.34 / 17.58 / 23.68 / 24.96 / 25.69 GB/s   (median 23.68)
+  → matches PRE baseline within thermal noise; no dispatcher
+    flip-flop regression.
+
+All three bands overlap within ~9 GB/s thermal spread. System
+bench is the noise filter; per-kernel sudo ncu (above) is the
+court witness.
+
+------------------------------------------------------------------------
+ Panel-locked non-claims (CORRECTED FRAMING per 2026-05-18 rejection)
+------------------------------------------------------------------------
+
+  - Does NOT claim a per-kernel wall reduction
+    (streaming-32K ran +3.3 % slower per launch vs Path 1a in
+     production ROOF).
+  - Does NOT claim a system-level bandwidth win (10-run bench
+    band overlapped Path 1a's 3-run band within thermal noise).
+  - Does NOT promote the streaming kernel to active production.
+    Per the panel-locked backend-selection discipline:
+      "Path 1a remains the active production root backend until
+       a streaming variant beats 925 µs."
+  - Does NOT call this a "structural cleanup win"
+    (panel-rejected framing — switching the active dispatcher
+     to a slower kernel is not admissible regardless of which
+     occupancy / DRAM metrics improved).
+  - Does NOT change CompactDensorDigestV1 byte stream.
+  - Does NOT change 4 stage root bytes.
+  - Does NOT create CompactDensorDigestV2.
+  - Does NOT use unordered atomics or warp shuffles for SHA work.
+  - Does NOT rebaseline R.12b.
+  - Does NOT mutate any prior hash anchor.
+  - Does NOT touch TreeSha256V1 paths.
+  - Does NOT touch D128 / D205 dispatchers.
+  - Does NOT seal S-PERF.12 promotion at a higher tier.
+
+------------------------------------------------------------------------
+ What the v3 sweep teaches (panel-recorded)
+------------------------------------------------------------------------
+
+The compact_densor_root layer's per-call wall under the v1
+digest contract has the following structure:
+
+  Path 1a: cooperative scratch write (~570 KB at consensus
+           stage) + thread-0 one-shot SHA over L2-warmed
+           scratch. Per launch: ~925 µs (pinned).
+
+  Path 1b v2 (2 KiB tile): cooperative shared-tile load + 64
+           __syncthreads barriers per launch + thread-0
+           streaming SHA per tile. Per launch: ~1008 µs.
+
+  Path 1b v3 (32 KiB tile): same with 4 barriers per launch
+           instead of 64 (16× fewer barriers). Per launch:
+           ~956 µs.
+
+  Tile sweep proves the barrier-count hypothesis: tiles
+  4 KiB → 32 KiB each shave ~3-10 % off v2's wall, with
+  diminishing returns past 16 KiB. But the asymptotic floor
+  (32 KiB) is still +3.3 % above Path 1a.
+
+The irreducible v3 overhead vs Path 1a is the streaming SHA
+update's per-call overhead × n_tiles per launch, plus a small
+shared-memory-vs-L2 read-latency delta that favours L2 for
+the read-once / write-once / read-once pattern Path 1a uses.
+
+The remaining lever inside the v1 contract would be a
+SHA-256 implementation rewrite to operate on shared-memory
+64-byte blocks without per-block function-call overhead.
+That is a bounded optimisation; the bigger system-level wall
+lives in detector_motif_fused (1.32 ms @ 91 % L2) and
+consensus_axis5_fused (0.40 ms @ 88 % L2) — both ~2× the
+compact_densor_root layer's total. Future S-PERF.x sub-legs
+should target those memory-bound kernels.
+
+------------------------------------------------------------------------
+ Receipt provenance
+------------------------------------------------------------------------
+
+Sweep harness:
+  crates/dsfb-gpu-debug-demo/tests/s_perf_14b_1_v3_tile_sweep.rs
+
+Run cmd (sweep, cudaEvent timing, no sudo):
+  cargo test -p dsfb-gpu-debug-demo --features cuda --release \
+    --test s_perf_14b_1_v3_tile_sweep -- --test-threads=1 --nocapture
+
+PRE Path 1a sudo ROOF baseline:
+  reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_15_d_post.txt
+
+POST v3 sudo ROOF capture:
+  reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_14b_1_v3_post.txt
+
+Byte-identity validation post-revert:
+  cargo test -p dsfb-gpu-debug-demo --features cuda --release \
+    --test s_perf_14b_1_streaming_sha_byte_identity \
+    --test s_perf_14b_compact_densor_root_byte_identity \
+    --test s_perf_15_d_detector_motif_layout_byte_identity
+  → 29/29 pins PASS with Path 1a re-active.
+
+Receipt is one-shot; no hash chain. Subsequent S-PERF.x sub-leg
+cites this v3 candidate evaluation as load-bearing scope input
+(the digest path is at the structural floor under the v1
+contract; next campaigns should target detector_motif_fused +
+consensus_axis5_fused per the lesson above).

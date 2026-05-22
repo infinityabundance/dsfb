@@ -1,0 +1,179 @@
+# Post-S1.1 regression check (per-section discipline artifact)
+#
+# Hardware:       RTX 4080 SUPER
+# CUDA toolkit:   13.2
+# Date:           2026-05-15
+# Pre-S1.1 head:  532338d (R.9.d.2.1 D205 GPU byte-equivalence)
+# Post-S1.1 head: (this commit)
+# Test:           tests/r12_d64_saturation.rs (D64 saturation sweep)
+# Method:         re-run the R.12b saturation matrix after S1.1
+#                 lands; compare against the pinned R.12b money
+#                 table in reports/money_table.txt and
+#                 reports/r12_d64_saturation.txt.
+#
+# Why this artifact exists:
+#   S1.1 introduces a new host-only crate
+#   `dsfb-gpu-atlas-registry` defining the Atlas detector algebra
+#   type surface (DetectorFamily / Transform / WindowSpec /
+#   Statistic / Comparator / Gate / DomainTag / AxisBinding /
+#   CostClass / NumericMode / ImplementationKind / DetectorTemplate
+#   / DetectorSpec / CanonicalDetectorName + verifier). It is
+#   types-only — NO registry generation, NO corpus_hash_v1, NO
+#   CaseFileV2 integration, NO GPU execution. The
+#   D16/D64/D128/D205 ladder, the R.13 headline, and the corpus
+#   T.1-T.9 surface are all unchanged.
+#
+#   This file is the user-enforced per-section discipline receipt.
+#
+# Result: NO SEMANTIC REGRESSION.
+#   - tests/r12_d64_saturation.rs exit code: 0
+#   - Full-workspace serial test suite
+#     (cargo test --workspace --features cuda -- --test-threads=1):
+#       492 passed; 0 failed; finished green.
+#       (R.9.d.2.1 baseline 466 + 26 new S1.1 tests = 492.)
+#   - dsfb-gpu-atlas-registry crate tests: 26 passed.
+#   - dsfb-gpu-atlas-corpus crate tests: 211 passed (unchanged
+#     from T.9 — corpus not touched).
+#   - Episode counts byte-identical to pinned R.12b numbers:
+#       canonical 16x128 K in {1,4,16,32,64,128} : 13   episodes/cat
+#       mid       64x512 K in {1,4,16,32,64,128} : 89   episodes/cat
+#       full   256x4096  K in {1,4,16,32,64,128} : 1917 episodes/cat
+#
+# GPU-timing posture (panel-discipline, NOT a S1.1 regression):
+#   S1.1 is pure host-side type-system + verifier code. The
+#   R.12b numbers vary run-to-run with thermal envelope and host
+#   load. The pinned reports/r12_d64_saturation.txt is the
+#   authoritative R.12b baseline. This receipt does NOT rebaseline
+#   it. The pinned baseline files were restored to HEAD after the
+#   test rewrote them during this run.
+#
+# S1.1 deliverables (sealed in this commit):
+#   - NEW crate crates/dsfb-gpu-atlas-registry/ (18 src files,
+#     5 test files, Cargo.toml). Zero external dependencies; the
+#     only workspace dep is dsfb-gpu-atlas-corpus (for the
+#     DetectorCanonicalId newtype used in template/spec linkage).
+#     Host-only; no CUDA coupling.
+#   - DetectorFamily enum with 43 panel-recommended variants
+#     across 9 domain groups. Order panel-locked; pinned by
+#     `detector_family_order_is_stable`.
+#   - Transform / Statistic / Comparator / Gate / WindowSpec
+#     enums with `canonical_wire_name()` const methods producing
+#     uppercase snake-case wire-form strings.
+#   - DomainTag / DomainTagSet bit positions byte-identical to
+#     corpus crate's DomainTagSet.
+#   - AxisBinding bitset mirroring corpus crate's AxisBindingSet.
+#   - CostClass / NumericMode / ImplementationKind with pinned
+#     defaults: NumericMode::Q16_16 (audit default),
+#     ImplementationKind::ScalarCpu (explicitly NOT a GPU claim).
+#   - DetectorTemplate (algebra-grid expansion point with
+#     `primitive_id: Option<DetectorCanonicalId>` linkage).
+#   - DetectorSpec (concrete detector identity).
+#   - CorpusBindingStatus enum (PreHashT9InternalAudit /
+#     HashFrozenT10) -- temporary honest enum used while
+#     corpus_hash_v1 is unfrozen.
+#   - CanonicalDetectorName builder + token-count + empty-token
+#     predicates. Panel-locked grammar:
+#       {FAMILY}__{TRANSFORM}__W{WINDOW}__{STATISTIC}__{COMPARATOR}__P{PERSISTENCE}
+#   - verify_template / verify_spec verifier with 10 structured
+#     error kinds. The load-bearing rule:
+#     SpecHashFrozenWithoutT10 -- rejects any spec claiming
+#     corpus_binding_status = HashFrozenT10 because T.10 has NOT
+#     landed.
+#   - 26 acceptance tests in 5 test files covering all 15
+#     panel-required invariants:
+#       canonical_name_is_stable,
+#       canonical_name_rejects_empty_family,
+#       canonical_name_uses_double_underscore_boundaries,
+#       detector_family_order_is_stable,
+#       domain_tagset_roundtrips_bits,
+#       axis_binding_requires_at_least_one_axis,
+#       detector_template_requires_primitive_id,
+#       detector_spec_requires_parameter_hash,
+#       detector_spec_requires_corpus_binding_status,
+#       detector_spec_rejects_hash_frozen_without_t10,
+#       implementation_kind_is_not_gpu_claim_by_default,
+#       cost_class_order_is_stable,
+#       numeric_mode_defaults_to_q16_16_for_audit,
+#       sample_template_verifies,
+#       malformed_template_fails_verify
+#     Plus 11 additional defensive tests for byte-position
+#     equivalence with corpus / determinism / well-formedness.
+#   - reports/s1_1_atlas_algebra_report.txt -- public algebra
+#     report enumerating the grammar, seed, defaults, and
+#     explicit non-claims.
+#
+# Honesty invariants pinned by S1.1:
+#   - 43 families seeded (NOT 2,000 detectors generated).
+#   - registry_hash_v2 -- DOES NOT EXIST in this commit.
+#   - corpus_hash_v1 -- DOES NOT EXIST in this commit.
+#   - CaseFileV2 -- DOES NOT EXIST in this commit.
+#   - GPU execution of Atlas detectors -- DOES NOT EXIST in this
+#     commit.
+#   - D16 / D64 / D128 / D205 ladder -- unchanged by S1.1.
+#   - The load-bearing
+#     detector_spec_rejects_hash_frozen_without_t10 test pins
+#     that no caller can mint a DetectorSpec claiming frozen
+#     corpus-hash status before T.10 lands.
+#
+# Crate counts after S1.1:
+#   - dsfb-gpu-debug-core
+#   - dsfb-gpu-debug-cuda
+#   - dsfb-gpu-debug-demo
+#   - dsfb-gpu-atlas-corpus
+#   - dsfb-gpu-atlas-registry   <-- NEW
+#
+# Stale-doc grep scan (this commit) - verified clean:
+#   grep -RnE "S1\.1 .*not yet implemented|registry_hash_v2 .*deferred" \
+#     crates README.md \
+#     -> zero hits (every reference is in present tense; the
+#     deferred-list is explicit).
+#
+# Full code-commentary discipline (this commit):
+#   - Every new pub item carries a doc-block stating the WHY for
+#     a future engineer.
+#   - The crate lib.rs docstring opens with the panel-locked
+#     scope ("types + verifier only; not generation; not corpus
+#     hash freeze; not CaseFileV2; not GPU execution"). It lists
+#     the panel-locked grammar and the corpus-binding gate
+#     verbatim.
+#   - canonical_name.rs and verify.rs docstrings name the
+#     load-bearing invariants explicitly so a future reader
+#     understands which rules are panel-locked.
+#   - Every test file's module docstring lists every test name
+#     grouped by category.
+#
+# Pinned baselines not rebaselined by this commit:
+#   - reports/r12_d64_saturation.txt -- restored to HEAD; the
+#     test re-wrote it during this run but the file is the
+#     authoritative R.12b baseline and should not drift with
+#     thermal noise.
+#   - reports/d64_stage_timing_256x4096_K1.txt -- restored.
+#   - reports/r9_b_d64_timing.txt / reports/r9_b3_d64_timing.txt
+#     -- restored.
+#
+# 10-step per-section discipline checklist (hard-enforcement order):
+#   [x]  1. cargo fmt --all --check                                (clean)
+#   [x]  2. cargo clippy --workspace --features cuda --all-targets \
+#             -- -D warnings                                       (clean)
+#   [x]  3. scripts/scrub.sh                                       (clean)
+#   [x]  4. scripts/docs_freshness.sh                              (clean)
+#   [x]  5. cargo test -p dsfb-gpu-atlas-registry                  (26 green)
+#   [x]  6. cargo test --workspace --features cuda \
+#             -- --test-threads=1                                  (492 green)
+#   [x]  7. tests/r12_d64_saturation regression check              (exit 0;
+#             D64 episode counts byte-identical to pinned R.12b
+#             baseline; pinned R.12b baseline NOT rebaselined.)
+#   [x]  8. stale-doc scan across the workspace                    (zero hits)
+#   [x]  9. README "Atlas algebra status" section added            (S1.1 scope
+#             explicit; ladder unchanged statement; explicit
+#             non-claims block)
+#   [x] 10. Atomic single commit                                   (this commit)
+#
+# Going forward (panel-locked): with S1.1 sealed the natural
+# next campaign is T.10 corpus_hash_v1 + CaseFileV2 integration.
+# T.10 may now safely freeze the corpus hash because:
+#   - The corpus T.1-T.9 surface is stable.
+#   - The Atlas algebra type surface (S1.1) is defined and ready
+#     to bind to the frozen corpus_hash_v1.
+#   - The D205 GPU ladder is byte-equivalent, so T.10's case-file
+#     receipt can include a deterministic D205 path.

@@ -1,0 +1,126 @@
+S-PERF.8 --- batched-K saturation receipt (verification, S-PERF.8.1 hardening pass)
+====================================================================================
+
+Acceptance suite
+----------------
+
+  Module : crates/dsfb-gpu-atlas-corpus/src/s_perf_8_batched_k_saturation_receipt.rs
+  Tests  : crates/dsfb-gpu-atlas-corpus/tests/s_perf_8_batched_k_saturation_receipt_invariants.rs
+  Count  : 43 tests
+  Result : 43 passed, 0 failed
+
+Verifier coverage matrix
+------------------------
+
+The receipt verifier exercises 14 panel-required negatives,
+8 structural defect rules, and 6 additional integrity
+rules. Every reject kind is covered by at least one
+acceptance test.
+
+| #  | reject_kind                                            | covered_by_test                                                     |
+|----|--------------------------------------------------------|---------------------------------------------------------------------|
+|  1 | KMatrixIncomplete                                      | parser_rejects_table_with_missing_header                            |
+|  2 | K1FullScalePerCatInconsistentWithReceipt               | s_perf_8_rejects_full_scale_claim_above_measured_delta              |
+|  3 | K1CatPerSecArithmeticMismatch                          | s_perf_8_rejects_speedup_arithmetic_mismatch                        |
+|  4 | KAmortisationGainExceedsCeiling                        | (5x ceiling pin --- canonical 1.76x, full 1.03x, mid 1.00x all <5x) |
+|  5 | HostLoopKClaimedAsBatched                              | s_perf_8_rejects_host_loop_k_claimed_as_batched                     |
+|  6 | MissingBatchedKSourceReport                            | s_perf_8_rejects_missing_batched_k_source_report                    |
+|  7 | MissingPrePostBandwidthDelta                           | s_perf_8_rejects_missing_pre_post_bandwidth_delta                   |
+|  8 | FullScaleClaimAboveMeasuredDelta                       | s_perf_8_rejects_full_scale_claim_above_measured_delta              |
+|  9 | ClaimFullScaleReached25GbpsWithoutMeasurement          | s_perf_8_rejects_claim_that_full_scale_reached_25gbps_if_it_did_not |
+| 10 | SaturationClaimBelow8000Bp                             | s_perf_8_rejects_saturation_claim_below_8000bp                      |
+| 11 | CanonicalLaunchBoundGainGeneralizedToFullScale (ID)    | s_perf_8_rejects_canonical_launch_bound_gain_generalized_to_full_scale |
+| 12 | R12bEpisodePinsDrift                                   | s_perf_8_rejects_episode_count_drift                                |
+| 13 | CatalogOrderDrift                                      | s_perf_8_rejects_catalog_order_drift                                |
+| 14 | CompletionOrderMergeRejected                           | s_perf_8_rejects_completion_order_merge                             |
+| 15 | CudaGraphClaimWithoutReplayContract                    | s_perf_8_rejects_cuda_graph_claim_without_replay_contract           |
+| 16 | MissingDeviceIdentity                                  | s_perf_8_rejects_missing_device_identity                            |
+| 17 | PercentOfPeakArithmeticMismatch                        | s_perf_8_rejects_percent_of_peak_arithmetic_mismatch                |
+| 18 | SpeedupArithmeticMismatch                              | s_perf_8_rejects_speedup_arithmetic_mismatch                        |
+| 19 | InterpretationLabelMismatch                            | implicit via from_gain_basis_points classifier pins                 |
+| 20 | EmptyPanelLabel                                        | report_rejects_empty_source_report_path                             |
+| S1 | ReceiptIdEmpty                                         | structural family                                                   |
+| S2 | R12bSourceReportPathEmpty                              | report_rejects_empty_source_report_path                             |
+| S3 | PerScaleSummariesIncomplete                            | parser_summary_per_scale_picks_best_k                               |
+| S4 | SummaryK1MismatchWithParsedCell                        | structural family                                                   |
+
+Live-disk seed admission
+------------------------
+
+  - seed_batched_k_saturation_receipt_from_disk(repo_root())
+    OK (verifier admits).
+  - r12b_source_report_path resolved to:
+      reports/r12_d64_saturation.txt
+  - All 18 (scale, K) cells parsed.
+  - K=1 cells admitted:
+      canonical 16x128 : per_cat_us = 3061
+      mid 64x512       : per_cat_us = 2428
+      full 256x4096    : per_cat_us = 28644
+  - Best K per scale:
+      canonical 16x128 : K=64,  cat/sec 575.2  (gain 1.76x)
+      mid 64x512       : K=1,   cat/sec 411.9  (gain 1.00x)
+      full 256x4096    : K=16,  cat/sec 36.1   (gain 1.03x)
+  - Per-scale interpretation labels (panel-locked):
+      canonical 16x128 : LaunchBoundGainAtSmallFixture
+      mid 64x512       : NoFullScaleImprovement
+      full 256x4096    : ModestFullScaleGain
+  - Pre / post bandwidth (centi-GB/s):
+      canonical 16x128 : pre 0,    post 0
+      mid 64x512       : pre 0,    post 0
+      full 256x4096    : pre 1333, post 1378
+  - Delta basis points (full 256x4096): +343 bp (= +3.43%).
+  - R.12b episode pins (panel-locked):
+      canonical_w16h128 = 13
+      mid_w64h512       = 89
+      full_w256h4096    = 1917
+  - Device identity hash:
+      8fc7e700fd1347052c433bc7f2f98f13b0761646424fe6708cd9693eaef7795f
+  - Panel-locked execution-mode labels carried verbatim
+    (see summary).
+
+Hash determinism + sensitivity
+------------------------------
+
+  - Two seed_batched_k_saturation_receipt_from_disk()
+    invocations produce byte-identical
+    batched_k_saturation_receipt_hash_v1.
+  - Changing any one of:
+      canonical 16x128 speedup
+      full 256x4096 post bandwidth
+      full 256x4096 delta percent
+      per-scale interpretation label
+      device identity bytes
+      r12b_source_report_path
+    changes the receipt hash deterministically.
+  - Pinned hash:
+      37212c42b4fdf06069c019e34474cf0d6660843bad7cd4a9cbc92020a7b9f201
+    Backed by pinned_receipt_hash_matches_live_disk_seed
+    so any silent rebaseline fails CI immediately.
+
+Renderer byte-stability
+-----------------------
+
+  - render_batched_k_saturation_receipt_text() byte-stable
+    across two invocations.
+  - render_batched_k_saturation_receipt_json() byte-stable
+    across two invocations.
+  - Text renderer contains the panel-pinned summary prose.
+
+Cross-anchor distinctness
+-------------------------
+
+  - batched_k_saturation_receipt_hash_v1 pairwise-distinct
+    from every prior S-PERF.1 / S-PERF.2 / S-PERF.3 /
+    S-PERF.4 / S-PERF.5 / S-PERF.6 / S-PERF.7 hash anchor.
+
+Test result summary
+-------------------
+
+  cargo test -p dsfb-gpu-atlas-corpus --test
+  s_perf_8_batched_k_saturation_receipt_invariants
+
+  43 tests pass; 0 fail; 0 ignored. Acceptance suite
+  covers parser, classifier, verifier, hash determinism,
+  hash sensitivity, renderer byte-stability, and pinned-hash
+  back-stop. Audit posture: every receipt field is exercised
+  by at least one positive AND at least one negative test.

@@ -1,0 +1,204 @@
+================================================================
+T.12.b - Sequential Change Detection amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.b files the Sequential Change
+Detection amendment proposal. It adds only defensible new
+canonical primitives, resolves cross-class authority for existing
+Page-Hinkley / CUSUM / Mann-Kendall (plus the already-canonical
+Pettitt / SNHT / MOSUM / Buishand range records), rejects
+non-deterministic BOCPD as a canonical detector, and emits a
+dedup-court delta without mutating the frozen T.10 corpus.
+
+Main panel instruction: "Do not chase quantity yet. Prove
+cross-class dedup authority."
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+CorpusAmendmentProposalV1 carried by the T.12.0 amendment court.
+Three own-namespace hashes (NOT folded upstream):
+
+  literature_expansion_batch_hash_v1 (domain
+    DSFB-GPU-ATLAS:LITERATURE-EXPANSION-BATCH:v1\0)
+  dedup_court_delta_hash_v1          (domain
+    DSFB-GPU-ATLAS:DEDUP-COURT-DELTA:v1\0)
+  corpus_amendment_proposal_hash_v1  (domain
+    DSFB-GPU-ATLAS:CORPUS-AMENDMENT-PROPOSAL:v1\0)
+
+T.12.b emitted values (byte-identical across two builds):
+
+  literature_expansion_batch_hash_v1 :
+    8d043a5c4694015216e57c61f5240fe04477b3fe0b535f4188a461076adc6d13
+  dedup_court_delta_hash_v1          :
+    6ba7a7810d2d801472c16efec9f0aae958e0a262eeb2bddb15a1bb50e713ce0f
+  corpus_amendment_proposal_hash_v1  :
+    ac10e27cdc9286b44e18ac8ae29a46143571ecf89ca55e0283cf97ea2c19525f
+
+These three hashes are distinct from T.12.0's proof-of-life hash
+(325bbf3d...) and T.12.a's SPC hash (ae493a85...). The
+T.12.b proposal cannot be silently confused with either.
+
+----------------------------------------------------------------
+Body counts (panel-locked)
+----------------------------------------------------------------
+
+  proposed_primitives    :   5  (4 canonical additions + 1 BOCPD
+                                 rejection shell)
+  proposed_aliases       :   0  (cross-class authority is
+                                 encoded via proposed_dedup_records,
+                                 not via alias claims)
+  proposed_dedup_records :  13  (panel-locked headline; see
+                                 court-delta categories below)
+  proposed_genealogy_edges:  6  (4 DerivedFrom-CUSUM + 2
+                                 Generalizes)
+  proposed_source_refs   :   6  (one per new canonical + BOCPD
+                                 reference)
+
+  new_canonical_records (in delta): 4   (Shiryaev-Roberts, GLR,
+                                         Binary segmentation,
+                                         PELT-style deterministic)
+  new_alias_records      (in delta): 0
+  new_composition_records (in delta): 0
+  rejection_records      (in delta): 0
+  deferred_records       (in delta): 0
+
+----------------------------------------------------------------
+Court-delta categories (panel-locked, 4 distinct wire names)
+----------------------------------------------------------------
+
+  CanonicalAddition                       :  4 records
+    5201 Shiryaev-Roberts
+    5202 Generalized Likelihood Ratio (GLR)
+    5207 Binary segmentation
+    5208 PELT-style deterministic
+
+  ExistingCanonicalAuthorityResolution    :  7 records
+    SEED  3  CUSUM
+    SEED  4  Page-Hinkley test
+    SEED 11  Mann-Kendall trend test (TREND witness, NOT
+             relabelled as generic SCD)
+    SEED 34  Pettitt change-point test
+    SEED 35  Standard Normal Homogeneity Test (SNHT)
+    SEED 36  MOSUM (moving-sum-of-residuals)
+    SEED 37  Buishand range test
+
+  DomainTransferOf                        :  1 record
+    SEED  3  CUSUM as shared SCD ancestor for the four new
+             canonical additions
+
+  RejectedNotDeterministic                :  1 record
+    5209 BOCPD (Adams & MacKay 2007) - probabilistic in origin;
+         rejected unless a future T.12.x proposal admits a
+         Deterministic_BOCPD_Proxy canonical with the hazard,
+         prior, update law, truncation, and numeric mode declared
+
+DeferredToDriftDetection (prose-only, NOT a court-delta record):
+ADWIN, DDM, EDDM, HDDM, KSWIN and the stream-drift family are
+NOT folded into T.12.b. They belong in T.12.c (drift /
+distribution distance). The deferral is explicit so a reviewer
+cannot mistake the omission for an oversight.
+
+----------------------------------------------------------------
+Why 4 new canonicals, not 8 (corrected from panel draft)
+----------------------------------------------------------------
+
+A walk of SEED.rs during T.12.b's design phase showed that
+Pettitt (id 34), SNHT (id 35), MOSUM (id 36), and Buishand
+range (id 37) are ALREADY CANONICAL in SEED — they live in the
+change-point block. Promoting them again would have produced
+the very duplication T.12.b exists to forbid. The four are
+therefore recorded as ExistingCanonicalAuthorityResolution
+records (panel-locked "keep existing canonical; do not
+duplicate") rather than as CanonicalAddition records, and four
+panel-required load-bearing negatives were added to the
+acceptance suite (the seven SEED-collision tests below).
+
+Net result: 4 genuinely new canonicals + 7 existing-canonical
+cross-class authority resolutions + 1 DomainTransferOf + 1
+RejectedNotDeterministic = 13 dedup-court records.
+
+----------------------------------------------------------------
+Genealogy edges (proposed)
+----------------------------------------------------------------
+
+  5201 Shiryaev-Roberts        DerivedFrom CUSUM (3)
+  5202 GLR                     DerivedFrom CUSUM (3)
+  5207 Binary segmentation     DerivedFrom CUSUM (3)
+  5207 Binary segmentation     Generalizes Pettitt (34)
+  5208 PELT-style              Generalizes Binary segmentation (5207)
+  5208 PELT-style              DerivedFrom CUSUM (3)
+
+----------------------------------------------------------------
+Source refs (proposed)
+----------------------------------------------------------------
+
+  roberts_sr_1959      Control Chart Tests Based on Geometric
+                       Moving Averages (Technometrics 1(3))
+  shiryaev_qd_1963     On Optimum Methods in Quickest Detection
+                       Problems (Theory of Probability and its
+                       Applications 8(1))
+  lorden_glr_1971      Procedures for Reacting to a Change in
+                       Distribution (Annals of Mathematical
+                       Statistics 42(6))
+  scott_knott_binseg_1974
+                       A Cluster Analysis Method for Grouping
+                       Means in the Analysis of Variance
+                       (Biometrics 30(3))
+  killick_fearnhead_eckley_pelt_2012
+                       Optimal Detection of Changepoints With a
+                       Linear Computational Cost (JASA 107(500))
+  adams_mackay_bocpd_2007
+                       Bayesian Online Changepoint Detection
+                       (arXiv:0710.3742 - rejection-shell
+                       reference; BOCPD is probabilistic)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (14 in the suite)
+----------------------------------------------------------------
+
+  1. t12_b_does_not_mutate_seed_len
+  2. t12_b_rejects_duplicate_cusum_without_domain_transfer_or_existing_target
+  3. t12_b_rejects_duplicate_page_hinkley_without_cross_class_resolution
+  4. t12_b_rejects_mann_kendall_as_new_canonical_when_seed_id_exists
+  5. t12_b_rejects_duplicate_pettitt_when_seed_id_exists
+  6. t12_b_rejects_duplicate_snht_when_seed_id_exists
+  7. t12_b_rejects_duplicate_mosum_when_seed_id_exists
+  8. t12_b_rejects_duplicate_buishand_when_seed_id_exists
+  9. t12_b_rejects_bocpd_as_canonical_without_deterministic_reduction_status
+ 10. t12_b_bocpd_present_in_proposed_primitives_but_not_in_new_canonical_records
+ 11. t12_b_rejects_alias_without_existing_target
+ 12. t12_b_rejects_domain_transfer_without_existing_target
+ 13. t12_b_every_new_canonical_has_source_ref
+ 14. t12_b_every_rejection_has_reason_code
+
+Plus 20 additional invariants (shape, hash determinism, hash
+sensitivity, rendering byte-stability, court-delta category
+coverage, BOCPD rejection-record completeness, canonical-id
+reserved-range guard). Total: 34 acceptance tests in
+tests/t12_b_scd_invariants.rs.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.b does NOT:
+- mutate `corpus_hash_v1` (35c276c7...);
+- mutate `registry_hash_v2`, any T.11/S1.3/T.12.0/T.12.a hash,
+  or any DetectorPassport hash;
+- create `corpus_hash_v2`;
+- promote BOCPD to `new_canonical_records` (rejected under
+  `RejectedNotDeterministic` until a future T.12.x proposal
+  admits a deterministic reduction with the hazard, prior,
+  update law, truncation, and numeric mode declared);
+- relabel Mann-Kendall as a generic change-point detector (it
+  remains a TREND witness; the SCD cross-class adjacency is
+  recorded without broadening the witness role);
+- fold the stream-drift family (ADWIN, DDM, EDDM, HDDM, KSWIN)
+  into the SCD source class (deferred to T.12.c);
+- activate new detectors (S1.3a activation planner is not
+  re-emitted);
+- execute on GPU (corpus crate stays host-only and zero-dep);
+- claim empirical usefulness for the new primitives (T.8
+  ledger stays at NotScored for the 4 reserved canonicals).

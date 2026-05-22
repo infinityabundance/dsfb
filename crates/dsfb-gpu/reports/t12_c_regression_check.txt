@@ -1,0 +1,162 @@
+================================================================
+T.12.c - Drift / Distribution-Distance Authority
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Zero warnings; workspace pedantic lints pass
+  on the new t12_c_drift module, the augmented main.rs, lib.rs,
+  and the new acceptance suite.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean. Zero stale TODO / FIXME / XXX markers; zero
+  missing-doc warnings under `cargo doc --no-deps
+  --document-private-items` on the corpus crate.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 812 tests pass (T.12.b baseline 776 + 36 new T.12.c
+  acceptance tests). The new T.12.c surface contributes
+  tests/t12_c_drift_invariants.rs with 9 panel-required
+  load-bearing negatives plus 5 representative per-SEED-id
+  collision tests plus 22 additional invariants.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 68 test groups, 1127 tests PASS, 0 FAIL.
+  Delta from T.12.b seal (b9d56be): +1 test group, +36 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable. Canonical 16x128
+  K=1..128 -> episodes/cat=13; mid 64x512 -> episodes/cat=89;
+  full 256x4096 -> episodes/cat=1917. Throughput fluctuates
+  per run (documented GPU thermal / host-load variance); the
+  pinned reports/r12_d64_saturation.txt baseline is NOT
+  rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered AND repaired:
+    - README.md: new "T.12.c — Drift Detection and
+      Distribution-Distance Authority" section between the
+      T.12.b section and the scaling ladder. Front-door title +
+      Layout + Paper-section parentheticals refreshed from
+      "T.1–T.12.b" to "T.1–T.12.c".
+    - archived prior-art manuscript source: new \\textbf{T.12.c} bullet in
+      the Atlas Continuation enumeration; lead sentence
+      refreshed to include T.12.c.
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs: "Current state
+      through T.12.b" -> "through T.12.c" with a new T.12.c
+      bullet enumerating the 4 new canonicals + 11
+      ExistingCanonicalAuthorityResolution + 1 DomainTransferOf
+      + 2 ParameterizationOf (the new wire-name category landing
+      for the first time) + 6 genealogy edges + 6 source refs;
+      CLI list refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs: Usage block +
+      dispatch include t12-c-drift-proposal /
+      t12-c-drift-proposal-emit.
+    - crates/dsfb-gpu-atlas-corpus/src/t12_c_drift.rs: every
+      pub item AND every private helper carries a doc comment
+      whose first sentence states the WHY for a future
+      engineer, per the [[no-silent-court-logic]] doctrine.
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new T.12.c section added in this commit.
+    - Plan-file: T.12.b sealed at b9d56be was recorded in the
+      previous turn's plan refresh. Post-commit plan touch-up
+      will mark T.12.c sealed + surface T.12.d (robust
+      statistics) as the next campaign.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_c_drift.rs (new, ~545 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_c_drift_invariants.rs (new, 36 tests including
+      9 panel-required load-bearing negatives)
+    - out/t12_c_drift_proposal_v1.{txt,json} (new bulk
+      artifacts)
+    - reports/t12_c_drift_proposal_summary.txt (new)
+    - reports/t12_c_drift_proposal_verification.txt (new)
+    - reports/t12_c_regression_check.txt (new)
+    - README.md (T.12.c section + front-door refresh)
+    - archived prior-art manuscript source (T.12.c bullet in Atlas
+      Continuation enumeration)
+    - .gitignore (3 new whitelist lines for the T.12.c
+      receipts)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  precedent_hash_v1                           : unchanged (6721f511...)
+  admissibility_grammar_hash_v1               : unchanged (ff66706a...)
+  trial_transcript_hash_v1                    : unchanged (37618a45...)
+  execution_attestation_receipt_hash_v1       : unchanged
+  challenge_docket_hash_v1                    : unchanged (dde4ecb4...)
+  detector_contraindication_hash_v1           : unchanged (1b899f5d...)
+  coverage_hole_hash_v1                       : unchanged (671e2164...)
+  activation_plan_hash_v1                     : unchanged (5a81da47...)
+  activation_diff_hash_v1                     : unchanged (469536e7...)
+  task_manifest_hash_v1                       : unchanged (88a33338...)
+  dataset_manifest_hash_v1                    : unchanged (3864db34...)
+  activation_context_hash_v1                  : unchanged (4948bf45...)
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  T.12.b SCD corpus_amendment_proposal_hash_v1: unchanged (ac10e27c...)
+  Every DetectorPassport hash                 : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.c drift literature_expansion_batch_hash_v1 (NEW) :
+    5723f79a9288a824fd05fccdc8bd56e101d3842c3aae7f99071c4432f0b8c935
+  T.12.c drift dedup_court_delta_hash_v1 (NEW) :
+    2a9c0e1a32b1bbb4990f33b008056d0934d40f950a35d643be489c4d7946d10c
+  T.12.c drift corpus_amendment_proposal_hash_v1 (NEW) :
+    0ffb0639256c318c0d3d1ffa3a24cc5b567a931ece1a0617251ad23253a4a92d
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom: only the bank module's private
+    BankAdmissionToken constructor mints admitted episodes.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions (scrub clean).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+  - [[no-silent-court-logic]] doctrine applied: every pub item
+    AND every private helper in t12_c_drift.rs carries WHY
+    commentary.
+  - Reference-distribution discipline: every CanonicalAddition
+    and ExistingCanonicalAuthorityResolution record declares
+    its reference-distribution / reference-window / sampling
+    contract in the reason text.
+  - PSI binning law explicit: PSI's authority-resolution
+    reason text declares the binning law contract (bin edges,
+    bin count, empty-bin treatment).
+  - Deterministic-disclosure: any record mentioning
+    "probabilistic" / "randomized" also carries an explicit
+    "deterministic" disclosure (Kuiper, ADWIN both follow this
+    pattern).
+
+T.12.c is sealed. The amendment court has admitted the third
+real expansion proposal: 4 new canonical drift / distribution-
+distance primitives (Kuiper, ADWIN, DDM, HDDM), 11 existing-
+canonical cross-class authority resolutions (KS, KL, MMD,
+Anderson-Darling, Cramer-von Mises, Wasserstein, Energy
+distance, Hellinger, PSI, Jensen-Shannon, Total variation),
+1 DomainTransferOf (KS as shared two-sample distance ancestor),
+2 ParameterizationOf (EDDM of DDM, KSWIN of KS; the new wire-
+name category lands here for the first time), 6 genealogy
+edges, 6 source refs — all WITHOUT mutating SEED or
+corpus_hash_v1.
+
+Next campaign (panel-locked): T.12.d - Robust Statistics
+(robust-z, MAD, Hampel filter, Tukey fences, trimmed mean
+shift, biweight midvariance, Theil-Sen slope, etc.). Same
+SEED-walk-first discipline; ROBUST_Z__RESIDUAL__W64__MAD is
+already in SEED (id 6 per the corpus inventory) so robust-z
+becomes an ExistingCanonicalAuthorityResolution.

@@ -1,0 +1,193 @@
+================================================================
+DSFB-GPU-Atlas — T.11g Detector Contraindication verification
+================================================================
+Suite          : tests/contraindication_invariants.rs
+Tests          : 57 (PASS)
+Verifier kinds : 11 (each exercised by ≥1 test)
+Seed receipts  : 54 (one per canonical SEED record)
+
+----------------------------------------------------------------
+Test invocation
+----------------------------------------------------------------
+$ cargo test -p dsfb-gpu-atlas-corpus --test contraindication_invariants
+
+  running 57 tests
+  test result: ok. 57 passed; 0 failed; 0 ignored; 0 measured
+
+----------------------------------------------------------------
+PANEL-REQUIRED load-bearing negatives (3 / 3)
+----------------------------------------------------------------
+
+  1. contraindication_verifier_rejects_primary_without_known_confuser
+       Strip a Primary-witness detector's known_confusers
+       → expect ContraindicationVerifyErrorKind::PrimaryWithoutKnownConfuser.
+       Panel-locked: a Primary witness cannot stand alone without
+       at least one declared confuser; the Anti-Hallucination
+       Ladder requires every Primary at L4+ to declare its
+       failure modes.
+
+  2. contraindication_verifier_rejects_spectral_detector_without_sampling_law
+       Strip a Spectral primitive's required_sampling_law
+       → expect SpectralWithoutSamplingLaw. Panel-locked:
+       frequency-resolved detectors intrinsically require a
+       declared sampling law.
+
+  3. contraindication_verifier_rejects_unit_sensitive_detector_without_unit_semantics
+       Strip a Spectral primitive's required_units
+       → expect UnitSensitiveWithoutUnitSemantics. The
+       panel-locked rule covers two populations:
+       `InputRequirementSet::UNITS` bit set OR
+       `PrimitiveFamily::{Spectral, Wavelet}` (intrinsically
+       unit-sensitive). The current SEED has no UNITS-bit
+       records, so the rule fires through the Spectral/Wavelet
+       path.
+
+----------------------------------------------------------------
+Schema + constants (5 tests)
+----------------------------------------------------------------
+  - contraindication_domain_separator_is_panel_locked
+  - contraindication_schema_id_is_panel_locked
+  - snapshot_has_one_receipt_per_seed_record  (54 == SEED.len())
+  - snapshot_is_sorted_by_canonical_id_ascending
+  - snapshot_schema_is_v1_datasheet_like
+
+----------------------------------------------------------------
+Hash determinism + sensitivity (12 tests)
+----------------------------------------------------------------
+  - hash_is_deterministic_across_two_builds
+  - hash_changes_when_receipt_added
+  - hash_changes_when_works_best_when_changes
+  - hash_changes_when_fails_when_changes
+  - hash_changes_when_known_confuser_added
+  - hash_changes_when_required_sampling_law_changes
+  - hash_changes_when_required_units_changes
+  - hash_changes_when_minimum_support_changes
+  - hash_changes_when_do_not_use_for_changes
+  - hash_changes_when_closest_alias_added
+  - hash_changes_when_closest_non_alias_added
+  - hash_changes_when_adversarial_twin_added
+  - hash_is_independent_of_receipt_order
+
+Each test mutates one field, sorts the snapshot defensively, and
+asserts the canonical-byte hash diverges from the clean-seed
+baseline. The "independent of receipt order" test asserts the
+hash sorts entries by `canonical_id` before hashing.
+
+----------------------------------------------------------------
+Verifier-reject coverage (one test per kind)
+----------------------------------------------------------------
+  - verifier_admits_clean_seed_snapshot       (positive admission)
+  - contraindication_verifier_rejects_primary_without_known_confuser
+  - contraindication_verifier_rejects_spectral_detector_without_sampling_law
+  - contraindication_verifier_rejects_unit_sensitive_detector_without_unit_semantics
+  - verifier_rejects_l5_or_l6_without_required_sampling_law
+  - verifier_rejects_closest_alias_missing
+  - verifier_rejects_closest_non_alias_missing
+  - verifier_rejects_unknown_detector
+  - verifier_rejects_duplicate_receipt
+  - verifier_rejects_adversarial_twin_missing
+  - verifier_rejects_adversarial_twin_self_reference
+  - verifier_rejects_contraindication_without_cross_reference
+  - verifier_rejects_active_without_do_not_use_for
+  - verifier_rejects_distribution_without_reference_baseline
+  - verifier_rejects_time_series_without_ordered_time_declaration
+
+----------------------------------------------------------------
+Seed-shape invariants (5 tests; pin the conservative seed)
+----------------------------------------------------------------
+  - seed_every_primary_witness_carries_at_least_one_known_confuser
+  - seed_every_spectral_detector_has_required_sampling_law
+  - seed_every_unit_sensitive_detector_has_required_units
+  - seed_every_distribution_detector_has_baseline_reference
+  - seed_every_active_detector_declares_at_least_one_do_not_use_for
+
+----------------------------------------------------------------
+Wire-name stability (6 tests)
+----------------------------------------------------------------
+  - works_best_when_wire_names_are_stable
+  - fails_when_wire_names_are_stable
+  - sampling_law_wire_names_are_stable
+  - unit_semantics_wire_names_are_stable
+  - do_not_use_for_wire_names_are_stable
+  - alias_distinction_wire_names_are_stable
+  - adversarial_twin_kind_strs_are_stable
+
+These pin every enum's `as_str()` to its panel-locked wire name
+so future code refactors cannot silently change the hash material.
+
+----------------------------------------------------------------
+Rendering (6 tests)
+----------------------------------------------------------------
+  - render_text_is_deterministic_across_two_calls
+  - render_json_is_deterministic_across_two_calls
+  - render_text_carries_contraindication_hash
+  - render_json_carries_schema_id
+  - render_text_lists_panel_locked_non_claim
+  - render_json_contains_every_receipt
+  - hash_is_independent_of_rendered_text
+        Mutates receipt order (text-affecting); the hash sorts
+        before hashing so it must NOT change while text DOES
+        change.
+
+----------------------------------------------------------------
+Passport-contraindication crosswalk (5 tests)
+----------------------------------------------------------------
+  - passport_crosswalk_has_one_row_per_seed_record
+  - passport_crosswalk_is_sorted_by_canonical_id
+  - passport_crosswalk_text_render_is_deterministic
+  - passport_crosswalk_json_render_is_deterministic
+  - passport_crosswalk_counts_known_confusers
+        Every crosswalk row's `known_confuser_count` matches the
+        underlying receipt's `known_confusers.len()`. The
+        crosswalk lives in its own namespace; passport hashes do
+        NOT change.
+
+----------------------------------------------------------------
+Hash chain integrity (no prior anchor mutated)
+----------------------------------------------------------------
+T.11g does NOT touch:
+
+  - corpus_hash_v1                 (T.10)
+  - registry_hash_v2               (S1.2)
+  - precedent_hash_v1              (T.11b)
+  - admissibility_grammar_hash_v1  (T.11c)
+  - trial_transcript_hash_v1       (T.11d)
+  - receipt_hash_v1                (T.11e)
+  - challenge_docket_hash_v1       (T.11f)
+  - any DetectorPassport hash      (T.11a)
+
+T.11g's new `detector_contraindication_hash_v1` lives in its
+own namespace (domain separator
+`DSFB-GPU-ATLAS:DETECTOR-CONTRAINDICATION:v1\0`). The passport
+↔ contraindication binding lives in a separate crosswalk
+artifact; passport hashes are byte-stable.
+
+----------------------------------------------------------------
+Bulk-emit invocation
+----------------------------------------------------------------
+$ cargo run -p dsfb-gpu-atlas-corpus -- contraindications-emit \
+      --out-dir crates/dsfb-gpu-atlas-corpus/out
+
+  wrote crates/dsfb-gpu-atlas-corpus/out/contraindications_v1.txt (43267 bytes)
+  wrote crates/dsfb-gpu-atlas-corpus/out/contraindications_v1.json (48306 bytes)
+  wrote crates/dsfb-gpu-atlas-corpus/out/passport_contraindication_crosswalk.txt (5588 bytes)
+  wrote crates/dsfb-gpu-atlas-corpus/out/passport_contraindication_crosswalk.json (8997 bytes)
+
+detector_contraindication_hash_v1 =
+    1b899f5d5d6bcdd68d75cfbc19d6ce41ae256743f0a89126afb556d9dd001458
+
+----------------------------------------------------------------
+Final verification status
+----------------------------------------------------------------
+  - 57 / 57 acceptance tests PASS.
+  - 3 / 3 panel-required load-bearing negatives PASS.
+  - All 11 verifier-reject kinds exercised by dedicated tests.
+  - All wire-name strings pinned.
+  - Renderers byte-stable; hash independent of rendered output.
+  - Conservative seed posture: 100% reason-code coverage on
+    every panel-locked question, by construction (derived from
+    SEED metadata).
+  - Bulk-emit artifacts byte-stable across two invocations.
+  - No upstream hash anchor disturbed.
+  - Passport hashes byte-stable (crosswalk artifact in separate
+    namespace).

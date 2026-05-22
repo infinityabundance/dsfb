@@ -1,0 +1,194 @@
+================================================================
+T.12.consolidate - amendment review + corpus_hash_v2 freeze
+                   regression-check receipt (10-step ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Initial pass hit doc_lazy_continuation on
+  the new T.12.consolidate bullet in src/lib.rs where the
+  contract-list lines started with `+ 16 real T.12.a-T.12.p`
+  + similar `+`-prefixed continuation lines (same gotcha as
+  T.12.o / T.12.p AMS bullet); fixed by rewriting the
+  `+`-chained list as comma-separated prose ("plus 16 real
+  ... ; verifies every proposal hash, batch hash, and
+  dedup-delta hash by recomputation; ..."). 19 missing-docs
+  errors on ConsolidationVerifyErrorKind enum-variant fields
+  resolved by adding one-line doc comments to each variant
+  field. Two unused-import warnings (`SourceClass` and
+  `DetectorCanonicalId`) removed from consolidate.rs.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 43 groups / 1428 tests pass (T.12.p baseline 42
+  groups / 1375 tests + 1 new group + 53 new
+  consolidate_invariants tests). The 53 new tests include
+  the 10 panel-required load-bearing negatives, every
+  per-aggregate count regression sentinel, every hash-
+  determinism / hash-sensitivity invariant, every rendering
+  byte-stability check, every domain-separator pin, every
+  load-discipline invariant, AND the SEED + corpus_hash_v1
+  invariance witnesses.
+  Initial test fixes:
+  - The summariser, expansion-index builder, and verifier
+    initially only recognised "CanonicalAddition" wire name,
+    missing T.12.a's 2 historical "Canonical" wire-name
+    records. Added CATEGORY_CANONICAL_T12A_HISTORICAL =
+    "Canonical" and updated all three sites to accept both
+    wire names as the same role. canonical_addition_total
+    rose from 96 to 98; UNEXPECTED other count dropped from
+    2 to 0; T.12.a's MEWMA + MCUSUM admissions now correctly
+    appear in the expansion index.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 82 test groups, 1743 tests PASS, 0 FAIL. Delta
+  from T.12.p seal (d1d4389): +1 test group, +53 tests.
+  First serial run flaked on the known
+  r9_c_d64_stage_profile_256x4096_k1 GPU-timing test
+  (recurring thermal-variance flake on host); rerun came
+  clean.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined. The saturation test
+  rewrites reports/r12_d64_saturation.txt as part of its
+  run; the pinned baseline was restored from HEAD before
+  commit (also for reports/d64_stage_timing_256x4096_K1.txt,
+  reports/r9_b3_d64_timing.txt, reports/r9_b_d64_timing.txt).
+
+Step 8. Stale-doc scan
+  Result: clean. README.md, archived prior-art manuscript source,
+  src/lib.rs module docstring all refreshed through
+  T.12.consolidate. New T.12.consolidate section in README
+  between T.12.p and the scaling-ladder header. New
+  T.12.consolidate bullet in paper Atlas Continuation
+  itemize after the T.12.p bullet.
+
+Step 9. README / plan refresh
+  Result: README T.12.consolidate section + front-door
+  title (T.1-T.12.consolidate) + Layout block + Paper-
+  section enumeration bump + new T.12.consolidate section
+  + Next-campaign prose rotation to the per-proposal
+  Accepted migration arc (FF.1 passport materialisation /
+  FF.3 registry gate / S1.3d budget pruning). Plan-file
+  post-commit will mark T.12.consolidate sealed and rotate
+  the Quick Start to point at FF.1 + the Post-T.12.consolidate
+  scaling + framing roadmap as the active next campaign
+  cluster.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/consolidate.rs (new, ~1140 lines fully commented:
+      schema + loader for 17 T.12.x proposals + per-proposal
+      summariser + aggregate counter + expansion-index
+      builder + 3 hash compute fns + 10-rule verifier + text
+      + JSON renderers for all 3 artifacts)
+    - src/lib.rs (module export + docstring header bump to
+      "Current state through T.12.consolidate" + new
+      T.12.consolidate enumeration bullet + 6-CLI-subcommand
+      list extension)
+    - src/main.rs (6 CLI subcommands +
+      render_consolidation_artifact / emit_consolidation_artifacts
+      helper functions + usage block)
+    - tests/consolidate_invariants.rs (new, 53 tests
+      including the 10 panel-required load-bearing
+      negatives, every aggregate count regression sentinel,
+      every hash determinism / sensitivity invariant, every
+      rendering byte-stability check, every domain-separator
+      pin)
+    - out/t12_consolidation_report_v1.{txt,json} (new)
+    - out/corpus_v2_freeze_v1.{txt,json} (new)
+    - out/t12_expansion_index_v1.{txt,json} (new)
+    - reports/t12_consolidate_summary.txt (new)
+    - reports/t12_consolidate_verification.txt (new)
+    - reports/t12_consolidate_regression_check.txt (new)
+    - .gitignore (3 new whitelist lines)
+    - README.md (front-door title bump + test-count bump +
+      paper-section enumeration bump + new T.12.consolidate
+      section + Next-campaign prose rotation)
+    - archived prior-art manuscript source (lead sentence + paragraph
+      header + new \item \textbf{T.12.consolidate} bullet)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged
+                                                (35c276c7...)
+  registry_hash_v2                            : unchanged
+                                                (d3cf6300...)
+  Every prior T.11/S1.3/T.12.0-T.12.p hash    : unchanged
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.consolidate consolidation_report_hash_v1 (NEW) :
+    2842f6ae24bacb99c3922ca59d66358d19b5d550209f1a5adbf7c2bd747edeb0
+  T.12.consolidate t12_expansion_index_hash_v1 (NEW) :
+    11fe6543d9d3002edc34220e3b1936948cbef9224519a1c843f31e7db6517fc4
+  T.12.consolidate corpus_hash_v2 (NEW) :
+    f1d132eba43795c3087f1e388ba040357c6a0779fe22bd29de24c885ca98383f
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in consolidate.rs carries a doc comment
+  whose first sentence states the WHY for a future engineer.
+- Panel "success shape" applied: META-hash freeze layer (3
+  new own-namespace hashes; corpus_hash_v2 as ratified-
+  corpus authority anchor) WITHOUT mutating SEED or
+  corpus_hash_v1 or any prior T.11/S1.3/T.12.x hash. The
+  transition is from "proposal court" to "ratified corpus
+  authority"; per-proposal migration into a new SEED table
+  is a separate future commit gated on individual
+  ProposalStatus::Accepted ratifications.
+- Ten panel-required load-bearing negatives all PASS:
+  missing-proposal / duplicate-reserved-id /
+  unused-reserved-id-pin / SEED-collision /
+  parameterization-without-parent / authority-without-
+  target / rejection-without-contract / hash-mismatch /
+  SEED-or-corpus_hash_v1-mutation / uncredited-literature-
+  record.
+- T.12.a-era "Canonical" historical wire-name records (2
+  records: MEWMA + MCUSUM) admitted into the canonical-
+  addition aggregate; the T.12.a-era AliasOf (1) +
+  CompositionOf (2) records surface as separate categories.
+- Aggregate court delta across T.12.a..T.12.p: 98
+  CanonicalAddition + 76 ExistingCanonicalAuthorityResolution
+  + 23 DomainTransferOf + 49 ParameterizationOf + 24
+  RejectedNotDeterministic + 1 T.12.a AliasOf + 2 T.12.a
+  CompositionOf = 273 total dedup-court records. Expansion
+  index: 98 entries, sorted ascending by canonical_id,
+  spanning 5001..=6699 with T.12.m's 6301 + 6302
+  deliberately-unused slots verified absent.
+
+T.12.consolidate is sealed. The amendment court has ratified
+the full T.12.a..T.12.p expansion arc (16 sealed proposals)
+into one deduplicated expansion set and emitted corpus_hash_v2
+as the first post-amendment corpus authority anchor.
+corpus_hash_v1 remains the historical seed-corpus anchor;
+SEED stays at 54; every prior hash unchanged.
+
+Next campaign (panel-authorized post-T.12.consolidate): per-
+proposal Accepted migration arc — FF.1 passport
+materialisation, FF.2 ActivationReason::DisabledUnratifiedProposal,
+FF.3 registry gate (S1.2 DetectorSpec generation under
+corpus_hash_v2). Then S1.3d budget pruning + S1.3e
+KernelPlanV1 + S1.3f CaseFileV2 activation integration.
+Then the densorial / tekmeric inference + CUDA Evidence
+Factory front-door identity commit. Then T.12.PROV Scientific
+Provenance Credit Pass. Then S-PERF Device-resident
+saturation campaign. Then S-MG Multi-GPU deterministic shard
+court. Then S-PERF.7 / S-MG.6 B300 / GB300 cloud victory-lap
+benchmark. See the "Post-T.12.consolidate scaling + framing
+roadmap" section in the plan file for the full panel-locked
+implementation sequence.

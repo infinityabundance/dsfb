@@ -1,0 +1,200 @@
+S1.3f CaseFileV2 Activation Integration — Summary Receipt
+===========================================================
+
+Panel verdict: post-S1.3e panel directive (2026-05-17). Sealed
+under the 10-step per-section discipline ritual.
+
+Commit identity (panel-locked):
+
+    S1.3f binds activation, context, budget pruning,
+    redundancy suppression, and KernelPlanV1 into CaseFileV2
+    so every emitted case file carries the court authority
+    chain that determined which witnesses were eligible,
+    activated, budget-admitted, packed into kernel lanes, or
+    suppressed.
+
+Panel-locked verdict (verbatim):
+
+    S1.3f makes CaseFileV2 carry the whole activation-to-
+    kernel authority chain, so evidence output cannot be
+    detached from the court decisions that allowed it to
+    exist.
+
+Core rule:
+
+    A case file must not contain witness/candidate results
+    without the activation and kernel-plan authority chain
+    that made those witnesses admissible to run.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+S1.3f produces three case-file sections plus three META-hashes
+that bind every upstream court anchor into a replayable
+authority chain:
+
+  1. Activation binding — META-hashes the six activation-side
+     anchors:
+       * S1.3a activation_plan_hash_v1
+       * S1.3b activation_decision_transcript_root_hash_v1
+         (root over every per-detector transcript hash, sorted
+         ascending by canonical id)
+       * S1.3c activation_context_hash_v1
+       * S1.3d budget_pruning_plan_hash_v1
+       * S1.3d redundancy_suppression_hash_v1
+       * S1.3d budgeted_activation_summary_hash_v1
+
+  2. Kernel-plan binding — META-hashes the three S1.3e
+     anchors plus a per-detector lane membership index:
+       * S1.3e kernel_plan_hash_v1
+       * S1.3e kernel_family_schedule_hash_v1
+       * S1.3e kernel_parameter_table_hash_v1
+       * lane_membership_index: 152 rows, each mapping an
+         Active canonical id to a (gpu_family_wire_name,
+         lane_offset) pair, sorted ascending by canonical id.
+
+  3. Authority chain (top-level) — META-hashes the two
+     bindings above plus FF.2 + FF.3 gate hashes + the T.11g
+     contraindication snapshot hash + the T.11f challenge
+     docket snapshot hash + the T.11h coverage-hole snapshot
+     hash + corpus_hash_v1 + corpus_hash_v2.
+
+The reason-code separation continues: S1.3f does NOT mutate
+or re-decide any upstream record. It links them into a single
+hash so a future CaseFileV2 body populator cannot detach
+witness/candidate results from the chain that made them
+admissible.
+
+----------------------------------------------------------------
+Default production state (S1.3f baseline)
+----------------------------------------------------------------
+
+Under the panel-permissive default budget the chain pins:
+
+  Activation binding
+    activation_decision_count        : 54
+    budget_active_count              : 152
+    budget_disabled_count            : 0
+    casefile_v2_activation_binding_hash_v1 : fac45fea...
+
+  Kernel-plan binding
+    lane_count                       : 14
+    total_active_count               : 152
+    lane_membership_index_rows       : 152
+    casefile_v2_kernel_plan_binding_hash_v1 : 5df9541c...
+
+  Authority chain
+    casefile_v2_authority_chain_hash_v1     : 52398079...
+
+----------------------------------------------------------------
+Three new own-namespace hash anchors
+----------------------------------------------------------------
+
+  casefile_v2_activation_binding_hash_v1
+    domain : DSFB-GPU-ATLAS:CASEFILE-V2-ACTIVATION-BINDING:v1\0
+    value  : fac45fea44ac86b53d2210735bd3dd2bf330bc7f0d59afc2b308d8060441beef
+    binds  : six activation-side anchors + per-section counts.
+
+  casefile_v2_kernel_plan_binding_hash_v1
+    domain : DSFB-GPU-ATLAS:CASEFILE-V2-KERNEL-PLAN-BINDING:v1\0
+    value  : 5df9541cab99ef5ed2527581a952e4e72ee1c3f09d67d877f508c7465f4c4a1a
+    binds  : three S1.3e anchors + the per-detector lane
+             membership index (152 rows).
+
+  casefile_v2_authority_chain_hash_v1
+    domain : DSFB-GPU-ATLAS:CASEFILE-V2-AUTHORITY-CHAIN:v1\0
+    value  : 52398079f80624bd27aa3a1af127ead2c39f10f300b52a78d92b42cf37de5f78
+    binds  : both bindings above + FF.2 + FF.3 gate hashes +
+             contraindication + challenge + coverage-hole +
+             corpus_hash_v1 + corpus_hash_v2.
+
+----------------------------------------------------------------
+Pinned upstream anchors (all byte-stable, unchanged)
+----------------------------------------------------------------
+
+  corpus_hash_v1                               : 35c276c7...
+  corpus_hash_v2                               : f1d132eb...
+  ff1_passport_index_hash_v1                   : 1ad2dc2d...
+  ff2_activation_ratification_gate_hash_v1     : 05c1b552...
+  ff3_registry_generation_gate_hash_v1         : 2ffd0222...
+  ff4_readme_authority_boundary_policy_hash_v1 : 22b9dcb5...
+  proposal_schema_upgrade_policy_hash_v1       : 94e00ab1...
+  budget_pruning_plan_hash_v1                  : 82be2289...
+  budgeted_activation_summary_hash_v1          : 5feab238...
+  kernel_plan_hash_v1                          : e48c89b9...
+  kernel_family_schedule_hash_v1               : 8a58d3bc...
+  kernel_parameter_table_hash_v1               : 6b27dcbe...
+  detector_contraindication_hash_v1            : 1b899f5d...
+  challenge_docket_hash_v1                     : dde4ecb4...
+  coverage_hole_hash_v1                        : 671e2164...
+  activation_plan_hash_v1                      : 5a81da47...
+  activation_context_hash_v1                   : 4948bf45...
+  activation_decision_transcript_root_hash_v1  : 022f2471...
+  SEED.len()                                   : 54
+
+----------------------------------------------------------------
+Ten panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. s13f_rejects_casefile_without_activation_plan_hash
+  2. s13f_rejects_casefile_without_activation_context_hash
+  3. s13f_rejects_casefile_without_budget_summary_hash
+  4. s13f_rejects_casefile_without_kernel_plan_hash
+  5. s13f_rejects_casefile_with_kernel_plan_not_matching_budgeted_activation
+  6. s13f_rejects_casefile_with_detector_result_not_in_kernel_plan
+  7. s13f_rejects_casefile_with_suppressed_detector_result_as_active
+  8. s13f_rejects_casefile_without_ff2_or_ff3_gate_hash
+  9. s13f_rejects_casefile_without_challenge_or_contraindication_linkage
+ 10. s13f_rejects_casefile_authority_chain_mutating_upstream_hashes
+
+Plus structural defect rules (LaneMembershipNotSorted,
+LaneMembershipRowUnknownFamily,
+BodyDetectorResultClaimUnknownOutcome, SeedLengthMutated),
+determinism + sensitivity invariants, domain-separator +
+schema-id pins, three-namespace-distinctness assertion,
+structural-discipline assertions (lane index sorted, lane
+membership covers every Active canonical id, every row
+carries a canonical GpuFamilyKernel wire name), body-claim
+admission tests, upstream-anchor invariance witnesses,
+renderer-coverage checks.
+
+Total: 55 acceptance tests in
+`tests/s1_3f_casefile_v2_activation_invariants.rs`.
+
+----------------------------------------------------------------
+Test counts (post-S1.3f)
+----------------------------------------------------------------
+
+Corpus crate    : 50 groups / 1848 tests → 51 groups / 1903 tests
+Workspace serial: 89 groups / 2163 tests → 90 groups / 2218 tests
+
+R.12b D64 saturation: episodes byte-stable (13/89/1917); the
+pinned baseline `reports/r12_d64_saturation.txt` was backed
+up before the workspace serial run and restored byte-
+identically afterward (no rebaseline).
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in README + paper + plan)
+----------------------------------------------------------------
+
+S1.3f does NOT:
+
+  - emit detector outputs, witness records, fusion tensors,
+    candidate intervals, episodes, or any other body-of-
+    evidence field;
+  - execute kernels (S1.3e already barred that);
+  - mutate any upstream hash anchor (S1.3a / S1.3b / S1.3c /
+    S1.3d / S1.3e / FF.x / corpus_hash_v1 / corpus_hash_v2
+    are all read-only);
+  - alter SEED.len() (stays at 54);
+  - change S1.3a / FF.2 / FF.3 / S1.3d / S1.3e court
+    decisions;
+  - generate CUDA kernels;
+  - decide contraindications or challenges (it only links
+    them);
+  - modify the registry crate.
+
+S1.3f is the linkage layer that turns the activation +
+kernel-plan court into a single replayable authority chain
+the future CaseFileV2 body populator MUST cite.

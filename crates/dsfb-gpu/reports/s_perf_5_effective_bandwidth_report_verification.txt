@@ -1,0 +1,251 @@
+S-PERF.5 EffectiveBandwidthReport — Verification Receipt
+==========================================================
+
+This receipt documents the verifier surface, the rules each
+acceptance test exercises, and the structural defects S-PERF.5
+detects in malformed reports.
+
+Source-of-truth file:
+  crates/dsfb-gpu-atlas-corpus/src/s_perf_5_effective_bandwidth_report.rs
+
+Test file:
+  crates/dsfb-gpu-atlas-corpus/tests/s_perf_5_effective_bandwidth_report_invariants.rs
+
+----------------------------------------------------------------
+Verifier surface — 15 SPerf5VerifyErrorKind variants
+----------------------------------------------------------------
+
+PANEL-REQUIRED NEGATIVES (load-bearing, ten variants):
+
+  1.  ReportWithoutSPerf1Receipt
+      Trigger: measurement.device_traffic_receipt_hash_v1 == 0.
+      Test: s_perf_5_rejects_report_without_s_perf_1_receipt
+
+  2.  ReportWithoutSPerf2LayerAReceipt
+      Trigger: report.layer_a_traffic_receipt_hash == 0.
+      Test: s_perf_5_rejects_report_without_s_perf_2_layer_a_receipt
+
+  3.  ReportWithoutSPerf3BundleHash
+      Trigger: report.public_data_bundle_hash == 0.
+      Test: s_perf_5_rejects_report_without_s_perf_3_bundle_hash
+
+  4.  ReportWithoutSPerf4CompactionHash
+      Trigger: report.family_compaction_benchmark_schema_hash == 0.
+      Test: s_perf_5_rejects_report_without_s_perf_4_compaction_hash
+
+  5.  SaturationClaimBelow8000Bp { observed_bp }
+      Trigger: claim_kind == Saturation AND
+        percent_of_peak_basis_points < S_PERF_1_SATURATION_BP
+        (8000 bp = 80.00 %).
+      Test: s_perf_5_rejects_saturation_claim_below_8000_bp
+      Positive variant: saturation_at_or_above_8000_bp_passes_negative_five
+
+  6.  SaturationClaimWithHostTiming { observed_timing_method_wire_name }
+      Trigger: claim_kind == Saturation AND
+        timing_method_wire_name is neither "CudaEvent" nor
+        "CudaStreamSync".
+      Test: s_perf_5_rejects_saturation_claim_with_host_timing
+      Positive variant: saturation_with_cuda_stream_sync_admits_negative_six
+
+  7.  EffectiveBandwidthMismatchFromBytesAndTime
+        { which_field_wire_name, claimed, computed }
+      Trigger (effective_bandwidth_gbps): the claimed effective
+        bandwidth does not equal `total_accounted_device_bytes
+        / (measured_kernel_time_us * 1000)`.
+      Trigger (percent_of_peak_basis_points): the claimed
+        basis-points value does not equal
+        `effective_bandwidth_gbps * 10000 /
+        theoretical_memory_bandwidth_gbps`.
+      Tests:
+        s_perf_5_rejects_effective_bandwidth_mismatch_from_bytes_and_time
+        s_perf_5_rejects_percent_of_peak_mismatch_from_effective_and_theoretical
+
+  8.  ReportThatIncludesHostJsonOrCasefileTime { flag_wire_name }
+      Trigger: inner_host_json_emission_present OR
+        inner_casefile_materialization_present OR
+        inner_host_transcript_present == true.
+      Three dedicated tests (one per flag):
+        s_perf_5_rejects_report_that_includes_host_json_emission_time
+        s_perf_5_rejects_report_that_includes_casefile_materialization_time
+        s_perf_5_rejects_report_that_includes_host_transcript_time
+
+  9.  CrossDeviceClaimWithoutDeviceIdentity
+      Trigger: claim_kind != NoClaim AND
+        measurement.device_uuid_or_identity_hash == 0.
+      Test: s_perf_5_rejects_cross_device_claim_without_device_identity
+      Positive variant: no_claim_with_zero_device_identity_does_not_fire_negative_nine
+
+ 10.  BenchmarkClaimWithoutPublicArtifactManifest
+      Trigger: claim_kind != NoClaim AND
+        report.public_data_bundle_hash == 0.
+      Test: s_perf_5_rejects_benchmark_claim_without_public_artifact_manifest
+      Positive variant: no_claim_with_zero_bundle_does_not_fire_negative_ten
+
+STRUCTURAL DEFECTS (five variants):
+
+ 11.  ReportIdEmpty
+      Trigger: report.report_id is empty.
+      Test: s_perf_5_rejects_empty_report_id
+
+ 12.  AdmissibilityReasonEmpty
+      Trigger: admission.admissibility_reason_wire_name is empty.
+      Test: s_perf_5_rejects_empty_admissibility_reason
+
+ 13.  BenchmarkClaimInsideReport { location, forbidden_substring }
+      Trigger: case-insensitive scan over report_id OR
+        admissibility_reason_wire_name finds any of the 12
+        panel-locked forbidden substrings (mirrors S-PERF.3 /
+        S-PERF.4 set verbatim).
+      Tests:
+        s_perf_5_rejects_benchmark_claim_substring_inside_report_id
+        s_perf_5_rejects_benchmark_claim_substring_inside_admissibility_reason
+        forbidden_benchmark_claim_substring_scanner_is_case_insensitive
+
+ 14.  ClaimKindIncoherentWithMeasurement
+        { claim_kind_wire_name, observed_bp,
+          observed_effective_bandwidth_gbps }
+      Trigger: claim_kind / measurement field coherence
+        violated:
+          - NoClaim with non-zero percent_of_peak or
+            effective_bandwidth
+          - EffectiveBandwidth with zero effective_bandwidth
+          - PercentOfPeak with basis points outside (0, 8000)
+          - Saturation with basis points < 8000
+      Tests:
+        s_perf_5_rejects_no_claim_with_nonzero_effective_bandwidth
+        s_perf_5_rejects_effective_bandwidth_claim_with_zero_effective_bandwidth
+        s_perf_5_rejects_percent_of_peak_claim_with_basis_points_at_or_above_8000
+
+ 15.  InadmissibleClaimWithoutVerifierReason
+      Trigger (reserved): admission.admitted == false but no
+        verifier rule fires. The admission is internally
+        inconsistent. Reserved for future use; currently no
+        legitimate code path produces this case because the
+        baseline + tests always either admit OR fire one of
+        the rules above.
+
+----------------------------------------------------------------
+Baseline admission cross-checks
+----------------------------------------------------------------
+
+The baseline measurement + admission + report all admit
+cleanly under the verifier:
+
+  baseline_measurement_is_constructible             PASS
+  baseline_admission_is_no_claim_and_admitted       PASS
+  baseline_report_admits                            PASS
+  baseline_report_references_live_s_perf_1_receipt_hash    PASS
+  baseline_report_references_live_s_perf_2_layer_a_receipt_hash PASS
+  baseline_report_references_live_s_perf_3_bundle_hash     PASS
+  baseline_report_references_live_s_perf_4_compaction_hash PASS
+
+Each cross-check pulls the live S-PERF.1 / S-PERF.2 / S-PERF.3
+/ S-PERF.4 baseline functions and confirms the corresponding
+upstream anchor hash in the S-PERF.5 baseline report matches
+byte-for-byte. The baseline cannot drift from production
+court state.
+
+----------------------------------------------------------------
+Determinism
+----------------------------------------------------------------
+
+  baseline_measurement_hash_deterministic_across_two_builds  PASS
+  baseline_admission_hash_deterministic_across_two_builds    PASS
+  baseline_report_hash_deterministic_across_two_builds       PASS
+  baseline_three_hashes_are_pairwise_distinct                PASS
+  baseline_three_hashes_distinct_from_every_upstream_anchor  PASS
+
+Plus byte-stability across two CLI emits (six artifacts each
+byte-identical to its prior emission; verified out-of-band
+by `cmp` during the close-out gate).
+
+----------------------------------------------------------------
+Pinned hash constants (back-stop against silent rebaselining)
+----------------------------------------------------------------
+
+  PINNED_LAYER_A_BANDWIDTH_MEASUREMENT_HASH_V1
+    = 0554ec29b2923fffef299100f1365d5682ea2696f9928d4b86ab1072cc18ea55
+  PINNED_BANDWIDTH_CLAIM_ADMISSION_HASH_V1
+    = c45f8b883860ed7961e981f39e9b391d5b644707e49e0c1584046d34ced97cfd
+  PINNED_EFFECTIVE_BANDWIDTH_REPORT_HASH_V1
+    = a129d7e0b0f6c3bf094f446761d519b4109ac86e19c3ec82d5624600c745afa8
+
+Any future code change that alters the byte form of any
+S-PERF.5 receipt MUST also update these constants. That
+surface change demands an explicit panel decision — the
+constants are the guard.
+
+----------------------------------------------------------------
+Cross-verifier composition tests
+----------------------------------------------------------------
+
+S-PERF.5 verifier composes with S-PERF.1 / S-PERF.2 / S-PERF.3
+/ S-PERF.4 baselines without requiring them to be re-verified
+inline. The cross-verifier tests confirm:
+
+  admissible_percent_of_peak_claim_admits           PASS
+  admissible_saturation_claim_admits                PASS
+  admissible_effective_bandwidth_claim_admits       PASS
+
+----------------------------------------------------------------
+Hash determinism boundaries
+----------------------------------------------------------------
+
+The hash buffer ordering is panel-locked. The three
+compute_*_hash functions canonically serialise:
+
+  - Domain separator (NUL-terminated, fixed bytes)
+  - Schema id (length-prefixed at construction time via 0x1f
+    + literal id + 0x1e record separator)
+  - Hashed fields in declared canonical order (be_bytes for
+    integers, length-prefixed for strings, single bytes for
+    bools, raw 32-byte hashes for upstream anchors)
+
+The report hash is a META-hash binding:
+  - report_id (length-prefixed)
+  - measurement hash
+  - admission hash
+  - 4 upstream anchor hashes (in declared order)
+
+No timing values, no UUIDs, no host hostnames, no clocks. The
+report is reproducible byte-for-byte on any conforming build
+of the corpus crate.
+
+----------------------------------------------------------------
+Renderer byte-stability
+----------------------------------------------------------------
+
+Six renderers (3 text + 3 JSON) each tested for byte
+stability across two calls. The CLI emit handler writes the
+six artifacts:
+
+  out/s_perf_5_layer_a_bandwidth_measurement_v1.{txt,json}
+  out/s_perf_5_bandwidth_claim_admission_v1.{txt,json}
+  out/s_perf_5_effective_bandwidth_report_v1.{txt,json}
+
+Two consecutive `dsfb-corpus s-perf-5-receipts-emit` runs
+produce byte-identical output for all six files.
+
+----------------------------------------------------------------
+Verifier scope discipline
+----------------------------------------------------------------
+
+The S-PERF.5 verifier does NOT:
+
+  - re-verify the S-PERF.1 traffic receipt (delegates to
+    the cited hash being non-zero);
+  - re-verify the S-PERF.2 LayerA receipt (delegates to
+    the cited hash being non-zero);
+  - re-verify the S-PERF.3 bundle (delegates to the cited
+    hash being non-zero);
+  - re-verify the S-PERF.4 compaction schema (delegates to
+    the cited hash being non-zero);
+  - re-compute upstream byte accounting (consumes the inner
+    receipt's flag mirror via the LayerA forbidden-flag
+    field);
+  - run any benchmark, kernel, or measurement procedure.
+
+The S-PERF.5 verifier is the verdict gate, not a re-execution
+of upstream verifiers. Each upstream module owns its own
+acceptance suite; S-PERF.5 trusts those upstream hashes as
+proof artifacts.

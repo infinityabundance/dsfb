@@ -1,0 +1,216 @@
+================================================================
+DSFB-GPU-Atlas — T.11g Detector Contraindication Receipts V1 summary
+================================================================
+Schema             : DSFB-GPU-ATLAS:DETECTOR-CONTRAINDICATION:v1
+Domain separator   : DSFB-GPU-ATLAS:DETECTOR-CONTRAINDICATION:v1\0
+HEAD-before        : 909184c (T.11f)
+detector_contraindication_hash_v1 :
+    1b899f5d5d6bcdd68d75cfbc19d6ce41ae256743f0a89126afb556d9dd001458
+
+----------------------------------------------------------------
+Scope (panel-locked)
+----------------------------------------------------------------
+T.11g ships the court's **datasheet / model-card / safety-label
+layer**. A detector is not fully admissible until the court
+knows when it should not be trusted. Each canonical SEED record
+gets one DetectorContraindicationReceiptV1 answering nine
+panel-locked questions plus an adversarial-twin layer:
+
+  1. works_best_when
+  2. fails_when
+  3. known_confusers
+  4. required_sampling_law
+  5. required_units
+  6. minimum_support
+  7. do_not_use_for
+  8. closest_aliases
+  9. closest_non_aliases
+
+Plus the DetectorTwinRelation adversarial-twin axis with five
+variants: SameFormulaDifferentRole, SameRoleDifferentFormula,
+SameFamilyDifferentSamplingLaw, AliasLikeButSemanticallyDistinct,
+ConfuserOfPrimary.
+
+The receipt is built **deterministically from corpus SEED
+metadata** (PrimitiveFamily / WitnessRole / InputRequirementSet /
+ImplementationLevel) rather than hand-curated, so two builds
+against the same SEED produce byte-identical hashes and the
+verifier rules are satisfied by construction. Hand-curated
+overrides land in T.11g.1+ if and when needed.
+
+----------------------------------------------------------------
+Surface (new)
+----------------------------------------------------------------
+Module           : crates/dsfb-gpu-atlas-corpus/src/contraindication.rs
+Public surface   :
+    pub const DETECTOR_CONTRAINDICATION_DOMAIN
+    pub const DETECTOR_CONTRAINDICATION_SCHEMA_V1
+    pub enum   ContraindicationSchema           (V1DatasheetLike)
+    pub enum   WorksBestWhenCondition           (13 variants)
+    pub enum   FailsWhenCondition               (12 variants)
+    pub struct KnownConfuserBinding             (links to T.6 NegativeWitnessKind)
+    pub enum   SamplingLawKind                  (4 variants)
+    pub enum   SamplingRegularity               (3 variants)
+    pub struct RequiredSamplingLaw
+    pub enum   UnitSemanticsKind                (6 variants)
+    pub enum   UnitResolution                   (3 variants)
+    pub struct RequiredUnitSemantics
+    pub struct MinimumSupport
+    pub enum   DoNotUseForReason                (8 variants)
+    pub enum   AliasSimilarityReason            (4 variants)
+    pub struct ClosestAliasBinding
+    pub enum   NonAliasDistinctionReason        (6 variants)
+    pub struct ClosestNonAliasBinding
+    pub enum   DetectorTwinRelation             (5 variants)
+    pub struct DetectorContraindicationReceiptV1
+    pub struct ContraindicationSnapshot
+    pub fn     collect_contraindications()      -> ContraindicationSnapshot
+    pub fn     compute_contraindication_hash_v1(&...) -> [u8; 32]
+    pub struct ContraindicationVerifyError
+    pub enum   ContraindicationVerifyErrorKind  (11 reject conditions)
+    pub fn     verify_contraindications(&...)   -> Vec<...>
+    pub struct PassportContraindicationCrosswalkRow
+    pub fn     build_passport_crosswalk(&...)   -> Vec<...>
+    pub fn     render_contraindications_text(&...) -> String
+    pub fn     render_contraindications_json(&...) -> String
+    pub fn     render_passport_crosswalk_text(&...) -> String
+    pub fn     render_passport_crosswalk_json(&...) -> String
+
+CLI subcommands  :
+    dsfb-corpus contraindication [--json] [--out PATH]
+    dsfb-corpus contraindications-emit --out-dir <DIR>
+
+----------------------------------------------------------------
+Verifier — 11 panel-locked reject conditions
+----------------------------------------------------------------
+
+  1. PrimaryWithoutKnownConfuser              (panel-required negative #1)
+  2. LBandL4PlusWithoutContraindications
+  3. LBandL5OrL6WithoutRequiredSamplingLaw
+  4. UnitSensitiveWithoutUnitSemantics        (panel-required negative #3;
+                                               also covers Spectral/Wavelet
+                                               primitive families)
+  5. SpectralWithoutSamplingLaw               (panel-required negative #2)
+  6. TimeSeriesWithoutOrderedTimeDeclaration
+  7. DistributionWithoutReferenceBaseline
+  8. ClosestAliasMissing / ClosestNonAliasMissing
+  9. ContraindicationWithoutCrossReference
+ 10. ActiveWithoutDoNotUseFor
+ 11. AdversarialTwinMissing /
+     AdversarialTwinSelfReference /
+     UnknownDetector /
+     DuplicateReceipt   (structural integrity gates)
+
+Three panel-required load-bearing negatives:
+  - contraindication_verifier_rejects_primary_without_known_confuser
+  - contraindication_verifier_rejects_spectral_detector_without_sampling_law
+  - contraindication_verifier_rejects_unit_sensitive_detector_without_unit_semantics
+
+----------------------------------------------------------------
+Hash chain anchors (carried unchanged from T.11f)
+----------------------------------------------------------------
+corpus_hash_v1                : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7
+registry_hash_v2              : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08
+precedent_hash_v1             : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14
+admissibility_grammar_hash_v1 : ff66706a726d0cddc5f343e21f2ffbd8f81392a1504ff1b2002f8609d14a5ba7
+trial_transcript_hash_v1      : 37618a45c1e60da3bb66ddae4161d94ed762287483caf88c21a5db3cff64bbee
+challenge_docket_hash_v1      : dde4ecb4de491f93fe671b77d6ffd8567199f6d1a3f5cca51ea4facb21c10415
+
+NEW in T.11g (own namespace; not folded into corpus_hash_v1):
+  detector_contraindication_hash_v1 :
+      1b899f5d5d6bcdd68d75cfbc19d6ce41ae256743f0a89126afb556d9dd001458
+
+The contraindication hash is **NOT** folded into corpus_hash_v1
+or any DetectorPassport hash. The passport ↔ contraindication
+binding lives in a separate crosswalk artifact (panel-locked:
+"do not make every passport hash churn again unless
+necessary").
+
+----------------------------------------------------------------
+Hygiene fold-ins (panel-approved, same commit)
+----------------------------------------------------------------
+- src/lib.rs module docstring: "Current state through T.7" →
+  "Current state through T.11g" with T.8 / T.9 / T.10 / S1.2 /
+  T.11a–T.11g deliverables enumerated.
+- src/lband.rs L7/L8 reason text: T.8 ledger exists now; L8
+  stays forbidden until measured `(task × dataset)` empirical
+  rows land.
+
+----------------------------------------------------------------
+Generated artifacts (deterministic)
+----------------------------------------------------------------
+crates/dsfb-gpu-atlas-corpus/out/contraindications_v1.txt
+    43267 bytes — operator-readable receipts (one per detector).
+crates/dsfb-gpu-atlas-corpus/out/contraindications_v1.json
+    48306 bytes — canonical JSON receipts.
+crates/dsfb-gpu-atlas-corpus/out/passport_contraindication_crosswalk.txt
+     5588 bytes — passport ↔ contraindication crosswalk table.
+crates/dsfb-gpu-atlas-corpus/out/passport_contraindication_crosswalk.json
+     8997 bytes — passport ↔ contraindication crosswalk JSON.
+
+Two invocations produce byte-identical artifacts.
+
+----------------------------------------------------------------
+Scope-discipline lock (panel iteration 6, audit item 8)
+----------------------------------------------------------------
+T.11g absorbs UnitSemantics and SamplingLaw at the
+receipt-level enum + verifier-rule layer ONLY. It does NOT
+ship:
+  - a unit-conversion engine (Celsius↔Fahrenheit, ms↔µs, ...);
+  - a resampler / sampling-rate normaliser;
+  - a numeric coercion engine;
+  - ingestion-format changes;
+  - any runtime behaviour that consumes the declarations.
+
+Operational use of unit semantics (e.g. disabling a spectral
+detector because sample_rate_hz is missing) is S1.3's
+ActivationPlanner job, not T.11g's.
+
+----------------------------------------------------------------
+Reason-Code Coverage (running metric block, audit item 10)
+----------------------------------------------------------------
+The crosswalk table reports per-detector coverage of the nine
+panel-locked questions. At T.11g, every receipt is built
+deterministically from SEED metadata, so coverage is necessarily
+100% by construction:
+
+  every Primary witness        : known_confusers ≥ 1
+  every Spectral detector      : required_sampling_law = Some
+  every unit-sensitive detector: required_units = Some
+  every distribution detector  : BaselineReferenceAvailable in works_best_when
+  every time-series detector   : TimeOrderedInput / sampling-law declared
+  every Active witness role    : do_not_use_for ≥ 1
+  every L5/L6 detector         : required_sampling_law = Some
+
+T.11h CoverageHoleReport will aggregate this block into the
+cross-T.11 receipt-coverage table and surface domains, families,
+or detector axes where the corpus has known gaps.
+
+----------------------------------------------------------------
+What T.11g does NOT do (deferred)
+----------------------------------------------------------------
+  - Mutate corpus_hash_v1, registry_hash_v2, precedent_hash_v1,
+    admissibility_grammar_hash_v1, trial_transcript_hash_v1,
+    challenge_docket_hash_v1, any T.11e receipt_hash_v1, or any
+    DetectorPassport hash.
+  - Resolve any T.11f ChallengeDocket entry.
+  - Implement S1.3 ActivationPlanner, S1.3a OTel binding, T.11h
+    CoverageHoleReport, or T.11i NullVerdict / CorpusAmendment /
+    RetirementCase.
+  - Land a unit-conversion engine, resampler, or ingestion
+    changes (the receipt declares requirements; S1.3 operates on
+    them).
+  - Change D16 / D64 / D128 / D205 GPU behavior.
+  - Claim datasheet-for-datasets / model-card / NIST AI RMF /
+    SLSA / in-toto / SPDX / CycloneDX compatibility on
+    `detector_contraindication_hash_v1`.
+
+----------------------------------------------------------------
+Panel-locked closing claim
+----------------------------------------------------------------
+A detector cannot be a serious court witness unless the court
+knows its contraindications. T.11g makes that knowledge
+verifier-enforced and replayable; the activation planner (S1.3)
+will later consume these declarations to emit reason-coded
+on/off decisions with real disqualifiers instead of vague
+applicability logic.

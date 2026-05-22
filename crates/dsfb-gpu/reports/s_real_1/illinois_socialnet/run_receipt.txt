@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 illinois_socialnet
+display_name:            Illinois SocialNetwork (DeathStarBench)
+license:                 CC0-1.0
+upstream_doi_or_url:     10.13012/B2IDB-6738796_V1
+
+Input
+  vendored_path:         data/fixtures/illinois_socialnetwork.tsv
+  fixture_sha256:        c86b5abd1b412f69cccaab9b3e838da742c5ea8a1ba1b6dce634ff3407cc082c
+  fixture_byte_size:     3399
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               192
+  nan_cells_skipped:          0
+  events_emitted:             192
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 6
+  n_windows  (= observed_num_windows): 32
+  contract_hash:         sha256:74da69294c0aea67c88013ec820a6f07bf83aba9e6536ee75dba5a85c4cedbbf
+  bank_hash:             sha256:0edd39c07b9af3fda859c5b83e30676d0010b16a16dd44d204263502fe289053
+  detector_registry_hash: sha256:4065d8a79dbaacf07d62146bd86049b1959ed4851b8adcda1a21a409c8eefa64
+
+Result
+  episodes_admitted:     3
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:219ff3d06d79130029b37c00e7a7508d33a788504fa0d4c06f18f3824dead98e

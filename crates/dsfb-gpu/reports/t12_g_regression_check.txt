@@ -1,0 +1,141 @@
+================================================================
+T.12.g - Graph / Topology Anomaly
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. The fmt pass surfaced doc-list-item ambiguity
+  on the lib.rs T.12.g bullet's '+ ...' continuation lines
+  (same issue T.12.e flagged); rewording the bullet's
+  continuations from '+ join' to ', join' resolved it. Reason
+  text of dedup records is unchanged so all three emitted
+  hashes are byte-stable.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 962 tests pass (T.12.f baseline 926 + 36 new T.12.g
+  acceptance tests). The new T.12.g surface contributes
+  tests/t12_g_graph_invariants.rs with 10 panel-required
+  load-bearing negatives + per-rejection-record contract tests
+  + 3 ParameterizationOf family tests + per-canonical contract
+  tests + 18 shape / determinism / rendering invariants.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 72 test groups, 1277 tests PASS, 0 FAIL. Delta from
+  T.12.f seal (494891e): +1 test group, +36 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered AND repaired:
+    - README.md: new "T.12.g — Graph / Topology Anomaly"
+      section between T.12.f and the scaling ladder. Front-
+      door + Layout + Paper-section refreshed from "T.1–T.12.f"
+      to "T.1–T.12.g".
+    - archived prior-art manuscript source: new \\textbf{T.12.g} bullet in
+      the Atlas Continuation enumeration; lead sentence
+      refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs: "Current state
+      through T.12.f" -> "through T.12.g" with a new T.12.g
+      bullet; CLI list refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs: Usage block +
+      dispatch include t12-g-graph-proposal /
+      t12-g-graph-proposal-emit.
+    - crates/dsfb-gpu-atlas-corpus/src/t12_g_graph.rs: every
+      pub item AND every private helper carries a doc comment
+      whose first sentence states the WHY for a future
+      engineer, per the [[no-silent-court-logic]] doctrine.
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new T.12.g section added in this commit.
+    - Plan-file: T.12.f sealed at 494891e recorded in previous
+      turn. Post-commit plan touch-up will mark T.12.g sealed.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_g_graph.rs (new, ~595 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_g_graph_invariants.rs (new, 36 tests including
+      10 panel-required load-bearing negatives)
+    - out/t12_g_graph_proposal_v1.{txt,json} (new bulk
+      artifacts)
+    - reports/t12_g_graph_proposal_summary.txt (new)
+    - reports/t12_g_graph_proposal_verification.txt (new)
+    - reports/t12_g_regression_check.txt (new)
+    - README.md (T.12.g section + front-door refresh)
+    - archived prior-art manuscript source (T.12.g bullet)
+    - .gitignore (3 new whitelist lines)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every T.11/S1.3 hash                         : unchanged
+  Every prior T.12.0-T.12.f hash               : unchanged
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  T.12.g graph literature_expansion_batch_hash_v1 (NEW) :
+    0358c53be687c24c5eed965dfde8b8ef28f013a48bed098917f3d6b063348528
+  T.12.g graph dedup_court_delta_hash_v1 (NEW) :
+    37a2d159a60fa2d655acccef97307496f3cd9c76e01f86393e2ad3e80afadbe1
+  T.12.g graph corpus_amendment_proposal_hash_v1 (NEW) :
+    1bc142666cdf680f352ee8327ec53a4699f63601b5371db284600f75bde81ddd
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom intact.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions (scrub clean).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+  - [[no-silent-court-logic]] doctrine applied: every pub item
+    AND every private helper in t12_g_graph.rs carries WHY
+    commentary.
+  - Graph-model + decision-law contract discipline: every
+    CanonicalAddition and ExistingCanonicalAuthorityResolution
+    record declares its specific graph type + baseline + update
+    law + metric law + decision law contract. Each declaration
+    is pinned by a panel-required load-bearing negative.
+  - Community-detection honesty: Louvain / Leiden / label
+    propagation / Infomap are randomized / implementation-
+    sensitive in origin. Acknowledged in proposed_primitives
+    but explicitly NOT promoted to new_canonical_records.
+  - Random-walk-embedding honesty: DeepWalk / node2vec /
+    random-walk-based graph embedding family are randomized.
+    Acknowledged but NOT promoted to new_canonical_records.
+
+T.12.g is sealed. The amendment court has admitted the seventh
+real expansion proposal: 8 new canonical graph / topology
+primitives (degree spike, betweenness shift, clustering-
+coefficient shift, PageRank residual, edge-cut anomaly, bridge-
+node emergence, cascade precursor, motif-count anomaly), 1
+existing-canonical cross-class authority resolution (Fanout
+cascade), 1 DomainTransferOf (Fanout cascade as shared cascade
+ancestor), 3 ParameterizationOf records (weighted-degree spike,
+k-hop fanout, directed motif-count), 2
+RejectedNotDeterministic records (community boundary shift,
+random-walk embedding anomaly --- FIRST T.12.x proposal with
+two rejections in one commit), 4 genealogy edges, 10 source
+refs - all WITHOUT mutating SEED or corpus_hash_v1.
+
+Next campaign (panel-authorized post-T.12.g): T.12.h - Data
+Quality / Tabular / Database Integrity Constraints.
+Missingness spike, missingness coupling, null-run anomaly,
+cardinality drift, category emergence / collapse, uniqueness
+violation, functional-dependency violation, range envelope
+exit, schema drift, type instability. Same SEED-walk-first
+discipline.

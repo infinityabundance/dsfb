@@ -1,0 +1,111 @@
+================================================================
+T.12.f - Time-Series Structure / Control Residuals
+        verifier results
+================================================================
+
+Verifier surface used:
+  dsfb_gpu_atlas_corpus::amendment::verify_amendment_proposal
+
+Input:
+  dsfb_gpu_atlas_corpus::t12_f_timeseries::seed_t12_f_timeseries_proposal()
+
+----------------------------------------------------------------
+Positive verification (the proposal IS admissible)
+----------------------------------------------------------------
+
+errors.len() == 0
+
+  ProposalIdEmpty                                          : not fired
+  BatchIdEmpty                                             : not fired
+  UnknownSourceClass                                       : not fired (TimeSeriesStructure)
+  AmendmentProposalHashMismatch                            : not fired
+  BatchHashMismatch                                        : not fired
+  DedupDeltaHashMismatch                                   : not fired
+  DedupDeltaCollidesWithExistingSeedCanonicalId            : not fired (reserved ids 5601..=5612 outside SEED's 1..54 range)
+  AcceptedProposalWithoutBodyOrDelta                       : not fired
+  AcceptedProposalWithoutFutureFreezeGate                  : not fired
+
+----------------------------------------------------------------
+Panel-required load-bearing negative coverage (all passing)
+----------------------------------------------------------------
+
+  1. t12_f_does_not_mutate_seed_len
+     - SEED.len() == 54 after seed_t12_f_timeseries_proposal().
+
+  2. t12_f_rejects_arima_residual_without_model_order_and_fit_law
+     - ARIMA residual CanonicalAddition reason declares ARIMA
+       order, fit law, residual definition.
+
+  3. t12_f_rejects_stl_residual_without_seasonality_and_decomposition_law
+     - STL residual reason declares seasonality period, LOESS
+       smoother, residual definition.
+
+  4. t12_f_rejects_innovation_sequence_without_observer_model
+     - Innovation sequence NOT in new_canonical_records;
+       ParameterizationOf record references Observer residual
+       parent, declares Kalman + Q/R covariance contract.
+
+  5. t12_f_rejects_periodicity_break_without_lag_and_peak_selection_law
+     - Periodicity break ParameterizationOf record references
+       lag-range / lag-correlation parent and declares peak-
+       selection law.
+
+  6. t12_f_rejects_variance_ratio_without_window_pair_law
+     - Variance-ratio reason declares window-pair law (short
+       window + long window) and ratio definition.
+
+  7. t12_f_rejects_run_length_detector_without_event_definition
+     - Run-length reason declares event definition and run-
+       length law.
+
+  8. t12_f_rejects_control_residual_without_plant_or_observer_contract
+     (MOST IMPORTANT)
+     - Both Observer residual (5607) and Parity-space residual
+       (5608) CanonicalAddition reasons declare plant-or-
+       observer contract, residual definition, envelope law,
+       threshold.
+     - Sensor bias / actuator stiction / valve hunting
+       ExistingCanonicalAuthorityResolution reasons all declare
+       plant-or-observer contract.
+
+  9. t12_f_hash_changes_when_residual_definition_changes
+     - Mutated Observer residual reason text; proposal hash
+       differs from canonical seed.
+
+ 10. t12_f_existing_seed_collision_requires_authority_resolution
+     - Parametric loop over 6 SEED ids (22, 23, 24, 25, 40,
+       41) all fire DedupDeltaCollidesWithExistingSeedCanonicalId
+       rule on defective variants.
+
+Plus 3 per-named SEED-collision tests (sensor bias, valve
+hunting, residual envelope exit), AR-residual contract test
+(t12_f_rejects_ar_residual_without_model_order_and_fit_law),
+lag-correlation declaration test, burstiness-index
+ParameterizationOf-Error-burst test, unidentified-model
+RejectedNotDeterministic contract test (declares all 5
+reduction requirements), plus shape + determinism + rendering
+invariants. Total: 37 acceptance tests, all passing.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every T.11/S1.3 hash                         : unchanged
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  T.12.b SCD corpus_amendment_proposal_hash_v1: unchanged (ac10e27c...)
+  T.12.c drift corpus_amendment_proposal_hash_v1: unchanged (0ffb0639...)
+  T.12.d robust corpus_amendment_proposal_hash_v1: unchanged (7b51703f...)
+  T.12.e spectral corpus_amendment_proposal_hash_v1: unchanged (0036435f...)
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  R.12b episodes 13/89/1917                    : byte-stable
+
+  T.12.f time-series literature_expansion_batch_hash_v1 (NEW):
+    4b54d67b8cfbad5b698db85c070ea6a576568cd6ab5952bdfa0256e6d77f0d77
+  T.12.f time-series dedup_court_delta_hash_v1 (NEW):
+    e807688693b1740d0c435ea4efc3bbd63e5705182bbdd7545a2e9edb016d66dc
+  T.12.f time-series corpus_amendment_proposal_hash_v1 (NEW):
+    76717e0232019595922fa8258599084c22d8c5d566d0734f4b476507fa204802

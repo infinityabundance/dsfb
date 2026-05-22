@@ -1,0 +1,164 @@
+================================================================
+T.12.d - Robust Statistics regression-check receipt
+        (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Zero warnings; workspace pedantic lints pass
+  on the new t12_d_robust module, the augmented main.rs, lib.rs,
+  and the new acceptance suite.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean. Zero stale TODO / FIXME / XXX markers; zero
+  missing-doc warnings.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 850 tests pass (T.12.c baseline 812 + 38 new T.12.d
+  acceptance tests). The new T.12.d surface contributes
+  tests/t12_d_robust_invariants.rs with 9 panel-required
+  load-bearing negatives plus parametric SEED collision loop
+  (3 SEED ids) + 2 per-named collision tests + 4
+  ParameterizationOf family-relationship tests + biweight
+  estimator-law test + 19 shape / determinism / rendering
+  invariants.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 69 test groups, 1165 tests PASS, 0 FAIL.
+  Delta from T.12.c seal (b1ab12e): +1 test group, +38 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable. Canonical 16x128
+  K=1..128 -> episodes/cat=13; mid 64x512 -> episodes/cat=89;
+  full 256x4096 -> episodes/cat=1917. Pinned R.12b baseline
+  NOT rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered AND repaired:
+    - README.md: new "T.12.d — Robust Statistics" section
+      between the T.12.c section and the scaling ladder.
+      Front-door title + Layout + Paper-section parentheticals
+      refreshed from "T.1–T.12.c" to "T.1–T.12.d".
+    - archived prior-art manuscript source: new \\textbf{T.12.d} bullet in
+      the Atlas Continuation enumeration; lead sentence
+      refreshed to include T.12.d as the fourth real expansion
+      proposal AND the first to exercise all five panel-locked
+      court-delta categories.
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs: "Current state
+      through T.12.c" -> "through T.12.d" with a new T.12.d
+      bullet enumerating the 4 new canonicals + 3 Existing-
+      CanonicalAuthorityResolution + 1 DomainTransferOf + 3
+      ParameterizationOf + 1 RejectedNotDeterministic (the
+      first proposal to exercise all five categories) + 7
+      genealogy edges + 8 source refs; CLI list refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs: Usage block +
+      dispatch include t12-d-robust-proposal /
+      t12-d-robust-proposal-emit.
+    - crates/dsfb-gpu-atlas-corpus/src/t12_d_robust.rs: every
+      pub item AND every private helper carries a doc comment
+      whose first sentence states the WHY for a future
+      engineer, per the [[no-silent-court-logic]] doctrine.
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new T.12.d section added in this commit.
+    - Plan-file: T.12.c sealed at b1ab12e was recorded in the
+      previous turn's plan refresh. Post-commit plan touch-up
+      will mark T.12.d sealed.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_d_robust.rs (new, ~580 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_d_robust_invariants.rs (new, 38 tests
+      including 9 panel-required load-bearing negatives)
+    - out/t12_d_robust_proposal_v1.{txt,json} (new bulk
+      artifacts)
+    - reports/t12_d_robust_proposal_summary.txt (new)
+    - reports/t12_d_robust_proposal_verification.txt (new)
+    - reports/t12_d_regression_check.txt (new)
+    - README.md (T.12.d section + front-door refresh)
+    - archived prior-art manuscript source (T.12.d bullet in Atlas
+      Continuation enumeration)
+    - .gitignore (3 new whitelist lines for the T.12.d
+      receipts)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every T.11/S1.3 hash                         : unchanged
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  T.12.b SCD corpus_amendment_proposal_hash_v1: unchanged (ac10e27c...)
+  T.12.c drift corpus_amendment_proposal_hash_v1: unchanged (0ffb0639...)
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  T.12.d robust literature_expansion_batch_hash_v1 (NEW) :
+    7fffd93ab387b101626aad84c950915b4c43c3f514b37e5c14ad671f8c2509e9
+  T.12.d robust dedup_court_delta_hash_v1 (NEW) :
+    182000af0592fd6ff992b0bb8b22abf602562db417859089be2dfc788aac759b
+  T.12.d robust corpus_amendment_proposal_hash_v1 (NEW) :
+    7b51703fae33c53ee438bdcc8b4fef796d7da736025416bc81e6318f4b426eff
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom: only the bank module's private
+    BankAdmissionToken constructor mints admitted episodes.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions (scrub clean).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+  - [[no-silent-court-logic]] doctrine applied: every pub item
+    AND every private helper in t12_d_robust.rs carries WHY
+    commentary.
+  - Estimator-law contract discipline: every CanonicalAddition
+    and ExistingCanonicalAuthorityResolution record declares
+    its specific estimator law (pair-selection / quartile law /
+    trim fraction / winsor limit / windowed-local-median /
+    threshold rule / replacement vs rejection) in the reason
+    text. Each declaration is pinned by a dedicated
+    panel-required load-bearing negative.
+  - RANSAC honesty: randomized-in-origin literature record is
+    acknowledged in proposed_primitives but explicitly NOT
+    promoted to new_canonical_records. The
+    RejectedNotDeterministic record names the four reduction
+    requirements (seed, schedule, iteration budget, tie-break)
+    that a future T.12.x must declare to admit a deterministic
+    proxy.
+  - Modified z / rolling Hampel / k x IQR discipline: each is
+    recorded as ParameterizationOf its parent canonical; none
+    enters new_canonical_records.
+
+T.12.d is sealed. The amendment court has admitted the fourth
+real expansion proposal AND the first to exercise ALL FIVE
+panel-locked court-delta categories (CanonicalAddition,
+ExistingCanonicalAuthorityResolution, DomainTransferOf,
+ParameterizationOf, RejectedNotDeterministic). The wire-name
+set is now closed at five.
+
+Net result: 4 new canonical robust-statistics primitives
+(Theil-Sen, biweight midvariance, trimmed mean shift,
+winsorized mean shift), 3 existing-canonical cross-class
+authority resolutions (robust-z, Hampel, Tukey fences), 1
+DomainTransferOf (robust-z as shared robust-location-estimator
+ancestor), 3 ParameterizationOf records (modified z-score,
+rolling Hampel, k x IQR fence), 1 RejectedNotDeterministic
+(RANSAC residual proxy), 7 genealogy edges, 8 source refs —
+all WITHOUT mutating SEED or corpus_hash_v1.
+
+Next campaign (panel-authorized): T.12.e - Signal Processing /
+Spectral / Wavelet. Same SEED-walk-first discipline; FFT band
+energy, spectral entropy, wavelet coefficient burst, matched
+filter residual, envelope detector are existing SEED records
+that will become ExistingCanonicalAuthorityResolution; STFT
+ridge shift, cepstral anomaly, autocorrelation break may be
+genuinely new canonicals.

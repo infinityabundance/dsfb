@@ -1,0 +1,203 @@
+S-PERF.2 LayerAResidentPipelineV1
+       Regression Check — 10-step per-section discipline ritual
+============================================================
+
+----------------------------------------------------------------
+Commit identity (panel-locked)
+----------------------------------------------------------------
+
+S-PERF.2 builds the first Layer-A device-resident evidence
+pipeline so traffic receipts can measure GPU evidence
+production without host JSON, report rendering, transcript
+construction, or court explanation time mixed in.
+
+Panel-locked one-line verdict (verbatim):
+
+    S-PERF.1 gave the ruler; S-PERF.2 isolates the GPU
+    evidence-factory path the ruler will measure.
+
+----------------------------------------------------------------
+Step 1: cargo fmt --all --check
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 2: cargo clippy --workspace --all-targets --features cuda
+                     -- -D warnings
+----------------------------------------------------------------
+
+  Outcome: CLEAN (no new lints; the S-PERF.2 module ships
+                  ~1200 lines with `no-silent-court-logic`
+                  doctrine applied to every pub item and every
+                  private helper)
+
+----------------------------------------------------------------
+Step 3: bash scripts/scrub.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN (scrub: clean)
+
+----------------------------------------------------------------
+Step 4: bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 5: cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+
+  Outcome: 55 groups / 2162 tests PASS
+  Delta vs S-PERF.1: +1 group, +67 tests
+    new group: tests/s_perf_2_layer_a_resident_pipeline_invariants.rs
+    new tests: 67 (8 panel-required negatives + 9 baseline
+               admission + 9 determinism + 8 sensitivity +
+               7 structural defects + 3 domain separator +
+               3 schema id + 3 nul-termination + 5
+               panel-locked stage-name pins + 3 inner
+               timing-method admission/rejection +
+               composition invariants + non-zero hash
+               guards + wire-name stability)
+
+----------------------------------------------------------------
+Step 6: cargo test --workspace --features cuda --
+                   --test-threads=1
+----------------------------------------------------------------
+
+  Outcome: 94 groups / 2477 tests PASS
+  Delta vs S-PERF.1: +1 group, +67 tests
+
+  FF.4 live README sweep (`ff4_live_readme_satisfies_policy`)
+  passes after the README S-PERF.2 section insertion. The
+  new section was placed AFTER the S-PERF.1 measurement-law
+  section and BEFORE "What this is", preserving every FF.4
+  required substring and avoiding every FF.4 forbidden
+  substring.
+
+----------------------------------------------------------------
+Step 7: R.12b D64 saturation byte-stability check
+----------------------------------------------------------------
+
+  Pre-run backup: reports/r12_d64_saturation.txt,
+                  reports/d64_stage_timing_256x4096_K1.txt,
+                  reports/r9_b3_d64_timing.txt,
+                  reports/r9_b_d64_timing.txt
+   → backed up to /tmp/s_perf_2_backup/ before workspace
+     serial.
+
+  Post-run restoration: byte-identical to backup
+                        (`diff -q` clean).
+
+  Episodes: 13 / 89 / 1917 (byte-stable, unchanged).
+  Pinned R.12b baseline: NOT REBASELINED.
+
+----------------------------------------------------------------
+Step 8: Stale-doc grep scan
+----------------------------------------------------------------
+
+  README:
+    - Inserted "## S-PERF.2 — Layer-A resident densor
+      pipeline" section after the S-PERF.1 measurement-law
+      section and before "What this is".
+
+  archived prior-art manuscript source:
+    - Inserted dedicated `\section{Layer-A Resident Densor
+      Pipeline}\label{sec:layer-a-resident-pipeline}` after
+      the Device Traffic Receipt section.
+
+  crates/dsfb-gpu-atlas-corpus/src/lib.rs:
+    - Module decl `pub mod s_perf_2_layer_a_resident_pipeline;`
+      already wired during build.
+    - Crate docstring "Current state through S-PERF.1" →
+      "Current state through S-PERF.2" with the S-PERF.2
+      bullet enumerating the three new own-namespace hashes,
+      the eight panel-required negatives, the LayerADensorKind
+      / DeviceResidencyClass enums, the panel-locked five
+      canonical stage names, the baseline residency caps
+      (Candidate=2048 / StageDigest=160 bytes/catalog), and
+      the panel-locked one-line verdict.
+
+  crates/dsfb-gpu-atlas-corpus/src/main.rs:
+    - 4 CLI subcommands wired:
+        s-perf-2-pipeline               (text dump baseline pipeline)
+        s-perf-2-residency-receipt      (text dump baseline residency)
+        s-perf-2-traffic-receipt        (text dump baseline traffic receipt)
+        s-perf-2-receipts-emit          (6 artifacts to out/)
+    - Usage block extended.
+
+----------------------------------------------------------------
+Step 9: Atomic commit under the 10-step ritual
+----------------------------------------------------------------
+
+  Pre-commit hook: fmt + clippy + scrub + docs_freshness
+  gates pass; no `--no-verify`.
+
+----------------------------------------------------------------
+Step 10: Plan-file Quick Start rotation + memory file +
+          MEMORY.md index entry
+----------------------------------------------------------------
+
+  Plan-file Quick Start: Current state → S-PERF.2 at the
+                          new commit hash; Prior current
+                          state → S-PERF.1 at `9575ce3`;
+                          Active campaign (next) →
+                          S-PERF.3 public-data saturation
+                          bundle per the post-T.12.consolidate
+                          scaling roadmap (Section H, leg 8).
+
+  New memory file: project_s_perf_2_layer_a_resident_pipeline.md.
+  MEMORY.md: extended with the S-PERF.2 one-line hook.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  Every prior court anchor: UNCHANGED.
+  SEED.len()              : 54 (UNCHANGED).
+  Three NEW own-namespace hashes:
+
+    layer_a_resident_pipeline_hash_v1
+      = 6269773e81f3cd2634d12188eb7570bfbfa0098ae5c3bf820774917631e7d7fa
+    layer_a_device_residency_receipt_hash_v1
+      = 072510913da106ad00d7bae046b5672f728ec4cdfb29dff750e3fafc9ab41f11
+    layer_a_traffic_receipt_hash_v1
+      = 3415013763ec033ae248285a38654a94e24b2dcbd742cf0f7f5ce56fb4c0b18c
+
+  All three deterministic across two consecutive builds;
+  pairwise distinct; distinct from every prior corpus /
+  T.11 / T.12.x / T.12.consolidate / FF.x / S1.3.x /
+  T.12.PROV / S-PERF.1 hash anchor.
+
+R.12b episodes 13/89/1917 byte-stable; pinned baseline NOT
+rebaselined.
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in README + paper)
+----------------------------------------------------------------
+
+S-PERF.2 does NOT:
+
+  - claim that DSFB-GPU has measured peak memory-bandwidth
+    saturation (that is a separate S-PERF.* commit);
+  - claim production CUDA performance numbers;
+  - benchmark B300 / GB300 cloud hardware;
+  - change any CUDA kernel;
+  - change any court decision (S1.3a / FF.2 / FF.3 / S1.3d
+    / S1.3e / S1.3f / S1.3g);
+  - mutate any upstream hash anchor;
+  - alter SEED.len() (stays at 54);
+  - emit detector outputs / witness records / fusion
+    tensors / candidate intervals / episodes;
+  - generate CUDA kernels;
+  - decide contraindications or challenges;
+  - modify the registry crate.
+
+S-PERF.2 isolates the GPU evidence-factory path. The first
+measurement against this isolated path is a later S-PERF.*
+commit.
+
+Panel-locked one-line verdict (verbatim):
+
+  S-PERF.1 gave the ruler; S-PERF.2 isolates the GPU
+  evidence-factory path the ruler will measure.

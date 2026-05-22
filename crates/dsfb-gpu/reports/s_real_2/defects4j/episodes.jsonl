@@ -1,0 +1,2 @@
+{"idx":0,"entity_id":3,"start_window":0,"end_window":30,"motif":"LatencyRamp","reason":"SustainedOutwardDrift","peak_state":"Violation","peak_residual_q":31653888,"peak_drift_q":16770752,"peak_slew_q":25690112,"detector_bit_count":8}
+{"idx":1,"entity_id":4,"start_window":0,"end_window":30,"motif":"LatencyRamp","reason":"SustainedOutwardDrift","peak_state":"Violation","peak_residual_q":63176704,"peak_drift_q":55362970,"peak_slew_q":15990784,"detector_bit_count":7}

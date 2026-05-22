@@ -1,0 +1,68 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/dsfb-gpu-debug-core",
+    "crates/dsfb-gpu-debug-cuda",
+    "crates/dsfb-gpu-debug-demo",
+    "crates/dsfb-gpu-atlas-corpus",
+    "crates/dsfb-gpu-atlas-registry",
+]
+
+[workspace.package]
+edition       = "2021"
+rust-version  = "1.80"
+license       = "Apache-2.0"
+publish       = true
+authors       = ["Riaan de Beer <riaan@invariantforge.net>"]
+repository    = "https://github.com/infinityabundance/dsfb"
+description   = "Clear-box deterministic inference acceleration: bounded prior-art proof."
+keywords      = ["deterministic", "gpu", "cuda", "inference", "audit"]
+readme        = "README.md"
+
+[workspace.lints.rust]
+# `deny` rather than `forbid` so the single FFI call site in
+# `dsfb-gpu-debug-cuda::dispatch` can locally `#[allow(unsafe_code)]`.
+# Everywhere else `unsafe` is still rejected at compile time.
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+pedantic                = { level = "warn", priority = -1 }
+unwrap_used             = "deny"
+expect_used             = "deny"
+# Casting noise: fixed-point and hash code routinely converts between integer
+# widths in ways the lint cannot prove are lossless even when they are. The
+# saturation rules are explicit in `fixed.rs::saturate_i64_to_i32` and the
+# SHA-256 routines respect their fixed integer widths by construction.
+cast_possible_truncation = "allow"
+cast_possible_wrap       = "allow"
+cast_sign_loss           = "allow"
+cast_lossless            = "allow"
+# Indexed `for` loops over compile-time-fixed bounds (SHA-256 schedule) read
+# more clearly than iterator-with-enumerate.
+needless_range_loop      = "allow"
+# `module_name_repetitions` flags `dsfb_gpu_debug_core::fixed::Q16` etc.,
+# but those repetitions are intentional for clarity at the use site.
+module_name_repetitions  = "allow"
+# `doc_markdown` insists on backticks around things like `32_767` and `1/65_536`
+# inside running prose; reads worse than the unquoted form.
+doc_markdown             = "allow"
+# Contracts and case files carry several flag bools each — natural for a
+# contract record, noise for clippy.
+struct_excessive_bools   = "allow"
+# Saturating arithmetic legitimately consumes both operands by value in const
+# methods; pedantic flags the rebind of `buf`/`buf_len` as "could be const".
+similar_names            = "allow"
+
+[profile.release]
+opt-level     = 3
+lto           = "thin"
+codegen-units = 1
+debug         = 0
+panic         = "abort"
+incremental   = false
+overflow-checks = true
+
+[profile.dev]
+opt-level     = 0
+debug         = true
+overflow-checks = true

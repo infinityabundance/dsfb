@@ -1,0 +1,269 @@
+================================================================
+T.12.c - Drift Detection / Distribution-Distance Authority
+        amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.c files the Drift Detection /
+Distribution Distance amendment proposal. It adds only
+deterministic drift-distance primitives whose reference-
+distribution, windowing, binning, and sampling contracts are
+declared; resolves collisions with existing SEED records;
+classifies streaming drift algorithms as canonical,
+parameterized, domain-transfer, or deferred without mutating
+the frozen T.10 corpus.
+
+Main panel instruction: "Do not count method names. Count
+distinct deterministic decision functionals with declared
+reference / window / sampling contracts."
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+CorpusAmendmentProposalV1 carried by the T.12.0 amendment court.
+Three own-namespace hashes (NOT folded upstream):
+
+  literature_expansion_batch_hash_v1 (domain
+    DSFB-GPU-ATLAS:LITERATURE-EXPANSION-BATCH:v1\0)
+  dedup_court_delta_hash_v1          (domain
+    DSFB-GPU-ATLAS:DEDUP-COURT-DELTA:v1\0)
+  corpus_amendment_proposal_hash_v1  (domain
+    DSFB-GPU-ATLAS:CORPUS-AMENDMENT-PROPOSAL:v1\0)
+
+T.12.c emitted values (byte-identical across two builds):
+
+  literature_expansion_batch_hash_v1 :
+    5723f79a9288a824fd05fccdc8bd56e101d3842c3aae7f99071c4432f0b8c935
+  dedup_court_delta_hash_v1          :
+    2a9c0e1a32b1bbb4990f33b008056d0934d40f950a35d643be489c4d7946d10c
+  corpus_amendment_proposal_hash_v1  :
+    0ffb0639256c318c0d3d1ffa3a24cc5b567a931ece1a0617251ad23253a4a92d
+
+Distinct from T.12.0 proof-of-life (325bbf3d...), T.12.a SPC
+(ae493a85...), and T.12.b SCD (ac10e27c...).
+
+----------------------------------------------------------------
+Body counts (panel-locked)
+----------------------------------------------------------------
+
+  proposed_primitives    :   6  (4 canonical additions + 2
+                                 parameterization shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  18  (panel-locked headline; see
+                                 court-delta categories below)
+  proposed_genealogy_edges:  6
+  proposed_source_refs   :   6
+
+  new_canonical_records (in delta): 4   (Kuiper, ADWIN, DDM,
+                                         HDDM — EDDM and KSWIN
+                                         deliberately ABSENT)
+  new_alias_records      (in delta): 0
+  new_composition_records (in delta): 0
+  rejection_records      (in delta): 0
+  deferred_records       (in delta): 0
+
+----------------------------------------------------------------
+SEED collision walk (the panel-required first step)
+----------------------------------------------------------------
+
+T.12.c's design began with the panel-required
+`t12_c_detects_existing_seed_collisions_before_new_canonical_assignment`
+walk. A grep of `seed.rs` for every candidate name in the
+panel's draft list found ELEVEN distribution-distance
+primitives already canonical:
+
+   8  Kolmogorov-Smirnov two-sample test
+   9  Kullback-Leibler divergence
+  10  Maximum Mean Discrepancy (MMD)
+  26  Anderson-Darling test
+  27  Cramer-von Mises test
+  28  Wasserstein / earth-mover distance
+  29  Energy distance
+  30  Hellinger distance
+  31  Population Stability Index (PSI)
+  32  Jensen-Shannon divergence
+  33  Total variation distance
+
+All eleven are recorded as
+`ExistingCanonicalAuthorityResolution` records. Of the
+remaining candidates (ADWIN, DDM, EDDM, HDDM, KSWIN, Kuiper),
+the court ruled four are canonical additions and two are
+parameterizations of existing canonicals.
+
+----------------------------------------------------------------
+Court-delta categories (panel-locked, 4 distinct wire names)
+----------------------------------------------------------------
+
+  CanonicalAddition                       :  4 records
+    5301 Kuiper test (circular-symmetric two-sample, D+ + D-)
+    5302 ADWIN (Adaptive Windowing, Hoeffding-bound cut rule)
+    5303 DDM (Drift Detection Method, error-rate minimum-seen)
+    5304 HDDM (Hoeffding's-bound Drift Detection, equality-of-means)
+
+  ExistingCanonicalAuthorityResolution    : 11 records
+    SEED  8  Kolmogorov-Smirnov two-sample test
+    SEED  9  Kullback-Leibler divergence
+    SEED 10  Maximum Mean Discrepancy (MMD)
+    SEED 26  Anderson-Darling test
+    SEED 27  Cramer-von Mises test
+    SEED 28  Wasserstein / earth-mover distance
+    SEED 29  Energy distance
+    SEED 30  Hellinger distance
+    SEED 31  Population Stability Index (PSI; declared binning law)
+    SEED 32  Jensen-Shannon divergence
+    SEED 33  Total variation distance
+
+  DomainTransferOf                        :  1 record
+    SEED  8  KS as the shared two-sample distribution-distance
+             ancestor recognised by the drift-detection source
+             class
+
+  ParameterizationOf                      :  2 records  (NEW
+                                                         category
+                                                         lands at
+                                                         T.12.c)
+    5305 EDDM (Early DDM, Baena-Garcia 2006) ->
+         ParameterizationOf(DDM, T.12.c canonical 5303)
+    5306 KSWIN (Kolmogorov-Smirnov Windowing, Raab 2020) ->
+         ParameterizationOf(KS, SEED id 8)
+
+DeferredToDriftDetection from T.12.b is now actively exercised
+here as the SCD primitives landed in T.12.b (Shiryaev-Roberts,
+GLR, Binary segmentation, PELT) are NOT duplicated under the
+DriftDetection source class — the SCD source class already owns
+them.
+
+----------------------------------------------------------------
+Why 4 new canonicals, not the panel-draft's 14
+----------------------------------------------------------------
+
+The panel's draft candidate list named 14 method names: ADWIN,
+DDM, EDDM, HDDM, KSWIN, Kuiper, plus the eight distribution-
+distance methods already in SEED. The SEED walk caught the
+eleven already-canonical methods at intake. Of the six
+remaining candidates, the court ruled:
+
+- Four are CanonicalAddition (Kuiper, ADWIN, DDM, HDDM — each
+  with a structurally distinct decision functional and a
+  declared deterministic contract).
+- Two are ParameterizationOf (EDDM is the DDM family with a
+  different inner statistic; KSWIN is streaming-windowed KS).
+
+Net result: 4 new canonicals + 11 existing-canonical authority
+resolutions + 1 DomainTransferOf + 2 ParameterizationOf = 18
+dedup-court records.
+
+----------------------------------------------------------------
+Declared deterministic contracts (panel-required language)
+----------------------------------------------------------------
+
+Every CanonicalAddition / ExistingCanonicalAuthorityResolution
+record carries reference-distribution / reference-window /
+adaptive-partition / ordered-stream contract language in its
+reason text. Specific declarations:
+
+  Kuiper    : reference-window pair; deterministic statistic.
+  ADWIN     : adaptive-window pair, Hoeffding delta, cut +
+              window-merge tie-break rule; deterministic
+              throughout; no probabilistic sampling.
+  DDM       : ordered binary error sequence + running-minimum
+              reference window; deterministic.
+  HDDM      : ordered binary error sequence + running-minimum
+              reference window + declared Hoeffding-bound
+              confidence delta; deterministic.
+  PSI       : declared binning law (bin edges, bin count,
+              empty-bin treatment) + reference distribution.
+  KL / JS   : reference distribution required.
+  Hellinger : reference distribution required.
+  TV        : reference distribution required.
+  KS / AD / CvM / Wasserstein / Energy / MMD :
+              reference window pair (or reference distribution)
+              required.
+
+The acceptance suite pins these contract declarations under
+`t12_c_rejects_distribution_distance_without_reference_distribution_requirement`
+and `t12_c_rejects_psi_without_binning_law` load-bearing
+negatives.
+
+----------------------------------------------------------------
+Genealogy edges (proposed)
+----------------------------------------------------------------
+
+  5301 Kuiper            DerivedFrom KS (8)
+  5302 ADWIN             DerivedFrom KS (8)
+  5303 DDM               DerivedFrom CUSUM (3)
+  5304 HDDM              Generalizes DDM (5303)
+  5305 EDDM              ParameterVariantOf DDM (5303)
+  5306 KSWIN             ParameterVariantOf KS (8)
+
+----------------------------------------------------------------
+Source refs (proposed)
+----------------------------------------------------------------
+
+  kuiper_circular_1960     Tests Concerning Random Points on a
+                           Circle (KNAW Proceedings A 63)
+  bifet_gavalda_adwin_2007 Learning from Time-Changing Data with
+                           Adaptive Windowing (SIAM SDM)
+  gama_ddm_2004            Learning with Drift Detection (SBIA
+                           LNAI 3171)
+  frias_blanco_hddm_2014   Online and Non-Parametric Drift
+                           Detection Methods Based on
+                           Hoeffding's Bounds (IEEE TKDE 27(3))
+  baena_garcia_eddm_2006   Early Drift Detection Method (IWKDDS)
+  raab_kswin_2020          Reactive Soft Prototype Computing for
+                           Concept Drift Streams (Neurocomputing
+                           416)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives
+----------------------------------------------------------------
+
+   1. t12_c_does_not_mutate_seed_len
+   2. t12_c_seed_collision_loop_fires_for_every_authority_resolved_id
+      (parametric: 11 SEED ids -> 11 collision assertions)
+   3. t12_c_rejects_kswin_as_canonical_without_ks_relationship_decision
+   4. t12_c_rejects_adwin_without_declared_adaptive_window_law
+   5. t12_c_rejects_ddm_family_variant_without_family_relationship
+      (covers both EDDM ParameterizationOf and HDDM family edge)
+   6. t12_c_rejects_distribution_distance_without_reference_distribution_requirement
+   7. t12_c_rejects_psi_without_binning_law
+   8. t12_c_rejects_probabilistic_or_randomized_distance_without_deterministic_reduction
+   9. t12_c_hash_changes_when_distance_formula_or_source_ref_changes
+
+Plus per-SEED-id collision tests (KS, KL, MMD, Wasserstein,
+PSI) and 22 additional invariants (shape, hash determinism,
+court-delta category coverage, parameterization-target-must-be-
+canonical, every-new-canonical-has-source-ref, every-record-has-
+reason-code, canonical-id reserved-range guard, text/JSON
+byte-stability). Total: 36 acceptance tests in
+tests/t12_c_drift_invariants.rs.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.c does NOT:
+- mutate `corpus_hash_v1` (35c276c7...);
+- mutate `registry_hash_v2`, any T.11/S1.3 hash, any
+  T.12.0/T.12.a/T.12.b hash, or any DetectorPassport hash;
+- create `corpus_hash_v2`;
+- promote EDDM or KSWIN to `new_canonical_records` (both are
+  recorded as `ParameterizationOf` — promotion deferred to
+  future T.12.x proposals if their family-distinct decision
+  functionals warrant it);
+- duplicate any already-canonical SEED distribution-distance
+  primitive (the eleven authority-resolution records prevent
+  it; the parametric collision-loop test pins the rule);
+- claim probabilistic / randomized distances as canonical
+  without an explicit deterministic-reduction status (no such
+  records appear in T.12.c; the load-bearing negative is the
+  static-invariant assertion);
+- claim a reference-distribution-free distance / divergence
+  (every record declares its reference contract);
+- duplicate the SCD primitives T.12.b admitted (Shiryaev-
+  Roberts, GLR, Binary segmentation, PELT remain under the
+  SCD source class only);
+- activate new detectors (S1.3a planner not re-emitted);
+- execute on GPU (corpus crate stays host-only and zero-dep);
+- claim empirical usefulness for the new primitives (T.8
+  ledger stays at NotScored for the 4 new canonicals).

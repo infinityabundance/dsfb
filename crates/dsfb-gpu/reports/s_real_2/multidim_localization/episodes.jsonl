@@ -1,0 +1,3 @@
+{"idx":0,"entity_id":1,"start_window":0,"end_window":12,"motif":"LatencyRamp","reason":"SustainedOutwardDrift","peak_state":"Violation","peak_residual_q":1628766,"peak_drift_q":968305,"peak_slew_q":197657,"detector_bit_count":5}
+{"idx":1,"entity_id":2,"start_window":0,"end_window":12,"motif":"LatencyRamp","reason":"SustainedOutwardDrift","peak_state":"Violation","peak_residual_q":22445293,"peak_drift_q":8780231,"peak_slew_q":3713401,"detector_bit_count":7}
+{"idx":2,"entity_id":3,"start_window":0,"end_window":12,"motif":"LatencyRamp","reason":"SustainedOutwardDrift","peak_state":"Violation","peak_residual_q":9884139,"peak_drift_q":4222899,"peak_slew_q":1303773,"detector_bit_count":6}

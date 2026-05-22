@@ -1,0 +1,31 @@
+=== S-REAL.1 run receipt ===
+dataset:                 deeptralog_f02
+display_name:            DeepTraLog F02-04 ERROR fault period
+license:                 no-upstream-license
+upstream_doi_or_url:     github.com/FudanSELab/DeepTraLog
+
+Input
+  vendored_path:         data/fixtures/deeptralog_f02.tsv
+  fixture_sha256:        2ce480415b20dc49d09119b79933f2dd5d0ba62c186a8ecc0f2e2bf8b1e1a95f
+  fixture_byte_size:     5875
+
+Lowering
+  value_to_microsecond_scale: 1000
+  latency_clamp_us:           32767000
+  window_size_ns:             1000000000
+  finite_cells:               434
+  nan_cells_skipped:          62
+  events_emitted:             434
+
+Run
+  backend:               cuda
+  n_entities (= observed_num_signals): 16
+  n_windows  (= observed_num_windows): 31
+  contract_hash:         sha256:fd96b2bf7ff89ab621e1a7e2e052591a8552b9a4cc567c53831f58fb213ed0e4
+  bank_hash:             sha256:4f884c4cc58a8104b57fcd04e41c64296f5e9d12bae15c9c8be28188c7f0794d
+  detector_registry_hash: sha256:8c905dc0320d01d463a4062b7cb9a51d805a2ccbba236082658fbd0e841d3b35
+
+Result
+  episodes_admitted:     9
+  final_verdict:         GpuReplayAdmissible
+  final_case_file_hash:  sha256:b22acc48d40224adc73afcff6a818af6c1c2baf20742ac230f385aadb753e8c0

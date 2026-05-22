@@ -1,0 +1,34 @@
+=== S-REAL.1 replay verification ===
+dataset: tadbench_f11
+runs:    2
+
+byte-identical replay: YES
+  casefile.json:        YES
+  episodes.jsonl:       YES
+  audit_report.html:    YES
+
+Run 1 SHA-256
+  casefile.json:        878430515e4b3fe2a5b77316a77ecaaf764e1b74fb85e798e25156775dde73ea
+  episodes.jsonl:       15c1f0f40181192be037874f07f79cc01f7c327e42aeb3f366d6ee99303768de
+  audit_report.html:    9500f1598a2cae4b1c3c96f39c80feadb3d5a23a2c9e58322eec1958fda10a78
+
+Run 2 SHA-256
+  casefile.json:        878430515e4b3fe2a5b77316a77ecaaf764e1b74fb85e798e25156775dde73ea
+  episodes.jsonl:       15c1f0f40181192be037874f07f79cc01f7c327e42aeb3f366d6ee99303768de
+  audit_report.html:    9500f1598a2cae4b1c3c96f39c80feadb3d5a23a2c9e58322eec1958fda10a78
+
+final_case_file_hash (run 1): 23a8975841995421e840b7d368f951206d99477c2c1146667c4fcaf88d5f70cc
+final_case_file_hash (run 2): 23a8975841995421e840b7d368f951206d99477c2c1146667c4fcaf88d5f70cc
+episode_count        (run 1): 90
+episode_count        (run 2): 90
+
+Toolchain
+  backend: cuda
+  cuda_version: 13.2
+  dsfb_gpu_debug_demo_version: 0.1.0
+  gpu_name: RTX 4080 SUPER
+
+Note: replay determinism is asserted only for the toolchain
+recorded above. Different driver / CUDA / hardware versions
+may produce different bytes; the audit does NOT claim
+cross-toolchain replay byte-identity.

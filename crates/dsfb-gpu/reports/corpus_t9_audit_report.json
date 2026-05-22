@@ -1,0 +1,131 @@
+{
+  "schema": "DSFB-GPU-ATLAS:CORPUS-AUDIT-REPORT:v1",
+  "generated_by_section": "T.9",
+  "corpus_release_state": {
+    "stage": "internal-audit-pre-freeze",
+    "corpus_hash_v1": null,
+    "case_file_v2_link": null
+  },
+  "counts": {
+    "literature_primitives": 54,
+    "alias_claims": 12,
+    "court_subjects": 66
+  },
+  "primitive_family_histogram": {
+    "ScalarThreshold": 6,
+    "SequentialRecurrence": 6,
+    "MultivariateHypothesis": 1,
+    "WindowStatistic": 6,
+    "DistributionDistance": 11,
+    "RankStatistic": 2,
+    "Spectral": 3,
+    "Missingness": 2,
+    "DebugObservability": 4,
+    "NegativeWitness": 1,
+    "ProjectionResidual": 3,
+    "ResidualObserver": 2,
+    "OperabilityDiagnostic": 2,
+    "Wavelet": 1,
+    "TabularConstraint": 3,
+    "CategoricalHistogram": 1
+  },
+  "court_summary": {
+    "canonical": 52,
+    "aliases": 12,
+    "parameterisations": 0,
+    "compositions": 2,
+    "stochastic_reductions": 0,
+    "rejected": 0,
+    "deferred": 0,
+    "total": 66
+  },
+  "identity_summary": {
+    "records_with_identity_hashes": 54,
+    "composite_hash_policy": "SHA256(domain || formula || parameter || semantic_role)",
+    "omitted_from_composite": ["source_hash", "implementation_hash"]
+  },
+  "genealogy_summary": {
+    "nodes": 66,
+    "edges": 42,
+    "origin_records": 30,
+    "derived_records": 24,
+    "dag_verified_clean": true
+  },
+  "witness_summary": {
+    "role_counts": {
+      "Primary": 40,
+      "Corroborating": 0,
+      "Confuser": 1,
+      "Boundary": 0,
+      "CleanWindow": 0,
+      "Recovery": 0,
+      "Timing": 0,
+      "Distribution": 12,
+      "Topology": 1,
+      "CausalityProxy": 0
+    },
+    "plane_counts": {
+      "ProvenanceAdmissibility": 0,
+      "NumericStrength": 25,
+      "TemporalStructure": 17,
+      "CrossSignalStructure": 6,
+      "DistributionStructure": 14,
+      "SemanticBankStructure": 0,
+      "ReliabilityConfuserControl": 1,
+      "TaskUtility": 0
+    }
+  },
+  "lband_summary": {
+    "counts": {
+      "L0_CitedOnly": 0,
+      "L1_Canonicalised": 49,
+      "L2_DeterministicFormula": 0,
+      "L3_CpuImplemented": 0,
+      "L4_CpuVerified": 0,
+      "L5_GpuImplemented": 0,
+      "L6_CpuGpuByteEquivalent": 5,
+      "L7_BenchmarkCharacterised": 0,
+      "L8_LedgerCharacterised": 0
+    },
+    "gpu_whitelist_size": 5,
+    "verifier_clean": true
+  },
+  "usefulness_summary": {
+    "rows_loaded": 54,
+    "evidence_level_counts": {
+      "Unmeasured": 0,
+      "LiteraturePrior": 49,
+      "RoleSeeded": 5,
+      "SyntheticFixtureMeasured": 0,
+      "RealDatasetMeasured": 0,
+      "CrossDomainReplicated": 0,
+      "RetiredByEvidence": 0
+    },
+    "lifecycle_counts": {
+      "Active": 5,
+      "Dormant": 49,
+      "RetiredRedundant": 0,
+      "RetiredHighFalsePositive": 0,
+      "RetiredTooExpensive": 0,
+      "QuarantinedUnstable": 0,
+      "ResurrectedForDomain": 0
+    },
+    "fabricated_claims": 0,
+    "verifier_clean": true
+  },
+  "limitations": [
+    "This T.9 audit report does not claim that all listed detectors are implemented.",
+    "It does not claim that all detectors are useful.",
+    "It does not claim that literature primitives are unique merely because names differ.",
+    "It does not claim GPU execution for L0-L4 detectors.",
+    "It does not claim corpus_hash_v1 or CaseFileV2 integration; those are deferred to T.10/T.11.",
+    "It does not claim Atlas activation planning; that is deferred to T.11 / S1.2+.",
+    "It is an internal audit artifact, not an external release artifact."
+  ],
+  "deferred_gates": [
+    "T.10 corpus_hash_v1 + CaseFileV2 integration",
+    "T.11 GPU family-kernel mapping + Atlas activation",
+    "R.9.d.2 D205 scaling ladder",
+    "Section S Phase 1: Atlas algebra types + activation planner"
+  ]
+}

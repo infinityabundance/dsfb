@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "deeptralog"
+display_name        = "DeepTraLog F01-02 (Zhang et al. ICSE 2022)"
+upstream_doi_or_url = "github.com/FudanSELab/DeepTraLog"
+license             = "no-upstream-license"
+source_class        = "ObservabilityTraces"
+vendored_path       = "data/fixtures/deeptralog.tsv"
+
+[fixture]
+sha256_hex          = "90f2625258b4f823e317a331a8b800dbc0c13c4ee3182b81be6c06a9aaef1853"
+byte_size           = 17657

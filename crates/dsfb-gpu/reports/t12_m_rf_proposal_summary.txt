@@ -1,0 +1,355 @@
+================================================================
+T.12.m - RF / Communications amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.m files the RF / Communications
+amendment proposal. It admits only deterministic RF /
+communications signal witnesses whose signal representation,
+sampling law, unit law, carrier / channel assumption,
+synchronization assumption, window / transform law, decision
+functional, confuser profile, and numeric mode are declared;
+resolves SEED collisions with FFT band-energy / Residual
+envelope exit / Spectral entropy / Autocorrelation break /
+Carrier-frequency-offset residual / EVM anomaly; classifies
+spectral mask violation / SNR drop / burst preamble miss /
+frame-error burst as parameterizations; records two domain
+transfers (spectral ancestor + envelope-boundary ancestor);
+rejects learned RF fingerprinting classifiers and black-box
+modulation classifiers / proprietary spectrum-anomaly scores;
+and preserves the frozen T.10 corpus hash.
+
+Main panel warning: "An RF witness is admissible only when the
+signal representation, sampling law, unit law, carrier /
+channel assumption, synchronization assumption, window /
+transform law, decision functional, confuser profile, and
+numeric mode are declared."
+
+Panel-locked non-claim (MUST appear verbatim):
+
+> T.12.m admits deterministic RF / communications signal
+> witnesses, not emitter attribution, transmitter
+> identification, geolocation, spectrum-enforcement authority,
+> military classification, or communications-intelligence
+> conclusions.
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.m emitted values:
+
+  literature_expansion_batch_hash_v1 :
+    437e6f91b28ba041928f2b8654eeff63e7ae8f41f56b4688d2d985586174aa5b
+  dedup_court_delta_hash_v1          :
+    669e0b6ad9f96f365f05b302b9ef758f28c8a6a34c9500ac802c9931a9c8557d
+  corpus_amendment_proposal_hash_v1  :
+    3263e87b2beca1e98eb390ab6642ae8a66728faa5405b8dff67fea05abda243b
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found six T.12.m-relevant primitives already
+canonical:
+
+  12 FFT band-energy anomaly (shared spectral RF ancestor)
+  22 Residual envelope exit (shared envelope-boundary RF
+     ancestor)
+  38 Spectral entropy
+  40 Autocorrelation break
+  53 Carrier-frequency-offset residual (Morelli & Mengali 1999
+     OFDM CFO estimator)
+  54 Error Vector Magnitude (EVM) anomaly (Shafik / Rahman /
+     Islam 2006 EVM-BER-SNR relations)
+
+All six become ExistingCanonicalAuthorityResolution records.
+Panel-locked success-shape: the campaign's strength comes from
+cross-class dedup discipline (6 authority resolutions across
+the spectral + envelope + entropy + correlation + carrier-
+offset + modulation-quality SEED family that RF reuses
+heavily) — RF reuses a lot of spectral and matched-filter
+structure, plus the SEED corpus already canonicalises CFO
+residual and EVM anomaly under their canonical literature
+references.
+
+Reserved canonical ids 6301 and 6302 are deliberately UNUSED
+in this proposal: the CFO and EVM ideas that once shadowed
+them collapsed onto SEED 53 and SEED 54 respectively under
+the SEED-walk-first discipline; the court records the
+collapse via ExistingCanonicalAuthorityResolution rather than
+admitting new canonicals.
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  12  (6 canonical + 4 parameterization
+                                 + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  20  (panel-locked headline)
+  proposed_genealogy_edges: 10
+  proposed_source_refs   :   9
+
+  new_canonical_records (in delta): 6
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised, with
+TWO rejections - SEVENTH T.12.x with two, following T.12.g /
+T.12.h / T.12.i / T.12.j / T.12.k / T.12.l)
+----------------------------------------------------------------
+
+  CanonicalAddition (x6) - SEED-walk-survivors with structurally
+  distinct decision functionals:
+    6303 Constellation spread witness
+         (per-cluster second-moment computation; distinct from
+         SEED 54 EVM because spread is a SECOND-MOMENT
+         distribution claim per cluster, not a first-moment
+         per-symbol error claim)
+    6304 Channel impulse response (CIR) drift witness
+         (declared channel-sounding waveform + multipath
+         finite-impulse-response model with tap-delay grid +
+         per-tap magnitude/phase + CIR-drift decision law;
+         distinct from SEED 40 autocorrelation break because
+         CIR is the SYSTEM RESPONSE to a declared impulse, not
+         autocorrelation of the observed signal)
+    6305 IQ imbalance witness
+         (per-window gain-balance and phase-balance estimators
+         + departs-from-unity / departs-from-90-degrees
+         decision law)
+    6306 Phase-noise witness (Razavi 1996)
+         (declared oscillator model + Welch periodogram on
+         instantaneous-phase residuals + per-offset-frequency
+         dBc/Hz decision law crossing spec mask)
+    6307 Symbol-timing offset residual witness
+         (Gardner / early-late timing-error detector; distinct
+         from SEED 53 CFO because timing-offset is a SYMBOL-
+         CLOCK alignment claim, not a CARRIER-PHASE alignment
+         claim)
+    6308 Cyclostationary feature shift witness (Gardner 1987)
+         (declared cycle frequencies — symbol rate / carrier
+         rate / chip rate per CDMA / OFDM subcarrier spacing —
+         + spectral-correlation function estimator; distinct
+         from SEED 40 autocorrelation break because the cycle-
+         frequency law is DECLARED, not implicit)
+
+  ExistingCanonicalAuthorityResolution (x6):
+    SEED 12 FFT band-energy anomaly
+    SEED 22 Residual envelope exit
+    SEED 38 Spectral entropy
+    SEED 40 Autocorrelation break
+    SEED 53 Carrier-frequency-offset residual (Morelli &
+            Mengali 1999); reserved id 6301 stays unused
+    SEED 54 Error Vector Magnitude (EVM) anomaly (Shafik /
+            Rahman / Islam 2006); reserved id 6302 stays unused
+
+  DomainTransferOf (x2):
+    SEED 12 FFT band-energy as shared spectral ancestor for
+            RfCommunications (spectral mask violation 6309 and
+            SNR drop 6310 are RF descendants)
+    SEED 22 Residual envelope exit as shared envelope-boundary
+            ancestor for RfCommunications (RF analytic-signal
+            envelope detection and amplitude-modulated envelope
+            detection inherit the envelope-exit semantic)
+
+  ParameterizationOf (x4) - panel-candidate canonicals that
+  collapsed on closer inspection:
+    6309 Spectral mask violation ->
+         ParameterizationOf(FFT band-energy, SEED 12) with
+         declared regulatory spectral-mask envelope (ITU-R SM,
+         ETSI EN, FCC Part 15 emission masks) + per-band-power-
+         vs-mask decision law
+    6310 SNR drop ->
+         ParameterizationOf(FFT band-energy, SEED 12) with
+         signal-band / noise-band partition + per-window SNR
+         computation + SNR-shift decision law
+    6311 Burst preamble miss ->
+         ParameterizationOf(Autocorrelation break, SEED 40)
+         with declared known preamble sequence + cross-
+         correlation template (matched-filter over preamble) +
+         peak-detection threshold + peak-absence decision law
+    6312 Frame-error burst ->
+         ParameterizationOf(Error burst, SEED 41) with
+         declared RF frame format (IEEE 802.11 / IEEE 802.15.4
+         / 3GPP LTE / 5G NR) + CRC / forward-error-correction
+         decode law + per-frame error indicator
+
+  RejectedNotDeterministic (x2):
+    6313 Learned RF fingerprinting classifier (Restuccia et
+         al. 2019 DeepRadioID, Sankhe et al. 2019 ORACLE,
+         Wang et al. 2022 RF-based device identification;
+         deep CNN / LSTM / transformer pipelines over baseband
+         I/Q) -- rejected unless reduced to a
+         Deterministic_RF_Fingerprint_Proxy with deterministic
+         feature-extraction law + declared formula + declared
+         tie-break law + declared numeric mode + no learned
+         opaque embedding + NO transmitter identity claim.
+         The court does NOT issue emitter attribution,
+         transmitter identification, transmitter fingerprint,
+         or geolocation certainty.
+    6314 Black-box modulation classifier / proprietary
+         spectrum anomaly score (Keysight signal-analysis ML
+         pipelines, Rohde & Schwarz spectrum monitoring AI,
+         NI RFIC analyser ML, Ettus USRP-based learned
+         pipelines) -- rejected unless reduced to a
+         Deterministic_Modulation_Classifier_Proxy with
+         deterministic feature-extraction law + declared
+         formula + training-data anchor + feature schema +
+         tie-break + numeric mode declared. The court does
+         NOT issue spectrum-enforcement authority, regulatory
+         enforcement, illegal-transmission verdicts, or
+         unauthorized-transmission verdicts.
+
+----------------------------------------------------------------
+Emitter-identification / geolocation / spectrum-enforcement
+discipline (panel-locked, MOST IMPORTANT)
+----------------------------------------------------------------
+
+Every CanonicalAddition AND
+ExistingCanonicalAuthorityResolution reason text describes its
+record as "RF signal witness" / "RF spectral signal witness" /
+"RF channel signal witness" / "RF modulation-quality signal
+witness" / "RF synchronization signal witness" / "RF envelope
+signal witness" / "RF correlation signal witness" — NEVER as
+an emitter attribution, transmitter identification,
+geolocation, spectrum-enforcement, military classification, or
+communications-intelligence claim. Pinned by THREE parametric
+scanners:
+- t12_m_rejects_emitter_identification_claim_language
+- t12_m_rejects_geolocation_or_attribution_claim_language
+- t12_m_rejects_spectrum_enforcement_claim_language
+Forbidden terms appear ONLY in RejectedNotDeterministic reason
+text (where they describe what is NOT admitted).
+
+----------------------------------------------------------------
+Signal-or-sampling contract discipline (panel-locked, MOST
+IMPORTANT load-bearing negative)
+----------------------------------------------------------------
+
+t12_m_rejects_rf_detector_without_signal_or_sampling_contract
+asserts every CanonicalAddition reason text declares signal
+representation (baseband I/Q / post-equalisation I/Q /
+bandpass / instantaneous-phase) AND sampling law AND carrier
+or channel assumption (carrier assumption / channel assumption
+/ declared cycle frequencies / declared oscillator model) AND
+window-or-transform law AND decision functional. This is the
+campaign identity: the court refuses RF witnesses without a
+declared signal representation, sampling law, carrier or
+channel assumption, transform law, and decision rule.
+
+----------------------------------------------------------------
+Genealogy edges (10 proposed)
+----------------------------------------------------------------
+
+  6303 Constellation spread DerivedFrom EVM anomaly (SEED 54)
+  6304 CIR drift DerivedFrom Autocorrelation break (40)
+  6305 IQ imbalance DerivedFrom EVM anomaly (SEED 54)
+  6306 Phase-noise DerivedFrom Spectral entropy (38)
+  6307 Symbol-timing offset DerivedFrom Autocorrelation break (40)
+  6308 Cyclostationary feature shift Generalizes Autocorrelation break (40)
+  6309 Spectral mask violation ParameterVariantOf FFT band-energy (12)
+  6310 SNR drop ParameterVariantOf FFT band-energy (12)
+  6311 Burst preamble miss ParameterVariantOf Autocorrelation break (40)
+  6312 Frame-error burst ParameterVariantOf Error burst (41)
+
+----------------------------------------------------------------
+Source refs (9)
+----------------------------------------------------------------
+
+  Proakis 2008 (Digital Communications canonical reference)
+  Sklar 2001 (Digital Communications canonical reference)
+  Gardner 1987 (cyclostationary signal processing canonical)
+  Razavi 1996 (RF microelectronics / phase-noise canonical)
+  Rappaport 2014 (wireless channel canonical reference)
+  Gardner 1986 (symbol-timing error detector canonical)
+  IEEE 802.11 (preamble / frame format canonical reference)
+  ITU-R SM (spectral-mask vocabulary anchor; not regulatory
+    compliance)
+  Vendor RF intelligence + RF fingerprinting literature
+    (Keysight / Rohde & Schwarz / NI RFIC / Ettus USRP +
+    Restuccia / Sankhe / Wang; rejection-shell reference)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives (8)
+----------------------------------------------------------------
+
+   1. t12_m_does_not_mutate_seed_len
+   2. t12_m_rejects_rf_detector_without_signal_or_sampling_contract
+      (MOST IMPORTANT - signal representation AND sampling law
+       AND carrier-or-channel assumption AND window-or-
+       transform law AND decision functional)
+   3. t12_m_rejects_emitter_identification_claim_language
+      (MOST IMPORTANT - parametric scanner; forbidden emitter /
+       transmitter-identification terms + mandatory non-claim
+       phrase "RF signal witness, not emitter attribution ...")
+   4. t12_m_rejects_geolocation_or_attribution_claim_language
+      (MOST IMPORTANT - parametric scanner; forbidden
+       geolocation / transmitter-location terms)
+   5. t12_m_rejects_spectrum_enforcement_claim_language
+      (MOST IMPORTANT - parametric scanner; forbidden
+       regulatory-enforcement / illegal-transmission / SIGINT
+       terms)
+   6. t12_m_rejects_channel_detector_without_channel_model_contract
+      (CIR drift requires multipath FIR + tap-delay grid +
+       per-tap magnitude + channel-sounding waveform)
+   7. t12_m_rejects_modulation_classifier_without_declared_decision_functional
+      (constellation spread + SEED 54 EVM authority each
+       declare constellation + decision functional; SEED 54
+       authority record additionally enumerates BPSK / QPSK /
+       QAM)
+   8. t12_m_rejects_cyclostationary_witness_without_cycle_frequency_law
+      (must declare cycle frequencies + spectral-correlation
+       function + DECLARED-not-implicit distinction from
+       autocorrelation)
+   Plus t12_m_rejects_black_box_rf_classifier_without_formula
+   and
+   t12_m_rejects_learned_rf_fingerprint_classifier_without_deterministic_formula
+   (vendor-naming + deterministic-feature-extraction-law +
+   no-transmitter-identity-claim contract assertions); plus
+   t12_m_cfo_authority_resolves_seed_53_with_morelli_reference
+   and t12_m_evm_authority_resolves_seed_54_with_shafik_reference
+   (SEED-walk-first discipline guards: 6301 / 6302 stay
+   unused; SEED 53 / 54 carry the canonical authority).
+
+Plus per-canonical structural-distinctness assertions
+(constellation-spread vs EVM / CIR vs autocorrelation break /
+IQ-imbalance / phase-noise oscillator model / symbol-timing
+vs CFO), ParameterizationOf family tests (spectral mask / SNR
+/ burst preamble / frame-error burst), DomainTransferOf tests
+(SEED 12 + SEED 22), authority-coverage-of-all-SEED-RF-IDs
+witness (all six SEED 12 / 22 / 38 / 40 / 53 / 54),
+reserved-id-range tests for all three buckets (6303..=6308 for
+CanonicalAddition with 6301 / 6302 deliberately unused;
+6309..=6312 for ParameterizationOf; 6313..=6314 for
+RejectedNotDeterministic), shape / determinism / rendering
+invariants, hash distinctness from every prior T.12.x. Total:
+50 acceptance tests.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.m does NOT:
+- admit emitter attribution, transmitter identification,
+  transmitter fingerprint, geolocation, spectrum-enforcement
+  authority, regulatory enforcement, illegal-transmission /
+  unauthorized-transmission verdicts, military classification,
+  signals-intelligence conclusions, or communications-
+  intelligence verdicts (the court emits RF signal witnesses);
+- mutate corpus_hash_v1 or any prior T.11/S1.3/T.12.x hash;
+- create corpus_hash_v2;
+- duplicate FFT band-energy / Residual envelope exit /
+  Spectral entropy / Autocorrelation break / Carrier-
+  frequency-offset residual / EVM anomaly (reserved ids 6301
+  and 6302 deliberately unused);
+- promote spectral mask violation / SNR drop / burst preamble
+  miss / frame-error burst to new_canonical_records;
+- promote learned RF fingerprinting classifiers or black-box
+  modulation classifiers / proprietary spectrum-anomaly scores
+  to new_canonical_records;
+- claim regulatory compliance, FDA approval, ETSI / FCC
+  certification, or any vendor-specific spectrum verdict;
+- activate new detectors;
+- execute on GPU;
+- claim empirical usefulness (T.8 ledger stays NotScored).

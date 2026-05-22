@@ -1,0 +1,3 @@
+{"idx":0,"entity_id":1,"start_window":19,"end_window":31,"motif":"OscillationInstability","reason":"RecurrentBoundaryGrazing","peak_state":"Boundary","peak_residual_q":64159,"peak_drift_q":62882,"peak_slew_q":983,"detector_bit_count":2}
+{"idx":1,"entity_id":3,"start_window":24,"end_window":27,"motif":"OscillationInstability","reason":"RecurrentBoundaryGrazing","peak_state":"Boundary","peak_residual_q":54067,"peak_drift_q":53073,"peak_slew_q":197,"detector_bit_count":2}
+{"idx":2,"entity_id":3,"start_window":29,"end_window":32,"motif":"OscillationInstability","reason":"RecurrentBoundaryGrazing","peak_state":"Boundary","peak_residual_q":53805,"peak_drift_q":53285,"peak_slew_q":459,"detector_bit_count":2}

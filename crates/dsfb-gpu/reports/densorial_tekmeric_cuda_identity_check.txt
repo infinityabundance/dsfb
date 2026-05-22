@@ -1,0 +1,220 @@
+Densorial / Tekmeric Inference + CUDA Evidence Factory
+       front-door identity commit — Regression Check
+============================================================
+
+Per-section discipline ritual outcome for the front-door
+identity commit. This is a DOCUMENTATION + IDENTITY commit:
+it does NOT add detectors, new types, new tests, new modules,
+or new authority hashes. It clarifies the front-door identity
+across README, paper, and crate docstrings.
+
+----------------------------------------------------------------
+Commit identity (panel-locked)
+----------------------------------------------------------------
+
+Pins three identities across README + paper + crate
+docstrings:
+
+  - Densorial inference = deterministic inference over
+    evidence densors.
+  - Tekmeric inference = evidence-based deterministic
+    adjudication.
+  - CUDA Evidence Factory = byte-exact witness production
+    over densors.
+
+Required front-door contrast (panel-locked, verbatim):
+
+    neural inference:
+      tensor → learned weights → probabilistic output
+
+    densorial / tekmeric inference:
+      densor → deterministic witness court → replayable case file
+
+CUDA identity line (panel-locked, verbatim):
+
+    DSFB-GPU is a CUDA-accelerated deterministic evidence court:
+    byte-exact witness-family kernels shade residual densors into
+    canonical evidence bytes, then a CPU-side jurisprudence layer
+    admits, challenges, contraindicates, and records them into
+    replayable case files.
+
+Panel-locked one-line verdict:
+
+    GPU supplies evidence throughput. Court supplies meaning.
+
+----------------------------------------------------------------
+Step 1: cargo fmt --all --check
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 2: cargo clippy --workspace --all-targets --features cuda
+                     -- -D warnings
+----------------------------------------------------------------
+
+  Outcome: CLEAN (no new lints; doc-only edits did not
+                  introduce any clippy regressions across the
+                  4 modified crate-level docstrings)
+
+----------------------------------------------------------------
+Step 3: bash scripts/scrub.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN (scrub: clean)
+
+----------------------------------------------------------------
+Step 4: bash scripts/docs_freshness.sh
+----------------------------------------------------------------
+
+  Outcome: CLEAN
+
+----------------------------------------------------------------
+Step 5: cargo test -p dsfb-gpu-atlas-corpus
+----------------------------------------------------------------
+
+  Outcome: 52 groups / 1969 tests PASS
+  Delta vs S1.3g: 0 / 0 (this is a doc-only commit; no new
+                          tests added, no existing tests
+                          broken)
+
+----------------------------------------------------------------
+Step 6: cargo test --workspace --features cuda --
+                   --test-threads=1
+----------------------------------------------------------------
+
+  Outcome: 91 groups / 2284 tests PASS
+  Delta vs S1.3g: 0 / 0
+
+  FF.4 live README sweep (`ff4_live_readme_satisfies_policy`)
+  passes after the README front-door insertions; the new
+  "Densorial / Tekmeric Inference" and "CUDA Evidence Factory"
+  sections were placed AFTER the FF.4 authority-boundary block
+  and BEFORE "What this is", so every required FF.4 substring
+  is still present and no forbidden FF.4 substring was
+  introduced.
+
+----------------------------------------------------------------
+Step 7: R.12b D64 saturation byte-stability check
+----------------------------------------------------------------
+
+  Pre-run backup: reports/r12_d64_saturation.txt,
+                  reports/d64_stage_timing_256x4096_K1.txt,
+                  reports/r9_b3_d64_timing.txt,
+                  reports/r9_b_d64_timing.txt
+   → backed up to /tmp/identity_backup/ before workspace
+     serial.
+
+  Post-run restoration: byte-identical to backup
+                        (`diff -q` clean).
+
+  Episodes: 13 / 89 / 1917 (byte-stable, unchanged).
+  Pinned R.12b baseline: NOT REBASELINED.
+
+----------------------------------------------------------------
+Step 8: Stale-doc grep scan
+----------------------------------------------------------------
+
+  README:
+    - Inserted "## Densorial / Tekmeric Inference (front-door
+      identity)" section after the FF.4 authority-boundary
+      block.
+    - Inserted "## CUDA Evidence Factory (front-door
+      identity)" section after the densorial / tekmeric
+      section.
+    - Existing FF.4 block + Layout block + Performance
+      headline + Detector corpus sections all untouched.
+
+  archived prior-art manuscript source:
+    - Inserted dedicated `\section{Densorial and Tekmeric
+      Inference}\label{sec:densorial}` after Introduction.
+    - Inserted dedicated `\section{CUDA Evidence Factory}
+      \label{sec:cuda-evidence-factory}` immediately after.
+    - Existing Problem Statement, Non-Probabilistic Scope,
+      Atlas Continuation, etc. all untouched.
+
+  crates/dsfb-gpu-atlas-corpus/src/lib.rs:
+    - Front-door identity preamble inserted before
+      "**Current state through S1.3g**" enumeration; pins the
+      densorial / tekmeric framing + the neural-vs-densorial
+      contrast block.
+
+  crates/dsfb-gpu-debug-cuda/src/lib.rs:
+    - Module docstring rewritten with the CUDA Evidence
+      Factory identity sentence + the pipeline contrast +
+      the "no semantic authority on the GPU" pin + panel-
+      locked non-claims about saturation / production CUDA
+      performance.
+
+  crates/dsfb-gpu-debug-core/src/lib.rs:
+    - Module docstring extended with the densorial /
+      tekmeric front-door identity + the Semantic Non-Bypass
+      Axiom pin (only the bank's private
+      `BankAdmissionToken` constructor can mint admitted
+      episodes; the GPU never does).
+
+  crates/dsfb-gpu-atlas-registry/src/lib.rs:
+    - Module docstring extended with the registry's role in
+      the densorial / tekmeric stack (registry is a court
+      artifact, not a detector zoo).
+
+----------------------------------------------------------------
+Step 9: Atomic commit under the 10-step ritual
+----------------------------------------------------------------
+
+  Pre-commit hook: fmt + clippy + scrub + docs_freshness
+  gates pass; no `--no-verify`.
+
+----------------------------------------------------------------
+Step 10: Plan-file Quick Start rotation + memory file +
+          MEMORY.md index entry
+----------------------------------------------------------------
+
+  Plan-file Quick Start: Current state → front-door identity
+                          commit at the new commit hash;
+                          Prior current state → S1.3g
+                          OTelBindingReceiptTypes; Active
+                          campaign (next) → T.12.PROV
+                          Scientific Provenance Credit Pass
+                          per the post-T.12.consolidate
+                          scaling + framing roadmap.
+
+  No new memory file (this is a doc-only commit; the
+  densorial / tekmeric vocab is now pinned in the lib.rs
+  module docstrings, the README, and the paper, where it is
+  always loaded into context).
+  MEMORY.md: extended with the front-door identity commit
+  one-line hook.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  Every prior court anchor: UNCHANGED.
+  SEED.len()                : 54 (UNCHANGED).
+  No new own-namespace hashes introduced.
+
+R.12b episodes 13/89/1917 byte-stable; pinned baseline NOT
+rebaselined. The identity commit is doctrine + naming only;
+it does not change court state.
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in README + paper)
+----------------------------------------------------------------
+
+This commit does NOT:
+
+  - replace neural inference;
+  - claim peak memory-bandwidth saturation yet;
+  - claim production CUDA performance yet;
+  - grant semantic authority to the GPU;
+  - perform live OTel ingestion;
+  - turn OTel binding receipts into runtime adapters;
+  - add detectors;
+  - alter authority hashes;
+  - change activation decisions;
+  - generate CUDA kernels;
+  - claim performance saturation.
+
+It clarifies the front-door identity. That is the entire
+delta.

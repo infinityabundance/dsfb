@@ -1,0 +1,137 @@
+================================================================
+T.12.0 - CorpusAmendmentProposalV1 + CorpusExpansionBatch +
+DedupCourtDelta summary receipt
+================================================================
+Batch schema:     DSFB-GPU-ATLAS:LITERATURE-EXPANSION-BATCH:v1
+  Domain sep:     DSFB-GPU-ATLAS:LITERATURE-EXPANSION-BATCH:v1\0
+Proposal schema:  DSFB-GPU-ATLAS:CORPUS-AMENDMENT-PROPOSAL:v1
+  Domain sep:     DSFB-GPU-ATLAS:CORPUS-AMENDMENT-PROPOSAL:v1\0
+Delta schema:     DSFB-GPU-ATLAS:DEDUP-COURT-DELTA:v1
+  Domain sep:     DSFB-GPU-ATLAS:DEDUP-COURT-DELTA:v1\0
+
+Panel-locked thesis (commit identity):
+
+  T.12.0 introduces the amendment court for corpus scale-out:
+  new literature primitives enter as reviewable amendment
+  proposals, not silent mutations of corpus_hash_v1.
+
+T.12.0 is the legal intake system for the T.12 Literature
+Corpus Scale-Out arc. No new literature primitives land in
+T.12.0; they enter via T.12.a..m sub-campaigns starting with
+T.12.a = statistical process control.
+
+Upstream hash anchors UNCHANGED (panel-locked):
+  corpus_hash_v1                              = 35c276c7...
+  registry_hash_v2                            = d3cf6300...
+  precedent_hash_v1                           = 6721f511...
+  admissibility_grammar_hash_v1               = ff66706a...
+  trial_transcript_hash_v1                    = 37618a45...
+  execution_attestation_receipt_hash_v1       = (per build)
+  challenge_docket_hash_v1                    = dde4ecb4...
+  detector_contraindication_hash_v1           = 1b899f5d...
+  coverage_hole_hash_v1                       = 671e2164...
+  activation_plan_hash_v1                     = 5a81da47...
+  activation_diff_hash_v1                     = 469536e7...
+  task_manifest_hash_v1                       = 88a33338...
+  dataset_manifest_hash_v1                    = 3864db34...
+  activation_context_hash_v1                  = 4948bf45...
+  Every DetectorPassport hash                 = unchanged
+
+Three NEW own-namespace hashes (NOT folded upstream):
+  corpus_amendment_proposal_hash_v1 (T.12.0 proof-of-life) =
+    325bbf3deff3595b429a3cda1d55a2fc9e31d689aaeb7a88e3bf8f691fc80092
+  literature_expansion_batch_hash_v1 = (per build; folded
+    into the proposal hash above)
+  dedup_court_delta_hash_v1 = (per build; folded into the
+    proposal hash above)
+
+Conservative seed proof-of-life proposal:
+  proposal_id            = "t12_0_proof_of_life"
+  motivation             = "Establish the amendment court intake
+                            schema before any T.12.x primitive
+                            campaign files its first proposal."
+  target_source_class    = StatisticalProcessControl
+  status                 = Open
+  proposer_role          = PanelMember
+  created_at_commit      = "t12_0_scaffold"
+  body                   = empty CorpusExpansionBatch
+  dedup_court_delta      = empty DedupCourtDelta
+
+SourceClass enum (23 panel-locked variants):
+  StatisticalProcessControl, SequentialChangeDetection,
+  DriftDetection, RobustStatistics, DistributionDistance,
+  InformationTheory, SignalProcessing, SpectralAndWavelet,
+  TimeSeriesStructure, ControlResiduals,
+  FaultDetectionDiagnostics, ConditionMonitoring,
+  IndustrialProcessMonitoring, GraphAnomalyDetection,
+  StreamingSketches, DataQualityRules,
+  DatabaseIntegrityConstraints, ObservabilityDebugging,
+  MedicalBiosignal, RfCommunications, Chemometrics,
+  Econometrics, ReliabilitySurvival.
+
+ProposalStatus enum (4 variants):
+  Open, Accepted, Rejected, Deferred.
+
+ProposerRole enum (3 variants):
+  PanelMember, ExternalReviewer, RobotIngestion.
+
+Verifier: 9 reject kinds (7 panel-locked rules + 2 structural
+integrity checks; 4 are panel-required load-bearing negatives):
+
+   1. *ProposalIdEmpty (load-bearing #1)
+   2. *UnknownSourceClass (load-bearing #2; enforced at the
+      enum level — verifier rule reserved for future TOML
+      loader path)
+   3. *DedupDeltaCollidesWithExistingSeedCanonicalId
+      (load-bearing #3)
+   4. *amendment_proposal_hash_changes_when_batch_changes
+      (load-bearing #4; hash sensitivity)
+   5.  BatchIdEmpty
+   6.  AcceptedProposalWithoutBodyOrDelta
+   7.  AcceptedProposalWithoutFutureFreezeGate
+   8.  AmendmentProposalHashMismatch (structural)
+   9.  BatchHashMismatch + DedupDeltaHashMismatch (structural)
+
+CLI surface (new):
+  dsfb-corpus amendment-proposal      [--json] [--out PATH]
+  dsfb-corpus amendment-proposal-emit [--out-dir DIR]
+
+Bulk artifacts (two builds produce byte-identical bytes):
+  crates/dsfb-gpu-atlas-corpus/out/corpus_amendment_proposal_v1.txt   (~1.5 KB)
+  crates/dsfb-gpu-atlas-corpus/out/corpus_amendment_proposal_v1.json  (~1.0 KB)
+
+Test suite: 31 acceptance tests at
+  crates/dsfb-gpu-atlas-corpus/tests/amendment_invariants.rs
+
+Panel-locked non-claims:
+  - Does NOT add any new literature primitive (those land in
+    T.12.a..m).
+  - Does NOT mutate corpus_hash_v1.
+  - Does NOT create corpus_hash_v2.
+  - Does NOT change registry_hash_v2 or any T.11/S1.3 hash
+    anchor.
+  - Does NOT activate new detectors.
+  - Does NOT execute on GPU.
+  - Does NOT regenerate the S1.2 registry.
+  - Does NOT claim empirical usefulness.
+  - Does NOT claim datasheet / model-card / NIST AI RMF /
+    SLSA / in-toto / SPDX / CycloneDX compatibility on the
+    three new hash namespaces.
+
+R.12b D64 baseline NOT rebaselined; pinned R.12b episode counts
+(13/89/1917 for canonical/mid/full at K=1) byte-stable.
+
+Locked sub-campaign sequence:
+  T.12.0 (this) -> T.12.a (SPC) -> T.12.b (sequential change
+  detection) -> T.12.c (drift / distribution distance) ->
+  T.12.d (robust statistics) -> T.12.e (signal / spectral /
+  wavelet) -> T.12.f (time-series) -> T.12.g (graph /
+  topology) -> T.12.h (data quality / tabular / DB
+  constraints) -> T.12.i (observability / debugging) ->
+  T.12.j (industrial / FDD) -> T.12.k (chemometrics / RF /
+  medical) -> T.12.l (econometrics / reliability / streaming
+  sketches) -> T.12.m (consolidation + amendment review).
+
+The court can now accept literature expansion proposals
+without silent corpus mutation. The next campaign (T.12.a)
+files the first real proposal: statistical process control.

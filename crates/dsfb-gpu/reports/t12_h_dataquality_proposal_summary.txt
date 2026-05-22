@@ -1,0 +1,197 @@
+================================================================
+T.12.h - Data Quality / Tabular / Database Integrity
+        Constraints amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.h files the Data Quality / Tabular /
+Database Integrity amendment proposal. It admits only
+deterministic table, schema, integrity, and column-structure
+witnesses whose scope, baseline, null semantics, cardinality
+law, dependency law, type law, range law, and decision
+functional are declared; resolves SEED collisions; classifies
+variants as parameterizations or domain transfers; rejects
+underspecified leakage or learned data-quality claims; and
+preserves the frozen T.10 corpus hash.
+
+Main panel warning: "A validation rule is not a detector
+until scope, baseline, null / type / key semantics, and
+decision law are declared."
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.h emitted values:
+
+  literature_expansion_batch_hash_v1 :
+    6e77d173bc12f3e6147297e5981800cb7c6883ada039d3ea40df23373fcde0ae
+  dedup_court_delta_hash_v1          :
+    568719a54af6a7e93d9bc381328eb929a43ab90324d70f1e20cad5c3f85f9e70
+  corpus_amendment_proposal_hash_v1  :
+    d4566a74b0816d4e1bd4612fb7ee677ff5ae9a679af44b1bcdacab670f9779da
+
+Distinct from every prior T.12.x proposal hash.
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found FIVE T.12.h-relevant primitives already
+canonical:
+
+  13 Missingness spike       (shared data-quality ancestor)
+  44 Missingness coupling    (multi-column null-pattern)
+  45 Schema drift            (schema-version / column-identity)
+  46 Cardinality drift       (category-identity / counting)
+  47 Uniqueness violation    (key-scope / null handling)
+
+All five become ExistingCanonicalAuthorityResolution records.
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  13  (8 canonical + 3 parameterization
+                                 + 2 rejection shells)
+  proposed_aliases       :   0
+  proposed_dedup_records :  19  (panel-locked headline)
+  proposed_genealogy_edges: 10
+  proposed_source_refs   :   9
+
+  new_canonical_records (in delta): 8
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised, with
+TWO rejections - second T.12.x with two)
+----------------------------------------------------------------
+
+  CanonicalAddition (x8) with declared scope + decision laws:
+    5801 Functional dependency violation (Codd 1972)
+         (determinant + dependent columns + null handling +
+         duplicate handling + violation count + min support)
+    5802 Type instability
+         (type system SQL / Arrow / Parquet + observed-vs-
+         expected + scope + threshold)
+    5803 Target-leakage candidate
+         (target column + time/order law + feature-availability
+         time + association law + train/test split / temporal
+         holdout) -- PANEL-LOCKED NON-CLAIM: candidate, not
+         proof
+    5804 Correlation break (inter-column)
+         (Pearson / Spearman / Kendall + window pair +
+         normalization + threshold)
+    5805 Covariance shift (multivariate)
+         (covariance estimator + comparison law + threshold)
+    5806 Null-run anomaly
+         (null semantics + consecutive-null-run law +
+         threshold)
+    5807 Range envelope exit (tabular)
+         (per-column min/max bounds + unit + inclusive/exclusive
+         boundary + null handling)
+    5808 Category emergence
+         (reference-category set + anchor + new-category-
+         appearance law + case sensitivity)
+
+  ExistingCanonicalAuthorityResolution (x5) with declared laws:
+    SEED 13 Missingness spike       (null semantics + baseline)
+    SEED 44 Missingness coupling    (multi-column pattern)
+    SEED 45 Schema drift            (schema-version + subkinds)
+    SEED 46 Cardinality drift       (category-identity law)
+    SEED 47 Uniqueness violation    (key scope + null handling)
+
+  DomainTransferOf (x1):
+    SEED 13 Missingness spike as shared data-quality ancestor
+            for DataQualityRules
+
+  ParameterizationOf (x3):
+    5809 Per-column missingness -> ParameterizationOf
+         (Missingness spike, SEED 13)
+    5810 Composite-key uniqueness -> ParameterizationOf
+         (Uniqueness violation, SEED 47)
+    5811 Category collapse -> ParameterizationOf
+         (Cardinality drift, SEED 46)
+
+  RejectedNotDeterministic (x2):
+    5812 Learned data-quality anomaly score (autoencoder
+         reconstruction, Mahalanobis with learned covariance,
+         Isolation Forest with random seed, LOF) -- rejected
+         unless model-identification seed + training-data
+         anchor + feature schema + tie-break + numeric mode
+         declared
+    5813 Auto-schema inference anomaly (TFDV-style, Great
+         Expectations profiler with random sampling) --
+         rejected unless inference algorithm + sample seed +
+         sampling schedule + schema-version anchor + tie-break
+         declared
+
+----------------------------------------------------------------
+Target-leakage non-claim (panel-locked)
+----------------------------------------------------------------
+
+Target-leakage candidate (5803) is admitted explicitly as a
+CANDIDATE witness, not proof of leakage. Its reason text
+carries the panel-locked phrasing "candidate, not proof" so a
+future activation planner / case-file emitter does NOT promote
+candidate signals into ratified leakage verdicts. Pinned by
+the `t12_h_rejects_target_leakage_without_target_and_time_
+availability_law` load-bearing negative.
+
+----------------------------------------------------------------
+Genealogy edges (proposed)
+----------------------------------------------------------------
+
+  5801 FD violation       DerivedFrom Uniqueness violation (47)
+  5802 Type instability   DerivedFrom Schema drift (45)
+  5804 Correlation break  DerivedFrom Autocorrelation break (40)
+  5805 Covariance shift   Generalizes Correlation break (5804)
+  5806 Null-run anomaly   DerivedFrom Missingness spike (13)
+  5807 Range envelope     DerivedFrom Residual envelope exit (22)
+  5808 Category emergence DerivedFrom Cardinality drift (46)
+  5809 Per-column missing ParameterVariantOf Missingness spike (13)
+  5810 Composite-key uniq ParameterVariantOf Uniqueness violation (47)
+  5811 Category collapse  ParameterVariantOf Cardinality drift (46)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives
+----------------------------------------------------------------
+
+   1. t12_h_does_not_mutate_seed_len
+   2. t12_h_rejects_missingness_without_null_semantics
+   3. t12_h_rejects_cardinality_drift_without_category_identity_law
+   4. t12_h_rejects_uniqueness_violation_without_key_scope
+   5. t12_h_rejects_functional_dependency_without_determinant_and_dependent_columns
+   6. t12_h_rejects_schema_drift_without_schema_version_or_column_identity_law
+   7. t12_h_rejects_range_envelope_without_unit_and_boundary_law
+   8. t12_h_rejects_type_instability_without_type_system_law
+   9. t12_h_rejects_target_leakage_without_target_and_time_availability_law
+      (MOST IMPORTANT - includes panel-locked non-claim
+       "candidate, not proof" check)
+  10. t12_h_hash_changes_when_null_semantics_or_fd_law_changes
+  11. t12_h_existing_seed_collision_requires_authority_resolution
+
+Plus 2 rejection contract tests (learned-DQ-score; auto-schema-
+inference), correlation / covariance / null-run / category-
+emergence contract tests, 3 ParameterizationOf family tests,
+shape / determinism / rendering invariants. Total: 41
+acceptance tests.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.h does NOT:
+- mutate corpus_hash_v1 or any prior T.11/S1.3/T.12.x hash;
+- create corpus_hash_v2;
+- duplicate Missingness spike / coupling / Schema drift /
+  Cardinality drift / Uniqueness violation;
+- promote per-column missingness / composite-key uniqueness /
+  category collapse to new_canonical_records;
+- promote learned-DQ-score or auto-schema-inference anomaly
+  to new_canonical_records;
+- promote target-leakage candidate to a ratified leakage
+  verdict (panel-locked: candidate, not proof);
+- claim a validation rule as a detector without declared
+  scope + baseline + null/type/key semantics + decision law;
+- activate new detectors;
+- execute on GPU;
+- claim empirical usefulness (T.8 ledger stays NotScored).

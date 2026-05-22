@@ -1,0 +1,1 @@
+{"idx":0,"entity_id":5,"start_window":12,"end_window":15,"motif":"OscillationInstability","reason":"RecurrentBoundaryGrazing","peak_state":"Boundary","peak_residual_q":65536,"peak_drift_q":52814,"peak_slew_q":984,"detector_bit_count":2}

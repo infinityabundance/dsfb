@@ -1,0 +1,180 @@
+================================================================
+T.12.p - Information Theory catch-up
+        amendment proposal verification receipt
+================================================================
+
+Verifier (verify_amendment_proposal) walks the T.12.p proposal
+under the T.12.0 amendment court rules and exits clean: zero
+errors.
+
+----------------------------------------------------------------
+Eleven panel-locked verifier rules (each PASSED)
+----------------------------------------------------------------
+
+R.1  BatchIdEmpty                                            PASS
+     proposal.body.batch_id = "t12_p_information_theory_first_proposal"
+
+R.2  ProposalIdEmpty                                         PASS
+     proposal.proposal_id = "t12_p_information_theory_first_proposal"
+
+R.3  UnknownSourceClass                                      PASS
+     target_source_class = InformationTheory (panel-locked enum
+     variant). Body source_class matches target_source_class.
+
+R.4  AmendmentProposalHashMismatch                           PASS
+     compute_corpus_amendment_proposal_hash_v1(&proposal) ==
+     proposal.corpus_amendment_proposal_hash_v1 =
+     338198ebc09cc2a867f2a38aa949b9134edbde9f1778002209f157ca7bb335ca.
+
+R.5  DedupDeltaCollidesWithExistingSeedCanonicalId           PASS
+     new_canonical_records = [6601, 6602, 6603, 6604, 6605] —
+     all five reserved canonical ids are in the 6601..=6605
+     T.12.p reserved band, NONE collide with any SEED id (0..=53).
+     The three existing canonicals at SEED 9 / 32 / 38 are
+     ratified via ExistingCanonicalAuthorityResolution, NOT
+     re-admitted as new canonicals.
+
+R.6  ProposalBodyAndDeltaBothEmpty                           PASS
+     body has 11 proposed primitives + 16 dedup records + 9
+     genealogy edges + 9 source refs; dedup_court_delta has 5
+     new canonical records. Neither is empty.
+
+R.7  AcceptedProposalWithoutFutureFreezeGate                 PASS
+     status = Open (not Accepted); created_at_commit =
+     "t12_p_information_theory".
+
+R.8  DedupDeltaHashMismatch                                  PASS
+     compute_dedup_court_delta_hash_v1(&delta) ==
+     proposal.dedup_court_delta.dedup_court_delta_hash_v1 =
+     654bc325872e57babee643295c8f852c58a30e7f51eb6798c9d0e8461f9fe7b5.
+
+R.9  ExpansionBatchHashMismatch                              PASS
+     compute_literature_expansion_batch_hash_v1(&body) ==
+     proposal.body.literature_expansion_batch_hash_v1 =
+     dd17da603465ced567efecfc79db92d28f3113e03d8af7811f296eddb35473a8.
+
+R.10 DedupRecordCanonicalIdZero                              PASS
+     Every dedup record carries a non-zero canonical_id (range
+     check: 9 / 32 / 38 for authority + 6601..=6611 for new
+     records).
+
+R.11 EmptyReasonString                                       PASS
+     Every dedup record reason is non-empty; verified by
+     t12_p_every_dedup_record_has_reason.
+
+----------------------------------------------------------------
+Six panel-required load-bearing negatives (each PASSED)
+----------------------------------------------------------------
+
+LN.1 t12_p_rejects_information_witness_without_estimator_or_binning_contract
+     PASS. Every CanonicalAddition AND every
+     ExistingCanonicalAuthorityResolution reason declares
+     estimator OR code-length functional AND declares one of:
+     binning / partition / spectral-bin contract / FFT-window
+     contract / fixed model distribution / model class /
+     declared reference distribution / declared distributions /
+     symmetric mixture.
+
+LN.2 t12_p_rejects_entropy_detector_without_base_smoothing_and_empty_bin_law
+     PASS. Every entropy-style CanonicalAddition (Shannon /
+     Conditional entropy / Cross-entropy) declares log base AND
+     empty-bin law AND smoothing rule. KL authority resolution
+     declares log base + empty-bin law + epsilon for log(0)
+     smoothing.
+
+LN.3 t12_p_rejects_mutual_information_without_joint_distribution_contract
+     PASS. Conditional entropy (6602) AND mutual information
+     (6603) CanonicalAdditions declare joint-distribution
+     contract over (X, Y) plus joint binning OR kernel-density-
+     estimator law. Transfer entropy parameterization (6607)
+     declares lagged-joint contract with embedding orders k
+     and l.
+
+LN.4 t12_p_rejects_causal_information_flow_claim_language
+     PASS. Positive-claim variants (claims causal flow / admits
+     causal information flow / guarantees causal information
+     flow / proves causal information flow / Granger-style
+     causal verdict / claims intervention truth / etc.) appear
+     NOWHERE in CanonicalAddition / ExistingCanonicalAuthorityResolution
+     / ParameterizationOf / DomainTransferOf records. Bare
+     phrases ("causal information flow", "intervention truth")
+     are admitted INSIDE legitimate "does NOT admit ..."
+     disclaimers; only positive-claim variants are forbidden
+     (mirrors T.12.o anonymization-authority discipline).
+
+LN.5 t12_p_rejects_privacy_or_security_claim_language
+     PASS. Positive-claim variants (claims cryptographic
+     security / claims information-theoretic security / claims
+     privacy-leakage certainty / issues privacy verdicts /
+     guarantees privacy / proves privacy / side-channel-secure
+     / information-theoretically secure encryption / etc.)
+     appear NOWHERE in non-rejection records. Bare phrases
+     ("cryptographic security") are admitted INSIDE legitimate
+     "does NOT admit ..." disclaimers.
+
+LN.6 t12_p_rejects_learned_embedding_information_score_without_formula
+     PASS. Learned MI estimator (6610) rejection requires
+     deterministic feature-extraction law + declared formula +
+     declared training-data anchor + declared binning + declared
+     tie-break + declared numeric mode + no learned opaque
+     embedding; names MINE / Belghazi / InfoVAE / CPC /
+     variational MI bound. Black-box vendor IT score (6611)
+     rejection requires declared formula + binning OR partition
+     + smoothing + log base + numeric mode; names AWS Macie /
+     IBM Guardium / Microsoft Purview / Symantec / Broadcom /
+     Cisco Talos.
+
+----------------------------------------------------------------
+Structural distinctness assertions (each PASSED)
+----------------------------------------------------------------
+
+  t12_p_mi_distinct_from_kl                                  PASS
+  t12_p_cross_entropy_pins_fixed_model_distribution          PASS
+  t12_p_mdl_declares_two_part_code                           PASS
+  t12_p_shannon_entropy_declares_partition_law_options       PASS
+  t12_p_conditional_entropy_declares_joint_minus_marginal_form
+                                                             PASS
+  t12_p_normalized_mi_is_parameterizationof_mi               PASS
+  t12_p_transfer_entropy_is_parameterizationof_mi_non_causal PASS
+  t12_p_renyi_tsallis_is_parameterizationof_shannon          PASS
+  t12_p_compression_ratio_is_parameterizationof_mdl          PASS
+  t12_p_kl_domain_transfer_to_information_theory_exists      PASS
+  t12_p_spectral_entropy_domain_transfer_to_information_theory_exists
+                                                             PASS
+
+----------------------------------------------------------------
+Hash determinism + sensitivity (each PASSED)
+----------------------------------------------------------------
+
+  p_proposal_hash_is_deterministic_across_two_builds         PASS
+  recomputed_p_proposal_hash_matches_stored                  PASS
+  p_proposal_hash_is_distinct_from_all_prior_t12x            PASS
+  t12_p_hash_changes_when_estimator_contract_changes         PASS
+
+----------------------------------------------------------------
+Reserved-id-range guards (each PASSED)
+----------------------------------------------------------------
+
+  t12_p_canonical_addition_ids_are_in_6601_to_6605_range     PASS
+  t12_p_parameterization_ids_are_in_6606_to_6609_range       PASS
+  t12_p_rejection_ids_are_in_6610_to_6611_range              PASS
+
+----------------------------------------------------------------
+Rendering byte-stability (each PASSED)
+----------------------------------------------------------------
+
+  p_proposal_text_rendering_byte_stable                      PASS
+  p_proposal_json_rendering_byte_stable                      PASS
+  p_proposal_motivation_carries_panel_locked_non_claim       PASS
+
+----------------------------------------------------------------
+Test surface summary
+----------------------------------------------------------------
+
+  Test groups : 1 (tests/t12_p_information_theory_invariants.rs)
+  Tests       : 45 (all pass)
+  Of which panel-required load-bearing negatives : 6
+
+----------------------------------------------------------------
+End of T.12.p Information Theory catch-up verification receipt
+----------------------------------------------------------------

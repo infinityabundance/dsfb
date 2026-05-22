@@ -1,0 +1,278 @@
+=== S-PERF.16.a A6.1 STRUCTURAL FUSION — POST AUDIT RECEIPT ===
+Date           : 2026-05-19
+Campaign       : S-PERF.16 — D64 DetectorCell hot-layout / L2 reduction
+Sub-leg        : A6.1 — structural window-walk fusion (single-pass, 4-variant
+                 scalar lanes; eliminates 4×4 input-read amplification across
+                 drift_ramp + plateau + oscillation + variance helpers)
+Status         : PANEL GATE PASS — all 8 admission criteria cleared
+Hardware       : NVIDIA RTX 4080 SUPER, CUDA 13.2, ncu 2026.1.1.0
+Fixture        : canonical 256×4096 K=1 D64 compact-densor pipeline
+
+
+=== PANEL-LOCKED A6.1 ADMISSION GATES (verbatim from S-PERF.16 verdict) ===
+
+ [PASS] L1 LOAD bytes < 2,339,556,672   (A6.1: 1,139,949,568 bit-exact ×5)
+ [PASS] L1 LD sectors  < 73,111,146      (A6.1: 35,623,424 bit-exact ×5)
+ [PASS] L2 read sectors materially lower (A6.1 mean ~13.5M vs PRE ~44M = ~3.3×)
+ [PASS] detector_motif_fused duration < ~1.32 ms (A6.1 mean 0.910 ms; 1.46× faster)
+ [PASS] all 5 S-PERF.16 pins pass        (39 byte-identity tests green pre-ROOF)
+ [PASS] TreeSha256V1 detector root unchanged       (S-PERF.15.a + 15.d pin verified)
+ [PASS] CompactDensorDigestV1 detector root unchanged (S-PERF.14b 4-root pin verified)
+ [PASS] R.12b episodes 13 / 89 / 1917 stable        (pinned baseline NOT rebaselined)
+
+
+=== PRE → POST PER-KERNEL MEASUREMENT (multi-run 5 ROOFs × 4 launches = 20 captures) ===
+
+detector_motif_fused_d64_kernel
+  PRE (S-PERF.15.d pinned, hot-lane projection sealed at 6233622):
+    Duration   : 1,324,608 ns =  1.325 ms
+    L2 %       : 90.98
+    DRAM %     : 10.37
+    L1/TEX %   : 63.87
+    Compute %  :  8.97
+    IPC        :  0.36
+    Occupancy  : 49.18 %
+
+  POST (S-PERF.16.a A6.1, multi-run 5 sudo ROOFs):
+    Duration   : min 903,488 / median 906,512 / mean 910,283 / max 948,096 ns
+                 ≈ 0.903 / 0.907 / 0.910 / 0.948 ms
+                 (20 launches across 5 ROOFs; first 4 runs tight ~906 µs,
+                  run5 carries two ~948 µs thermal outliers)
+    L2 %       : ~89.5 (stable; still L2-bound, payload smaller)
+    DRAM %     : ~14.6 (higher fraction of life streaming useful bytes)
+    L1/TEX %   : ~59.8
+    Compute %  : ~13.5
+    IPC        :  0.48  (+33 % vs S-PERF.15.d, further memory-stall reduction)
+    Occupancy  : ~48.8 % (launch geom untouched)
+
+  Δ : Duration −31.3 % (1.46× faster on the mean)
+      IPC      +33 %
+      L1 LOAD  −51.3 % (2.05× cut, bit-exact across all 5 captures)
+      L2 read  ~−69 % (~3.3× cut)
+
+
+=== A6.1 BYTE-COUNTER TRACE (5 captures, focused sudo ncu, file:
+                              reports/s_perf_16_a6_1_bytecounter_trace.csv) ===
+
+                          PRE (Step 0d, A5 floor)   A6.1 POST mean   Δ
+L1 LOAD bytes             2,339,556,672             1,139,949,568    −51.3 % (2.05× cut)
+L1 LD sectors             73,111,146                35,623,424       −51.3 %
+L2 read sectors           ~44 M (1.42 GB)           ~13.5 M (432 MB) ~−69 %  (~3.3× cut)
+DRAM read bytes (mean)    (not pinned PRE)          ~42.6 MB         (input payload bounded)
+Duration (5-capture mean) 1,325,000 ns              952,531 ns       −28.1 % (1.39× faster)
+
+A6.1's L1 LOAD bit-exactness across 5 captures (1,139,949,568 every time)
+confirms the 4-variant input-read amplification is structurally eliminated:
+one walk through the historical window now serves all 4 variants from a
+single sign-cell read instead of 4×4 re-walks. This is the result A5 v1
+/ v2 / v2.1 could not produce (all three A5 attempts hit the bit-exact
+2,339,556,672 floor because source-level caching was defeated by the
+compiler's scalarizer).
+
+
+=== POST PER-DISPATCH KERNEL RANKING (A6.1 POST run1 sample, single iter) ===
+
+ rank | kernel                                          | mean ns   | bucket
+ -----|-------------------------------------------------|-----------|--------
+  1   | compact_densor_root_streaming_blockcoop         | 1,330,285 | OCC  (v4 PROMOTE Stream lanes — sign + consensus)
+  2   | drift_ewma_precompute_kernel                    | 1,200,074 | OCC  (STRUCTURAL recurrence floor — one thread / entity)
+  3   | detector_motif_fused_d64_kernel                 |   906,656 | L2   (A6.1 SEALED — was #1 at 1.32 ms)
+  4   | compact_densor_root_blockcoop                   |   868,992 | OCC  (v4 PROMOTE Path1a lanes — residual + detector)
+  5   | consensus_axis5_fused_kernel                    |   403,896 | L2   (S-PERF.15.b sealed)
+  6   | candidate_boundary_precompute_kernel            |   290,328 | OCC  (STRUCTURAL recurrence floor)
+  7   | compact_densor_leaf_kernel                      |   209,805 | DRAM (S-PERF.12 warp-coop)
+  8   | residual_field_kernel                           |   177,866 | L2   (candidate)
+  9   | candidate_pack_kernel_wide_blockcoop            |   151,576 | OCC  (S-PERF.15.c sealed)
+ 10   | window_feature_kernel_structured                |   128,106 | DRAM (R.11b)
+ 11   | candidate_fired_kernel_wide                     |    61,184 | DRAM
+ 12   | drift_slew_sign_kernel_cellpar                  |    33,688 | DRAM (S-PERF.14a sealed)
+ 13   | candidate_boundary_cellpar_emit_kernel          |     2,208 | DRAM (S-PERF.14c sealed)
+
+A6.1 cleanly demoted detector_motif_fused from #1 to #3. All prior wins
+preserved (S-PERF.14a/14b/14c/15.a/15.b/15.c/15.d kernels at expected
+walls + v4 PROMOTE root selector active).
+
+
+=== LIVE BENCH BAND (3 runs, post-A6.1 pre-ROOF capture; pinned reports restored) ===
+
+  combined bandwidth : 17.07 / 17.08 / 23.10 GB/s @ 256×4096 K=1 D64
+                       median 17.08; thermal-noise dominated as expected
+
+Honest framing (panel cadence): bench BW is the noise filter. The per-kernel
+1.46× duration win + 51.3 % L1 LOAD reduction is the load-bearing verdict;
+the system-level bench Δ falls within the thermal-noise band because (a)
+A6.1 attacks a single 1.32 ms kernel out of a ~7 ms device wall, and (b)
+the system bench is dominated by downstream stages (drift_ewma_precompute
+structural floor + root kernels + bank admission). The per-kernel ncu
+measurement is the court witness.
+
+
+=== BYTE-IDENTITY VERIFICATION (pre-ROOF, 39 tests across 4 suites) ===
+
+  S-PERF.14b root capture       (12 tests) : PASS — 4 CompactDensorDigestV1 stage roots preserved
+  S-PERF.15.a fused detector    (15 tests) : PASS — DetectorCellWide arena + compact pack bytes preserved
+  S-PERF.15.d hot-lane lifecycle ( 9 tests) : PASS — 5 Step 0 pins + consensus cascade preserved
+  S-PERF.14b.1 v4 selector      ( 3 tests) : PASS — all 16 selector combinations preserve 4 root pins
+
+A6.1's structural fusion produces byte-identical output to the legacy
+4-pass kernel by construction (single pass through the historical window,
+4 independent scalar accumulator lanes, EVAL_VARIANT macro for non-window
+detectors). 108 pin checks across the v4 selector suite verify that the
+PROMOTED Stream/Path1a mixed selector also preserves the 4 CompactDensorDigestV1
+roots regardless of which backend each stage uses.
+
+
+=== A6.1 IMPLEMENTATION (cuda/kernels.cu) ===
+
+NEW: __device__ inline void compute_motif_mask_d64_fused_4variant_a6(
+       const ResidualCell*, const SignCell*, int n_windows, int n_entities,
+       int entity_id, int window_idx, int catalog_id,
+       const ResidualCell& r_local, const SignCell& s_local,
+       Q16 prev_norm, Q16 prev_drift,
+       const DetectorThresholds& sc_v0,
+       const DetectorThresholds& sc_v1,
+       const DetectorThresholds& sc_v2,
+       const DetectorThresholds& sc_v3,
+       uint32_t& d16_v0,
+       uint32_t& d16_v1,
+       uint32_t& d16_v2,
+       uint32_t& d16_v3);
+
+  - 28 explicit named scalar accumulators (NO indexed arrays; deliberately
+    register-resident to defeat compiler local-memory spilling):
+      prev_drift_v0..v3       (4 lanes; drift_ramp EWMA carry)
+      ramp_viol_v0..v3        (4 lanes; consecutive ramp-violation counter)
+      var_hi_v0..v3           (4 lanes; variance-expansion high tracker)
+      var_lo_v0..v3           (4 lanes; variance-expansion low tracker)
+      osc_alts_v0..v3         (4 lanes; oscillation alternation counter)
+      osc_last_v0..v3         (4 lanes; oscillation last-sign state)
+      plat_viol_v0..v3        (4 lanes; plateau violation counter)
+
+  - Single pass through max_history with conditional per-variant updates;
+    per-variant reset when age == window_v − 1 (matches legacy helper
+    init semantics exactly).
+
+  - EVAL_VARIANT macro for non-window detectors (residual_spike, sustained,
+    slew_shock, deadband_exit, error_burst, latency_error_coupling,
+    entity_local_anomaly, route_local_anomaly, fanout_precursor,
+    recovery_edge, confuser_like_transient, clean_window_stability).
+
+REMOVED: dead A5 v2 cached helpers (drift_ramp_fires_cached, plateau_fires_cached,
+         oscillation_fires_cached, variance_expansion_fires_cached).
+
+WRAPPED #if 0: compute_motif_mask_d64_hoisted_v2 (depended on the removed cached
+              helpers; preserved in source as historical reference for the A5
+              triple-null lesson).
+
+UPDATED: detector_motif_fused_d64_kernel — removed A5 v2 cache-fill loop
+         (hist_norm, hist_drift, hist_slew per-thread arrays); pre-compute
+         4 scaled DetectorThresholds (sc_v0..v3); single call to fused helper
+         emitting 4 d16_v0..v3 outputs; unrolled bit-set conversion to
+         hot_mask0 via canonical motif-id × variant-id offset.
+
+
+=== HASH POSTURE (panel-locked, MUST hold post-A6.1) ===
+
+  corpus_hash_v1 / corpus_hash_v2                       : UNCHANGED
+  Every prior T.11 / T.12.x / FF.x / S1.3.x / T.12.PROV /
+    S-PERF.1–S-PERF.15.d / S-PERF.14b.1 v4 hash         : byte-identical
+  S-PERF.12 promotion-receipt hashes                    : byte-identical
+    (s_perf_12_promotion_fields_hash_v1 = 61a7620e…)
+    (s_perf_12_promotion_report_hash_v1 = 36a68b22…)
+  S-PERF.15.d 5 Step 0 pinned constants                 : byte-identical
+  S-PERF.15.a 4 detector arena pins                     : byte-identical
+  S-PERF.14b 4 CompactDensorDigestV1 stage roots        : byte-identical
+  S-PERF.11 4 TreeSha256V1 stage roots                  : byte-identical
+  S-PERF.14b.1 v4 all 16 selectors × 4 roots            : byte-identical
+  Full Track B byte-identity chain (39 tests)           : 39/39 PASS
+  SEED.len() = 54                                       : UNCHANGED
+  R.12b episodes 13 / 89 / 1917                         : byte-stable
+  Pinned R.12b + D64 reference reports                  : restored from HEAD
+                                                          pre-commit
+  ZERO new own-namespace corpus hashes (CUDA-only commit)
+
+
+=== POST-A6.1 KERNEL TARGET RANKING (drives next sub-leg selection) ===
+
+After A6.1 seals, the dominant non-OCC-structural-floor walls are:
+
+ 1. compact_densor_root_streaming (1,330,285 ns) — already optimized at
+    v4 PROMOTE (Stream lane for sign + consensus). Further compression
+    would require streaming SHA-256 refinement (Path 1b v2 design).
+
+ 2. compact_densor_root_blockcoop (868,992 ns) — already optimized at
+    v4 PROMOTE (Path1a lane for residual + detector). Same caveat.
+
+ 3. detector_motif_fused (906,656 ns) — A6.1 SEALED. Further compression
+    would require either consensus/candidate-facing hot-lane reads (A1
+    DetectorCellHot SoA sidecar, S-PERF.16.b candidate) OR detector
+    motif algorithmic compression (out of scope; cross-checked against
+    the S-PERF.15.a Step 0 contract).
+
+ 4. consensus_axis5_fused (403,896 ns) — already optimized at S-PERF.15.b.
+
+The structural recurrence floors (drift_ewma_precompute 1.2 ms,
+candidate_boundary_precompute 290 µs) are panel-locked as
+NOT-LAUNCH-GEOMETRY-FAILURE; they are by-design serial walks for
+deterministic carry. Future work that touches them requires the
+Path 1b v2-style parallel-prefix design plus byte-identity contract.
+
+
+=== NEXT CAMPAIGN (post-A6.1 seal) ===
+
+S-PERF.16.b candidate path (panel-pending; not opened in this commit):
+  A1 — D64 DetectorCellHot SoA sidecar — give consensus_axis5_fused and
+       candidate_pack_blockcoop a 16-byte compact view of the wide
+       detector cell, eliminating the consensus read-side L2 round-trip
+       on the wide-cell layout. A6.1 reduced the WRITE-side amplification
+       on detector_motif_fused; A1 addresses the READ-side amplification
+       on downstream kernels reading the same wide cells.
+
+  Alternative: S-PERF.14b.1 Path 1b v2 (streaming SHA via shared-memory
+       cooperative staging) — bounded by the serial-SHA compute floor;
+       projected wall 925 → 850-900 µs. Marginal lever; defer until A1
+       analyzed.
+
+
+=== PANEL-LOCKED ONE-LINE VERDICT (verbatim) ===
+
+S-PERF.16.a A6.1 structural fusion sealed the post-promotion detector-
+hot-lane wall: detector_motif_fused_d64_kernel duration dropped 1.325 →
+0.910 ms (−31.3 %, 1.46× faster) and L1 LOAD bytes cut 2.34 → 1.14 GB
+(−51.3 %, 2.05× structural reduction) by eliminating the 4×4 input-read
+amplification across drift_ramp + plateau + oscillation + variance helpers
+via a single-pass 4-variant scalar-lane fused helper. A5 v1/v2/v2.1 triple
+null established that source-level caching was defeated by compiler
+scalarization; A6.1's structural rewrite produced the byte-deterministic
+load reduction by construction (bit-exact 1,139,949,568 L1 LOAD bytes
+across all 5 byte-counter captures). All 39 byte-identity pins held;
+multi-run 5-ROOF cadence confirmed the duration delta at panel-grade
+statistics; bench BW band as expected dominated by thermal noise.
+
+
+=== STEP 0 LESSON RECORDED (panel-discipline) ===
+
+The A5 → A6 transition is the canonical worked example for the rule:
+"source-level caching of per-thread reads through indexed local arrays
+is not local-memory caching — it is per-thread GLOBAL-memory staging
+that the compiler scalarizes away under __forceinline__, defeating the
+expected L1 LOAD reduction." A5 v1 / v2 / v2.1 hit the same bit-exact
+2,339,556,672 floor across three independent attempts because the
+underlying read pattern was structurally identical to legacy. A6.1
+eliminated the structural amplification, not the source-level pattern.
+This lesson is recorded as feedback memory for future panel-locked
+optimization sub-legs.
+
+
+=== FILES TOUCHED (A6.1 atomic commit) ===
+
+cuda/kernels.cu                                        (A6.1 implementation)
+reports/s_perf_16_a6_1_post.txt                        (THIS RECEIPT)
+reports/s_perf_16_a6_1_bytecounter_trace.csv           (focused byte-counter trace)
+reports/_ncu_d64_compact_densor_metrics_s_perf_16_a6_1_post_run{1..5}.csv  (raw 5-ROOF CSVs)
+reports/s_perf_roof_preflight_d64_nsight_metrics_s_perf_16_a6_1_post_run{1..5}.txt  (5 sudo ROOF receipts)
+.gitignore                                              (whitelist 11 new A6.1 receipt artifacts)
+(auto-memory) 3 new feedback memory files + 3 new MEMORY.md index lines
+              (fish-shell + ncu-launch-skip-incompat + explicit-commands)
+(plan-file)   Quick Start rotation: S-PERF.16.a A6.1 sealed; next sub-leg
+              S-PERF.16.b panel-pending (A1 D64 hot-only SoA sidecar candidate)

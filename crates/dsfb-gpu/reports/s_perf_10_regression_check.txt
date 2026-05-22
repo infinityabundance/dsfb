@@ -1,0 +1,136 @@
+S-PERF.10 --- regression check (10-step ritual receipt)
+========================================================
+
+Section identity
+----------------
+
+  Section : S-PERF.10 --- DigestLanePlanV1 / digest-cost audit (receipt-only)
+  First seal commit : 14bdc18 (2026-05-18)
+  Refreshed in     : S-PERF.11 atomic commit (2026-05-18) under the
+                     panel-acknowledged contract wording clarification
+                     (4 law renames + 2 law-text rewrites; the audit
+                     content is byte-identical; the contract hash +
+                     plan hash rebaseline accordingly).
+  Track            : Track B leg 3 (audit + preservation contract above S-PERF.8.1)
+
+Per-section bandwidth report
+----------------------------
+
+=== S-PERF Track B bandwidth report ===
+Section landed       : S-PERF.10 (DigestLanePlanV1 / digest-cost audit, receipt-only)
+K=1 full-scale bandwidth  : 13.33 GB/s @ 256x4096 K=1 D64 (RTX 4080 SUPER, CUDA 13.2) [unchanged]
+Digest-lane share         : ~57.30% of device_total_us at full 256x4096
+  tree_digest residual              : 2364 us (11.40%)
+  tree_digest sign                  : 2684 us (12.90%)
+  tree_digest detector (wide cells) : 2509 us (12.10%)
+  tree_digest consensus             : 4338 us (20.90%)
+  digest_total_us                   : 11895 us (57.30%)
+Saturation gate      : 572.8 GB/s (8000 bp / 80% of peak)
+Distance to gate     : ~559.5 GB/s remaining (~78.14 percentage points)
+Honest note          : S-PERF.10 records the digest-lane bottleneck and writes
+                       the byte-identical (within-mode) digest-root preservation
+                       contract. It does NOT change kernels and does NOT claim a
+                       bandwidth improvement. The next commit (S-PERF.11)
+                       performs the measured rewrite while satisfying the four
+                       preservation laws this audit pins.
+
+10-step ritual gate results (S-PERF.11 atomic commit refresh)
+-------------------------------------------------------------
+
+  1. cargo fmt --all --check                                 PASS
+  2. cargo clippy --workspace --all-targets --features cuda  PASS
+        -- -D warnings
+  3. bash scripts/scrub.sh                                   PASS (exit 0)
+  4. bash scripts/docs_freshness.sh                          PASS (exit 0)
+  5. cargo test -p dsfb-gpu-atlas-corpus                     PASS
+        S-PERF.10 group: 42 tests pass after contract
+        wording clarification (law renames + 2 text
+        rewrites + pinned hash refresh).
+  6. cargo test --workspace --features cuda                  PASS
+        -- --test-threads=1
+        Workspace serial: full pass; pinned R.12b baselines
+        restored from HEAD before commit (workspace bench
+        rewrote them as expected).
+  7. R.12b episodes byte-stable                              PASS
+        canonical 16x128 = 13
+        mid 64x512       = 89
+        full 256x4096    = 1917
+        pinned R.12b baseline NOT rebaselined.
+  8. FF.4 live README authority-boundary sweep               PASS
+  9. S-PERF.6 public-language regression check               PASS
+ 10. Plan-file Quick Start refresh + memory rotation         PASS
+        (rotates S-PERF.11 to Current state; S-PERF.10
+        moves to Prior current state; Active campaign
+        (next) becomes S-PERF.12 --- CompactDensorDigestV1
+        throughput mode.)
+
+Hash posture (verified)
+-----------------------
+
+  - SEED.len() = 54                            UNCHANGED
+  - corpus_hash_v1                             UNCHANGED
+  - corpus_hash_v2                             UNCHANGED
+  - every prior T.11 / T.12.x / FF.x / S1.3.x
+    / T.12.PROV hash                           UNCHANGED
+  - S-PERF.1 device_traffic_receipt_hash_v1    UNCHANGED
+  - S-PERF.1 device_bandwidth_claim_policy_hash_v1 UNCHANGED
+  - S-PERF.2 (3 hashes)                        UNCHANGED
+  - S-PERF.3 (3 hashes + 5 manifests)          UNCHANGED
+  - S-PERF.4 (3 hashes)                        UNCHANGED
+  - S-PERF.5 (3 hashes)                        UNCHANGED
+  - S-PERF.6 (3 hashes)                        UNCHANGED
+  - S-PERF.7 (1 hash)                          UNCHANGED
+  - S-PERF.8 batched_k_saturation_receipt_hash_v1  UNCHANGED
+       (S-PERF.8.1 sealed at 8ddcded;
+        37212c42b4fdf06069c019e34474cf0d6660843bad7cd4a9cbc92020a7b9f201)
+
+  - S-PERF.10 hashes:
+      digest_stage_cost_audit_hash_v1          UNCHANGED
+        (audit content bytes identical)
+      digest_compaction_contract_hash_v1       REBASELINED
+        (4 law renames + 2 law-text rewrites; panel-
+         acknowledged contract wording clarification)
+      digest_lane_plan_hash_v1                 REBASELINED
+        = e9cf5c3418015044a03e4b369fefdf284908f4b63412fe372187de670db07811
+        (top-level META-hash binds the rebaselined
+         contract hash; all deterministic; pairwise
+         distinct; distinct from every prior S-PERF
+         anchor.)
+
+  - R.12b episodes 13/89/1917                  BYTE-STABLE
+  - pinned R.12b baseline                      NOT REBASELINED
+
+Test surface delta
+------------------
+
+  S-PERF.10 group: 42 tests (unchanged count from first
+    seal; PINNED_DIGEST_LANE_PLAN_HASH_V1 constant
+    refreshed to the rebaselined hash; law-text-match
+    tests updated to the renamed fields).
+    - 4 parser tests
+    - 8 measured-shape pin tests
+    - 8 panel-required load-bearing negatives
+    - 6 structural defect tests
+    - 6 hash determinism + sensitivity tests
+    - 3 renderer byte-stability + summary-prose checks
+    - 3 cross-anchor distinctness + binding tests
+    - 2 contract construction tests
+    - 1 pinned-hash back-stop (refreshed)
+
+Atomic commit
+-------------
+
+  This receipt is refreshed inside the S-PERF.11 atomic
+  commit (single commit landing the kernel rewrite +
+  bundled hygiene). No --no-verify; pre-commit hook runs
+  all four gates; failures block the commit.
+
+One-line verdict
+----------------
+
+  S-PERF.10 audits the measured digest-lane bottleneck
+  and emits DigestLanePlanV1. It does not claim bandwidth
+  improvement. It defines the byte-identical (within-mode)
+  digest-root preservation contract that S-PERF.11's
+  measured kernel rewrite must satisfy. S-PERF.10 is the
+  lock; S-PERF.11 is the surgery.

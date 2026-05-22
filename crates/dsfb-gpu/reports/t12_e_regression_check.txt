@@ -1,0 +1,162 @@
+================================================================
+T.12.e - Signal Processing / Spectral / Wavelet
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Zero warnings. (The fmt pass collapsed the
+  module docstring's `+ ...` continuation lines into rustdoc
+  list-item ambiguity, fixed by rewording continuations to
+  start with `, ...` / `and ...` instead of `+ ...`. Reason
+  text of dedup records is unchanged so all three emitted
+  hashes are byte-stable.)
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 889 tests pass (T.12.d baseline 850 + 39 new T.12.e
+  acceptance tests). The new T.12.e surface contributes
+  tests/t12_e_spectral_invariants.rs with 9 panel-required
+  load-bearing negatives plus parametric SEED collision loop
+  (5 SEED ids) + 3 per-named-record collision tests + 4
+  ParameterizationOf family-relationship tests + 2 per-
+  CanonicalAddition transform-law-declaration tests + 18
+  shape / determinism / rendering invariants.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 70 test groups, 1204 tests PASS, 0 FAIL. Delta from
+  T.12.d seal (2f0caa2): +1 test group, +39 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable. Canonical 16x128
+  K=1..128 -> episodes/cat=13; mid 64x512 -> episodes/cat=89;
+  full 256x4096 -> episodes/cat=1917. Pinned R.12b baseline
+  NOT rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. Audit covered AND repaired:
+    - README.md: new "T.12.e — Signal Processing / Spectral /
+      Wavelet" section between T.12.d and the scaling ladder.
+      Front-door + Layout + Paper-section refreshed from
+      "T.1–T.12.d" to "T.1–T.12.e".
+    - archived prior-art manuscript source: new \\textbf{T.12.e} bullet in
+      the Atlas Continuation enumeration; lead sentence
+      refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/lib.rs: "Current state
+      through T.12.d" -> "through T.12.e" with a new T.12.e
+      bullet; CLI list refreshed.
+    - crates/dsfb-gpu-atlas-corpus/src/main.rs: Usage block +
+      dispatch include t12-e-spectral-proposal /
+      t12-e-spectral-proposal-emit.
+    - crates/dsfb-gpu-atlas-corpus/src/t12_e_spectral.rs:
+      every pub item AND every private helper carries a doc
+      comment whose first sentence states the WHY for a
+      future engineer, per the [[no-silent-court-logic]]
+      doctrine.
+
+Step 9. README / plan refresh
+  Result:
+    - README.md: new T.12.e section added in this commit.
+    - Plan-file: T.12.d sealed at 2f0caa2 was recorded in the
+      previous turn's plan refresh. Post-commit plan touch-up
+      will mark T.12.e sealed.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_e_spectral.rs (new, ~620 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_e_spectral_invariants.rs (new, 39 tests
+      including 10 panel-required load-bearing negatives —
+      the panel asked for 9; #10 is the parametric SEED
+      collision loop that the panel listed as
+      `t12_e_existing_seed_collision_requires_authority_
+      resolution`)
+    - out/t12_e_spectral_proposal_v1.{txt,json} (new bulk
+      artifacts)
+    - reports/t12_e_spectral_proposal_summary.txt (new)
+    - reports/t12_e_spectral_proposal_verification.txt (new)
+    - reports/t12_e_regression_check.txt (new)
+    - README.md (T.12.e section + front-door refresh)
+    - archived prior-art manuscript source (T.12.e bullet in Atlas
+      Continuation enumeration)
+    - .gitignore (3 new whitelist lines for the T.12.e
+      receipts)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every T.11/S1.3 hash                         : unchanged
+  T.12.0 proof-of-life proposal hash          : unchanged (325bbf3d...)
+  T.12.a SPC corpus_amendment_proposal_hash_v1: unchanged (ae493a85...)
+  T.12.b SCD corpus_amendment_proposal_hash_v1: unchanged (ac10e27c...)
+  T.12.c drift corpus_amendment_proposal_hash_v1: unchanged (0ffb0639...)
+  T.12.d robust corpus_amendment_proposal_hash_v1: unchanged (7b51703f...)
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                   : 54 (unchanged)
+  T.12.e spectral literature_expansion_batch_hash_v1 (NEW) :
+    fbb3a3b80a71cf8940bce7e2fd2cc3733a78f7af27602c316644874bdb31c526
+  T.12.e spectral dedup_court_delta_hash_v1 (NEW) :
+    dc2b6d828fd478c81a899c0b4e8bf5ebb539371ded6d9e99e1ce85c7baae4896
+  T.12.e spectral corpus_amendment_proposal_hash_v1 (NEW) :
+    0036435fb1b000557c75d4a7ae418560a0117761fe7ea874b00ecc30b12ac2f8
+
+Doctrine constraints preserved:
+  - No probability, no learned weights, no fast-math, no atomics
+    for accumulation.
+  - Semantic Non-Bypass Axiom: only the bank module's private
+    BankAdmissionToken constructor mints admitted episodes.
+  - Apache-2.0 + Invariant Forge LLC Background IP notice; no
+    MIT regression.
+  - No attribution-string regressions (scrub clean).
+  - Audit mode untouched; D16 / D64 / D128 / D205 GPU behaviour
+    unchanged; the corpus crate stays host-only and zero-dep.
+  - [[no-silent-court-logic]] doctrine applied: every pub item
+    AND every private helper in t12_e_spectral.rs carries WHY
+    commentary.
+  - Transform-law contract discipline: every CanonicalAddition
+    and ExistingCanonicalAuthorityResolution record declares
+    its specific transform-law contract (window function +
+    normalization + band definition / packet-tree depth /
+    ridge selection law / FFT convention / template provenance
+    / analytic-signal extraction). Each declaration is pinned
+    by a dedicated panel-required load-bearing negative.
+  - Randomized projection honesty: random Fourier features
+    (Rahimi & Recht 2007) and the random-spectral-projection
+    family are randomized in origin. Acknowledged in
+    proposed_primitives but explicitly NOT promoted to
+    new_canonical_records. The four reduction requirements
+    (seed + projection matrix definition + dimension +
+    numeric mode) must be declared in a future T.12.x.
+
+T.12.e is sealed. The amendment court has admitted the fifth
+real expansion proposal: 6 new canonical signal / spectral /
+wavelet primitives (spectral centroid shift, wavelet packet
+energy, STFT ridge shift, cepstral anomaly, matched filter
+residual, Hilbert amplitude anomaly), 5 existing-canonical
+cross-class authority resolutions (FFT band-energy, residual
+envelope exit, spectral entropy, wavelet coefficient energy,
+autocorrelation break), 1 DomainTransferOf (FFT band-energy
+as shared spectral-transform ancestor), 3 ParameterizationOf
+records (FFT bandpower, wavelet family, STFT window/hop), 1
+RejectedNotDeterministic (randomized spectral projection), 9
+genealogy edges, 7 source refs — all WITHOUT mutating SEED
+or corpus_hash_v1.
+
+Next campaign (panel-authorized post-T.12.e): T.12.f -
+Time-Series Structure / Control Residuals (AR / ARIMA / STL
+residual anomalies, seasonal decomposition residual, lag
+correlation break, variance ratio, burstiness, run-length,
+periodicity break, recurrence interval, observer residual,
+innovation sequence, parity-space residual). Same
+SEED-walk-first discipline; the spectral PACF / partial-
+autocorrelation candidate may surface there instead of in
+T.12.e.

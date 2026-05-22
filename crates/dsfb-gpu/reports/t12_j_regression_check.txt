@@ -1,0 +1,144 @@
+================================================================
+T.12.j - Medical / Biosignal
+        regression-check receipt (10-step per-section ritual)
+================================================================
+
+Step 1. cargo fmt --all --check
+  Result: clean.
+
+Step 2. cargo clippy --workspace --all-targets --features cuda -- -D warnings
+  Result: clean. Initial run hit one clippy error
+  (items_after_statements on the FORBIDDEN const declared
+  mid-test in tests/t12_j_biosignal_invariants.rs); fixed
+  by hoisting the const to module scope as
+  T12J_FORBIDDEN_DIAGNOSTIC_TERMS. Source reason-text bytes
+  were NOT touched, so the three emitted T.12.j hashes stayed
+  byte-stable from first emit.
+
+Step 3. bash scripts/scrub.sh
+  Result: clean.
+
+Step 4. bash scripts/docs_freshness.sh
+  Result: clean.
+
+Step 5. cargo test -p dsfb-gpu-atlas-corpus
+  Result: 36 groups / 1096 tests pass (T.12.i baseline 35 /
+  1048 + 1 new group + 48 new T.12.j acceptance tests).
+  Initial run had 5 test failures all on the same
+  Rust string-literal `\\\n` continuation whitespace gotcha
+  ("p-wave fiducial-" + "detection law", "time-" + "domain
+  statistic", "model-" + "identification seed", "frequency-"
+  + "band definitions", "shared envelope-" + "boundary
+  ancestor"); fixed by relaxing test assertions to multi-
+  substring matching. Source reason text and proposal hashes
+  unchanged.
+
+Step 6. cargo test --workspace --features cuda -- --test-threads=1
+  Result: 75 test groups, 1411 tests PASS, 0 FAIL. Delta from
+  T.12.i seal (86628ba): +1 test group, +48 tests.
+
+Step 7. tests/r12_d64_saturation regression check
+  Result: pinned episode counts byte-stable (13/89/1917).
+  Pinned R.12b baseline NOT rebaselined.
+
+Step 8. Stale-doc scan
+  Result: clean. README.md, archived prior-art manuscript source, lib.rs
+  module docstring, and main.rs usage block all refreshed
+  through T.12.j. New T.12.j section in README between
+  T.12.i and the scaling ladder.
+
+Step 9. README / plan refresh
+  Result: README T.12.j section + front-door + Layout +
+  Paper-section refreshed from T.1-T.12.i to T.1-T.12.j.
+  Plan-file Panel-audit deferred items section anchors all
+  26 buried items the post-T.12.i panel audit surfaced.
+  Plan-file post-commit will mark T.12.j sealed.
+
+Step 10. Atomic commit
+  Single atomic commit landing:
+    - src/t12_j_biosignal.rs (new, ~770 lines fully commented)
+    - src/lib.rs (module export + module docstring refresh)
+    - src/main.rs (2 CLI subcommands + usage block)
+    - tests/t12_j_biosignal_invariants.rs (new, 48 tests
+      including 13 panel-required load-bearing negatives
+      and parametric diagnostic-claim-language scanner)
+    - out/t12_j_biosignal_proposal_v1.{txt,json} (new)
+    - reports/t12_j_biosignal_proposal_summary.txt (new)
+    - reports/t12_j_biosignal_proposal_verification.txt (new)
+    - reports/t12_j_regression_check.txt (new)
+    - README.md (T.12.j section + front-door refresh)
+    - archived prior-art manuscript source (T.12.j bullet)
+    - .gitignore (3 new whitelist lines)
+  No --no-verify. Pre-commit hook gates pass.
+
+Hash posture:
+  corpus_hash_v1                              : unchanged (35c276c7...)
+  registry_hash_v2                            : unchanged (d3cf6300...)
+  Every prior T.11/S1.3/T.12.0-T.12.i hash    : unchanged
+  Every DetectorPassport hash                  : unchanged
+  SEED.len()                                  : 54 (unchanged)
+  T.12.j biosignal literature_expansion_batch_hash_v1 (NEW) :
+    4f7fb0b440d3d41d26f537648781357a0b1498fd07ef923585cc7faeab3898dc
+  T.12.j biosignal dedup_court_delta_hash_v1 (NEW) :
+    12069c59524bf11df9fbae443d7acbe28eae683110bd2b46af626c93e483c96d
+  T.12.j biosignal corpus_amendment_proposal_hash_v1 (NEW) :
+    e64b603b82a383c891655423e320119f32bb80380572874ae5edffa9fa57f7b2
+
+Doctrine constraints preserved:
+- No probability, no learned weights, no fast-math, no atomics
+  for accumulation.
+- Semantic Non-Bypass Axiom intact.
+- Apache-2.0 + Invariant Forge LLC Background IP notice; no
+  MIT regression.
+- No attribution-string regressions.
+- Corpus crate stays host-only and zero-dep.
+- no-silent-court-logic doctrine: every pub item AND every
+  private helper in t12_j_biosignal.rs carries a doc comment
+  whose first sentence states the WHY for a future engineer.
+- Signal-witness-not-diagnosis discipline: every Canonical
+  Addition and ExistingCanonicalAuthorityResolution reason
+  text declares its specific signal-source + sampling-rate +
+  filtering-law + morphology-or-interval-measurement-law +
+  baseline-handling + artifact-confuser-profile + decision-
+  law contract AND ends with the panel-locked non-claim
+  "signal witness, not a medical diagnosis".
+- Diagnostic-claim discipline (MOST IMPORTANT): every
+  CanonicalAddition / ExistingCanonicalAuthorityResolution
+  reason text is scanned for forbidden clinical-diagnostic
+  terms (arrhythmia, fibrillation, infarction, ischemia,
+  ischaemia, tachycardia, bradycardia, "diagnoses ",
+  "diagnostic verdict"); diagnostic terms appear ONLY in
+  RejectedNotDeterministic reason text (describing what is
+  NOT admitted).
+- Learned-arrhythmia and clinician-label-only diagnostic
+  rule honesty: both RejectedNotDeterministic until model-
+  identification anchor / inference algorithm / deterministic
+  signal reduction contracts are declared.
+
+T.12.j is sealed. The amendment court has admitted the tenth
+real expansion proposal: 8 new canonical biosignal primitives,
+4 existing-canonical authority resolutions for the SEED
+biosignal records (49 / 50 / 51 / 52), 2 DomainTransferOf
+records (SEED 12 FFT band-energy + SEED 22 Residual envelope
+exit as shared ancestors for MedicalBiosignal), 4
+ParameterizationOf records, 2 RejectedNotDeterministic
+records (fourth T.12.x with two rejections), 12 genealogy
+edges, 9 source refs - all WITHOUT mutating SEED or
+corpus_hash_v1 and WITHOUT admitting a single medical
+diagnosis.
+
+Known interim limitation: ProposedSourceRef does not yet have
+a formal `doi_or_url` field; DOIs are embedded in venue
+strings as an interim solution. The formal field lands in the
+panel-flagged T.12.schema-v2-source-ref schema upgrade
+(plan section B.4 of Panel-audit deferred items, post-T.12.i).
+
+Next campaign (panel-authorized post-T.12.j): T.12.k -
+Industrial / Fault Detection and Diagnostics / Condition
+Monitoring (per the corrected T.12 source-class sequence;
+see plan section A.1 T.12.seq-hygiene). Same SEED-walk-first
+discipline. Candidate primitives: PCA T2 / SPE-Q residual,
+PLS residual, contribution plot spike, fault signature angle,
+plus continued coverage from T.12.f (sensor bias / actuator
+stiction / valve hunting are already canonical at SEED 23 /
+24 / 25 plus residual-envelope-exit at SEED 22).

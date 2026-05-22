@@ -1,0 +1,206 @@
+S-PERF.11 --- regression check (10-step ritual receipt)
+========================================================
+
+Section identity
+----------------
+
+  Section : S-PERF.11 --- measured digest-lane compaction
+  Commit  : (this atomic commit)
+  Date    : 2026-05-18
+  Track   : Track B leg 4 (first kernel rewrite above S-PERF.10)
+  Spec    : panel-locked 2026-05-18 (3-hash receipt; 8
+            campaign-identity negatives; verbatim report
+            wording + verdict)
+
+Per-section Track B bandwidth report
+------------------------------------
+
+=== S-PERF Track B bandwidth report ===
+Section landed       : S-PERF.11 (measured digest-lane compaction, leaf-batching v1)
+K=1 full-scale bandwidth (pre)  : 13.33 GB/s @ 256x4096 K=1 D64 (RTX 4080 SUPER, CUDA 13.2)
+K=1 full-scale bandwidth (post) : 16.38 GB/s
+Bandwidth delta      : +3.05 GB/s (+22.88%; +2288 bp relative to pre)
+Digest-lane share (pre)  : ~57.30% / 11895 us
+Digest-lane share (post) : ~50.65% / 8556  us  (digest_total_us drop = 3339 us)
+Digest speedup       : 1.39x (pre / post)
+Saturation gate      : 572.8 GB/s (8000 bp / 80% of peak)
+Distance to gate     : ~556.4 GB/s remaining (~77.72 percentage points)
+Honest note          : S-PERF.11 batches digest leaf work without changing
+                       digest semantics. Per-chunk SHA-256 bytes are
+                       byte-identical -> same leaf digests -> same root
+                       digests -> preserved same_mode_digest_root_law
+                       (pinned by the s_perf_11_pre_rewrite_root_capture
+                       safety harness AND the receipt-level
+                       s_perf_11_digest_root_equivalence_hash_v1).
+                       R.12b episodes 13/89/1917 byte-stable. The
+                       architectural conversion toward 700 GB/s begins
+                       at S-PERF.12 (CompactDensorDigestV1 throughput
+                       mode). Before S-PERF.12 commits, re-run the D64
+                       stage profile and confirm digest still dominates
+                       OR re-rank the saturation-campaign ladder if the
+                       bottleneck moved.
+
+Panel-locked one-line verdict (verbatim)
+----------------------------------------
+
+  S-PERF.10 locked the digest preservation law; S-PERF.11
+  performs the first measured digest-lane rewrite and
+  moves the scoreboard from 13.33 to 16.38 GB/s without
+  digest-root or episode-count drift.
+
+Bundled pre-rewrite hygiene (panel-acknowledged, this atomic commit)
+--------------------------------------------------------------------
+
+  - Stale-text fix: README + paper no longer reference
+    "S-PERF.7 / S-MG.6 victory-lap"; replaced with
+    "post-S-PERF / S-MG victory-lap campaign". A new
+    public-language regression-check negative
+    `rejects_stale_b300_victory_lap_named_as_s_perf_7`
+    scans for the forbidden substring.
+  - S-PERF.10 contract wording clarification: 4 law
+    renames + 2 law-text rewrites remove the ambiguous
+    cross-mode root-identity reading. Audit content
+    bytes unchanged; contract hash + plan hash rebaseline:
+      digest_compaction_contract_hash_v1   REBASELINED
+      digest_lane_plan_hash_v1             REBASELINED
+        = e9cf5c3418015044a03e4b369fefdf284908f4b63412fe372187de670db07811
+      digest_stage_cost_audit_hash_v1      UNCHANGED
+  - Pre-rewrite root capture test
+    (`s_perf_11_pre_rewrite_root_capture`): pins four
+    TreeSha256V1 stage roots on canonical 16x128 K=1 D64
+    BEFORE the kernel swap and asserts byte-identical
+    roots AFTER the swap. The receipt-level mirror is the
+    new `s_perf_11_digest_root_equivalence_hash_v1`.
+
+10-step ritual gate results
+---------------------------
+
+  1. cargo fmt --all --check                                 PASS
+  2. cargo clippy --workspace --all-targets --features cuda  PASS
+        -- -D warnings
+  3. bash scripts/scrub.sh                                   PASS (exit 0)
+  4. bash scripts/docs_freshness.sh                          PASS (exit 0)
+  5. cargo test -p dsfb-gpu-atlas-corpus                     PASS
+        S-PERF.10 group: 42 tests pass after bundled
+        contract wording clarification (4 law renames +
+        2 text rewrites + pinned hash refresh).
+        S-PERF.11 group: 61 NEW tests (12 panel-required
+        positives + 8 panel-required campaign-identity
+        negatives + 5 structural defects + 4 defense-in-
+        depth structural extras + measured-shape pins +
+        hash determinism + sensitivity + renderer byte-
+        stability + cross-anchor distinctness + pinned-
+        hash back-stop + canonical stage labels + post-
+        value pins).
+        Corpus group count: +1 group.
+  6. cargo test --workspace --features cuda                  PASS
+        -- --test-threads=1
+        Workspace serial: full pass; pinned R.12b baselines
+        restored from HEAD before commit (workspace bench
+        rewrote
+        `reports/d64_stage_timing_256x4096_K1.txt` as
+        expected).
+        Includes the new `s_perf_11_pre_rewrite_root_capture`
+        CUDA-gated test pinning four TreeSha256V1 root
+        digests byte-identical post-kernel-rewrite.
+  7. R.12b episodes byte-stable                              PASS
+        canonical 16x128 = 13
+        mid 64x512       = 89
+        full 256x4096    = 1917
+        pinned R.12b baseline NOT rebaselined.
+  8. FF.4 live README authority-boundary sweep               PASS
+  9. S-PERF.6 public-language regression check               PASS
+        Includes the new
+        `rejects_stale_b300_victory_lap_named_as_s_perf_7`
+        scanner negative.
+ 10. Plan-file Quick Start refresh + memory rotation         PASS
+        Rotates S-PERF.11 to Current state; S-PERF.10
+        moves to Prior current state; Active campaign
+        (next) becomes the post-S-PERF.11 bottleneck
+        triage (re-run r9_c_d64_stage_profile_256x4096_k1
+        to confirm digest still dominates or detect a
+        moved bottleneck), then S-PERF.12 ---
+        CompactDensorDigestV1 throughput mode (gate
+        1->2, target ~50 GB/s).
+
+Hash posture (verified)
+-----------------------
+
+  - SEED.len() = 54                            UNCHANGED
+  - corpus_hash_v1                             UNCHANGED
+  - corpus_hash_v2                             UNCHANGED
+  - every prior T.11 / T.12.x / FF.x / S1.3.x
+    / T.12.PROV hash                           UNCHANGED
+  - S-PERF.1 / .2 / .3 / .4 / .5 hashes        UNCHANGED
+  - S-PERF.6 (3 hashes)                        UNCHANGED
+  - S-PERF.7 (1 hash)                          UNCHANGED
+  - S-PERF.8 batched_k_saturation_receipt      UNCHANGED
+       = 37212c42b4fdf06069c019e34474cf0d6660843bad7cd4a9cbc92020a7b9f201
+  - S-PERF.10 digest_stage_cost_audit_hash_v1  UNCHANGED
+  - S-PERF.10 digest_compaction_contract_hash  REBASELINED
+       (panel-acknowledged contract wording clarification)
+  - S-PERF.10 digest_lane_plan_hash_v1         REBASELINED
+       = e9cf5c3418015044a03e4b369fefdf284908f4b63412fe372187de670db07811
+
+  - 3 NEW S-PERF.11 hashes:
+      s_perf_11_digest_compaction_measurement_hash_v1
+      s_perf_11_digest_root_equivalence_hash_v1
+      s_perf_11_bandwidth_delta_report_hash_v1
+        = 1a27154e335c27df6db939d4c8ff0f36f8baf75871be06c750f0853f2268adc8
+      All deterministic; pairwise distinct; distinct from
+      every prior S-PERF anchor.
+
+  - 4 TreeSha256V1 stage root digests          BYTE-IDENTICAL
+       pre-rewrite vs post-rewrite on canonical 16x128 K=1
+       D64 fixture; pinned in `s_perf_11_pre_rewrite_root_
+       capture` AND mirrored at the receipt layer by
+       `s_perf_11_digest_root_equivalence_hash_v1`.
+  - R.12b episodes 13/89/1917                  BYTE-STABLE
+  - pinned R.12b baseline                      NOT REBASELINED
+
+Test surface delta
+------------------
+
+  S-PERF.11 group: 61 new tests (first appearance under
+                  panel-locked rewrite):
+    - 12 panel-required positives (verbatim names)
+    -  8 panel-required campaign-identity negatives
+    -  5 structural defect rules
+    -  4 defense-in-depth structural extras
+    -  measured-shape + rewrite-metadata pins
+    -  hash determinism + sensitivity
+    -  renderer byte-stability + content checks
+    -  cross-anchor distinctness
+    -  saturation arithmetic
+    -  pinned-hash back-stop
+    -  canonical-stage-label round-trip
+    -  panel-locked post-value pins
+       (= 61)
+
+  CUDA-gated safety harness: 1 NEW test
+    `s_perf_11_pre_rewrite_root_capture` (pins four
+    TreeSha256V1 stage roots; asserts byte-identical
+    after kernel rewrite).
+
+  Corpus group count: +1 group (S-PERF.11).
+
+Atomic commit
+-------------
+
+  This receipt is part of a single atomic commit landing
+  S-PERF.11 + the bundled pre-rewrite hygiene. No
+  --no-verify; pre-commit hook runs all four gates;
+  failures block the commit.
+
+Forward-looking question (panel-locked, post-S-PERF.11)
+-------------------------------------------------------
+
+  Did the remaining device wall stay in digest, or did
+  the bottleneck move? Before the next Track B leg
+  (S-PERF.12) commits, re-run
+  `r9_c_d64_stage_profile_256x4096_k1` and inspect
+  whether the four `tree_digest` stages are still
+  dominant (justifying S-PERF.12 CompactDensorDigestV1
+  throughput mode) or whether host `compute_features` /
+  consensus / candidate-collapse have surfaced (which
+  would re-rank the saturation-campaign ladder).

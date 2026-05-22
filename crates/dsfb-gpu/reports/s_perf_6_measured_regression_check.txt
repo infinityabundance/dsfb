@@ -1,0 +1,91 @@
+S-PERF.6 --- regression check (10-step ritual receipt)
+======================================================
+
+Section identity
+----------------
+
+  Section : S-PERF.6 --- RTX 4080 SUPER measured CUDA pipeline baseline
+  Commit  : (this atomic commit)
+  Date    : 2026-05-17
+
+10-step ritual results
+----------------------
+
+  1.  cargo fmt --all --check                                                 PASS
+  2.  cargo clippy --workspace --all-targets --features cuda -- -D warnings   PASS
+  3.  bash scripts/scrub.sh                                                   PASS
+  4.  bash scripts/docs_freshness.sh                                          PASS
+  5.  cargo test -p dsfb-gpu-atlas-corpus                                     PASS
+  6.  cargo test --workspace --features cuda -- --test-threads=1              PASS
+  7.  R.12b D64 episode-count byte-stability (13 / 89 / 1917)                 PASS
+  8.  FF.4 live README authority-boundary sweep                               PASS
+  9.  Stale-doc scan (S-PERF.6R / "scaffold" / "repair" residue)              CLEAN
+  10. Atomic commit under the 10-step ritual; no --no-verify                  COMMIT
+
+Live bench provenance (RTX 4080 SUPER, CUDA 13.2)
+-------------------------------------------------
+
+  Bench harness    : dsfb-gpu-debug-cuda tests/r9_c_d64_stage_profile.rs
+  Bench command    : cargo test -p dsfb-gpu-debug-demo --features cuda --release \
+                       --test r9_c_d64_stage_profile r9_c_d64_stage_profile_256x4096_k1
+  Source report    : reports/d64_stage_timing_256x4096_K1.txt (rewritten)
+  Measurement      : 13.33 GB/s wide bytes/sec, 1917 episodes/cat at 256x4096 K=1
+  Median of        : 3 iterations, post-warmup
+  Stage-sum / total: 97.67 % (coverage gate)
+
+The S-PERF.6 receipt mirrors the live bench output verbatim. Re-running
+the bench refreshes `reports/d64_stage_timing_256x4096_K1.txt`; the
+corpus crate's panel-pinned constants are the captured reference values
+for that run.
+
+Hash posture (must hold; verified)
+----------------------------------
+
+  - SEED.len()                   : 54 (UNCHANGED)
+  - corpus_hash_v1               : UNCHANGED (35c276c7...)
+  - corpus_hash_v2               : UNCHANGED
+  - every prior T.11 / T.12.x / FF.x / S1.3.x / T.12.PROV
+    / S-PERF.1 / S-PERF.2 / S-PERF.3 / S-PERF.4 / S-PERF.5 hash
+                                 : BYTE-IDENTICAL
+  - R.12b D64 pinned baseline    : NOT REBASELINED (episodes byte-stable)
+
+Three new own-namespace hashes (S-PERF.6 measured baseline)
+-----------------------------------------------------------
+
+  rtx4080_super_measured_cuda_pipeline_hash_v1
+    = a5b58bc8744c93bffe4c10b930c741809053483244823e01dd872f9e9a1f21f2
+    domain: DSFB-GPU-ATLAS:S-PERF-6-MEASURED-CUDA-PIPELINE:v1\0
+
+  rtx4080_super_measured_bandwidth_claim_hash_v1
+    = 4fdf8699798db9db150e2cef40090e418907974667983794fb5dfe50e21cbab
+    domain: DSFB-GPU-ATLAS:S-PERF-6-MEASURED-BANDWIDTH-CLAIM:v1\0
+
+  rtx4080_super_measured_baseline_report_hash_v1
+    = d44c9ec5447f05fb6c40567dcb56502c17c14f00ad100f81d30900c1c15a1533
+    domain: DSFB-GPU-ATLAS:S-PERF-6-MEASURED-BASELINE-REPORT:v1\0
+
+Test counts
+-----------
+
+  S-PERF.6 acceptance suite : 49 / 49 PASS
+  Full corpus test suite    : (per top-level summary)
+
+Surface scope (S-PERF.6 collapse)
+---------------------------------
+
+  - DELETED  : crates/dsfb-gpu-atlas-corpus/src/s_perf_6_rtx4080_super_baseline.rs (scaffold)
+  - DELETED  : crates/dsfb-gpu-atlas-corpus/tests/s_perf_6_rtx4080_super_baseline_invariants.rs
+  - DELETED  : 6 scaffold artifacts in crates/dsfb-gpu-atlas-corpus/out/
+  - DELETED  : 3 scaffold receipts in reports/
+  - RENAMED  : s_perf_6r_rtx4080_super_measured_cuda_pipeline*.rs
+               -> s_perf_6_rtx4080_super_measured_cuda_pipeline*.rs
+  - RENAMED  : 6 out/ artifacts -> s_perf_6_measured_*
+  - RENAMED  : 3 reports/ receipts -> s_perf_6_measured_*
+  - INTERNAL : S_PERF_6R_* / SPerf6r* / s_perf_6r_* symbols
+               -> S_PERF_6_* / SPerf6* / s_perf_6_*
+  - DOMAINS  : DSFB-GPU-ATLAS:RTX4080-SUPER-MEASURED-*
+               -> DSFB-GPU-ATLAS:S-PERF-6-MEASURED-*
+  - DROPPED  : binding to deleted scaffold baseline hash
+               (baseline report binds 4 upstream anchors: S-PERF.2/3/4/5)
+
+Atomic commit; no --no-verify.

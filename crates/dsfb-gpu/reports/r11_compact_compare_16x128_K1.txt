@@ -1,0 +1,23 @@
+=== R.11 compact-verdict comparison — canonical 16x128 K=1 ===
+scale: n_entities=16 n_windows=128 K=1
+
+  serial-digest                  :       6947 us
+  tree-digest (R.8.5)            :       3502 us
+  tree-digest + compact (R.11)   :       2223 us
+
+  wall ratio serial / compact    : 3.13x
+  wall ratio tree   / compact    : 1.58x
+
+Notes:
+  * Serial = legacy R.6b path (4 single-thread digest kernels + non-compact builder).
+  * Tree = R.8.5 path (block-parallel tree digest + non-compact builder).
+  * Compact = R.11 path (tree digest + FixtureHashes precomputed once).
+  * `FixtureHashes` is computed ONCE per scale point outside the iter loop,
+    matching how a long-running deployment caller would amortise the input
+    commitment hash across many dispatches against the same fixture.
+  * Case files from all three paths are byte-identical for the serial vs.
+    serial pairing, and the tree pair is internally byte-identical;
+    serial ≠ tree because tree commits to chunked stage bytes + a domain
+    separator. Compact ≡ tree byte-for-byte by construction.
+  * Semantic Non-Bypass Axiom holds in every path: `bank_collapse` is the
+    only mint of `BankAdmissionToken`. The compact builder reuses it.

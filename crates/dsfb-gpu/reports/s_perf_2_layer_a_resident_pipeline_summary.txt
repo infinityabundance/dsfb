@@ -1,0 +1,216 @@
+S-PERF.2 LayerAResidentPipelineV1 — Summary Receipt
+====================================================
+
+Panel verdict: post-S-PERF.1 panel directive (2026-05-17).
+Sealed under the 10-step per-section discipline ritual.
+
+Commit identity (panel-locked):
+
+    S-PERF.2 builds the first Layer-A device-resident
+    evidence pipeline so traffic receipts can measure GPU
+    evidence production without host JSON, report rendering,
+    transcript construction, or court explanation time
+    mixed in.
+
+Panel-locked verdict (verbatim):
+
+    S-PERF.1 gave the ruler; S-PERF.2 isolates the GPU
+    evidence-factory path the ruler will measure.
+
+Core rule:
+
+    Layer-A measures evidence production only:
+    EvidenceDensor → WitnessDensor → FusionDensor →
+    CandidateDensor + digests. No host-side transcript. No
+    JSON/report timing. No CaseFileV2 materialization. No
+    semantic admission timing.
+
+----------------------------------------------------------------
+Court-delta posture
+----------------------------------------------------------------
+
+S-PERF.2 ships ONLY the pipeline schema + residency receipt +
+traffic-receipt envelope + verifier + builder + renderers.
+The first actual measurement against this pipeline is a
+separate S-PERF.3+ commit gated on the public-data
+saturation bundle work.
+
+  - LayerAResidentPipelineV1
+    Pipeline schema declaring the stage sequence, per-densor
+    residency policy, and panel-locked forbidden-host-
+    activity flags. Five stages
+    (EvidenceDensorProjection / WitnessDensorEvaluation /
+    FusionDensorReduction / CandidateDensorCollapse /
+    StageDigestEmission), five per-densor residency
+    declarations, five forbidden-host-activity flags (all
+    must be false for Layer-A admission).
+
+  - LayerADeviceResidencyReceiptV1
+    Per-densor H2D / D2H byte accounting for one pipeline
+    run. References the pipeline schema by hash so the
+    verifier can cross-check residency-class declarations
+    against measured D2H bytes (negative #4: full witness
+    D2H dump).
+
+  - LayerATrafficReceiptV1
+    Top-level META-hash envelope binding pipeline +
+    residency receipt + a referenced S-PERF.1
+    `DeviceTrafficReceiptV1` (by hash) + the
+    court-authority hash anchors the pipeline promises NOT
+    to mutate. One hash pins the entire Layer-A measurement
+    chain.
+
+  - LayerADensorKind enum: Evidence / Witness / Fusion /
+    Candidate / StageDigest. The five categories cover the
+    entire Layer-A H2D / D2H byte surface.
+
+  - DeviceResidencyClass enum: DeviceResidentOnly /
+    DeviceResidentWithCompactD2H / HostMaterialized. Layer-A
+    rejects HostMaterialized on any densor.
+
+----------------------------------------------------------------
+Panel-locked baseline pipeline + residency receipt
+----------------------------------------------------------------
+
+Stages (5): EvidenceDensorProjection /
+WitnessDensorEvaluation / FusionDensorReduction /
+CandidateDensorCollapse / StageDigestEmission
+
+Per-densor residency declarations (5):
+  Evidence    : DeviceResidentOnly             (max_d2h = 0 bytes)
+  Witness     : DeviceResidentOnly             (max_d2h = 0 bytes)
+  Fusion      : DeviceResidentOnly             (max_d2h = 0 bytes)
+  Candidate   : DeviceResidentWithCompactD2H   (max_d2h = 2048 bytes/catalog)
+  StageDigest : DeviceResidentWithCompactD2H   (max_d2h = 160 bytes/catalog)
+
+Forbidden host activities (all false in baseline):
+  casefile_materialization_present  : false
+  host_transcript_present           : false
+  host_json_emission_present        : false
+  semantic_admission_present        : false
+  mutates_court_authority_hashes    : false
+
+Per-densor H2D / D2H bytes in baseline: all zero (no
+measurement taken yet); the per-densor lists are populated
+for all five kinds so the receipt admits.
+
+S-PERF.1 reference: baseline RTX 4080 SUPER
+DeviceTrafficReceiptV1 (`09e96f17...`), inner timing
+method `CudaEvent`.
+
+Court-authority anchors: includes `corpus_hash_v1`.
+
+----------------------------------------------------------------
+Three new own-namespace hashes
+----------------------------------------------------------------
+
+  layer_a_resident_pipeline_hash_v1
+    = 6269773e81f3cd2634d12188eb7570bfbfa0098ae5c3bf820774917631e7d7fa
+    domain: DSFB-GPU-ATLAS:LAYER-A-RESIDENT-PIPELINE:v1\0
+
+  layer_a_device_residency_receipt_hash_v1
+    = 072510913da106ad00d7bae046b5672f728ec4cdfb29dff750e3fafc9ab41f11
+    domain: DSFB-GPU-ATLAS:LAYER-A-DEVICE-RESIDENCY-RECEIPT:v1\0
+
+  layer_a_traffic_receipt_hash_v1
+    = 3415013763ec033ae248285a38654a94e24b2dcbd742cf0f7f5ce56fb4c0b18c
+    domain: DSFB-GPU-ATLAS:LAYER-A-TRAFFIC-RECEIPT:v1\0
+
+All three deterministic across two consecutive builds;
+pairwise distinct; distinct from every prior corpus / T.11 /
+T.12.x / T.12.consolidate / FF.x / S1.3.x / T.12.PROV /
+S-PERF.1 hash anchor.
+
+----------------------------------------------------------------
+Eight panel-required load-bearing negatives
+----------------------------------------------------------------
+
+  1. s_perf_2_rejects_layer_a_receipt_with_host_json_time
+       — pipeline with `host_json_emission_present=true`.
+  2. s_perf_2_rejects_layer_a_receipt_with_casefile_materialization_time
+       — pipeline with `casefile_materialization_present=true`.
+  3. s_perf_2_rejects_pipeline_without_device_residency_declaration
+       — pipeline with empty residency_declarations.
+  4. s_perf_2_rejects_d2h_full_witness_dump_when_summary_only_declared
+       — residency receipt declares D2H bytes > 0 for a
+         densor whose pipeline declaration is
+         DeviceResidentOnly (catches full Witness / Fusion /
+         Evidence dump masquerading as Layer-A).
+  5. s_perf_2_rejects_missing_h2d_d2h_byte_accounting
+       — residency receipt has empty per-densor H2D AND
+         empty per-densor D2H lists (no byte accounting).
+  6. s_perf_2_rejects_cuda_timing_method_not_allowed_by_s_perf_1
+       — inner DeviceTrafficReceipt timing_method is neither
+         CudaEvent nor CudaStreamSync.
+  7. s_perf_2_rejects_layer_a_claim_without_device_traffic_receipt
+       — traffic receipt has
+         device_traffic_receipt_hash_v1 == [0; 32].
+  8. s_perf_2_rejects_pipeline_that_mutates_court_authority_hashes
+       — pipeline with
+         `mutates_court_authority_hashes=true`.
+
+----------------------------------------------------------------
+Test surface
+----------------------------------------------------------------
+
+  tests/s_perf_2_layer_a_resident_pipeline_invariants.rs : 67 tests
+    - 8 panel-required load-bearing negatives (above)
+    - 9 baseline admission tests
+    - 9 determinism tests (3 hashes + 6 renderers)
+    - 8 sensitivity tests (every hashable field changes the
+      hash when mutated)
+    - 6 structural defect tests (empty pipeline_id / empty
+      stage_names / duplicate densor kind / HostMaterialized
+      class / pipeline-hash mismatch / D2H exceeds cap /
+      missing corpus_hash_v1 anchor)
+    - 6 hash-distinctness + 3 domain-separator + 3 schema-id
+      + 3 nul-termination tests
+    - 5 panel-locked stage-name pins (in baseline, count,
+      order matches LAYER_A_CANONICAL_STAGE_NAMES)
+    - 2 admission cases for CudaEvent + CudaStreamSync inner
+      timing
+    - 1 rejection case for HostInstantOnly inner timing
+    - 4 non-zero-hash guards + composition invariants
+
+  Corpus suite (55 groups / 2162 tests) green.
+  Workspace serial (94 groups / 2477 tests) green.
+  Delta vs S-PERF.1: +1 group, +67 tests.
+
+----------------------------------------------------------------
+Hash posture (panel-locked, MUST hold)
+----------------------------------------------------------------
+
+  corpus_hash_v1                          UNCHANGED
+  corpus_hash_v2                          UNCHANGED
+  every prior T.11 / S1.3 / T.12.x /
+    T.12.consolidate / FF.x / T.12.PROV /
+    S-PERF.1 hash anchor                  UNCHANGED
+  every DetectorPassport hash             UNCHANGED
+  SEED.len()                              54 (UNCHANGED)
+  R.12b episodes                          13 / 89 / 1917 BYTE-STABLE
+
+----------------------------------------------------------------
+Panel-locked non-claims (must appear in receipt + README +
+paper)
+----------------------------------------------------------------
+
+S-PERF.2 does NOT:
+
+  - claim that DSFB-GPU has measured peak memory-bandwidth
+    saturation (that is a separate S-PERF.* commit gated on
+    the Layer-A pipeline running on real hardware);
+  - claim production CUDA performance numbers;
+  - benchmark B300 / GB300 cloud hardware;
+  - change any CUDA kernel;
+  - change any court decision (S1.3a / FF.2 / FF.3 /
+    S1.3d / S1.3e / S1.3f / S1.3g);
+  - mutate any upstream hash anchor;
+  - alter SEED.len() (stays at 54);
+  - emit detector outputs / witness records / fusion
+    tensors / candidate intervals / episodes;
+  - decide contraindications or challenges;
+  - modify the registry crate.
+
+S-PERF.2 isolates the GPU evidence-factory path. The first
+measurement against this isolated path is a later S-PERF.*
+commit.

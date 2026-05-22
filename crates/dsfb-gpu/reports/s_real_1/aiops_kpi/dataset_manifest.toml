@@ -1,0 +1,15 @@
+# S-REAL.1 dataset manifest. Provenance record co-pinning
+# upstream identity, license, vendored bytes path, and
+# SHA-256 byte-pin of the file the audit actually read.
+
+[dataset]
+dataset_id          = "aiops_kpi"
+display_name        = "AIOps Challenge 2018 KPI (Bagel sample)"
+upstream_doi_or_url = "Li, Chen, Pei. IPCCC 2018; github.com/NetManAIOps/Bagel"
+license             = "no-upstream-license"
+source_class        = "TimeSeriesAnomaly"
+vendored_path       = "data/fixtures/aiops_challenge.tsv"
+
+[fixture]
+sha256_hex          = "be17110ebe6647d00fad79dc1ca69b1b01b22788773202bad6e3322e97b0602e"
+byte_size           = 2073

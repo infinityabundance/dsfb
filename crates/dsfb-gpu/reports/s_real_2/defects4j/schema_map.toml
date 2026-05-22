@@ -1,0 +1,22 @@
+# S-REAL.1 schema map. Records the upstream-declared shape,
+# the observed shape after parsing, and the deterministic
+# event-lowering rule used to project cells into TraceEvents.
+
+[upstream_declared]
+num_windows         = 30
+num_signals         = 6
+healthy_window_end  = 12
+
+[observed]
+num_windows         = 30
+num_signals         = 6
+nan_cell_count      = 0
+finite_cell_count   = 180
+
+[event_lowering]
+value_to_microsecond_scale = 1000
+latency_clamp_us           = 32767000
+window_size_ns             = 1000000000
+
+[output]
+emitted_event_count = 180

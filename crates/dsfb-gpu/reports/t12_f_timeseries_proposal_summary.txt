@@ -1,0 +1,214 @@
+================================================================
+T.12.f - Time-Series Structure / Control Residuals
+        amendment proposal summary
+================================================================
+
+Panel-locked thesis. T.12.f files the Time-Series Structure /
+Control Residuals amendment proposal. It admits only
+deterministic time-structure and residual-observer witnesses
+whose model, lag, residual, envelope, innovation, sampling,
+and decision laws are declared; resolves SEED collisions;
+classifies model variants as parameterizations; rejects
+stochastic or unidentified model-fitting claims unless
+deterministically reduced; and preserves the frozen T.10
+corpus hash.
+
+Main panel warning: "A model is not a detector until the
+residual and decision law are declared."
+
+----------------------------------------------------------------
+Schema + hash chain
+----------------------------------------------------------------
+
+T.12.f emitted values (byte-identical across two builds):
+
+  literature_expansion_batch_hash_v1 :
+    4b54d67b8cfbad5b698db85c070ea6a576568cd6ab5952bdfa0256e6d77f0d77
+  dedup_court_delta_hash_v1          :
+    e807688693b1740d0c435ea4efc3bbd63e5705182bbdd7545a2e9edb016d66dc
+  corpus_amendment_proposal_hash_v1  :
+    76717e0232019595922fa8258599084c22d8c5d566d0734f4b476507fa204802
+
+Distinct from T.12.0 (325bbf3d...), T.12.a (ae493a85...),
+T.12.b (ac10e27c...), T.12.c (0ffb0639...), T.12.d (7b51703f...),
+T.12.e (0036435f...).
+
+----------------------------------------------------------------
+SEED collision walk (panel-required first step)
+----------------------------------------------------------------
+
+Walk of seed.rs found FOUR T.12.f-relevant primitives already
+canonical:
+
+  23 Sensor bias detector       (control-residual)
+  24 Actuator stiction detector (control-residual)
+  25 Valve hunting detector     (control-residual)
+  41 Error burst                (debug/observability;
+                                 burstiness analogue)
+
+Plus TWO records already recognised in T.12.e under
+SignalProcessing, recognised again here under
+TimeSeriesStructure (different source class; same authoritative
+record):
+
+  22 Residual envelope exit            (shared residual-witness)
+  40 Autocorrelation-coefficient break (single-lag scope)
+
+All six become ExistingCanonicalAuthorityResolution records.
+
+----------------------------------------------------------------
+Body counts
+----------------------------------------------------------------
+
+  proposed_primitives    :  12  (8 canonical + 3 parameterization
+                                 + 1 unidentified-model rejection
+                                 shell)
+  proposed_aliases       :   0
+  proposed_dedup_records :  19  (panel-locked headline; see
+                                 court-delta categories below)
+  proposed_genealogy_edges: 10
+  proposed_source_refs   :   8
+
+  new_canonical_records (in delta): 8
+
+----------------------------------------------------------------
+Court-delta categories (all five panel-locked exercised)
+----------------------------------------------------------------
+
+  CanonicalAddition (x8) with declared model-and-decision laws:
+    5601 AR residual anomaly       (AR(p) + fit law + residual
+         + threshold + sampling)
+    5602 ARIMA residual anomaly    (ARIMA(p,d,q) + fit law +
+         residual + forecast horizon + threshold + sampling)
+    5603 STL residual anomaly      (seasonality period + LOESS
+         bandwidth + decomposition-method iteration count +
+         residual definition + threshold + sampling)
+    5604 Lag-correlation break (multi-lag) (lag range + ACF
+         convention + normalization + threshold + window)
+    5605 Variance-ratio shift       (window-pair law + ratio
+         definition + threshold + sampling)
+    5606 Run-length anomaly         (event definition + run-
+         length law + threshold + sampling)
+    5607 Observer residual          (plant-or-observer contract
+         + state model + measurement model + observer gain +
+         residual definition + envelope law + threshold)
+    5608 Parity-space residual      (plant-or-observer contract
+         + parity equations W + residual definition + envelope
+         law + threshold)
+
+  ExistingCanonicalAuthorityResolution (x6) with declared laws:
+    SEED 22 Residual envelope exit (residual + threshold +
+            sampling)
+    SEED 23 Sensor bias detector (plant-or-observer contract;
+            sustained-offset detection)
+    SEED 24 Actuator stiction detector (plant-or-observer
+            contract; stick-slip oscillation signature)
+    SEED 25 Valve hunting detector (plant-or-observer contract;
+            control-loop limit-cycle signature)
+    SEED 40 Autocorrelation-coefficient break (single-lag
+            scope; multi-lag form is new canonical 5604)
+    SEED 41 Error burst (window-count event detector;
+            burstiness-index aliases collapse to
+            ParameterizationOf 5611)
+
+  DomainTransferOf (x1):
+    SEED 22 Residual envelope exit as shared residual-witness
+            ancestor for TimeSeriesStructure (recognised by
+            both time-series-residual AND control-residual
+            sub-families)
+
+  ParameterizationOf (x3):
+    5609 Innovation sequence anomaly -> ParameterizationOf
+         (Observer residual, 5607) -- Kalman-specific
+         parameterization with declared Q/R covariances +
+         filter gain K
+    5610 Periodicity break          -> ParameterizationOf
+         (Lag-correlation break, 5604) -- adds peak-selection
+         law + candidate-lag range + tie handling
+    5611 Burstiness index           -> ParameterizationOf
+         (Error burst, SEED 41) -- generalises event type
+
+  RejectedNotDeterministic (x1):
+    5612 Unidentified-model anomaly -- 'ARIMA with auto-
+         determined order via random search', 'Kalman without
+         declared Q / R covariances', 'STL with adaptive
+         seasonality' are randomized / unidentified in origin.
+         Rejected unless future T.12.x admits a
+         Deterministic_Model_Identification_Proxy with model-
+         order-search seed + identification algorithm + fit-
+         data anchor + tie-break law + numeric mode declared.
+
+----------------------------------------------------------------
+Model-and-decision-law contract discipline (panel-required)
+----------------------------------------------------------------
+
+Per the panel's main warning ("a model is not a detector until
+the residual and decision law are declared"), every
+CanonicalAddition and ExistingCanonicalAuthorityResolution
+record's reason text declares its specific model-and-decision-
+law contract. Each declaration is pinned by a dedicated load-
+bearing negative.
+
+----------------------------------------------------------------
+Genealogy edges (proposed)
+----------------------------------------------------------------
+
+  5601 AR residual            DerivedFrom Autocorrelation break (40)
+  5602 ARIMA residual         Generalizes AR residual (5601)
+  5603 STL residual           DerivedFrom Residual envelope exit (22)
+  5604 Lag-correlation break  Generalizes Autocorrelation break (40)
+  5605 Variance-ratio shift   DerivedFrom Autocorrelation break (40)
+  5606 Run-length anomaly     DerivedFrom Error burst (41)
+  5607 Observer residual      DerivedFrom Residual envelope exit (22)
+  5608 Parity-space residual  DerivedFrom Residual envelope exit (22)
+  5609 Innovation sequence    ParameterVariantOf Observer residual (5607)
+  5610 Periodicity break      ParameterVariantOf Lag-correlation break (5604)
+
+----------------------------------------------------------------
+Panel-required load-bearing negatives
+----------------------------------------------------------------
+
+   1. t12_f_does_not_mutate_seed_len
+   2. t12_f_rejects_arima_residual_without_model_order_and_fit_law
+   3. t12_f_rejects_stl_residual_without_seasonality_and_decomposition_law
+   4. t12_f_rejects_innovation_sequence_without_observer_model
+   5. t12_f_rejects_periodicity_break_without_lag_and_peak_selection_law
+   6. t12_f_rejects_variance_ratio_without_window_pair_law
+   7. t12_f_rejects_run_length_detector_without_event_definition
+   8. t12_f_rejects_control_residual_without_plant_or_observer_contract
+      (MOST IMPORTANT)
+   9. t12_f_hash_changes_when_residual_definition_changes
+  10. t12_f_existing_seed_collision_requires_authority_resolution
+
+Plus 3 per-named collision tests, AR-residual contract test,
+lag-correlation contract test, ParameterizationOf family test,
+unidentified-model rejection contract test, and shape /
+determinism / rendering invariants. Total: 37 acceptance tests
+in tests/t12_f_timeseries_invariants.rs.
+
+----------------------------------------------------------------
+Panel-locked non-claims
+----------------------------------------------------------------
+
+T.12.f does NOT:
+- mutate corpus_hash_v1 (35c276c7...);
+- mutate any prior T.11/S1.3/T.12.x hash or any
+  DetectorPassport hash;
+- create corpus_hash_v2;
+- duplicate sensor bias / actuator stiction / valve hunting /
+  residual envelope exit / autocorrelation break / Error burst
+  (the six authority resolutions + the parametric collision-
+  loop test prevent it);
+- promote innovation sequence / periodicity break / burstiness
+  index to new_canonical_records (each is ParameterizationOf);
+- promote unidentified-model anomaly to new_canonical_records
+  (rejected as RejectedNotDeterministic; the five reduction
+  requirements must be declared in a future T.12.x);
+- claim a model-derived detector without declared residual +
+  decision law (every record declares its specific contract);
+- duplicate the SCD / drift / robust / spectral primitives
+  T.12.b / T.12.c / T.12.d / T.12.e admitted;
+- activate new detectors (S1.3a planner not re-emitted);
+- execute on GPU (corpus crate stays host-only and zero-dep);
+- claim empirical usefulness for the new primitives (T.8
+  ledger stays NotScored for the 8 new canonicals).

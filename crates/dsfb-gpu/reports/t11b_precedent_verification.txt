@@ -1,0 +1,98 @@
+================================================================
+DSFB-GPU-Atlas — T.11b precedent verification
+================================================================
+Verifier      : crate::precedent::verify_precedent_set + the 27
+                acceptance tests in tests/precedent_invariants.rs
+Input         : crate::precedent::collect_court_precedents()
+Domain        : DSFB-GPU-ATLAS:COURT-PRECEDENT:v1\0
+Schema        : DSFB-GPU-ATLAS:COURT-PRECEDENT:v1
+
+----------------------------------------------------------------
+Result
+----------------------------------------------------------------
+Precedents inspected  : 83
+Failures              :  0
+Verdict               : the live precedent set passes every
+                        structural invariant the T.11b verifier
+                        enforces.
+
+precedent_hash_v1     : 6721f511f1eb951ba7eff4fa36832f233331507f6e4208d4f97866afd984dd14
+
+corpus_hash_v1        : 35c276c73a52d916daafda2598b215d73e7fd694d4a0673e34ac1ef948f5a4b7 (UNCHANGED)
+registry_hash_v2      : d3cf63000cee922818e8dbc79ffecbc27d288063efbaed589e1eb1812bc37a08 (UNCHANGED)
+
+----------------------------------------------------------------
+Verifier rules enforced (per precedent)
+----------------------------------------------------------------
+1.  Every SingleCanonical / CanonicalToCanonical binding names
+    a SEED canonical_id (rejection kind:
+    MissingCanonicalSubject).
+2.  Every Composition binding names a SEED canonical_id for the
+    subject AND every parent.
+3.  Every AliasToCanonical binding names an alias_id that exists
+    in CLAIMS (rejection kind: MissingAliasSubject) AND a
+    canonical_id that exists in SEED.
+4.  AliasCollapse precedents MUST carry a "same role" alias
+    reason. Reasons that imply semantic-role drift
+    (SameFormulaDifferentWitnessRole,
+    DifferentDecisionFunctional, etc.) are rejected with
+    KindReasonIncompatible. This preserves the T.3 invariant
+    that semantic_role_hash collapse only happens when role is
+    preserved.
+5.  Global-only kinds (WitnessLaw, NegativeWitnessLaw,
+    LBandHonestyLaw, UsefulnessHonestyLaw, CorpusHashLaw,
+    RegistryBindingLaw, ConstitutionLaw, DeferredGateLaw)
+    MUST use the Global binding. Per-record kinds
+    (DedupCanonical, AliasCollapse, CompositionJudgment,
+    ParameterizationJudgment, SemanticRoleSeparation) MUST NOT.
+    Mismatches are rejected with KindBindingIncompatible.
+6.  Precedent ids are unique within the set (rejection kind:
+    DuplicatePrecedentId).
+
+----------------------------------------------------------------
+Passport linkage coverage (T.11a × T.11b)
+----------------------------------------------------------------
+Every SEED canonical record's `linked_precedent_ids` includes:
+- 14 global laws (WitnessLaw × 2, NegativeWitnessLaw × 1,
+  LBandHonestyLaw × 3, UsefulnessHonestyLaw × 2, CorpusHashLaw,
+  RegistryBindingLaw × 2, ConstitutionLaw × 2, DeferredGateLaw × 4
+  — total 17 global precedents, all bound to Global)
+- per-record DedupCanonical (or CompositionJudgment, etc.)
+- any AliasCollapse / CanonicalToCanonical precedent that
+  references the canonical id
+
+Pinned by:
+  every_passport_links_at_least_one_precedent  (54/54 passports)
+  alias_passports_link_alias_precedent          (ROBUST_Z_MAD id 6
+                                                 links its 3 alias
+                                                 precedents)
+
+----------------------------------------------------------------
+Cross-pinned invariants from earlier sections
+----------------------------------------------------------------
+- corpus_hash_v1 unchanged.
+- registry_hash_v2 unchanged.
+- D16 / D64 / D128 / D205 golden hashes unchanged.
+- R.12b D64 episode counts byte-identical (13 / 89 / 1917).
+- T.11a's 15 passport-invariants pass after the linkage
+  extension (the passport hash bytes changed; the structural
+  invariants did not).
+
+----------------------------------------------------------------
+Non-claims (T.11b verification scope)
+----------------------------------------------------------------
+This verification result attests ONLY that the live precedent
+set:
+- is internally consistent (every binding resolves to a known
+  subject)
+- is byte-stable across two builds
+- obeys the panel-locked kind / reason / binding cross-rules
+- the AliasCollapse-vs-semantic-role-drift invariant rejects
+  forged role-drift collapses
+
+It does NOT attest empirical detector usefulness, S1.3
+activation behavior, CaseFileV2 episode-body correctness
+(T.11d), unit-semantics / sampling-law (T.11e), or any external
+provenance interoperability.
+
+================================================================

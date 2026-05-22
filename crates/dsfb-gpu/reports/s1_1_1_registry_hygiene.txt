@@ -1,0 +1,221 @@
+================================================================
+DSFB-GPU-Atlas — S1.1.1 / T.10.1 registry hygiene receipt
+================================================================
+Scope        : post-T.10 hygiene cleanup of dsfb-gpu-atlas-registry.
+               Add the post-T.10 cross-field rule
+               (HashFrozenT10  iff  source_corpus_hash != [0; 32]),
+               keep the verifier surface clean, and align all
+               docs + tests with the post-T.10 state. NO registry
+               generation, NO registry_hash_v2, NO CaseFileV2
+               body. The shelved S1.2 generator modules
+               (family_mapping / generator / hash / registry)
+               are deferred to the next commit.
+HEAD before  : 1b29098 T.10 corpus_hash_v1 and CaseFileV2 receipt header
+Crate        : crates/dsfb-gpu-atlas-registry/
+
+================================================================
+Section 1 — Field change on `DetectorSpec`
+================================================================
+
+  pub source_corpus_hash: [u8; 32]
+
+  Lives between `corpus_binding_status` and `canonical_name`.
+  Carries the corpus_hash_v1 bytes for HashFrozenT10 specs;
+  MUST be the all-zero sentinel for PreHashT9InternalAudit
+  specs. The verifier enforces this cross-field rule.
+
+================================================================
+Section 2 — Verifier surface
+================================================================
+
+  verify_spec (base) — enforces:
+    SpecMissingParameterHash      parameter_hash == [0; 32]
+    SpecHashFrozenWithoutT10      cross-field rule violation
+                                  (both directions; the variant
+                                  kind name is preserved from
+                                  the original S1.1 gate)
+    EmptyAxisBinding              axis_binding is empty
+    EmptyDomainTagSet             domain_tags is empty
+    InvalidWindowCells            window.cells == 0
+    InvalidPersistenceWindows     persistence_windows == 0
+    CanonicalNameWrongTokenCount  canonical_name not 6 tokens
+    CanonicalNameHasEmptyToken    canonical_name has empty token
+
+  verify_registry_spec (S1.2+ callers) — additionally enforces:
+    SpecMustBeHashFrozenAtS12     status != HashFrozenT10
+    SpecSourceCorpusHashStale     source_corpus_hash != expected
+    SpecPrimitiveIdUnknown        primitive_id absent OR not in
+                                  corpus canonical-id set
+
+  Signature:
+    pub fn verify_registry_spec(
+        spec: &DetectorSpec,
+        expected_corpus_hash: &[u8; 32],
+        corpus_canonical_ids: &[DetectorCanonicalId],
+    ) -> Vec<VerifyError>
+
+  The registry verifier takes the expected corpus hash + the
+  admissible canonical-id set as parameters so the registry
+  crate stays free of hard-coded corpus snapshots. The caller
+  pulls them from the corpus crate's
+  `compute_corpus_hash_v1()` and `SEED`.
+
+================================================================
+Section 3 — Acceptance tests (post-T.10 cross-field + registry verifier)
+================================================================
+
+  tests/algebra_template_spec.rs
+    Renamed (panel-required):
+      detector_spec_rejects_hash_frozen_without_t10
+        -> detector_spec_rejects_hash_frozen_without_source_corpus_hash
+    New tests:
+      detector_spec_admits_hash_frozen_t10_with_non_zero_corpus_hash
+      detector_spec_rejects_pre_hash_with_non_zero_source_corpus_hash
+
+  tests/algebra_verify.rs
+    New tests (verify_registry_spec coverage):
+      verify_registry_spec_admits_hash_frozen_t10_with_live_corpus_hash
+      verify_registry_spec_rejects_stale_source_corpus_hash
+      verify_registry_spec_rejects_unknown_primitive_id
+      verify_registry_spec_rejects_pre_hash_t9_status
+
+  Fixture initialisation:
+    sample_spec()  in algebra_template_spec.rs gains
+        source_corpus_hash: [0u8; 32]
+    clean_spec()   in algebra_verify.rs gains the same
+
+  Test count (per-crate):
+    algebra_canonical_name.rs        : unchanged
+    algebra_family.rs                : unchanged
+    algebra_domain_axis.rs           : unchanged
+    algebra_template_spec.rs         : 6 -> 8 (+2 cross-field)
+    algebra_verify.rs                : 8 -> 12 (+4 verify_registry_spec)
+    Total registry crate tests       : 26 -> 28 hard cross-field
+                                       + 4 registry-verifier
+                                       = 24 algebra + 4 registry-verifier
+                                       = 28 (matches README)
+
+================================================================
+Section 4 — Doc rewrites
+================================================================
+
+  Files touched (docs only; no logic change):
+    crates/dsfb-gpu-atlas-registry/Cargo.toml
+        description updated to "S1.1.1: types + post-T.10
+        cross-field verifier; no registry generation, no GPU
+        coupling".
+        The dsfb-gpu-debug-core dependency line that the shelved
+        S1.2 work added is reverted; the S1.2 commit will
+        re-add it for SHA-256.
+
+    crates/dsfb-gpu-atlas-registry/src/lib.rs
+        Module docstring rewritten: drop "T.10 has not landed";
+        describe the post-T.10 cross-field invariant; name the
+        S1.2 follow-on commit; preserve panel-locked grammar
+        and non-claims list.
+
+    crates/dsfb-gpu-atlas-registry/src/corpus_binding.rs
+        Module docstring + variant docstrings rewritten to
+        describe both directions of the cross-field rule.
+        `admissible_at_s1_1()` retained but documented as
+        historical (not current policy) per panel verdict.
+
+    crates/dsfb-gpu-atlas-registry/src/spec.rs
+        Module docstring lists the post-T.10 verifier rejects;
+        field doc comments tightened for `primitive_id`,
+        `corpus_binding_status`, `source_corpus_hash`.
+
+    crates/dsfb-gpu-atlas-registry/src/verify.rs
+        Module docstring rewritten with the explicit cross-field
+        rule and the registry-level verifier. Inline comment in
+        the `verify_spec` match arm replaced with a concise
+        post-T.10 description.
+
+    README.md
+        S1.1 "Atlas algebra status" section heading updated to
+        "S1.1 type surface + S1.1.1 post-T.10 cross-field rule".
+        The contradictory "T.10 has NOT landed" line is gone;
+        the section now points forward to the
+        "Corpus identity freeze" section as source of truth.
+        Test count line lists the renamed test plus the four
+        new verify_registry_spec tests.
+
+    reports/s1_1_atlas_algebra_report.txt
+        Section 4 verifier-rejects list updated for the
+        post-T.10 cross-field rule. Test list updated for the
+        renamed + new tests. Receipt-style historical content
+        in other sections preserved.
+
+================================================================
+Section 5 — Files explicitly NOT touched
+================================================================
+
+  reports/s1_1_regression_check.txt     immutable commit-time
+                                        receipt; documents what
+                                        was true at the S1.1
+                                        commit; not rewritten.
+  reports/r12_d64_saturation.txt        D64 saturation baseline;
+                                        regenerated by the
+                                        tests/r12_d64_saturation
+                                        suite; episode counts
+                                        byte-identical pre/post
+                                        this commit.
+  reports/d64_stage_timing_*.txt        R.13 headline timing
+                                        reports; unchanged.
+  reports/money_table.txt               R.13 headline money
+                                        table; unchanged.
+  Cargo.lock                            Reverted to the post-T.10
+                                        lockfile so this commit
+                                        adds no transitive
+                                        dependency churn. The
+                                        S1.2 commit will pull in
+                                        dsfb-gpu-debug-core when
+                                        it ships the generator.
+  crates/dsfb-gpu-atlas-corpus/         Untouched. Corpus hash
+                                        and CaseFileV2 header
+                                        bytes unchanged.
+  crates/dsfb-gpu-*-cuda/                Untouched.
+  crates/dsfb-gpu-debug-*/               Untouched. Audit mode
+                                        and D16/D64/D128/D205
+                                        golden hashes unchanged.
+
+================================================================
+Section 6 — Shelved S1.2 work (deferred to the next commit)
+================================================================
+
+  Moved out of the working tree before this commit:
+    crates/dsfb-gpu-atlas-registry/src/family_mapping.rs
+    crates/dsfb-gpu-atlas-registry/src/generator.rs
+    crates/dsfb-gpu-atlas-registry/src/hash.rs
+    crates/dsfb-gpu-atlas-registry/src/registry.rs
+
+  Stash location (transient, host-local):
+    /tmp/dsfb-gpu-s1-2-stash/
+
+  These ship in the S1.2 commit, along with:
+    - dsfb-gpu-debug-core dep on dsfb-gpu-atlas-registry/Cargo.toml
+    - tests/s1_2_generator.rs (12 panel-required invariants)
+    - out/detector_registry_v2.{bin,json}
+    - reports/s1_2_registry_summary.txt
+    - reports/s1_2_registry_verification.txt
+    - reports/s1_2_regression_check.txt
+    - README.md "S1.2" bullet
+    - .gitignore whitelist for the three new S1.2 reports
+
+================================================================
+Section 7 — Panel-locked non-claims (S1.1.1)
+================================================================
+
+  S1.1.1 does NOT:
+    - Generate the parameterized DetectorSpec registry.
+    - Compute or pin `registry_hash_v2`.
+    - Emit any `CaseFileV2` body or trial-transcript content.
+    - Execute Atlas family kernels on GPU.
+    - Wire NVRTC / JIT Mode B.
+    - Touch the Detector Delta Ledger.
+    - Change R.13 D64 headline numbers.
+    - Change the D16 / D64 / D128 / D205 golden hashes.
+    - Change `corpus_hash_v1`.
+    - Rebaseline `reports/r12_d64_saturation.txt`.
+
+================================================================
