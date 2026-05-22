@@ -84,7 +84,7 @@ role = "A6.1 post-Nsight receipt: detector_motif_fused_d64_kernel 1,324,608 -> 9
 
 [[artifact]]
 path = "notebooks/dsfb_gpu_debug_colab.ipynb"
-sha256 = "90d7a85b6065a4985818a8ac1e244cb8cae6b1f6d9e1743ac5a467f91c148a38"
+sha256 = "113c6bbb8be73cdfde1030dd7ffe77be118a2db00d04ecc3726a7ab89a0615bb"
 kind = "public-replay-notebook"
 role = "Public Colab replay surface (COLAB.S-REAL.1). Downloads the built-in source bundle from the GitHub main branch, rebuilds the CUDA path from source on a free Colab GPU runtime, re-runs the 20-dataset audit, and emits a downloadable ZIP with the plan-locked A-F verdict. PENDING-guard cell at position 19 prevents downloading with unpopulated gates."
 
