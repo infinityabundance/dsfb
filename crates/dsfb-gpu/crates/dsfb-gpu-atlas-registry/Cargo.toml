@@ -1,6 +1,6 @@
 [package]
 name        = "dsfb-gpu-atlas-registry"
-version     = "0.1.0"
+version     = "0.1.1"
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true
@@ -35,8 +35,8 @@ path = "src/bin/dsfb_registry_emit.rs"
 #   surface area; it stays host-only with zero external Rust
 #   dependencies.
 [dependencies]
-dsfb-gpu-atlas-corpus = { version = "0.1.0", path = "../dsfb-gpu-atlas-corpus" }
-dsfb-gpu-debug-core   = { version = "0.1.0", path = "../dsfb-gpu-debug-core", features = ["std"] }
+dsfb-gpu-atlas-corpus = { version = "0.1.1", path = "../dsfb-gpu-atlas-corpus" }
+dsfb-gpu-debug-core   = { version = "0.1.1", path = "../dsfb-gpu-debug-core", features = ["std"] }
 
 [lints]
 workspace = true

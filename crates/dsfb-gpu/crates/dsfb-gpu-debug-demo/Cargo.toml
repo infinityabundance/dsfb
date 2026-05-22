@@ -1,6 +1,6 @@
 [package]
 name        = "dsfb-gpu-debug-demo"
-version     = "0.1.0"
+version     = "0.1.1"
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true
@@ -22,8 +22,8 @@ default = []
 cuda    = ["dsfb-gpu-debug-cuda/cuda"]
 
 [dependencies]
-dsfb-gpu-debug-core = { version = "0.1.0", path = "../dsfb-gpu-debug-core", features = ["std", "demo"] }
-dsfb-gpu-debug-cuda = { version = "0.1.0", path = "../dsfb-gpu-debug-cuda" }
+dsfb-gpu-debug-core = { version = "0.1.1", path = "../dsfb-gpu-debug-core", features = ["std", "demo"] }
+dsfb-gpu-debug-cuda = { version = "0.1.1", path = "../dsfb-gpu-debug-cuda" }
 
 [lints]
 workspace = true

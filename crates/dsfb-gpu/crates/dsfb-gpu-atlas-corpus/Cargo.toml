@@ -1,6 +1,6 @@
 [package]
 name        = "dsfb-gpu-atlas-corpus"
-version     = "0.1.0"
+version     = "0.1.1"
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true
@@ -22,7 +22,7 @@ path = "src/main.rs"
 # Workspace-internal dep for the audited SHA-256 implementation only;
 # we explicitly do NOT inherit the GPU/CUDA surface area. The corpus
 # crate remains host-only and zero-external-deps.
-dsfb-gpu-debug-core = { version = "0.1.0", path = "../dsfb-gpu-debug-core", features = ["std"] }
+dsfb-gpu-debug-core = { version = "0.1.1", path = "../dsfb-gpu-debug-core", features = ["std"] }
 
 [lints]
 workspace = true
