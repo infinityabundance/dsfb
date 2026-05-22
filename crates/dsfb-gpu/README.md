@@ -11,7 +11,7 @@
 
 
 
-**Clear-box deterministic inference on GPU hardware: residual evidence goes in,
+**Clear-box pure deterministic inference on GPU hardware: residual evidence goes in,
 a replayable verdict case file comes out. No neural network. No learned weights.
 No probabilistic black box.**
 
