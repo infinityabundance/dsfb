@@ -8,7 +8,7 @@ publish.workspace      = true
 authors.workspace      = true
 repository.workspace   = true
 keywords.workspace     = true
-readme.workspace       = true
+readme = "README.md"
 description = "Literature detector corpus and canonicalisation court for DSFB-GPU-Atlas."
 
 [lib]

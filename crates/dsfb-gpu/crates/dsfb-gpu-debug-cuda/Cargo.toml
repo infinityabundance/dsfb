@@ -8,7 +8,7 @@ publish.workspace      = true
 authors.workspace      = true
 repository.workspace   = true
 keywords.workspace     = true
-readme.workspace       = true
+readme = "README.md"
 description = "CUDA FFI bridge and kernel dispatch for dsfb-gpu-debug. Builds without nvcc unless the `cuda` feature is set."
 
 [lib]

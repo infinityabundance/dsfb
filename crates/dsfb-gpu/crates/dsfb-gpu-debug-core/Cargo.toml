@@ -8,7 +8,7 @@ publish.workspace     = true
 authors.workspace     = true
 repository.workspace  = true
 keywords.workspace    = true
-readme.workspace      = true
+readme = "README.md"
 description = "Deterministic CPU reference, hash chain, and semantic authority for dsfb-gpu-debug."
 
 [lib]

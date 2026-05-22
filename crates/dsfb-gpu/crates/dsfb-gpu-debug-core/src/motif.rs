@@ -389,6 +389,7 @@ impl DetectorProfile {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::vec::Vec;
 
     #[test]
     fn motif_class_round_trips_through_bit_index() {

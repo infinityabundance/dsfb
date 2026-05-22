@@ -43,6 +43,9 @@
 // production code strict while letting test bodies stay concise.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+#[cfg(test)]
+extern crate std;
+
 pub mod event;
 pub mod fixed;
 pub mod grammar;
