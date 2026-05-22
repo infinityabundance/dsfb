@@ -109,7 +109,7 @@ A Prior-Art Architecture for non-probabilistic, non-stochastic,
 non-weighted, GPU-Accelerated Residual Signs, Detector Motifs,
 Bank-Governed Fusion, and Byte-Exact Case Files Without
 Probabilistic Models* (v1.0). Zenodo.
-[https://doi.org/10.5281/zenodo.20338027](https://doi.org/10.5281/zenodo.20338027).
+[https://doi.org/10.5281/zenodo.20346478](https://doi.org/10.5281/zenodo.20346478).
 
 Machine-readable citation metadata:
 [`CITATION.cff`](CITATION.cff), [`codemeta.json`](codemeta.json),
