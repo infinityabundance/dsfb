@@ -15,12 +15,14 @@
 a replayable verdict case file comes out. No neural network. No learned weights.
 No probabilistic black box.**
 
-DSFB-GPU is a prior-art implementation of **densorial / tekmeric
+DSFB-GPU is a RUST and CUDA based prior-art implementation of **densorial / tekmeric
 inference**: deterministic evidence adjudication over residuals, signs,
 detector motifs, consensus fields, candidate intervals, and bank-governed
 episodes. The CUDA layer accelerates evidence production; the CPU court
 keeps semantic authority. The output is not a prediction. It is a
 hash-linked case file whose intermediate evidence can be replayed.
+
+To our knowledge, DSFB-GPU is the first public working instance of GPU-accelerated pure deterministic inference: non-stochastic, non-probabilistic, non-neural, and replayable from residual evidence bytes to hash-linked verdict case files.
 
 ```text
 trace / residual bytes
