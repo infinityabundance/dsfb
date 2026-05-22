@@ -111,10 +111,14 @@ Bank-Governed Fusion, and Byte-Exact Case Files Without
 Probabilistic Models* (v1.0). Zenodo.
 [https://doi.org/10.5281/zenodo.20346478](https://doi.org/10.5281/zenodo.20346478).
 
+
+
 Machine-readable citation metadata:
 [`CITATION.cff`](CITATION.cff), [`codemeta.json`](codemeta.json),
 [`.zenodo.json`](.zenodo.json). Timestamp receipt:
 [`TIMESTAMP_RECEIPT.md`](TIMESTAMP_RECEIPT.md).
+
+---
 
 This repository carries two complementary layers:
 
