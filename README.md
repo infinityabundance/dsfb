@@ -6,6 +6,8 @@
 [![DOI: Slew-Aware DSFB Paper](https://zenodo.org/badge/DOI/10.5281/zenodo.18642887.svg)](https://doi.org/10.5281/zenodo.18642887)
 [![DOI: Fusion Diagnostics Paper](https://zenodo.org/badge/DOI/10.5281/zenodo.18644561.svg)](https://doi.org/10.5281/zenodo.18644561)
 
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-dsfb-blue.svg)](https://deepwiki.com/infinityabundance/dsfb)
+
 ## What is DSFB?
 
 
