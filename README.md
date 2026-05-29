@@ -152,6 +152,10 @@ DSFB changes the status of residual exhaust from disposable diagnostic byproduct
 > *DSFB-GPU — Clear-Box Pure Deterministic Inference CUDA Acceleration for Replayable Trace-Event Verdicts — A Prior-Art Architecture for non-probabilistic, non-stochastic, non-weighted, GPU-Accelerated Residual Signs, Detector Motifs, Bank-Governed Fusion, and Byte-Exact Case Files Without Probabilistic Models* 
 > (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.20346478](https://doi.org/10.5281/zenodo.20346478)
 
+> **de Beer, R.** (2026). 
+> *DSFB-Chemical-Engineering: Read-Only Residual Semiotics for Chemometrics-Augmented Fault Detection and Diagnosis in Chemical Engineering, with a Deterministic, Byte-Exact, CUDA-Accelerated Forensic Evidence Court* 
+> (v1.0). Zenodo. [https://doi.org/10.5281/zenodo.20443279]
+
 ---
 
 `DSFB Simulation Notebook:`
@@ -231,6 +235,10 @@ DSFB changes the status of residual exhaust from disposable diagnostic byproduct
 
 `DSFB GPU`
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-gpu/notebooks/dsfb_gpu_debug_colab.ipynb)
+
+`DSFB Chemical Engineering`
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-chemical-engineering/notebooks/dsfb_chemical_engineering_colab.ipynb)
+
 
 ---
 
