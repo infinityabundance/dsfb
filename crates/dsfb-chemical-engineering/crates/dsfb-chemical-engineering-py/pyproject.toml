@@ -3,7 +3,7 @@ requires = ["maturin>=1.5,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "dsfb-chemical-engineering"
+name = "dsfb-chemical-engineering-py"
 version = "0.1.0"
 description = "Python bindings for the DSFB-Chemical-Engineering read-only residual-semiotics courts"
 readme = "README.md"

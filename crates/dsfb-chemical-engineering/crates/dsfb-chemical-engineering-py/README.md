@@ -1,4 +1,4 @@
-# dsfb-chemical-engineering (Python bindings)
+# dsfb-chemical-engineering-py
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/infinityabundance/dsfb/blob/main/crates/dsfb-chemical-engineering/notebooks/dsfb_chemical_engineering_colab.ipynb)
 
