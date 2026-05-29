@@ -16,6 +16,11 @@ DSFB creates human readable structure from usually discarded residuals. Informat
 And it does it without ML or LLM (AI), meaning it is white-box and can run on the edge with minimal computational requirements.
 DSFB doesn't replace existing, proven, tried and tested sensors and methods, it augments them, and makes them even more important as a read-only observer.
 
+
+---
+
+## The first forensic-grade auditing layer for process control.
+
 ---
 
 
