@@ -1,5 +1,5 @@
 # Python bindings (pyo3 / maturin) for the DSFB-Chemical-Engineering edge crate. Standalone workspace
-# (excluded from the host build); the wheel is built + published by the user with maturin (USER-ONLY).
+# (excluded from the host build); crates.io carries the source crate, while wheels are built with maturin.
 [workspace]
 
 [package]
@@ -7,13 +7,19 @@ name = "dsfb-chemical-engineering-py"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-publish = false
+authors = ["Riaan de Beer - Invariant Forge LLC - <riaan@invariantforge.net>"]
+homepage = "https://www.invariantforge.net"
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-chemical-engineering"
+description = "Python extension bindings for DSFB-Chemical-Engineering read-only residual-semiotics courts"
+keywords = ["dsfb", "python", "pyo3", "chemometrics", "deterministic"]
+categories = ["science", "api-bindings"]
+readme = "README.md"
 
 [lib]
 name = "dsfb_chemical_engineering"
 crate-type = ["cdylib"]
 
 [dependencies]
-dsfb-chemical-engineering-edge = { path = "../dsfb-chemical-engineering-edge" }
+dsfb-chemical-engineering-edge = { path = "../dsfb-chemical-engineering-edge", version = "0.1.0" }
 # abi3-py39: one wheel works on CPython 3.9+ (forward-compatible). extension-module: don't link libpython.
 pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }

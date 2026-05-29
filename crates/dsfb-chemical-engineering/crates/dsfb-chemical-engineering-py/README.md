@@ -5,8 +5,8 @@
 [![dsfb-gray](https://img.shields.io/badge/dsfb--gray-73.4%25-green)](../../audit/dsfb-gray/py/) [![audit](https://img.shields.io/badge/audit-suite-blue)](../../audit/)
 
 Thin [pyo3](https://pyo3.rs) bindings exposing a focused, file-free subset of the read-only DSFB courts to
-Python. Standalone workspace (excluded from the host Rust build); the wheel is built + published with
-[maturin](https://maturin.rs) — **publishing is USER-ONLY**.
+Python. Standalone workspace (excluded from the host Rust build); crates.io carries the source crate, while
+installable Python wheels are built + published with [maturin](https://maturin.rs).
 
 ## Surface
 ```python
@@ -35,8 +35,8 @@ forward-compatible build.
 
 ## Bounded
 Same non-claims as the underlying objects: advisory, read-only, deterministic, hash-sealed; no control or
-safety-instrumented-function authority. Publishing the wheel (PyPI / `maturin publish`) is a USER-ONLY step
-(see `docs/release_checklist.md`).
+safety-instrumented-function authority. Publishing installable wheels (PyPI / `maturin publish`) is separate
+from the crates.io source package.
 
 ## Citation
 

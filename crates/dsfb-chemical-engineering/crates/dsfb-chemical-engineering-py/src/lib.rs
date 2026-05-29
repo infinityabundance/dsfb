@@ -3,7 +3,8 @@
 //! Exposes deterministic, file-free helpers — version, the unit-consistency hazard classifier, and the
 //! industrial-data-readiness grader — so a Python user can call the read-only courts without leaving Python.
 //! The heavyweight pipeline (`analyze`, `casefile`) stays in the Rust binary / container; these bindings are
-//! the thin, marshalling-cheap surface. The wheel is built + published by the user with maturin (USER-ONLY).
+//! the thin, marshalling-cheap surface. The crates.io package carries the source crate; installable Python
+//! wheels are built separately with maturin.
 //!
 //! Bounded: same non-claims as the underlying objects — advisory, read-only, no control/safety authority.
 
