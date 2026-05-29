@@ -21,6 +21,8 @@ DSFB doesn't replace existing, proven, tried and tested sensors and methods, it 
 
 ## The first forensic-grade auditing layer for process control.
 
+DSFB changes the status of residual exhaust from disposable diagnostic byproduct into replayable forensic evidence.
+
 ---
 
 
