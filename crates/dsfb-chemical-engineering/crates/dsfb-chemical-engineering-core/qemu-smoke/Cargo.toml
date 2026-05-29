@@ -1,0 +1,31 @@
+# Bare-metal QEMU smoke harness for the no_std DSFB core. NOT a workspace member (it builds only for
+# thumbv7m-none-eabi). Runs a fixed residual sequence through `DsfbCore` on an emulated Cortex-M3 and prints
+# the grammar-token sequence + a checksum over semihosting. Honest scope: a smoke run that the core executes
+# on a real emulated MCU with bounded memory — NOT a real-time WCET certification.
+# Standalone workspace root (detached from the parent host workspace; builds only for thumbv7m).
+[workspace]
+
+[package]
+name = "dsfb-chem-core-qemu-smoke"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+dsfb-chemical-engineering-core = { path = ".." }
+cortex-m-rt = "0.7"
+cortex-m-semihosting = "0.5"
+panic-halt = "0.2"
+
+[[bin]]
+name = "qemu-smoke"
+path = "src/main.rs"
+test = false
+bench = false
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "z"

@@ -1,0 +1,53 @@
+{
+  "dataset": "csth_instrumented",
+  "kind": "simulation",
+  "description": "Continuous stirred tank heater; energy-balance witness; insulation-failure heat loss.",
+  "variables": [
+    {
+      "name": "inflow_cold",
+      "role": "measured",
+      "unit": "L/min",
+      "quantity": "flow"
+    },
+    {
+      "name": "temp_cold_in",
+      "role": "measured",
+      "unit": "degC",
+      "quantity": "temperature"
+    },
+    {
+      "name": "tank_temp",
+      "role": "controlled",
+      "unit": "degC",
+      "quantity": "temperature"
+    },
+    {
+      "name": "steam_duty",
+      "role": "manipulated",
+      "unit": "kJ/min",
+      "quantity": "heat-duty"
+    }
+  ],
+  "balance": {
+    "type": "energy_csth",
+    "V_L": 8.0,
+    "rho_cp_kJ_per_LK": 4.18,
+    "h_amb_kJ_per_minK": 5.0,
+    "Tamb_degC": 20.0,
+    "dt_min": 0.2,
+    "tank_temp": "tank_temp",
+    "temp_cold_in": "temp_cold_in",
+    "inflow_cold": "inflow_cold",
+    "steam_duty": "steam_duty",
+    "definition": "residual = rho_cp*V*dT/dt - (rho_cp*Fc*(Tc-T) + Q_steam - h_amb*(T-Tamb))"
+  },
+  "control_action": {
+    "manipulated": "steam_duty",
+    "controlled": "tank_temp",
+    "saturation_high": 4000.0
+  },
+  "fault": {
+    "onset_index": 420,
+    "mode": "insulation failure (unmodelled heat loss)"
+  }
+}

@@ -1,0 +1,52 @@
+# cargo-fuzz harness crate for DSFB-Chemical-Engineering.
+#
+# This is a SEPARATE crate (note the empty `[workspace]` table below, which detaches it from the parent
+# host workspace so `cargo test --workspace` never builds it). It exists only to drive libFuzzer/AddressSanitizer
+# coverage-guided fuzzing of the deterministic, pure DSFB entry points — an EMPIRICAL complement to the bounded
+# Kani proofs (`../src/kani_proofs.rs`): Kani proves totality over a bounded *symbolic* float window; these targets
+# beat on the SAME functions over the full IEEE-754 domain (including NaN/±∞/subnormals) with coverage feedback.
+#
+# Run:  cargo +nightly fuzz run grammar_classify -- -max_total_time=60
+# Audit folder + honest scope: ../../../audit/cargo-fuzz/README.md
+[package]
+name = "dsfb-chemical-engineering-edge-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.dsfb-chemical-engineering-edge]
+path = ".."
+
+[dependencies.dsfb-chemical-engineering-core]
+path = "../../dsfb-chemical-engineering-core"
+
+# Detach from the parent host workspace (cargo-fuzz convention): this crate is built only via `cargo fuzz`,
+# never by `cargo test --workspace`.
+[workspace]
+
+[[bin]]
+name = "grammar_classify"
+path = "fuzz_targets/grammar_classify.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_unit"
+path = "fuzz_targets/parse_unit.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "core_fixedpoint_classify"
+path = "fuzz_targets/core_fixedpoint_classify.rs"
+test = false
+doc = false
+bench = false

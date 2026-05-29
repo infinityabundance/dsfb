@@ -1,0 +1,3 @@
+   Compiling dsfb-chemical-engineering-atlas v0.1.0 (/home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-atlas)
+   Compiling dsfb-chemical-engineering-edge v0.1.0 (/home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-edge)
+    Finished `release` profile [optimized] target(s) in 16.33s

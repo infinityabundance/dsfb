@@ -1,0 +1,20 @@
+   Compiling crux_dsfb v0.1.0 (/tmp/crux_proj)
+warning: `crux_dsfb` (lib) generated 4 warnings
+Linking 20 mir files into /tmp/crux_proj/target/x86_64-unknown-linux-gnu/debug/deps/crux_dsfb-8a4bd8b94954beab.linked-mir.json
+warning: `crux_dsfb` (lib test) generated 4 warnings (4 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.40s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-gnu/debug/deps/crux_dsfb-8a4bd8b94954beab)
+test crux_dsfb/6ac93ee6::band_complement_in_range[0]: [Crux] Attempting to prove verification conditions.
+test crux_dsfb/6ac93ee6::width_is_positive_under_precondition[0]: [Crux] Attempting to prove verification conditions.
+[Crux-MIR] ---- FINAL RESULTS ----
+[Crux] Goal status:
+[Crux]   Total: 4
+[Crux]   Proved: 4
+[Crux]   Disproved: 0
+[Crux]   Incomplete: 0
+[Crux]   Unknown: 0
+[Crux] Overall status: Valid.
+   Doc-tests crux_dsfb
+   |   ^^^^ use of unresolved module or unlinked crate `crux`
+   |   ^^^^ use of unresolved module or unlinked crate `crux`
+note: test exited abnormally; to see the full output pass --no-capture to the harness.

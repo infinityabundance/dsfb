@@ -1,0 +1,64 @@
+{
+  "timestamp_utc": "2026-05-25T21:23:25Z",
+  "cuda_enabled": false,
+  "contract_id": "dsfb-chem-cuda/evidence-contract/v1:scale=1e6,window=16,record=raw|q|e|d|s",
+  "summaries": [
+    {
+      "workload": "evidence_factory",
+      "backend": "cpu-reference",
+      "n_lanes": 1024,
+      "n_samples": 4096,
+      "bytes": 33554432,
+      "runs": [
+        0.27984048947186063,
+        0.2806303957762633,
+        0.28523364095111453,
+        0.2995785437527518,
+        0.2995629217727401
+      ],
+      "gbps_min": 0.27984048947186063,
+      "gbps_median": 0.28523364095111453,
+      "gbps_max": 0.2995785437527518,
+      "gbps_mean": 0.28896919834494605,
+      "gbps_stddev": 0.00884995513048906
+    },
+    {
+      "workload": "evidence_factory",
+      "backend": "cpu-reference",
+      "n_lanes": 2048,
+      "n_samples": 8192,
+      "bytes": 134217728,
+      "runs": [
+        0.2984667407034748,
+        0.2964459626735836,
+        0.29783441600483707,
+        0.29753673300232064,
+        0.29783259786275906
+      ],
+      "gbps_min": 0.2964459626735836,
+      "gbps_median": 0.29783259786275906,
+      "gbps_max": 0.2984667407034748,
+      "gbps_mean": 0.29762329004939503,
+      "gbps_stddev": 0.0006623269295291284
+    },
+    {
+      "workload": "evidence_factory",
+      "backend": "cpu-reference",
+      "n_lanes": 4096,
+      "n_samples": 16384,
+      "bytes": 536870912,
+      "runs": [
+        0.2875617104496923,
+        0.29168028338390556,
+        0.2895940910861805,
+        0.2892960616912676,
+        0.28811643899857425
+      ],
+      "gbps_min": 0.2875617104496923,
+      "gbps_median": 0.2892960616912676,
+      "gbps_max": 0.29168028338390556,
+      "gbps_mean": 0.28924971712192404,
+      "gbps_stddev": 0.0014256282426081644
+    }
+  ]
+}

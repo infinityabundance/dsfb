@@ -1,0 +1,74 @@
+{
+  "nsys_variants": [
+    {
+      "variant": "a",
+      "lanes": 2048,
+      "samples": 4096,
+      "mb": 64,
+      "runs": 5,
+      "kernel_ms_median": 14.053,
+      "kernel_ms_min": 14.018,
+      "kernel_ms_max": 14.239,
+      "evidence_gbps_median": 4.78,
+      "h2d_ms_median": 5.067
+    },
+    {
+      "variant": "b",
+      "lanes": 1024,
+      "samples": 8192,
+      "mb": 64,
+      "runs": 5,
+      "kernel_ms_median": 27.752,
+      "kernel_ms_min": 27.506,
+      "kernel_ms_max": 27.879,
+      "evidence_gbps_median": 2.42,
+      "h2d_ms_median": 5.068
+    },
+    {
+      "variant": "g",
+      "lanes": 4096,
+      "samples": 2048,
+      "mb": 64,
+      "runs": 5,
+      "kernel_ms_median": 7.098,
+      "kernel_ms_min": 6.905,
+      "kernel_ms_max": 7.287,
+      "evidence_gbps_median": 9.46,
+      "h2d_ms_median": 4.923
+    }
+  ],
+  "memory_roofline_gbps_median": 636.8,
+  "ncu_available": true,
+  "ncu_variants": [
+    {
+      "variant": "a",
+      "lanes": 2048,
+      "samples": 4096,
+      "runs": 5,
+      "sm_throughput_pct": 5.16,
+      "dram_throughput_pct": 1.19,
+      "occupancy_pct": 8.28,
+      "l2_hit_pct": 97.41
+    },
+    {
+      "variant": "b",
+      "lanes": 1024,
+      "samples": 8192,
+      "runs": 5,
+      "sm_throughput_pct": 2.6,
+      "dram_throughput_pct": 0.85,
+      "occupancy_pct": 8.28,
+      "l2_hit_pct": 96.28
+    },
+    {
+      "variant": "g",
+      "lanes": 4096,
+      "samples": 2048,
+      "runs": 5,
+      "sm_throughput_pct": 10.24,
+      "dram_throughput_pct": 1.83,
+      "occupancy_pct": 8.28,
+      "l2_hit_pct": 97.91
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+[package]
+name = "dsfb-chemical-engineering-cuda"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-chemical-engineering"
+description = """
+CUDA-accelerated DSFB-Chemical-Engineering evidence factory and forensic court. Produces a
+deterministic, replayable, byte-exact, auditable case file over residuals and usually-discarded
+noise, with Nsight-measured throughput. Reuses the edge crate's detector/fusion semantics; the GPU
+produces evidence and the CPU court decides what that evidence is allowed to mean.
+"""
+keywords = ["dsfb", "cuda", "chemometrics", "forensic", "deterministic"]
+categories = ["science", "command-line-utilities"]
+readme = "README.md"
+# Published package excludes the committed Nsight capture set (reports/); the CUDA kernel sources the
+# build compiles (cuda/) are NOT excluded.
+exclude = ["reports/"]
+
+[lib]
+name = "dsfb_chemical_engineering_cuda"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb-chem-cuda"
+path = "src/main.rs"
+
+[features]
+# `cuda` enables the real GPU path (requires nvcc + a CUDA device). Without it, the crate builds a
+# CPU reference path that produces the identical court case file, so the crate always compiles.
+default = []
+cuda = []
+# Opt-in soft-sensor data-corpus authority, mirroring the edge crate. Off by default; the corpus is
+# dataset-provenance authority metadata, never on the evidence/replay path.
+soft-sensor-corpus = ["dep:dsfb-chemical-engineering-corpus"]
+
+[dependencies]
+dsfb-chemical-engineering-edge = { path = "../dsfb-chemical-engineering-edge", version = "0.1.0" }
+# Authority crates: the GPU court binary prints the same frozen authority hashes as edge, proving
+# both execution backends are bound to one curated detector/heuristic/fault-signature + dataset
+# authority. `atlas` is always linked (tiny, no_std, no deps); `corpus` is opt-in like on edge.
+dsfb-chemical-engineering-atlas = { path = "../dsfb-chemical-engineering-atlas", version = "0.1.0", features = ["std", "serde"] }
+dsfb-chemical-engineering-corpus = { path = "../dsfb-chemical-engineering-corpus", version = "0.1.0", features = ["std", "serde"], optional = true }
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json.workspace = true
+sha2 = "0.10"
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }

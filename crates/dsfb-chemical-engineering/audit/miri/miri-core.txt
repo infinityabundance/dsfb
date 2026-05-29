@@ -1,0 +1,23 @@
+   Compiling dsfb-chemical-engineering-core v0.1.0 (/home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running unittests src/lib.rs (target/miri/x86_64-unknown-linux-gnu/debug/deps/dsfb_chemical_engineering_core-5fc8ad5b2b999bc7)
+
+running 8 tests
+test tests::classify_axis_boundaries_are_exact ... ok
+test tests::engine_is_deterministic_across_resets ... ok
+test tests::invalid_reading_is_sensor_fault_and_preserves_memory ... ok
+test tests::isolated_spike_triggers_slew_spike ... ok
+test tests::nominal_zero_centred_signal_stays_nominal ... ok
+test tests::recovery_emits_once_after_a_breach ... ok
+test tests::ring_buffer_is_bounded_and_means_correctly ... ok
+test tests::sustained_drift_triggers_drift_accum ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s
+
+   Doc-tests dsfb_chemical_engineering_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+exit=0

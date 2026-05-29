@@ -1,0 +1,66 @@
+{
+  "dataset": "quadruple_tank_instrumented",
+  "kind": "simulation",
+  "description": "Johansson quadruple-tank; mass-balance witness; unmeasured leak in tank 1.",
+  "variables": [
+    {
+      "name": "level_1",
+      "role": "measured",
+      "unit": "cm",
+      "quantity": "level"
+    },
+    {
+      "name": "level_2",
+      "role": "measured",
+      "unit": "cm",
+      "quantity": "level"
+    },
+    {
+      "name": "level_3",
+      "role": "measured",
+      "unit": "cm",
+      "quantity": "level"
+    },
+    {
+      "name": "level_4",
+      "role": "measured",
+      "unit": "cm",
+      "quantity": "level"
+    },
+    {
+      "name": "v1",
+      "role": "manipulated",
+      "unit": "V",
+      "quantity": "pump"
+    },
+    {
+      "name": "v2",
+      "role": "manipulated",
+      "unit": "V",
+      "quantity": "pump"
+    }
+  ],
+  "balance": {
+    "type": "mass_quad_tank",
+    "A1": 28.0,
+    "a1": 0.071,
+    "a3": 0.071,
+    "g": 981.0,
+    "k1": 3.33,
+    "gamma1": 0.7,
+    "dt_s": 1.0,
+    "level_1": "level_1",
+    "level_3": "level_3",
+    "v1": "v1",
+    "definition": "residual = A1*dh1/dt - (a3*sqrt(2g*h3) - a1*sqrt(2g*h1) + gamma1*k1*v1)"
+  },
+  "control_action": {
+    "manipulated": "v1",
+    "controlled": "level_1",
+    "saturation_high": 12.0
+  },
+  "fault": {
+    "onset_index": 420,
+    "mode": "unmeasured leak in tank 1"
+  }
+}

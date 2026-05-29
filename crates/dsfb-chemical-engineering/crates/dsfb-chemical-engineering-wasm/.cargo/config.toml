@@ -1,0 +1,4 @@
+# Keep build artifacts in the shared root `target/` (under a per-crate subdir) instead of a `target/`
+# nested inside this standalone-workspace crate. Mirrors the `py` and `qemu-smoke` crates.
+[build]
+target-dir = "../../target/wasm"

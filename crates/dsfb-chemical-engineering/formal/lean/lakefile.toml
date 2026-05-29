@@ -1,0 +1,8 @@
+# Lean 4 formalisation of the DSFB grammar proof obligations. Pure Lean 4 core — NO Mathlib dependency
+# (so it builds offline against the pinned toolchain in `lean-toolchain`; the proofs use only core tactics:
+# `decide`, `simp`, `omega`, structural induction). Build: `lake build`.
+name = "dsfb_formal"
+defaultTargets = ["DsfbGrammar"]
+
+[[lean_lib]]
+name = "DsfbGrammar"

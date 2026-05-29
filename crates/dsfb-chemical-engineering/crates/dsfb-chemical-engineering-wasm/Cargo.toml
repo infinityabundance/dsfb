@@ -1,0 +1,32 @@
+# Interactive Chemical Court "what-if" simulator, compiled to WebAssembly. Standalone workspace
+# (excluded from the host build, like the `py` bindings) because it targets `wasm32-unknown-unknown`.
+# It depends ONLY on the dependency-free embedded `core` crate and uses raw `extern "C"` exports with
+# hand-written JS glue (no wasm-bindgen / wasm-pack needed) — so the whole tool is `cargo build
+# --target wasm32-unknown-unknown --release` + a static HTML/JS page, with a minimal supply-chain surface
+# consistent with the rest of the stack. Browser-served; never run as part of the host workspace.
+[workspace]
+
+[package]
+name = "dsfb-chemical-engineering-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+description = "WebAssembly 'what-if' Chemical Court simulator over the deterministic DSFB residual grammar"
+
+[lib]
+# cdylib → the `.wasm` artifact for the browser; rlib → the pure `simulate_into` logic is unit-tested on
+# the host (`cargo test`), so the simulator's behaviour is gated even though the browser UI is exercised
+# by the user.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Only the embedded fixed-point grammar core — no wasm-bindgen, no external deps.
+dsfb-chemical-engineering-core = { path = "../dsfb-chemical-engineering-core" }
+
+[profile.release]
+# wasm32-unknown-unknown does not support unwinding; abort keeps the module small and avoids the
+# landing-pad machinery. (The host `cargo test` dev profile still unwinds, as the test harness needs.)
+panic = "abort"
+opt-level = "s"  # optimise the shipped .wasm for size
+lto = true

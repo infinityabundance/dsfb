@@ -1,0 +1,23 @@
+DSFB-Chemical-Engineering
+Copyright (c) 2026 Invariant Forge LLC
+
+IP Notice
+
+The theoretical framework, formal constructions, and supervisory methods
+described herein — the DSFB (Drift–Slew Fusion Bootstrap) deterministic
+residual-semiotics framework and its chemometric instantiation — constitute
+proprietary Background IP of Invariant Forge LLC (Delaware LLC No. 10529072),
+with prior art established by this publication and earlier Zenodo DOI
+publications by the same author. Commercial deployment requires a separate
+written license. Reference implementations are released under Apache 2.0.
+
+Author: Riaan de Beer — ORCID 0009-0006-1155-027X
+Licensing: licensing@invariantforge.net
+Homepage:  https://www.invariantforge.net
+
+This product bundles small, processed slices of third-party public datasets
+solely for reproducibility. Each slice retains its upstream license and
+citation; see crates/dsfb-chemical-engineering-edge/data/MANIFEST.toml for
+per-dataset provenance, source URLs, licenses, and SHA-256 digests. Datasets
+that require a data-use agreement (e.g. iTrust SWaT/WADI) are NOT redistributed;
+only loaders and a clearly-labelled synthetic stand-in are provided.

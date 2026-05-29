@@ -1,0 +1,24 @@
+# Canonical witness-trace SHA-256 digests for the balance demonstrators (P47).
+#
+# Produced and checked by `scripts/verify_reproducibility.py`. Each digest is over a platform-portable
+# canonical form of the witness trace (per row: `time_index:round(balance_residual*1e6):grammar_state`,
+# signed zero normalised), so it is independent of last-ULP float text formatting across compilers.
+#
+# Purpose: let a third party byte-confirm that their run reproduces the paper's balance-witness results
+# WITHOUT redistributing any data — only these hashes are committed.
+#   * SYNTHETIC demonstrators (three_tank, quadruple_tank, cstr, csth) are openly shareable: anyone can
+#     regenerate the input with `scripts/gen_instrumented.py` and must reproduce the digest.
+#   * GATED demonstrators (swat_t101, batadal_t1) require the iTrust/benchmark bytes prepped locally via
+#     `scripts/prep_{swat,batadal}.py`; the input CSVs are gitignored, so only a holder of the licensed
+#     data can verify these (the verifier SKIPs them otherwise). Committing the digest — not the data —
+#     is what makes the gated result independently checkable.
+#
+# Re-freeze deliberately (rerun with --mint) if the balance math, the demonstrator generators, or the
+# prep recipes change.
+
+three_tank_instrumented = "0a5fb7fc0991c4e394928914451dbabc5e0f9f47c95caeaa889f8e7acf7272df"
+quadruple_tank_instrumented = "e04804c723734291b328891ac3d43facf445be5b597529f497b8b3e29ce40ce3"
+cstr_instrumented = "215f989805efdae7d42595aadb32b361b918c64c5a092baca540a29fb255f29a"
+csth_instrumented = "934fefa56bc36972eef1f813789f7ac37e332130255f8ae7791f5b73a5f8892c"
+swat_t101_instrumented = "ef4315eeae69fabd9ad7cea8831bd427917a354e43275603bc6e8b069da94035"
+batadal_t1_instrumented = "c66bcf86ef9c628c6fc5154481bdbb4c42272b4ccfd786f28d4fed8044938355"

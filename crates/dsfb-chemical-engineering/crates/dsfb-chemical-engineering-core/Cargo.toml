@@ -1,0 +1,19 @@
+[package]
+name = "dsfb-chemical-engineering-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "no_std, no-heap, fixed-point embedded core for the DSFB chemical-engineering residual grammar"
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["dsfb", "no-std", "embedded", "fixed-point", "chemometrics"]
+categories = ["embedded", "no-std", "science"]
+
+[lib]
+# A `#![cfg_attr(not(test), no_std)]` library: no_std + no heap for the embedded target, while the unit
+# tests link std via the default harness. No dependencies — `core` only.
+
+[dependencies]
+# none — deliberately dependency-free so the embedded core has no supply-chain surface.

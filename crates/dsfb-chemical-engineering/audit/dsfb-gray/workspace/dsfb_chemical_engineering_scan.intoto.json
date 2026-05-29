@@ -1,0 +1,703 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "predicate": {
+    "crate": {
+      "artifactsInspected": 12371,
+      "filesScanned": 153,
+      "name": "dsfb-chemical-engineering",
+      "pathInVcs": null,
+      "root": "/home/one/dsfb-chemical-engineering",
+      "sourceSha256": "c891c24ef91b8cdf50353779c7e37e54974c869eda4953fa604881eba35a34db",
+      "vcsCommit": null,
+      "version": null
+    },
+    "generatedAtUtc": "2026-05-28T00:07:09.860983389Z",
+    "guidanceSemantics": {
+      "codeQualityGoal": true,
+      "nonCertificationStatement": "DSFB findings may support internal review against standards-oriented expectations, but DSFB does not certify compliance with IEC, ISO, RTCA, MIL, NIST, or other standards.",
+      "reviewReadinessGoal": true
+    },
+    "sarif": {
+      "mediaType": "application/sarif+json",
+      "resultCount": 22,
+      "sha256": "b630cbc424ebe146f99ce45f03d7371711bba311c51cd304d1b733740d387220"
+    },
+    "scanner": {
+      "auditMode": "canonical-broad-audit",
+      "name": "dsfb-gray",
+      "recipe": [
+        "heuristics-bank-default",
+        "constrained-runtime-audit",
+        "unsafe-panic-ffi-audit",
+        "verification-audit",
+        "lifecycle-audit",
+        "nasa-power-of-ten-audit",
+        "advanced-structural-audit"
+      ],
+      "recipeVersion": 1,
+      "version": "0.1.0"
+    },
+    "summary": {
+      "advancedStructural": {
+        "clear": 15,
+        "elevated": 8,
+        "indeterminate": 0
+      },
+      "advisorySubscores": [
+        {
+          "basis": "Derived from safety surface, correctness-critical Power-of-Ten rules, and correctness-oriented structural checks.",
+          "id": "correctness",
+          "percent": 34.4,
+          "title": "Correctness"
+        },
+        {
+          "basis": "Derived from lifecycle/governance evidence, reviewability-oriented Power-of-Ten rules, and maintainability-heavy structural checks.",
+          "id": "maintainability",
+          "percent": 31.6,
+          "title": "Maintainability"
+        },
+        {
+          "basis": "Derived from async/concurrency structural checks and bounded-control-flow review signals.",
+          "id": "concurrency_async",
+          "percent": 50.0,
+          "title": "Concurrency / Async"
+        },
+        {
+          "basis": "Derived from runtime-allocation proxies, resource-lifecycle checks, and bounded-allocation / bounded-loop review rules.",
+          "id": "resource_discipline",
+          "percent": 20.0,
+          "title": "Resource Discipline"
+        },
+        {
+          "basis": "Derived from verification signals, build/tooling complexity, and analyzability-oriented Power-of-Ten rules.",
+          "id": "verification_reviewability",
+          "percent": 64.4,
+          "title": "Verification / Reviewability"
+        },
+        {
+          "basis": "Derived from the full locked rubric as a broad readiness-oriented advisory synthesis.",
+          "id": "assurance_provenance",
+          "percent": 52.8,
+          "title": "Assurance / Provenance"
+        }
+      ],
+      "auditScore": {
+        "band": "limited assurance evidence",
+        "earnedWeightedPoints": 47.0,
+        "guideline": [
+          "Method: weighted checkpoint scoring across Safety (15%), Verification (15%), Build/Tooling (10%), Lifecycle/Governance (10%), NASA/JPL Power of Ten (25%), and Advanced Structural Checks (25%).",
+          "Checkpoint credit: pass/clear/applied = 1.0, indeterminate/partial = 0.5, elevated/not applied = 0.0.",
+          "Fairness rule: raw motif counts do not linearly reduce the score; each checkpoint contributes once so large crates are not punished simply for having more code.",
+          "Informational-only signals such as DSFB heuristic motif matches, hotspot counts, and capability flags like no_std/no_alloc are reported but excluded from the score denominator.",
+          "Interpretation: this is a broad improvement and review-readiness score for source-visible controls and evidence, not a certification and not a measure of runtime correctness."
+        ],
+        "method": "dsfb-assurance-score-v1",
+        "overallPercent": 47.0,
+        "possibleWeightedPoints": 100.0,
+        "sections": [
+          {
+            "checkpointCount": 5,
+            "earnedCheckpoints": 1.0,
+            "id": "safety",
+            "sectionPercent": 20.0,
+            "title": "Safety Surface",
+            "weightPercent": 15.0,
+            "weightedPoints": 3.0
+          },
+          {
+            "checkpointCount": 5,
+            "earnedCheckpoints": 3.0,
+            "id": "verification",
+            "sectionPercent": 60.0,
+            "title": "Verification Evidence",
+            "weightPercent": 15.0,
+            "weightedPoints": 9.0
+          },
+          {
+            "checkpointCount": 6,
+            "earnedCheckpoints": 6.0,
+            "id": "build",
+            "sectionPercent": 100.0,
+            "title": "Build / Tooling Complexity",
+            "weightPercent": 10.0,
+            "weightedPoints": 10.0
+          },
+          {
+            "checkpointCount": 13,
+            "earnedCheckpoints": 8.0,
+            "id": "lifecycle",
+            "sectionPercent": 61.5,
+            "title": "Lifecycle / Governance",
+            "weightPercent": 10.0,
+            "weightedPoints": 6.2
+          },
+          {
+            "checkpointCount": 10,
+            "earnedCheckpoints": 1.0,
+            "id": "nasa_power_of_ten",
+            "sectionPercent": 10.0,
+            "title": "NASA/JPL Power of Ten",
+            "weightPercent": 25.0,
+            "weightedPoints": 2.5
+          },
+          {
+            "checkpointCount": 23,
+            "earnedCheckpoints": 15.0,
+            "id": "advanced_structural",
+            "sectionPercent": 65.2,
+            "title": "Advanced Structural Checks",
+            "weightPercent": 25.0,
+            "weightedPoints": 16.3
+          }
+        ]
+      },
+      "conclusionLenses": {
+        "certificationPreparation": "For certification-oriented preparation, treat ITER-UNB, JPL-R4, JPL-R9, NASA-CC, SAFE-STATE as pre-review cleanup targets and evidence-organizing prompts rather than certification outcomes.",
+        "complianceReadiness": "5 finding(s) directly affect analyzability, reproducibility, or review traceability. DSFB may support internal review against standards-oriented expectations, but it does not certify compliance.",
+        "distributedOperational": "Operational pressure is most visible in ITER-UNB, ZERO-COPY, P10-5, H-ALLOC-01, H-SERDE-01. These findings are the most likely to matter later in runtime replay, backpressure review, or production-style load investigation.",
+        "rustMaintainer": "Use the 47.0% overall score as a broad code-improvement target, not a compliance or certification badge. The highest-value maintainer work is concentrated in JPL-R4, JPL-R9, NASA-CC, SAFE-STATE, JPL-R0."
+      },
+      "criticalityHotspots": [
+        {
+          "estimatedComplexity": 48,
+          "function": "from_label",
+          "line": 62,
+          "path": "crates/dsfb-chemical-engineering-edge/src/event_evidence.rs",
+          "riskScore": 51,
+          "signals": [
+            "complexity>15"
+          ]
+        },
+        {
+          "estimatedComplexity": 39,
+          "function": "validate",
+          "line": 25,
+          "path": "crates/dsfb-chemical-engineering-atlas/src/validation.rs",
+          "riskScore": 50,
+          "signals": [
+            "complexity>15",
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 31,
+          "function": "load_historian_csv",
+          "line": 405,
+          "path": "crates/dsfb-chemical-engineering-edge/src/datasets.rs",
+          "riskScore": 42,
+          "signals": [
+            "complexity>15",
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 24,
+          "function": "run_balance_witness",
+          "line": 1293,
+          "path": "crates/dsfb-chemical-engineering-edge/src/cli.rs",
+          "riskScore": 35,
+          "signals": [
+            "complexity>15",
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 24,
+          "function": "run_completeness_court",
+          "line": 109,
+          "path": "crates/dsfb-chemical-engineering-edge/src/completeness.rs",
+          "riskScore": 35,
+          "signals": [
+            "complexity>15",
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 20,
+          "function": "fuse",
+          "line": 293,
+          "path": "crates/dsfb-chemical-engineering-edge/src/fusion.rs",
+          "riskScore": 31,
+          "signals": [
+            "complexity>15",
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 18,
+          "function": "non_admitted_runs",
+          "line": 474,
+          "path": "crates/dsfb-chemical-engineering-edge/src/fusion.rs",
+          "riskScore": 29,
+          "signals": [
+            "complexity>15",
+            "long-function"
+          ]
+        },
+        {
+          "estimatedComplexity": 25,
+          "function": "unit_class",
+          "line": 60,
+          "path": "crates/dsfb-chemical-engineering-edge/src/confidential_demo.rs",
+          "riskScore": 28,
+          "signals": [
+            "complexity>15"
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "category": "advanced-structural",
+          "classification": "context-needed",
+          "confidence": "high",
+          "evidenceIds": [
+            "ITER-UNB-01-main-35",
+            "ITER-UNB-02-artifact-index-172",
+            "ITER-UNB-03-cli-77",
+            "ITER-UNB-04-cli-556"
+          ],
+          "id": "ITER-UNB",
+          "impactKind": "resource discipline",
+          "remediation": "Add `.take(...)`, explicit bounds, or documented finite-source guarantees on terminal iterator consumption.",
+          "status": "elevated",
+          "title": "Unbounded iterator terminal-consumption audit",
+          "verificationSuggestion": "Add a bound, trusted finite-source proof, or regression test that demonstrates the iterator cannot grow without limit."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "JPL-R4-01-interval-physics-99",
+            "JPL-R4-02-interval-physics-100",
+            "JPL-R4-03-interval-physics-101",
+            "JPL-R4-04-interval-physics-102"
+          ],
+          "id": "JPL-R4",
+          "impactKind": "maintainability",
+          "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+          "status": "elevated",
+          "title": "Data-flow traceability / interior mutability audit",
+          "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "JPL-R9-01-build-8",
+            "JPL-R9-02-build-9",
+            "JPL-R9-03-build-29",
+            "JPL-R9-04-build-30"
+          ],
+          "id": "JPL-R9",
+          "impactKind": "maintainability",
+          "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+          "status": "elevated",
+          "title": "Unchecked extraction / dereference safety audit",
+          "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "NASA-CC-01-event-evidence-62",
+            "NASA-CC-02-validation-25",
+            "NASA-CC-03-datasets-405",
+            "NASA-CC-04-confidential-demo-60"
+          ],
+          "id": "NASA-CC",
+          "impactKind": "maintainability",
+          "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+          "status": "elevated",
+          "title": "Cyclomatic complexity hotspot audit (NASA SWE-220 proxy)",
+          "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "defect-candidate",
+          "confidence": "high",
+          "evidenceIds": [
+            "SAFE-STATE-01-digest-equivalence-167",
+            "SAFE-STATE-02-claim-strength-70",
+            "SAFE-STATE-03-cli-632",
+            "SAFE-STATE-04-cli-927"
+          ],
+          "id": "SAFE-STATE",
+          "impactKind": "correctness",
+          "remediation": "Make fallback states explicit and document what the safe-state behavior is for the affected control path.",
+          "status": "elevated",
+          "title": "Catch-all state handling / safe-state fallback audit",
+          "verificationSuggestion": "Add tests that drive the fallback path explicitly and confirm the intended safe-state behavior is named, not implied."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "JPL-R0-01-report-825",
+            "JPL-R0-02-dsfb-core-209"
+          ],
+          "id": "JPL-R0",
+          "impactKind": "maintainability",
+          "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+          "status": "elevated",
+          "title": "Recursion and cyclic call graph audit",
+          "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "PART-SPACE-01-lib-141",
+            "PART-SPACE-02-lib-142"
+          ],
+          "id": "PART-SPACE",
+          "impactKind": "assurance/provenance",
+          "remediation": "Reduce shared global state, or document the partitioning/ownership rationale for any remaining shared resource.",
+          "status": "elevated",
+          "title": "Global shared-resource / partitioning-risk audit",
+          "verificationSuggestion": "Document the shared-resource boundary and add a test or review note that proves ownership/partitioning is intentional."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "medium",
+          "evidenceIds": [
+            "ZERO-COPY-01-bench-75"
+          ],
+          "id": "ZERO-COPY",
+          "impactKind": "resource discipline",
+          "remediation": "Keep ingress data borrowed or reference-counted longer, and avoid eager `.to_vec()` / `.clone()` on hot read paths.",
+          "status": "elevated",
+          "title": "Copy-on-read / zero-copy provenance audit",
+          "verificationSuggestion": "Benchmark the read path before and after borrowing/reference-counting changes and confirm copy count drops."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-3-01-hashing-20",
+            "P10-3-02-hashing-54",
+            "P10-3-03-hashing-21",
+            "P10-3-04-hashing-23"
+          ],
+          "id": "P10-3",
+          "impactKind": "correctness",
+          "remediation": "Move dynamic allocation to initialization paths or document and bound the steady-state allocation sites.",
+          "status": "not applied",
+          "title": "No dynamic allocation after initialization",
+          "verificationSuggestion": "Profile the flagged path under steady-state load and confirm no avoidable heap growth remains after initialization."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-4-01-completeness-109",
+            "P10-4-02-cli-303",
+            "P10-4-03-figure-export-54",
+            "P10-4-04-pipeline-204"
+          ],
+          "id": "P10-4",
+          "impactKind": "maintainability",
+          "remediation": "Split large functions into reviewable units with clearer local invariants and narrower responsibilities.",
+          "status": "not applied",
+          "title": "Functions stay within a single-sheet size budget (~60 LOC)",
+          "verificationSuggestion": "Split the function and add narrower tests that name the local invariants introduced by the refactor."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "defect-candidate",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-5-01-completeness-109",
+            "P10-5-02-cli-303",
+            "P10-5-03-figure-export-54",
+            "P10-5-04-pipeline-204"
+          ],
+          "id": "P10-5",
+          "impactKind": "concurrency/async",
+          "remediation": "Replace catch-all control flow with explicit state handling or document the fallback state as intentional.",
+          "status": "not applied",
+          "title": "Assertion density averages at least two per function",
+          "verificationSuggestion": "Add state-transition tests that cover the previously catch-all path explicitly."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "defect-candidate",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-7-01-main-25",
+            "P10-7-02-main-31",
+            "P10-7-03-main-36",
+            "P10-7-04-main-37"
+          ],
+          "id": "P10-7",
+          "impactKind": "correctness",
+          "remediation": "Propagate errors explicitly rather than unwrapping, or document the invariant that justifies the unwrap/expect.",
+          "status": "not applied",
+          "title": "Return values are checked and parameters are validated",
+          "verificationSuggestion": "Replace unwrap/expect with explicit handling or add an invariant test that proves the extraction precondition."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "review-readiness",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-8-01-cargo-12",
+            "P10-8-02-lib-29",
+            "P10-8-03-build-19",
+            "P10-8-04-build-24"
+          ],
+          "id": "P10-8",
+          "impactKind": "verification/reviewability",
+          "remediation": "Reduce conditional-compilation forks or document why each feature/macro path remains auditable.",
+          "status": "not applied",
+          "title": "Conditional compilation and metaprogramming stay minimal",
+          "verificationSuggestion": "Review feature/macro-expanded paths and add CI coverage for the meaningful forks."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "defect-candidate",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-9-01-ffi-26",
+            "P10-9-02-ffi-29",
+            "P10-9-03-ffi-30",
+            "P10-9-04-ffi-31"
+          ],
+          "id": "P10-9",
+          "impactKind": "correctness",
+          "remediation": "Tighten raw-pointer / FFI surfaces and document the local safety contract for each remaining site.",
+          "status": "not applied",
+          "title": "Pointer use remains restricted",
+          "verificationSuggestion": "Document the local pointer/FFI contract and add the narrowest possible regression around the unsafe edge."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-2-01-cargo-12",
+            "P10-2-02-main-40"
+          ],
+          "id": "P10-2",
+          "impactKind": "correctness",
+          "remediation": "Add explicit upper bounds, timeout guards, or fixed-step limits so loop behavior is reviewable.",
+          "status": "not applied",
+          "title": "All loops have a fixed upper bound",
+          "verificationSuggestion": "Add a regression test that demonstrates a visible loop bound, timeout, or cancellation path on the flagged logic."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-6-01-lib-141",
+            "P10-6-02-lib-142"
+          ],
+          "id": "P10-6",
+          "impactKind": "maintainability",
+          "remediation": "Reduce dependence on global mutable state or document synchronization and ownership boundaries.",
+          "status": "not applied",
+          "title": "Data objects remain at the smallest practical scope",
+          "verificationSuggestion": "Document ownership/synchronization boundaries or add module-level tests that prove shared state cannot drift silently."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "medium",
+          "evidenceIds": [
+            "P10-1-01-report-825"
+          ],
+          "id": "P10-1",
+          "impactKind": "correctness",
+          "remediation": "Remove recursion where possible, or isolate the pattern behind a bounded proof and explicit review note.",
+          "status": "not applied",
+          "title": "Simple control flow; no recursion or equivalent escapes",
+          "verificationSuggestion": "Add a focused test or review note that proves the remaining recursion is bounded, or refactor it into an explicit loop/work queue."
+        },
+        {
+          "category": "heuristic",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-ALLOC-01-01-bench-109",
+            "H-ALLOC-01-02-bench-160",
+            "H-ALLOC-01-03-digest-equivalence-378",
+            "H-ALLOC-01-04-dispatch-192",
+            "H-ALLOC-01-05-amendment-dag-66",
+            "H-ALLOC-01-06-balance-189"
+          ],
+          "id": "H-ALLOC-01",
+          "impactKind": "resource discipline",
+          "remediation": "Audit hot-loop allocation sites and prefer bounded or reserved growth on steady-state paths.",
+          "status": "matched",
+          "title": "Monotonic increase in allocation latency with step-change at capacity doubling",
+          "verificationSuggestion": "Benchmark the flagged path under steady load and inspect allocation counts before and after preallocation changes."
+        },
+        {
+          "category": "heuristic",
+          "classification": "context-needed",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-CLOCK-01-01-bench-135",
+            "H-CLOCK-01-02-cli-41",
+            "H-CLOCK-01-03-cli-42",
+            "H-CLOCK-01-04-cli-196",
+            "H-CLOCK-01-05-cli-273",
+            "H-CLOCK-01-06-cli-281"
+          ],
+          "id": "H-CLOCK-01",
+          "impactKind": "correctness",
+          "remediation": "Prefer monotonic clocks for control logic and isolate wall-clock use to presentation or external protocol boundaries.",
+          "status": "matched",
+          "title": "Monotonic drift in timestamp-derived residuals between nodes",
+          "verificationSuggestion": "Add a regression test that isolates monotonic timing logic from wall-clock presentation or protocol boundaries."
+        },
+        {
+          "category": "heuristic",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-SERDE-01-01-cargo-25",
+            "H-SERDE-01-02-cargo-26",
+            "H-SERDE-01-03-cargo-26",
+            "H-SERDE-01-04-cargo-25",
+            "H-SERDE-01-05-cargo-26",
+            "H-SERDE-01-06-cargo-31"
+          ],
+          "id": "H-SERDE-01",
+          "impactKind": "resource discipline",
+          "remediation": "Review payload growth, eager allocation, and schema-boundary handling on the serialization path.",
+          "status": "matched",
+          "title": "Serialization latency increasing with step-change at schema boundary",
+          "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+        },
+        {
+          "category": "heuristic",
+          "classification": "context-needed",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-THRU-01-01-cargo-12",
+            "H-THRU-01-02-cli-218",
+            "H-THRU-01-03-cli-260",
+            "H-THRU-01-04-court-106",
+            "H-THRU-01-05-court-255",
+            "H-THRU-01-06-court-271"
+          ],
+          "id": "H-THRU-01",
+          "impactKind": "resource discipline",
+          "remediation": "Inspect hot paths for hidden copies, queue growth, or retry behavior that can erode throughput before alarms fire.",
+          "status": "matched",
+          "title": "Persistent throughput decline not attributable to workload reduction",
+          "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+        },
+        {
+          "category": "heuristic",
+          "classification": "context-needed",
+          "confidence": "low",
+          "evidenceIds": [
+            "H-DNS-01-01-cargo-2"
+          ],
+          "id": "H-DNS-01",
+          "impactKind": "correctness",
+          "remediation": "Review cache invalidation, timeout handling, and fallback behavior around name resolution.",
+          "status": "matched",
+          "title": "DNS resolution time increasing with step-change at cache expiry",
+          "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+        }
+      ],
+      "matchedHeuristics": [
+        {
+          "id": "H-SERDE-01",
+          "matchedPatterns": [
+            "deserialize",
+            "serde",
+            "serde_json",
+            "serialize"
+          ],
+          "reasonCode": "SerializationDrift",
+          "structuralPrior": {
+            "confidence": 0.95,
+            "driftScale": 0.7625,
+            "slewScale": 0.7150000000000001
+          },
+          "totalHits": 867
+        },
+        {
+          "id": "H-CLOCK-01",
+          "matchedPatterns": [
+            "instant::now()",
+            "systemtime::now()",
+            "timestamp"
+          ],
+          "reasonCode": "ClockDriftDivergence",
+          "structuralPrior": {
+            "confidence": 0.95,
+            "driftScale": 0.7625,
+            "slewScale": 1.0
+          },
+          "totalHits": 66
+        },
+        {
+          "id": "H-ALLOC-01",
+          "matchedPatterns": [
+            "vec::with_capacity"
+          ],
+          "reasonCode": "MemoryPressureEscalation",
+          "structuralPrior": {
+            "confidence": 0.7945134575869864,
+            "driftScale": 0.8013716356032534,
+            "slewScale": 0.7616459627239041
+          },
+          "totalHits": 23
+        },
+        {
+          "id": "H-THRU-01",
+          "matchedPatterns": [
+            "throughput"
+          ],
+          "reasonCode": "ThroughputDegradation",
+          "structuralPrior": {
+            "confidence": 0.4864775372638283,
+            "driftScale": 0.8783806156840429,
+            "slewScale": 1.0
+          },
+          "totalHits": 6
+        },
+        {
+          "id": "H-DNS-01",
+          "matchedPatterns": [
+            "resolver"
+          ],
+          "reasonCode": "SustainedLatencyDrift",
+          "structuralPrior": {
+            "confidence": 0.17328679513998632,
+            "driftScale": 0.9566783012150034,
+            "slewScale": 0.9480139614580041
+          },
+          "totalHits": 1
+        }
+      ],
+      "powerOfTen": {
+        "applied": 1,
+        "indeterminate": 0,
+        "notApplied": 9
+      }
+    }
+  },
+  "predicateType": "https://github.com/infinityabundance/dsfb-gray/attestations/crate-scan/v1",
+  "subject": [
+    {
+      "digest": {
+        "sha256": "c891c24ef91b8cdf50353779c7e37e54974c869eda4953fa604881eba35a34db"
+      },
+      "name": "pkg:cargo/dsfb-chemical-engineering"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+# Measurement-protocol definitions for every rate reported in the paper (P50).
+#
+# Several headline rates have denominators that otherwise live only in prose and, for the gated
+# datasets, cannot be reconstructed without the licensed bytes. Committing the protocol (window,
+# stride, what counts as a "block"/"sample"/"activation") makes the arithmetic checkable by a
+# non-licensee and discloses the *measurement protocol itself* as prior art. The recipes that
+# implement these are committed (scripts/prep_swat.py, prep_batadal.py, head_to_head_tep_idv1.py,
+# swat_scope_recall.py); only the licensed input bytes are withheld.
+
+[swat_t101.false_positive_rate]
+value = "4.4%"
+fraction = "119 / 2700"
+unit = "normal-run blocks"
+block_definition = "a 30-second aggregation block = the per-channel mean of 30 consecutive 1 Hz SWaT rows (scripts/prep_swat.py BLOCK=30; non-overlapping, stride = BLOCK)"
+denominator_note = "2700 = the normal-run blocks the witness scores (calibration baseline + inter-attack spacer blocks); a block 'false-fires' if the balance witness emits a non-nominal grammar state in a normal-labelled block"
+recipe = "scripts/prep_swat.py + `balance-witness swat_t101_instrumented` (licensed SWaT bytes, not redistributed)"
+
+[swat_t101.within_scope_recall]
+value = "5 / 5 = 100%"
+unit = "in-scope attacks (touch a T101 balance term LIT101/FIT101/FIT201)"
+denominator_note = "of the 36 physical-impact attacks in the official iTrust list, 35 have a reconstructable labelled segment; exactly 5 (#3,21,30,33,36) touch a T101 balance term; the witness fires on all 5. Out-of-scope: 30 segments, 73% correctly quiet."
+recipe = "scripts/swat_scope_recall.py (classifies vs the iTrust List_of_attacks_Final.pdf; list not redistributed)"
+
+[batadal_t1.false_positive_rate]
+value = "0.1%"
+fraction = "5 / 3958"
+unit = "normal-year hourly samples"
+sample_definition = "one hourly C-Town SCADA row (BATADAL is distributed at 1-hour cadence)"
+denominator_note = "3958 = the hourly rows of the normal-operations (dataset 03 / training) year used to calibrate + score the T1 volume-balance witness; T1 cross-section area = 769.4 m^2 (EPANET diameter 31.3 m)"
+recipe = "scripts/prep_batadal.py + `balance-witness batadal_t1_instrumented` (BATADAL is openly licensed; bytes fetched locally, not vendored)"
+
+[tep_idv01.head_to_head]
+breach_steps = "10041"
+breach_steps_definition = "sum over the executed detectors x 960 samples of the per-(detector,sample) breach flag (detector_outputs.csv `breach == true`). NOTE: the committed value is the P37 snapshot over the 14-detector bank; the executed bank has since grown to 18 (Phase-C) — re-run scripts/head_to_head_tep_idv1.py to refresh the number for the current bank."
+isa18_2_activations = "102"
+activations_definition = "ISA-18.2 alarm annunciations = false->true rising edges of the breach flag, summed over the executed detectors (one annunciation per alarm onset, not per sample-in-alarm). NOTE: committed value is the P37 snapshot over the 14-detector bank (see breach_steps_definition)."
+fused_episodes = "6"
+compression = "1674x over breach-steps; 17x over activations"
+recipe = "scripts/head_to_head_tep_idv1.py over the committed tennessee_eastman_idv01 slice (fully reproducible; matches tab:compression)"

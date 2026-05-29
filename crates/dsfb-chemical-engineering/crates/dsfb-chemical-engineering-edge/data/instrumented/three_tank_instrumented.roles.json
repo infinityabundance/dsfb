@@ -1,0 +1,50 @@
+{
+  "dataset": "three_tank_instrumented",
+  "kind": "simulation",
+  "description": "DTS200-style three-tank; mass-balance witness; leak fault in tank 2.",
+  "variables": [
+    {
+      "name": "level_1",
+      "role": "measured",
+      "unit": "cm",
+      "quantity": "level"
+    },
+    {
+      "name": "level_2",
+      "role": "measured",
+      "unit": "cm",
+      "quantity": "level"
+    },
+    {
+      "name": "level_3",
+      "role": "measured",
+      "unit": "cm",
+      "quantity": "level"
+    },
+    {
+      "name": "q_in",
+      "role": "manipulated",
+      "unit": "cm^3/s",
+      "quantity": "inflow"
+    }
+  ],
+  "balance": {
+    "type": "mass_three_tank",
+    "tank_area_cm2": 154.0,
+    "c12": 5.0,
+    "c23": 5.0,
+    "c3": 5.0,
+    "dt_s": 1.0,
+    "levels": [
+      "level_1",
+      "level_2",
+      "level_3"
+    ],
+    "witness_tank": 2,
+    "definition": "residual = A*dh2/dt - (c12*sgn(h1-h2)sqrt|h1-h2| - c23*sgn(h2-h3)sqrt|h2-h3|)"
+  },
+  "fault": {
+    "onset_index": 420,
+    "mode": "unmeasured leak in tank 2"
+  }
+}

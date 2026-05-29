@@ -1,0 +1,279 @@
+# breadth_surface.toml — the DSFB-Chemical-Engineering navigation index.
+#
+# A top-level, machine-readable map of every major verifiable claim -> its governing artifact -> the exact
+# command that reproduces it -> its evidence tier. This turns the project's deliberately-broad prior-art
+# surface into ORGANIZED density: scan a claim, read its tier, run one command, get its sealed artifact.
+#
+# It asserts NO new capability — it indexes what the courts / tests / manifests already prove. It is kept
+# honest by tests/breadth_surface_court.rs (every tier resolves to a real ClaimStrength; every CLI
+# reproduction names a real `dsfb-chem-edge` subcommand; every governing artifact exists on disk or is a
+# known frozen-hash name; the category counts equal what atlas::validate() + the committed manifests report)
+# and hash-sealed (canonical_hash pinned in that court). Breadth only ever widens — adding a claim is a
+# single, reviewable, governed re-freeze. STRICTLY chemical-engineering; no domain-generality claim.
+#
+# tier  ∈ { SealedFact (Tier 1) | EvidenceInterpretation (Tier 2) | SpeculativeImplication (Tier 3) | NonClaim }
+# artifact_kind  ∈ { file | test | manifest | figure_manifest | script | frozen_hash }
+# reproduce_kind ∈ { cli_subcommand | cargo_test | script | external }
+
+schema = "breadth_surface_v1"
+
+[expected_counts]
+executed_detectors        = 18   # vs atlas::validate().n_executed
+executed_fault_signatures = 7    # vs atlas::validate().n_fault_signatures_executed
+fault_signatures          = 12   # vs atlas::validate().n_fault_signatures (total bank)
+heuristics                = 6    # vs atlas::validate().n_heuristics
+datasets                  = 20   # vs [[dataset]] count in data/MANIFEST.toml
+golden_replays            = 6    # vs the GOLDEN synthetic-replay set in tests/golden_replay.rs
+balance_witnesses         = 6    # vs entries in data/instrumented/EXPECTED_DIGESTS.toml
+figures                   = 0    # vs n_figures in paper/figures/figure_manifest.json
+
+# ── determinism / replay ──────────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "DET-REPLAY-01"
+category = "determinism_replay"
+statement = "Each synthetic dataset reproduces a byte-frozen canonical replay hash (6/6 deterministic)."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/tests/golden_replay.rs"
+artifact_kind = "test"
+reproduce = "dsfb-chem-edge verify-replay"
+reproduce_kind = "cli_subcommand"
+non_claim_boundary = "byte-identity is pinned on the maintainer's toolchain; cross-architecture bit-identity is not claimed beyond it"
+
+[[claim]]
+id = "DET-REPLAY-02"
+category = "determinism_replay"
+statement = "All 20 Court Record bundle roots are byte-reproducible from the committed data/slices."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/data/EXPECTED_BUNDLE_ROOTS.toml"
+artifact_kind = "manifest"
+reproduce = "crates/dsfb-chemical-engineering-edge/scripts/verify_reproducibility.py --bundles"
+reproduce_kind = "script"
+
+# ── authority: detector / heuristic / fault-signature atlas ─────────────────────────────────────────────
+[[claim]]
+id = "AUTH-ATLAS-01"
+category = "authority_atlas"
+statement = "The detector + H1-H6 heuristic + F1-F12 fault-signature authority seals to a frozen atlas_hash_v1."
+tier = "SealedFact"
+governing_artifact = "atlas_hash_v1"
+artifact_kind = "frozen_hash"
+reproduce = "dsfb-chem-edge atlas"
+reproduce_kind = "cli_subcommand"
+
+[[claim]]
+id = "AUTH-ATLAS-02"
+category = "authority_atlas"
+statement = "18 of 57 chemometric detectors are executed by the pipeline; the rest are catalogued prior art."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-atlas/tests/atlas_gates.rs"
+artifact_kind = "test"
+reproduce = "dsfb-chem-edge atlas"
+reproduce_kind = "cli_subcommand"
+
+[[claim]]
+id = "AUTH-ATLAS-03"
+category = "authority_atlas"
+statement = "7 of 12 fault signatures are executed via synthetic demonstrators gated in the test suite."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/tests/fault_demonstrators.rs"
+artifact_kind = "test"
+reproduce = "dsfb-chem-edge atlas"
+reproduce_kind = "cli_subcommand"
+
+# ── authority: soft-sensor dataset corpus ───────────────────────────────────────────────────────────────
+[[claim]]
+id = "AUTH-CORPUS-01"
+category = "authority_corpus"
+statement = "The 20-dataset soft-sensor corpus seals to a frozen corpus_hash_v1 with provenance tiers."
+tier = "SealedFact"
+governing_artifact = "corpus_hash_v1"
+artifact_kind = "frozen_hash"
+reproduce = "dsfb-chem-edge corpus"
+reproduce_kind = "cli_subcommand"
+
+# ── datasets / provenance ───────────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "DATA-PROV-01"
+category = "datasets_provenance"
+statement = "20 datasets carry provenance tiers (measured / simulation / agreement-gated) in MANIFEST.toml."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/data/MANIFEST.toml"
+artifact_kind = "manifest"
+reproduce = "dsfb-chem-edge corpus"
+reproduce_kind = "cli_subcommand"
+
+# ── physics / balance witnesses ─────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "PHYS-BAL-01"
+category = "physics_balance_witness"
+statement = "Mass/energy balance-closure witnesses are byte-reproducible against committed canonical digests."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/data/instrumented/EXPECTED_DIGESTS.toml"
+artifact_kind = "manifest"
+reproduce = "dsfb-chem-edge balance-witness three_tank_instrumented"
+reproduce_kind = "cli_subcommand"
+
+# ── unit / dimension consistency ────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "UNIT-01"
+category = "unit_consistency"
+statement = "Every documented balance is unit/dimension consistent (deg-C<->K, bar<->Pa, mass<->mole fraction)."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/unit_consistency.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge unit-consistency"
+reproduce_kind = "cli_subcommand"
+
+# ── historian layer ─────────────────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "HIST-01"
+category = "historian_layer"
+statement = "A real historian CSV is graded Ready / ReadyWithCaveats / NotReady before analysis."
+tier = "EvidenceInterpretation"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/data_readiness.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge data-readiness <historian.csv>"
+reproduce_kind = "cli_subcommand"
+non_claim_boundary = "an advisory readiness grade, not a certification of data quality"
+
+# ── confidential-evaluation chain ───────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "CONF-01"
+category = "confidential_eval_chain"
+statement = "The operator runs the court locally and shares only a redacted, hash-linked bundle; raw data never leaves."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/confidential_demo.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge confidential-demo"
+reproduce_kind = "cli_subcommand"
+
+[[claim]]
+id = "CONF-02"
+category = "confidential_eval_chain"
+statement = "A weak heuristic that fails its evidence burden emits 'unknown', never a fabricated label."
+tier = "EvidenceInterpretation"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/narrative.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge casefile tennessee_eastman_idv01"
+reproduce_kind = "cli_subcommand"
+
+# ── completeness court ──────────────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "COMP-01"
+category = "completeness_court"
+statement = "The committed artifact graph is complete + mutually consistent (manifest <-> digests <-> reports)."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/completeness.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge completeness-court"
+reproduce_kind = "cli_subcommand"
+
+# ── release hygiene ─────────────────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "REL-01"
+category = "release_hygiene"
+statement = "The tracked release surface carries no placeholder DOI or private-backup leak."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/release_scrub.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge release-scrub"
+reproduce_kind = "cli_subcommand"
+
+[[claim]]
+id = "REL-02"
+category = "release_hygiene"
+statement = "A staged release archive is scrubbed for smuggled session backups + missing hygiene config before upload."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/release_scrub.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge release-scrub --archive-dir <staged_archive_dir>"
+reproduce_kind = "cli_subcommand"
+
+# ── formal proofs ───────────────────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "FORMAL-01"
+category = "formal_proofs"
+statement = "Grammar totality, interior/beyond separations, quorum soundness + episode-compression monotonicity are machine-checked (Kani bounded; Lean 4 + Coq unbounded)."
+tier = "EvidenceInterpretation"
+governing_artifact = "formal/coq/DsfbGrammar.v"
+artifact_kind = "file"
+reproduce = "cd formal/coq && coqc DsfbGrammar.v"
+reproduce_kind = "external"
+non_claim_boundary = "replay determinism remains empirical (the verify-replay gate), not yet machine-proven"
+
+# ── figures / paper ─────────────────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "FIG-01"
+category = "figures_paper"
+statement = "No paper/figure gallery is bundled in this crate snapshot; the zero-figure manifest records that absence."
+tier = "NonClaim"
+governing_artifact = "paper/figures/figure_manifest.json"
+artifact_kind = "figure_manifest"
+reproduce = "dsfb-chem-edge figures"
+reproduce_kind = "cli_subcommand"
+non_claim_boundary = "figure generation is a local optional artifact path until the rendered figure set is committed"
+
+# ── embedded / WASM ─────────────────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "EMB-01"
+category = "embedded_wasm"
+statement = "The no_std fixed-point core builds for thumbv7m + wasm32 and runs on an emulated Cortex-M3 (~168 B/channel, no heap)."
+tier = "SealedFact"
+governing_artifact = "docs/embedded_memory_budget.md"
+artifact_kind = "file"
+reproduce = "cd crates/dsfb-chemical-engineering-core/qemu-smoke && cargo run --release"
+reproduce_kind = "external"
+
+[[claim]]
+id = "WASM-01"
+category = "embedded_wasm"
+statement = "The WASM 'what-if' court simulator replays a residual stream under an operator-amended envelope over immutable evidence."
+tier = "EvidenceInterpretation"
+governing_artifact = "crates/dsfb-chemical-engineering-wasm/src/lib.rs"
+artifact_kind = "file"
+reproduce = "cd crates/dsfb-chemical-engineering-wasm && cargo test"
+reproduce_kind = "external"
+non_claim_boundary = "a HAZOP/training what-if tool; sandboxed; not a controller/SIS; not bit-identical to the edge float pipeline"
+
+# ── regime-conditioned envelopes ────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "REGIME-01"
+category = "regime_envelope"
+statement = "Regime-conditioned admissibility envelopes are evaluated against the global envelope on the synthetic suite."
+tier = "SpeculativeImplication"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/regime_envelope.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge regime-eval"
+reproduce_kind = "cli_subcommand"
+non_claim_boundary = "a bounded, newly-demonstrated effect on the synthetic suite; not a general accuracy-superiority claim"
+
+# ── casefile / court record ─────────────────────────────────────────────────────────────────────────────
+[[claim]]
+id = "CASE-01"
+category = "casefile_court"
+statement = "Each dataset emits a sealed Chemical Court Record (bundle_root + evidence_root) with an operator report."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/court_record.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge casefile tennessee_eastman_idv01"
+reproduce_kind = "cli_subcommand"
+
+[[claim]]
+id = "CASE-02"
+category = "casefile_court"
+statement = "Each Court Record emits a deterministic narration context (context_root): the citable evidence-anchor vocabulary (one per fused episode, with its claim tier) + the binding contract; a sentence citing an anchor passes NoNarrativeHallucinationGateV1, an unanchored one is rejected."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/narration_context.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge narration-context tennessee_eastman_idv01"
+reproduce_kind = "cli_subcommand"
+
+[[claim]]
+id = "CASE-03"
+category = "casefile_court"
+statement = "The narration context's binding contract is mechanically enforceable: the H7-H12 narration-failure heuristic bank + deterministic detector flag claim-tier breach, unanchored sentences, forbidden-claim phrasing, unknown-relabeling, cross-episode inference, and anchor-coverage drift; a feature-gated synthetic demonstrator trips each exactly while a faithful template narrative trips none (own seal narration_heuristics_hash_v1, off the replay path)."
+tier = "SealedFact"
+governing_artifact = "crates/dsfb-chemical-engineering-edge/src/narration_heuristics.rs"
+artifact_kind = "file"
+reproduce = "dsfb-chem-edge narration-heuristic-demo"
+reproduce_kind = "cli_subcommand"

@@ -1,0 +1,19 @@
+[package]
+name = "dsfb-densor-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "A thin, deterministic execution-substrate skeleton for DSFB densor pipelines: load manifest -> validate authority hashes -> execute stages -> seal evidence -> emit receipts. Carries no domain or cross-domain claims."
+readme = "README.md"
+keywords = ["dsfb", "deterministic", "pipeline", "runtime", "evidence"]
+categories = ["science", "data-structures"]
+
+[dependencies]
+sha2 = "0.10"
+serde = { workspace = true, features = ["derive", "std"] }
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -1,0 +1,43 @@
+{
+  "dataset": "synthetic_tank_historian",
+  "kind": "synthetic",
+  "description": "Fully-synthetic level-controlled tank historian (NOT real plant data). Exercises the full long-format schema and a mass_tank_volume balance; a sensor-spoof in the fault region freezes LIT while the meters show net outflow, breaking the closure.",
+  "variables": [
+    {
+      "name": "LIT",
+      "role": "measured",
+      "unit": "mm",
+      "quantity": "level"
+    },
+    {
+      "name": "FIT_IN",
+      "role": "measured",
+      "unit": "m3/h",
+      "quantity": "inflow"
+    },
+    {
+      "name": "FIT_OUT",
+      "role": "measured",
+      "unit": "m3/h",
+      "quantity": "outflow"
+    }
+  ],
+  "balance": {
+    "type": "mass_tank_volume",
+    "area_m2": 1.0,
+    "dt": 1.0,
+    "level": "LIT",
+    "inflows": [
+      "FIT_IN"
+    ],
+    "outflows": [
+      "FIT_OUT"
+    ],
+    "flow_to_vol_per_dt": 1.0,
+    "definition": "residual = dLIT - (FIT_IN - FIT_OUT); ~0 under normal control, jumps to the net-outflow magnitude when the spoofed LIT contradicts the metered flow."
+  },
+  "fault": {
+    "onset_index_timestamps": 40,
+    "mode": "LIT sensor spoof (frozen level) while meters show net outflow"
+  }
+}

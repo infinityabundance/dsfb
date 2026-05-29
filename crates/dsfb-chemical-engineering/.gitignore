@@ -1,0 +1,75 @@
+# ── Reference material & local session backups (read-only/scratch; never tracked) ──
+research/
+SESSION_CONTEXT.md
+SESSION_FULL_CONTEXT_*.md
+
+# ── Generated deposit-time provenance snapshot (build_public_archive.sh) ──────────
+# A tree-fingerprint cannot live inside the tree it hashes without invalidating itself, so the
+# generated public-archive proof is a deposit-time artifact, regenerated at deposit, not committed.
+reports/public_archive_proof.md
+
+# ── Python bytecode ───────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+
+# ── Regenerable witness traces (produced by `balance-witness`) ────────────────
+*.witness.csv
+
+# ── Raw dataset download cache (slices under data/slices/ ARE tracked) ────────
+**/data/_raw/
+
+# ── Real BATADAL benchmark data (fetched by prep_batadal.py, NOT redistributed) ─
+**/data/instrumented/raw/
+**/data/instrumented/batadal_*_instrumented.csv
+
+# ── Real SWaT testbed data (iTrust usage agreement, NOT redistributed) ──────────
+**/data/instrumented/swat_*_instrumented.csv
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+/target
+**/target/
+Cargo.lock
+output-dsfb-chemical-engineering*/
+**/*.rs.bk
+
+# ── LaTeX aux ─────────────────────────────────────────────────────────────────
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out
+paper/*.toc
+paper/*.synctex.gz
+paper/*.fdb_latexmk
+paper/*.fls
+
+# ── Nsight large binary captures (raw text summaries ARE tracked) ─────────────
+*.nsys-rep
+*.ncu-rep
+*.sqlite
+.ncu_preflight
+
+# ── Notebook execution scratch ────────────────────────────────────────────────
+.ipynb_checkpoints/
+notebooks/*.html
+
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+*.swp
+*.qdstrm
+*.qdrep
+
+# Notebook artifact bundles (scratch)
+dsfb_chemical_engineering_artifacts_*/
+dsfb_chemical_engineering_artifacts_*.zip
+
+# ── Soft-sensor corpus: local provenance seals + any dataset copies (NOT redistributed) ──
+**/dsfb-chemical-engineering-corpus/data/
+
+# ── Formal-proof build outputs (the .lean / .v sources ARE tracked; compiled artifacts are not) ──
+formal/lean/.lake/
+formal/coq/*.vo
+formal/coq/*.vos
+formal/coq/*.vok
+formal/coq/*.glob
+formal/coq/.*.aux

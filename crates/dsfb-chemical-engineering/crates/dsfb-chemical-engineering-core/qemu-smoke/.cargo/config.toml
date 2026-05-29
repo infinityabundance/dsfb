@@ -1,0 +1,11 @@
+# Build for the Cortex-M3 target and run under QEMU with semihosting (so `hprintln!` reaches the host stdout
+# and `debug::exit` terminates the emulator). Run with: `cargo run --release` from this directory.
+[build]
+target = "thumbv7m-none-eabi"
+# Keep build artifacts in the shared root `target/` (under a per-crate subdir) rather than a `target/`
+# nested inside this standalone-workspace crate (which would otherwise clutter the crate folder).
+target-dir = "../../../target/qemu-smoke"
+
+[target.thumbv7m-none-eabi]
+rustflags = ["-C", "link-arg=-Tlink.x"]
+runner = "qemu-system-arm -cpu cortex-m3 -machine lm3s6965evb -nographic -semihosting-config enable=on,target=native -kernel"

@@ -1,0 +1,6 @@
+Nsight Compute (ncu) counters were available and captured normally on this host.
+Per-variant medians (occupancy, SM- and DRAM-throughput, L2 sector-hit) are distilled
+into reports/NSIGHT_SUMMARY.md and reports/nsight_summary.json by summarize_nsight.py.
+If another host reports ERR_NVGPUCTRPERM (admin-restricted counters), enable them once
+(root): set NVreg_RestrictProfilingToAdminUsers=0, regenerate the initramfs (e.g.
+mkinitcpio -P on Arch/CachyOS), and reboot; or run 'sudo ncu ...'.

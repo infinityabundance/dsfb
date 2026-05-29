@@ -1,0 +1,392 @@
+{
+  "format": "dsfb_chemical_engineering_artifact_index_v1",
+  "format_version": 1,
+  "crate_version": "0.1.0",
+  "paper": {
+    "pdf_path": "paper/dsfb_chemical_engineering.pdf",
+    "pdf_sha256": "not bundled in this crate snapshot",
+    "n_figures": 0
+  },
+  "crates": [
+    {
+      "name": "dsfb-chemical-engineering-edge",
+      "role": "CPU execution over process residuals"
+    },
+    {
+      "name": "dsfb-chemical-engineering-cuda",
+      "role": "GPU evidence factory + forensic court"
+    },
+    {
+      "name": "dsfb-chemical-engineering-atlas",
+      "role": "detector / heuristic / fault-signature authority (no_std)"
+    },
+    {
+      "name": "dsfb-chemical-engineering-corpus",
+      "role": "soft-sensor dataset authority catalogue (no_std)"
+    },
+    {
+      "name": "dsfb-chemical-engineering-core",
+      "role": "no_std fixed-point embedded grammar"
+    },
+    {
+      "name": "dsfb-chemical-engineering-py",
+      "role": "standalone Python binding surface"
+    },
+    {
+      "name": "dsfb-chemical-engineering-wasm",
+      "role": "standalone browser Chemical Court simulator"
+    },
+    {
+      "name": "dsfb-densor-runtime",
+      "role": "deterministic execution-substrate skeleton (no chemical/cross-domain claims)"
+    }
+  ],
+  "bundles": [
+    {
+      "dataset": "air_quality_multisensor",
+      "kind": "measured/slice",
+      "bundle_root": "bd3131fc5f769bdb1f2b12e6cdf6e36a24495922fb9bc1a0304aeb5960df207d",
+      "evidence_root": "99414e23f450cee7fb2cdb92631c28935a6c20b3b4215e89e6d6ad32b4a9bd86"
+    },
+    {
+      "dataset": "bsm1_wastewater",
+      "kind": "simulation/slice",
+      "bundle_root": "cbef2e8e9ce48dad950ca05845c3b5136b3a6742bc61ea9c05a7da18f545a801",
+      "evidence_root": "af201c327ead260b91906e4f103dc20a8ec805ace9ac6132a4300f8198529625"
+    },
+    {
+      "dataset": "corn_nir_m5",
+      "kind": "measured/slice",
+      "bundle_root": "3a679a47cee228ecc060c5d8c5edb68e31a43d111984fd9bb0aeaf1935f96919",
+      "evidence_root": "eccac2b885f89e7b456efb1542091f2f5a623ea66961bb0f8fc7b87b66b62e8b"
+    },
+    {
+      "dataset": "corn_nir_mp5",
+      "kind": "measured/slice",
+      "bundle_root": "2291a3b2fcc0e81304bab71b64fa0d97de7dcd1d12fda4e9dd256f405dc87dac",
+      "evidence_root": "1f47df30d6cc5c702b68d69c365652737e02e23fb81e45b0c8306934c9dcfe6d"
+    },
+    {
+      "dataset": "corn_nir_mp6",
+      "kind": "measured/slice",
+      "bundle_root": "33f99b372f68250bd368b8eb11bcc34478bddf1021e5349d8475cce1b6a63649",
+      "evidence_root": "7467db12ec1137c8ce14faad7d23e1f2921d8a6a7611ca0b259f9a484e41c791"
+    },
+    {
+      "dataset": "cstr_reactor",
+      "kind": "simulation/slice",
+      "bundle_root": "6ca65b58caa6a74783d5118afd3d269ce3427dc06b2464ebe1e14d88b2415529",
+      "evidence_root": "f4349535b85c8136be347699fab5f8b18b285fc1ad2efb28da6d9a079274e5f4"
+    },
+    {
+      "dataset": "gas_sensor_array_drift",
+      "kind": "measured/slice",
+      "bundle_root": "26daceda7b95ea9c0a5d065a2a3240e84cfff47d5580cadc26dcceedb22de584",
+      "evidence_root": "79feabfc2541bedd8bfa8507900a1e3a4ce99eed8c5f6d2dc78a44ac9370e11b"
+    },
+    {
+      "dataset": "penicillin_fedbatch",
+      "kind": "simulation/slice",
+      "bundle_root": "71b2f0b79a9d9166d0aeef167c9b539854b5827ee40ee57c05dcaafd7661e01a",
+      "evidence_root": "d0f93abeb3ca7f685f611853d23a3bf4c2da3f8e6f87bd95243e1f057bc34f01"
+    },
+    {
+      "dataset": "secom_semiconductor",
+      "kind": "measured/slice",
+      "bundle_root": "916e3e36891d8805f1da7b189c1abc01c3836120d68ca050745d6be9d9dcc64e",
+      "evidence_root": "3f949922f12aa4c9701733b2d14cb1ed2d5dcae4011245f4fe50dc02999958be"
+    },
+    {
+      "dataset": "steel_plates_faults",
+      "kind": "measured/slice",
+      "bundle_root": "11c0e5108b328efa5595159b59df3d2570be23c758f8045bf5911fedca60ef59",
+      "evidence_root": "5642235b6a6014a3565ff2deb52cca6b67784e7b897203c3329ad4270498d783"
+    },
+    {
+      "dataset": "swat_water_treatment_standin",
+      "kind": "gated-standin",
+      "bundle_root": "6ae2db1d4aac46c7acef4200b71943b4e1ccee864c1ddb79136351d74c3a0be1",
+      "evidence_root": "cbed7818f6f46bcd417b52b015a237ea4e1f6f91771b999f8b384bdc26bba6ea"
+    },
+    {
+      "dataset": "tecator_nir_meat",
+      "kind": "measured/slice",
+      "bundle_root": "2951c747c8070aac26ff8494fece979a657dbada0db54b02373763a8b1d5d49b",
+      "evidence_root": "0d6affe7085aa45dd55fe4f428f26d22b0bba4be6a430e98314ecd04dbe76840"
+    },
+    {
+      "dataset": "tennessee_eastman_idv01",
+      "kind": "simulation/slice",
+      "bundle_root": "bb8e89bebead29789a56d6ce53061fdbd2e9df04324d691152f1dfc0b855f2ea",
+      "evidence_root": "293258b9e0cd5440835492390d211dced3ca864ed28f5e3f56c88eb94400164d"
+    },
+    {
+      "dataset": "tennessee_eastman_idv04",
+      "kind": "simulation/slice",
+      "bundle_root": "b9caa18d636ced47a84e4f31a201d2c6f38e55fe7d98e72e9b2c991fa07f0292",
+      "evidence_root": "ea4b25ed1016ca22870801aded3ae14845979b9572f83de5aa18810eaf859e02"
+    },
+    {
+      "dataset": "tennessee_eastman_idv06",
+      "kind": "simulation/slice",
+      "bundle_root": "76785362bd8a07d821c41451fd78fdc6730d9141c02e3e0748ef70fc55b841e2",
+      "evidence_root": "c0ca9de4a581e646db5691b7a0682bdaefb13bfd9f840b7bbd8bbcdc65f1644a"
+    },
+    {
+      "dataset": "tennessee_eastman_idv13",
+      "kind": "simulation/slice",
+      "bundle_root": "7ba02bf872481bcf60b0ba11fb6b5cfeb3a7fb64139db73ae5df48857b1b3149",
+      "evidence_root": "8a4e859858916fb7cbf3a91755cb57b4bbee9ce78daf259b51ecfc397d93d9b8"
+    },
+    {
+      "dataset": "tennessee_eastman_idv14",
+      "kind": "simulation/slice",
+      "bundle_root": "42ce487ff8c4435461e173321ce44ddbcc22260346872e0eb25f8d056dbbc6a3",
+      "evidence_root": "608ef5bc2deadcc939b62a96656082fffa66f2a2ea5718074ce9931e0fc5a98a"
+    },
+    {
+      "dataset": "three_tank",
+      "kind": "simulation/slice",
+      "bundle_root": "ff008b0638ce125f09d0e8d1e8c8efe5e975fc5abcf1ffd5dc3d49edfc1e718a",
+      "evidence_root": "6ecd2ff1de24d52ef7f2adc56f476544ef4edfe7715dcfdd547ecce3ee12ea33"
+    },
+    {
+      "dataset": "wine_quality_red",
+      "kind": "measured/slice",
+      "bundle_root": "11bb78f689fdab1e12ccd19f2e2bb1ee3a16fcc6884a2a2c216ba9192d84c4e3",
+      "evidence_root": "c45b132193fb31ecb02f9f166a25c5a75d658347ac605ea92372203fe6422b33"
+    },
+    {
+      "dataset": "wine_quality_white",
+      "kind": "measured/slice",
+      "bundle_root": "6530134ea8420e2914a1516ca162b2fcae01a7eb6f6204b110147adf2e2443c8",
+      "evidence_root": "29cf345b56eaf650f5c283e90b41d22562c6589f21a1bd3cdb9cfd9948c56d0c"
+    }
+  ],
+  "figures": [],
+  "datasets": [
+    {
+      "name": "air_quality_multisensor",
+      "kind": "measured",
+      "status": "real-slice"
+    },
+    {
+      "name": "bsm1_wastewater",
+      "kind": "simulation",
+      "status": "simulation"
+    },
+    {
+      "name": "corn_nir_m5",
+      "kind": "measured",
+      "status": "real-slice"
+    },
+    {
+      "name": "corn_nir_mp5",
+      "kind": "measured",
+      "status": "real-slice"
+    },
+    {
+      "name": "corn_nir_mp6",
+      "kind": "measured",
+      "status": "real-slice"
+    },
+    {
+      "name": "cstr_reactor",
+      "kind": "simulation",
+      "status": "simulation"
+    },
+    {
+      "name": "gas_sensor_array_drift",
+      "kind": "measured",
+      "status": "real-slice"
+    },
+    {
+      "name": "penicillin_fedbatch",
+      "kind": "simulation",
+      "status": "simulation"
+    },
+    {
+      "name": "secom_semiconductor",
+      "kind": "measured",
+      "status": "real-slice"
+    },
+    {
+      "name": "steel_plates_faults",
+      "kind": "measured",
+      "status": "real-slice"
+    },
+    {
+      "name": "swat_water_treatment_standin",
+      "kind": "agreement-gated",
+      "status": "gated-standin"
+    },
+    {
+      "name": "tecator_nir_meat",
+      "kind": "measured",
+      "status": "real-slice"
+    },
+    {
+      "name": "tennessee_eastman_idv01",
+      "kind": "simulation",
+      "status": "real-slice"
+    },
+    {
+      "name": "tennessee_eastman_idv04",
+      "kind": "simulation",
+      "status": "real-slice"
+    },
+    {
+      "name": "tennessee_eastman_idv06",
+      "kind": "simulation",
+      "status": "real-slice"
+    },
+    {
+      "name": "tennessee_eastman_idv13",
+      "kind": "simulation",
+      "status": "real-slice"
+    },
+    {
+      "name": "tennessee_eastman_idv14",
+      "kind": "simulation",
+      "status": "real-slice"
+    },
+    {
+      "name": "three_tank",
+      "kind": "simulation",
+      "status": "simulation"
+    },
+    {
+      "name": "wine_quality_red",
+      "kind": "measured",
+      "status": "real-slice"
+    },
+    {
+      "name": "wine_quality_white",
+      "kind": "measured",
+      "status": "real-slice"
+    }
+  ],
+  "courts": [
+    {
+      "name": "ArtifactCompletenessCourtV1",
+      "verdict": "COMPLETE (7/0)",
+      "report_hash": "fc43640e2ab5fb6706904b71e4c7e17aae42dc035bea94c1fc557e2d6e4aa557"
+    },
+    {
+      "name": "PublicReleaseScrubCourtV1",
+      "verdict": "RELEASE-CLEAN (5/0)",
+      "report_hash": "fcb6caa3ae9e5c19e8d90b5ce239586be71c1f23661c45f220bca7a46c0a09b0"
+    }
+  ],
+  "controlled_access_policy": {
+    "may_ship_raw": false,
+    "may_ship_processed_rows": false,
+    "may_ship_attack_list": false,
+    "may_ship_reconstructable_windows": false,
+    "may_ship_aggregate_metrics": true,
+    "may_ship_scripts": true
+  },
+  "docs": [
+    {
+      "path": "docs/balance_witness_criterion.md",
+      "title": "The balance-witness applicability criterion"
+    },
+    {
+      "path": "docs/catalogue_expansion_targets.md",
+      "title": "Catalogue-expansion targets — disclosed (catalogued, NOT executed) prior-art surface"
+    },
+    {
+      "path": "docs/chemical_engineering_practitioner_dossier.md",
+      "title": "Chemical-engineering practitioner dossier — what DSFB is (and isn't) for a working engineer"
+    },
+    {
+      "path": "docs/constrained_narration_extension.md",
+      "title": "Constrained-narration extension contract"
+    },
+    {
+      "path": "docs/cuda_evidence_kernel_v2_design.md",
+      "title": "CUDA evidence-kernel V2 — design, grounded in measured Nsight counters"
+    },
+    {
+      "path": "docs/edge_core_profile.md",
+      "title": "EdgeCoreProfileV1 — a `no_std`, no-heap, fixed-point profile of the DSFB core (design)"
+    },
+    {
+      "path": "docs/embedded_memory_budget.md",
+      "title": "Embedded memory budget — `dsfb-chemical-engineering-core` (P85)"
+    },
+    {
+      "path": "docs/forensic_incident_walkthrough.md",
+      "title": "Forensic incident walkthrough (fictional, synthetic) — read in 3 minutes"
+    },
+    {
+      "path": "docs/fusion_theorems.md",
+      "title": "The DSFB Detector-Fusion Theorem, in Full"
+    },
+    {
+      "path": "docs/gpu_realistic_lane_timing.md",
+      "title": "Realistic-lane + end-to-end GPU timing — capture procedure + measured result (B6)"
+    },
+    {
+      "path": "docs/head_to_head_tep_idv1.md",
+      "title": "Head-to-head worked example — Tennessee Eastman IDV(1)"
+    },
+    {
+      "path": "docs/legendary_panel_review.md",
+      "title": "Elite multi-disciplinary panel review — DSFB-Chemical-Engineering"
+    },
+    {
+      "path": "docs/molecular_corpus_companion.md",
+      "title": "Molecular-corpus companion — `dsfb-chemical-engineering-molecular-corpus` (design note)"
+    },
+    {
+      "path": "docs/narration_heuristics_h7_h12.md",
+      "title": "Narration-failure heuristics H7–H12 (narrator-generator extension)"
+    },
+    {
+      "path": "docs/noise_floor_preservation.md",
+      "title": "Noise-floor preservation: preserved evidence, not detection"
+    },
+    {
+      "path": "docs/phase_i_workplan_30_60_90.md",
+      "title": "SBIR Phase-I 30/60/90-day workplan — DSFB-Chemical-Engineering"
+    },
+    {
+      "path": "docs/public_archive_proof.md",
+      "title": "Public-archive provenance proof (commit → archive → deposit)"
+    },
+    {
+      "path": "docs/real_data_dropin.md",
+      "title": "Real-data drop-in — run DSFB on your own historian export"
+    },
+    {
+      "path": "docs/regime_conditioning_applicability.md",
+      "title": "When does regime-conditioning help? — an applicability framework"
+    },
+    {
+      "path": "docs/release_checklist.md",
+      "title": "Release / deposit checklist — DSFB-Chemical-Engineering"
+    },
+    {
+      "path": "docs/sbir_operator_data_request.md",
+      "title": "Operator data request — what DSFB needs to evaluate on your plant"
+    },
+    {
+      "path": "docs/sbir_phase_i_eval_card.md",
+      "title": "SBIR Phase-I evaluation card — DSFB-Chemical-Engineering"
+    },
+    {
+      "path": "docs/sbir_phase_i_one_page_eval.md",
+      "title": "DSFB-Chemical-Engineering — Phase-I one-page evaluation"
+    },
+    {
+      "path": "docs/sbir_risk_register.md",
+      "title": "SBIR risk register — DSFB-Chemical-Engineering (honest)"
+    },
+    {
+      "path": "docs/wave7_research_roadmap.md",
+      "title": "Wave-7 research roadmap — catalogued / handoff (not executed in-repo)"
+    }
+  ],
+  "index_root": "64bc7b35c21673f9e9a5015fc4e950683635eb3d74d6dc0a419878177176be2d"
+}

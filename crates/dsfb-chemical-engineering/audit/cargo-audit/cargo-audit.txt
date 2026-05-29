@@ -1,0 +1,3 @@
+      Loaded 1098 security advisories (from /home/one/.cargo/advisory-db)
+    Updating crates.io index
+    Scanning Cargo.lock for vulnerabilities (42 crate dependencies)

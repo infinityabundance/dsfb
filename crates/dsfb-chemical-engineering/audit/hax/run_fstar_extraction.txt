@@ -1,0 +1,7 @@
+### hax extraction of the no_std core grammar to F* (real, 2026-05-27T20:09Z)
+$ cd crates/dsfb-chemical-engineering-core; cargo hax into fstar
+  hax: wrote proofs/fstar/extraction/Dsfb_chemical_engineering_core.fst (716 lines)
+  hax-engine 0.3.7 (OCaml); cargo-hax untagged-git-rev-d8b5b3d3b6
+Extracted: t_FixedTriple, t_CoordClass {Interior,Grazing,Outside}, t_FixedEnvelope,
+t_GrammarState, v_SCALE, classify_axis, and the envelope/classify logic -- a generated F* model
+of the actual Rust source (closes the hand-port gap vs formal/coq/DsfbGrammar.v).

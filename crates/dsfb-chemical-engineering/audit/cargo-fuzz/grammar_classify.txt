@@ -1,0 +1,26 @@
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 1318960573
+INFO: Loaded 1 modules   (370 inline 8-bit counters): 370 [0x558d37cf17d0, 0x558d37cf1942), 
+INFO: Loaded 1 PC tables (370 PCs): 370 [0x558d37cf1948,0x558d37cf3068), 
+INFO:        0 files found in /home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-edge/fuzz/corpus/grammar_classify
+INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 4096 bytes
+INFO: A corpus is not provided, starting from an empty corpus
+#2	INITED cov: 26 ft: 27 corp: 1/1b exec/s: 0 rss: 34Mb
+#445	NEW    cov: 29 ft: 30 corp: 2/9b lim: 8 exec/s: 0 rss: 34Mb L: 8/8 MS: 3 ChangeBit-ShuffleBytes-InsertRepeatedBytes-
+#1405	NEW    cov: 32 ft: 33 corp: 3/26b lim: 17 exec/s: 0 rss: 34Mb L: 17/17 MS: 5 EraseBytes-CrossOver-InsertByte-ChangeBinInt-InsertRepeatedBytes-
+#1576	REDUCE cov: 32 ft: 33 corp: 3/25b lim: 17 exec/s: 0 rss: 34Mb L: 16/16 MS: 1 EraseBytes-
+#2500	REDUCE cov: 35 ft: 36 corp: 4/49b lim: 25 exec/s: 0 rss: 35Mb L: 24/24 MS: 4 ChangeByte-ShuffleBytes-CopyPart-InsertByte-
+#3314	NEW    cov: 39 ft: 40 corp: 5/81b lim: 33 exec/s: 0 rss: 35Mb L: 32/32 MS: 4 ShuffleBytes-ShuffleBytes-InsertByte-InsertRepeatedBytes-
+#3340	NEW    cov: 40 ft: 41 corp: 6/114b lim: 33 exec/s: 0 rss: 35Mb L: 33/33 MS: 1 CopyPart-
+#3441	REDUCE cov: 41 ft: 42 corp: 7/146b lim: 33 exec/s: 0 rss: 36Mb L: 32/33 MS: 1 InsertRepeatedBytes-
+#3943	NEW    cov: 42 ft: 43 corp: 8/179b lim: 33 exec/s: 0 rss: 36Mb L: 33/33 MS: 2 EraseBytes-InsertRepeatedBytes-
+#4960	REDUCE cov: 43 ft: 44 corp: 9/222b lim: 43 exec/s: 0 rss: 36Mb L: 43/43 MS: 2 ChangeBinInt-InsertRepeatedBytes-
+#5447	REDUCE cov: 43 ft: 44 corp: 9/219b lim: 43 exec/s: 0 rss: 36Mb L: 40/40 MS: 2 CrossOver-EraseBytes-
+#9007	REDUCE cov: 43 ft: 44 corp: 9/218b lim: 74 exec/s: 0 rss: 37Mb L: 32/40 MS: 5 CMP-InsertByte-ChangeBinInt-EraseBytes-EraseBytes- DE: "\000\000"-
+#4194304	pulse  cov: 43 ft: 44 corp: 9/218b lim: 4096 exec/s: 2097152 rss: 456Mb
+#8388608	pulse  cov: 43 ft: 44 corp: 9/218b lim: 4096 exec/s: 1677721 rss: 498Mb
+#16777216	pulse  cov: 43 ft: 44 corp: 9/218b lim: 4096 exec/s: 1525201 rss: 499Mb
+#33554432	pulse  cov: 43 ft: 44 corp: 9/218b lim: 4096 exec/s: 1525201 rss: 499Mb
+#67108864	pulse  cov: 43 ft: 44 corp: 9/218b lim: 4096 exec/s: 1525201 rss: 500Mb
+#91954977	DONE   cov: 43 ft: 44 corp: 9/218b lim: 4096 exec/s: 1507458 rss: 500Mb
+Done 91954977 runs in 61 second(s)

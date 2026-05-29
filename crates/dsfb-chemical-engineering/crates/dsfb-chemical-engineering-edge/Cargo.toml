@@ -1,0 +1,62 @@
+[package]
+name = "dsfb-chemical-engineering-edge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-chemical-engineering"
+description = """
+DSFB deterministic, read-only residual-semiotics layer for chemical-engineering and chemometric
+process monitoring (CPU / edge). Ingests residuals from established chemometrics detectors
+(PCA, PLS, EWMA, CUSUM, Hotelling T2, distribution distances, spectral and process-structure
+detectors), applies Drift-Slew Fusion Bootstrap (drift, slew, admissibility envelopes, detector
+consensus, chemical heuristics bank), and emits auditable structural episodes with deterministic
+replay. No GPU required. Unsafe code is forbidden.
+"""
+keywords = ["dsfb", "chemometrics", "process-monitoring", "fault-detection", "deterministic"]
+categories = ["science", "command-line-utilities", "simulation"]
+readme = "README.md"
+# Published package is code-only: the dataset slices/metadata (data/), the Nsight/figure reports, the
+# cargo-fuzz sub-crate, and the figure-generation scripts are repository artifacts, not needed to build
+# or use the library. The build-time corpus (corpus/chemometric_atlas.toml, pulled in via include_str!)
+# is NOT excluded.
+exclude = ["data/", "reports/", "fuzz/", "scripts/"]
+
+[lib]
+name = "dsfb_chemical_engineering_edge"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dsfb-chem-edge"
+path = "src/main.rs"
+
+[features]
+default = []
+# Opt-in soft-sensor data-corpus authority. Off by default so the process-monitoring pipeline, its
+# sealed replay hashes, and the demo are entirely unaffected.
+soft-sensor-corpus = ["dep:dsfb-chemical-engineering-corpus"]
+# Opt-in demonstration that an edge episode summary can be carried through the domain-agnostic
+# dsfb-densor-runtime substrate (P101). Off by default → no extra dependency on a normal build, and it is
+# off the replay path, so no frozen evidence hash is affected.
+densor-runtime-demo = ["dep:dsfb-densor-runtime"]
+# Opt-in synthetic demonstrator for the H7–H12 narration-failure heuristics (panel narrator-generator extension):
+# runs the detector over deliberately-malformed narratives. Off by default → no effect on a normal build; off the
+# replay path, so no frozen evidence hash is affected (the H7–H12 bank + detector are always compiled).
+narration-heuristic-demo = []
+
+[dependencies]
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json.workspace = true
+csv.workspace = true
+toml.workspace = true
+sha2 = "0.10"
+dsfb-chemical-engineering-atlas = { path = "../dsfb-chemical-engineering-atlas", version = "0.1.0", features = ["std", "serde"] }
+dsfb-chemical-engineering-corpus = { path = "../dsfb-chemical-engineering-corpus", version = "0.1.0", features = ["std", "serde"], optional = true }
+dsfb-densor-runtime = { path = "../dsfb-densor-runtime", version = "0.1.0", optional = true }
+
+[dev-dependencies]
+approx = "0.5"
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }

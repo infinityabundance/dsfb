@@ -1,0 +1,7 @@
+# Pin the Rust toolchain so the frozen hashes (atlas_hash_v1, corpus_hash_v1, the pipeline replay
+# hashes) and the byte-exact CPU/GPU evidence roots are reproduced exactly. These digests were minted
+# on this stable release; a different LLVM/codegen can shift a boundary-crossing floating-point result
+# and therefore a hash. Bump deliberately, re-freeze the hashes, and record it.
+[toolchain]
+channel = "1.94.1"
+components = ["rustfmt", "clippy"]

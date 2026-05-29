@@ -1,0 +1,32 @@
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3577657762
+INFO: Loaded 1 modules   (393 inline 8-bit counters): 393 [0x55efc6171630, 0x55efc61717b9), 
+INFO: Loaded 1 PC tables (393 PCs): 393 [0x55efc61717c0,0x55efc6173050), 
+INFO:        0 files found in /home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-edge/fuzz/corpus/core_fixedpoint_classify
+INFO: -max_len is not provided; libFuzzer will not generate inputs larger than 4096 bytes
+INFO: A corpus is not provided, starting from an empty corpus
+#2	INITED cov: 24 ft: 25 corp: 1/1b exec/s: 0 rss: 34Mb
+#414	NEW    cov: 27 ft: 28 corp: 2/9b lim: 8 exec/s: 0 rss: 34Mb L: 8/8 MS: 2 ShuffleBytes-InsertRepeatedBytes-
+#427	NEW    cov: 28 ft: 29 corp: 3/17b lim: 8 exec/s: 0 rss: 34Mb L: 8/8 MS: 3 ShuffleBytes-CrossOver-CopyPart-
+#1362	NEW    cov: 31 ft: 32 corp: 4/33b lim: 17 exec/s: 0 rss: 34Mb L: 16/16 MS: 5 CrossOver-InsertByte-CrossOver-InsertRepeatedBytes-InsertByte-
+#2212	NEW    cov: 35 ft: 36 corp: 5/58b lim: 25 exec/s: 0 rss: 35Mb L: 25/25 MS: 5 InsertRepeatedBytes-InsertByte-EraseBytes-ChangeByte-InsertRepeatedBytes-
+#2429	REDUCE cov: 35 ft: 36 corp: 5/57b lim: 25 exec/s: 0 rss: 35Mb L: 24/24 MS: 2 ShuffleBytes-EraseBytes-
+#3328	NEW    cov: 38 ft: 39 corp: 6/89b lim: 33 exec/s: 0 rss: 36Mb L: 32/32 MS: 4 ShuffleBytes-ChangeBinInt-ChangeBit-InsertRepeatedBytes-
+#4349	REDUCE cov: 42 ft: 43 corp: 7/131b lim: 43 exec/s: 0 rss: 36Mb L: 42/42 MS: 1 InsertRepeatedBytes-
+#4412	REDUCE cov: 42 ft: 43 corp: 7/129b lim: 43 exec/s: 0 rss: 36Mb L: 40/40 MS: 3 CrossOver-ChangeBit-EraseBytes-
+#4921	REDUCE cov: 45 ft: 46 corp: 8/177b lim: 48 exec/s: 0 rss: 36Mb L: 48/48 MS: 4 ChangeBinInt-ChangeBinInt-ChangeByte-CMP- DE: "\020\000\000\000\000\000\000\000"-
+#5964	NEW    cov: 47 ft: 48 corp: 9/234b lim: 58 exec/s: 0 rss: 36Mb L: 57/57 MS: 3 InsertByte-ChangeBinInt-CMP- DE: "2\000\000\000\000\000\000\000"-
+#5973	REDUCE cov: 47 ft: 48 corp: 9/233b lim: 58 exec/s: 0 rss: 36Mb L: 56/56 MS: 4 ChangeBit-CrossOver-CrossOver-EraseBytes-
+#7019	NEW    cov: 50 ft: 51 corp: 10/299b lim: 68 exec/s: 0 rss: 37Mb L: 66/66 MS: 1 InsertRepeatedBytes-
+#7687	NEW    cov: 53 ft: 54 corp: 11/372b lim: 74 exec/s: 0 rss: 37Mb L: 73/73 MS: 3 CrossOver-ChangeBit-InsertRepeatedBytes-
+#8330	REDUCE cov: 55 ft: 56 corp: 12/452b lim: 80 exec/s: 0 rss: 37Mb L: 80/80 MS: 3 CopyPart-InsertRepeatedBytes-InsertByte-
+#9595	REDUCE cov: 55 ft: 56 corp: 12/451b lim: 92 exec/s: 0 rss: 37Mb L: 65/80 MS: 5 ShuffleBytes-CopyPart-ChangeByte-PersAutoDict-EraseBytes- DE: "2\000\000\000\000\000\000\000"-
+#12754	REDUCE cov: 55 ft: 56 corp: 12/450b lim: 122 exec/s: 0 rss: 37Mb L: 64/80 MS: 4 CopyPart-ChangeBit-InsertByte-EraseBytes-
+#15445	REDUCE cov: 55 ft: 56 corp: 12/449b lim: 142 exec/s: 0 rss: 38Mb L: 72/80 MS: 1 EraseBytes-
+#4194304	pulse  cov: 55 ft: 56 corp: 12/449b lim: 4096 exec/s: 2097152 rss: 481Mb
+#8388608	pulse  cov: 55 ft: 56 corp: 12/449b lim: 4096 exec/s: 1677721 rss: 484Mb
+#16777216	pulse  cov: 55 ft: 56 corp: 12/449b lim: 4096 exec/s: 1525201 rss: 484Mb
+#33554432	pulse  cov: 55 ft: 56 corp: 12/449b lim: 4096 exec/s: 1458888 rss: 485Mb
+#67108864	pulse  cov: 55 ft: 56 corp: 12/449b lim: 4096 exec/s: 1427848 rss: 485Mb
+#85640660	DONE   cov: 55 ft: 56 corp: 12/449b lim: 4096 exec/s: 1403945 rss: 485Mb
+Done 85640660 runs in 61 second(s)

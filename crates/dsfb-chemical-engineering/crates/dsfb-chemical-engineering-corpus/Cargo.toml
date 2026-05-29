@@ -1,0 +1,36 @@
+[package]
+name = "dsfb-chemical-engineering-corpus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-chemical-engineering"
+description = """
+Chemical-engineering soft-sensor data CORPUS for DSFB-Chemical-Engineering: a provenance-bound,
+deduplicated, deterministic catalogue of public soft-sensor datasets (cheap sensors -> hard-to-measure
+target) on which deterministic (densorial/tekmeric) inference can be demonstrated. Mirrors the
+DSFB-GPU-Atlas canonicalisation-court pattern. No dataset bytes are vendored; every record is sourced.
+"""
+keywords = ["dsfb", "soft-sensor", "chemometrics", "process-monitoring", "deterministic"]
+categories = ["science", "no-std"]
+readme = "README.md"
+
+[lib]
+name = "dsfb_chemical_engineering_corpus"
+path = "src/lib.rs"
+
+[features]
+default = ["std", "serde", "no-network"]
+std = ["serde?/std", "sha2/std"]
+serde = ["dep:serde"]
+no-network = []
+strict-validation = []
+
+[dependencies]
+serde = { workspace = true, optional = true }
+sha2 = { version = "0.10", default-features = false }
+
+[lints.rust]
+unsafe_code = "forbid"
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }

@@ -1,0 +1,36 @@
+[package]
+name = "dsfb-chemical-engineering-atlas"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-chemical-engineering"
+description = """
+Finite, curated AUTHORITY crate for DSFB-Chemical-Engineering: the canonical chemometric detector
+records and the H1-H6 process-residual heuristic records, with deterministic validation gates and
+SHA-256 atlas hashes. This crate defines what chemometric detectors and process heuristics are
+*allowed to mean*; it performs no execution and depends on neither edge nor cuda. no_std-capable.
+"""
+keywords = ["dsfb", "chemometrics", "atlas", "authority", "deterministic"]
+categories = ["science", "no-std"]
+readme = "README.md"
+
+[lib]
+name = "dsfb_chemical_engineering_atlas"
+path = "src/lib.rs"
+
+[features]
+default = ["std"]
+std = ["serde?/std", "sha2/std"]
+serde = ["dep:serde"]
+strict-validation = []
+no-std = []
+
+[dependencies]
+serde = { workspace = true, optional = true }
+sha2 = { version = "0.10", default-features = false }
+
+[lints.rust]
+unsafe_code = "forbid"
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }

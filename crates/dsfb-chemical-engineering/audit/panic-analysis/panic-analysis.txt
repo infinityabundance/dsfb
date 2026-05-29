@@ -1,0 +1,33 @@
+# Static panic-surface analysis — DSFB-Chemical-Engineering
+
+`rust-panic-analyzer` is not a crates.io tool, so this is an honest substitute: a static count of panic-capable
+call sites per crate plus the crate panic posture. Counts are raw `grep` over `src/` (INCLUDING inline
+`#[cfg(test)]` modules — Rust keeps unit tests in-file, so test asserts/unwraps inflate the raw figure).
+
+## Panic-capable sites in `src/` (raw, incl. inline tests)
+
+| Crate | `.unwrap()` | `.expect(` | `panic!`/`unreachable!`/`todo!`/`unimplemented!` |
+|---|---|---|---|
+| edge   | 50 | 5 | 0 |
+| cuda   | 3  | 0 | 0 |
+| atlas  | 0  | 0 | 0 |
+| corpus | 0  | 0 | 0 |
+| core   | 0  | 0 | 0 |
+| wasm   | 0  | 0 | 0 |
+
+## Honest reading
+- **The `no_std` authority + embedded crates (atlas, corpus, core) and the wasm shell have ZERO panic-capable
+  sites** — no `.unwrap()`, no `.expect(`, no explicit `panic!/unreachable!/todo!`. `core` is `no_std`,
+  no-heap, `panic = "abort"`, `#![forbid(unsafe_code)]`; bad/non-finite input is classified as a `SensorFault`
+  token without a panic path.
+- **No explicit `panic!`/`unreachable!`/`todo!`/`unimplemented!` anywhere in the workspace.**
+- **`edge`** (a 23K-LOC `std` CPU tool) shows 50 `.unwrap()` + 5 `.expect(` in raw `src/`, but the large
+  majority are inside inline `#[cfg(test)]` modules (test assertions) or on compile-time-embedded constants
+  that are infallible by construction; dsfb-gray's structural scan attributes only ~6 to non-test
+  high-assurance paths (see `audit/dsfb-gray/edge/`). **`cuda`** shows 3, on the CPU-reference/host path.
+
+## Posture (what this does and does NOT establish)
+This is a static count, not a proof of panic-freedom. It establishes that the embedded/authority surfaces are
+panic-site-free and that the workspace contains no explicit `panic!`. It does NOT prove the `std` execution
+crates cannot panic on adversarial input. The complementary evidence: `#![forbid(unsafe_code)]` (4 crates),
+the Kani grammar-totality harness, and the Miri UB run (`audit/miri/`).

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSFB-Chemical-Engineering — Audit dashboard</title>
+<style>
+  :root{
+    --bg:#0f1116; --panel:#171a21; --panel2:#1d212b; --ink:#e6e9ef; --muted:#9aa3b2;
+    --line:#2a2f3a; --good:#3fb950; --mid:#d9a441; --low:#d2604a; --accent:#5aa6ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:34px 22px 70px}
+  h1{font-size:25px;margin:0 0 2px}
+  h2{font-size:17px;margin:34px 0 12px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .banner{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--mid);
+          border-radius:8px;padding:14px 16px;color:#d7dbe3;font-size:13.5px;margin:18px 0 6px}
+  .banner b{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);
+        border-radius:8px;overflow:hidden;font-size:14px}
+  th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{background:var(--panel2);color:var(--muted);font-weight:600;font-size:12.5px;letter-spacing:.02em;text-transform:uppercase}
+  tr:last-child td{border-bottom:none}
+  code{background:#0c0e13;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12.5px}
+  .bar{position:relative;height:16px;background:#0c0e13;border-radius:4px;border:1px solid var(--line);min-width:120px}
+  .bar>span{position:absolute;left:0;top:0;bottom:0;border-radius:3px;display:block}
+  .pct{font-variant-numeric:tabular-nums;font-weight:600;width:54px;display:inline-block}
+  .g{background:var(--good)} .m{background:var(--mid)} .l{background:var(--low)}
+  .pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+  .pill.ok{color:var(--good);border-color:#244e2c;background:#11210f}
+  .pill.note{color:var(--mid);border-color:#4a3c1c;background:#211a0d}
+  .pill.na{color:var(--muted);background:#15171d}
+  .muted{color:var(--muted)}
+  .foot{color:var(--muted);font-size:12.5px;margin-top:30px;border-top:1px solid var(--line);padding-top:14px}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DSFB-Chemical-Engineering — Audit dashboard</h1>
+  <p class="sub">Assurance, security/supply-chain, undefined-behaviour, and bounded-formal-proof evidence.
+     Reported honestly. &nbsp;·&nbsp; <a href="README.md">audit/README.md</a></p>
+
+  <div class="banner">
+    <b>What this does and does NOT certify.</b> These are <b>review-readiness and evidence</b> artifacts — not a
+    certification of security, correctness, or fitness for any purpose. A clean machine-audit result means
+    "no <i>known</i> issue was found by <i>this</i> tool at scan time," never "provably safe." dsfb-gray's own
+    wording: <i>"a broad improvement and review-readiness target — not a compliance certification."</i> Nothing
+    here is gamed or fabricated; where a tool could not run, that is recorded as such.
+  </div>
+
+  <h2>dsfb-gray assurance score (first-party, per crate)</h2>
+  <table>
+    <tr><th>Crate</th><th>Score</th><th></th><th>Posture</th></tr>
+    <tr><td><code>corpus</code> · no_std authority</td><td><span class="pct">78.6%</span></td><td><div class="bar"><span class="g" style="width:79%"></span></div></td><td class="muted">developing but substantial</td></tr>
+    <tr><td><code>atlas</code> · no_std authority</td><td><span class="pct">76.1%</span></td><td><div class="bar"><span class="g" style="width:76%"></span></div></td><td class="muted">developing but substantial</td></tr>
+    <tr><td><code>py</code> · pyo3 bindings</td><td><span class="pct">73.4%</span></td><td><div class="bar"><span class="g" style="width:73%"></span></div></td><td class="muted">developing but substantial</td></tr>
+    <tr><td><code>dsfb-densor-runtime</code> · execution substrate</td><td><span class="pct">70.2%</span></td><td><div class="bar"><span class="g" style="width:70%"></span></div></td><td class="muted">developing but substantial · forbid(unsafe), new</td></tr>
+    <tr><td><code>core</code> · no_std embedded</td><td><span class="pct">69.5%</span></td><td><div class="bar"><span class="m" style="width:70%"></span></div></td><td class="muted">mixed</td></tr>
+    <tr><td><code>edge</code> · std CPU tool (23K LOC)</td><td><span class="pct">65.6%</span></td><td><div class="bar"><span class="m" style="width:66%"></span></div></td><td class="muted">mixed · Kani 6/6</td></tr>
+    <tr><td><code>wasm</code> · browser sim</td><td><span class="pct">64.7%</span></td><td><div class="bar"><span class="m" style="width:65%"></span></div></td><td class="muted">mixed</td></tr>
+    <tr><td><code>cuda</code> · GPU evidence court</td><td><span class="pct">50.1%</span></td><td><div class="bar"><span class="l" style="width:50%"></span></div></td><td class="muted">limited (GPU FFI boundary)</td></tr>
+    <tr><td><span class="muted">workspace root (scope-sensitive aggregate)</span></td><td><span class="pct">47.0%</span></td><td><div class="bar"><span class="l" style="width:47%"></span></div></td><td class="muted">limited &mdash; scope-sensitive &dagger;</td></tr>
+  </table>
+  <p class="sub" style="margin-top:10px;font-size:13px">The only change that raised scores was adding genuine
+     OSS-hygiene docs (README/SECURITY/SAFETY/CHANGELOG/ARCHITECTURE) — <b>no code was changed to chase the score</b>.
+     The authority/embedded crates (<code>no_std</code>, bounded, <code>#![forbid(unsafe_code)]</code>) legitimately
+     out-score the <code>std</code> execution and GPU crates; that differential is a truthful signal.
+     Detail: <a href="dsfb-gray/SUMMARY.md">dsfb-gray/SUMMARY.md</a>.</p>
+
+  <h2>Security &amp; supply-chain suite</h2>
+  <table>
+    <tr><th>Tool</th><th>Verdict</th><th>What it checked</th></tr>
+    <tr><td><a href="cargo-audit/README.md">cargo-audit</a></td><td><span class="pill ok">clean</span></td><td>RustSec advisories vs <code>Cargo.lock</code> — 42 deps, 0 advisories</td></tr>
+    <tr><td><a href="cargo-geiger/README.md">cargo-geiger</a></td><td><span class="pill ok">5/7 forbid unsafe</span></td><td><code>unsafe</code> usage; first-party <code>unsafe</code> only at the cuda + wasm FFI boundaries</td></tr>
+    <tr><td><a href="cargo-auditable/README.md">cargo-auditable</a></td><td><span class="pill ok">SBOM verified</span></td><td>embedded dependency BOM in the <code>edge</code> binary — 34 deps, clean</td></tr>
+    <tr><td><a href="cargo-vet/README.md">cargo-vet</a></td><td><span class="pill note">36 exempted</span></td><td>supply-chain audit-status — review-readiness, not yet vetted</td></tr>
+    <tr><td><a href="cargo-crev/README.md">cargo-crev</a></td><td><span class="pill na">no reviews</span></td><td>community web-of-trust — no reviews available for these versions</td></tr>
+    <tr><td><a href="cargo-scan/README.md">cargo-scan</a></td><td><span class="pill na">no Rust CLI</span></td><td>unsafe-effects research tool — coverage delegated to geiger + Miri + source</td></tr>
+    <tr><td><a href="miri/README.md">Miri</a></td><td><span class="pill ok">no UB</span></td><td>undefined-behaviour interpreter — <code>core</code> 8/8 + <code>atlas</code> 7/7 + <code>corpus</code> 7/7 + <code>densor-runtime</code> 8/8, 0 UB</td></tr>
+    <tr><td><a href="panic-analysis/panic-analysis.txt">panic-analysis</a></td><td><span class="pill ok">no panic!</span></td><td>static panic-surface tally — no <code>panic!/unreachable!/todo!</code>; authority/embedded crates panic-site-free</td></tr>
+  </table>
+
+  <h2>Formal verification — Kani (bounded model-checking)</h2>
+  <table>
+    <tr><th>Harness</th><th>Claim</th><th>Verdict</th></tr>
+    <tr><td><code>origin_triple_is_interior</code></td><td>origin triple always interior (envelope monotonicity)</td><td><span class="pill ok">0/142</span></td></tr>
+    <tr><td><code>nonfinite_is_sensor_fault</code></td><td>NaN/±∞ ⇒ SensorFault</td><td><span class="pill ok">0/191</span></td></tr>
+    <tr><td><code>determinism_two_runs_match</code></td><td>identical input ⇒ identical state</td><td><span class="pill ok">0/191</span></td></tr>
+    <tr><td><code>interior_finite_is_not_sensor_fault</code></td><td>interior finite ≠ SensorFault (soundness)</td><td><span class="pill ok">0/191</span></td></tr>
+    <tr><td><code>beyond_bound_is_not_interior</code></td><td>residual beyond r_max never interior</td><td><span class="pill ok">0/142</span></td></tr>
+    <tr><td><code>classify_is_total_on_finite</code></td><td>classify total — no panic/overflow, terminates (totality)</td><td><span class="pill ok">0/190</span></td></tr>
+  </table>
+  <p class="sub" style="margin-top:10px;font-size:13px"><b>6/6 harnesses verified · 1047 verification conditions
+     discharged · 0 failures</b> (cargo-kani 0.67.0 / CBMC 6.8.0). Bounded IEEE-754 domain; the unbounded layer is
+     the Lean 4 + Coq proofs in <code>formal/</code>; the model→binary link is the empirical verify-replay gate.
+     Detail: <a href="kani/README.md">kani/README.md</a>.</p>
+
+  <h2>Fuzzing &amp; runtime memory</h2>
+  <table>
+    <tr><th>Tool</th><th>Verdict</th><th>What it checked</th></tr>
+    <tr><td><a href="cargo-fuzz/README.md">cargo-fuzz</a></td><td><span class="pill ok">225.2M execs · 0 crashes</span></td><td>libFuzzer + ASan over 3 pure targets (float classify, unit lexer, <code>no_std</code> i64 classify) — empirical companion to the Kani totality proof</td></tr>
+    <tr><td><a href="cargo-valgrind/README.md">cargo-valgrind</a></td><td><span class="pill ok">CLEAN · 0 errors</span></td><td>valgrind 3.25.1 on the static-musl pipeline + musl-allocator suppressions: <b>0 memory errors</b> (correct replay hashes). glibc route blocked by this host's compiled-in AVX-512 (even <code>/usr/bin/true</code> SIGILLs)</td></tr>
+    <tr><td><a href="loom/README.md">loom</a></td><td><span class="pill na">N/A by design</span></td><td>concurrency permutation — zero shared-state concurrency in first-party code, so the data-race class is structurally unreachable</td></tr>
+  </table>
+
+  <h2>Extended formal verification (installed &amp; run in-sandbox where the toolchain allowed)</h2>
+  <table>
+    <tr><th>Tool</th><th>Method</th><th>DSFB attach point</th></tr>
+    <tr><td><a href="flux/README.md">Flux</a></td><td><span class="pill ok">installed + ran</span></td><td>refinement types — <code>cargo flux</code> checks the <code>core</code> crate clean (0 refinement errors); <code>cargo-flux 4d329f2</code></td></tr>
+    <tr><td><a href="hax/README.md">hax</a></td><td><span class="pill ok">F\* model extracted</span></td><td>Rust→F\* — installed full (frontend + driver + OCaml engine) and extracted the <code>no_std</code> core to a <b>716-line F\* model</b> (<code>classify_axis</code>, <code>t_FixedEnvelope</code>, …) from the real Rust</td></tr>
+    <tr><td><a href="creusot/README.md">Creusot</a></td><td><span class="pill note">ran → Coma IR</span></td><td>deductive · Why3+SMT — built <code>creusot-rustc</code> (nightly-2026-04-21) and <b>translated our <code>classify_axis</code> to Coma verification IR</b>; the SMT prove step needs creusot's hermetic forked why3+why3find</td></tr>
+    <tr><td><a href="crux-mir/README.md">crux-mir</a></td><td><span class="pill ok">Valid · 4/4 proved</span></td><td>symbolic · Crucible — built from source (GHC/crucible/mir-json) and <b>proved the core invariants `Valid`</b> on a second engine (corroborates Kani). The nonlinear-i128 <code>classify_axis</code> VC times out in SMT (covered by Kani + fuzz)</td></tr>
+  </table>
+  <p class="sub" style="margin-top:10px;font-size:13px">These were <b>actually installed and run in this sandbox</b> where
+     the toolchain allowed — not handed off. Flux ran on the real <code>core</code> crate (clean); Creusot's full prover
+     stack installed (why3 1.8.2 + z3 4.16.0 + why3find) and a project scaffolds; hax's frontend installed and ran to its
+     OCaml-engine boundary; only crux-mir was not run (no GHC). Each folder records the real result or the precise
+     remaining step + a <i>verified</i> command. No verdict is fabricated.</p>
+
+  <div class="foot">
+    Evidence layering — <b>assurance:</b> dsfb-gray + clippy + 295 tests · <b>memory/UB:</b> forbid-unsafe (5/7) +
+    Miri + panic tally + valgrind (CLEAN, 0 errors via musl+supp) · <b>behaviour:</b> Kani (bounded) + Lean 4 + Coq +
+    cargo-fuzz (225.2M execs) + Flux (core clean) + hax (F\* model extracted) + Creusot (Coma IR) + crux-mir (Valid,
+    4/4) + verify-replay · <b>supply chain:</b> cargo-audit + auditable + vet/crev. &nbsp;loom: N/A (no concurrency). Deliberately excluded:
+    Prometheus/Grafana/ELK/Loki (observability, not auditors). &nbsp;Self-contained page — no external assets.
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,638 @@
+╔══════════════════════════════════════════════════════════════╗
+║         DSFB Gray Static Crate Scan Report                 ║
+║   Canonical Broad Audit for Code Quality + Review Readiness║
+╚══════════════════════════════════════════════════════════════╝
+
+Crate: dsfb-chemical-engineering-wasm
+Version: 0.1.0
+Generated At (UTC): 2026-05-26T20:42:59.821022529Z
+Root: /home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-wasm
+Scanned Crate: https://crates.io/crates/dsfb-chemical-engineering-wasm
+Scanned Crate Docs: https://docs.rs/dsfb-chemical-engineering-wasm
+Scanner Crate: https://crates.io/crates/dsfb-gray
+Scanner Docs: https://docs.rs/dsfb-gray
+Source SHA-256: becccbde932247026d7c67b030a0d4a50cff09c08fc107286633767cedf36dfa
+VCS Commit: not declared
+Path In VCS: not declared
+Source Files Scanned: 2
+Artifact Files Inspected: 16
+Matched Heuristics: 0
+Caveat: Static source-visible proxy only: this report highlights structural motifs, constrained-runtime signals, verification evidence, and lifecycle artifacts. It does not certify the crate or infer live gray failures without runtime telemetry.
+
+Audit Summary
+──────────────────────────────────────────────────────────────
+Purpose:
+  - improve Rust code quality across the full crate surface
+  - support compliance- and certification-oriented internal review
+  - preserve all current DSFB audit breadth in one canonical report
+Non-certification statement:
+  - DSFB does not certify compliance with IEC, ISO, RTCA, MIL, NIST, or other standards.
+  - Treat this report as a structured guideline for improvement and review readiness.
+Canonical audit shape:
+  - one full audit
+  - one overall score plus visible subscores
+  - one shared evidence set reused by the concluding interpretation lenses
+Finding mix: 4 defect-candidate | 3 design-review | 1 review-readiness | 0 context-needed
+Audit families preserved: runtime, safety, verification, build, lifecycle, Power of Ten, advanced structural, heuristic motifs, runtime priors, and attestation exports.
+
+Report scope note: DSFB findings may support internal review against standards-oriented expectations, but the report remains a source-visible structural audit of 16 artifact(s), not a certificate.
+
+Add dsfb-gray report badge to your GitHub repo README
+──────────────────────────────────────────────────────────────
+DSFB-gray crate: https://crates.io/crates/dsfb-gray
+Use this when you place the audit report in the repository root as a code-quality and review-readiness document.
+Root-level report link target used below: ./dsfb_chemical_engineering_wasm_scan.txt
+Markdown snippet:
+```md
+[![DSFB Gray Audit: 64.7% mixed assurance posture](https://img.shields.io/badge/DSFB%20Gray%20Audit-64.7%25-yellowgreen)](./dsfb_chemical_engineering_wasm_scan.txt)
+```
+Badge semantics: this links to the DSFB audit report for the crate; it is not a compliance or certification badge.
+
+Overall Score and Subscores
+──────────────────────────────────────────────────────────────
+Scoring Version: dsfb-assurance-score-v1
+Overall: 64.7% (mixed assurance posture)
+Weighted points earned: 64.7/100.0
+Score use: this score is a broad improvement target derived from the locked DSFB audit rubric. It is not a compliance certification.
+Advisory Broad Subscores
++------------------------------+--------+
+| Subscore                     | Score% |
++------------------------------+--------+
+| Correctness                  |   50.0 |
+| Maintainability              |   67.5 |
+| Concurrency / Async          |   75.0 |
+| Resource Discipline          |  100.0 |
+| Verification / Reviewability |   67.8 |
+| Assurance / Provenance       |   64.7 |
++------------------------------+--------+
+  - Correctness: Derived from safety surface, correctness-critical Power-of-Ten rules, and correctness-oriented structural checks.
+  - Maintainability: Derived from lifecycle/governance evidence, reviewability-oriented Power-of-Ten rules, and maintainability-heavy structural checks.
+  - Concurrency / Async: Derived from async/concurrency structural checks and bounded-control-flow review signals.
+  - Resource Discipline: Derived from runtime-allocation proxies, resource-lifecycle checks, and bounded-allocation / bounded-loop review rules.
+  - Verification / Reviewability: Derived from verification signals, build/tooling complexity, and analyzability-oriented Power-of-Ten rules.
+  - Assurance / Provenance: Derived from the full locked rubric as a broad readiness-oriented advisory synthesis.
+Score Summary Table
++------------------------------+--------+--------+--------+--------+
+| Section                      | Score% | Weight | Points | Checks |
++------------------------------+--------+--------+--------+--------+
+| Safety Surface               |   50.0 |   15.0 |    7.5 |      5 |
+| Verification Evidence        |   20.0 |   15.0 |    3.0 |      5 |
+| Build / Tooling Complexity   |  100.0 |   10.0 |   10.0 |      6 |
+| Lifecycle / Governance       |   69.2 |   10.0 |    6.9 |     13 |
+| NASA/JPL Power of Ten        |   60.0 |   25.0 |   15.0 |     10 |
+| Advanced Structural Checks   |   89.1 |   25.0 |   22.3 |     23 |
++------------------------------+--------+--------+--------+--------+
+| Overall                      |   64.7 |  100.0 |   64.7 |     62 |
++------------------------------+--------+--------+--------+--------+
+Locked rubric section breakdown:
+  - Safety Surface: 50.0% of section, 7.5/15.0 weighted points across 5 checkpoint(s)
+  - Verification Evidence: 20.0% of section, 3.0/15.0 weighted points across 5 checkpoint(s)
+  - Build / Tooling Complexity: 100.0% of section, 10.0/10.0 weighted points across 6 checkpoint(s)
+  - Lifecycle / Governance: 69.2% of section, 6.9/10.0 weighted points across 13 checkpoint(s)
+  - NASA/JPL Power of Ten: 60.0% of section, 15.0/25.0 weighted points across 10 checkpoint(s)
+  - Advanced Structural Checks: 89.1% of section, 22.3/25.0 weighted points across 23 checkpoint(s)
+Scoring guideline:
+  - Method: weighted checkpoint scoring across Safety (15%), Verification (15%), Build/Tooling (10%), Lifecycle/Governance (10%), NASA/JPL Power of Ten (25%), and Advanced Structural Checks (25%).
+  - Checkpoint credit: pass/clear/applied = 1.0, indeterminate/partial = 0.5, elevated/not applied = 0.0.
+  - Fairness rule: raw motif counts do not linearly reduce the score; each checkpoint contributes once so large crates are not punished simply for having more code.
+  - Informational-only signals such as DSFB heuristic motif matches, hotspot counts, and capability flags like no_std/no_alloc are reported but excluded from the score denominator.
+  - Interpretation: this is a broad improvement and review-readiness score for source-visible controls and evidence, not a certification and not a measure of runtime correctness.
+
+Top Findings
+──────────────────────────────────────────────────────────────
+PART-SPACE elevated [design-review | confidence=high | impact=assurance/provenance]
+  Title: Global shared-resource / partitioning-risk audit
+  Detail: 2 global shared-resource motif(s) observed.
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding is especially relevant to review readiness because it affects reproducibility, isolation, or operator trust in what was shipped.
+  First Evidence: PART-SPACE-01-lib-141 src/lib.rs:141 [static declaration] static mut IN_BUF: [f64; MAX_SAMPLES] = [0.0; MAX_SAMPLES];
+
+SAFE-STATE elevated [defect-candidate | confidence=medium | impact=correctness]
+  Title: Catch-all state handling / safe-state fallback audit
+  Detail: 1 catch-all match arm(s) observed; explicit state enumeration is preferable for safety review.
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  First Evidence: SAFE-STATE-01-lib-124 src/lib.rs:124 [_ =>] _ => run_core::<32>(residuals, k_scaled, band_scaled, out),
+
+P10-5 not applied [defect-candidate | confidence=high | impact=concurrency/async]
+  Title: Assertion density averages at least two per function
+  Detail: Estimated assertion density is 0.00 per function across 8 extracted function(s).
+  Why This Matters In Rust: Catch-all state handling often hides missing invariants or incomplete transitions in otherwise exhaustive-looking Rust code.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+  First Evidence: P10-5-01-lib-86 src/lib.rs:86 [assertion density < 2 per function] function `run_core` has 0 assertion site(s) across 25 lines
+
+P10-9 not applied [defect-candidate | confidence=high | impact=correctness]
+  Title: Pointer use remains restricted
+  Detail: 6 raw-pointer/function-pointer motif(s) observed.
+  Why This Matters In Rust: Raw-pointer and FFI boundaries are where Rust's usual guarantees weaken and local contracts matter most.
+  Review / Readiness Note: This rule is directly relevant to review readiness because it affects whether a reviewer can trust what paths are present and what tools continue to check.
+  First Evidence: P10-9-01-lib-146 src/lib.rs:146 [*mut] pub extern "C" fn dsfb_sim_in_ptr() -> *mut f64 {
+
+P10-6 not applied [design-review | confidence=high | impact=maintainability]
+  Title: Data objects remain at the smallest practical scope
+  Detail: 2 crate-global mutable/shared state motif(s) observed.
+  Why This Matters In Rust: Global shared state spreads coupling and makes local reasoning harder across modules and tasks.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+  First Evidence: P10-6-01-lib-141 src/lib.rs:141 [static declaration] static mut IN_BUF: [f64; MAX_SAMPLES] = [0.0; MAX_SAMPLES];
+
+NASA-CC indeterminate [design-review | confidence=medium | impact=maintainability]
+  Title: Cyclomatic complexity hotspot audit (NASA SWE-220 proxy)
+  Detail: No function summaries were extracted, so complexity could not be estimated.
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+
+P10-10 indeterminate [review-readiness | confidence=medium | impact=verification/reviewability]
+  Title: Pedantic warnings and static analyzers are enforced
+  Detail: Observed warning/analyzer signal(s), but the full Power-of-Ten requirement for pedantic warnings plus regular analyzer use is not established. Warning signals: 0, analyzer signals: 4.
+  Why This Matters In Rust: Analyzer and warning gates are part of keeping a Rust codebase reviewable over time.
+  Review / Readiness Note: This rule is directly relevant to review readiness because it affects whether a reviewer can trust what paths are present and what tools continue to check.
+  First Evidence: P10-10-01-architecture-5 ARCHITECTURE.md:5 [miri] Unsafe posture: #![deny(unsafe_code)] with one audited linear-memory FFI block (exercised under Miri). It sits in the DSFB execution-vs-authority split (execution = `edge`/`cuda`; authority
+
+P10-7 indeterminate [defect-candidate | confidence=medium | impact=correctness]
+  Title: Return values are checked and parameters are validated
+  Detail: No obvious unchecked-return motifs were observed, but parameter validation and full return-value propagation are not mechanically proven by this scanner.
+  Why This Matters In Rust: Unchecked extraction pushes invariant proof onto the reader instead of the code.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+
+Hotspots
+──────────────────────────────────────────────────────────────
+Guide:
+  [##--------] observed  score 12-19
+  [####------] guarded   score 20-29
+  [######----] elevated  score 30-39
+  [########--] high      score 40-49
+  [##########] severe    score 50+
+  row format: path:line `function` [bar] band score=<n> complexity~<n>
+  signals: comma-separated structural risk contributors
+No function hotspots extracted.
+
+Code Quality Themes
+──────────────────────────────────────────────────────────────
+assurance/provenance: 1 finding(s) [PART-SPACE]
+concurrency/async: 1 finding(s) [P10-5]
+correctness: 3 finding(s) [SAFE-STATE, P10-9, P10-7]
+maintainability: 2 finding(s) [P10-6, NASA-CC]
+verification/reviewability: 1 finding(s) [P10-10]
+
+Interpret these themes as review clusters: they tell you where multiple findings are reinforcing the same kind of engineering debt or risk surface.
+
+Remediation Guide
+──────────────────────────────────────────────────────────────
+PART-SPACE [design-review]: Reduce shared global state, or document the partitioning/ownership rationale for any remaining shared resource.
+SAFE-STATE [defect-candidate]: Make fallback states explicit and document what the safe-state behavior is for the affected control path.
+P10-5 [defect-candidate]: Replace catch-all control flow with explicit state handling or document the fallback state as intentional.
+P10-9 [defect-candidate]: Tighten raw-pointer / FFI surfaces and document the local safety contract for each remaining site.
+P10-6 [design-review]: Reduce dependence on global mutable state or document synchronization and ownership boundaries.
+NASA-CC [design-review]: Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.
+P10-10 [review-readiness]: Keep warnings and analyzer gates active in CI so the audit surface stays reviewable over time.
+P10-7 [defect-candidate]: Propagate errors explicitly rather than unwrapping, or document the invariant that justifies the unwrap/expect.
+
+Verification Suggestions
+──────────────────────────────────────────────────────────────
+PART-SPACE [assurance/provenance]: Document the shared-resource boundary and add a test or review note that proves ownership/partitioning is intentional.
+SAFE-STATE [correctness]: Add tests that drive the fallback path explicitly and confirm the intended safe-state behavior is named, not implied.
+P10-5 [concurrency/async]: Add state-transition tests that cover the previously catch-all path explicitly.
+P10-9 [correctness]: Document the local pointer/FFI contract and add the narrowest possible regression around the unsafe edge.
+P10-6 [maintainability]: Document ownership/synchronization boundaries or add module-level tests that prove shared state cannot drift silently.
+NASA-CC [maintainability]: Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant.
+P10-10 [verification/reviewability]: Keep analyzer and warnings-as-errors gates in CI and record the expected toolchain surface in the repo docs.
+P10-7 [correctness]: Replace unwrap/expect with explicit handling or add an invariant test that proves the extraction precondition.
+
+Evidence Ledger
+──────────────────────────────────────────────────────────────
+PART-SPACE: 2 evidence item(s) [PART-SPACE-01-lib-141, PART-SPACE-02-lib-142]
+SAFE-STATE: 1 evidence item(s) [SAFE-STATE-01-lib-124]
+P10-5: 4 evidence item(s) [P10-5-01-lib-86, P10-5-02-lib-167, P10-5-03-lib-46, P10-5-04-lib-118]
+P10-9: 4 evidence item(s) [P10-9-01-lib-146, P10-9-02-lib-148, P10-9-03-lib-153, P10-9-04-lib-154]
+P10-6: 2 evidence item(s) [P10-6-01-lib-141, P10-6-02-lib-142]
+NASA-CC: no source evidence captured
+P10-10: 4 evidence item(s) [P10-10-01-architecture-5, P10-10-02-safety-6, P10-10-03-security-5, P10-10-04-security-7]
+P10-7: no source evidence captured
+
+Detailed Audit Surface
+──────────────────────────────────────────────────────────────
+The sections below preserve the full DSFB audit breadth. They are detailed evidence views, not separate scan modes.
+
+Constrained Runtime Profile
+──────────────────────────────────────────────────────────────
+no_std declared: no
+no_alloc candidate: no
+alloc crate references: 0
+heap allocation motifs: 0
+
+Unsafe / Panic Surface
+──────────────────────────────────────────────────────────────
+unsafe policy: deny(unsafe_code)
+no_unsafe candidate: no
+explicit unsafe sites: 1
+panic-like sites: 0
+unwrap/expect-like sites: 0
+FFI boundary sites: 5
+SAFETY: justification comments: 0
+unsafe policy evidence:
+  - src/lib.rs:35 [#![deny(unsafe_code)]] #![deny(unsafe_code)] // denied crate-wide; lifted only around the documented linear-memory marshalling
+unsafe evidence:
+  - src/lib.rs:172 [unsafe {] let (inp, out) = unsafe {
+FFI evidence:
+  - Cargo.toml:3 [extern "c"] # It depends ONLY on the dependency-free embedded `core` crate and uses raw `extern "C"` exports with
+  - src/lib.rs:145 [#[no_mangle]] #[no_mangle]
+  - src/lib.rs:152 [#[no_mangle]] #[no_mangle]
+  - src/lib.rs:158 [#[no_mangle]] #[no_mangle]
+
+Verification Evidence Signals
+──────────────────────────────────────────────────────────────
+tests/ directory present: no
+test markers: 7
+property-testing signals: 0
+concurrency exploration signals: 0
+fuzzing signals: 0
+formal-method signals: 0
+test evidence:
+  - src/lib.rs:182 [#[cfg(test)]] #[cfg(test)]
+  - src/lib.rs:183 [mod tests] mod tests {
+  - src/lib.rs:191 [#[test]] #[test]
+  - src/lib.rs:204 [#[test]] #[test]
+
+Build / Tooling Complexity
+──────────────────────────────────────────────────────────────
+direct dependencies: 1
+build dependencies: 0
+dev dependencies: 0
+build.rs present: no
+proc-macro crate: no
+codegen / native-build signals: 0
+
+Lifecycle / Governance Artifacts
+──────────────────────────────────────────────────────────────
+README present: yes
+CHANGELOG present: yes
+SECURITY.md present: yes
+SAFETY.md present: yes
+architecture/design doc present: yes
+docs/ content present: yes
+license files: none observed
+manifest license: Apache-2.0
+manifest rust-version: not declared
+manifest edition: 2021
+repository URL: not declared
+documentation URL: not declared
+homepage URL: not declared
+manifest readme: not declared
+
+NASA/JPL Power of Ten Audit
+──────────────────────────────────────────────────────────────
+Rust adaptation of Holzmann's Power of Ten rules. C-specific rules are approximated with source-visible Rust proxies. This is guidance for review and improvement, not a certification result.
+Applied: 5 | Not Applied: 3 | Indeterminate: 2
+P10-1 applied: Simple control flow; no recursion or equivalent escapes
+  Detail: No direct recursion or obvious control-flow escape motifs observed. Indirect recursion is not proven absent by this lightweight scan.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: correctness
+  Why This Matters In Rust: Unbounded recursion still threatens reviewability and stack reasoning in Rust, even when ownership is otherwise strong.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+  Remediation: Remove recursion where possible, or isolate the pattern behind a bounded proof and explicit review note.
+  Verification Suggestion: Add a focused test or review note that proves the remaining recursion is bounded, or refactor it into an explicit loop/work queue.
+P10-2 applied: All loops have a fixed upper bound
+  Detail: No unbounded loops or ambiguous iterator-driven `for` loops were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: correctness
+  Why This Matters In Rust: Explicit bounds are one of the clearest ways to make Rust control flow auditable under failure pressure.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+  Remediation: Add explicit upper bounds, timeout guards, or fixed-step limits so loop behavior is reviewable.
+  Verification Suggestion: Add a regression test that demonstrates a visible loop bound, timeout, or cancellation path on the flagged logic.
+P10-3 applied: No dynamic allocation after initialization
+  Detail: No heap-allocation motifs observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: correctness
+  Why This Matters In Rust: Steady-state allocation surfaces are often where long-lived Rust services accumulate jitter and memory debt.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+  Remediation: Move dynamic allocation to initialization paths or document and bound the steady-state allocation sites.
+  Verification Suggestion: Profile the flagged path under steady-state load and confirm no avoidable heap growth remains after initialization.
+P10-4 applied: Functions stay within a single-sheet size budget (~60 LOC)
+  Detail: No function over 60 lines was observed by the scanner.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: maintainability
+  Why This Matters In Rust: Large functions make invariants harder to see, test, and review, even in otherwise safe Rust.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+  Remediation: Split large functions into reviewable units with clearer local invariants and narrower responsibilities.
+  Verification Suggestion: Split the function and add narrower tests that name the local invariants introduced by the refactor.
+P10-5 not applied: Assertion density averages at least two per function
+  Detail: Estimated assertion density is 0.00 per function across 8 extracted function(s).
+  Classification: defect-candidate
+  Confidence: high
+  Impact Kind: concurrency/async
+  Why This Matters In Rust: Catch-all state handling often hides missing invariants or incomplete transitions in otherwise exhaustive-looking Rust code.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+  Remediation: Replace catch-all control flow with explicit state handling or document the fallback state as intentional.
+  Verification Suggestion: Add state-transition tests that cover the previously catch-all path explicitly.
+  Evidence:
+  - P10-5-01-lib-86 src/lib.rs:86 [assertion density < 2 per function] function `run_core` has 0 assertion site(s) across 25 lines
+  - P10-5-02-lib-167 src/lib.rs:167 [assertion density < 2 per function] function `dsfb_sim_run` has 0 assertion site(s) across 13 lines
+  - P10-5-03-lib-46 src/lib.rs:46 [assertion density < 2 per function] function `token_code` has 0 assertion site(s) across 12 lines
+  - P10-5-04-lib-118 src/lib.rs:118 [assertion density < 2 per function] function `simulate_into` has 0 assertion site(s) across 9 lines
+P10-6 not applied: Data objects remain at the smallest practical scope
+  Detail: 2 crate-global mutable/shared state motif(s) observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: maintainability
+  Why This Matters In Rust: Global shared state spreads coupling and makes local reasoning harder across modules and tasks.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+  Remediation: Reduce dependence on global mutable state or document synchronization and ownership boundaries.
+  Verification Suggestion: Document ownership/synchronization boundaries or add module-level tests that prove shared state cannot drift silently.
+  Evidence:
+  - P10-6-01-lib-141 src/lib.rs:141 [static declaration] static mut IN_BUF: [f64; MAX_SAMPLES] = [0.0; MAX_SAMPLES];
+  - P10-6-02-lib-142 src/lib.rs:142 [static declaration] static mut OUT_BUF: [u8; MAX_SAMPLES] = [0; MAX_SAMPLES];
+P10-7 indeterminate: Return values are checked and parameters are validated
+  Detail: No obvious unchecked-return motifs were observed, but parameter validation and full return-value propagation are not mechanically proven by this scanner.
+  Classification: defect-candidate
+  Confidence: medium
+  Impact Kind: correctness
+  Why This Matters In Rust: Unchecked extraction pushes invariant proof onto the reader instead of the code.
+  Review / Readiness Note: This rule supports bounded, reviewable structure that often matters in compliance- or certification-oriented internal reviews.
+  Remediation: Propagate errors explicitly rather than unwrapping, or document the invariant that justifies the unwrap/expect.
+  Verification Suggestion: Replace unwrap/expect with explicit handling or add an invariant test that proves the extraction precondition.
+P10-8 applied: Conditional compilation and metaprogramming stay minimal
+  Detail: 0 review-relevant conditional-compilation site(s), 0 macro-definition/proc-macro site(s) observed. This is a Rust adaptation of the C preprocessor rule.
+  Classification: review-readiness
+  Confidence: high
+  Impact Kind: verification/reviewability
+  Why This Matters In Rust: Macros and cfg forks can hide large semantic deltas behind small source surfaces.
+  Review / Readiness Note: This rule is directly relevant to review readiness because it affects whether a reviewer can trust what paths are present and what tools continue to check.
+  Remediation: Reduce conditional-compilation forks or document why each feature/macro path remains auditable.
+  Verification Suggestion: Review feature/macro-expanded paths and add CI coverage for the meaningful forks.
+P10-9 not applied: Pointer use remains restricted
+  Detail: 6 raw-pointer/function-pointer motif(s) observed.
+  Classification: defect-candidate
+  Confidence: high
+  Impact Kind: correctness
+  Why This Matters In Rust: Raw-pointer and FFI boundaries are where Rust's usual guarantees weaken and local contracts matter most.
+  Review / Readiness Note: This rule is directly relevant to review readiness because it affects whether a reviewer can trust what paths are present and what tools continue to check.
+  Remediation: Tighten raw-pointer / FFI surfaces and document the local safety contract for each remaining site.
+  Verification Suggestion: Document the local pointer/FFI contract and add the narrowest possible regression around the unsafe edge.
+  Evidence:
+  - P10-9-01-lib-146 src/lib.rs:146 [*mut] pub extern "C" fn dsfb_sim_in_ptr() -> *mut f64 {
+  - P10-9-02-lib-148 src/lib.rs:148 [*mut] core::ptr::addr_of_mut!(IN_BUF) as *mut f64
+  - P10-9-03-lib-153 src/lib.rs:153 [*const] pub extern "C" fn dsfb_sim_out_ptr() -> *const u8 {
+  - P10-9-04-lib-154 src/lib.rs:154 [*const] core::ptr::addr_of!(OUT_BUF) as *const u8
+P10-10 indeterminate: Pedantic warnings and static analyzers are enforced
+  Detail: Observed warning/analyzer signal(s), but the full Power-of-Ten requirement for pedantic warnings plus regular analyzer use is not established. Warning signals: 0, analyzer signals: 4.
+  Classification: review-readiness
+  Confidence: medium
+  Impact Kind: verification/reviewability
+  Why This Matters In Rust: Analyzer and warning gates are part of keeping a Rust codebase reviewable over time.
+  Review / Readiness Note: This rule is directly relevant to review readiness because it affects whether a reviewer can trust what paths are present and what tools continue to check.
+  Remediation: Keep warnings and analyzer gates active in CI so the audit surface stays reviewable over time.
+  Verification Suggestion: Keep analyzer and warnings-as-errors gates in CI and record the expected toolchain surface in the repo docs.
+  Evidence:
+  - P10-10-01-architecture-5 ARCHITECTURE.md:5 [miri] Unsafe posture: #![deny(unsafe_code)] with one audited linear-memory FFI block (exercised under Miri). It sits in the DSFB execution-vs-authority split (execution = `edge`/`cuda`; authority
+  - P10-10-02-safety-6 SAFETY.md:6 [miri] Unsafe/UB posture: #![deny(unsafe_code)] with one audited linear-memory FFI block (exercised under Miri). Determinism is fixed-point with byte-exact replay (not claimed bit-reproducible for
+  - P10-10-03-security-5 SECURITY.md:5 [miri] Unsafe posture: #![deny(unsafe_code)] with one audited linear-memory FFI block (exercised under Miri). This crate follows the workspace security policy — see the canonical
+  - P10-10-04-security-7 SECURITY.md:7 [miri] Miri, …) are in [`../../audit/`](../../audit/). Report vulnerabilities per the repo policy.
+
+Advanced Structural Risk Checks
+──────────────────────────────────────────────────────────────
+These checks are source-visible structural proxies for mission, safety, security, and code-quality review. Elevated means review-worthy, not automatically unsafe and not a certification decision.
+Elevated: 2 | Clear: 20 | Indeterminate: 1
+JPL-R0 clear: Recursion and cyclic call graph audit
+  Detail: No direct recursion or local call-cycle motifs were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: maintainability
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.
+  Verification Suggestion: Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant.
+JPL-R4 clear: Data-flow traceability / interior mutability audit
+  Detail: No interior-mutability motifs were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: maintainability
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.
+  Verification Suggestion: Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant.
+JPL-R9 clear: Unchecked extraction / dereference safety audit
+  Detail: No unwrap/expect extraction sites were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: maintainability
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.
+  Verification Suggestion: Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant.
+NASA-CC indeterminate: Cyclomatic complexity hotspot audit (NASA SWE-220 proxy)
+  Detail: No function summaries were extracted, so complexity could not be estimated.
+  Classification: design-review
+  Confidence: medium
+  Impact Kind: maintainability
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.
+  Verification Suggestion: Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant.
+H-ASYNC-LOCK clear: Async lock contention / priority inversion proxy
+  Detail: No async lock contention motifs were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: maintainability
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.
+  Verification Suggestion: Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant.
+SAFE-STATE elevated: Catch-all state handling / safe-state fallback audit
+  Detail: 1 catch-all match arm(s) observed; explicit state enumeration is preferable for safety review.
+  Classification: defect-candidate
+  Confidence: medium
+  Impact Kind: correctness
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Make fallback states explicit and document what the safe-state behavior is for the affected control path.
+  Verification Suggestion: Add tests that drive the fallback path explicitly and confirm the intended safe-state behavior is named, not implied.
+  Evidence:
+  - SAFE-STATE-01-lib-124 src/lib.rs:124 [_ =>] _ => run_core::<32>(residuals, k_scaled, band_scaled, out),
+TIME-WAIT clear: Hard-coded timing assumption audit
+  Detail: No hard-coded sleep/timing-wait motifs were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: maintainability
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.
+  Verification Suggestion: Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant.
+PART-SPACE elevated: Global shared-resource / partitioning-risk audit
+  Detail: 2 global shared-resource motif(s) observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: assurance/provenance
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding is especially relevant to review readiness because it affects reproducibility, isolation, or operator trust in what was shipped.
+  Remediation: Reduce shared global state, or document the partitioning/ownership rationale for any remaining shared resource.
+  Verification Suggestion: Document the shared-resource boundary and add a test or review note that proves ownership/partitioning is intentional.
+  Evidence:
+  - PART-SPACE-01-lib-141 src/lib.rs:141 [static declaration] static mut IN_BUF: [f64; MAX_SAMPLES] = [0.0; MAX_SAMPLES];
+  - PART-SPACE-02-lib-142 src/lib.rs:142 [static declaration] static mut OUT_BUF: [u8; MAX_SAMPLES] = [0; MAX_SAMPLES];
+PLUGIN-LOAD clear: Dynamic loading / plugin sandbox audit
+  Detail: No dynamic loading motifs were observed.
+  Classification: review-readiness
+  Confidence: high
+  Impact Kind: assurance/provenance
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding is especially relevant to review readiness because it affects reproducibility, isolation, or operator trust in what was shipped.
+  Remediation: Constrain dynamic loading behind verification, sandboxing, or explicit operator review.
+  Verification Suggestion: Add review notes or CI checks that prove the dynamic-loading boundary is verified, sandboxed, or intentionally excluded from trusted paths.
+CWE-404 clear: Manual resource-lifecycle / shutdown audit
+  Detail: No manual resource-lifecycle motifs were observed.
+  Classification: defect-candidate
+  Confidence: high
+  Impact Kind: resource discipline
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Tighten ownership so resources close on all error paths and avoid raw-handle escape hatches unless documented.
+  Verification Suggestion: Exercise an error path and confirm ownership cleanup happens without raw-handle leakage.
+CMD-BUF clear: Hazardous command buffering audit
+  Detail: No command/control queue motifs were observed.
+  Classification: context-needed
+  Confidence: high
+  Impact Kind: resource discipline
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Add TTL, sequence, staleness, or cancellation guards so queued control messages cannot accumulate invisibly.
+  Verification Suggestion: Add queue tests that demonstrate staleness, TTL, cancellation, or sequence handling under backlog.
+ITER-UNB clear: Unbounded iterator terminal-consumption audit
+  Detail: No iterator terminal-consumption sites lacking an obvious `.take()` bound were observed.
+  Classification: context-needed
+  Confidence: high
+  Impact Kind: resource discipline
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Add `.take(...)`, explicit bounds, or documented finite-source guarantees on terminal iterator consumption.
+  Verification Suggestion: Add a bound, trusted finite-source proof, or regression test that demonstrates the iterator cannot grow without limit.
+ISR-SAFE clear: Interrupt-context allocation / lock audit
+  Detail: No interrupt handlers with allocation or mutex/lock motifs were observed.
+  Classification: defect-candidate
+  Confidence: high
+  Impact Kind: correctness
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Keep interrupt handlers allocation-free and lock-free where possible, or document the ISR contract explicitly.
+  Verification Suggestion: Review interrupt-path code and add a targeted test or note proving it stays allocation-free and lock-free where required.
+FUTURE-WAKE clear: Manual Future pending-without-waker audit
+  Detail: No manual `Poll::Pending` sites without local wake registration were observed.
+  Classification: defect-candidate
+  Confidence: high
+  Impact Kind: concurrency/async
+  Why This Matters In Rust: Manual futures live on a strict wake contract; getting it wrong produces futures that appear correct but never make progress.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Ensure every manual `Poll::Pending` path arranges a wakeup before returning pending.
+  Verification Suggestion: Add a manual-future regression that proves each Pending path registers a wake before returning.
+TASK-LEAK clear: Detached-task / discarded JoinHandle audit
+  Detail: No explicit discarded Tokio JoinHandle sites were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: concurrency/async
+  Why This Matters In Rust: Detached tasks are easy to create in Rust async code and hard to reason about during shutdown, overload, or retries.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Retain JoinHandles, cancellation paths, or supervision ownership for spawned tasks that affect shutdown and backpressure.
+  Verification Suggestion: Track JoinHandle ownership and add shutdown tests that prove tasks do not outlive their supervisor unintentionally.
+DROP-PANIC clear: Panic-in-Drop audit
+  Detail: No panic-like sites were observed inside `impl Drop` bodies.
+  Classification: defect-candidate
+  Confidence: high
+  Impact Kind: correctness
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Keep `Drop` implementations infallible; move failure reporting out of destructor paths.
+  Verification Suggestion: Move failure reporting out of Drop and add a regression proving teardown stays infallible under unwind pressure.
+ATOMIC-RELAXED clear: Relaxed atomic ordering on critical-state paths
+  Detail: No `Ordering::Relaxed` sites were observed on functions that also look like critical state-transition logic.
+  Classification: context-needed
+  Confidence: high
+  Impact Kind: correctness
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Review whether the flagged atomic needs stronger ordering semantics on the observed state-transition path.
+  Verification Suggestion: Review the state-transition path and add the narrowest concurrency test that proves the ordering is sufficient.
+CLOCK-MIX clear: Mixed monotonic/wall-clock duration audit
+  Detail: No functions were observed mixing `Instant::now()` and `SystemTime::now()`.
+  Classification: defect-candidate
+  Confidence: high
+  Impact Kind: correctness
+  Why This Matters In Rust: Mixing monotonic and wall-clock time is a classic correctness trap in timeout, lease, and control logic.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Avoid mixing `Instant` and `SystemTime` in one duration/control path unless the conversion boundary is explicit.
+  Verification Suggestion: Add tests that isolate monotonic timing behavior from wall-clock use and verify deadline math at the boundary.
+SHORT-WRITE clear: Partial-write / Interrupted handling audit
+  Detail: No single-call `.write(...)` sites lacking an obvious retry or `write_all` handling path were observed.
+  Classification: defect-candidate
+  Confidence: high
+  Impact Kind: correctness
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Use `write_all`, retry `Interrupted`, or document why partial writes are already handled by the caller.
+  Verification Suggestion: Add IO-path tests that inject Interrupted or partial writes and prove the caller handles them correctly.
+ASYNC-RECUR clear: Async recursion depth-bound audit
+  Detail: No async-recursive function attributes were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: concurrency/async
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Add a visible base-case/depth bound or replace async recursion with an explicit work queue or loop.
+  Verification Suggestion: Add a visible depth bound or refactor to a loop/work queue and prove the new path terminates under stress.
+CHAN-UNB clear: Unbounded async command-queue audit
+  Detail: No `mpsc::unbounded_channel` sites were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: concurrency/async
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Prefer bounded channels or document why unbounded growth is safe under the expected ingress rate.
+  Verification Suggestion: Add load tests that demonstrate bounded backlog or justify why unbounded growth cannot accumulate invisibly.
+ZERO-COPY clear: Copy-on-read / zero-copy provenance audit
+  Detail: No read-buffer copy-on-read motifs were observed.
+  Classification: design-review
+  Confidence: high
+  Impact Kind: resource discipline
+  Why This Matters In Rust: Avoidable copies on hot paths often show up later as bandwidth and tail-latency debt.
+  Review / Readiness Note: This finding can support standards-oriented internal review because it highlights boundedness, determinism, ownership, or resource-discipline questions.
+  Remediation: Keep ingress data borrowed or reference-counted longer, and avoid eager `.to_vec()` / `.clone()` on hot read paths.
+  Verification Suggestion: Benchmark the read path before and after borrowing/reference-counting changes and confirm copy count drops.
+CARGO-VERS clear: Dependency version drift / reproducibility audit
+  Detail: No wildcard or open-ended dependency version requirements were observed.
+  Classification: review-readiness
+  Confidence: high
+  Impact Kind: assurance/provenance
+  Why This Matters In Rust: This structural check points to a reviewable Rust pattern that often deserves explicit local invariants or tests.
+  Review / Readiness Note: This finding is especially relevant to review readiness because it affects reproducibility, isolation, or operator trust in what was shipped.
+  Remediation: Pin or narrow dependency version requirements so builds and attestations remain reproducible.
+  Verification Suggestion: Pin or narrow version requirements and verify the attested build stays reproducible across fresh environments.
+Criticality Heatmap
+──────────────────────────────────────────────────────────────
+Guide:
+  [##--------] observed  score 12-19
+  [####------] guarded   score 20-29
+  [######----] elevated  score 30-39
+  [########--] high      score 40-49
+  [##########] severe    score 50+
+  row format: path:line `function` [bar] band score=<n> complexity~<n>
+  signals: comma-separated structural risk contributors
+No function hotspots extracted.
+
+Derived Runtime Structural Priors
+──────────────────────────────────────────────────────────────
+These bounded priors are derived from static source motifs. They are meant to bias runtime review toward structurally plausible motifs, not to override runtime evidence.
+No static priors derived because no DSFB source motifs matched.
+
+DSFB Heuristic Motifs
+──────────────────────────────────────────────────────────────
+No DSFB source motifs matched.
+
+Conclusion Lenses
+──────────────────────────────────────────────────────────────
+Rust Maintainer Lens: Use the 64.7% overall score as a broad code-improvement target, not a compliance or certification badge. The highest-value maintainer work is concentrated in PART-SPACE, SAFE-STATE, P10-5, P10-9, P10-6.
+Compliance Readiness Lens: 1 finding(s) directly affect analyzability, reproducibility, or review traceability. DSFB may support internal review against standards-oriented expectations, but it does not certify compliance.
+Certification Preparation Lens: For certification-oriented preparation, treat PART-SPACE, SAFE-STATE, P10-5, P10-9, P10-6 as pre-review cleanup targets and evidence-organizing prompts rather than certification outcomes.
+Distributed / Operational Lens: Operational pressure is most visible in P10-5. These findings are the most likely to matter later in runtime replay, backpressure review, or production-style load investigation.
+

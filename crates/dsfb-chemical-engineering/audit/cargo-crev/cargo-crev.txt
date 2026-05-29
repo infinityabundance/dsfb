@@ -1,0 +1,40 @@
+There are no trusted Ids. There is nothing to verify against.
+Use `cargo crev trust` to add trusted reviewers
+toml_write                       0.1.2   
+memchr                           2.8.0   
+equivalent                       1.0.2   
+unicode-ident                    1.0.24  
+zmij                             1.0.21  
+ryu                              1.0.23  
+typenum                          1.20.0  
+dsfb-chemical-engineering-core   0.1.0*  
+generic-array                    0.14.7  
+hashbrown                        0.17.1  
+cfg-if                           1.0.4   
+itoa                             1.0.18  
+csv-core                         0.1.13  
+libc                             0.2.186 
+crypto-common                    0.1.7   
+winnow                           0.7.15  
+block-buffer                     0.10.4  
+cpufeatures                      0.2.17  
+indexmap                         2.14.0  
+proc-macro2                      1.0.106 
+digest                           0.10.7  
+quote                            1.0.45  
+syn                              2.0.117 
+sha2                             0.10.9  
+serde_derive                     1.0.228 
+serde_core                       1.0.228 
+serde                            1.0.228 
+csv                              1.4.0   
+serde_json                       1.0.150 
+dsfb-chemical-engineering-atlas  0.1.0*  
+dsfb-chemical-engineering-corpus 0.1.0*  
+serde_spanned                    0.6.9   
+toml_datetime                    0.6.11  
+toml_edit                        0.22.27 
+toml                             0.8.23  
+dsfb-chemical-engineering-edge   0.1.0*  
+dsfb-chemical-engineering-cuda   0.1.0*  
+exit=255

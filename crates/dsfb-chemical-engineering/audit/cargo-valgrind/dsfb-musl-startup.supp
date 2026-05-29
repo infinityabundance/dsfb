@@ -1,0 +1,35 @@
+# Valgrind suppressions: musl-static allocator false positives.
+# Static musl binaries make valgrind report "uninitialised value" inside musl's own
+# malloc internals (enframe / alloc_slot / alloc_group / __libc_malloc_impl) -- a
+# well-known musl+valgrind artifact, NOT a DSFB defect. These match any such error
+# originating in the musl allocator (any error kind, any caller). See README.md.
+{
+   musl-enframe
+   Memcheck:Cond
+   fun:enframe
+   ...
+}
+{
+   musl-enframe-val
+   Memcheck:Value8
+   fun:enframe
+   ...
+}
+{
+   musl-alloc-slot
+   Memcheck:Cond
+   fun:alloc_slot
+   ...
+}
+{
+   musl-alloc-group
+   Memcheck:Cond
+   fun:alloc_group
+   ...
+}
+{
+   musl-malloc-impl
+   Memcheck:Cond
+   fun:__libc_malloc_impl
+   ...
+}

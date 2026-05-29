@@ -1,0 +1,27 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running unittests src/lib.rs (target/miri/x86_64-unknown-linux-gnu/debug/deps/dsfb_chemical_engineering_corpus-2dc017cc60e1e5ad)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/corpus_gates.rs (target/miri/x86_64-unknown-linux-gnu/debug/deps/corpus_gates-c904ec451fe56ee6)
+
+running 7 tests
+test canonical_benchmarks_present_and_ids_unique ... ok
+test classification_census_partitions_every_record ... ok
+test corpus_hash_v1_is_deterministic_and_frozen ... ok
+test every_dataset_is_sourced_and_never_redistributed ... ok
+test gated_datasets_are_prohibited_from_redistribution ... ok
+test spectroscopy_inputs_are_flagged_not_cheap ... ok
+test validate_admits_the_catalogue ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.18s
+
+   Doc-tests dsfb_chemical_engineering_corpus
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+exit=0

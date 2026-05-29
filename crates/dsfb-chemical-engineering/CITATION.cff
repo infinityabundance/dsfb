@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use DSFB-Chemical-Engineering, please cite the following."
+title: "DSFB-Chemical-Engineering: Read-Only Residual Semiotics for Chemometrics-Augmented Fault Detection and Diagnosis in Chemical Engineering, with a Deterministic, Byte-Exact, CUDA-Accelerated Forensic Evidence Court"
+type: software
+version: "1.0"
+doi: "10.5281/zenodo.20443279"
+date-released: 2026-05-23
+authors:
+  - family-names: "de Beer"
+    given-names: "Riaan"
+    orcid: "https://orcid.org/0009-0006-1155-027X"
+    affiliation: "Invariant Forge LLC"
+keywords:
+  - dsfb
+  - chemometrics
+  - chemical-engineering
+  - process-monitoring
+  - residual-analysis
+  - deterministic-inference
+  - fault-detection
+license: Apache-2.0
+abstract: >-
+  DSFB-Chemical-Engineering is a deterministic, read-only residual-interpretation
+  layer for chemical process monitoring. It ingests the residuals, scores,
+  distances, reconstruction errors, contribution traces, and detector
+  disagreements emitted by established chemometrics detectors (PCA, PLS, DPCA,
+  KPCA, ICA, EWMA, CUSUM, contribution plots, autoencoders, …) and applies
+  Drift–Slew Fusion Bootstrap — drift, slew, admissibility envelopes, detector
+  consensus, and a chemical heuristics bank — to produce auditable,
+  human-readable structural episodes and a replayable, byte-exact evidence case
+  file. It does not replace any estimator, controller, historian, or alarm
+  system; it structures the diagnostic exhaust those systems already produce.

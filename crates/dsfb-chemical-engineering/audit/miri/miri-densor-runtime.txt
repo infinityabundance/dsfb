@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running unittests src/lib.rs (target/miri/x86_64-unknown-linux-gnu/debug/deps/dsfb_densor_runtime-85f3cebd5e7ebf6d)
+
+running 8 tests
+test seal::tests::field_order_and_length_prefix_prevent_collisions ... ok
+test seal::tests::seal_is_deterministic ... ok
+test tests::empty_pipeline_id_manifest_is_invalid ... ok
+test tests::pipeline_runs_seals_and_is_deterministic ... ok
+test tests::runtime_index_summarises_the_run ... ok
+test tests::stage_citing_an_unpinned_authority_is_refused ... ok
+test tests::stage_without_authority_is_refused ... ok
+test tests::tampering_a_stage_breaks_the_seal ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.03s
+
+   Doc-tests dsfb_densor_runtime
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

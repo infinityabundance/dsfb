@@ -1,0 +1,14 @@
+### CLEAN memcheck — static-musl edge binary, valgrind 3.25.1, musl-allocator false positives suppressed
+$ valgrind --leak-check=full --show-leak-kinds=all --suppressions=dsfb-musl-startup.supp \
+    dsfb-chem-edge verify-replay
+
+==1587971== For lists of detected and suppressed errors, rerun with: -s
+==1587971== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 112 from 12)
+
+--- the pipeline ran fully and produced correct deterministic replay hashes: ---
+synth_step_drift       replay OK    ca0bfbf3899c23676537fe7bad84625cd881d204c3995bd20b7501f1d8da0b03
+synth_ramp_drift       replay OK    b61b48244667deea5f58c20c333dfe263575d146b2f640611ec1abbe7bfeffc3
+synth_sensor_bias      replay OK    1a7bb7c607bf9ddd447d7d50d0dc5d7bd4ba5ebc5c5fca8c430f3f9a6d97c225
+synth_oscillation      replay OK    d5f26712005fe98b96a0f1a897dfa657f242b39eeedbbd2c51cbd9548a024782
+synth_wide_step        replay OK    feced8dbc3aaf7298f06c7ee99164783512d43bad59433b29d297f0727c7eb33
+synth_wide_ramp        replay OK    a8cf765768842ff05d24473beb11320747bcef8675214a40c4620bb7fd8fb8d2

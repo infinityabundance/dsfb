@@ -1,0 +1,27 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running unittests src/lib.rs (target/miri/x86_64-unknown-linux-gnu/debug/deps/dsfb_chemical_engineering_atlas-f8b57cb3adcf0b7e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/atlas_gates.rs (target/miri/x86_64-unknown-linux-gnu/debug/deps/atlas_gates-9318ae8acb35ebef)
+
+running 7 tests
+test atlas_hash_v1_is_frozen ... ok
+test detector_ids_and_canonical_ids_are_unique ... ok
+test every_detector_has_a_source_ref_and_is_executed ... ok
+test fault_signatures_unique_sourced_and_reference_real_detectors ... ok
+test h1_through_h6_present_with_inputs_and_modes ... ok
+test hashes_are_deterministic_and_64_hex ... ok
+test validate_admits_the_bundled_atlas ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 126.67s
+
+   Doc-tests dsfb_chemical_engineering_atlas
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+exit=0

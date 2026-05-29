@@ -1,0 +1,197 @@
+{
+  "format": "dsfb_chemical_engineering_narration_context_v1",
+  "dataset": "synth_wide_step",
+  "evidence_root": "5f0fab5e432d0628421f6165c73b1d7a4c0b8438713277e3abd60ddd36b4e790",
+  "contract": [
+    "A constrained external narrator may re-present this sealed record as prose; it has NO authority over the record.",
+    "Every emitted sentence MUST cite exactly one evidence anchor from the set below (by its full anchor hash).",
+    "It may NOT create evidence, assign or upgrade a claim tier, assert or invent a root cause / causal link / diagnosis, relabel an `unknown` episode as a named fault, merge/split/infer episodes beyond the record, or alter the sealed case file.",
+    "Each sentence is validated by NoNarrativeHallucinationGateV1: a sentence whose anchor is not in this set is rejected.",
+    "A sentence may not assert more than the claim tier its cited anchor carries (SealedFact > EvidenceInterpretation > SpeculativeImplication; NonClaim is never asserted).",
+    "Everything said must already be true in the sealed record. If it is not anchored here, it may not be said."
+  ],
+  "non_claims": [
+    "no proven physical root cause",
+    "no causal link asserted",
+    "no accuracy or detection-speed superiority over established methods",
+    "no control signal and no safety-instrumented-function authority",
+    "no regulatory-compliance certification",
+    "every label is a CANDIDATE for operator review, never a confirmed diagnosis"
+  ],
+  "anchors": [
+    {
+      "anchor": "97e965e66f64094c48a1b530797a2e1e5100c602469f80ce035f8c2ad006949c",
+      "episode_ref": "134-138",
+      "dominant_motif": "EV",
+      "families": [
+        "C:NonlinearDistributional",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.13333333333333333,
+      "disagreement_entropy": 0.46276456029688173,
+      "peak_drift": 2.0424127111753068,
+      "peak_slew": 4.8540425105759235,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "UNKNOWN_WEAK_QUORUM"
+    },
+    {
+      "anchor": "ac00fc091bcca2aa8ff67851c0f8e23d2178217213fd4b47db425c60f1c8792f",
+      "episode_ref": "244-249",
+      "dominant_motif": "EV",
+      "families": [
+        "B:DynamicTemporal",
+        "C:NonlinearDistributional",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.12037037037037035,
+      "disagreement_entropy": 0.43481213272991076,
+      "peak_drift": 2.665011738210549,
+      "peak_slew": 2.502796900195737,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "UNKNOWN_WEAK_QUORUM"
+    },
+    {
+      "anchor": "6f2dd6a5a426cae36626c4330e837f46397e3e5fa9e47c04e969dff5e2a243fd",
+      "episode_ref": "259-264",
+      "dominant_motif": "BG",
+      "families": [
+        "C:NonlinearDistributional",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.11111111111111112,
+      "disagreement_entropy": 0.41301239033932324,
+      "peak_drift": 1.2647378045328848,
+      "peak_slew": 0.6666666666666667,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "UNKNOWN_WEAK_QUORUM"
+    },
+    {
+      "anchor": "a601b2c3d65a26102c0f437b393b14e881e126c5412526b587df0bcb8ace414f",
+      "episode_ref": "281-282",
+      "dominant_motif": "EV",
+      "families": [
+        "C:NonlinearDistributional",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.1111111111111111,
+      "disagreement_entropy": 0.42584844923858145,
+      "peak_drift": 1.2458741145839771,
+      "peak_slew": 0.6666666666666667,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "UNKNOWN_SHORT_TRANSIENT"
+    },
+    {
+      "anchor": "66ca28f114cedcada9b1aebfe85c79fad5150459a0a0f4d6fb054a7f4d298319",
+      "episode_ref": "322-330",
+      "dominant_motif": "DA",
+      "families": [
+        "C:NonlinearDistributional",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.1234567901234568,
+      "disagreement_entropy": 0.45491477242603157,
+      "peak_drift": 0.8332417305140235,
+      "peak_slew": 2.0,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "UNKNOWN_WEAK_QUORUM"
+    },
+    {
+      "anchor": "90035482cfd5f934940a54d4ffa4cdbe3174be06bcd2d8ee78a6c9c89e0d3136",
+      "episode_ref": "332-334",
+      "dominant_motif": "EV",
+      "families": [
+        "C:NonlinearDistributional",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.1111111111111111,
+      "disagreement_entropy": 0.42584844923858145,
+      "peak_drift": 0.8330197494104206,
+      "peak_slew": 1.6666666666666667,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "UNKNOWN_SHORT_TRANSIENT"
+    },
+    {
+      "anchor": "a98fccdafbef068afe125febbf19a9c6575e8389dd692c013f71a9cda3c26e5e",
+      "episode_ref": "364-365",
+      "dominant_motif": "CP",
+      "families": [
+        "A:ClassicalMSPC",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.1111111111111111,
+      "disagreement_entropy": 0.42584844923858145,
+      "peak_drift": 0.8444444444444446,
+      "peak_slew": 1.3333333333333333,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "UNKNOWN_SHORT_TRANSIENT"
+    },
+    {
+      "anchor": "3f9b8ee317048023df81c1e445e6efeb62c961b5d76baa81e90ae430951a45df",
+      "episode_ref": "372-374",
+      "dominant_motif": "DA",
+      "families": [
+        "C:NonlinearDistributional",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.1111111111111111,
+      "disagreement_entropy": 0.42584844923858145,
+      "peak_drift": 0.7333333333333333,
+      "peak_slew": 1.083226349636305,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "UNKNOWN_SHORT_TRANSIENT"
+    },
+    {
+      "anchor": "242eaff4da1447a16d0991efb3a148cc7b7de7271fc60a862c1aa3e5f1e4179f",
+      "episode_ref": "393-394",
+      "dominant_motif": "RC",
+      "families": [
+        "C:NonlinearDistributional",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.1111111111111111,
+      "disagreement_entropy": 0.42584844923858145,
+      "peak_drift": 0.2482730235252927,
+      "peak_slew": 3.7240953528793908,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "UNKNOWN_SHORT_TRANSIENT"
+    },
+    {
+      "anchor": "55c0a97e6c901aef36e8af59cb2746acb3c0dfb809e5555f72ab1417bdd5102b",
+      "episode_ref": "400-599",
+      "dominant_motif": "EV",
+      "families": [
+        "A:ClassicalMSPC",
+        "B:DynamicTemporal",
+        "C:NonlinearDistributional",
+        "D:ProcessStructure"
+      ],
+      "consensus_strength": 0.6000000000000019,
+      "disagreement_entropy": 1.1884699418313927,
+      "peak_drift": 4604.633589320771,
+      "peak_slew": 1115.7448288711992,
+      "witness_strength": "DetectorFamilyQuorum",
+      "evidence_kind": "chemometric_detector",
+      "claim_tier": "EvidenceInterpretation",
+      "label": "candidate actuator stiction / valve stick-slip"
+    }
+  ],
+  "context_root": "de2a6202e5c98caf639f10000b0b8606e87afc9d42254e7af58bfeea12458e8d"
+}

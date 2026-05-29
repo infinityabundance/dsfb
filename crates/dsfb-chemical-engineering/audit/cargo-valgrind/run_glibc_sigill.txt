@@ -1,0 +1,8 @@
+### glibc-dynamic binary: valgrind 3.24.0 SIGILLs on an AVX-512 (EVEX) instruction it cannot decode
+==1540743== Using Valgrind-3.24.0 and LibVEX; rerun with -h for copyright info
+vex amd64->IR: unhandled instruction bytes: 0x62 0xF1 0x7F 0x48 0x7F 0x84 0x24 0x30 0x0 0x0
+vex amd64->IR:   REX=0 REX.W=0 REX.R=0 REX.X=0 REX.B=0
+vex amd64->IR:   VEX=0 VEX.L=0 VEX.nVVVV=0x0 ESC=NONE
+vex amd64->IR:   PFX.66=0 PFX.F2=0 PFX.F3=0
+==1540743==   total heap usage: 0 allocs, 0 frees, 0 bytes allocated
+==1540743== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

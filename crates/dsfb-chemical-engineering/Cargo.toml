@@ -1,0 +1,34 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/dsfb-chemical-engineering-edge",
+    "crates/dsfb-chemical-engineering-cuda",
+    "crates/dsfb-chemical-engineering-atlas",
+    "crates/dsfb-chemical-engineering-corpus",
+    "crates/dsfb-chemical-engineering-core",
+    "crates/dsfb-densor-runtime",
+]
+default-members = ["crates/dsfb-chemical-engineering-edge"]
+# The bare-metal QEMU smoke harness is built only for thumbv7m-none-eabi (it depends on cortex-m-rt and
+# cannot build for the host), so it is excluded from the host workspace.
+exclude = ["crates/dsfb-chemical-engineering-core/qemu-smoke"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Riaan de Beer - Invariant Forge LLC - <riaan@invariantforge.net>"]
+homepage = "https://www.invariantforge.net"
+repository = "https://github.com/infinityabundance/dsfb/tree/main/crates/dsfb-chemical-engineering"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"], default-features = false }
+serde_json = "1.0"
+csv = "1.3"
+thiserror = "1.0"
+toml = "0.8"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

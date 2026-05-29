@@ -1,0 +1,42 @@
+Kani bounded model-checking — DSFB-Chemical-Engineering grammar soundness
+=========================================================================
+Tool:     cargo-kani 0.67.0  (CBMC 6.8.0, CaDiCaL 2.0.0 SAT backend)
+Package:  dsfb-chemical-engineering-edge
+Harness source: crates/dsfb-chemical-engineering-edge/src/kani_proofs.rs  (#[cfg(kani)] mod proofs)
+Command:  cargo kani -p dsfb-chemical-engineering-edge
+Config:   16 object bits, 48 offset bits; bit-precise IEEE-754 float reasoning
+Full CBMC trace: kani.txt  (335 KB)
+
+VERDICT: 6 successfully verified harnesses, 0 failures, 6 total.
+
+Per-harness results (verdict · property checks generated · CBMC verification time)
+----------------------------------------------------------------------------------
+proof_origin_triple_is_interior            SUCCESSFUL   0 of 142 failed   0.028 s
+    envelope monotonicity: a residual triple at the origin (r=0, delta=0, sigma=0)
+    is always interior to symmetric(r_max=3.0, slew=0.1).
+
+proof_nonfinite_is_sensor_fault            SUCCESSFUL   0 of 191 failed   0.031 s
+    non-finite input (NaN/+/-inf) is always classified GrammarState::SensorFault.
+
+proof_determinism_two_runs_match           SUCCESSFUL   0 of 191 failed   0.190 s
+    two independent GrammarClassifier runs on identical input/params yield the
+    identical state, for every finite r with |r| < 1e6 (symbolic).
+
+proof_interior_finite_is_not_sensor_fault  SUCCESSFUL   0 of 191 failed   0.256 s
+    grammar soundness (Wave-1 B3): a finite triple strictly inside the envelope
+    (|r|<1.0, |delta|<0.05, |sigma|<0.05) is never SensorFault — that state is
+    reserved for non-finite input.
+
+proof_beyond_bound_is_not_interior         SUCCESSFUL   0 of 142 failed   0.046 s
+    the envelope actually bounds: a finite residual well beyond r_max (r > 4.0)
+    is never reported interior.
+
+proof_classify_is_total_on_finite          SUCCESSFUL   0 of 190 failed   0.195 s
+    grammar totality: for any finite triple (|r|,|delta|,|sigma| < 1e6), classify()
+    terminates without panic/overflow and returns a state along every path — the
+    per-sample grammar cannot get stuck or trap.
+
+Totals: 1047 property checks (overflow/bounds/assertion instances), 0 failed.
+Each "N property checks" is the set of CBMC verification conditions generated for
+that harness (arithmetic-overflow, pointer/bounds, and the explicit assert!),
+all of which were discharged.

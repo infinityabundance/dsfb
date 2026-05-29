@@ -1,0 +1,285 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "predicate": {
+    "crate": {
+      "artifactsInspected": 12,
+      "filesScanned": 11,
+      "name": "dsfb-densor-runtime",
+      "pathInVcs": null,
+      "root": "/home/one/dsfb-chemical-engineering/crates/dsfb-densor-runtime",
+      "sourceSha256": "431ea86614b9f89a9106ea2959305f161407992da1470d41b3928da11ff9112e",
+      "vcsCommit": null,
+      "version": null
+    },
+    "generatedAtUtc": "2026-05-28T00:06:31.736728767Z",
+    "guidanceSemantics": {
+      "codeQualityGoal": true,
+      "nonCertificationStatement": "DSFB findings may support internal review against standards-oriented expectations, but DSFB does not certify compliance with IEC, ISO, RTCA, MIL, NIST, or other standards.",
+      "reviewReadinessGoal": true
+    },
+    "sarif": {
+      "mediaType": "application/sarif+json",
+      "resultCount": 6,
+      "sha256": "e18c8e0e868e2c838f1137c618bd29840a4e5a069301a00d45fcec79c141ea91"
+    },
+    "scanner": {
+      "auditMode": "canonical-broad-audit",
+      "name": "dsfb-gray",
+      "recipe": [
+        "heuristics-bank-default",
+        "constrained-runtime-audit",
+        "unsafe-panic-ffi-audit",
+        "verification-audit",
+        "lifecycle-audit",
+        "nasa-power-of-ten-audit",
+        "advanced-structural-audit"
+      ],
+      "recipeVersion": 1,
+      "version": "0.1.0"
+    },
+    "summary": {
+      "advancedStructural": {
+        "clear": 22,
+        "elevated": 0,
+        "indeterminate": 1
+      },
+      "advisorySubscores": [
+        {
+          "basis": "Derived from safety surface, correctness-critical Power-of-Ten rules, and correctness-oriented structural checks.",
+          "id": "correctness",
+          "percent": 83.3,
+          "title": "Correctness"
+        },
+        {
+          "basis": "Derived from lifecycle/governance evidence, reviewability-oriented Power-of-Ten rules, and maintainability-heavy structural checks.",
+          "id": "maintainability",
+          "percent": 71.8,
+          "title": "Maintainability"
+        },
+        {
+          "basis": "Derived from async/concurrency structural checks and bounded-control-flow review signals.",
+          "id": "concurrency_async",
+          "percent": 75.0,
+          "title": "Concurrency / Async"
+        },
+        {
+          "basis": "Derived from runtime-allocation proxies, resource-lifecycle checks, and bounded-allocation / bounded-loop review rules.",
+          "id": "resource_discipline",
+          "percent": 66.7,
+          "title": "Resource Discipline"
+        },
+        {
+          "basis": "Derived from verification signals, build/tooling complexity, and analyzability-oriented Power-of-Ten rules.",
+          "id": "verification_reviewability",
+          "percent": 62.2,
+          "title": "Verification / Reviewability"
+        },
+        {
+          "basis": "Derived from the full locked rubric as a broad readiness-oriented advisory synthesis.",
+          "id": "assurance_provenance",
+          "percent": 66.4,
+          "title": "Assurance / Provenance"
+        }
+      ],
+      "auditScore": {
+        "band": "developing but substantial assurance posture",
+        "earnedWeightedPoints": 70.2,
+        "guideline": [
+          "Method: weighted checkpoint scoring across Safety (15%), Verification (15%), Build/Tooling (10%), Lifecycle/Governance (10%), NASA/JPL Power of Ten (25%), and Advanced Structural Checks (25%).",
+          "Checkpoint credit: pass/clear/applied = 1.0, indeterminate/partial = 0.5, elevated/not applied = 0.0.",
+          "Fairness rule: raw motif counts do not linearly reduce the score; each checkpoint contributes once so large crates are not punished simply for having more code.",
+          "Informational-only signals such as DSFB heuristic motif matches, hotspot counts, and capability flags like no_std/no_alloc are reported but excluded from the score denominator.",
+          "Interpretation: this is a broad improvement and review-readiness score for source-visible controls and evidence, not a certification and not a measure of runtime correctness."
+        ],
+        "method": "dsfb-assurance-score-v1",
+        "overallPercent": 70.2,
+        "possibleWeightedPoints": 100.0,
+        "sections": [
+          {
+            "checkpointCount": 5,
+            "earnedCheckpoints": 5.0,
+            "id": "safety",
+            "sectionPercent": 100.0,
+            "title": "Safety Surface",
+            "weightPercent": 15.0,
+            "weightedPoints": 15.0
+          },
+          {
+            "checkpointCount": 5,
+            "earnedCheckpoints": 1.0,
+            "id": "verification",
+            "sectionPercent": 20.0,
+            "title": "Verification Evidence",
+            "weightPercent": 15.0,
+            "weightedPoints": 3.0
+          },
+          {
+            "checkpointCount": 6,
+            "earnedCheckpoints": 6.0,
+            "id": "build",
+            "sectionPercent": 100.0,
+            "title": "Build / Tooling Complexity",
+            "weightPercent": 10.0,
+            "weightedPoints": 10.0
+          },
+          {
+            "checkpointCount": 13,
+            "earnedCheckpoints": 2.0,
+            "id": "lifecycle",
+            "sectionPercent": 15.4,
+            "title": "Lifecycle / Governance",
+            "weightPercent": 10.0,
+            "weightedPoints": 1.5
+          },
+          {
+            "checkpointCount": 10,
+            "earnedCheckpoints": 6.5,
+            "id": "nasa_power_of_ten",
+            "sectionPercent": 65.0,
+            "title": "NASA/JPL Power of Ten",
+            "weightPercent": 25.0,
+            "weightedPoints": 16.3
+          },
+          {
+            "checkpointCount": 23,
+            "earnedCheckpoints": 22.5,
+            "id": "advanced_structural",
+            "sectionPercent": 97.8,
+            "title": "Advanced Structural Checks",
+            "weightPercent": 25.0,
+            "weightedPoints": 24.5
+          }
+        ]
+      },
+      "conclusionLenses": {
+        "certificationPreparation": "For certification-oriented preparation, treat P10-3, P10-5, P10-10, NASA-CC, P10-7 as pre-review cleanup targets and evidence-organizing prompts rather than certification outcomes.",
+        "complianceReadiness": "1 finding(s) directly affect analyzability, reproducibility, or review traceability. DSFB may support internal review against standards-oriented expectations, but it does not certify compliance.",
+        "distributedOperational": "Operational pressure is most visible in P10-5, H-SERDE-01. These findings are the most likely to matter later in runtime replay, backpressure review, or production-style load investigation.",
+        "rustMaintainer": "Use the 70.2% overall score as a broad code-improvement target, not a compliance or certification badge. The highest-value maintainer work is concentrated in P10-3, P10-5, NASA-CC, H-SERDE-01, P10-7."
+      },
+      "criticalityHotspots": [],
+      "findings": [
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-3-01-index-23",
+            "P10-3-02-index-39",
+            "P10-3-03-manifest-46",
+            "P10-3-04-receipt-59"
+          ],
+          "id": "P10-3",
+          "impactKind": "correctness",
+          "remediation": "Move dynamic allocation to initialization paths or document and bound the steady-state allocation sites.",
+          "status": "not applied",
+          "title": "No dynamic allocation after initialization",
+          "verificationSuggestion": "Profile the flagged path under steady-state load and confirm no avoidable heap growth remains after initialization."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "defect-candidate",
+          "confidence": "high",
+          "evidenceIds": [
+            "P10-5-01-receipt-31",
+            "P10-5-02-manifest-33",
+            "P10-5-03-index-21",
+            "P10-5-04-errors-41"
+          ],
+          "id": "P10-5",
+          "impactKind": "concurrency/async",
+          "remediation": "Replace catch-all control flow with explicit state handling or document the fallback state as intentional.",
+          "status": "not applied",
+          "title": "Assertion density averages at least two per function",
+          "verificationSuggestion": "Add state-transition tests that cover the previously catch-all path explicitly."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "review-readiness",
+          "confidence": "medium",
+          "evidenceIds": [],
+          "id": "P10-10",
+          "impactKind": "verification/reviewability",
+          "remediation": "Keep warnings and analyzer gates active in CI so the audit surface stays reviewable over time.",
+          "status": "not applied",
+          "title": "Pedantic warnings and static analyzers are enforced",
+          "verificationSuggestion": "Keep analyzer and warnings-as-errors gates in CI and record the expected toolchain surface in the repo docs."
+        },
+        {
+          "category": "advanced-structural",
+          "classification": "design-review",
+          "confidence": "medium",
+          "evidenceIds": [],
+          "id": "NASA-CC",
+          "impactKind": "maintainability",
+          "remediation": "Review the finding against the emitted evidence and either tighten the local structure or document the local invariant.",
+          "status": "indeterminate",
+          "title": "Cyclomatic complexity hotspot audit (NASA SWE-220 proxy)",
+          "verificationSuggestion": "Use the evidence block to write the smallest targeted regression or review note that proves the intended invariant."
+        },
+        {
+          "category": "heuristic",
+          "classification": "design-review",
+          "confidence": "high",
+          "evidenceIds": [
+            "H-SERDE-01-01-cargo-13",
+            "H-SERDE-01-02-authority-10",
+            "H-SERDE-01-03-authority-10",
+            "H-SERDE-01-04-authority-10",
+            "H-SERDE-01-05-authority-13",
+            "H-SERDE-01-06-authority-13"
+          ],
+          "id": "H-SERDE-01",
+          "impactKind": "resource discipline",
+          "remediation": "Review payload growth, eager allocation, and schema-boundary handling on the serialization path.",
+          "status": "matched",
+          "title": "Serialization latency increasing with step-change at schema boundary",
+          "verificationSuggestion": "Review the emitted evidence and add a targeted regression or replay check on the affected path."
+        },
+        {
+          "category": "nasa-power-of-ten",
+          "classification": "defect-candidate",
+          "confidence": "medium",
+          "evidenceIds": [],
+          "id": "P10-7",
+          "impactKind": "correctness",
+          "remediation": "Propagate errors explicitly rather than unwrapping, or document the invariant that justifies the unwrap/expect.",
+          "status": "indeterminate",
+          "title": "Return values are checked and parameters are validated",
+          "verificationSuggestion": "Replace unwrap/expect with explicit handling or add an invariant test that proves the extraction precondition."
+        }
+      ],
+      "matchedHeuristics": [
+        {
+          "id": "H-SERDE-01",
+          "matchedPatterns": [
+            "deserialize",
+            "serde",
+            "serialize"
+          ],
+          "reasonCode": "SerializationDrift",
+          "structuralPrior": {
+            "confidence": 0.8047189562170501,
+            "driftScale": 0.7988202609457374,
+            "slewScale": 0.758584313134885
+          },
+          "totalHits": 24
+        }
+      ],
+      "powerOfTen": {
+        "applied": 6,
+        "indeterminate": 1,
+        "notApplied": 3
+      }
+    }
+  },
+  "predicateType": "https://github.com/infinityabundance/dsfb-gray/attestations/crate-scan/v1",
+  "subject": [
+    {
+      "digest": {
+        "sha256": "431ea86614b9f89a9106ea2959305f161407992da1470d41b3928da11ff9112e"
+      },
+      "name": "pkg:cargo/dsfb-densor-runtime"
+    }
+  ]
+}

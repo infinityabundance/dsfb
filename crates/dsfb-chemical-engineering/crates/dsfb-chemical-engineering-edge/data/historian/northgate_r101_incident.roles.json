@@ -1,0 +1,43 @@
+{
+  "dataset": "northgate_r101_incident",
+  "kind": "synthetic",
+  "description": "FICTIONAL forensic-incident fixture (NOT real plant data; no real company/site). Northgate Specialty Chemicals R-101 cooling-water surge tank TK-110: a mid-batch LIT-110 sensor spoof freezes the level while the meters show a sustained jacket draw, breaking the mass_tank_volume closure.",
+  "variables": [
+    {
+      "name": "LIT-110",
+      "role": "measured",
+      "unit": "mm",
+      "quantity": "level"
+    },
+    {
+      "name": "FIT-110A",
+      "role": "measured",
+      "unit": "m3/h",
+      "quantity": "inflow"
+    },
+    {
+      "name": "FIT-110B",
+      "role": "measured",
+      "unit": "m3/h",
+      "quantity": "outflow"
+    }
+  ],
+  "balance": {
+    "type": "mass_tank_volume",
+    "area_m2": 1.0,
+    "dt": 1.0,
+    "level": "LIT-110",
+    "inflows": [
+      "FIT-110A"
+    ],
+    "outflows": [
+      "FIT-110B"
+    ],
+    "flow_to_vol_per_dt": 1.0,
+    "definition": "residual = dLIT-110 - (FIT-110A - FIT-110B); ~0 under normal control, jumps to the net-draw magnitude when the spoofed level contradicts the metered flow."
+  },
+  "fault": {
+    "onset_index_timestamps": 54,
+    "mode": "LIT-110 sensor spoof (frozen level) while meters show net jacket draw"
+  }
+}

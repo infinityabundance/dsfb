@@ -1,0 +1,58 @@
+{
+  "dataset": "swat_t101_instrumented",
+  "kind": "real",
+  "release_status": "metadata_only_no_rows",
+  "contains_controlled_access_rows": false,
+  "contains_attack_list_rows": false,
+  "contains_reconstructable_windows": false,
+  "reconstructable_from_committed_bytes": false,
+  "public_release_allowed": true,
+  "controlled_access_bytes_quarantined": true,
+  "redistribution_policy": "DoNotRedistributeRawOrDerivedRows",
+  "release_note": "This sidecar carries ONLY column metadata + balance coefficients; it contains NO iTrust/SWaT data rows and the rows cannot be reconstructed from anything committed in this repository. The controlled-access rows themselves stay in the untracked research/ quarantine and are never redistributed (raw or derived). Naming the dataset is required credit per the iTrust usage agreement, not redistribution.",
+  "description": "SWaT stage-1 raw-water tank T101 volume (mass) balance witness on a real water-treatment testbed; LIT101 sensor-spoofing attacks break the closure.",
+  "provenance": {
+    "testbed": "SWaT (Secure Water Treatment), iTrust / SUTD",
+    "citation": "Goh, Adepu, Junejo, Mathur, 'A Dataset to Support Research in the Design of Secure Water Treatment Systems', CRITIS 2016",
+    "license": "iTrust usage agreement; data NOT redistributed in this repository",
+    "note": "Kaggle packaging (normal.csv + attack.csv) reconstructed into a continuous normal-with-attacks sequence; 30 s aggregation; segment joins bridged (only within-segment level changes enter the balance)."
+  },
+  "variables": [
+    {
+      "name": "LIT101",
+      "role": "measured",
+      "unit": "mm",
+      "quantity": "level"
+    },
+    {
+      "name": "FIT101",
+      "role": "measured",
+      "unit": "m^3/h",
+      "quantity": "inflow"
+    },
+    {
+      "name": "FIT201",
+      "role": "measured",
+      "unit": "m^3/h",
+      "quantity": "outflow"
+    }
+  ],
+  "balance": {
+    "type": "mass_tank_volume",
+    "area_m2": 1.0,
+    "dt": 1.0,
+    "level": "LIT101",
+    "inflows": [
+      "FIT101"
+    ],
+    "outflows": [
+      "FIT201"
+    ],
+    "flow_to_vol_per_dt": 6.00265,
+    "definition": "residual = dLIT101 - factor*(FIT101 - FIT201) [mm per 30 s block]; ~0 under normal control, jumps when a spoofed LIT101 contradicts the metered net flow"
+  },
+  "fault": {
+    "mode": "cyber-attacks spoofing LIT101 (and stage-1 flow) -- level frozen/biased while the flow meters keep moving",
+    "note": "multiple disjoint labelled windows; only stage-1 (LIT101/flow) attacks break the T101 balance"
+  }
+}

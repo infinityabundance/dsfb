@@ -1,0 +1,4 @@
+### cargo flux on dsfb-chemical-engineering-core (real captured stdout)
+$ cargo flux
+    Checking dsfb-chemical-engineering-core v0.1.0 (/home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-core)
+    Finished `flux` profile [unoptimized + debuginfo] target(s) in 0.03s

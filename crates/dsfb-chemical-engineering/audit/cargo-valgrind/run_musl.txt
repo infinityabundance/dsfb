@@ -1,0 +1,16 @@
+### musl-static binary: runs to completion (verify-replay produced correct hashes), but musl-malloc false positives
+synth_sensor_bias      replay OK    1a7bb7c607bf9ddd447d7d50d0dc5d7bd4ba5ebc5c5fca8c430f3f9a6d97c225
+synth_oscillation      replay OK    d5f26712005fe98b96a0f1a897dfa657f242b39eeedbbd2c51cbd9548a024782
+synth_wide_step        replay OK    feced8dbc3aaf7298f06c7ee99164783512d43bad59433b29d297f0727c7eb33
+synth_wide_ramp        replay OK    a8cf765768842ff05d24473beb11320747bcef8675214a40c4620bb7fd8fb8d2
+---
+==1552451== Conditional jump or move depends on uninitialised value(s)
+==1552451==    at 0x5931E7: enframe (meta.h:204)
+==1552451==    by 0x5931E7: __libc_malloc_impl (malloc.c:379)
+==1552451== Conditional jump or move depends on uninitialised value(s)
+==1552451==    at 0x5931E7: enframe (meta.h:204)
+==1552451==    by 0x5931E7: __libc_malloc_impl (malloc.c:379)
+==1552451== Conditional jump or move depends on uninitialised value(s)
+==1552451==    at 0x5931E7: enframe (meta.h:204)
+==1552451==    by 0x5931E7: __libc_malloc_impl (malloc.c:379)
+==1552451== Conditional jump or move depends on uninitialised value(s)

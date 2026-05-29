@@ -1,0 +1,82 @@
+{
+  "dataset": "cstr_instrumented",
+  "kind": "simulation",
+  "description": "Non-isothermal CSTR; energy-balance witness + control-action; thermocouple drift fault.",
+  "variables": [
+    {
+      "name": "feed_flow",
+      "role": "measured",
+      "unit": "L/min",
+      "quantity": "flow"
+    },
+    {
+      "name": "feed_temp",
+      "role": "measured",
+      "unit": "K",
+      "quantity": "temperature"
+    },
+    {
+      "name": "feed_conc",
+      "role": "measured",
+      "unit": "mol/L",
+      "quantity": "concentration"
+    },
+    {
+      "name": "reactor_temp",
+      "role": "controlled",
+      "unit": "K",
+      "quantity": "temperature"
+    },
+    {
+      "name": "reactor_conc",
+      "role": "measured",
+      "unit": "mol/L",
+      "quantity": "concentration"
+    },
+    {
+      "name": "coolant_flow",
+      "role": "manipulated",
+      "unit": "L/min",
+      "quantity": "flow"
+    },
+    {
+      "name": "coolant_temp_in",
+      "role": "measured",
+      "unit": "K",
+      "quantity": "temperature"
+    },
+    {
+      "name": "coolant_temp_out",
+      "role": "measured",
+      "unit": "K",
+      "quantity": "temperature"
+    }
+  ],
+  "balance": {
+    "type": "energy_cstr",
+    "V_L": 100.0,
+    "rho_cp_J_per_LK": 239.0,
+    "neg_dHr_J_per_mol": 50000.0,
+    "k0": 72000000000.0,
+    "EoverR_K": 8750.0,
+    "F_L_per_min": 10.0,
+    "rho_cp_coolant_J_per_LK": 4180.0,
+    "dt_min": 0.5,
+    "reactor_temp": "reactor_temp",
+    "feed_temp": "feed_temp",
+    "reactor_conc": "reactor_conc",
+    "coolant_flow": "coolant_flow",
+    "coolant_temp_in": "coolant_temp_in",
+    "coolant_temp_out": "coolant_temp_out",
+    "definition": "residual = rho_cp*V*dT/dt - (F*rho_cp*(Tin-T) + (-dHr)*k0*exp(-EoverR/T)*Ca*V - Fc*rho_cp_c*(Tc_out-Tc_in))"
+  },
+  "control_action": {
+    "manipulated": "coolant_flow",
+    "controlled": "reactor_temp",
+    "saturation_high": 120.0
+  },
+  "fault": {
+    "onset_index": 420,
+    "mode": "reactor thermocouple drift"
+  }
+}

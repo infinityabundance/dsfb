@@ -1,0 +1,65 @@
+{
+  "dataset": "batadal_t1_instrumented",
+  "kind": "real",
+  "release_status": "metadata_only_no_rows",
+  "contains_controlled_access_rows": false,
+  "contains_attack_list_rows": false,
+  "contains_reconstructable_windows": false,
+  "reconstructable_from_committed_bytes": false,
+  "public_release_allowed": true,
+  "controlled_access_bytes_quarantined": true,
+  "redistribution_policy": "DoNotRedistributeRawOrDerivedRows",
+  "release_note": "This sidecar carries ONLY column metadata + balance coefficients; it contains NO data rows and the rows cannot be reconstructed from anything committed in this repository. BATADAL raw data is itself freely available from batadal.net (so it is reconstructable from the ORIGINAL public source) but is treated here under the same do-not-redistribute discipline as the other gated testbeds; the instrumented rows stay in the untracked research/ quarantine.",
+  "description": "BATADAL C-Town tank T1 volume (mass) balance witness on real public SCADA with labelled cyber-attacks; PU2 attacks break the T1 mass balance.",
+  "provenance": {
+    "benchmark": "BATADAL (Battle of the Attack Detection Algorithms)",
+    "citation": "Taormina, Galelli, et al., J. Water Resources Planning & Management 144(8), 2018",
+    "source_url": "https://www.batadal.net/data/BATADAL_dataset04.csv",
+    "network_file": "ctown_map.inp (EPANET), https://github.com/rtaormina/epanetCPA",
+    "license": "freely available for research (batadal.net)",
+    "note": "raw data fetched by this script, not redistributed in the repository"
+  },
+  "variables": [
+    {
+      "name": "L_T1",
+      "role": "measured",
+      "unit": "m",
+      "quantity": "level"
+    },
+    {
+      "name": "F_PU1",
+      "role": "measured",
+      "unit": "L/s",
+      "quantity": "inflow"
+    },
+    {
+      "name": "F_PU2",
+      "role": "measured",
+      "unit": "L/s",
+      "quantity": "inflow"
+    },
+    {
+      "name": "F_PU3",
+      "role": "measured",
+      "unit": "L/s",
+      "quantity": "inflow"
+    }
+  ],
+  "balance": {
+    "type": "mass_tank_volume",
+    "area_m2": 769.4467,
+    "dt": 1.0,
+    "level": "L_T1",
+    "inflows": [
+      "F_PU1",
+      "F_PU2",
+      "F_PU3"
+    ],
+    "flow_to_vol_per_dt": 3.6,
+    "definition": "residual = area*dL/dt - 3.6*(F_PU1+F_PU2+F_PU3)  [m^3/h]; = -(unmetered DMA demand) under normal operation"
+  },
+  "fault": {
+    "mode": "cyber-attacks manipulating pump PU2 (T1 inflow); spoofed flow vs real drain",
+    "note": "multiple disjoint labelled windows; only PU2/T1 attacks break the T1 balance"
+  }
+}

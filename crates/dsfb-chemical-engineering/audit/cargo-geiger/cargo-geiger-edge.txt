@@ -1,0 +1,211 @@
+Failed to match (ignoring source) package: path+file:///home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-corpus#0.1.0 
+Failed to match (ignoring source) package: path+file:///home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-corpus#0.1.0 
+Failed to match (ignoring source) package: path+file:///home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-corpus#0.1.0 
+Failed to match (ignoring source) package: path+file:///home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-corpus#0.1.0 
+Failed to match (ignoring source) package: path+file:///home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-corpus#0.1.0 
+Failed to match (ignoring source) package: path+file:///home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-corpus#0.1.0 
+Failed to match (ignoring source) package: path+file:///home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-corpus#0.1.0 
+Failed to match (ignoring source) package: path+file:///home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-corpus#0.1.0 
+     Removed 9736 files, 3.8GiB total
+   Compiling proc-macro2 v1.0.106
+   Compiling serde_core v1.0.228
+   Compiling quote v1.0.45
+   Compiling unicode-ident v1.0.24
+   Compiling version_check v0.9.5
+   Compiling serde v1.0.228
+    Checking typenum v1.20.0
+    Checking equivalent v1.0.2
+    Checking memchr v2.8.0
+   Compiling zmij v1.0.21
+    Checking hashbrown v0.17.1
+   Compiling serde_json v1.0.150
+    Checking cpufeatures v0.2.17
+    Checking toml_write v0.1.2
+    Checking cfg-if v1.0.4
+    Checking itoa v1.0.18
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/equivalent-2756b7cee286c32d.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/cpufeatures-bcdb2005199d2b73.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/quote-0c74ba0e11cb0bb6/build_script_build-0c74ba0e11cb0bb6.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/serde-0c0d3ac83fe3437f/build_script_build-0c0d3ac83fe3437f.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/serde_core-2c202ff50a245706/build_script_build-2c202ff50a245706.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/serde_json-0ec17aa54cf74839/build_script_build-0ec17aa54cf74839.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libcpufeatures-bcdb2005199d2b73.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/unicode_ident-a43390fd6bef71db.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/proc-macro2-cbf9d7f07e34dca1/build_script_build-cbf9d7f07e34dca1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/version_check-9859fe56c2d7fed0.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/cfg_if-e7f3f42eb79a8477.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libcfg_if-e7f3f42eb79a8477.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/zmij-21501fc4e230aede/build_script_build-21501fc4e230aede.d","emit":"dep-info"}
+    Checking winnow v0.7.15
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libequivalent-2756b7cee286c32d.rmeta","emit":"metadata"}
+    Checking ryu v1.0.23
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/toml_write-ce602d353b405daa.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/itoa-2c16ec70efb38979.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libunicode_ident-a43390fd6bef71db.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libunicode_ident-a43390fd6bef71db.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/ryu-4311754d5ac1e9e4.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/memchr-0402db28d0e68abe.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/hashbrown-62eeca6efe306c3d.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libitoa-2c16ec70efb38979.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/serde_json-0ec17aa54cf74839/build_script_build-0ec17aa54cf74839","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libtoml_write-ce602d353b405daa.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libryu-4311754d5ac1e9e4.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libversion_check-9859fe56c2d7fed0.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/quote-0c74ba0e11cb0bb6/build_script_build-0c74ba0e11cb0bb6","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/serde-0c0d3ac83fe3437f/build_script_build-0c0d3ac83fe3437f","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/zmij-21501fc4e230aede/build_script_build-21501fc4e230aede","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/serde_core-2c202ff50a245706/build_script_build-2c202ff50a245706","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/proc-macro2-cbf9d7f07e34dca1/build_script_build-cbf9d7f07e34dca1","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libversion_check-9859fe56c2d7fed0.rlib","emit":"link"}
+   Compiling generic-array v0.14.7
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/zmij-ae52b0671f69a629.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/generic-array-2394a347ed503b4c/build_script_build-2394a347ed503b4c.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/typenum-18002fbdc7872d1c.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/build/generic-array-2394a347ed503b4c/build_script_build-2394a347ed503b4c","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/winnow-c8727dd0c76b6fb5.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/proc_macro2-1a90fc62db7f3d5d.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libzmij-ae52b0671f69a629.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/serde_core-1f3795cec2dfb7e1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libmemchr-0402db28d0e68abe.rmeta","emit":"metadata"}
+    Checking csv-core v0.1.13
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/csv_core-87f1f85144855b2e.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libhashbrown-62eeca6efe306c3d.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libcsv_core-87f1f85144855b2e.rmeta","emit":"metadata"}
+    Checking indexmap v2.14.0
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/indexmap-b7581623c6da7d93.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libproc_macro2-1a90fc62db7f3d5d.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libtypenum-18002fbdc7872d1c.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libproc_macro2-1a90fc62db7f3d5d.rlib","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/quote-14d002738620883b.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/generic_array-4d394a01ed8e44f1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libquote-14d002738620883b.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libquote-14d002738620883b.rlib","emit":"link"}
+   Compiling syn v2.0.117
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/syn-6b00e6ac07add656.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libindexmap-b7581623c6da7d93.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libgeneric_array-4d394a01ed8e44f1.rmeta","emit":"metadata"}
+    Checking block-buffer v0.10.4
+    Checking crypto-common v0.1.7
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/crypto_common-4c03a4f0e4605359.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/block_buffer-c28642a0f8e9e44d.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libcrypto_common-4c03a4f0e4605359.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libblock_buffer-c28642a0f8e9e44d.rmeta","emit":"metadata"}
+    Checking digest v0.10.7
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/digest-5d6bd33a26ac4f44.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libdigest-5d6bd33a26ac4f44.rmeta","emit":"metadata"}
+    Checking sha2 v0.10.9
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/sha2-776d5081937c2ba1.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libsha2-776d5081937c2ba1.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libwinnow-c8727dd0c76b6fb5.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libserde_core-1f3795cec2dfb7e1.rmeta","emit":"metadata"}
+    Checking csv v1.4.0
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/csv-dcd911058660c008.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/serde_json-278f899380310aed.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libcsv-dcd911058660c008.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libsyn-6b00e6ac07add656.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libserde_json-278f899380310aed.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libsyn-6b00e6ac07add656.rlib","emit":"link"}
+   Compiling serde_derive v1.0.228
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/serde_derive-46aee0366ba89208.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libserde_derive-46aee0366ba89208.so","emit":"link"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/serde-502a8e4a6b4b45ec.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libserde-502a8e4a6b4b45ec.rmeta","emit":"metadata"}
+    Checking serde_spanned v0.6.9
+    Checking toml_datetime v0.6.11
+    Checking dsfb-chemical-engineering-atlas v0.1.0 (/home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-atlas)
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/serde_spanned-abe14df32882f1bd.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/toml_datetime-bd24b3e135956127.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/dsfb_chemical_engineering_atlas-56d67e828b181f31.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libserde_spanned-abe14df32882f1bd.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libtoml_datetime-bd24b3e135956127.rmeta","emit":"metadata"}
+    Checking toml_edit v0.22.27
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libdsfb_chemical_engineering_atlas-56d67e828b181f31.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/toml_edit-2d94b6d599e73cb9.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libtoml_edit-2d94b6d599e73cb9.rmeta","emit":"metadata"}
+    Checking toml v0.8.23
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/toml-b39931be4bcc1625.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libtoml-b39931be4bcc1625.rmeta","emit":"metadata"}
+    Checking dsfb-chemical-engineering-edge v0.1.0 (/home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-edge)
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/dsfb_chemical_engineering_edge-d87c03694ee4ecc9.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libdsfb_chemical_engineering_edge-d87c03694ee4ecc9.rmeta","emit":"metadata"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/dsfb_chem_edge-fb5f8bce855da92c.d","emit":"dep-info"}
+{"$message_type":"artifact","artifact":"/home/one/dsfb-chemical-engineering/target/debug/deps/libdsfb_chem_edge-fb5f8bce855da92c.rmeta","emit":"metadata"}
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.32s
+    Scanning done
+WARNING: Dependency file was never scanned: /home/one/dsfb-chemical-engineering/target/debug/build/serde_core-7a41f7233937a2a7/out/private.rs
+WARNING: Dependency file was never scanned: /home/one/dsfb-chemical-engineering/target/debug/build/serde-df67d4c65aa6f05e/out/private.rs
+WARNING: Dependency file was never scanned: /home/one/dsfb-chemical-engineering/crates/dsfb-chemical-engineering-edge/corpus/chemometric_atlas.toml
+
+Metric output format: x/y
+    x = unsafe code used by the build
+    y = total unsafe code found in the crate
+
+Symbols:
+    :) = No `unsafe` usage found, declares #![forbid(unsafe_code)]
+    ?  = No `unsafe` usage found, missing #![forbid(unsafe_code)]
+    !  = `unsafe` usage found
+
+Functions  Expressions  Impls  Traits  Methods  Dependency
+
+0/0        0/0          0/0    0/0     0/0      :) dsfb-chemical-engineering-edge 0.1.0
+0/0        0/0          0/0    0/0     0/0      :) ├── dsfb-chemical-engineering-atlas 0.1.0
+0/0        0/5          0/0    0/0     0/0      ?  │   ├── serde 1.0.228
+0/0        5/5          0/0    0/0     0/0      !  │   │   ├── serde_core 1.0.228
+0/0        0/0          0/0    0/0     0/0      ?  │   │   └── serde_derive 1.0.228
+0/0        14/14        0/0    0/0     3/3      !  │   │       ├── proc-macro2 1.0.106
+0/0        4/4          0/0    0/0     0/0      !  │   │       │   └── unicode-ident 1.0.24
+0/0        0/0          0/0    0/0     0/0      ?  │   │       ├── quote 1.0.45
+0/0        14/14        0/0    0/0     3/3      !  │   │       │   └── proc-macro2 1.0.106
+0/0        87/87        3/3    0/0     2/2      !  │   │       └── syn 2.0.117
+0/0        14/14        0/0    0/0     3/3      !  │   │           ├── proc-macro2 1.0.106
+0/0        0/0          0/0    0/0     0/0      ?  │   │           ├── quote 1.0.45
+0/0        4/4          0/0    0/0     0/0      !  │   │           └── unicode-ident 1.0.24
+8/18       178/707      0/0    0/0     0/0      !  │   └── sha2 0.10.9
+0/0        0/0          0/0    0/0     0/0      ?  │       ├── cfg-if 1.0.4
+0/1        0/12         0/0    0/0     0/0      ?  │       ├── cpufeatures 0.2.17
+0/0        0/0          0/0    0/0     0/0      :) │       └── digest 0.10.7
+0/0        16/16        0/0    0/0     0/0      !  │           ├── block-buffer 0.10.4
+1/1        285/285      20/20  8/8     5/5      !  │           │   └── generic-array 0.14.7
+0/0        0/5          0/0    0/0     0/0      ?  │           │       ├── serde 1.0.228
+0/0        0/0          0/0    0/0     0/0      :) │           │       └── typenum 1.20.0
+0/0        0/0          0/0    0/0     0/0      :) │           └── crypto-common 0.1.7
+1/1        285/285      20/20  8/8     5/5      !  │               ├── generic-array 0.14.7
+0/0        0/0          0/0    0/0     0/0      :) │               └── typenum 1.20.0
+0/0        6/6          0/0    0/0     0/0      !  ├── csv 1.4.0
+0/0        0/0          0/0    0/0     0/0      ?  │   ├── csv-core 0.1.13
+27/41      1973/2421    2/2    0/0     109/147  !  │   │   └── memchr 2.8.0
+1/1        145/145      0/0    0/0     0/0      !  │   ├── itoa 1.0.18
+7/9        560/690      0/0    0/0     2/2      !  │   ├── ryu 1.0.23
+0/0        5/5          0/0    0/0     0/0      !  │   └── serde_core 1.0.228
+0/0        0/5          0/0    0/0     0/0      ?  ├── serde 1.0.228
+0/0        75/78        0/0    0/0     0/0      !  ├── serde_json 1.0.150
+0/0        78/83        0/0    0/0     0/0      !  │   ├── indexmap 2.14.0
+0/0        0/0          0/0    0/0     0/0      ?  │   │   ├── equivalent 1.0.2
+1/1        1343/1612    18/23  1/1     86/99    !  │   │   ├── hashbrown 0.17.1
+0/0        0/0          0/0    0/0     0/0      ?  │   │   │   ├── equivalent 1.0.2
+0/0        5/5          0/0    0/0     0/0      !  │   │   │   └── serde_core 1.0.228
+0/0        5/5          0/0    0/0     0/0      !  │   │   └── serde_core 1.0.228
+1/1        145/145      0/0    0/0     0/0      !  │   ├── itoa 1.0.18
+27/41      1973/2421    2/2    0/0     109/147  !  │   ├── memchr 2.8.0
+0/0        5/5          0/0    0/0     0/0      !  │   ├── serde_core 1.0.228
+6/6        646/646      0/0    0/0     3/3      !  │   └── zmij 1.0.21
+8/18       178/707      0/0    0/0     0/0      !  ├── sha2 0.10.9
+0/0        0/0          0/0    0/0     0/0      :) └── toml 0.8.23
+0/0        78/83        0/0    0/0     0/0      !      ├── indexmap 2.14.0
+0/0        0/5          0/0    0/0     0/0      ?      ├── serde 1.0.228
+0/0        0/0          0/0    0/0     0/0      :)     ├── serde_spanned 0.6.9
+0/0        0/5          0/0    0/0     0/0      ?      │   └── serde 1.0.228
+0/0        0/0          0/0    0/0     0/0      :)     ├── toml_datetime 0.6.11
+0/0        0/5          0/0    0/0     0/0      ?      │   └── serde 1.0.228
+1/1        22/22        0/0    0/0     0/0      !      └── toml_edit 0.22.27
+0/0        78/83        0/0    0/0     0/0      !          ├── indexmap 2.14.0
+0/0        0/5          0/0    0/0     0/0      ?          ├── serde 1.0.228
+0/0        0/0          0/0    0/0     0/0      :)         ├── serde_spanned 0.6.9
+0/0        0/0          0/0    0/0     0/0      :)         ├── toml_datetime 0.6.11
+0/0        0/0          0/0    0/0     0/0      :)         ├── toml_write 0.1.2
+0/0        68/72        0/0    0/0     16/18    !          └── winnow 0.7.15
+27/41      1973/2421    2/2    0/0     109/147  !              └── memchr 2.8.0
+
+52/79      5505/6910    43/48  9/9     226/279
+
+error: Found 3 warnings
